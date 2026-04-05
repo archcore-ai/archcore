@@ -19,7 +19,7 @@ description: Creates implementation plans with phased tasks, acceptance criteria
 ## Quick create
 
 1. `mcp__archcore__list_documents(types=["plan", "prd", "adr"])` — check duplicates
-2. Ask: "What is the goal? What are the key phases?"
+2. Use the `AskUserQuestion` tool to ask: "What is the goal? What are the key phases?"
 3. Compose content covering Goal, Tasks (phased), Acceptance Criteria, Dependencies — using user's answers for depth. Pass as `content` to `mcp__archcore__create_document`.
 4. Suggest `mcp__archcore__add_relation` based on existing documents.
 

@@ -19,7 +19,7 @@ description: Formalizes business requirements into traceable specifications foll
 ## Quick create
 
 1. `mcp__archcore__list_documents(types=["brs", "brd", "mrd"])` — check duplicates
-2. Ask: "What business goals does this formalize? What source documents exist?"
+2. Use the `AskUserQuestion` tool to ask: "What business goals does this formalize? What source documents exist?"
 3. Compose content covering all BRS sections — using user's answers and source documents for depth. Pass as `content` to `mcp__archcore__create_document`.
 4. Suggest `mcp__archcore__add_relation` — typically `implements` BRD/MRD.
 

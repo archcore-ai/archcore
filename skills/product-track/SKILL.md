@@ -26,13 +26,13 @@ If related documents already exist (e.g., an idea without a PRD), pick up where 
 
 ## Step 3: Idea
 
-Ask: "What's the core concept? Who would benefit?"
+Use the `AskUserQuestion` tool to ask: "What's the core concept? Who would benefit?"
 
 Compose content covering Idea, Value, Possible Implementation, Risks and Constraints. Create via `mcp__archcore__create_document(type="idea")`.
 
 ## Step 4: PRD
 
-Ask: "What problem does this solve? What are the success metrics?"
+Use the `AskUserQuestion` tool to ask: "What problem does this solve? What are the success metrics?"
 
 Compose content covering Vision, Problem Statement, Goals and Success Metrics, Requirements. Create via `mcp__archcore__create_document(type="prd")`.
 
@@ -40,7 +40,7 @@ Add relation: `mcp__archcore__add_relation` — prd `implements` idea.
 
 ## Step 5: Plan
 
-Ask: "What are the key phases? What are the dependencies?"
+Use the `AskUserQuestion` tool to ask: "What are the key phases? What are the dependencies?"
 
 Compose content covering Goal, Tasks (phased), Acceptance Criteria, Dependencies. Create via `mcp__archcore__create_document(type="plan")`.
 

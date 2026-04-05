@@ -26,13 +26,13 @@ If related documents already exist, pick up where the chain left off. All three 
 
 ## Step 3: MRD (Market Requirements)
 
-Ask: "What market are you analyzing? What's the key opportunity?"
+Use the `AskUserQuestion` tool to ask: "What market are you analyzing? What's the key opportunity?"
 
 Compose content covering Market Landscape, TAM/SAM/SOM, Competitive Analysis, Market Needs, Opportunity and Timing. Create via `mcp__archcore__create_document(type="mrd")`.
 
 ## Step 4: BRD (Business Requirements)
 
-Ask: "What are the business objectives? What's the expected ROI?"
+Use the `AskUserQuestion` tool to ask: "What are the business objectives? What's the expected ROI?"
 
 Compose content covering Business Objectives, Stakeholders, Business Rules, Success Metrics and ROI, Dependencies. Create via `mcp__archcore__create_document(type="brd")`.
 
@@ -40,7 +40,7 @@ Add relation: `mcp__archcore__add_relation` — brd `related` mrd (peer source d
 
 ## Step 5: URD (User Requirements)
 
-Ask: "Who are the users? What are their key needs?"
+Use the `AskUserQuestion` tool to ask: "Who are the users? What are their key needs?"
 
 Compose content covering User Personas, User Journeys, User Requirements, Usability Requirements, Acceptance Criteria. Create via `mcp__archcore__create_document(type="urd")`.
 

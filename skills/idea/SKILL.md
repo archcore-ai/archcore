@@ -19,7 +19,7 @@ description: Captures product or technical concepts worth exploring before commi
 ## Quick create
 
 1. `mcp__archcore__list_documents(types=["idea"])` — check duplicates
-2. Ask: "What's the core concept? Who would benefit?"
+2. Use the `AskUserQuestion` tool to ask: "What's the core concept? Who would benefit?"
 3. Compose content covering Idea, Value, Possible Implementation, Risks and Constraints — using user's answers for depth. Pass as `content` to `mcp__archcore__create_document`.
 4. Suggest `mcp__archcore__add_relation` based on existing documents.
 

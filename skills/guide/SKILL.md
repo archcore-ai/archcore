@@ -19,7 +19,7 @@ description: Provides step-by-step instructions for completing a specific task w
 ## Quick create
 
 1. `mcp__archcore__list_documents(types=["guide", "rule"])` — check duplicates
-2. Ask: "What task does this guide help complete? What prerequisites?"
+2. Use the `AskUserQuestion` tool to ask: "What task does this guide help complete? What prerequisites?"
 3. Compose content covering Prerequisites, Steps (numbered), Verification, Common Issues — using user's answers for depth. Pass as `content` to `mcp__archcore__create_document`.
 4. Suggest `mcp__archcore__add_relation` based on existing documents.
 

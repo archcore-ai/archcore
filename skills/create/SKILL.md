@@ -23,7 +23,7 @@ Call `mcp__archcore__list_documents` first. If the tool is unavailable, stop and
 
 If `$ARGUMENTS` provided, infer type and topic from context.
 
-Otherwise ask. Key contrasts:
+Otherwise, use the `AskUserQuestion` tool to determine the document type. Present the most fitting options based on key contrasts:
 
 - Decision made → adr. Still discussing → rfc.
 - Product scope → prd. Concept exploration → idea.
@@ -33,7 +33,7 @@ Otherwise ask. Key contrasts:
 
 ## Step 3: Gather and compose
 
-Ask 2-3 focused questions for the chosen type. Compose rich content covering all required sections using the user's answers for depth.
+Use the `AskUserQuestion` tool to ask 2-3 focused questions for the chosen type. Compose rich content covering all required sections using the user's answers for depth.
 
 ## Step 4: Create
 

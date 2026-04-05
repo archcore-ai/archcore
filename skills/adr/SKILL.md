@@ -20,7 +20,7 @@ description: Records architectural decisions with context, alternatives, and con
 ## Quick create
 
 1. `mcp__archcore__list_documents(types=["adr"])` — check duplicates
-2. Ask: "What was the decision? What alternatives were considered?"
+2. Use the `AskUserQuestion` tool to ask: "What was the decision? What alternatives were considered?"
 3. Compose content covering Context, Decision, Alternatives Considered, Consequences — using user's answers for depth. Pass as `content` parameter to `mcp__archcore__create_document`.
 4. Suggest `mcp__archcore__add_relation` based on existing documents.
 

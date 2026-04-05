@@ -19,7 +19,7 @@ description: Proposes technical changes for team review before a decision is mad
 ## Quick create
 
 1. `mcp__archcore__list_documents(types=["rfc", "adr"])` — check duplicates
-2. Ask: "What change are you proposing? What problem does it solve?"
+2. Use the `AskUserQuestion` tool to ask: "What change are you proposing? What problem does it solve?"
 3. Compose content covering Summary, Motivation, Detailed Design, Drawbacks, Alternatives — using user's answers for depth. Pass as `content` to `mcp__archcore__create_document`.
 4. Suggest `mcp__archcore__add_relation` based on existing documents.
 

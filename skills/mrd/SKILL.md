@@ -19,7 +19,7 @@ description: Documents market analysis including landscape, competitive position
 ## Quick create
 
 1. `mcp__archcore__list_documents(types=["mrd", "brd", "urd"])` — check duplicates
-2. Ask: "What market are you analyzing? What's the key opportunity?"
+2. Use the `AskUserQuestion` tool to ask: "What market are you analyzing? What's the key opportunity?"
 3. Compose content covering Market Landscape, TAM/SAM/SOM, Competitive Analysis, Market Needs, Opportunity and Timing — using user's answers for depth. Pass as `content` to `mcp__archcore__create_document`.
 4. Suggest `mcp__archcore__add_relation` based on existing documents.
 

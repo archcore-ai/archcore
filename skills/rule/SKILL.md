@@ -19,7 +19,7 @@ description: Defines mandatory team standards and required behaviors with ration
 ## Quick create
 
 1. `mcp__archcore__list_documents(types=["rule", "adr"])` — check duplicates
-2. Ask: "What must the team always/never do? What motivated this standard?"
+2. Use the `AskUserQuestion` tool to ask: "What must the team always/never do? What motivated this standard?"
 3. Compose content covering Rule (imperative statements), Rationale, Examples (Good/Bad), Enforcement — using user's answers for depth. Pass as `content` to `mcp__archcore__create_document`.
 4. Suggest `mcp__archcore__add_relation` based on existing documents.
 

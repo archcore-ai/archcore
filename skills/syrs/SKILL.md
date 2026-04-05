@@ -19,7 +19,7 @@ description: Defines system-level requirements including boundaries, interfaces,
 ## Quick create
 
 1. `mcp__archcore__list_documents(types=["syrs", "strs"])` — check duplicates
-2. Ask: "What system is being specified? What StRS does this implement?"
+2. Use the `AskUserQuestion` tool to ask: "What system is being specified? What StRS does this implement?"
 3. Compose content covering all SyRS sections — using user's answers and upstream documents for depth. Pass as `content` to `mcp__archcore__create_document`.
 4. Suggest `mcp__archcore__add_relation` — typically `implements` StRS.
 
