@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -r \"const \\(\" /Users/dev/Documents/archcore/cli/internal/agents/*.go)",
+      "Bash(grep -l \"func.*Agent\\(\\)\" /Users/dev/Documents/archcore/cli/internal/agents/*.go)",
+      "Bash(wc -l /Users/dev/Documents/archcore/cli/internal/agents/*.go)",
+      "mcp__archcore__list_documents",
+      "Bash(archcore --help)",
+      "mcp__archcore__create_document",
+      "mcp__archcore__add_relation",
+      "mcp__archcore__list_relations",
+      "Bash(archcore validate:*)",
+      "Bash(ls /Users/dev/Documents/archcore/archcore-claude-plugin/skills/*/SKILL.md)",
+      "mcp__archcore__update_document",
+      "Bash(/Users/dev/Documents/archcore/archcore-claude-plugin/bin/check-archcore-write)",
+      "Bash(ls:*)",
+      "WebFetch(domain:resources.anthropic.com)",
+      "mcp__archcore__get_document",
+      "WebFetch(domain:docs.archcore.ai)",
+      "mcp__archcore__remove_document"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "archcore"
+  ]
+}

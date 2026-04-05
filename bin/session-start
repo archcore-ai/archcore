@@ -1,0 +1,24 @@
+#!/bin/sh
+# SessionStart hook: load archcore context or warn if CLI is missing.
+
+# Check if archcore CLI is available
+if ! command -v archcore >/dev/null 2>&1; then
+  echo "[Archcore] CLI not found. Install: curl -fsSL https://archcore.ai/install.sh | bash"
+  echo "Then initialize: archcore init"
+  echo ""
+  echo "Without the CLI, Archcore MCP tools are unavailable."
+  echo "Skills (/archcore:*) and agents (archcore-assistant, archcore-auditor) will not function."
+  exit 0
+fi
+
+# Check if .archcore/ exists (not initialized)
+if [ ! -d ".archcore" ]; then
+  echo "[Archcore] Not initialized in this project. Run: archcore init"
+  echo ""
+  echo "The CLI is installed but this project has no .archcore/ directory."
+  echo "Skills and agents require an initialized Archcore knowledge base."
+  exit 0
+fi
+
+# All good — run the normal session-start hook
+archcore hooks claude-code session-start

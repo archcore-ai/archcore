@@ -1,0 +1,801 @@
+{
+  "version": 1,
+  "files": {},
+  "relations": [
+    {
+      "source": "plugin/always-use-mcp-tools.adr.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/always-use-mcp-tools.adr.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/plugin-component-architecture.adr.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-component-architecture.adr.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-component-architecture.adr.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/single-universal-agent.adr.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/single-universal-agent.adr.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/single-universal-agent.adr.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/single-universal-agent.adr.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/single-universal-agent.adr.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/development-roadmap.plan.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/development-roadmap.plan.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/development-roadmap.plan.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/development-roadmap.plan.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/development-roadmap.plan.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/development-roadmap.plan.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/development-roadmap.plan.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/skills-system.spec.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skills-system.spec.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skills-system.spec.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skills-system.spec.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skills-system.spec.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skills-system.spec.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/skills-system.spec.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/commands-system.spec.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/commands-system.spec.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/commands-system.spec.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/commands-system.spec.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/commands-system.spec.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/commands-system.spec.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/commands-system.spec.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/commands-system.spec.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/agent-system.spec.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/agent-system.spec.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/agent-system.spec.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/agent-system.spec.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/agent-system.spec.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/agent-system.spec.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/agent-system.spec.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/agent-system.spec.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/agent-system.spec.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/mcp-only-operations.rule.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/mcp-only-operations.rule.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/mcp-only-operations.rule.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/mcp-only-operations.rule.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/mcp-only-operations.rule.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/mcp-only-operations.rule.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/mcp-only-operations.rule.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/mcp-only-operations.rule.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/mcp-only-operations.rule.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/mcp-only-operations.rule.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/skill-file-structure.rule.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-file-structure.rule.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-file-structure.rule.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-file-structure.rule.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-file-structure.rule.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-file-structure.rule.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-file-structure.rule.md",
+      "target": "plugin/mcp-only-operations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-file-structure.rule.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-file-structure.rule.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-file-structure.rule.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-file-structure.rule.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/mcp-only-operations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/skill-file-structure.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/mcp-only-operations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/plugin-development.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/skill-file-structure.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/adding-document-type-skill.guide.md",
+      "target": "plugin/skill-file-structure.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/adding-document-type-skill.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/mcp-only-operations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/plugin-development.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/skill-file-structure.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/adding-document-type-skill.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/mcp-only-operations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/plugin-development.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/skill-file-structure.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/creating-skill-batch.task-type.md",
+      "target": "plugin/skill-file-structure.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/adding-document-type-skill.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/creating-skill-batch.task-type.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/mcp-only-operations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/plugin-development.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/skill-file-structure.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/skill-mcp-interaction.rule.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/adding-document-type-skill.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/creating-skill-batch.task-type.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/development-roadmap.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/mcp-only-operations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/plugin-development.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/skill-file-structure.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/skill-mcp-interaction.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/add-read-only-auditor-agent.adr.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "implements"
+    }
+  ]
+}

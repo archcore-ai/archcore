@@ -1,0 +1,47 @@
+#!/bin/sh
+# PostToolUse hook: validate .archcore/ files after document operations.
+# Handles both Write/Edit (checks file_path) and MCP tools (validates unconditionally).
+# Exits 0 always. Outputs JSON with hookSpecificOutput when issues found.
+
+INPUT=$(cat)
+
+# Extract tool_name from stdin
+TOOL_NAME=$(printf '%s' "$INPUT" | grep -o '"tool_name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"tool_name"[[:space:]]*:[[:space:]]*"//;s/"$//')
+
+SHOULD_VALIDATE=false
+
+case "$TOOL_NAME" in
+  mcp__archcore__*)
+    # MCP archcore tool — always validate
+    SHOULD_VALIDATE=true
+    ;;
+  *)
+    # Write/Edit — only validate if path is under .archcore/
+    FILE_PATH=$(printf '%s' "$INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"file_path"[[:space:]]*:[[:space:]]*"//;s/"$//')
+    case "$FILE_PATH" in
+      *.archcore/*) SHOULD_VALIDATE=true ;;
+    esac
+    ;;
+esac
+
+if [ "$SHOULD_VALIDATE" = false ]; then
+  exit 0
+fi
+
+# Check if archcore CLI is available
+if ! command -v archcore >/dev/null 2>&1; then
+  exit 0
+fi
+
+# Run validation with a timeout
+RESULT=$(timeout 2 archcore validate 2>&1) || true
+
+# Check if there are issues
+if printf '%s' "$RESULT" | grep -q '✗\|FAIL\|Error'; then
+  ISSUES=$(printf '%s' "$RESULT" | grep '✗\|FAIL\|Error' | head -5)
+  # Escape for JSON: replace newlines with \n, escape quotes
+  ISSUES_ESCAPED=$(printf '%s' "$ISSUES" | sed 's/"/\\"/g' | tr '\n' ' ')
+  printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"Archcore validation found issues: %s. Run archcore validate --fix to auto-fix orphaned relations."}}' "$ISSUES_ESCAPED"
+fi
+
+exit 0
