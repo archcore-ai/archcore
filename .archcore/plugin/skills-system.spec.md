@@ -12,7 +12,7 @@ Define the contract for how skills are structured, discovered, and used within t
 
 ## Scope
 
-This specification covers all skill files in the `skills/` directory: 18 document-type skills, 3 track skills, and 3 workflow skills. It defines their naming convention, content structure, invocation triggers, and relationship to MCP tools. It does not cover the agent (subagent).
+This specification covers all skill files in the `skills/` directory: 18 document-type skills, 6 track skills, and 3 workflow skills. It defines their naming convention, content structure, invocation triggers, and relationship to MCP tools. It does not cover the agent (subagent).
 
 ## Authority
 
@@ -47,15 +47,18 @@ Each teaches Claude about one Archcore document type. Model-invoked (Claude acti
 | `skills/task-type/` | Recurring Task Pattern                 | experience |
 | `skills/cpat/`      | Code Pattern Change                    | experience |
 
-### Track Skills (3)
+### Track Skills (6)
 
-Each orchestrates a complete requirements flow, creating multiple documents in sequence with proper relations. User-only (`disable-model-invocation: true`).
+Each orchestrates a complete multi-document flow, creating documents in sequence with proper relations. User-only (`disable-model-invocation: true`).
 
-| Directory              | Track                    | Flow                       |
-| ---------------------- | ------------------------ | -------------------------- |
-| `skills/product-track/`| Product Track (simple)   | idea → prd → plan          |
-| `skills/sources-track/`| Sources Track (discovery)| mrd → brd → urd            |
-| `skills/iso-track/`    | ISO 29148 Track (formal) | brs → strs → syrs → srs   |
+| Directory                    | Track                         | Flow                          |
+| ---------------------------- | ----------------------------- | ----------------------------- |
+| `skills/product-track/`      | Product Track (simple)        | idea → prd → plan             |
+| `skills/sources-track/`      | Sources Track (discovery)     | mrd → brd → urd               |
+| `skills/iso-track/`          | ISO 29148 Track (formal)      | brs → strs → syrs → srs      |
+| `skills/architecture-track/` | Architecture Track (design)   | adr → spec → plan             |
+| `skills/standard-track/`     | Standard Track (codify)       | adr → rule → guide            |
+| `skills/feature-track/`      | Feature Track (lifecycle)     | prd → spec → plan → task-type |
 
 Track skills do NOT duplicate document-type skill content. They define the flow — sequence of steps, relation chain, and scope detection (pick up where existing documents left off).
 
@@ -148,7 +151,7 @@ Every track skill file MUST contain:
 ## Invariants
 
 - There is exactly one skill per Archcore document type (18 total).
-- There is exactly one skill per requirements track (3 total).
+- There is exactly one skill per track (6 total).
 - Every document-type skill follows the same 7-section structure.
 - Every track skill follows the sequential step structure.
 - Every skill references `create_document` in its workflow.
