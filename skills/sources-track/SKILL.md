@@ -1,7 +1,7 @@
 ---
 name: sources-track
 argument-hint: "[topic]"
-description: Guides through the Sources Track — creates MRD, BRD, and URD as discovery inputs for product decisions.
+description: "Advanced — Create MRD, BRD, URD discovery documents."
 disable-model-invocation: true
 ---
 

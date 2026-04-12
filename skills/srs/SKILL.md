@@ -1,7 +1,7 @@
 ---
 name: srs
 argument-hint: "[topic]"
-description: Defines detailed software requirements including functional behavior, interfaces, and quality attributes following ISO 29148. Final level of the BRS→StRS→SyRS→SRS cascade.
+description: "Expert — Formalizes software requirements per ISO 29148."
 ---
 
 # SRS — Software Requirements Specification (ISO 29148)

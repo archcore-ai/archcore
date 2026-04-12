@@ -1,55 +1,71 @@
 ---
 name: status
-description: Shows Archcore documentation dashboard with document counts, relation stats, and potential issues.
+description: Show Archcore documentation dashboard — document counts, relation stats, and potential issues.
 disable-model-invocation: true
 ---
 
-# Archcore Documentation Status
+# /archcore:status
 
-## Verify MCP
+Quick dashboard of your Archcore knowledge base. Compact numbers, no analysis.
 
-Call `mcp__archcore__list_documents` first. If the tool is unavailable, stop and tell the user:
+## When to use
+
+- "Show status"
+- "How many docs do we have?"
+- "Dashboard"
+
+**Not status:**
+- Detailed health review with recommendations → `/archcore:review`
+
+## Routing table
+
+No routing needed. Single behavior: gather data, present dashboard.
+
+## Execution
+
+### Step 0: Verify MCP
+
+Call `mcp__archcore__list_documents` first. If unavailable, stop and tell the user:
 - Install CLI: `curl -fsSL https://archcore.ai/install.sh | bash`
 - Initialize: `archcore init`
 - Restart the session
 
-## Dashboard
+### Step 1: Gather
 
-Call `mcp__archcore__list_documents` and `mcp__archcore__list_relations`, then present:
+Call `mcp__archcore__list_documents` and `mcp__archcore__list_relations`.
 
-### Documents by Category
+### Step 2: Present
 
-| Category   | Count |
-| ---------- | ----- |
-| Vision     | _n_   |
-| Knowledge  | _n_   |
-| Experience | _n_   |
-| **Total**  | _n_   |
+**Documents by Category**
 
-### Documents by Status
+| Category | Count |
+|---|---|
+| Vision | _n_ |
+| Knowledge | _n_ |
+| Experience | _n_ |
+| **Total** | _n_ |
 
-| Status   | Count |
-| -------- | ----- |
-| draft    | _n_   |
-| accepted | _n_   |
-| rejected | _n_   |
+**Documents by Status**
 
-### Documents by Type
+| Status | Count |
+|---|---|
+| draft | _n_ |
+| accepted | _n_ |
+| rejected | _n_ |
 
-List each type with count.
+**Documents by Type** — list each type with count, skip types with 0.
 
-### Relations
+**Relations**
 
-| Type       | Count |
-| ---------- | ----- |
-| related    | _n_   |
-| implements | _n_   |
-| extends    | _n_   |
-| depends_on | _n_   |
+| Type | Count |
+|---|---|
+| related | _n_ |
+| implements | _n_ |
+| extends | _n_ |
+| depends_on | _n_ |
 
-### Issues
+**Issues** — orphaned documents (no relations), high draft count. One line each, no explanations.
 
-- Orphaned documents (no relations)
-- Draft document count
+## Result
 
-Keep output compact. Data only, no explanations.
+Compact dashboard. Data only, no analysis. For deeper review use `/archcore:review`.

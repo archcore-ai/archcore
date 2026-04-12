@@ -1,7 +1,7 @@
 ---
 name: iso-track
 argument-hint: "[topic]"
-description: Guides through the ISO 29148 Track — creates BRS, StRS, SyRS, and SRS with full traceability cascade.
+description: "Advanced — Create ISO 29148 requirements cascade (BRS → StRS → SyRS → SRS)."
 disable-model-invocation: true
 ---
 

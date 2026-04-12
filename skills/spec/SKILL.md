@@ -1,7 +1,7 @@
 ---
 name: spec
 argument-hint: "[topic]"
-description: Defines normative contracts for systems, components, interfaces, or protocols with behavioral requirements and conformance criteria. Activates for API contracts, interface specifications, or schema definitions.
+description: "Expert — Defines a normative technical contract for a system or interface."
 ---
 
 # Spec — Technical Specification

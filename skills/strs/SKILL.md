@@ -1,7 +1,7 @@
 ---
 name: strs
 argument-hint: "[topic]"
-description: Defines per-stakeholder requirements and compliance needs following ISO 29148. Second level of the BRS→StRS→SyRS→SRS cascade. Activates for stakeholder analysis or formal stakeholder specifications.
+description: "Expert — Formalizes stakeholder requirements per ISO 29148."
 ---
 
 # StRS — Stakeholder Requirements Specification (ISO 29148)

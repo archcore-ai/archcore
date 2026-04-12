@@ -1,7 +1,7 @@
 ---
 name: feature-track
 argument-hint: "[topic]"
-description: Guides through the Feature Track — creates PRD, spec, plan, and task-type in sequence with proper relations.
+description: "Advanced — Create PRD, spec, plan, and task-type for feature lifecycle."
 disable-model-invocation: true
 ---
 

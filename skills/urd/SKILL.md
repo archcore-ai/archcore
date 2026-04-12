@@ -1,7 +1,7 @@
 ---
 name: urd
 argument-hint: "[topic]"
-description: Documents user personas, journeys, and usability requirements from the user's perspective. Activates for user research, persona definitions, or user acceptance criteria.
+description: "Expert — Documents user requirements, personas, and journeys."
 ---
 
 # URD — User Requirements Document

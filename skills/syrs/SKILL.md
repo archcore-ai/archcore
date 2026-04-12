@@ -1,7 +1,7 @@
 ---
 name: syrs
 argument-hint: "[topic]"
-description: Defines system-level requirements including boundaries, interfaces, and operational modes following ISO 29148. Third level of the BRS→StRS→SyRS→SRS cascade.
+description: "Expert — Formalizes system requirements per ISO 29148."
 ---
 
 # SyRS — System Requirements Specification (ISO 29148)

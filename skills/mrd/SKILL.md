@@ -1,7 +1,7 @@
 ---
 name: mrd
 argument-hint: "[topic]"
-description: Documents market analysis including landscape, competitive positioning, and TAM/SAM/SOM sizing. Activates for market research, competitive analysis, or opportunity assessment.
+description: "Expert — Documents market analysis, competitive positioning, TAM/SAM/SOM."
 ---
 
 # MRD — Market Requirements Document

@@ -1,7 +1,7 @@
 ---
 name: brs
 argument-hint: "[topic]"
-description: Formalizes business requirements into traceable specifications following ISO 29148. First level of the BRS→StRS→SyRS→SRS cascade. Activates for formal business requirements or ISO compliance.
+description: "Expert — Formalizes business requirements per ISO 29148."
 ---
 
 # BRS — Business Requirements Specification (ISO 29148)

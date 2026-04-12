@@ -1,7 +1,7 @@
 ---
 name: architecture-track
 argument-hint: "[topic]"
-description: Guides through the Architecture Track — creates ADR, spec, and plan in sequence with proper relations.
+description: "Advanced — Create ADR, spec, and plan for architectural design."
 disable-model-invocation: true
 ---
 

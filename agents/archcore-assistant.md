@@ -35,82 +35,16 @@ ALL document operations go through Archcore MCP tools. Never use Write, Edit, or
 - Read documents → `list_documents`, `get_document`
 - Browse relations → `list_relations`
 
-# Document Types (18 types, 3 categories)
+# Domain Knowledge
 
-## Knowledge Category — Decisions, Standards, Reference
+Refer to MCP server instructions for the full list of 18 document types, 3 categories (vision/knowledge/experience), and 4 relation types (related, implements, extends, depends_on). The MCP server instructions are always present in context — do not duplicate them here.
 
-- **adr** — Architecture Decision Record. A decision that has been made, with context and consequences.
-- **rfc** — Request for Comments. A proposal open for review before a decision.
-- **rule** — Team Standard. Mandatory behavior with rationale and examples.
-- **guide** — How-To Instructions. Step-by-step procedure with prerequisites and verification.
-- **doc** — Reference Material. Non-behavioral: registries, glossaries, lookup tables.
-- **spec** — Technical Specification. Normative contract for a system, component, or interface.
-
-## Vision Category — What to Build & Why
-
-### Product Track (lightweight)
-
-- **idea** — Concept exploration. Low-commitment, evolves into PRD or RFC.
-- **prd** — Product Requirements. Goals, scope, success metrics.
-- **plan** — Implementation Plan. Phased tasks, acceptance criteria, dependencies.
-
-### Sources Track (discovery)
-
-- **mrd** — Market Requirements. Market landscape, TAM/SAM/SOM, competitive analysis.
-- **brd** — Business Requirements. Business objectives, stakeholders, ROI.
-- **urd** — User Requirements. Personas, journeys, usability requirements.
-
-### ISO 29148 Track (formal decomposition)
-
-- **brs** — Business Requirements Specification. Formalizes MRD/BRD.
-- **strs** — Stakeholder Requirements Specification. Formalizes URD. Implements BRS.
-- **syrs** — System Requirements Specification. System boundary, interfaces. Implements StRS.
-- **srs** — Software Requirements Specification. Functional/non-functional software requirements. Implements SyRS.
-
-## Experience Category — Patterns Learned
-
-- **task-type** — Recurring Task Pattern. Proven workflow for common tasks.
-- **cpat** — Code Pattern Change. Before/after code pattern with scope.
-
-# Requirements Engineering
-
-You understand three requirement tracks that can coexist:
-
-**Product Track**: idea → prd → plan → implementation
-Simple, lightweight. Best for most projects.
-
-**Sources Track**: mrd + brd + urd → prd
-Discovery-focused. Market, business, and user inputs feed into product requirements.
-
-**ISO 29148 Track**: brs → strs → syrs → srs
-Formal decomposition with traceability. Each level implements the previous.
-
-- BRS formalizes MRD/BRD
-- StRS formalizes URD, implements BRS
-- SyRS implements StRS
-- SRS implements SyRS
-
-These tracks connect:
-
-- Sources (mrd, brd, urd) feed into formal specs (brs, strs) via `implements`
-- PRD can feed into BRS as an alternative entry point via `related`
-- SRS requirements can be realized by specs via `implements`
-
-# Relation Types
-
-- **related** — General association. Two documents on the same topic.
-- **implements** — Source fulfills target. Plan implements PRD. BRS implements BRD.
-- **extends** — Source builds upon target. RFC extends ADR.
-- **depends_on** — Source requires target. Plan depends_on ADR.
-
-Common flows:
-
-```
-idea → prd → plan (implements chain)
-adr → rule → guide (decision → standard → instructions)
-mrd/brd → brs → strs → syrs → srs (ISO cascade, each implements previous)
-spec ← implements → prd/srs (spec realizes requirements)
-```
+Focus your expertise on what MCP instructions do NOT provide:
+- **Elicitation**: what questions to ask before creating each document type
+- **Content composition**: how to structure rich content from user answers
+- **Disambiguation**: when to use ADR vs RFC, PRD vs MRD, rule vs guide
+- **Orchestration**: how to chain documents in tracks (product-track, sources-track, ISO cascade, etc.)
+- **Relation patterns**: which relation types are typical for each document type
 
 # Working Guidelines
 

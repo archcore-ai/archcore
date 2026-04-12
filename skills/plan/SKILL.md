@@ -1,34 +1,86 @@
 ---
 name: plan
-argument-hint: "[topic]"
-description: Creates implementation plans with phased tasks, acceptance criteria, and dependencies. Activates for roadmaps, task breakdowns, or phased rollout planning.
+argument-hint: "[feature or initiative]"
+description: Plan a feature or initiative end-to-end with requirements and traceability.
+disable-model-invocation: true
 ---
 
-# Plan — Implementation Plan
+# /archcore:plan
+
+Plan a feature or initiative. Creates the full requirements chain (idea → PRD → plan) or a single plan document, depending on scope.
 
 ## When to use
 
-- Breaking a PRD or feature into implementation tasks
-- Creating a phased rollout or migration plan
+- "Plan the auth redesign"
+- "I need to plan a new notification system"
+- "Create a feature plan for the API migration"
+- "Let's plan this out"
 
-**Not Plan:**
-- Product requirements → **prd**
-- Informal concept → **idea**
-- Recurring task pattern → **task-type**
+**Not plan:**
+- Recording a decision → `/archcore:decide`
+- Documenting existing code → `/archcore:capture`
+- Establishing a standard → `/archcore:standard`
 
-## Quick create
+## Routing table
 
-1. `mcp__archcore__list_documents(types=["plan", "prd", "adr"])` — check duplicates
-2. Use the `AskUserQuestion` tool to ask: "What is the goal? What are the key phases?"
-3. Compose content covering Goal, Tasks (phased), Acceptance Criteria, Dependencies — using user's answers for depth. Pass as `content` to `mcp__archcore__create_document`.
-4. Suggest `mcp__archcore__add_relation` based on existing documents.
+| Signal | Route | Documents |
+|---|---|---|
+| User describes a **feature or initiative** (default) | → product-track flow | idea → prd → plan |
+| User says "just a plan" or "only the plan document" | → single plan | plan only |
+| User says "need research first" or "market analysis" | → sources-track then product-track | mrd → brd → urd, then idea → prd → plan |
+| Ambiguous | → ask one question | "Full feature plan (idea + PRD + plan) or just a plan document?" |
 
-## Relations
+Default: product-track flow (idea → prd → plan). This is the smallest complete planning unit.
 
-| Direction | Type | Target | When |
-|-----------|------|--------|------|
-| Outgoing | `implements` | PRD | Executes requirements |
-| Outgoing | `depends_on` | ADR | Relies on a decision |
-| Peer | `related` | guides | Help execute tasks |
+## Execution
 
-**Flows:** PRD → **Plan** → implementation
+### Step 0: Verify MCP
+
+Call `mcp__archcore__list_documents` first. If unavailable, stop and tell the user:
+- Install CLI: `curl -fsSL https://archcore.ai/install.sh | bash`
+- Initialize: `archcore init`
+- Restart the session
+
+### Step 1: Check existing
+
+`mcp__archcore__list_documents(types=["idea", "prd", "plan"])` — check what exists on this topic. If partial chain exists, pick up where it left off.
+
+### Step 2: Scope
+
+If `$ARGUMENTS` is clear, proceed with default (product-track). If ambiguous, ask: "Full feature plan (idea + PRD + plan) or just a plan document?"
+
+### Step 3: Create documents
+
+**If product-track flow (default):**
+
+Skip any documents that already exist on this topic.
+
+**Idea** (if missing):
+- Ask: "What's the core concept? Who would benefit?"
+- Compose content covering Idea, Value, Possible Implementation, Risks and Constraints.
+- `mcp__archcore__create_document(type="idea")`
+
+**PRD** (if missing):
+- Ask: "What problem does this solve? What are the success metrics?"
+- Compose content covering Vision, Problem Statement, Goals and Success Metrics, Requirements.
+- `mcp__archcore__create_document(type="prd")`
+- `mcp__archcore__add_relation` — prd `implements` idea
+
+**Plan** (if missing):
+- Ask: "What are the key phases? What are the dependencies?"
+- Compose content covering Goal, Tasks (phased), Acceptance Criteria, Dependencies.
+- `mcp__archcore__create_document(type="plan")`
+- `mcp__archcore__add_relation` — plan `implements` prd
+
+**If single plan only:**
+- Ask: "What is the goal? What are the key phases and dependencies?"
+- Compose content covering Goal, Tasks (phased), Acceptance Criteria, Dependencies.
+- `mcp__archcore__create_document(type="plan")`
+
+### Step 4: Relate
+
+Suggest `mcp__archcore__add_relation` calls to link with existing ADRs, specs, or other relevant documents.
+
+## Result
+
+Product-track: three linked documents — idea → prd → plan (each `implements` previous). Single plan: one plan document. Report: paths, relations, recommended next actions (e.g., "consider creating a spec for the technical contract").

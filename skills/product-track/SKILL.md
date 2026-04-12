@@ -1,7 +1,7 @@
 ---
 name: product-track
 argument-hint: "[topic]"
-description: Guides through the full Product Track — creates idea, PRD, and plan in sequence with proper relations.
+description: "Advanced — Create idea, PRD, and plan with full traceability."
 disable-model-invocation: true
 ---
 

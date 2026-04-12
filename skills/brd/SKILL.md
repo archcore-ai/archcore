@@ -1,7 +1,7 @@
 ---
 name: brd
 argument-hint: "[topic]"
-description: Documents business objectives, stakeholders, ROI, and success metrics for project justification. Activates for business cases, budget justification, or stakeholder analysis.
+description: "Expert — Documents business requirements, objectives, and ROI."
 ---
 
 # BRD — Business Requirements Document

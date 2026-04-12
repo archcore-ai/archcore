@@ -1,7 +1,7 @@
 ---
 name: standard-track
 argument-hint: "[topic]"
-description: Guides through the Standard Track — creates ADR, rule, and guide in sequence with proper relations.
+description: "Advanced — Create ADR, rule, and guide to codify a standard."
 disable-model-invocation: true
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: task-type
 argument-hint: "[topic]"
-description: Documents proven patterns for recurring tasks with steps, examples, and pitfalls. Activates for standard procedures, repeatable workflows, or documenting tribal knowledge.
+description: "Expert — Documents a recurring task pattern with steps and pitfalls."
 ---
 
 # Task-Type — Recurring Task Pattern

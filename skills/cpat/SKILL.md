@@ -1,7 +1,7 @@
 ---
 name: cpat
 argument-hint: "[topic]"
-description: Documents code pattern changes with before/after examples and migration scope. Activates for pattern migrations, refactoring decisions, or recording shifts from old to new code patterns.
+description: "Expert — Documents a code pattern change with before/after examples."
 ---
 
 # CPAT — Code Pattern Change

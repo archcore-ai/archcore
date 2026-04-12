@@ -1,5 +1,5 @@
 ---
-title: "Skills System Specification"
+title: "Skills System Specification — Intent, Track, Type, and Workflow Skills"
 status: draft
 tags:
   - "plugin"
@@ -8,160 +8,216 @@ tags:
 
 ## Purpose
 
-Define the contract for how skills are structured, discovered, and used within the Archcore Claude Plugin. Skills are the primary mechanism for teaching Claude about Archcore's document types and orchestrating documentation workflows.
+Define the contract for how skills are structured, discovered, and used within the Archcore Claude Plugin. Skills are organized into a 4-group hierarchy: intent skills (Layer 1), track skills (Layer 2), type skills (Layer 3), and utility skills. Each group has distinct structure, invocation behavior, and audience.
 
 ## Scope
 
-This specification covers all skill files in the `skills/` directory: 18 document-type skills, 6 track skills, and 3 workflow skills. It defines their naming convention, content structure, invocation triggers, and relationship to MCP tools. It does not cover the agent (subagent).
+This specification covers all skill files in the `skills/` directory: 7 intent skills, 6 track skills, and 18 document-type skills. It defines their naming convention, content structure, invocation triggers, relationship to MCP tools, and tier classification. It does not cover agents (subagents).
 
 ## Authority
 
-This specification is the authoritative reference for all skill files in the plugin. The Skill File Structure Standard (rule) derives from this specification.
+This specification is the authoritative reference for all skill files in the plugin. The Skill File Structure Standard (rule) derives from this specification. The Plugin Architecture spec defines how skills interact with other components.
 
 ## Subject
 
-The skills system consists of directories under `skills/`, each containing a `SKILL.md` file. Skills fall into three groups:
+The skills system consists of directories under `skills/`, each containing a `SKILL.md` file. Skills fall into four groups organized into a hierarchy.
 
-### Document-Type Skills (18)
+### Intent Skills (7) — Layer 1: Primary User Entry
 
-Each teaches Claude about one Archcore document type. Model-invoked (Claude activates automatically) and user-invokable via `/archcore:<type> <topic>`.
+Intent skills are the main user-facing entry points. They translate user intent into the correct document types and tracks. They use explicit routing tables to classify input and create documents via MCP tools.
 
-| Directory           | Document Type                          | Category   |
-| ------------------- | -------------------------------------- | ---------- |
-| `skills/adr/`       | Architecture Decision Record           | knowledge  |
-| `skills/rfc/`       | Request for Comments                   | knowledge  |
-| `skills/rule/`      | Team Standard                          | knowledge  |
-| `skills/guide/`     | How-To Instructions                    | knowledge  |
-| `skills/doc/`       | Reference Material                     | knowledge  |
-| `skills/spec/`      | Technical Specification                | knowledge  |
-| `skills/prd/`       | Product Requirements                   | vision     |
-| `skills/idea/`      | Product/Technical Concept              | vision     |
-| `skills/plan/`      | Implementation Plan                    | vision     |
-| `skills/mrd/`       | Market Requirements                    | vision     |
-| `skills/brd/`       | Business Requirements                  | vision     |
-| `skills/urd/`       | User Requirements                      | vision     |
-| `skills/brs/`       | Business Requirements Specification    | vision     |
-| `skills/strs/`      | Stakeholder Requirements Specification | vision     |
-| `skills/syrs/`      | System Requirements Specification      | vision     |
-| `skills/srs/`       | Software Requirements Specification    | vision     |
-| `skills/task-type/` | Recurring Task Pattern                 | experience |
-| `skills/cpat/`      | Code Pattern Change                    | experience |
+| Directory | Skill | User intent | Routes to |
+|---|---|---|---|
+| `skills/capture/` | capture | Document a module/component | adr, spec, doc, guide by context |
+| `skills/plan/` | plan | Plan a feature/initiative | product-track flow or single plan |
+| `skills/decide/` | decide | Record a decision | adr, offer rule+guide follow-up |
+| `skills/standard/` | standard | Establish a team standard | standard-track flow (adr→rule→guide) |
+| `skills/review/` | review | Check documentation health | analysis + recommendations |
+| `skills/status/` | status | Show dashboard | counts, relations, issues |
+| `skills/help/` | help | Navigate the system | layer guide, onboarding |
 
-### Track Skills (6)
+Intent skills are always user-only (`disable-model-invocation: true`). They never auto-activate from ambient context because false-positive activation of orchestration flows is disruptive.
 
-Each orchestrates a complete multi-document flow, creating documents in sequence with proper relations. User-only (`disable-model-invocation: true`).
+### Track Skills (6) — Layer 2: Advanced Domain Flows
 
-| Directory                    | Track                         | Flow                          |
-| ---------------------------- | ----------------------------- | ----------------------------- |
-| `skills/product-track/`      | Product Track (simple)        | idea → prd → plan             |
-| `skills/sources-track/`      | Sources Track (discovery)     | mrd → brd → urd               |
-| `skills/iso-track/`          | ISO 29148 Track (formal)      | brs → strs → syrs → srs      |
-| `skills/architecture-track/` | Architecture Track (design)   | adr → spec → plan             |
-| `skills/standard-track/`     | Standard Track (codify)       | adr → rule → guide            |
-| `skills/feature-track/`      | Feature Track (lifecycle)     | prd → spec → plan → task-type |
+Each orchestrates a complete multi-document flow, creating documents in sequence with proper relations. For advanced users who know which flow they need.
 
-Track skills do NOT duplicate document-type skill content. They define the flow — sequence of steps, relation chain, and scope detection (pick up where existing documents left off).
+| Directory | Track | Flow |
+|---|---|---|
+| `skills/product-track/` | Product Track | idea → prd → plan |
+| `skills/sources-track/` | Sources Track | mrd → brd → urd |
+| `skills/iso-track/` | ISO 29148 Track | brs → strs → syrs → srs |
+| `skills/architecture-track/` | Architecture Track | adr → spec → plan |
+| `skills/standard-track/` | Standard Track | adr → rule → guide |
+| `skills/feature-track/` | Feature Track | prd → spec → plan → task-type |
 
-### Workflow Skills (3)
+Track skills are user-only (`disable-model-invocation: true`). Their descriptions are prefixed with "Advanced —" for tier signaling in the flat skill picker.
 
-Each provides a utility workflow. User-only (`disable-model-invocation: true`).
+Track skills do NOT duplicate type skill content. They define the flow — sequence of steps, relation chain, and scope detection.
 
-| Directory         | Purpose                          |
-| ----------------- | -------------------------------- |
-| `skills/create/`  | Interactive creation wizard      |
-| `skills/review/`  | Documentation health review      |
-| `skills/status/`  | Documentation dashboard          |
+### Type Skills (18) — Layer 3: Expert Typed Artifacts
+
+Each teaches Claude about one Archcore document type. They serve two roles: domain knowledge for model invocation (Claude auto-activates) and quick-create for expert users who know exactly which type they need.
+
+| Directory | Document Type | Category |
+|---|---|---|
+| `skills/adr/` | Architecture Decision Record | knowledge |
+| `skills/rfc/` | Request for Comments | knowledge |
+| `skills/rule/` | Team Standard | knowledge |
+| `skills/guide/` | How-To Instructions | knowledge |
+| `skills/doc/` | Reference Material | knowledge |
+| `skills/spec/` | Technical Specification | knowledge |
+| `skills/prd/` | Product Requirements | vision |
+| `skills/idea/` | Product/Technical Concept | vision |
+| `skills/plan/` | Implementation Plan | vision |
+| `skills/mrd/` | Market Requirements | vision |
+| `skills/brd/` | Business Requirements | vision |
+| `skills/urd/` | User Requirements | vision |
+| `skills/brs/` | Business Requirements Specification | vision |
+| `skills/strs/` | Stakeholder Requirements Specification | vision |
+| `skills/syrs/` | System Requirements Specification | vision |
+| `skills/srs/` | Software Requirements Specification | vision |
+| `skills/task-type/` | Recurring Task Pattern | experience |
+| `skills/cpat/` | Code Pattern Change | experience |
+
+Type skills are model-invoked (Claude activates automatically) AND user-invokable via `/archcore:<type> <topic>`. Their descriptions are prefixed with "Expert —" for tier signaling, except high-frequency types (adr, prd, rule, guide, plan) which keep clean descriptions for better model invocation matching.
+
+### Absorbed Skills
+
+The previous workflow category (create, review, status) is absorbed into Layer 1 intent skills:
+- `create` wizard → absorbed by `/archcore:capture` (intent routing replaces type selection)
+- `review` → becomes Layer 1 `/archcore:review`
+- `status` → becomes Layer 1 `/archcore:status`
+
+The previous `plan` type skill is absorbed by the `/archcore:plan` intent skill, which routes to either a single plan document or the full product-track flow.
 
 ## Contract Surface
 
 ### File Location
 
-Each skill resides at `skills/<name>/SKILL.md` where `<name>` is the Archcore document type identifier (for type skills), track name (for track skills), or workflow name (for workflow skills).
+Each skill resides at `skills/<name>/SKILL.md` where `<name>` is:
+- The intent name (for intent skills): `capture`, `plan`, `decide`, `standard`, `review`, `status`, `help`
+- The track name (for track skills): `product-track`, `sources-track`, etc.
+- The Archcore type identifier (for type skills): `adr`, `prd`, `spec`, etc.
 
 ### SKILL.md Frontmatter
 
-**Document-type skills:**
+**Intent skills (Layer 1):**
 ```yaml
 ---
-name: <type-name>
-argument-hint: "[topic]"
-description: <When Claude should activate this skill — specific triggers and context>
----
-```
-
-**Track and workflow skills:**
-```yaml
----
-name: <skill-name>
-argument-hint: "[topic]"
-description: <What this workflow does>
+name: <intent-name>
+argument-hint: "[topic or description]"
+description: <What this intent does — user-facing, no prefix>
 disable-model-invocation: true
 ---
 ```
 
-Track and workflow skills use `disable-model-invocation: true` because they are explicit workflows the user initiates via `/archcore:<name>`, not guidance that Claude should auto-activate.
+**Track skills (Layer 2):**
+```yaml
+---
+name: <track-name>
+argument-hint: "[topic]"
+description: "Advanced — <what this track orchestrates>"
+disable-model-invocation: true
+---
+```
 
-### Document-Type Skill Content Structure
+**Type skills (Layer 3):**
+```yaml
+---
+name: <type-name>
+argument-hint: "[topic]"
+description: "Expert — <when Claude should activate this skill>"
+---
+```
 
-Every document-type skill file MUST contain these sections in order:
+Note: High-frequency type skills (adr, prd, rule, guide, plan) omit the "Expert —" prefix to preserve model invocation quality.
 
-1. **Overview** — What this document type is, its purpose in the Archcore knowledge base, and which virtual category it belongs to (vision/knowledge/experience).
+### Intent Skill Content Structure (Layer 1)
 
-2. **When to Use** — Specific scenarios, conversation cues, and context signals that indicate this type should be used. Include contrast with similar types (e.g., ADR vs RFC, PRD vs MRD).
+Every intent skill file MUST contain these sections in order:
 
-3. **Required Sections** — List the sections the document template includes, with a brief description of what goes in each. Reference the template system — do NOT embed template content verbatim.
+1. **Title and one-liner** — What this intent does, in user terms.
 
-4. **Best Practices** — Domain-specific guidance for writing high-quality documents of this type. Include what makes a good vs. poor example.
+2. **When to Use** — Natural language signals that lead to this intent. Contrast with adjacent intents (e.g., "Not /archcore:decide — that's for single decisions. /archcore:capture is for documenting a component comprehensively.").
 
-5. **Common Mistakes** — Pitfalls to avoid (e.g., mixing decision recording with proposal, creating a PRD when an idea would suffice).
+3. **Routing Table** — Explicit decision tree mapping user input to document types or tracks. Each branch terminates in a named type list or named track. Maximum one clarifying question when input is ambiguous between two paths.
 
-6. **Relation Guidance** — Which relation types and target document types are commonly used with this type. Include typical flows (e.g., "An ADR often has incoming `implements` from a plan and outgoing `related` to rules").
+4. **Execution** — Step-by-step flow:
+   - Step 0: Verify MCP availability
+   - Step 1: `list_documents` to detect existing docs, prevent duplicates, detect pickup point
+   - Step 2: Scope confirmation (one `AskUserQuestion` if `$ARGUMENTS` is ambiguous)
+   - Steps 3–N: Sequential document creation (one `AskUserQuestion` per document for content, then `create_document` + `add_relation`)
+   - Final step: Suggest relations to existing documents outside the flow
 
-7. **Example Workflow** — A concrete example showing the MCP tool calls to create a document of this type, including the `create_document` call with appropriate parameters and a follow-up `add_relation` call.
+5. **Result** — Summary of what was created, the relation chain, and recommended next actions.
 
-### Track Skill Content Structure
+### Track Skill Content Structure (Layer 2)
 
 Every track skill file MUST contain:
 
-1. **Title and summary** — Track name, flow diagram, when to use this track.
-2. **Step 1: Check existing** — `list_documents` call to detect existing documents and prevent duplicates.
-3. **Step 2: Determine scope** — Logic for picking up where existing documents left off.
-4. **Steps 3-N: One step per document** — For each document in the flow: focused questions, content sections to compose, `create_document` call, `add_relation` calls.
-5. **Final step: Relate to existing** — Suggest links to other documents outside the track.
-6. **Result** — Summary of what was created and the relation chain.
+1. **Title and summary** — Track name, flow diagram, when to use.
+2. **Step 0: Verify MCP** — Check MCP availability.
+3. **Step 1: Check existing** — `list_documents` to detect existing documents and prevent duplicates.
+4. **Step 2: Determine scope** — Logic for picking up where existing documents left off.
+5. **Steps 3–N: One step per document** — Focused questions, content sections to compose, `create_document` call, `add_relation` calls.
+6. **Final step: Relate to existing** — Suggest links to documents outside the track.
+7. **Result** — Summary of what was created and the relation chain.
+
+### Type Skill Content Structure (Layer 3)
+
+Every type skill file MUST contain these sections in order:
+
+1. **When to Use** — Specific scenarios and context signals. Contrast with similar types.
+2. **Quick Create** — Elicitation questions + MCP `create_document` call + `add_relation` suggestion.
+3. **Relations** — Typical relation types and targets for this document type.
+
+Type skills are deliberately concise. They provide disambiguation, elicitation, and relation guidance — not full template content (which lives in the MCP server).
 
 ## Normative Behavior
 
-- Document-type skills are model-invoked: Claude activates them automatically based on conversation context matching the `description` field.
-- Track and workflow skills are user-only: invoked via `/archcore:<name>` slash command.
-- All skills MUST instruct the agent to use `create_document` MCP tool for document creation. They MUST NOT instruct direct file writes via Write/Edit.
-- Skills MUST reference MCP tools by exact name: `create_document`, `update_document`, `list_documents`, `get_document`, `add_relation`, `remove_relation`, `list_relations`, `remove_document`.
-- Skills provide guidance around the template, not the template itself. The `create_document` MCP tool generates the template when `content` is omitted.
-- When multiple document-type skills could apply, Claude should prefer the most specific type. Skills should include enough contrast in "When to Use" to help Claude disambiguate.
-- Track skills create documents sequentially, asking focused questions before each creation step. They do not batch-create all documents at once.
+- Intent skills MUST use `disable-model-invocation: true`.
+- Intent skills MUST contain explicit routing tables with bounded decision branches terminating in named types or tracks.
+- Intent skills MUST default to minimum viable path. Expansion requires a binary scope question.
+- Intent skills MUST be self-contained with inline creation recipes (question + sections + create + relate per document type).
+- Track skills MUST use `disable-model-invocation: true`.
+- Track skills MUST create documents sequentially, asking focused questions before each creation step.
+- Type skills are model-invoked: Claude activates them automatically based on `description` matching.
+- All skills MUST use `create_document` MCP tool for document creation. MUST NOT instruct direct file writes.
+- Skills MUST reference MCP tools by exact name.
+- Skills provide guidance around the template, not the template itself.
+- When multiple type skills could apply, Claude should prefer the most specific type.
+- Track skill descriptions MUST be prefixed with "Advanced —".
+- Type skill descriptions MUST be prefixed with "Expert —" (except adr, prd, rule, guide, plan).
 
 ## Constraints
 
-- Skill files must not exceed 500 lines to keep context injection manageable.
+- Intent skill files must not exceed 300 lines.
+- Track skill files must not exceed 200 lines.
+- Type skill files must not exceed 100 lines.
 - Skill files must not include code blocks longer than 20 lines.
 - Skills must not reference internal CLI implementation details — only the MCP tool interface.
-- Skills must not embed full document templates (these change with CLI versions and would drift).
-- Track skills must not duplicate content from document-type skills — they define the flow, not the type guidance.
+- Skills must not embed full document templates.
+- Track skills must not duplicate content from type skills.
+- Intent skills must not duplicate content from track skills (they inline creation recipes, not track flow definitions).
 
 ## Invariants
 
-- There is exactly one skill per Archcore document type (18 total).
-- There is exactly one skill per track (6 total).
-- Every document-type skill follows the same 7-section structure.
+- There are exactly 7 intent skills (Layer 1).
+- There are exactly 6 track skills (Layer 2).
+- There is exactly one type skill per Archcore document type (18 total, Layer 3).
+- Every intent skill has a routing table section.
 - Every track skill follows the sequential step structure.
+- Every type skill has When to Use, Quick Create, and Relations sections.
 - Every skill references `create_document` in its workflow.
 - No skill instructs direct Write/Edit to `.archcore/` files.
 
 ## Error Handling
 
-- If a skill references an MCP tool that is not available (e.g., MCP server not running), Claude should inform the user that the Archcore MCP server needs to be active and suggest checking the plugin installation.
-- If `create_document` fails (e.g., duplicate filename), the skill guidance should help Claude recover by suggesting an alternative filename.
-- If a track skill detects existing documents mid-flow, it should skip already-created documents and resume from the next step.
+- If MCP tools are unavailable, skills inform the user with install/init instructions.
+- If `create_document` fails (duplicate filename), skills suggest alternative filename.
+- If intent routing is ambiguous after one scope question, default to the most general path.
+- If a track skill detects existing documents mid-flow, skip already-created documents and resume.
 
 ## Conformance
 
@@ -169,8 +225,10 @@ A skill file conforms to this specification if:
 
 1. It resides at the correct path (`skills/<name>/SKILL.md`)
 2. It has valid frontmatter with `name` and `description` fields
-3. Document-type skills contain all 7 required sections in order
+3. Intent skills contain all 5 required sections (title, when-to-use, routing-table, execution, result)
 4. Track skills contain the sequential step structure
-5. It references `create_document` MCP tool (not Write/Edit) in its workflow
-6. It stays within the 500-line limit
-7. It does not embed full template content
+5. Type skills contain When to Use, Quick Create, and Relations sections
+6. It references `create_document` MCP tool (not Write/Edit) in its workflow
+7. It stays within its line limit (300/200/100)
+8. It does not embed full template content
+9. Description fields carry appropriate tier prefixes

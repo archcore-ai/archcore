@@ -1,7 +1,7 @@
 ---
 name: doc
 argument-hint: "[topic]"
-description: Creates non-behavioral reference material like registries, glossaries, and lookup tables. Activates for cataloging, listing, or informational content that doesn't prescribe behavior.
+description: "Expert — Creates reference material: registries, glossaries, lookup tables."
 ---
 
 # Doc — Reference Material
