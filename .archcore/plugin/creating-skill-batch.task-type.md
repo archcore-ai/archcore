@@ -23,42 +23,52 @@ A pattern for efficiently creating multiple SKILL.md files when building out cov
 
 Choose a category to batch: knowledge (6 types), vision (10 types), or experience (2 types). Start with the category you understand best.
 
-### 2. Create one exemplar skill
+### 2. Identify the skill layer and constraints
+
+All document-type skills are Layer 3 (Type skills). Per the Skill File Structure Standard:
+
+- **Section structure**: 3 sections — When to Use, Quick Create, Relations
+- **Line limit**: ≤ 100 lines
+- **Description prefix**: Non-high-frequency types MUST use "Expert —" prefix
+- **No `disable-model-invocation`**: That flag is for Intent (Layer 1) and Track (Layer 2) skills only
+
+### 3. Create one exemplar skill
 
 Pick the most representative type in the category (e.g., ADR for knowledge, PRD for vision, task-type for experience). Write its SKILL.md thoroughly — this becomes the quality bar and structural template for the batch.
 
 Get the exemplar reviewed and validated:
 
-- Follows all 7 sections in order
-- Example Workflow uses MCP tools
-- Description field has precise trigger conditions
+- Follows the 3-section structure (When to Use, Quick Create, Relations)
+- Quick Create uses MCP tools
+- Description field has precise trigger conditions with "Expert —" prefix if applicable
 - Contrast with similar types is clear
-- Under 500 lines
+- Under 100 lines
 
-### 3. Extract the pattern
+### 4. Extract the pattern
 
 Identify which parts of the exemplar are:
 
-- **Fixed**: section headings, frontmatter structure, MCP tool references — these stay the same
-- **Variable**: type name, description triggers, section descriptions, best practices, relation flows, example parameters — these change per type
+- **Fixed**: section headings (When to Use, Quick Create, Relations), frontmatter structure, MCP tool references — these stay the same
+- **Variable**: type name, description triggers, use-case contrast, relation flows, example parameters — these change per type
 
-### 4. Create remaining skills in the batch
+### 5. Create remaining skills in the batch
 
 For each remaining type in the category:
 
-1. Copy the exemplar's structure (not content)
+1. Copy the exemplar's 3-section structure (not content)
 2. Study that type's template via `create_document` (no content) + `remove_document`
 3. Fill in the variable sections with type-specific content
 4. Pay special attention to "When to Use" — the contrast with other types must be accurate
-5. Verify the Example Workflow uses realistic parameters for this type
+5. Verify the Quick Create uses realistic parameters for this type
+6. Confirm the skill stays under 100 lines
 
-### 5. Cross-validate the batch
+### 6. Cross-validate the batch
 
 After all skills in the batch are created:
 
 - Read all "When to Use" sections together — ensure no ambiguity between types
-- Check all "Relation Guidance" sections — ensure flows are consistent across the batch
-- Verify all Example Workflows use correct MCP tool names
+- Check all "Relations" sections — ensure flows are consistent across the batch
+- Verify all Quick Create examples use correct MCP tool names
 - Run `/reload-plugins` and test each skill's activation trigger
 
 ## Example
@@ -66,8 +76,8 @@ After all skills in the batch are created:
 Creating knowledge category skills (6 types):
 
 1. **Exemplar**: `skills/adr/SKILL.md` — ADR is well-understood, has clear contrasts (vs RFC, vs rule)
-2. **Extract pattern**: sections are fixed, but triggers differ (ADR: "decision made"; RFC: "proposal to discuss"; rule: "team standard")
-3. **Batch create**: rfc, rule, guide, doc, spec — each with unique triggers, sections, and relation guidance
+2. **Extract pattern**: 3 sections are fixed, but triggers differ (ADR: "decision made"; RFC: "proposal to discuss"; rule: "team standard")
+3. **Batch create**: rfc, rule, guide, doc, spec — each with unique triggers, Quick Create examples, and relation guidance
 4. **Cross-validate**: ensure "When to Use" for ADR clearly separates from RFC, rule from guide, doc from spec
 
 ## Things to Watch Out For
@@ -77,3 +87,4 @@ Creating knowledge category skills (6 types):
 - **Relation guidance inconsistency**: If the ADR skill says "rules implement ADRs" but the rule skill doesn't mention ADRs in its incoming relations, agents get confused.
 - **Template embedding**: Don't copy template sections verbatim into skills. The templates change with CLI versions. Reference them instead.
 - **Batch fatigue**: Quality drops on the last few skills in a batch. Review the final skills in the batch with the same rigor as the first.
+- **Line limit violations**: Type skills must be ≤ 100 lines. If a skill is getting long, move detailed guidance to the Adding a New Document Type Skill guide instead.

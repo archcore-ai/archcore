@@ -10,7 +10,7 @@ tags:
 ## Prerequisites
 
 - Familiarity with the target Archcore document type (purpose, sections, use cases)
-- Understanding of the Skill File Structure Standard (rule)
+- Understanding of the Skill File Structure Standard (rule) — especially Type skill (Layer 3) requirements
 - Plugin development environment set up (see Plugin Development Guide)
 - Access to the Archcore CLI to test templates: `archcore mcp` starts the MCP server
 
@@ -46,7 +46,8 @@ Use the exact Archcore type identifier: `adr`, `rfc`, `rule`, `guide`, `doc`, `s
 
 ```yaml
 ---
-name: archcore-<type-name>
+name: <type-name>
+argument-hint: "[topic]"
 description: >
   <Describe specific triggers and context signals. Be precise —
   this determines when Claude activates the skill automatically.
@@ -55,38 +56,34 @@ description: >
 ---
 ```
 
-The `description` is critical — it's the activation trigger. Be specific about when this type should be used AND when it should NOT be used (to help Claude disambiguate similar types).
+Frontmatter rules for Type skills (Layer 3):
 
-### 5. Write the 7 required sections
+- `name` MUST be the Archcore document type identifier (e.g., `adr`, `prd`, `rule`)
+- Non-high-frequency type skills MUST prefix their `description` with "Expert —"
+- Type skills do NOT include `disable-model-invocation: true` (that is for Intent and Track skills only)
 
-Follow this order exactly:
+### 5. Write the 3 required sections
 
-1. **Overview**: What the type is, its purpose, its virtual category (vision/knowledge/experience). Keep to 3-5 sentences.
+Type skills (Layer 3) follow a compact 3-section structure. Follow this order exactly:
 
-2. **When to Use**: Specific scenarios and conversation cues. Include contrast with similar types (e.g., ADR vs RFC, PRD vs MRD, guide vs doc). Use bullet lists for clarity.
+1. **When to Use**: Specific scenarios and conversation cues. Include contrast with similar types (e.g., ADR vs RFC, PRD vs MRD, guide vs doc). Use bullet lists for clarity.
 
-3. **Required Sections**: List each section from the template with a 1-2 sentence description of what belongs there. Do NOT copy the template verbatim — summarize and add guidance.
+2. **Quick Create**: A concrete example showing the `create_document` MCP call with appropriate parameters, followed by an `add_relation` call connecting to an existing document. Brief explanation of why these parameters and relations were chosen.
 
-4. **Best Practices**: Domain-specific tips for writing a high-quality document of this type. What separates a good document from a mediocre one? Include 4-6 actionable points.
+3. **Relations**: Which relation types and target document types are commonly used. Include both incoming and outgoing relations. Show typical flows this type participates in.
 
-5. **Common Mistakes**: Pitfalls to avoid. Include type confusion (using the wrong type), structural issues (missing sections, wrong level of detail), and content issues (too vague, too verbose). Include 3-5 specific mistakes.
-
-6. **Relation Guidance**: Which relation types and target document types are commonly used. Include both incoming and outgoing relations. Show typical flows this type participates in.
-
-7. **Example Workflow**: A concrete, realistic example showing:
-   - The `create_document` MCP call with appropriate parameters
-   - A follow-up `add_relation` call connecting to an existing document
-   - Brief explanation of why these parameters and relations were chosen
+Do NOT include Overview, Required Sections, Best Practices, Common Mistakes, or Example Workflow as separate sections — those belong to the old flat structure and would exceed the line limit.
 
 ### 6. Validate against the standard
 
 Check your SKILL.md against the Skill File Structure Standard:
 
-- [ ] Frontmatter has `name` (prefixed `archcore-`) and `description`
-- [ ] All 7 sections present in correct order
-- [ ] Example Workflow uses `create_document`, not Write/Edit
+- [ ] Frontmatter has `name` (Archcore type identifier) and `description`
+- [ ] Non-high-frequency types have "Expert —" prefix in description
+- [ ] All 3 sections present in correct order: When to Use, Quick Create, Relations
+- [ ] Quick Create uses `create_document`, not Write/Edit
 - [ ] No embedded template content (reference template system instead)
-- [ ] Under 500 lines
+- [ ] Under 100 lines total
 
 ### 7. Test the skill
 
@@ -117,10 +114,15 @@ Then `/reload-plugins` to load the new skill. Test by:
 
 ### Claude uses Write instead of create_document
 
-- Check the Example Workflow section — it must show MCP tool calls.
+- Check the Quick Create section — it must show MCP tool calls.
 - Ensure the skill doesn't contain language like "create a file" or "write to .archcore/".
 
 ### Skill content drifts from CLI templates
 
 - Don't embed template content. Reference the template system: "The template includes sections for Context, Decision, Alternatives Considered, and Consequences."
 - When the CLI updates templates, skills remain accurate because they describe sections rather than reproducing them.
+
+### Skill exceeds the 100-line limit
+
+- Type skills must be compact. Move detailed guidance to the relevant guide or spec documents instead of embedding it in the skill.
+- Focus Quick Create on a single realistic example, not multiple scenarios.
