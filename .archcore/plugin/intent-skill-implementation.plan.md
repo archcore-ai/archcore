@@ -9,7 +9,7 @@ tags:
 
 ## Goal
 
-Migrate the Archcore Claude Plugin from a flat 27-skill surface to the 4-layer intent-based command hierarchy defined in `intent-based-skill-architecture.adr.md`. After this plan is complete, users see 7 primary intent commands, with track and type skills properly tiered.
+Migrate the Archcore Claude Plugin from a flat 27-skill surface to the 4-layer intent-based command hierarchy defined in `intent-based-skill-architecture.adr.md`. After this plan is complete, users see 8 primary intent commands, with track and type skills properly tiered.
 
 ## Tasks
 
@@ -24,6 +24,12 @@ Created 7 intent skills following the 5-section structure: title+one-liner, When
 - [x] `skills/review/SKILL.md` — REWRITE. Intent structure with routing table for scope.
 - [x] `skills/status/SKILL.md` — REWRITE. Intent structure, compact dashboard.
 - [x] `skills/help/SKILL.md` — NEW. 3-tier command guide.
+
+### Phase 1b: Actualize Intent Skill — DONE
+
+Added 8th intent skill after the Actualize System ADR and Specification were completed:
+
+- [x] `skills/actualize/SKILL.md` — NEW. Detects stale docs via code drift, cascade, and temporal analysis.
 
 ### Phase 2: Remove Absorbed Skills — DONE
 
@@ -51,17 +57,17 @@ Created 7 intent skills following the 5-section structure: title+one-liner, When
 
 ### Phase 6: Validate — DONE
 
-- [x] All 7 intent skills exist with `disable-model-invocation: true`
+- [x] All 8 intent skills exist with `disable-model-invocation: true`
 - [x] All 6 track descriptions start with "Advanced —"
 - [x] All 12 non-high-freq type descriptions start with "Expert —"
 - [x] 5 high-frequency types (adr, prd, rule, guide, idea) keep original descriptions
 - [x] `skills/create/` removed
 - [x] Agent trimmed — no duplicate taxonomy
-- [x] Total: 30 skill directories (7 intent + 6 track + 17 type)
+- [x] Total: 31 skill directories (8 intent + 6 track + 17 type)
 
 ## Acceptance Criteria
 
-All met. The `plan` type skill was absorbed into the `/archcore:plan` intent skill, bringing type skill count to 17 (from original 18). Total 30 = 7 + 6 + 17.
+All met. The `plan` type skill was absorbed into the `/archcore:plan` intent skill, bringing type skill count to 17 (from original 18). The `actualize` intent skill was added in Phase 1b, bringing intent count to 8. Total 31 = 8 + 6 + 17.
 
 ## Dependencies
 
@@ -69,3 +75,4 @@ All met. The `plan` type skill was absorbed into the `/archcore:plan` intent ski
 - `skills-system.spec.md` — defines the 5-section intent skill structure ✓
 - `commands-system.spec.md` — defines tier prefixes and discoverability rules ✓
 - `plugin-architecture.spec.md` — defines the 4-layer model ✓
+- `actualize-system.adr.md` — decision for the 8th intent skill ✓

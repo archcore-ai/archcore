@@ -43,6 +43,16 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "matcher": "mcp__archcore__update_document",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-cascade",
+            "timeout": 3
+          }
+        ]
       }
     ]
   }

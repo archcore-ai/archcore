@@ -28,16 +28,17 @@ User-invoked skills are organized into three tiers with decreasing prominence:
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  TIER 1 — PRIMARY (7 skills)                         │
+│  TIER 1 — PRIMARY (8 skills)                         │
 │  What most users see and use daily                   │
 │                                                      │
-│  /archcore:capture   "document this"                 │
-│  /archcore:plan      "plan this feature"             │
-│  /archcore:decide    "record this decision"          │
-│  /archcore:standard  "make this a standard"          │
-│  /archcore:review    "check docs health"             │
-│  /archcore:status    "show dashboard"                │
-│  /archcore:help      "what can I do?"                │
+│  /archcore:capture    "document this"                │
+│  /archcore:plan       "plan this feature"            │
+│  /archcore:decide     "record this decision"         │
+│  /archcore:standard   "make this a standard"         │
+│  /archcore:review     "check docs health"            │
+│  /archcore:status     "show dashboard"               │
+│  /archcore:actualize  "are any docs stale?"          │
+│  /archcore:help       "what can I do?"               │
 ├──────────────────────────────────────────────────────┤
 │  TIER 2 — ADVANCED (6 skills)                        │
 │  For users who know which multi-doc flow they need   │
@@ -69,6 +70,7 @@ Primary commands are intent-based. The user describes what they want to do, and 
 | `/archcore:standard` | Establish a team standard from a decision | `[topic]` | Routes to standard-track (adr→rule→guide) |
 | `/archcore:review` | Review documentation for gaps, staleness, and issues | `[category or tag]` | Produces actionable findings |
 | `/archcore:status` | Show documentation dashboard | — | Compact counts and coverage |
+| `/archcore:actualize` | Detect stale documentation and suggest updates | `[scope: tag, category, or 'all']` | Code drift + cascade + temporal analysis |
 | `/archcore:help` | Guide to Archcore commands and capabilities | — | Layer navigation, onboarding |
 
 ### Tier 2 — Advanced Commands
@@ -116,7 +118,7 @@ Note: High-frequency types (adr, prd, rule, guide, plan) omit the "Expert —" p
 ### Naming Conventions
 
 - All commands use the `archcore:` plugin prefix
-- Tier 1 commands use **action verbs or clear nouns**: capture, plan, decide, standard, review, status, help
+- Tier 1 commands use **action verbs or clear nouns**: capture, plan, decide, standard, review, status, actualize, help
 - Tier 2 commands use **`<domain>-track`** pattern: product-track, iso-track, etc.
 - Tier 3 commands use **Archcore type identifiers**: adr, prd, spec, etc.
 - No sub-namespaces (no `archcore:track:iso` or `archcore:type:strs`) — Claude Code uses a single colon as plugin separator
@@ -130,6 +132,8 @@ All commands accept an optional `[topic]` argument:
 
 Intent skills (Tier 1) treat the argument as a **description of intent**, not a document slug. Track and type skills (Tiers 2-3) treat it as a **topic identifier**.
 
+The `/archcore:actualize` command treats the argument as a **scope filter** — a tag, category, or type name to narrow the analysis.
+
 ### Discoverability
 
 Claude Code shows all registered skills in a flat list. The tiered hierarchy is communicated through:
@@ -142,12 +146,14 @@ The `/archcore:help` output structure:
 
 ```
 ## Quick Start (most users start here)
-/archcore:capture  — document a module or component
-/archcore:plan     — plan a feature end-to-end
-/archcore:decide   — record a technical decision
-/archcore:standard — establish a team standard
-/archcore:review   — check documentation health
-/archcore:status   — show dashboard
+/archcore:capture    — document a module or component
+/archcore:plan       — plan a feature end-to-end
+/archcore:decide     — record a technical decision
+/archcore:standard   — establish a team standard
+/archcore:review     — check documentation health
+/archcore:status     — show dashboard
+/archcore:actualize  — detect stale docs, suggest updates
+/archcore:help       — this guide
 
 ## Advanced (multi-document flows)
 /archcore:product-track, /archcore:architecture-track, ...
@@ -170,11 +176,12 @@ The `skills/plan/` directory contains the intent skill, not the type skill. User
 ## Normative Behavior
 
 - Tier 1 commands MUST NOT require knowledge of Archcore internals to use.
-- Tier 1 commands MUST route to the correct types/tracks without user type selection.
+- Tier 1 commands MUST route to the correct types/tracks/analysis without user type selection.
 - Tier 2 commands MUST assume the user knows which flow they want.
 - Tier 3 commands MUST work as quick-create shortcuts (check duplicates → ask 1-2 questions → create → suggest relations).
 - All creation commands MUST call `list_documents` before `create_document` to prevent duplicates.
 - All creation commands MUST suggest `add_relation` calls after document creation.
+- Analysis commands (review, status, actualize) MUST use MCP read tools for data gathering.
 - The help command MUST present Tier 1 commands first, with Tiers 2-3 as secondary sections.
 
 ## Constraints
@@ -190,6 +197,7 @@ The `skills/plan/` directory contains the intent skill, not the type skill. User
 - Every track skill description starts with "Advanced —".
 - Every non-high-frequency type skill description starts with "Expert —".
 - Every creation command checks for duplicates first and suggests relations after.
+- Every analysis command gathers data via MCP read tools before producing output.
 - The help command accurately reflects the current tier structure.
 
 ## Error Handling
@@ -197,6 +205,7 @@ The `skills/plan/` directory contains the intent skill, not the type skill. User
 - If MCP server is unavailable, inform user with install/init instructions.
 - If `create_document` fails due to duplicate filename, suggest an alternative slug.
 - If intent routing is ambiguous, ask one scope question. If still ambiguous, default to `/archcore:capture` behavior.
+- If git is unavailable for `/archcore:actualize`, skip code-drift analysis and perform cascade + temporal only.
 
 ## Conformance
 
@@ -205,6 +214,6 @@ A user-invoked skill conforms to this specification if:
 1. It resides at `skills/<name>/SKILL.md`
 2. Its description carries the appropriate tier prefix (or none for Tier 1 / high-frequency Tier 3)
 3. It uses MCP tools exclusively for document operations
-4. It checks for duplicates before creation
-5. It suggests relations after creation
+4. Creation commands check for duplicates before creation and suggest relations after
+5. Analysis commands gather data via MCP read tools
 6. Its argument handling matches the tier pattern (intent description for Tier 1, topic for Tiers 2-3)

@@ -100,6 +100,7 @@ Claude should invoke `archcore-auditor` when:
 - User asks "what's missing?" or "what needs attention?" about documentation
 - Proactively after a batch of documents has been created (quality check)
 - User wants to verify documentation coverage before a release or milestone
+- User wants to check if documentation matches the current code
 
 #### Background Execution
 
@@ -145,7 +146,7 @@ Three tracks that can coexist:
 ### Tool Access Matrix
 
 | Tool | assistant | auditor |
-|------|-----------|---------|
+|------|-----------|---------
 | list_documents | Yes | Yes |
 | get_document | Yes | Yes |
 | create_document | Yes | No |
@@ -167,6 +168,7 @@ Three tracks that can coexist:
 - Audit Summary (counts, issue totals)
 - Critical Issues (broken references, misleading content)
 - Warnings (quality gaps)
+- Code-Document Correlation (documents referencing source paths where code has changed since the document was last modified)
 - Info (suggestions)
 - Recommendations (prioritized actions)
 
@@ -189,6 +191,8 @@ Three tracks that can coexist:
 - MUST NOT attempt to create, update, or delete any document.
 - MUST produce a structured audit report (not free-form commentary).
 - Should cross-reference documentation with actual code via Read/Grep/Glob.
+- Should use `Grep` to find path references in document content, then check via `git log` if those paths changed since the document was last modified.
+- Should prioritize specs, ADRs, and guides that describe specific code modules for code-document correlation checks.
 
 ## Constraints
 

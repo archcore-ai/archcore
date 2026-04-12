@@ -1,0 +1,69 @@
+#!/bin/sh
+# PostToolUse cascade check: detect documents that may be stale after update_document.
+# Reads relation graph from .sync-state.json and finds documents that
+# implements/depends_on/extends the updated document.
+# Output: JSON with hookSpecificOutput or empty. Always exits 0.
+
+INPUT=$(cat)
+
+# Extract the updated document path from tool_input.path
+DOC_PATH=$(printf '%s' "$INPUT" | grep -o '"path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"path"[[:space:]]*:[[:space:]]*"//;s/"$//')
+[ -z "$DOC_PATH" ] && exit 0
+
+# Normalize: strip .archcore/ prefix if present
+DOC_REL=$(printf '%s' "$DOC_PATH" | sed 's|^\.archcore/||')
+
+# Read sync-state.json for relations
+SYNC_STATE=".archcore/.sync-state.json"
+[ -f "$SYNC_STATE" ] || exit 0
+
+# Find relations where target matches the updated document
+# and type is implements, depends_on, or extends
+# These are documents that depend on the updated doc and may be stale
+AFFECTED=""
+AFFECTED_COUNT=0
+
+# Parse relations from sync-state.json
+# Each relation: {"source":"...","target":"...","type":"..."}
+# We want: target == DOC_REL AND type in (implements, depends_on, extends)
+RELATIONS=$(grep -o '"source":"[^"]*","target":"[^"]*","type":"[^"]*"' "$SYNC_STATE" 2>/dev/null || true)
+
+if [ -z "$RELATIONS" ]; then
+  # Try alternate JSON formatting (with spaces)
+  RELATIONS=$(grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"[[:space:]]*,[[:space:]]*"target"[[:space:]]*:[[:space:]]*"[^"]*"[[:space:]]*,[[:space:]]*"type"[[:space:]]*:[[:space:]]*"[^"]*"' "$SYNC_STATE" 2>/dev/null || true)
+fi
+
+[ -z "$RELATIONS" ] && exit 0
+
+printf '%s\n' "$RELATIONS" | while IFS= read -r REL; do
+  # Extract target
+  TARGET=$(printf '%s' "$REL" | grep -o '"target"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"target"[[:space:]]*:[[:space:]]*"//;s/"$//')
+  [ "$TARGET" = "$DOC_REL" ] || continue
+
+  # Extract type
+  TYPE=$(printf '%s' "$REL" | grep -o '"type"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"type"[[:space:]]*:[[:space:]]*"//;s/"$//')
+
+  # Only cascade-relevant relation types
+  case "$TYPE" in
+    implements|depends_on|extends) ;;
+    *) continue ;;
+  esac
+
+  # Extract source (the potentially stale document)
+  SOURCE=$(printf '%s' "$REL" | grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/"$//')
+
+  printf '  → %s (%s this document)\n' "$SOURCE" "$TYPE"
+done > /tmp/archcore_cascade_$$ 2>/dev/null
+
+AFFECTED=$(cat /tmp/archcore_cascade_$$ 2>/dev/null)
+rm -f /tmp/archcore_cascade_$$ 2>/dev/null
+
+[ -z "$AFFECTED" ] && exit 0
+
+# Build output
+AFFECTED_ESCAPED=$(printf '%s' "$AFFECTED" | sed 's/"/\\"/g' | tr '\n' ' ')
+DOC_SHORT=$(printf '%s' "$DOC_REL" | sed 's|.*/||; s|\..*\.md$||; s|-| |g')
+
+printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"[Archcore Cascade] Updated \\"%s\\".\\nDocuments that may need review:\\n%sRun /archcore:actualize for detailed analysis."}}' "$DOC_SHORT" "$AFFECTED_ESCAPED"
+
+exit 0

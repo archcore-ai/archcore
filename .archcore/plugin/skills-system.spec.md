@@ -12,7 +12,7 @@ Define the contract for how skills are structured, discovered, and used within t
 
 ## Scope
 
-This specification covers all skill files in the `skills/` directory: 7 intent skills, 6 track skills, and 18 document-type skills. It defines their naming convention, content structure, invocation triggers, relationship to MCP tools, and tier classification. It does not cover agents (subagents).
+This specification covers all skill files in the `skills/` directory: 8 intent skills, 6 track skills, and 18 document-type skills. It defines their naming convention, content structure, invocation triggers, relationship to MCP tools, and tier classification. It does not cover agents (subagents).
 
 ## Authority
 
@@ -22,9 +22,9 @@ This specification is the authoritative reference for all skill files in the plu
 
 The skills system consists of directories under `skills/`, each containing a `SKILL.md` file. Skills fall into four groups organized into a hierarchy.
 
-### Intent Skills (7) — Layer 1: Primary User Entry
+### Intent Skills (8) — Layer 1: Primary User Entry
 
-Intent skills are the main user-facing entry points. They translate user intent into the correct document types and tracks. They use explicit routing tables to classify input and create documents via MCP tools.
+Intent skills are the main user-facing entry points. They translate user intent into the correct document types, tracks, or analysis modes. They use explicit routing tables to classify input and operate via MCP tools.
 
 | Directory | Skill | User intent | Routes to |
 |---|---|---|---|
@@ -34,9 +34,10 @@ Intent skills are the main user-facing entry points. They translate user intent 
 | `skills/standard/` | standard | Establish a team standard | standard-track flow (adr→rule→guide) |
 | `skills/review/` | review | Check documentation health | analysis + recommendations |
 | `skills/status/` | status | Show dashboard | counts, relations, issues |
+| `skills/actualize/` | actualize | Detect stale docs, suggest updates | code drift, cascade, temporal analysis |
 | `skills/help/` | help | Navigate the system | layer guide, onboarding |
 
-Intent skills are always user-only (`disable-model-invocation: true`). They never auto-activate from ambient context because false-positive activation of orchestration flows is disruptive.
+Intent skills are always user-only (`disable-model-invocation: true`). They never auto-activate from ambient context because false-positive activation of orchestration or analysis flows is disruptive.
 
 ### Track Skills (6) — Layer 2: Advanced Domain Flows
 
@@ -96,7 +97,7 @@ The previous `plan` type skill is absorbed by the `/archcore:plan` intent skill,
 ### File Location
 
 Each skill resides at `skills/<name>/SKILL.md` where `<name>` is:
-- The intent name (for intent skills): `capture`, `plan`, `decide`, `standard`, `review`, `status`, `help`
+- The intent name (for intent skills): `capture`, `plan`, `decide`, `standard`, `review`, `status`, `actualize`, `help`
 - The track name (for track skills): `product-track`, `sources-track`, etc.
 - The Archcore type identifier (for type skills): `adr`, `prd`, `spec`, etc.
 
@@ -141,16 +142,18 @@ Every intent skill file MUST contain these sections in order:
 
 2. **When to Use** — Natural language signals that lead to this intent. Contrast with adjacent intents (e.g., "Not /archcore:decide — that's for single decisions. /archcore:capture is for documenting a component comprehensively.").
 
-3. **Routing Table** — Explicit decision tree mapping user input to document types or tracks. Each branch terminates in a named type list or named track. Maximum one clarifying question when input is ambiguous between two paths.
+3. **Routing Table** — Explicit decision tree mapping user input to document types, tracks, or analysis modes. Each branch terminates in a named type list, named track, or analysis scope. Maximum one clarifying question when input is ambiguous between two paths.
 
 4. **Execution** — Step-by-step flow:
    - Step 0: Verify MCP availability
-   - Step 1: `list_documents` to detect existing docs, prevent duplicates, detect pickup point
+   - Step 1: Gather data (list_documents, list_relations, git log as needed)
    - Step 2: Scope confirmation (one `AskUserQuestion` if `$ARGUMENTS` is ambiguous)
-   - Steps 3–N: Sequential document creation (one `AskUserQuestion` per document for content, then `create_document` + `add_relation`)
-   - Final step: Suggest relations to existing documents outside the flow
+   - Steps 3–N: Core execution (document creation, analysis, or reporting)
+   - Final step: Summary and suggested next actions
 
-5. **Result** — Summary of what was created, the relation chain, and recommended next actions.
+5. **Result** — Summary of what was created or found, and recommended next actions.
+
+Note: Creation-oriented intents (capture, plan, decide, standard) include inline creation recipes. Analysis-oriented intents (review, status, actualize) include analysis logic. The help intent includes the layer navigation guide.
 
 ### Track Skill Content Structure (Layer 2)
 
@@ -177,13 +180,14 @@ Type skills are deliberately concise. They provide disambiguation, elicitation, 
 ## Normative Behavior
 
 - Intent skills MUST use `disable-model-invocation: true`.
-- Intent skills MUST contain explicit routing tables with bounded decision branches terminating in named types or tracks.
+- Intent skills MUST contain explicit routing tables with bounded decision branches.
 - Intent skills MUST default to minimum viable path. Expansion requires a binary scope question.
-- Intent skills MUST be self-contained with inline creation recipes (question + sections + create + relate per document type).
+- Creation-oriented intent skills MUST be self-contained with inline creation recipes (question + sections + create + relate per document type).
+- Analysis-oriented intent skills (review, status, actualize) MUST use MCP read tools (list_documents, get_document, list_relations) and may use git/Grep/Glob for cross-referencing.
 - Track skills MUST use `disable-model-invocation: true`.
 - Track skills MUST create documents sequentially, asking focused questions before each creation step.
 - Type skills are model-invoked: Claude activates them automatically based on `description` matching.
-- All skills MUST use `create_document` MCP tool for document creation. MUST NOT instruct direct file writes.
+- All skills MUST use MCP tools for document operations. MUST NOT instruct direct file writes.
 - Skills MUST reference MCP tools by exact name.
 - Skills provide guidance around the template, not the template itself.
 - When multiple type skills could apply, Claude should prefer the most specific type.
@@ -199,17 +203,18 @@ Type skills are deliberately concise. They provide disambiguation, elicitation, 
 - Skills must not reference internal CLI implementation details — only the MCP tool interface.
 - Skills must not embed full document templates.
 - Track skills must not duplicate content from type skills.
-- Intent skills must not duplicate content from track skills (they inline creation recipes, not track flow definitions).
+- Intent skills must not duplicate content from track skills (creation intents inline creation recipes, not track flow definitions).
 
 ## Invariants
 
-- There are exactly 7 intent skills (Layer 1).
+- There are exactly 8 intent skills (Layer 1).
 - There are exactly 6 track skills (Layer 2).
 - There is exactly one type skill per Archcore document type (18 total, Layer 3).
 - Every intent skill has a routing table section.
 - Every track skill follows the sequential step structure.
 - Every type skill has When to Use, Quick Create, and Relations sections.
-- Every skill references `create_document` in its workflow.
+- Every creation skill references `create_document` in its workflow.
+- Every analysis skill references `list_documents` and `list_relations` in its workflow.
 - No skill instructs direct Write/Edit to `.archcore/` files.
 
 ## Error Handling
@@ -218,6 +223,7 @@ Type skills are deliberately concise. They provide disambiguation, elicitation, 
 - If `create_document` fails (duplicate filename), skills suggest alternative filename.
 - If intent routing is ambiguous after one scope question, default to the most general path.
 - If a track skill detects existing documents mid-flow, skip already-created documents and resume.
+- If git is unavailable for actualize, skip code-drift analysis and perform cascade + temporal only.
 
 ## Conformance
 
@@ -228,7 +234,7 @@ A skill file conforms to this specification if:
 3. Intent skills contain all 5 required sections (title, when-to-use, routing-table, execution, result)
 4. Track skills contain the sequential step structure
 5. Type skills contain When to Use, Quick Create, and Relations sections
-6. It references `create_document` MCP tool (not Write/Edit) in its workflow
+6. It references appropriate MCP tools in its workflow
 7. It stays within its line limit (300/200/100)
 8. It does not embed full template content
 9. Description fields carry appropriate tier prefixes

@@ -36,6 +36,7 @@ Most users start here. Describe what you need — the system picks the right doc
 | `/archcore:standard [topic]` | Establish a team standard (decision → rule → guide) |
 | `/archcore:review` | Check documentation health and find gaps |
 | `/archcore:status` | Quick dashboard of document counts and stats |
+| `/archcore:actualize` | Detect stale docs and suggest updates |
 
 **Tip:** You can also just describe what you need in natural language. Claude will pick the right document type automatically.
 

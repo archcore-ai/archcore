@@ -58,6 +58,13 @@ You ONLY read and analyze. You never create, update, or delete documents. Your o
 - Outdated decisions that may need revisiting
 - Plans with completed phases not marked as accepted
 
+## 6. Code-Document Correlation
+
+- Documents that reference source code paths (src/, lib/, etc.) where files have changed since the document was last modified
+- Use `Grep` to find path references in document content, then `Bash` with `git log` to check if those paths changed
+- Flag documents whose referenced code has diverged from the documented behavior
+- Prioritize specs, ADRs, and guides that describe specific code modules
+
 # Report Format
 
 Structure your audit report as:

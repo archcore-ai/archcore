@@ -8,65 +8,71 @@ tags:
 
 ## Goal
 
-Deliver the complete Archcore Claude Plugin feature set across four development phases, transforming the current thin MCP+hook wrapper into a rich, guided Archcore experience in Claude Code.
+Deliver the complete Archcore Claude Plugin feature set, transforming the current thin MCP+hook wrapper into a rich, guided Archcore experience in Claude Code.
 
 ## Tasks
 
-### Phase 1: Documentation (current)
+### Phase 1: Documentation — DONE
 
-Create comprehensive project documentation using Archcore's own document types (dogfooding):
+Created comprehensive project documentation using Archcore's own document types (dogfooding):
 
 - [x] PRD defining the plugin vision, problem, goals, and requirements
 - [x] ADRs for core architectural decisions (MCP-only, component architecture, universal agent)
 - [x] Development roadmap (this document)
-- [ ] Component specifications (skills, commands, agent, hooks)
-- [ ] Development standards (rules) and how-to guides
-- [ ] Component registry (reference document)
+- [x] Component specifications (skills, commands, agent, hooks, plugin architecture)
+- [x] Development standards (rules) and how-to guides
+- [x] Component registry (reference document)
 
-### Phase 2: Skills
+### Phase 2: Skills — DONE
 
-Build SKILL.md files for all 18 Archcore document types:
+Built skills across the 4-layer hierarchy:
 
-- [ ] Knowledge types: adr, rfc, rule, guide, doc, spec (6 skills)
-- [ ] Vision types: prd, idea, plan, mrd, brd, urd, brs, strs, syrs, srs (10 skills)
-- [ ] Experience types: task-type, cpat (2 skills)
-- [ ] Each skill follows the standard structure: Overview, When to Use, Required Sections, Best Practices, Common Mistakes, Relation Guidance, Example Workflow
-- [ ] All skills reference MCP tools by exact name, never instruct direct file writes
+- [x] Intent skills (8): capture, plan, decide, standard, review, status, actualize, help
+- [x] Track skills (6): product-track, sources-track, iso-track, architecture-track, standard-track, feature-track
+- [x] Type skills (18): adr, rfc, rule, guide, doc, spec, prd, idea, plan, mrd, brd, urd, brs, strs, syrs, srs, task-type, cpat
+- [x] Each skill follows the structure defined in skills-system.spec.md (Intent: 5 sections, Track: sequential steps, Type: 3 sections)
+- [x] All skills reference MCP tools by exact name, never instruct direct file writes
+- [x] Tier prefixes applied: "Advanced —" for tracks, "Expert —" for non-high-frequency types
 
-### Phase 3: Commands and Agent
+### Phase 3: Commands and Agents — DONE
 
-Build user-invoked commands and the universal subagent:
+Built user-invoked command surface and subagents:
 
-- [ ] `/archcore:create` — Interactive document creation wizard
-- [ ] `/archcore:review` — Documentation health review (gaps, staleness, missing relations)
-- [ ] `/archcore:status` — Dashboard of documents by category, status, relations
-- [ ] Type shortcut commands — `/archcore:adr`, `/archcore:prd`, `/archcore:rule`, etc.
-- [ ] `archcore-assistant` agent — universal subagent with full type knowledge and MCP-only tool restrictions
+- [x] 8 intent skills as primary user entry points (`/archcore:capture`, `/archcore:plan`, etc.)
+- [x] 6 track skills for advanced multi-document flows (`/archcore:product-track`, etc.)
+- [x] 18 type skills for expert quick-create (`/archcore:adr`, `/archcore:prd`, etc.)
+- [x] `archcore-assistant` agent — read/write agent with full MCP tool access
+- [x] `archcore-auditor` agent — read-only auditor with code-document correlation
 
-### Phase 4: Hooks and Validation
+### Phase 4: Hooks and Validation — DONE
 
-Build the enforcement layer:
+Built the enforcement and freshness detection layer:
 
-- [ ] PreToolUse hook (Write|Edit) — block direct `.archcore/` writes, redirect to MCP tools
-- [ ] PostToolUse hook (Write|Edit) — validate `.archcore/` files after changes via `archcore validate`
-- [ ] Ensure hooks are idempotent and complete within 2 seconds
-- [ ] Test hook behavior with edge cases (non-.archcore/ files, settings.json, .sync-state.json)
+- [x] SessionStart hook (`bin/session-start`) — CLI check, project check, context loading, staleness check via `bin/check-staleness`
+- [x] PreToolUse hook (`bin/check-archcore-write`) — blocks direct `.archcore/**/*.md` writes, redirects to MCP tools
+- [x] PostToolUse hook (`bin/validate-archcore`) — validates after Write/Edit to `.archcore/` paths
+- [x] PostToolUse hook (`bin/validate-archcore`) — validates after MCP document mutations
+- [x] PostToolUse hook (`bin/check-cascade`) — detects cascade staleness after `update_document` via relation graph
+- [x] All hooks idempotent, PreToolUse within 1s, PostToolUse within 3s
 
 ## Acceptance Criteria
 
-- All 18 document types have dedicated skills with complete guidance
-- At least 4 slash commands operational (create, review, status, + 1 type shortcut)
-- Universal agent (archcore-assistant) handles complex multi-document tasks
+- All 18 document types have dedicated type skills with complete guidance
+- 8 intent skills operational as primary user surface
+- 6 track skills for multi-document flows
+- Two agents: archcore-assistant (read/write) and archcore-auditor (read-only)
 - PreToolUse hook blocks 100% of direct Write/Edit attempts on `.archcore/*.md` files
-- PostToolUse hook reports validation issues after `.archcore/` file changes
+- PostToolUse hooks report validation issues and cascade staleness
+- SessionStart hook loads context and detects code-document drift
 - All plugin components use MCP tools exclusively — zero direct file writes
-- Plugin passes `claude plugin validate .`
 
 ## Dependencies
 
 - Archcore CLI installed and in PATH (provides MCP server and validation)
-- Claude Code plugin system supports: skills/, commands/, agents/, hooks/, bin/
+- Claude Code plugin system supports: skills/, agents/, hooks/, bin/
 - MCP tools available: create_document, update_document, list_documents, get_document, add_relation, remove_relation, list_relations, remove_document
 - ADR: Always Use MCP Tools (architectural constraint)
 - ADR: Plugin Component Architecture (component mapping)
-- ADR: Single Universal Agent (agent design)
+- ADR: Single Universal Agent → extended by Add Read-Only Auditor Agent
+- ADR: Intent-Based Skill Architecture (4-layer hierarchy)
+- ADR: Actualize System (freshness detection)

@@ -11,7 +11,7 @@ tags:
 
 Define how the Archcore Claude Plugin's components — intent skills, domain flow skills, typed artifact skills, workflow skills, agents, hooks, and MCP server — compose into a unified 4-layer system. This specification describes the layer hierarchy, invocation model, data flow, component interactions, and the architectural invariants that hold everything together.
 
-Individual component contracts are defined in dedicated specs (skills-system.spec, commands-system.spec, agent-system.spec, hooks-validation-system.spec). This document is the overarching architecture that explains _how they work together_.
+Individual component contracts are defined in dedicated specs (skills-system.spec, commands-system.spec, agent-system.spec, hooks-validation-system.spec, actualize-system.spec). This document is the overarching architecture that explains _how they work together_.
 
 ## Scope
 
@@ -36,11 +36,11 @@ The plugin is a Claude Code plugin that makes Archcore effortless. It organizes 
        │                      │                      │
        ▼                      ▼                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  LAYER 1 — Intent API (PRIMARY, 7 skills)                       │
+│  LAYER 1 — Intent API (PRIMARY, 8 skills)                       │
 │                                                                 │
 │  /archcore:capture  /archcore:plan  /archcore:decide            │
 │  /archcore:standard /archcore:review /archcore:status            │
-│  /archcore:help                                                 │
+│  /archcore:actualize /archcore:help                              │
 │                                                                 │
 │  → Routes user intent to correct types/tracks                   │
 │  → Explicit routing tables, minimal elicitation                 │
@@ -73,8 +73,9 @@ The plugin is a Claude Code plugin that makes Archcore effortless. It organizes 
 ├─────────────────────────────────────────────────────────────────┤
 │  HOOKS LAYER (CROSS-CUTTING, event-driven)                      │
 │                                                                 │
-│  SessionStart → load context    PreToolUse → block direct writes│
-│  PostToolUse → validate after mutations                         │
+│  SessionStart → load context + staleness check                  │
+│  PreToolUse → block direct writes                               │
+│  PostToolUse → validate after mutations + cascade detection     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -82,30 +83,30 @@ The plugin is a Claude Code plugin that makes Archcore effortless. It organizes 
 
 | Layer | Role | Audience | Count | Invocation |
 |---|---|---|---|---|
-| 1 — Intent API | Translate user intent into document types/tracks | All users | 7 skills | User-only |
+| 1 — Intent API | Translate user intent into document types/tracks | All users | 8 skills | User-only |
 | 2 — Domain Flows | Orchestrate multi-document flows with relations | Advanced users | 6 skills | User-only |
 | 3 — Typed Artifacts | Domain knowledge per document type | Expert users / Claude model | 18 skills | Model-invoked + user |
 | 4 — MCP Primitives | Atomic CRUD + relations | Skills, agents, Claude | 8 tools | Tool calls |
-| Hooks | Enforce invariants, load context | Automatic | 4 entries | Event-driven |
+| Hooks | Enforce invariants, load context, detect staleness | Automatic | 5 entries | Event-driven |
 | Agents | Complex multi-document tasks, audits | Delegated | 2 agents | Model or user |
 
 ### Component Inventory
 
 | Component | Count | Layer | Files |
 |---|---|---|---|
-| Intent skills | 7 | 1 | `skills/{capture,plan,decide,standard,review,status,help}/SKILL.md` |
+| Intent skills | 8 | 1 | `skills/{capture,plan,decide,standard,review,status,actualize,help}/SKILL.md` |
 | Track skills | 6 | 2 | `skills/{product,sources,iso,architecture,standard,feature}-track/SKILL.md` |
 | Type skills | 18 | 3 | `skills/{adr,rfc,rule,...}/SKILL.md` |
 | Agents | 2 | cross-layer | `agents/{archcore-assistant,archcore-auditor}.md` |
-| Hooks | 4 entries | cross-layer | `hooks/hooks.json` |
-| Bin scripts | 3 | cross-layer | `bin/{session-start,check-archcore-write,validate-archcore}` |
+| Hooks | 5 entries | cross-layer | `hooks/hooks.json` |
+| Bin scripts | 5 | cross-layer | `bin/{session-start,check-archcore-write,validate-archcore,check-staleness,check-cascade}` |
 | MCP server | 1 | 4 | Provided by archcore CLI |
 
 ## Contract Surface
 
 ### Invocation Model
 
-The plugin has four invocation paths. Every path converges on the MCP tool layer.
+The plugin has five invocation paths. Every path converges on the MCP tool layer.
 
 #### Path 1: Intent Skill (primary user entry)
 
@@ -154,6 +155,16 @@ User request or Claude judgment → Agent spawned →
 
 Trigger: Claude decides the task is complex enough for a subagent, or user explicitly requests agent help.
 
+#### Path 5: Actualize (freshness detection)
+
+```
+Session starts → SessionStart hook → check-staleness → drift warning injected
+Document updated → PostToolUse hook → check-cascade → cascade warning injected
+User invokes /archcore:actualize → deep analysis → report + interactive fixes
+```
+
+Trigger: Automatic (Layers 1-2 of Actualize) or user-invoked (Layer 3 of Actualize). The actualize path is the only path that reads and analyzes documents without creating new ones.
+
 ### Data Flow: Intent Skill Execution
 
 Intent skills follow this pattern:
@@ -187,11 +198,37 @@ When Claude attempts to Write/Edit a `.archcore/*.md` file directly:
 3. Claude retries via create_document or update_document
 ```
 
+### Data Flow: Staleness Detection
+
+The actualize system operates at three depths:
+
+```
+SessionStart:
+  bin/session-start → bin/check-staleness
+  ├──→ git log: last .archcore/ commit
+  ├──→ git diff: code files changed since
+  ├──→ grep: match against document content
+  └──→ Output: "[Archcore Staleness] N files changed..."
+
+PostToolUse (update_document):
+  bin/check-cascade
+  ├──→ Parse updated document path
+  ├──→ Query relation graph (implements/depends_on/extends targets)
+  └──→ Output: "[Archcore Cascade] Updated X. Check Y, Z..."
+
+/archcore:actualize (on demand):
+  ├──→ list_documents + list_relations + git log
+  ├──→ Code→Doc drift analysis
+  ├──→ Doc→Doc cascade analysis
+  ├──→ Temporal staleness analysis
+  └──→ Report + interactive fixes via update_document
+```
+
 ### Skill Taxonomy
 
 Skills are organized into four groups across three layers.
 
-#### Intent Skills (7) — Layer 1
+#### Intent Skills (8) — Layer 1
 
 - **Frontmatter**: `name`, `description`, `argument-hint`, `disable-model-invocation: true`
 - **User-only**: explicit `/archcore:<name> <topic>` invocation
@@ -207,6 +244,7 @@ Skills are organized into four groups across three layers.
 | `standard` | Establish a team standard | standard-track (adr→rule→guide) |
 | `review` | Check documentation health | analysis + recommendations |
 | `status` | Show dashboard | counts, relations, issues |
+| `actualize` | Detect stale docs, suggest updates | code drift, cascade, temporal analysis |
 | `help` | Navigate the system | layer guide, onboarding |
 
 #### Track Skills (6) — Layer 2
@@ -257,6 +295,7 @@ Agents are an escalation path, not the primary interface. Most documentation tas
 | "Record this decision" | 1 | `/archcore:decide` (intent) |
 | "Document this module" | 1 | `/archcore:capture` (intent) |
 | "Check docs health" | 1 | `/archcore:review` (intent) |
+| "Are any docs stale?" | 1 | `/archcore:actualize` (intent) |
 | Run ISO requirements cascade | 2 | `/archcore:iso-track` (track) |
 | Create a single ADR | 3 | Model-invoked `adr` skill or `/archcore:adr` |
 | Restructure all auth docs with relations | agent | archcore-assistant |
@@ -268,14 +307,15 @@ Both agents are restricted: no Write, Edit, or Bash on `.archcore/` files. The a
 
 ### Hook Enforcement Layer
 
-Hooks form a cross-cutting layer that enforces architectural invariants regardless of which layer initiated the operation.
+Hooks form a cross-cutting layer that enforces architectural invariants and detects documentation staleness regardless of which layer initiated the operation.
 
 | Hook | Event | Purpose |
 |---|---|---|
-| session-start | SessionStart | Load .archcore/ context, check CLI availability |
+| session-start | SessionStart | Load .archcore/ context, check CLI, detect code-doc drift |
 | check-archcore-write | PreToolUse (Write\|Edit) | Block direct .archcore/*.md writes |
 | validate-archcore #1 | PostToolUse (Write\|Edit) | Defense-in-depth validation |
 | validate-archcore #2 | PostToolUse (MCP mutations) | Primary validation after MCP mutations |
+| check-cascade | PostToolUse (update_document) | Cascade staleness detection via relation graph |
 
 ### Cross-Layer Interaction Patterns
 
@@ -305,13 +345,19 @@ An agent makes multiple MCP calls autonomously. Hooks validate each one.
 
 When any component attempts a direct write, PreToolUse blocks it. Claude retries via MCP.
 
+#### Pattern 6: Update → Hook → Cascade Warning (freshness flow)
+
+When a document is updated via MCP, the cascade hook detects potentially stale dependents and warns.
+
+Example: User updates a PRD → Hook 5 fires → finds plan that `implements` this PRD → injects "plan may need review" warning.
+
 ## Normative Behavior
 
 - All document operations MUST flow through MCP tools. This is the **MCP-only principle** — the single most important architectural invariant.
 - Layer 1 intent skills MUST use `disable-model-invocation: true`.
 - Layer 1 intent skills MUST contain explicit routing tables with bounded decision branches.
 - Layer 1 intent skills MUST default to minimum viable path, offering expansion via one scope question.
-- Layer 1 intent skills MUST be self-contained with inline creation recipes per document type.
+- Layer 1 intent skills that create documents MUST be self-contained with inline creation recipes per document type.
 - Layer 2 track skills MUST create documents sequentially, asking questions before each step.
 - Layer 2 track skills MUST add relations between created documents as defined in their relation chain.
 - Layer 2 track skill descriptions MUST be prefixed with "Advanced —".
@@ -321,11 +367,13 @@ When any component attempts a direct write, PreToolUse blocks it. Claude retries
 - Agents MUST use MCP tools exclusively for `.archcore/` operations.
 - Hooks MUST fire for every relevant tool call, regardless of which layer initiated it.
 - The PreToolUse hook MUST block `.archcore/**/*.md` writes with exit code 2.
-- PostToolUse hooks MUST run `archcore validate` after every document mutation.
+- PostToolUse validation hooks MUST run `archcore validate` after every document mutation.
+- PostToolUse cascade hook MUST run after `update_document` to detect relation-graph staleness.
+- SessionStart MUST include staleness check after context loading.
 
 ## Constraints
 
-- Maximum 7 intent skills (Layer 1). New intent skills require updating this spec.
+- Maximum 8 intent skills (Layer 1). New intent skills require updating this spec.
 - Maximum 6 track skills (Layer 2). New tracks require an ADR.
 - Maximum 18 type skills (Layer 3). Matches Archcore document types.
 - Maximum 2 agents. New agents require an ADR.
@@ -339,12 +387,14 @@ When any component attempts a direct write, PreToolUse blocks it. Claude retries
 - Every user-facing entry point maps to exactly one of the four layers.
 - Every document mutation passes through the MCP tool layer (Layer 4).
 - Every MCP mutation triggers PostToolUse validation.
+- Every `update_document` triggers cascade detection in addition to validation.
 - Every direct `.archcore/*.md` write attempt is blocked by PreToolUse.
-- Every session starts with project context loaded (or a warning if CLI is missing).
+- Every session starts with project context loaded and staleness check run (or a warning if CLI is missing).
 - Intent skills and track skills never duplicate type skill content.
 - Intent skills contain routing tables; track skills contain flow definitions; type skills contain type knowledge.
 - Agents never have Write/Edit/Bash access to `.archcore/` files.
 - Layer 1 commands are the only "primary" surface; Layer 2-3 are discoverable but secondary.
+- Staleness detection never modifies documents autonomously — only the `/archcore:actualize` skill modifies, and only with user confirmation.
 
 ## Error Handling
 
@@ -354,18 +404,21 @@ When any component attempts a direct write, PreToolUse blocks it. Claude retries
 - **Track interrupted mid-flow**: Track skills detect existing documents via `list_documents` and resume from the next step.
 - **Hook timeout**: PostToolUse fails open. PreToolUse fail-closed behavior handled by Claude Code.
 - **Agent exceeds turn limit**: Agent returns partial results. User can re-invoke or continue manually.
+- **Git unavailable for staleness**: SessionStart skips staleness check. `/archcore:actualize` skips code-drift analysis but performs cascade and temporal.
 
 ## Conformance
 
 The plugin architecture conforms to this specification if:
 
 1. All document operations flow through MCP tools
-2. Layer 1 has exactly 7 intent skills, all with `disable-model-invocation: true`
+2. Layer 1 has exactly 8 intent skills, all with `disable-model-invocation: true`
 3. Layer 2 has exactly 6 track skills, all with `disable-model-invocation: true`
 4. Layer 3 has exactly 18 type skills matching Archcore document types
 5. PreToolUse hook blocks 100% of direct `.archcore/**/*.md` writes
 6. PostToolUse validation fires after every MCP document mutation
-7. No layer duplicates another's responsibility
-8. Description fields carry tier prefixes for Layer 2-3 skills
-9. Intent skills contain routing tables and inline creation recipes
-10. The invocation model matches: user-only for Layers 1-2, model+user for Layer 3, tool calls for Layer 4
+7. PostToolUse cascade detection fires after every `update_document`
+8. SessionStart includes staleness check after context loading
+9. No layer duplicates another's responsibility
+10. Description fields carry tier prefixes for Layer 2-3 skills
+11. Intent skills contain routing tables and inline creation recipes (for creation-oriented intents)
+12. The invocation model matches: user-only for Layers 1-2, model+user for Layer 3, tool calls for Layer 4

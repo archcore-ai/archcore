@@ -22,3 +22,11 @@ fi
 
 # All good — run the normal session-start hook
 archcore hooks claude-code session-start
+
+# Run staleness check (code-document drift detection)
+SCRIPT_DIR=$(dirname "$0")
+STALENESS=$("$SCRIPT_DIR/check-staleness" 2>/dev/null) || true
+if [ -n "$STALENESS" ]; then
+  echo ""
+  echo "$STALENESS"
+fi

@@ -14,9 +14,37 @@ Note: Claude Code has merged commands into skills. All slash commands use `skill
 
 ## Content
 
+### Skills — Intent (8, user-only, disable-model-invocation: true)
+
+Intent skills translate user intent into the correct document types, tracks, or analysis modes. They are the primary user entry points (Layer 1).
+
+| Skill | Directory | User Intent |
+|-------|-----------|-------------|
+| capture | `skills/capture/` | Document a module/component → routes to adr/spec/doc/guide |
+| plan | `skills/plan/` | Plan a feature → routes to product-track or single plan |
+| decide | `skills/decide/` | Record a decision → creates adr, offers rule+guide |
+| standard | `skills/standard/` | Establish a standard → routes to standard-track |
+| review | `skills/review/` | Check documentation health → analysis + recommendations |
+| status | `skills/status/` | Show dashboard → counts, relations, issues |
+| actualize | `skills/actualize/` | Detect stale docs → code drift, cascade, temporal analysis |
+| help | `skills/help/` | Navigate the system → layer guide, onboarding |
+
+### Skills — Tracks (6, user-only, disable-model-invocation: true)
+
+Track skills orchestrate complete multi-document flows, creating documents in sequence with proper relations. Descriptions prefixed "Advanced —" (Layer 2).
+
+| Skill | Directory | Flow |
+|-------|-----------|------|
+| product-track | `skills/product-track/` | idea → prd → plan |
+| sources-track | `skills/sources-track/` | mrd → brd → urd |
+| iso-track | `skills/iso-track/` | brs → strs → syrs → srs |
+| architecture-track | `skills/architecture-track/` | adr → spec → plan |
+| standard-track | `skills/standard-track/` | adr → rule → guide |
+| feature-track | `skills/feature-track/` | prd → spec → plan → task-type |
+
 ### Skills — Document Types (18, model + user invoked)
 
-Each serves dual purpose: model-invoked knowledge when Claude auto-activates, and user-invoked quick-create via `/archcore:<type> <topic>`.
+Each teaches Claude about one document type. Model-invoked (auto-activate) and user-invokable via `/archcore:<type> <topic>`. Non-high-frequency types prefixed "Expert —" (Layer 3).
 
 | Skill | Type | Category |
 |-------|------|----------|
@@ -39,24 +67,6 @@ Each serves dual purpose: model-invoked knowledge when Claude auto-activates, an
 | `skills/task-type/` | Recurring Task Pattern | experience |
 | `skills/cpat/` | Code Pattern Change | experience |
 
-### Skills — Tracks (3, user-only, disable-model-invocation: true)
-
-Each orchestrates a complete requirements flow, creating multiple documents in sequence with proper relations.
-
-| Skill | Command | Flow |
-|-------|---------|------|
-| `skills/product-track/` | `/archcore:product-track` | idea → prd → plan |
-| `skills/sources-track/` | `/archcore:sources-track` | mrd → brd → urd |
-| `skills/iso-track/` | `/archcore:iso-track` | brs → strs → syrs → srs |
-
-### Skills — Workflows (3, user-only, disable-model-invocation: true)
-
-| Skill | Command | Purpose |
-|-------|---------|---------| 
-| `skills/create/` | `/archcore:create` | Interactive creation wizard |
-| `skills/review/` | `/archcore:review` | Documentation health review |
-| `skills/status/` | `/archcore:status` | Documentation dashboard |
-
 ### Agents (2)
 
 | Agent | File | Role | Model | Tools |
@@ -66,22 +76,27 @@ Each orchestrates a complete requirements flow, creating multiple documents in s
 
 **archcore-assistant** — complex multi-document tasks: creation, requirements engineering, relation management. Foreground, blue, max 20 turns.
 
-**archcore-auditor** — documentation health checks: coverage gaps, orphaned docs, stale statuses. Background, yellow, max 15 turns.
+**archcore-auditor** — documentation health checks: coverage gaps, orphaned docs, stale statuses, code-document correlation (cross-references document path mentions with git history to flag drift). Background, yellow, max 15 turns.
 
-### Hooks (3)
+### Hooks (5 entries across 3 events)
 
-| Event | Matcher | Handler |
-|-------|---------|---------| 
-| SessionStart | (all) | `archcore hooks claude-code session-start` |
-| PreToolUse | `Write\|Edit` | `bin/check-archcore-write` |
-| PostToolUse | `Write\|Edit` | `bin/validate-archcore` |
+| # | Event | Matcher | Handler | Timeout |
+|---|-------|---------|---------|---------|
+| 1 | SessionStart | (all) | `bin/session-start` | — |
+| 2 | PreToolUse | `Write\|Edit` | `bin/check-archcore-write` | 1s |
+| 3 | PostToolUse | `Write\|Edit` | `bin/validate-archcore` | 3s |
+| 4 | PostToolUse | `mcp__archcore__create_document\|update_document\|remove_document\|add_relation\|remove_relation` | `bin/validate-archcore` | 3s |
+| 5 | PostToolUse | `mcp__archcore__update_document` | `bin/check-cascade` | 3s |
 
-### Bin Scripts (2)
+### Bin Scripts (5)
 
-| Script | Purpose |
-|--------|---------| 
-| `bin/check-archcore-write` | PreToolUse: block direct .archcore/ writes |
-| `bin/validate-archcore` | PostToolUse: run archcore validate |
+| Script | Hook Event | Purpose |
+|--------|------------|---------|
+| `bin/session-start` | SessionStart | Checks CLI availability and project init, delegates context loading via `archcore hooks claude-code session-start`, then calls `bin/check-staleness` for drift detection. Outputs install/init instructions if prerequisites missing. Always exits 0. |
+| `bin/check-archcore-write` | PreToolUse | Blocks direct Write/Edit to `.archcore/**/*.md` with exit 2 + stderr message redirecting to MCP tools. Allows `.archcore/settings.json` and `.archcore/.sync-state.json`. Allows all paths outside `.archcore/`. |
+| `bin/validate-archcore` | PostToolUse | Runs `archcore validate` after `.archcore/` file changes (Write/Edit by path check) or MCP document operations (by tool_name prefix). Outputs JSON `hookSpecificOutput` when issues found, empty otherwise. Always exits 0. |
+| `bin/check-staleness` | SessionStart (called by `bin/session-start`) | Detects code-document drift via git: finds source files changed since the last `.archcore/` commit, cross-references with documents that mention affected directories. Outputs plain text warning (max 2KB) or empty. Always exits 0. |
+| `bin/check-cascade` | PostToolUse | After `update_document`, queries `.sync-state.json` relation graph for documents connected via `implements`, `depends_on`, or `extends` to the updated document. Outputs JSON `hookSpecificOutput` listing potentially stale dependents, or empty if no cascade. Always exits 0. |
 
 ### MCP Server
 
@@ -94,14 +109,27 @@ Each orchestrates a complete requirements flow, creating multiple documents in s
 ### All skills available as slash commands
 
 ```
-/archcore:create          — interactive wizard
-/archcore:review          — documentation health check
-/archcore:status          — dashboard
-/archcore:product-track   — full Product Track flow
-/archcore:sources-track   — full Sources Track flow
-/archcore:iso-track       — full ISO 29148 Track flow
-/archcore:adr <topic>     — quick ADR creation
-/archcore:prd <topic>     — quick PRD creation
-/archcore:rule <topic>    — quick rule creation
+## Primary (intent skills)
+/archcore:capture          — document a module or component
+/archcore:plan             — plan a feature end-to-end
+/archcore:decide           — record a decision
+/archcore:standard         — establish a team standard
+/archcore:review           — documentation health check
+/archcore:status           — dashboard
+/archcore:actualize        — detect stale docs, suggest updates
+/archcore:help             — system guide
+
+## Advanced (track skills)
+/archcore:product-track    — idea → prd → plan
+/archcore:sources-track    — mrd → brd → urd
+/archcore:iso-track        — brs → strs → syrs → srs
+/archcore:architecture-track — adr → spec → plan
+/archcore:standard-track   — adr → rule → guide
+/archcore:feature-track    — prd → spec → plan → task-type
+
+## Expert (type skills)
+/archcore:adr <topic>      — quick ADR creation
+/archcore:prd <topic>      — quick PRD creation
+/archcore:rule <topic>     — quick rule creation
 ... (all 18 types available)
 ```

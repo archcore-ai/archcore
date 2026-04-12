@@ -14,7 +14,8 @@
       "Bash(cat /Users/dev/Documents/archcore/archcore-claude-plugin/skills/review/*.md)",
       "Bash(cat /Users/dev/Documents/archcore/archcore-claude-plugin/skills/adr/*.md)",
       "Bash(cat /Users/dev/Documents/archcore/archcore-claude-plugin/skills/product-track/*.md)",
-      "mcp__archcore__update_document"
+      "mcp__archcore__update_document",
+      "mcp__archcore__list_relations"
     ]
   },
   "enableAllProjectMcpServers": true,
