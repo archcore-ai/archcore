@@ -123,4 +123,4 @@ Each host's expected directory (`.cursor/skills/`, `.github/skills/`) symlinks t
 - **Stdin normalization complexity**: Bin scripts must handle multiple JSON formats. Mitigation: centralized normalizer (`lib/normalize-stdin.sh`) with clear format detection.
 - **Testing matrix**: Must verify plugin works in each supported host. Mitigation: start with 2 hosts (Claude Code + Cursor), expand incrementally.
 - **Hook event mapping is imperfect**: Not all hosts have equivalent hook events (e.g., Cursor has no direct `SessionStart` equivalent). Mitigation: use closest available event per host; document gaps per host.
-- **Repository naming**: Current name `archcore-claude-plugin` implies Claude Code only. Should rename to `archcore-plugin` or similar.
+- **Repository naming**: ~~`archcore-claude-plugin` implies Claude Code only.~~ Resolved: renamed to `archcore-plugin`.

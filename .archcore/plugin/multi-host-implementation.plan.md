@@ -139,11 +139,10 @@ Create all Cursor-specific adapter files.
 - Update README.md with multi-host installation instructions
 - Add "Supported Hosts" section
 
-#### 4.2 Consider repository rename
+#### 4.2 ~~Consider repository rename~~ Done
 
-- Current: `archcore-claude-plugin`
-- Proposed: `archcore-plugin`
-- Evaluate impact on existing users and marketplace listings
+- ~~Current: `archcore-claude-plugin`~~
+- Renamed to: `archcore-plugin`
 
 ## Acceptance Criteria
 

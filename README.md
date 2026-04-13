@@ -168,4 +168,4 @@ Cursor: remove from plugin settings.
 
 ## Contributing
 
-Issues and ideas: [GitHub Issues](https://github.com/archcore-ai/archcore-claude-plugin/issues)
+Issues and ideas: [GitHub Issues](https://github.com/archcore-ai/archcore-plugin/issues)
