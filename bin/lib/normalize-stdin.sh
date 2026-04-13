@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2034  # Variables are exported for use by sourcing scripts
 # Multi-host stdin normalization for Archcore plugin hook scripts.
 # Source this file at the top of each bin/ script that receives hook stdin.
 #

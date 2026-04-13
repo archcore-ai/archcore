@@ -5,6 +5,7 @@
 # Allows via archcore_hook_allow (exit 0).
 
 SCRIPT_DIR=$(dirname "$0")
+# shellcheck source=lib/normalize-stdin.sh
 . "$SCRIPT_DIR/lib/normalize-stdin.sh"
 
 # If no file_path found, allow

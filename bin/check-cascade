@@ -6,6 +6,7 @@
 # Output: via archcore_hook_info or empty. Always exits 0.
 
 SCRIPT_DIR=$(dirname "$0")
+# shellcheck source=lib/normalize-stdin.sh
 . "$SCRIPT_DIR/lib/normalize-stdin.sh"
 
 # Use doc path from normalized stdin

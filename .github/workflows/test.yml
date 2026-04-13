@@ -1,0 +1,46 @@
+name: Plugin Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install bats-core
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq bats
+          else
+            brew install bats-core
+          fi
+
+      - name: Install shellcheck
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get install -y -qq shellcheck
+          else
+            brew install shellcheck
+          fi
+
+      - name: Check JSON configs
+        run: make check-json
+
+      - name: Check script permissions
+        run: make check-perms
+
+      - name: ShellCheck
+        run: make lint
+
+      - name: Run tests
+        run: make test

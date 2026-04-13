@@ -3,6 +3,7 @@
 # Uses normalized stdin — works across Claude Code, Cursor, and other hosts.
 
 SCRIPT_DIR=$(dirname "$0")
+# shellcheck source=lib/normalize-stdin.sh
 . "$SCRIPT_DIR/lib/normalize-stdin.sh"
 
 # Check if archcore CLI is available

@@ -8,7 +8,7 @@ tags:
 
 ## Overview
 
-Reference document listing all components of the Archcore Claude Plugin.
+Reference document listing all components of the Archcore Plugin (multi-host: Claude Code, Cursor).
 
 Note: Claude Code has merged commands into skills. All slash commands use `skills/<name>/SKILL.md`. The `commands/` directory is legacy and not used.
 
@@ -67,6 +67,12 @@ Each teaches Claude about one document type. Model-invoked (auto-activate) and u
 | `skills/task-type/` | Recurring Task Pattern | experience |
 | `skills/cpat/` | Code Pattern Change | experience |
 
+### Skills — Utility (1, user-only, disable-model-invocation: true)
+
+| Skill | Directory | Purpose |
+|-------|-----------|---------|
+| verify | `skills/verify/` | Run plugin integrity checks — tests, lint, config validation, cross-references |
+
 ### Agents (2)
 
 | Agent | File | Role | Model | Tools |
@@ -88,21 +94,52 @@ Each teaches Claude about one document type. Model-invoked (auto-activate) and u
 | 4 | PostToolUse | `mcp__archcore__create_document\|update_document\|remove_document\|add_relation\|remove_relation` | `bin/validate-archcore` | 3s |
 | 5 | PostToolUse | `mcp__archcore__update_document` | `bin/check-cascade` | 3s |
 
-### Bin Scripts (5)
+Hook configs: `hooks/hooks.json` (Claude Code, PascalCase events), `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`).
+
+### Bin Scripts (6: 5 hooks + 1 library)
 
 | Script | Hook Event | Purpose |
 |--------|------------|---------|
-| `bin/session-start` | SessionStart | Checks CLI availability and project init, delegates context loading via `archcore hooks claude-code session-start`, then calls `bin/check-staleness` for drift detection. Outputs install/init instructions if prerequisites missing. Always exits 0. |
+| `bin/lib/normalize-stdin.sh` | (library) | Multi-host stdin normalization. Detects host (Claude Code/Cursor/Copilot), extracts fields (tool_name, file_path, path), normalizes MCP tool names, provides output helpers (archcore_hook_block, archcore_hook_info, archcore_hook_allow). Sourced by all hook scripts except check-staleness. |
+| `bin/session-start` | SessionStart | Checks CLI availability and project init, delegates context loading via `archcore hooks <host> session-start`, then calls `bin/check-staleness` for drift detection. Outputs install/init instructions if prerequisites missing. Always exits 0. |
 | `bin/check-archcore-write` | PreToolUse | Blocks direct Write/Edit to `.archcore/**/*.md` with exit 2 + stderr message redirecting to MCP tools. Allows `.archcore/settings.json` and `.archcore/.sync-state.json`. Allows all paths outside `.archcore/`. |
 | `bin/validate-archcore` | PostToolUse | Runs `archcore validate` after `.archcore/` file changes (Write/Edit by path check) or MCP document operations (by tool_name prefix). Outputs JSON `hookSpecificOutput` when issues found, empty otherwise. Always exits 0. |
 | `bin/check-staleness` | SessionStart (called by `bin/session-start`) | Detects code-document drift via git: finds source files changed since the last `.archcore/` commit, cross-references with documents that mention affected directories. Outputs plain text warning (max 2KB) or empty. Always exits 0. |
 | `bin/check-cascade` | PostToolUse | After `update_document`, queries `.sync-state.json` relation graph for documents connected via `implements`, `depends_on`, or `extends` to the updated document. Outputs JSON `hookSpecificOutput` listing potentially stale dependents, or empty if no cascade. Always exits 0. |
+
+### Test Suite
+
+| Component | Location | Tests | Description |
+|-----------|----------|-------|-------------|
+| Unit tests | `test/unit/` | 69 | Test each bin script: stdin parsing, host detection, exit codes, output format, edge cases |
+| Structure tests | `test/structure/` | 50 | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules |
+| Fixtures | `test/fixtures/stdin/` | 12 files | Mock stdin JSON for Claude Code, Cursor, Copilot, and malformed inputs |
+| Helpers | `test/helpers/` | — | common.bash (setup, mocks, timeout shim), bats-support, bats-assert (git submodules) |
+| Makefile | `Makefile` | — | Targets: `test`, `test-unit`, `test-structure`, `lint`, `check-json`, `check-perms`, `verify` |
+| CI | `.github/workflows/test.yml` | — | GitHub Actions: macOS + Linux matrix, bats + shellcheck |
+
+Run `make verify` for full check. Run `make test` for tests only. See `plugin-testing.guide.md` for details.
 
 ### MCP Server
 
 | Server | Command |
 |--------|---------|
 | `archcore` | `archcore mcp` |
+
+### Plugin Configs
+
+| File | Host | Purpose |
+|------|------|---------|
+| `.claude-plugin/plugin.json` | Claude Code | Plugin manifest |
+| `.cursor-plugin/plugin.json` | Cursor | Plugin manifest (with explicit component paths) |
+| `.claude-plugin/marketplace.json` | Claude Code | Marketplace metadata |
+| `.cursor-plugin/marketplace.json` | Cursor | Marketplace metadata |
+| `hooks/hooks.json` | Claude Code | Hook event config (PascalCase) |
+| `hooks/cursor.hooks.json` | Cursor | Hook event config (camelCase + afterMCPExecution) |
+| `.mcp.json` | Claude Code | MCP server config |
+| `mcp.json` | Cursor | MCP server config (identical to .mcp.json) |
+| `rules/archcore-context.mdc` | Cursor | Always-apply context rule |
+| `rules/archcore-files.mdc` | Cursor | .archcore/ glob-triggered MCP-only rule |
 
 ## Examples
 
@@ -118,6 +155,9 @@ Each teaches Claude about one document type. Model-invoked (auto-activate) and u
 /archcore:status           — dashboard
 /archcore:actualize        — detect stale docs, suggest updates
 /archcore:help             — system guide
+
+## Utility
+/archcore:verify           — run plugin integrity checks
 
 ## Advanced (track skills)
 /archcore:product-track    — idea → prd → plan

@@ -5,6 +5,7 @@
 # Exits 0 always. Outputs via archcore_hook_info when issues found.
 
 SCRIPT_DIR=$(dirname "$0")
+# shellcheck source=lib/normalize-stdin.sh
 . "$SCRIPT_DIR/lib/normalize-stdin.sh"
 
 SHOULD_VALIDATE=false
