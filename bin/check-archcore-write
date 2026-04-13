@@ -1,35 +1,33 @@
 #!/bin/sh
 # PreToolUse hook: block direct Write/Edit to .archcore/ document files.
-# Reads tool call JSON from stdin, checks if file_path targets .archcore/*.md.
-# Exit 2 with stderr message to block. Exit 0 to allow.
+# Uses normalized stdin — works across Claude Code, Cursor, and other hosts.
+# Blocks via archcore_hook_block (exit 2 for CC, JSON for Cursor).
+# Allows via archcore_hook_allow (exit 0).
 
-INPUT=$(cat)
-
-# Extract file_path from tool_input
-FILE_PATH=$(printf '%s' "$INPUT" | grep -o '"file_path"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"file_path"[[:space:]]*:[[:space:]]*"//;s/"$//')
+SCRIPT_DIR=$(dirname "$0")
+. "$SCRIPT_DIR/lib/normalize-stdin.sh"
 
 # If no file_path found, allow
-if [ -z "$FILE_PATH" ]; then
-  exit 0
+if [ -z "$ARCHCORE_FILE_PATH" ]; then
+  archcore_hook_allow
 fi
 
 # Normalize: check if path contains .archcore/ and ends with .md
-case "$FILE_PATH" in
+case "$ARCHCORE_FILE_PATH" in
   *.archcore/settings.json|*.archcore/.sync-state.json)
     # Allow config and manifest files
-    exit 0
+    archcore_hook_allow
     ;;
   *.archcore/*.md)
     # Block direct writes to .archcore/ markdown documents
-    echo "Direct writes to .archcore/ documents are not allowed. Use Archcore MCP tools instead:
+    archcore_hook_block "Direct writes to .archcore/ documents are not allowed. Use Archcore MCP tools instead:
 - create_document: create a new document
 - update_document: modify an existing document
 - remove_document: delete a document
-This ensures validation, templates, and the sync manifest stay consistent." >&2
-    exit 2
+This ensures validation, templates, and the sync manifest stay consistent."
     ;;
   *)
     # Allow everything else
-    exit 0
+    archcore_hook_allow
     ;;
 esac

@@ -1,5 +1,9 @@
 #!/bin/sh
 # SessionStart hook: load archcore context or warn if CLI is missing.
+# Uses normalized stdin — works across Claude Code, Cursor, and other hosts.
+
+SCRIPT_DIR=$(dirname "$0")
+. "$SCRIPT_DIR/lib/normalize-stdin.sh"
 
 # Check if archcore CLI is available
 if ! command -v archcore >/dev/null 2>&1; then
@@ -20,11 +24,11 @@ if [ ! -d ".archcore" ]; then
   exit 0
 fi
 
-# All good — run the normal session-start hook
-archcore hooks claude-code session-start
+# All good — run the host-specific session-start hook
+# Pipe raw stdin through since archcore CLI parses it
+printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_HOST" session-start
 
 # Run staleness check (code-document drift detection)
-SCRIPT_DIR=$(dirname "$0")
 STALENESS=$("$SCRIPT_DIR/check-staleness" 2>/dev/null) || true
 if [ -n "$STALENESS" ]; then
   echo ""
