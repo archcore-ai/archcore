@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "archcore",
-      "source": ".",
+      "source": "./",
       "description": "Git-native context for AI coding agents"
     }
   ]
