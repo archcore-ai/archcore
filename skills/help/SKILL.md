@@ -1,6 +1,6 @@
 ---
 name: help
-description: Guide to Archcore commands and capabilities.
+description: "Show available Archcore commands and how to use them. Use when onboarding, exploring what skills are available, or when you're not sure which command to run."
 disable-model-invocation: true
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: rfc
 argument-hint: "[topic]"
-description: "Expert — Proposes technical changes for team review before a decision is made."
+description: "Expert — Proposes a significant technical change for team review before a decision is finalized. Activates when proposing a design, exploring a change that needs buy-in, or when the user says 'draft an RFC', 'design proposal', or 'let's get feedback before deciding'."
 ---
 
 # RFC — Request for Comments

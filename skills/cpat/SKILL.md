@@ -1,7 +1,7 @@
 ---
 name: cpat
 argument-hint: "[topic]"
-description: "Expert — Documents a code pattern change with before/after examples."
+description: "Expert — Documents a code pattern change with before/after examples and migration scope. Activates when a coding pattern has changed — e.g., 'we switched from X to Y', 'document this refactor pattern', 'before/after code change'. For deciding to change, use /archcore:adr."
 ---
 
 # CPAT — Code Pattern Change

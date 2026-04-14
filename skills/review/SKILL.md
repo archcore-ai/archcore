@@ -1,7 +1,7 @@
 ---
 name: review
 argument-hint: "[category or tag]"
-description: Review documentation for gaps, staleness, orphaned documents, and missing relations.
+description: "Audit documentation health — finds coverage gaps, stale statuses, orphaned documents, and missing relations. Use when you want a full health report with recommendations. For quick counts use /archcore:status; for code-drift detection use /archcore:actualize."
 disable-model-invocation: true
 ---
 

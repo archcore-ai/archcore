@@ -1,7 +1,7 @@
 ---
 name: brs
 argument-hint: "[topic]"
-description: "Expert — Formalizes business requirements per ISO 29148."
+description: "Expert — Formalizes business requirements into a traceable specification per ISO 29148. Activates when converting informal business requirements into structured, auditable specs, or starting an ISO 29148 cascade. Use /archcore:brd for informal business cases."
 ---
 
 # BRS — Business Requirements Specification (ISO 29148)

@@ -1,7 +1,7 @@
 ---
 name: plan
 argument-hint: "[feature or initiative]"
-description: Plan a feature or initiative end-to-end with requirements and traceability.
+description: "Plan a feature or initiative — creates a requirements chain (idea → PRD → plan) for large scope, or a single plan document for focused work. Use when someone says 'let's plan', 'create a roadmap for', or 'I need to plan X'. Not for recording a decision — use /archcore:decide."
 disable-model-invocation: true
 ---
 

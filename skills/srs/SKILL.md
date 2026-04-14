@@ -1,7 +1,7 @@
 ---
 name: srs
 argument-hint: "[topic]"
-description: "Expert — Formalizes software requirements per ISO 29148."
+description: "Expert — Formalizes software requirements per ISO 29148 — detailed functional and non-functional requirements for a software system. Activates after SyRS in an ISO 29148 cascade, or standalone when formal software requirements specification is needed. For a technical API contract, use /archcore:spec."
 ---
 
 # SRS — Software Requirements Specification (ISO 29148)

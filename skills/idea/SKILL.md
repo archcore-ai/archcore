@@ -1,7 +1,7 @@
 ---
 name: idea
 argument-hint: "[topic]"
-description: Captures product or technical concepts worth exploring before commitment. Activates for brainstorming, "what if" discussions, or early-stage concept exploration.
+description: 'Expert — Captures product or technical concepts worth exploring before commitment. Activates for brainstorming, "what if" discussions, or early-stage concept exploration.'
 ---
 
 # Idea — Concept Exploration
@@ -12,6 +12,7 @@ description: Captures product or technical concepts worth exploring before commi
 - Recording a "what if" that deserves later exploration
 
 **Not Idea:**
+
 - Ready to commit → **prd**
 - Technical proposal needing review → **rfc**
 - Decision already made → **adr**
@@ -25,10 +26,10 @@ description: Captures product or technical concepts worth exploring before commi
 
 ## Relations
 
-| Direction | Type | Target | When |
-|-----------|------|--------|------|
-| Outgoing | `implements` by | PRD | Formalized into requirements |
-| Outgoing | `implements` by | RFC | Developed into a proposal |
-| Peer | `related` | other ideas | Related concepts |
+| Direction | Type            | Target      | When                         |
+| --------- | --------------- | ----------- | ---------------------------- |
+| Outgoing  | `implements` by | PRD         | Formalized into requirements |
+| Outgoing  | `implements` by | RFC         | Developed into a proposal    |
+| Peer      | `related`       | other ideas | Related concepts             |
 
 **Flows:** **Idea** → PRD → plan; **Idea** → RFC → ADR

@@ -1,7 +1,7 @@
 ---
 name: capture
 argument-hint: "[module, component, or topic]"
-description: Capture documentation for a module, component, or topic — routes to the right document type automatically.
+description: "Document a module, component, or system — automatically picks the right type (ADR, spec, doc, or guide). Use when you need comprehensive docs for a codebase element and don't want to choose the document type yourself."
 disable-model-invocation: true
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: actualize
 argument-hint: "[scope: tag, category, or 'all']"
-description: Detect stale documentation and suggest updates based on code changes and relation graph.
+description: "Detect stale docs and suggest updates — cross-references code changes with documentation, checks the relation graph for cascade staleness. Use when docs may be out of date after a refactor, merge, or when a session-start staleness warning appeared. For coverage gaps use /archcore:review."
 disable-model-invocation: true
 ---
 

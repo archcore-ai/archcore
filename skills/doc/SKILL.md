@@ -1,7 +1,7 @@
 ---
 name: doc
 argument-hint: "[topic]"
-description: "Expert — Creates reference material: registries, glossaries, lookup tables."
+description: "Expert — Creates reference material: glossaries, registries, API catalogues, or lookup tables. Activates when creating reference content someone would look up, not follow or enforce — e.g., 'create a glossary', 'document our service list', 'catalog the APIs'."
 ---
 
 # Doc — Reference Material

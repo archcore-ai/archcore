@@ -1,7 +1,7 @@
 ---
 name: spec
 argument-hint: "[topic]"
-description: "Expert — Defines a normative technical contract for a system or interface."
+description: "Expert — Defines a normative technical contract for a system, API, or interface. Activates when specifying behavioral guarantees, API contracts, or interface protocols — e.g., 'write a spec for', 'define the interface', 'document what this component must do'."
 ---
 
 # Spec — Technical Specification

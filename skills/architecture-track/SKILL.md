@@ -1,7 +1,7 @@
 ---
 name: architecture-track
 argument-hint: "[topic]"
-description: "Advanced — Create ADR, spec, and plan for architectural design."
+description: "Advanced — End-to-end architectural design flow: ADR → spec → plan. Best for significant technical decisions that require a formal specification and an implementation plan. For a decision without a spec, use /archcore:decide. For codifying standards, use /archcore:standard-track."
 disable-model-invocation: true
 ---
 

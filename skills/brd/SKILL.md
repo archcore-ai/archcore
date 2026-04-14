@@ -1,7 +1,7 @@
 ---
 name: brd
 argument-hint: "[topic]"
-description: "Expert — Documents business requirements, objectives, and ROI."
+description: "Expert — Documents business requirements, objectives, and ROI to justify a project. Activates when making a business case or documenting ROI expectations — e.g., 'business case for X', 'justify this project', 'business requirements document'."
 ---
 
 # BRD — Business Requirements Document
@@ -12,6 +12,7 @@ description: "Expert — Documents business requirements, objectives, and ROI."
 - Documenting business objectives and ROI expectations
 
 **Not BRD:**
+
 - Market analysis → **mrd**
 - User needs → **urd**
 - Product scope → **prd**
@@ -25,10 +26,10 @@ description: "Expert — Documents business requirements, objectives, and ROI."
 
 ## Relations
 
-| Direction | Type | Target | When |
-|-----------|------|--------|------|
-| Outgoing | `implements` by | BRS | Formal business requirements |
-| Peer | `related` | MRD, URD | Peer source documents |
-| Outgoing | `related` | PRD | Business context informs product |
+| Direction | Type            | Target   | When                             |
+| --------- | --------------- | -------- | -------------------------------- |
+| Outgoing  | `implements` by | BRS      | Formal business requirements     |
+| Peer      | `related`       | MRD, URD | Peer source documents            |
+| Outgoing  | `related`       | PRD      | Business context informs product |
 
 **Flows:** MRD+**BRD**+URD → PRD; **BRD** → BRS

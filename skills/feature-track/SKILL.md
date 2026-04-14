@@ -1,7 +1,7 @@
 ---
 name: feature-track
 argument-hint: "[topic]"
-description: "Advanced — Create PRD, spec, plan, and task-type for feature lifecycle."
+description: "Advanced — Full feature delivery flow: PRD → spec → plan → task-type. Best for well-scoped features that need formal specification and a repeatable delivery pattern. For lightweight product planning, use /archcore:product-track."
 disable-model-invocation: true
 ---
 
