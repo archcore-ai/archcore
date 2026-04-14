@@ -21,19 +21,29 @@ The plugin uses open standards (Agent Skills, MCP) — skills, agents, and MCP t
 
 ## What this plugin adds
 
-- **MCP Server** — exposes Archcore's document and relation tools directly to Claude
 - **33 Skills** — teach your AI agent about every document type and orchestrate multi-step workflows
 - **2 Agents** — handle complex documentation tasks and background audits
 - **5 Hooks** — load context on session start, block unsafe writes, validate changes, detect cascade staleness
+
+The plugin does **not** ship its own MCP server — it uses the one provided by the [Archcore CLI](https://archcore.ai) (`archcore mcp`). This avoids duplicate-server conflicts in repos that already register `archcore` in `.mcp.json` or via `claude mcp add`.
 
 The result: your AI agent understands your `.archcore/` structure out of the box. Ask it to draft an ADR, trace requirements to implementation plans, or audit your documentation health — it knows how.
 
 ## Quick Start
 
-**Prerequisites:** [Archcore CLI](https://archcore.ai)
+**Prerequisites:** [Archcore CLI](https://archcore.ai) — required. The plugin's skills, agents, and hooks expect the CLI to be installed and its MCP server to be reachable.
 
 ```bash
+# 1. Install the CLI
 curl -fsSL https://archcore.ai/install.sh | bash
+
+# 2. Register the MCP server (one-time, user scope)
+claude mcp add archcore archcore mcp -s user
+# — or add to your repo's .mcp.json for team-shared config:
+#   { "mcpServers": { "archcore": { "command": "archcore", "args": ["mcp"] } } }
+
+# 3. Initialize a project
+archcore init
 ```
 
 ### Claude Code

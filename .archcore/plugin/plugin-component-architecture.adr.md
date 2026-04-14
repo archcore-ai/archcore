@@ -46,13 +46,14 @@ Each plugin capability maps to a specific Claude Code component type based on it
 - **Events**:
   - SessionStart — load project context (existing)
   - PreToolUse (Write|Edit) — block direct `.archcore/` writes, redirect to MCP
-  - PostToolUse ��� validate `.archcore/` files after changes
+  - PostToolUse — validate `.archcore/` files after changes
 
-### MCP Server (existing)
+### MCP Server (external, not shipped by the plugin)
 
 - **Purpose**: Provide document CRUD and relation management tools
-- **Location**: `.mcp.json`
-- **Behavior**: Delegates to `archcore mcp` CLI command. No changes needed.
+- **Provider**: Archcore CLI (`archcore mcp`), installed independently of the plugin
+- **Registration**: user-scoped (`claude mcp add archcore archcore mcp -s user`) or project-scoped (`.mcp.json` at the repo root) — the plugin does not declare `mcpServers` in any manifest
+- **Rationale**: Claude Code dedupes MCP servers by `command`/URL and suppresses plugin-provided ones when a user/project registration already exists. Keeping MCP out of the plugin avoids the duplicate warning for repos that share `.mcp.json` across multiple AI tools.
 
 ## Alternatives Considered
 
@@ -79,6 +80,14 @@ Rely entirely on model-invoked skills. Rejected because:
 - Users sometimes want explicit control (e.g., "run a documentation review now")
 - Status dashboards are better as explicit commands than implicit suggestions
 
+### Ship MCP config inside the plugin
+
+Bundle `.mcp.json` / `mcp.json` at the plugin root for zero-config MCP after install. Rejected because:
+
+- Triggers Claude Code's duplicate-server suppression when a repo or user already has `archcore` registered (v2.1.71+)
+- Produces a persistent "Errors (1)" in `/plugin` UI even when the plugin works correctly via the user's server
+- MCP lifecycle belongs to the CLI install — if the CLI is missing, neither copy can run
+
 ## Consequences
 
 ### Positive
@@ -87,9 +96,11 @@ Rely entirely on model-invoked skills. Rejected because:
 - Each component type used for its natural invocation model
 - Skills provide passive knowledge; commands provide active workflows
 - Single agent simplifies maintenance while covering all scenarios
+- No duplicate-MCP conflicts in repos with shared `.mcp.json`
 
 ### Negative
 
 - 18 skill files to maintain (one per type)
 - Multiple command files to maintain
 - Must ensure consistency between skills, commands, and agent system prompt
+- Users must register MCP separately (one-time command); `bin/session-start` mitigates with actionable guidance when the server is unreachable

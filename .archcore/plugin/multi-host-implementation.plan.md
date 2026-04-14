@@ -11,6 +11,8 @@ tags:
 
 Implement multi-host support for the Archcore plugin, enabling it to run in Cursor (P1) and prepare the architecture for GitHub Copilot and other hosts (P2). The plugin must work identically across hosts with zero duplication of skills, agents, or core logic.
 
+MCP server configuration is explicitly out of scope: the plugin does not declare `mcpServers` in any host manifest and does not ship `.mcp.json` / `mcp.json` files at the plugin root. Users register `archcore mcp` externally via project `.mcp.json` or `claude mcp add`.
+
 ## Tasks
 
 ### Phase 1: Stdin Normalization Layer
@@ -56,7 +58,6 @@ Create all Cursor-specific adapter files.
 - Fetch latest Cursor docs for plugin.json manifest schema
 - Fetch latest Cursor docs for hooks.json format (event names, stdin/stdout protocol)
 - Fetch latest Cursor docs for rules .mdc format
-- Verify MCP config placement for Cursor plugins
 - Document any gaps vs Claude Code (missing events, different capabilities)
 
 **Output:** Verified formats, documented gaps
@@ -64,7 +65,8 @@ Create all Cursor-specific adapter files.
 #### 2.2 Create `.cursor-plugin/plugin.json`
 
 - Plugin manifest with name, version, description, author
-- References to skills/, agents/, hooks/, mcp config
+- References to skills/, agents/, hooks/, rules/
+- No `mcpServers` field — MCP is registered externally by the user/repo
 - Verify field names against docs from 2.1
 
 **Files:** `.cursor-plugin/plugin.json` (new)
@@ -114,7 +116,7 @@ Create all Cursor-specific adapter files.
 #### 3.1 Install plugin locally in Cursor
 
 - Use Cursor's local plugin loading mechanism
-- Verify MCP server starts and tools are available
+- Verify the user-registered MCP server is reachable (via project `mcp.json` or Cursor's MCP settings) and its tools are available
 - Verify skills appear in slash command menu
 
 #### 3.2 Test core flows
@@ -138,6 +140,7 @@ Create all Cursor-specific adapter files.
 
 - Update README.md with multi-host installation instructions
 - Add "Supported Hosts" section
+- Document the external MCP registration step prominently (prerequisite, not an afterthought)
 
 #### 4.2 ~~Consider repository rename~~ Done
 
@@ -148,13 +151,14 @@ Create all Cursor-specific adapter files.
 
 - [ ] All 5 bin scripts use `bin/lib/normalize-stdin.sh` for stdin parsing
 - [ ] Claude Code plugin works identically after refactor (zero regression)
-- [ ] `.cursor-plugin/plugin.json` exists with correct manifest format
+- [ ] `.cursor-plugin/plugin.json` exists with correct manifest format and no `mcpServers` field
 - [ ] `hooks/cursor.hooks.json` maps all 5 hook functions to Cursor events
-- [ ] Plugin loads in Cursor: MCP tools available, skills discoverable
+- [ ] Plugin loads in Cursor: skills discoverable, user-registered MCP tools available
 - [ ] Core flow works in Cursor: create document → validate → cascade
 - [ ] Direct write blocking works in Cursor
 - [ ] All config formats verified against official host documentation
 - [ ] No skills or agents contain host-specific references (invariant maintained)
+- [ ] `bin/session-start` emits actionable guidance when the external MCP server is unreachable
 
 ## Dependencies
 

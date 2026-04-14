@@ -6,22 +6,37 @@ SCRIPT_DIR=$(dirname "$0")
 # shellcheck source=lib/normalize-stdin.sh
 . "$SCRIPT_DIR/lib/normalize-stdin.sh"
 
+# Emit informational context to the agent (structured for Claude Code/Copilot, plain for others).
+_archcore_emit_info() {
+  _msg="$1"
+  case "$ARCHCORE_HOST" in
+    claude-code|copilot)
+      _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
+      printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}' "$_escaped"
+      ;;
+    *)
+      printf '%s\n' "$_msg"
+      ;;
+  esac
+}
+
 # Check if archcore CLI is available
 if ! command -v archcore >/dev/null 2>&1; then
-  echo "[Archcore] CLI not found. Install: curl -fsSL https://archcore.ai/install.sh | bash"
-  echo "Then initialize: archcore init"
-  echo ""
-  echo "Without the CLI, Archcore MCP tools are unavailable."
-  echo "Skills (/archcore:*) and agents (archcore-assistant, archcore-auditor) will not function."
+  _archcore_emit_info "[Archcore] CLI not installed. The plugin provides skills, agents, and hooks, but document operations require the Archcore CLI (it supplies the MCP server).
+
+Install: curl -fsSL https://archcore.ai/install.sh | bash
+Initialize: archcore init
+Register MCP: claude mcp add archcore archcore mcp -s user  (or add to project .mcp.json)
+
+Until the CLI is installed, mcp__archcore__* tools will not be available. If the user asks for an Archcore operation (create ADR, audit docs, etc.), tell them the CLI needs to be installed first — do NOT attempt to write to .archcore/ directly (hooks will block it)."
   exit 0
 fi
 
 # Check if .archcore/ exists (not initialized)
 if [ ! -d ".archcore" ]; then
-  echo "[Archcore] Not initialized in this project. Run: archcore init"
-  echo ""
-  echo "The CLI is installed but this project has no .archcore/ directory."
-  echo "Skills and agents require an initialized Archcore knowledge base."
+  _archcore_emit_info "[Archcore] CLI is installed but this project has no .archcore/ directory. Run: archcore init
+
+Skills and agents need an initialized knowledge base. If the user asks for an Archcore operation, offer to run 'archcore init' first."
   exit 0
 fi
 

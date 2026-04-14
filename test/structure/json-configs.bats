@@ -38,16 +38,6 @@ setup() {
   assert_success
 }
 
-@test "mcp.json is valid JSON" {
-  run jq . "$PLUGIN_ROOT/mcp.json"
-  assert_success
-}
-
-@test ".mcp.json is valid JSON" {
-  run jq . "$PLUGIN_ROOT/.mcp.json"
-  assert_success
-}
-
 # --- Required fields ---
 
 @test "claude plugin.json has name and version" {
@@ -80,16 +70,6 @@ setup() {
   assert_success
 }
 
-@test "mcp.json defines archcore server" {
-  run jq -e '.mcpServers.archcore.command == "archcore"' "$PLUGIN_ROOT/mcp.json"
-  assert_success
-}
-
-@test ".mcp.json defines archcore server" {
-  run jq -e '.mcpServers.archcore.command == "archcore"' "$PLUGIN_ROOT/.mcp.json"
-  assert_success
-}
-
 # --- Cross-reference consistency ---
 
 @test "plugin.json name matches across hosts" {
@@ -106,7 +86,3 @@ setup() {
   [ "$cc_ver" = "$cursor_ver" ]
 }
 
-@test "mcp.json and .mcp.json have identical content" {
-  run diff <(jq -S . "$PLUGIN_ROOT/mcp.json") <(jq -S . "$PLUGIN_ROOT/.mcp.json")
-  assert_success
-}

@@ -9,12 +9,15 @@ tags:
 ## Prerequisites
 
 - Archcore CLI installed and in PATH (`archcore --version`)
+- Archcore MCP server registered — either `claude mcp add archcore archcore mcp -s user` or a project `.mcp.json` with `{"mcpServers":{"archcore":{"command":"archcore","args":["mcp"]}}}`
 - Claude Code or Cursor installed with plugin support
 - Git for version control
 - A project with `.archcore/` initialized (`archcore init`)
 - bats-core for tests (`brew install bats-core` on macOS)
 - jq for JSON validation (`brew install jq`)
 - ShellCheck (optional, `brew install shellcheck`)
+
+Note: the plugin itself does not ship MCP config. MCP registration is the user/repo's responsibility so that the plugin does not conflict with pre-existing `archcore` servers in the host's MCP manager.
 
 ## Steps
 
@@ -62,6 +65,7 @@ Reload and test: `/reload-plugins`, then try `/archcore:my-skill`.
 Edit `hooks/hooks.json` (Claude Code) or `hooks/cursor.hooks.json` (Cursor) to add event handlers.
 
 Hook scripts go in `bin/` and must:
+
 - Start with `#!/bin/sh`
 - Be executable (`chmod +x`)
 - Source `bin/lib/normalize-stdin.sh` if they read hook stdin
@@ -87,9 +91,9 @@ make verify    # full check: JSON + permissions + shellcheck + tests
 Or run individual checks:
 
 ```bash
-make test           # all 119 bats tests
-make test-unit      # 69 unit tests (bin script logic)
-make test-structure # 50 structure tests (configs, frontmatter)
+make test           # all bats tests
+make test-unit      # unit tests (bin script logic)
+make test-structure # structure tests (configs, frontmatter)
 make lint           # shellcheck
 make check-json     # JSON validity
 make check-perms    # executable permissions
@@ -144,6 +148,11 @@ See `plugin-testing.guide.md` for detailed testing instructions.
 
 ### MCP server not connecting
 
-- Verify `archcore` is in PATH: `which archcore`
-- Check `.mcp.json` (Claude Code) or `mcp.json` (Cursor) contains the correct server config
-- Run `archcore mcp` manually to check for errors
+The plugin does not ship MCP config — the server is registered externally. Diagnose in this order:
+
+1. **CLI installed?** — `which archcore`. If missing, install: `curl -fsSL https://archcore.ai/install.sh | bash`.
+2. **MCP registered?** — `claude mcp list` (Claude Code) should show `archcore`. If missing:
+   - User scope: `claude mcp add archcore archcore mcp -s user`
+   - Project scope: create `.mcp.json` at the repo root with `{"mcpServers":{"archcore":{"command":"archcore","args":["mcp"]}}}`
+3. **Server starts manually?** — run `archcore mcp` in a terminal. It should block and accept stdio. Errors here indicate a CLI or project config problem.
+4. **Duplicate suppression?** — if `/plugin` shows "Errors (1)" with an `archcore` MCP message, an older plugin version may have shipped MCP config. Update to the latest plugin and confirm `.mcp.json`/`mcp.json` are absent at the plugin root.
