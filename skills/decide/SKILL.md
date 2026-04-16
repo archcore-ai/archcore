@@ -36,10 +36,16 @@ Default: create a single ADR. After creation, always offer: "Want to codify this
 
 ### Step 0: Verify MCP
 
-Call `mcp__archcore__list_documents` first. If unavailable, stop and tell the user:
-- Install CLI: `curl -fsSL https://archcore.ai/install.sh | bash`
-- Initialize: `archcore init`
-- Restart the session
+Check if `mcp__archcore__list_documents` exists in your available tools. If the tool does not exist or returns an error, **stop immediately** and tell the user:
+
+**Archcore CLI is not installed.** The plugin provides skills and hooks, but document operations need the CLI (it runs the MCP server).
+
+To set up:
+1. Install: `curl -fsSL https://archcore.ai/install.sh | bash`
+2. Initialize project: `archcore init`
+3. Restart the session, then rerun this command.
+
+Do not proceed without MCP tools. Do not write to `.archcore/` directly.
 
 ### Step 1: Check existing
 

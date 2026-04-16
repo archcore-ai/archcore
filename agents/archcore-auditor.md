@@ -94,7 +94,7 @@ If Archcore MCP tools are not available (tool calls fail with "not found" or sim
 
 1. The Archcore CLI must be installed: `curl -fsSL https://archcore.ai/install.sh | bash`
 2. The project must be initialized: `archcore init`
-3. Restart the Claude Code session after setup
+3. Restart the session after setup
 
 Do not attempt to audit without MCP tools — the data would be incomplete.
 

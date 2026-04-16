@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # /archcore:help
 
-Guide to what you can do with Archcore in Claude Code.
+Guide to what you can do with the Archcore plugin.
 
 ## When to use
 
@@ -62,6 +62,16 @@ Create a specific document type directly:
 **Vision:** `/archcore:prd`, `/archcore:idea`, `/archcore:mrd`, `/archcore:brd`, `/archcore:urd`, `/archcore:brs`, `/archcore:strs`, `/archcore:syrs`, `/archcore:srs`
 
 **Experience:** `/archcore:task-type`, `/archcore:cpat`
+
+## Setup
+
+If Archcore commands fail with MCP tool errors, the CLI needs to be installed:
+
+1. **Install CLI:** `curl -fsSL https://archcore.ai/install.sh | bash`
+2. **Initialize project:** `archcore init`
+3. **Restart** the session
+
+The plugin provides skills, agents, and hooks — but document operations (create, update, delete) require the Archcore CLI, which runs the MCP server.
 
 ---
 
