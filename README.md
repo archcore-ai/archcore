@@ -2,47 +2,19 @@
 
 Git-native context for AI coding agents.
 
-Archcore keeps your architecture decisions, requirements, specs, and patterns in `.archcore/` — right next to the code they describe. This plugin makes your AI coding tool a first-class citizen of that system: it can read, create, update, and connect documents without you having to explain the structure every time.
-
-## Supported Hosts
-
-| Host | Status | Install |
-|------|--------|---------|
-| **Claude Code** | Production | Plugin marketplace |
-| **Cursor** | Implemented | Plugin marketplace |
-| GitHub Copilot | Planned | — |
-| Codex CLI | Planned | — |
-
-The plugin uses open standards (Agent Skills, MCP) — skills, agents, and MCP tools are shared across all hosts. Only hooks and manifests are host-specific.
-
-## What is Archcore?
-
-[Archcore](https://archcore.ai) stores project knowledge as Markdown files with typed frontmatter in a `.archcore/` directory inside your repo. Each file has a type (ADR, PRD, spec, rule, plan, etc.), a status, tags, and semantic relations to other documents. Everything is version-controlled alongside your code.
-
-## What this plugin adds
-
-- **33 Skills** — teach your AI agent about every document type and orchestrate multi-step workflows
-- **2 Agents** — handle complex documentation tasks and background audits
-- **5 Hooks** — load context on session start, block unsafe writes, validate changes, detect cascade staleness
-
-The plugin does **not** ship its own MCP server — it uses the one provided by the [Archcore CLI](https://archcore.ai) (`archcore mcp`). This avoids duplicate-server conflicts in repos that already register `archcore` in `.mcp.json` or via `claude mcp add`.
-
-The result: your AI agent understands your `.archcore/` structure out of the box. Ask it to draft an ADR, trace requirements to implementation plans, or audit your documentation health — it knows how.
+> Git versions your code.
+> CI/CD ships it.
+> **Archcore makes your AI understand it.**
 
 ## Quick Start
 
-**Prerequisites:** [Archcore CLI](https://archcore.ai) — required. The plugin's skills, agents, and hooks expect the CLI to be installed and its MCP server to be reachable.
+**Prerequisites:** [Archcore CLI](https://archcore.ai) — required.
 
 ```bash
 # 1. Install the CLI
 curl -fsSL https://archcore.ai/install.sh | bash
 
-# 2. Register the MCP server (one-time, user scope)
-claude mcp add archcore archcore mcp -s user
-# — or add to your repo's .mcp.json for team-shared config:
-#   { "mcpServers": { "archcore": { "command": "archcore", "args": ["mcp"] } } }
-
-# 3. Initialize a project
+# 2. Initialize a project
 archcore init
 ```
 
@@ -75,11 +47,60 @@ claude --plugin-dir ./archcore-plugin    # Claude Code
 cursor --plugin-dir ./archcore-plugin    # Cursor
 ```
 
-### Initialize a project
+---
 
-```bash
-archcore init
-```
+## What it does
+
+Archcore Plugin turns your AI coding agent into a first-class citizen of your project's knowledge base. Four things change the moment you install it:
+
+- **Architecture** — the agent places code where your system expects it
+- **Rules** — it follows your team's standards instead of improvising
+- **Decisions** — prior ADRs aren't re-litigated
+- **Workflows** — multi-step tasks (PRD → plan, ADR → rule → guide, ISO 29148 cascades) execute end-to-end
+
+## Without vs. with Archcore
+
+Without Archcore, ask for "a new service" and the agent:
+
+- guesses the folder structure
+- ignores conventions it has never been told about
+- produces code that drifts from decisions buried in docs
+- rediscovers patterns you've already written down
+
+With Archcore, the same ask and the agent:
+
+- places files where your architecture says they belong
+- follows rules defined in `.archcore/`
+- respects ADRs and existing specs
+- reuses patterns (`cpat`) you've already captured
+
+## Mental model
+
+Two pieces work together. Keep the analogy in your head:
+
+- **Archcore CLI — the compiler.** Reads `.archcore/`, builds the context graph, exposes it over MCP.
+- **Archcore Plugin — the runtime.** Applies that context inside your AI agent — skills, guardrails, workflows.
+
+Result: your agent ships code aligned with your system by default, not by accident.
+
+## Supported Hosts
+
+| Host            | Status      | Install            |
+| --------------- | ----------- | ------------------ |
+| **Claude Code** | Production  | Plugin marketplace |
+| **Cursor**      | Implemented | Plugin marketplace |
+| GitHub Copilot  | Planned     | —                  |
+| Codex CLI       | Planned     | —                  |
+
+The plugin uses open standards (Agent Skills, MCP) — skills, agents, and MCP tools are shared across hosts. Only hooks and manifests are host-specific.
+
+## What ships in the box
+
+- **32 Skills** — 18 document types, 8 intent commands, 6 multi-step tracks
+- **2 Agents** — a universal assistant and a read-only auditor
+- **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
+
+The plugin does **not** ship its own MCP server — it uses the one provided by the [Archcore CLI](https://archcore.ai) (`archcore mcp`). This avoids duplicate-server conflicts in repos that already register `archcore` in `.mcp.json` or via `claude mcp add`.
 
 ## How it works
 
@@ -91,18 +112,27 @@ archcore init
 
 ## Skills
 
-### Document Types (18)
+### Intent commands (8)
 
-Each skill teaches Claude about one document type: when to use it, required sections, best practices, common mistakes, and how to relate it to other documents.
+The primary user interface — describe what you want, the skill routes to the right types and flows.
+
+| Skill     | Command               | What it does                                                                    |
+| --------- | --------------------- | ------------------------------------------------------------------------------- |
+| Capture   | `/archcore:capture`   | Document a module, component, or API — routes to adr, spec, doc, or guide       |
+| Plan      | `/archcore:plan`      | Plan a feature end-to-end — routes to product-track or single plan              |
+| Decide    | `/archcore:decide`    | Record a finalized decision — creates ADR, offers rule + guide follow-up        |
+| Standard  | `/archcore:standard`  | Establish a team standard — drives standard-track (adr → rule → guide)          |
+| Review    | `/archcore:review`    | Documentation health review — gaps, staleness, orphaned docs, missing relations |
+| Status    | `/archcore:status`    | Dashboard — counts by category, type, status, relation coverage, tags           |
+| Actualize | `/archcore:actualize` | Detect stale docs via code drift, cascade analysis, and temporal staleness      |
+| Help      | `/archcore:help`      | Navigate the system — discover skills, types, and workflows                     |
+
+### Document types (18)
+
+Each skill teaches the agent about one document type: when to use it, required sections, best practices, common mistakes, and how to relate it to other documents.
 
 | Type        | Category   | What it captures                                     |
 | ----------- | ---------- | ---------------------------------------------------- |
-| `adr`       | knowledge  | Architecture decisions with context and consequences |
-| `rfc`       | knowledge  | Proposals open for review and feedback               |
-| `rule`      | knowledge  | Mandatory team standards with rationale              |
-| `guide`     | knowledge  | Step-by-step how-to instructions                     |
-| `doc`       | knowledge  | Reference material — registries, glossaries, lookups |
-| `spec`      | knowledge  | Technical contracts for systems and components       |
 | `prd`       | vision     | Product requirements — goals, scope, success metrics |
 | `idea`      | vision     | Low-commitment concepts and explorations             |
 | `plan`      | vision     | Phased implementation with tasks and dependencies    |
@@ -113,6 +143,12 @@ Each skill teaches Claude about one document type: when to use it, required sect
 | `strs`      | vision     | Formal stakeholder requirements spec (ISO 29148)     |
 | `syrs`      | vision     | System boundary and interface spec (ISO 29148)       |
 | `srs`       | vision     | Software functional/non-functional spec (ISO 29148)  |
+| `adr`       | knowledge  | Architecture decisions with context and consequences |
+| `rfc`       | knowledge  | Proposals open for review and feedback               |
+| `rule`      | knowledge  | Mandatory team standards with rationale              |
+| `guide`     | knowledge  | Step-by-step how-to instructions                     |
+| `doc`       | knowledge  | Reference material — registries, glossaries, lookups |
+| `spec`      | knowledge  | Technical contracts for systems and components       |
 | `task-type` | experience | Recurring task patterns with proven workflows        |
 | `cpat`      | experience | Before/after code pattern changes with scope         |
 
@@ -133,21 +169,6 @@ Tracks orchestrate multi-document flows. Each step builds on the previous one, w
 
 Invoke: `/archcore:product-track`, `/archcore:architecture-track`, etc.
 
-### Intent Commands (8)
-
-The primary user interface — describe what you want, the skill routes to the right types and flows.
-
-| Skill     | Command                | What it does                                                                    |
-| --------- | ---------------------- | ------------------------------------------------------------------------------- |
-| Capture   | `/archcore:capture`    | Document a module, component, or API — routes to adr, spec, doc, or guide       |
-| Plan      | `/archcore:plan`       | Plan a feature end-to-end — routes to product-track or single plan              |
-| Decide    | `/archcore:decide`     | Record a finalized decision — creates ADR, offers rule + guide follow-up        |
-| Standard  | `/archcore:standard`   | Establish a team standard — drives standard-track (adr → rule → guide)          |
-| Review    | `/archcore:review`     | Documentation health review — gaps, staleness, orphaned docs, missing relations |
-| Status    | `/archcore:status`     | Dashboard — counts by category, type, status, relation coverage, tags           |
-| Actualize | `/archcore:actualize`  | Detect stale docs via code drift, cascade analysis, and temporal staleness       |
-| Help      | `/archcore:help`       | Navigate the system — discover skills, types, and workflows                     |
-
 ## Agents
 
 **archcore-assistant** — Universal read/write agent for complex multi-document tasks. Creates and updates documents, manages relations, handles requirement cascades. Uses all 8 MCP tools.
@@ -163,9 +184,23 @@ The plugin enforces the **MCP-only principle**: all `.archcore/` operations must
 - **Validation** — runs `archcore validate` after every document mutation
 - **Cascade detection** — warns when an updated document has dependents that may need review
 
+## Philosophy
+
+- **Context is a first-class artifact** — typed, validated, relation-aware Markdown in Git. Not a hidden prompt, not tribal knowledge.
+- **Opinionated workflows over raw tool access** — skills route intent to the right document type and the right multi-step flow.
+- **Minimal effort at the boundary** — the agent already knows the structure, so you describe intent, not schema.
+
+## Roadmap
+
+- Deeper IDE integrations (VS Code, JetBrains)
+- Additional hosts (GitHub Copilot, Codex CLI)
+- Multi-agent coordination for long cascades
+- Richer staleness and drift analytics
+
 ## Uninstallation
 
 Claude Code:
+
 ```bash
 /plugin uninstall archcore@archcore-plugins
 ```
