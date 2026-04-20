@@ -11,12 +11,14 @@ Git-native context for AI coding agents.
 **Prerequisites:** [Archcore CLI](https://archcore.ai) — required.
 
 ```bash
-# 1. Install the CLI
+# 1. Install the CLI (macOS / Linux)
 curl -fsSL https://archcore.ai/install.sh | bash
 
 # 2. Initialize a project
 archcore init
 ```
+
+On **Windows**, run in PowerShell: `irm https://archcore.ai/install.ps1 | iex`. For WSL, `go install`, and other options, see the [full install guide](https://docs.archcore.ai/cli/install/).
 
 ### Claude Code
 
