@@ -1,6 +1,6 @@
 ---
 title: "Skills System Specification — Intent, Track, Type, and Workflow Skills"
-status: draft
+status: accepted
 tags:
   - "plugin"
   - "skills"
@@ -12,7 +12,7 @@ Define the contract for how skills are structured, discovered, and used within t
 
 ## Scope
 
-This specification covers all skill files in the `skills/` directory: 8 intent skills, 6 track skills, and 18 document-type skills. It defines their naming convention, content structure, invocation triggers, relationship to MCP tools, and tier classification. It does not cover agents (subagents).
+This specification covers all skill files in the `skills/` directory: 8 intent skills, 6 track skills, and 17 document-type skills. It defines their naming convention, content structure, invocation triggers, relationship to MCP tools, and tier classification. It does not cover agents (subagents).
 
 ## Authority
 
@@ -56,7 +56,7 @@ Track skills are user-only (`disable-model-invocation: true`). Their description
 
 Track skills do NOT duplicate type skill content. They define the flow — sequence of steps, relation chain, and scope detection.
 
-### Type Skills (18) — Layer 3: Expert Typed Artifacts
+### Type Skills (17) — Layer 3: Expert Typed Artifacts
 
 Each teaches Claude about one Archcore document type. They serve two roles: domain knowledge for model invocation (Claude auto-activates) and quick-create for expert users who know exactly which type they need.
 
@@ -70,7 +70,6 @@ Each teaches Claude about one Archcore document type. They serve two roles: doma
 | `skills/spec/` | Technical Specification | knowledge |
 | `skills/prd/` | Product Requirements | vision |
 | `skills/idea/` | Product/Technical Concept | vision |
-| `skills/plan/` | Implementation Plan | vision |
 | `skills/mrd/` | Market Requirements | vision |
 | `skills/brd/` | Business Requirements | vision |
 | `skills/urd/` | User Requirements | vision |
@@ -81,7 +80,7 @@ Each teaches Claude about one Archcore document type. They serve two roles: doma
 | `skills/task-type/` | Recurring Task Pattern | experience |
 | `skills/cpat/` | Code Pattern Change | experience |
 
-Type skills are model-invoked (Claude activates automatically) AND user-invokable via `/archcore:<type> <topic>`. Their descriptions are prefixed with "Expert —" for tier signaling, except high-frequency types (adr, prd, rule, guide, plan) which keep clean descriptions for better model invocation matching.
+Type skills are model-invoked (Claude activates automatically) AND user-invokable via `/archcore:<type> <topic>`. Their descriptions are prefixed with "Expert —" for tier signaling, except high-frequency types (adr, prd, rule, guide) which keep clean descriptions for better model invocation matching.
 
 ### Absorbed Skills
 
@@ -132,7 +131,7 @@ description: "Expert — <when Claude should activate this skill>"
 ---
 ```
 
-Note: High-frequency type skills (adr, prd, rule, guide, plan) omit the "Expert —" prefix to preserve model invocation quality.
+Note: High-frequency type skills (adr, prd, rule, guide) omit the "Expert —" prefix to preserve model invocation quality.
 
 ### Intent Skill Content Structure (Layer 1)
 
@@ -192,7 +191,7 @@ Type skills are deliberately concise. They provide disambiguation, elicitation, 
 - Skills provide guidance around the template, not the template itself.
 - When multiple type skills could apply, Claude should prefer the most specific type.
 - Track skill descriptions MUST be prefixed with "Advanced —".
-- Type skill descriptions MUST be prefixed with "Expert —" (except adr, prd, rule, guide, plan).
+- Type skill descriptions MUST be prefixed with "Expert —" (except adr, prd, rule, guide).
 
 ## Constraints
 
@@ -209,7 +208,7 @@ Type skills are deliberately concise. They provide disambiguation, elicitation, 
 
 - There are exactly 8 intent skills (Layer 1).
 - There are exactly 6 track skills (Layer 2).
-- There is exactly one type skill per Archcore document type (18 total, Layer 3).
+- There are exactly 17 type skills, one per Archcore document type except `plan` which is served by the `/archcore:plan` intent skill.
 - Every intent skill has a routing table section.
 - Every track skill follows the sequential step structure.
 - Every type skill has When to Use, Quick Create, and Relations sections.

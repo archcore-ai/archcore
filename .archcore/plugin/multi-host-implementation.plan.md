@@ -1,6 +1,6 @@
 ---
 title: "Multi-Host Plugin Implementation Plan"
-status: draft
+status: accepted
 tags:
   - "multi-host"
   - "plugin"
@@ -149,16 +149,16 @@ Create all Cursor-specific adapter files.
 
 ## Acceptance Criteria
 
-- [ ] All 5 bin scripts use `bin/lib/normalize-stdin.sh` for stdin parsing
-- [ ] Claude Code plugin works identically after refactor (zero regression)
-- [ ] `.cursor-plugin/plugin.json` exists with correct manifest format and no `mcpServers` field
-- [ ] `hooks/cursor.hooks.json` maps all 5 hook functions to Cursor events
-- [ ] Plugin loads in Cursor: skills discoverable, user-registered MCP tools available
-- [ ] Core flow works in Cursor: create document → validate → cascade
-- [ ] Direct write blocking works in Cursor
-- [ ] All config formats verified against official host documentation
-- [ ] No skills or agents contain host-specific references (invariant maintained)
-- [ ] `bin/session-start` emits actionable guidance when the external MCP server is unreachable
+- [x] All 5 bin scripts use `bin/lib/normalize-stdin.sh` for stdin parsing
+- [x] Claude Code plugin works identically after refactor (zero regression)
+- [x] `.cursor-plugin/plugin.json` exists with correct manifest format and no `mcpServers` field
+- [x] `hooks/cursor.hooks.json` maps all 5 hook functions to Cursor events
+- [x] Plugin loads in Cursor: skills discoverable, user-registered MCP tools available
+- [x] Core flow works in Cursor: create document → validate → cascade
+- [x] Direct write blocking works in Cursor
+- [x] All config formats verified against official host documentation
+- [x] No skills or agents contain host-specific references (invariant maintained)
+- [x] `bin/session-start` emits actionable guidance when the external MCP server is unreachable
 
 ## Dependencies
 

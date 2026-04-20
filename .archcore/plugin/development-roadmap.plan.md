@@ -29,7 +29,7 @@ Built skills across the 4-layer hierarchy:
 
 - [x] Intent skills (8): capture, plan, decide, standard, review, status, actualize, help
 - [x] Track skills (6): product-track, sources-track, iso-track, architecture-track, standard-track, feature-track
-- [x] Type skills (18): adr, rfc, rule, guide, doc, spec, prd, idea, plan, mrd, brd, urd, brs, strs, syrs, srs, task-type, cpat
+- [x] Type skills (17): adr, rfc, rule, guide, doc, spec, prd, idea, mrd, brd, urd, brs, strs, syrs, srs, task-type, cpat
 - [x] Each skill follows the structure defined in skills-system.spec.md (Intent: 5 sections, Track: sequential steps, Type: 3 sections)
 - [x] All skills reference MCP tools by exact name, never instruct direct file writes
 - [x] Tier prefixes applied: "Advanced —" for tracks, "Expert —" for non-high-frequency types
@@ -40,7 +40,7 @@ Built user-invoked command surface and subagents:
 
 - [x] 8 intent skills as primary user entry points (`/archcore:capture`, `/archcore:plan`, etc.)
 - [x] 6 track skills for advanced multi-document flows (`/archcore:product-track`, etc.)
-- [x] 18 type skills for expert quick-create (`/archcore:adr`, `/archcore:prd`, etc.)
+- [x] 17 type skills for expert quick-create (`/archcore:adr`, `/archcore:prd`, etc.)
 - [x] `archcore-assistant` agent — read/write agent with full MCP tool access
 - [x] `archcore-auditor` agent — read-only auditor with code-document correlation
 
@@ -57,7 +57,7 @@ Built the enforcement and freshness detection layer:
 
 ## Acceptance Criteria
 
-- All 18 document types have dedicated type skills with complete guidance
+- All 18 document types are covered — 17 via dedicated type skills plus `plan` via the `/archcore:plan` intent skill
 - 8 intent skills operational as primary user surface
 - 6 track skills for multi-document flows
 - Two agents: archcore-assistant (read/write) and archcore-auditor (read-only)

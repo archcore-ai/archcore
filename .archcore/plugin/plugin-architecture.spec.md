@@ -1,6 +1,6 @@
 ---
 title: "Plugin Architecture — 4-Layer Intent-Based Command Hierarchy"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "plugin"

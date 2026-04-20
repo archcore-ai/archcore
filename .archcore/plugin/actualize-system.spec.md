@@ -1,6 +1,6 @@
 ---
 title: "Actualize System Specification"
-status: draft
+status: accepted
 tags:
   - "hooks"
   - "plugin"

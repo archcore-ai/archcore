@@ -1,6 +1,6 @@
 ---
 title: "Plugin Component Registry"
-status: draft
+status: accepted
 tags:
   - "plugin"
   - "reference"

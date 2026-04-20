@@ -1,6 +1,6 @@
 ---
 title: "Adding a New Document Type Skill"
-status: draft
+status: accepted
 tags:
   - "development"
   - "plugin"
@@ -40,7 +40,7 @@ Search the Archcore documentation and reference materials for examples of well-w
 mkdir -p skills/<type-name>
 ```
 
-Use the exact Archcore type identifier: `adr`, `rfc`, `rule`, `guide`, `doc`, `spec`, `prd`, `idea`, `plan`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`, `task-type`, `cpat`.
+Use the exact Archcore type identifier: `adr`, `rfc`, `rule`, `guide`, `doc`, `spec`, `prd`, `idea`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`, `task-type`, `cpat`.
 
 ### 4. Write the SKILL.md frontmatter
 

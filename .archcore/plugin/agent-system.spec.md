@@ -1,6 +1,6 @@
 ---
 title: "Universal Agent Specification"
-status: draft
+status: accepted
 tags:
   - "agents"
   - "plugin"

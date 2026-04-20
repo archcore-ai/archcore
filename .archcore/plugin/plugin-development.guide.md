@@ -1,6 +1,6 @@
 ---
 title: "Plugin Development Guide"
-status: draft
+status: accepted
 tags:
   - "development"
   - "plugin"

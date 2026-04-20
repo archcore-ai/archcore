@@ -1,6 +1,6 @@
 ---
 title: "Multi-Host Compatibility Layer Specification"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "hooks"
@@ -32,7 +32,7 @@ The plugin splits into a **shared core** (skills, agents, bin script logic) and 
 ┌─────────────────────────────────────────────────────────┐
 │                    Shared Core                           │
 │                                                         │
-│  skills/ (33)  agents/ (2)  bin/ (5 scripts)            │
+│  skills/ (32)  agents/ (2)  bin/ (5 scripts)            │
 │                                                         │
 │  100% host-agnostic — uses only MCP tools + Read/Grep   │
 ├─────────────────────────────────────────────────────────┤
