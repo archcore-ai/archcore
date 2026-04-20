@@ -1,7 +1,7 @@
 {
   "name": "archcore",
   "description": "Git-native context for AI coding agents",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "author": {
     "name": "Archcore"
   },

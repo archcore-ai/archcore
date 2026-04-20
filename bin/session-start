@@ -1,10 +1,13 @@
 #!/bin/sh
-# SessionStart hook: load archcore context or warn if CLI is missing.
-# Uses normalized stdin — works across Claude Code, Cursor, and other hosts.
+# SessionStart hook: auto-register MCP server, load archcore context, report staleness.
+# Uses bin/archcore shim which resolves (and downloads on first use) the real CLI.
 
 SCRIPT_DIR=$(dirname "$0")
 # shellcheck source=lib/normalize-stdin.sh
 . "$SCRIPT_DIR/lib/normalize-stdin.sh"
+
+SHIM="$SCRIPT_DIR/archcore"
+SHIM_ABS=$(CDPATH='' cd -- "$SCRIPT_DIR" && pwd)/archcore
 
 # Emit informational context to the agent (structured for Claude Code/Copilot, plain for others).
 _archcore_emit_info() {
@@ -20,29 +23,27 @@ _archcore_emit_info() {
   esac
 }
 
-# Check if archcore CLI is available
-if ! command -v archcore >/dev/null 2>&1; then
-  _archcore_emit_info "[Archcore] CLI not installed. The plugin provides skills, agents, and hooks, but document operations require the Archcore CLI (it supplies the MCP server).
-
-Install: curl -fsSL https://archcore.ai/install.sh | bash
-Initialize: archcore init
-Register MCP: claude mcp add archcore archcore mcp -s user  (or add to project .mcp.json)
-
-Until the CLI is installed, mcp__archcore__* tools will not be available. If the user asks for an Archcore operation (create ADR, audit docs, etc.), tell them the CLI needs to be installed first — do NOT attempt to write to .archcore/ directly (hooks will block it)."
-  exit 0
+# Auto-register MCP server in local scope if the Claude CLI is available and
+# archcore is not yet registered. Local scope wins precedence over project
+# .mcp.json, so this covers both the happy path (new install) and the edge case
+# where a stale project .mcp.json points to a bare "archcore" command that
+# isn't in PATH. Idempotent.
+if command -v claude >/dev/null 2>&1; then
+  if ! claude mcp list 2>/dev/null | grep -qi '^archcore'; then
+    claude mcp add archcore "$SHIM_ABS" mcp -s local >/dev/null 2>&1 || true
+  fi
 fi
 
 # Check if .archcore/ exists (not initialized)
 if [ ! -d ".archcore" ]; then
-  _archcore_emit_info "[Archcore] CLI is installed but this project has no .archcore/ directory. Run: archcore init
-
-Skills and agents need an initialized knowledge base. If the user asks for an Archcore operation, offer to run 'archcore init' first."
+  _archcore_emit_info "[Archcore] no .archcore/ directory in this project. Run 'archcore init' to initialize a knowledge base. Skills and agents need an initialized knowledge base. If the user asks for an Archcore operation, offer to run 'archcore init' first."
   exit 0
 fi
 
-# All good — run the host-specific session-start hook
-# Pipe raw stdin through since archcore CLI parses it
-printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_HOST" session-start
+# Run the host-specific session-start hook via shim.
+# The shim downloads the CLI on first use; errors surface on stderr. A non-zero
+# exit is non-fatal for the session — we still want staleness info to run.
+printf '%s' "$ARCHCORE_RAW_STDIN" | "$SHIM" hooks "$ARCHCORE_HOST" session-start || true
 
 # Run staleness check (code-document drift detection)
 STALENESS=$("$SCRIPT_DIR/check-staleness" 2>/dev/null) || true

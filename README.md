@@ -8,17 +8,7 @@ Git-native context for AI coding agents.
 
 ## Quick Start
 
-**Prerequisites:** [Archcore CLI](https://archcore.ai) — required.
-
-```bash
-# 1. Install the CLI (macOS / Linux)
-curl -fsSL https://archcore.ai/install.sh | bash
-
-# 2. Initialize a project
-archcore init
-```
-
-On **Windows**, run in PowerShell: `irm https://archcore.ai/install.ps1 | iex`. For WSL, `go install`, and other options, see the [full install guide](https://docs.archcore.ai/cli/install/).
+The plugin bundles the Archcore CLI. Install the plugin — everything else (MCP server registration, binary download for your platform) happens automatically on first session.
 
 ### Claude Code
 
@@ -33,6 +23,12 @@ Or from within Claude Code:
 /plugin marketplace add archcore-ai/archcore-plugin
 /plugin install archcore@archcore-plugins
 ```
+
+After install, restart the session. The first session downloads the pinned CLI binary into the plugin's vendor directory (~4 MB) and registers the MCP server in local scope. Subsequent sessions start instantly.
+
+If you already have `archcore` installed globally (e.g., via `curl -fsSL https://archcore.ai/install.sh | bash` or `go install`), the plugin detects it and skips the download — your existing install is respected.
+
+To use a project-pinned binary, set `ARCHCORE_BIN=/path/to/archcore`.
 
 ### Cursor
 
@@ -102,7 +98,7 @@ The plugin uses open standards (Agent Skills, MCP) — skills, agents, and MCP t
 - **2 Agents** — a universal assistant and a read-only auditor
 - **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 
-The plugin does **not** ship its own MCP server — it uses the one provided by the [Archcore CLI](https://archcore.ai) (`archcore mcp`). This avoids duplicate-server conflicts in repos that already register `archcore` in `.mcp.json` or via `claude mcp add`.
+The plugin bundles the Archcore CLI transparently via a shim in `bin/archcore`. On first use, the shim resolves the CLI by the following precedence: `$ARCHCORE_BIN` → `archcore` in `PATH` → `bin/vendor/archcore-v<version>` → download from GitHub Releases. The plugin auto-registers the MCP server in local scope (`claude mcp add -s local`) on SessionStart — this wins precedence over project `.mcp.json`, so stale project configs never break the plugin.
 
 ## How it works
 

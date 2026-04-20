@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 PLUGIN_ROOT := $(shell pwd)
-BIN_SCRIPTS := $(wildcard bin/check-* bin/validate-* bin/session-start)
+BIN_SCRIPTS := $(wildcard bin/check-* bin/validate-* bin/session-start) bin/archcore
 LIB_SCRIPTS := bin/lib/normalize-stdin.sh
 ALL_SCRIPTS := $(BIN_SCRIPTS) $(LIB_SCRIPTS)
 JSON_FILES := .claude-plugin/plugin.json .claude-plugin/marketplace.json \

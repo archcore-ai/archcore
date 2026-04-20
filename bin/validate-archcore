@@ -27,13 +27,13 @@ if [ "$SHOULD_VALIDATE" = false ]; then
   exit 0
 fi
 
-# Check if archcore CLI is available
-if ! command -v archcore >/dev/null 2>&1; then
-  exit 0
-fi
-
-# Run validation with a timeout
-RESULT=$(timeout 2 archcore validate 2>&1) || true
+# Use the shim. ARCHCORE_SKIP_DOWNLOAD=1: this hook runs with a short timeout
+# after every document mutation, so we never want to trigger a network download
+# here. If the binary is not yet cached (first session hasn't run), validate
+# silently skips — the validation will run after the next mutation once the
+# shim has populated bin/vendor/ via session-start.
+SHIM="$SCRIPT_DIR/archcore"
+RESULT=$(ARCHCORE_SKIP_DOWNLOAD=1 timeout 2 "$SHIM" validate 2>&1) || true
 
 # Check if there are issues
 if printf '%s' "$RESULT" | grep -q '✗\|FAIL\|Error'; then
