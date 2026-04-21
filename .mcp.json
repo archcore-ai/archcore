@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "archcore": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/archcore",
-      "args": ["mcp"]
-    }
-  }
-}

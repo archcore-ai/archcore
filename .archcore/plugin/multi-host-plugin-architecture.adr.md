@@ -35,16 +35,18 @@ The only host-specific parts are: plugin manifests (~10 lines JSON each), hooks 
 
 ## Decision
 
-**Support multiple AI coding hosts from a single repository** with a shared core and thin per-host adapter layer. **The plugin does not ship an MCP server configuration** — MCP tools come from the separately-installed Archcore CLI, registered by the user via project `.mcp.json` or `claude mcp add`.
+**Support multiple AI coding hosts from a single repository** with a shared core and thin per-host adapter layer.
 
-Architecture:
+At the time of this decision, the plugin did not ship an MCP server configuration — MCP tools came from the separately-installed Archcore CLI, registered by the user via project `.mcp.json` or `claude mcp add`. **This stance has since been superseded for Claude Code** (see the Bundled CLI Launcher ADR): the plugin now ships a launcher (`bin/archcore{,.cmd,.ps1}` + `bin/CLI_VERSION`) that resolves the CLI on demand, and a plugin-root `.mcp.json` that registers `archcore` against that launcher. The shared-core / per-host-adapter split described below remains the governing architecture; the CLI-install / MCP-registration sub-decision evolved.
+
+Architecture (as originally decided, with an addendum below for the current MCP wiring):
 
 ```
 archcore-plugin/
 ├── skills/                      # Shared — Agent Skills standard (32 skills)
 ├── agents/                      # Shared — markdown agent definitions (2 agents)
 ├── bin/                         # Shared — hook scripts with stdin normalization
-│   ├── lib/normalize-stdin.sh   # NEW: detects host format, outputs normalized JSON
+│   ├── lib/normalize-stdin.sh   # Detects host format, outputs normalized JSON
 │   ├── session-start
 │   ├── check-archcore-write
 │   ├── validate-archcore
@@ -66,19 +68,23 @@ archcore-plugin/
 └── rules/                       # Cursor-specific rules (.mdc files, optional)
 ```
 
+**Current addendum (see Bundled CLI Launcher ADR)**: `bin/` additionally ships `archcore`, `archcore.cmd`, `archcore.ps1`, and `CLI_VERSION` — a cross-platform launcher that resolves the Archcore CLI binary. The plugin root also ships `.mcp.json` for Claude Code, wiring MCP registration directly at the launcher. Cursor users still register MCP externally.
+
 ### Shared core principle
 
-Skills, agents, and bin scripts are maintained once. All host-specific adapters are pure configuration — no logic duplication.
+Skills, agents, bin scripts, and the CLI launcher are maintained once. All host-specific adapters are pure configuration — no logic duplication.
 
-### MCP ownership boundary
+### MCP ownership boundary (original rationale — now partially superseded)
 
-MCP configuration lives outside the plugin deliberately:
+At the time of this ADR, MCP configuration lived outside the plugin deliberately:
 
-- **Plugin** — ships skills, agents, hooks, and normalization logic. Host-agnostic.
-- **Archcore CLI** — provides `archcore mcp` (the MCP server binary). Installed independently.
-- **User / repo** — registers the MCP server in `.mcp.json` (team-shared, project-scoped) or via `claude mcp add` (user-scoped).
+- **Plugin** — shipped skills, agents, hooks, and normalization logic. Host-agnostic.
+- **Archcore CLI** — provided `archcore mcp` (the MCP server binary). Installed independently.
+- **User / repo** — registered the MCP server in `.mcp.json` (team-shared, project-scoped) or via `claude mcp add` (user-scoped).
 
-This separation avoids Claude Code's duplicate-MCP suppression when a repo already declares `archcore` in `.mcp.json` or the user has registered it globally. Shipping MCP in the plugin would produce a persistent "Errors (1)" in `/plugin` UI with no functional benefit, since matching command+args are deduplicated in favor of the user's registration.
+The rationale was to avoid Claude Code's duplicate-MCP suppression when a repo already declared `archcore` in `.mcp.json` or the user had registered it globally. Shipping MCP in the plugin would have produced a persistent "Errors (1)" in `/plugin` UI with no functional benefit.
+
+**Current state (per Bundled CLI Launcher ADR)**: the plugin does ship MCP registration for Claude Code via `.mcp.json` at the plugin root, pointing at `${CLAUDE_PLUGIN_ROOT}/bin/archcore mcp`. Duplicate suppression is no longer a blocker because the launcher defers to an existing global `archcore` on `PATH` — the effective command resolved is identical to what a user-registered server would resolve to, so deduping is benign. Cursor users still register MCP externally.
 
 ### Stdin normalization approach
 
@@ -124,11 +130,13 @@ Each host's expected directory (`.cursor/skills/`, `.github/skills/`) symlinks t
 
 Ship `.mcp.json` (Claude Code) and `mcp.json` (Cursor) at the plugin root so MCP "just works" after install.
 
-**Rejected because:**
+**Originally rejected because:**
 
-- Claude Code dedupes plugin MCP servers when their `command`/URL match a user- or project-registered server (v2.1.71+). If a repo has `.mcp.json` with `archcore`, or if the user ran `claude mcp add archcore archcore mcp`, the plugin's copy is silently suppressed and a "Errors (1)" appears in `/plugin` UI.
-- Shared repos tend to have a canonical `.mcp.json` used by multiple AI tools (Cursor, Windsurf, Codex CLI, Gemini CLI); duplicating it inside the plugin adds noise with zero benefit.
-- MCP lifecycle belongs to the CLI install — if the CLI is missing, the MCP server cannot run regardless of where it's declared.
+- Claude Code dedupes plugin MCP servers when their `command`/URL match a user- or project-registered server (v2.1.71+). If a repo had `.mcp.json` with `archcore`, or if the user ran `claude mcp add archcore archcore mcp`, the plugin's copy would be silently suppressed and "Errors (1)" would appear in `/plugin` UI.
+- Shared repos tend to have a canonical `.mcp.json` used by multiple AI tools (Cursor, Windsurf, Codex CLI, Gemini CLI); duplicating it inside the plugin added noise with zero benefit.
+- MCP lifecycle belonged to the CLI install — if the CLI was missing, the MCP server couldn't run regardless of where it was declared.
+
+**Status: reversed for Claude Code** (see Bundled CLI Launcher ADR). The dedup concern was resolved by introducing the bundled launcher, which makes the plugin's `.mcp.json` point at `${CLAUDE_PLUGIN_ROOT}/bin/archcore` — a path that, for users with a global `archcore` on `PATH`, resolves to the same binary their user-registered server would run. Deduping still happens but becomes benign. The friction of requiring an explicit `claude mcp add` step proved worse than the "Errors (1)" UX.
 
 ## Consequences
 
@@ -137,13 +145,12 @@ Ship `.mcp.json` (Claude Code) and `mcp.json` (Cursor) at the plugin root so MCP
 - **Zero skill/agent duplication**: 32 skills and 2 agents maintained in one place
 - **Low per-host cost**: Adding a new host requires only a manifest (~10 lines) and hooks config (~30 lines)
 - **Standard compliance**: Uses Agent Skills, MCP, and markdown agents — all open standards
-- **Single source of truth**: Bug fixes in skills/agents/bin propagate to all hosts automatically
-- **No MCP conflicts**: Plugin install never triggers duplicate-server warnings; users of repos with team-shared `.mcp.json` see no errors
+- **Single source of truth**: Bug fixes in skills/agents/bin/launcher propagate to all hosts automatically
 
 ### Negative
 
 - **Stdin normalization complexity**: Bin scripts must handle multiple JSON formats. Mitigation: centralized normalizer (`lib/normalize-stdin.sh`) with clear format detection.
 - **Testing matrix**: Must verify plugin works in each supported host. Mitigation: start with 2 hosts (Claude Code + Cursor), expand incrementally.
 - **Hook event mapping is imperfect**: Not all hosts have equivalent hook events (e.g., Cursor has no direct `SessionStart` equivalent). Mitigation: use closest available event per host; document gaps per host.
-- **Extra install step for users**: MCP must be registered separately (`claude mcp add archcore archcore mcp -s user`, or in project `.mcp.json`). Mitigation: `bin/session-start` emits structured guidance with the exact command when MCP is unreachable; README documents the prerequisite up front.
+- **MCP wiring is host-specific**: Claude Code uses plugin-shipped `.mcp.json`, Cursor users still register externally. Cross-host MCP parity awaits Cursor-side plugin MCP support with path substitution. Mitigation: the launcher is host-agnostic — only the "who points at the launcher" differs per host.
 - **Repository naming**: ~~`archcore-claude-plugin` implies Claude Code only.~~ Resolved: renamed to `archcore-plugin`.

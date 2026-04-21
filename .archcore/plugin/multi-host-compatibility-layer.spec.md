@@ -10,60 +10,61 @@ tags:
 
 ## Purpose
 
-Define the contract for the multi-host compatibility layer that enables the Archcore plugin to run in Claude Code, Cursor, GitHub Copilot, and other AI coding tools from a single repository. This specification covers host detection, stdin normalization for hook scripts, per-host hook event mapping, and manifest structure.
+Define the contract for the multi-host compatibility layer that enables the Archcore plugin to run in Claude Code, Cursor, GitHub Copilot, and other AI coding tools from a single repository. This specification covers host detection, stdin normalization for hook scripts, per-host hook event mapping, per-host manifest structure, and the cross-host CLI launcher that resolves the Archcore CLI binary on demand.
 
-MCP server configuration is **out of scope** for the plugin — MCP tools are provided by the externally-installed Archcore CLI and registered by the user either per-project (`.mcp.json`) or per-user (`claude mcp add`). The plugin does not ship an MCP config, avoiding duplicate-suppression conflicts with pre-existing user/project registrations.
+MCP server registration is now **partially in scope**: Claude Code receives a plugin-shipped `.mcp.json` wired to the bundled launcher (see the Bundled CLI Launcher ADR). Cursor and other hosts still rely on user-registered MCP — the launcher itself is host-agnostic, only the plugin-level MCP wiring is host-specific.
 
 ## Scope
 
-The compatibility layer — specifically: `bin/lib/normalize-stdin.sh`, per-host `hooks/*.hooks.json` files, and per-host plugin manifests. Does NOT cover the shared components (skills, agents, core bin scripts) which are already host-agnostic by design, nor the MCP server (owned by the CLI, not the plugin).
+The compatibility layer — specifically: `bin/lib/normalize-stdin.sh`, `bin/archcore` / `bin/archcore.cmd` / `bin/archcore.ps1` / `bin/CLI_VERSION` (the launcher and its version pin), per-host `hooks/*.hooks.json` files, per-host plugin manifests, and the Claude Code `.mcp.json`. Does NOT cover the shared hook script logic (skills, agents, hook scripts themselves), which are host-agnostic by design, nor the CLI binary's own behavior.
 
 ## Authority
 
-This specification is authoritative for cross-host behavior. The Multi-Host Plugin Architecture ADR provides the architectural rationale. The Hooks and Validation System Specification remains authoritative for hook semantics (what each hook does); this spec defines how hooks adapt to different host runtimes.
+This specification is authoritative for cross-host behavior. The Multi-Host Plugin Architecture ADR provides the architectural rationale for the shared-core / per-host-adapter split. The Bundled CLI Launcher ADR is authoritative for launcher resolution order, auto-install policy, and plugin-owned MCP wiring. The Hooks and Validation System Specification remains authoritative for hook semantics (what each hook does); this spec defines how hooks adapt to different host runtimes.
 
 ## Subject
 
 ### System Overview
 
-The plugin splits into a **shared core** (skills, agents, bin script logic) and a **host adapter layer** (manifests, hooks configs, stdin normalization). The adapter layer is pure configuration with one small shell library for stdin format detection.
+The plugin splits into a **shared core** (skills, agents, bin scripts, CLI launcher) and a **host adapter layer** (manifests, hooks configs, stdin normalization, Claude Code MCP wiring). The adapter layer is pure configuration plus one small shell library for stdin format detection.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Shared Core                           │
 │                                                         │
-│  skills/ (32)  agents/ (2)  bin/ (5 scripts)            │
+│  skills/ (32)  agents/ (2)                              │
+│  bin/ — 5 hook scripts + 3 launcher scripts + pin file  │
 │                                                         │
 │  100% host-agnostic — uses only MCP tools + Read/Grep   │
 ├─────────────────────────────────────────────────────────┤
 │              Host Adapter Layer                          │
 │                                                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │ Claude Code   │  │ Cursor       │  │ Copilot      │  │
-│  │              │  │              │  │   (future)   │  │
-│  │ .claude-     │  │ .cursor-     │  │ .github/     │  │
-│  │  plugin/     │  │  plugin/     │  │              │  │
-│  │ hooks.json   │  │ cursor.hooks │  │              │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │ Claude Code  │  │ Cursor       │  │ Copilot      │   │
+│  │              │  │              │  │   (future)   │   │
+│  │ .claude-     │  │ .cursor-     │  │ .github/     │   │
+│  │  plugin/     │  │  plugin/     │  │              │   │
+│  │ hooks.json   │  │ cursor.hooks │  │              │   │
+│  │ .mcp.json    │  │ (user MCP)   │  │              │   │
+│  └──────────────┘  └──────────────┘  └──────────────┘   │
 │                                                         │
 │  bin/lib/normalize-stdin.sh — detects host, normalizes  │
 ├─────────────────────────────────────────────────────────┤
-│        MCP Server (out of scope, external)              │
+│     CLI Launcher (shared, invoked by host MCP config)   │
 │                                                         │
-│  Provided by Archcore CLI (`archcore mcp`).             │
-│  Registered by user: project `.mcp.json` OR             │
-│  `claude mcp add archcore archcore mcp -s user`.        │
+│  bin/archcore{,.cmd,.ps1} + bin/CLI_VERSION             │
+│  Resolves: $ARCHCORE_BIN → PATH → cache → download      │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ### Supported Hosts
 
-| Host           | Priority | Plugin Manifest              | Hooks Config              | Status      |
-| -------------- | -------- | ---------------------------- | ------------------------- | ----------- |
-| Claude Code    | P0       | `.claude-plugin/plugin.json` | `hooks/hooks.json`        | Production  |
-| Cursor         | P1       | `.cursor-plugin/plugin.json` | `hooks/cursor.hooks.json` | Implemented |
-| GitHub Copilot | P2       | TBD                          | TBD                       | Future      |
-| Codex CLI      | P2       | TBD                          | TBD                       | Future      |
+| Host           | Priority | Plugin Manifest              | Hooks Config              | MCP Wiring                 | Status      |
+| -------------- | -------- | ---------------------------- | ------------------------- | -------------------------- | ----------- |
+| Claude Code    | P0       | `.claude-plugin/plugin.json` | `hooks/hooks.json`        | Plugin-shipped `.mcp.json` | Production  |
+| Cursor         | P1       | `.cursor-plugin/plugin.json` | `hooks/cursor.hooks.json` | User-registered externally | Implemented |
+| GitHub Copilot | P2       | TBD                          | TBD                       | TBD                        | Future      |
+| Codex CLI      | P2       | TBD                          | TBD                       | TBD                        | Future      |
 
 ## Contract Surface
 
@@ -136,7 +137,41 @@ SCRIPT_DIR=$(dirname "$0")
 
 **`archcore_hook_allow`** — Allow the operation silently. `exit 0` for all hosts.
 
-### 2. Hook Event Mapping
+### 2. CLI Launcher (`bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`, `bin/CLI_VERSION`)
+
+A host-agnostic launcher that resolves the Archcore CLI binary on demand. Invoked by host MCP configs (Claude Code's `.mcp.json` today) and by hook scripts that need the CLI (`bin/validate-archcore`, `bin/session-start`).
+
+#### Resolution order (all platforms)
+
+1. `$ARCHCORE_BIN` — explicit path to a binary. Enterprise pin / local dev escape hatch.
+2. `archcore` on `PATH` — respects an existing global install. Loop guard: skipped if `command -v archcore` resolves back to the launcher itself.
+3. Plugin-managed cache: `<cache>/archcore-v${VERSION}` where `<cache>` is (first-match):
+   - POSIX: `$CLAUDE_PLUGIN_DATA/archcore/cli` → `$XDG_DATA_HOME/archcore-plugin/cli` → `$HOME/.local/share/archcore-plugin/cli`
+   - Windows: `$env:CLAUDE_PLUGIN_DATA\archcore\cli` → `$env:LOCALAPPDATA\archcore-plugin\cli`
+4. Download from `github.com/archcore-ai/cli/releases/download/v${VERSION}/archcore_<os>_<arch>.{tar.gz,zip}`, verify against `checksums.txt` (SHA-256), atomically stage into cache, then `exec`.
+
+`$VERSION` is read from `bin/CLI_VERSION` (single-line semver). Bumping the plugin's CLI pin is a one-file change.
+
+#### Environment contract
+
+| Variable                 | Effect                                                                                                |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `ARCHCORE_BIN`           | If set and executable, used unconditionally. Skips all other resolution steps.                       |
+| `ARCHCORE_SKIP_DOWNLOAD` | If `"1"`, step 4 (download) is skipped and the launcher exits 1 when the cache miss. Used by `bin/session-start` to keep SessionStart non-blocking. |
+
+Stdin, stdout, stderr pass through unchanged. Exit code is the CLI's exit code verbatim.
+
+#### Checksum verification
+
+SHA-256 via `sha256sum` / `shasum -a 256` (POSIX) or `Get-FileHash -Algorithm SHA256` (Windows). No fallback — if neither hashing tool is available, the launcher refuses to proceed. Checksum mismatch aborts install; the staged file is discarded.
+
+#### Windows-specific handling
+
+- `bin/archcore.cmd` is a one-line shim invoking PowerShell with `-NoProfile -NonInteractive -ExecutionPolicy Bypass`.
+- `bin/archcore.ps1` strips Mark-of-the-Web via `Unblock-File` after staging, preventing SmartScreen prompts on first execution.
+- Architecture detection uses `RuntimeInformation.OSArchitecture` (OS architecture, not process) so x64 PowerShell under ARM64 Prism emulation still installs the ARM64 binary.
+
+### 3. Hook Event Mapping
 
 | Plugin Hook               | Claude Code Event                 | Cursor Event          | Notes                                |
 | ------------------------- | --------------------------------- | --------------------- | ------------------------------------ |
@@ -152,7 +187,7 @@ Key differences:
 - **MCP hooks**: Claude Code uses `PostToolUse` with MCP tool matcher; Cursor has `afterMCPExecution` — a dedicated event for all MCP operations
 - **Cascade filtering**: Claude Code matcher filters for `update_document` only; Cursor's `afterMCPExecution` fires for all MCP tools — `check-cascade` script exits early when `ARCHCORE_DOC_PATH` is empty
 
-### 3. Per-Host Hooks Configuration
+### 4. Per-Host Hooks Configuration
 
 #### Claude Code (`hooks/hooks.json`)
 
@@ -220,7 +255,7 @@ Key differences:
 }
 ```
 
-### 4. Plugin Manifests
+### 5. Plugin Manifests
 
 #### Claude Code (`.claude-plugin/plugin.json`)
 
@@ -228,13 +263,14 @@ Key differences:
 {
   "name": "archcore",
   "description": "Git-native context for AI coding agents",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "author": { "name": "Archcore" },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "repository": "https://github.com/archcore-ai/archcore-plugin"
 }
 ```
 
-Claude Code discovers skills, agents, and hooks by convention (fixed directory names). Manifest contains only metadata.
+Claude Code discovers skills, agents, and hooks by convention (fixed directory names). Manifest contains only metadata. MCP registration is separate — see section 6.
 
 #### Cursor (`.cursor-plugin/plugin.json`)
 
@@ -242,7 +278,7 @@ Claude Code discovers skills, agents, and hooks by convention (fixed directory n
 {
   "name": "archcore",
   "description": "Git-native context for AI coding agents",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "author": { "name": "Archcore" },
   "license": "Apache-2.0",
   "repository": "https://github.com/archcore-ai/archcore-plugin",
@@ -254,24 +290,38 @@ Claude Code discovers skills, agents, and hooks by convention (fixed directory n
 }
 ```
 
-Cursor requires explicit paths to components. Only `name` is required; all other fields are optional but recommended. No `mcpServers` field — MCP is registered externally.
+Cursor requires explicit paths to components. Only `name` is required; all other fields are optional but recommended. No `mcpServers` field — Cursor users register MCP externally.
 
-### 5. MCP Server (out of scope, external)
+Plugin manifests MUST use identical `name`, `description`, and `version` across all hosts.
 
-The plugin does not declare `mcpServers` in any host manifest, nor ship `.mcp.json` / `mcp.json` files at the plugin root.
+### 6. MCP Server Wiring
 
-MCP tools come from the Archcore CLI (`archcore mcp`), registered by the user:
+#### Claude Code — plugin-shipped `.mcp.json`
 
-| Mechanism      | Location                                       | Shared with other AI agents?                           |
-| -------------- | ---------------------------------------------- | ------------------------------------------------------ |
-| Project-scoped | `<repo>/.mcp.json` (team-committed)            | Yes — Cursor, Windsurf, Codex, etc. read the same file |
-| User-scoped    | `claude mcp add archcore archcore mcp -s user` | No — Claude Code only                                  |
+The plugin root contains `.mcp.json`:
 
-Rationale: Claude Code's duplicate-MCP suppression (introduced in v2.1.71) matches by `command`/URL and skips plugin-provided servers when a user/project server has the same signature. Shipping MCP in the plugin produces a user-visible "Errors (1)" in `/plugin` UI without functional benefit, since the user's server works identically. See the Multi-Host Plugin Architecture ADR for the full rationale.
+```json
+{
+  "mcpServers": {
+    "archcore": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/archcore",
+      "args": ["mcp"]
+    }
+  }
+}
+```
 
-When the plugin loads and no MCP server is reachable, `bin/session-start` emits structured `additionalContext` (Claude Code/Copilot) or plain text (other hosts) guiding the user to install the CLI and register the MCP server.
+Claude Code reads this on plugin load and registers `archcore` as a plugin-provided MCP server. The `command` points at the bundled launcher (section 2), which resolves the actual CLI binary at invocation time. No manual `claude mcp add` or project-level `.mcp.json` is required.
 
-### 6. Cursor Rules
+**Duplicate suppression**: if a user has registered `archcore` globally (`claude mcp add ...`) or the repo has its own `.mcp.json` with a matching command, Claude Code dedupes. Because the launcher defers to `PATH` when a global `archcore` exists, users with prior installs see no behavior change — both registrations effectively resolve the same binary.
+
+#### Cursor — user-registered
+
+Cursor users register MCP externally via Cursor's MCP settings UI or a project `mcp.json`. The launcher still works (same binary, same resolution order) — just isn't wired in via a plugin-shipped MCP config. Users point Cursor's MCP config at the launcher by absolute path, or install the CLI globally and point at `archcore`.
+
+This divergence is deliberate: Cursor's plugin runtime does not expose `${CLAUDE_PLUGIN_ROOT}`-equivalent path substitution for plugin-provided MCP, so portable MCP wiring across hosts is blocked until that gap closes.
+
+### 7. Cursor Rules
 
 Rules in `rules/` provide context injection. Two files:
 
@@ -289,26 +339,30 @@ Rules in `rules/` provide context injection. Two files:
 - `archcore_hook_info` MUST emit the correct JSON format per host.
 - Per-host hooks config files MUST map all five hook functions.
 - Plugin manifests MUST use identical `name`, `description`, and `version` across all hosts.
-- Plugin manifests MUST NOT declare `mcpServers` (MCP is owned by the CLI, not the plugin).
-- `bin/session-start` MUST handle the no-CLI case by emitting actionable guidance without failing the session.
-- Adding a new host MUST NOT require changes to skills, agents, or core bin script logic.
+- Plugin manifests (i.e., `plugin.json`) MUST NOT declare `mcpServers`. Claude Code MCP wiring lives in the plugin-root `.mcp.json`, not in the manifest.
+- The CLI launcher MUST resolve in order: `$ARCHCORE_BIN` → `PATH` (with loop guard) → cache → download. Downloads MUST be checksum-verified.
+- `bin/session-start` MUST pass `ARCHCORE_SKIP_DOWNLOAD=1` when invoking the launcher so SessionStart never blocks on network.
+- Adding a new host MUST NOT require changes to skills, agents, core bin script logic, or the launcher.
 
 ## Constraints
 
 - `bin/lib/normalize-stdin.sh` MUST be POSIX shell compatible (no bashisms).
+- `bin/archcore` (POSIX launcher) MUST be POSIX shell compatible.
 - Host detection MUST work without external dependencies (no `jq`, only `grep`/`sed`).
 - Stdin normalization MUST complete within 100ms (included in hook timeout budget).
-- Plugin root variable name varies by host (`${CLAUDE_PLUGIN_ROOT}`, `${CURSOR_PLUGIN_ROOT}`) — hooks configs MUST use the host-specific variable name. Note: Cursor also recognizes `${CLAUDE_PLUGIN_ROOT}` as an alias.
+- Launcher resolution steps 1–3 MUST complete in under 100ms on a warm filesystem.
+- Launcher download (step 4) MAY take seconds — it runs only on first use, not inside hook-timeout-bounded contexts.
+- Plugin root variable name varies by host (`${CLAUDE_PLUGIN_ROOT}`, `${CURSOR_PLUGIN_ROOT}`) — hooks configs MUST use the host-specific variable name. Cursor also recognizes `${CLAUDE_PLUGIN_ROOT}` as an alias.
 
 ## Invariants
 
-- Shared core components (skills, agents, core bin logic) are identical across all hosts.
-- A change to a skill or agent file benefits all hosts simultaneously.
+- Shared core components (skills, agents, hook scripts, launcher) are identical across all hosts.
+- A change to a skill, agent, or launcher benefits all hosts simultaneously.
 - Per-host adapter files contain no business logic — only configuration and format mapping.
 - The normalizer always falls back to Claude Code format if host detection fails (backward compatible).
 - Hook semantics (what gets blocked, what gets validated) are identical across hosts — only the wire format differs.
 - Exit code 2 blocks operations universally across all supported hosts.
-- The plugin never owns MCP registration — the Archcore CLI does.
+- The launcher always prefers an existing global `archcore` on `PATH` over the plugin-managed cache (avoids double-binary situations on systems where the user manages their own install).
 
 ## Error Handling
 
@@ -316,7 +370,8 @@ Rules in `rules/` provide context injection. Two files:
 - **Stdin JSON missing expected fields**: Export empty variables. Bin script logic handles missing fields gracefully.
 - **Escaped JSON extraction fails**: `ARCHCORE_DOC_PATH` remains empty. `check-cascade` exits early (no cascade possible).
 - **Plugin root variable not set**: Bin scripts use `$(dirname "$0")` for relative paths.
-- **Archcore CLI not installed**: `bin/session-start` emits guidance (install + register MCP); skill/agent invocations that require `mcp__archcore__*` fail with "tool not found" — the SessionStart context instructs the model to explain the prerequisite rather than retry.
+- **Launcher cannot resolve CLI and `ARCHCORE_SKIP_DOWNLOAD=1`**: exits 1 with a stderr message. Calling hook scripts (`validate-archcore`, `check-cascade`) treat this as a silent skip and exit 0 (don't break the session).
+- **Launcher download fails (network, checksum mismatch, unsupported OS/arch)**: exits 1 with a diagnostic on stderr. MCP calls fail until resolved; the agent surfaces the error to the user. `bin/session-start` never hits this path because it always passes `ARCHCORE_SKIP_DOWNLOAD=1`.
 
 ## Conformance
 
@@ -326,8 +381,10 @@ The multi-host compatibility layer conforms to this specification if:
 2. Host detection correctly identifies Claude Code and Cursor (and any additional hosts)
 3. MCP tool names are normalized to `mcp__archcore__` prefix regardless of host
 4. Output helpers emit correct format per detected host
-5. Each supported host has a complete hooks config mapping all five hook functions
-6. Each supported host has a valid plugin manifest without an `mcpServers` field
-7. Shared components (skills, agents, core bin scripts) contain zero host-specific references
-8. Adding a new host requires only new config files, not changes to shared components
-9. `bin/session-start` handles missing CLI gracefully with structured guidance for the model
+5. The CLI launcher implements the full resolution order, with checksum verification on downloads
+6. Each supported host has a complete hooks config mapping all five hook functions
+7. Each supported host has a valid plugin manifest with consistent metadata and no `mcpServers` field in the manifest itself
+8. Claude Code's plugin root ships `.mcp.json` pointing at `${CLAUDE_PLUGIN_ROOT}/bin/archcore mcp`
+9. Shared components (skills, agents, hook scripts, launcher) contain zero host-specific references
+10. Adding a new host requires only new config files, not changes to shared components
+11. `bin/session-start` passes `ARCHCORE_SKIP_DOWNLOAD=1` when invoking the launcher

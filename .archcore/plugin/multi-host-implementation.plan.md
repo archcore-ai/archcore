@@ -11,7 +11,7 @@ tags:
 
 Implement multi-host support for the Archcore plugin, enabling it to run in Cursor (P1) and prepare the architecture for GitHub Copilot and other hosts (P2). The plugin must work identically across hosts with zero duplication of skills, agents, or core logic.
 
-MCP server configuration is explicitly out of scope: the plugin does not declare `mcpServers` in any host manifest and does not ship `.mcp.json` / `mcp.json` files at the plugin root. Users register `archcore mcp` externally via project `.mcp.json` or `claude mcp add`.
+**MCP scope note** — at the time this plan was drafted, MCP server configuration was explicitly out of scope: the plugin did not declare `mcpServers` anywhere and did not ship `.mcp.json` at the plugin root. That scope boundary has since been revised for Claude Code (see Phase 5 below and the Bundled CLI Launcher ADR). The plugin now ships `.mcp.json` at its root pointing at a bundled cross-platform launcher that resolves the CLI on demand. Cursor and other hosts still rely on user-registered MCP — the launcher is host-agnostic, only the plugin-level MCP wiring is host-specific.
 
 ## Tasks
 
@@ -140,12 +140,99 @@ Create all Cursor-specific adapter files.
 
 - Update README.md with multi-host installation instructions
 - Add "Supported Hosts" section
-- Document the external MCP registration step prominently (prerequisite, not an afterthought)
+- ~~Document the external MCP registration step prominently (prerequisite, not an afterthought)~~ → superseded by Phase 5: Claude Code no longer requires external MCP registration. Keep external-registration docs for Cursor.
 
 #### 4.2 ~~Consider repository rename~~ Done
 
 - ~~Current: `archcore-claude-plugin`~~
 - Renamed to: `archcore-plugin`
+
+### Phase 5: Bundled CLI Launcher and Plugin-Owned MCP (Claude Code)
+
+Eliminate the out-of-band CLI install and MCP registration steps for Claude Code users by shipping a cross-platform launcher and plugin-provided MCP registration. Rationale and trade-offs: see the Bundled CLI Launcher ADR.
+
+#### 5.1 Create `bin/CLI_VERSION`
+
+- Single-line file containing the pinned semver of the Archcore CLI release the plugin is tested against.
+- Launchers read this for the cache key (`archcore-v${VERSION}`) and the GitHub Releases download URL.
+
+**Files:** `bin/CLI_VERSION` (new)
+
+#### 5.2 Create `bin/archcore` (POSIX launcher)
+
+- POSIX shell script. Resolution order: `$ARCHCORE_BIN` → `archcore` on `PATH` (with loop guard) → plugin-managed cache (`<cache>/archcore-v${VERSION}`) → download from GitHub Releases.
+- Cache directory first-match: `$CLAUDE_PLUGIN_DATA/archcore/cli` → `$XDG_DATA_HOME/archcore-plugin/cli` → `$HOME/.local/share/archcore-plugin/cli`.
+- Download path: `github.com/archcore-ai/cli/releases/download/v${VERSION}/archcore_<os>_<arch>.tar.gz`. Verify SHA-256 against `checksums.txt`. Atomic stage-then-rename into cache. Abort on checksum mismatch.
+- Honor `ARCHCORE_SKIP_DOWNLOAD=1` to disable step 4 (used by `bin/session-start`).
+- `exec` the resolved binary so exit code + stdio pass through unchanged.
+
+**Files:** `bin/archcore` (new)
+
+#### 5.3 Create `bin/archcore.cmd` and `bin/archcore.ps1` (Windows launcher)
+
+- `archcore.cmd` is a one-line shim: `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%~dp0archcore.ps1" %*`.
+- `archcore.ps1` implements the same resolution order as the POSIX launcher.
+- Cache dirs: `$env:CLAUDE_PLUGIN_DATA\archcore\cli` → `$env:LOCALAPPDATA\archcore-plugin\cli`.
+- Use `Invoke-WebRequest` with retry; `Get-FileHash -Algorithm SHA256` for verification.
+- Call `Unblock-File` on staged binary to strip MOTW (prevents SmartScreen prompts).
+- Architecture detection uses `[System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture` so x64 PowerShell under ARM64 emulation still picks the ARM64 asset.
+
+**Files:** `bin/archcore.cmd`, `bin/archcore.ps1` (new)
+
+#### 5.4 Ship plugin-root `.mcp.json` for Claude Code
+
+```json
+{
+  "mcpServers": {
+    "archcore": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/archcore",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+- Claude Code auto-registers this on plugin load.
+- Duplicate suppression is acceptable: the launcher defers to any existing global `archcore` on `PATH`, so deduping produces no behavior divergence.
+
+**Files:** `.mcp.json` (new, plugin root)
+
+#### 5.5 Rewire `bin/session-start` for launcher + skip-download
+
+- Source the normalizer.
+- If `.archcore/` missing, emit init guidance pointing the agent at `mcp__archcore__init_project` (no manual steps).
+- Otherwise: invoke `${SCRIPT_DIR}/archcore` with `ARCHCORE_SKIP_DOWNLOAD=1` for host-specific session-start, then `bin/check-staleness`. SessionStart never blocks on network.
+
+**Files:** `bin/session-start` (modify)
+
+#### 5.6 Rewire `bin/validate-archcore` and `bin/check-cascade` through the launcher
+
+- Replace direct `archcore` calls with `"$SCRIPT_DIR/archcore"` so the launcher is the single entry point. Silent-skip behavior on launcher exit 1 preserved.
+
+**Files:** `bin/validate-archcore`, `bin/check-cascade` (modify)
+
+#### 5.7 Remove "Step 0: Verify MCP" from all skills
+
+- Under the old install model, every SKILL.md started with a "Verify MCP" block instructing the user to install the CLI if MCP tools were missing. With the launcher, MCP is always present on first tool call. The block is dead weight and confuses onboarding.
+- Sweep all 32 SKILL.md files to drop the block.
+
+**Files:** all `skills/*/SKILL.md` (modify)
+
+#### 5.8 Tests
+
+- New `test/unit/launcher.bats` — covers resolution order, loop guard, `ARCHCORE_BIN`/`ARCHCORE_SKIP_DOWNLOAD`, checksum mismatch, network-failure exit codes.
+- Update `test/unit/session-start.bats` — exercises the launcher-mediated path.
+- Update `test/structure/scripts.bats` — require the launcher scripts to exist, be executable, and reference `CLI_VERSION`.
+
+**Files:** `test/unit/launcher.bats` (new), `test/unit/session-start.bats`, `test/structure/scripts.bats` (modify)
+
+#### 5.9 Update README
+
+- Quick Start: no prerequisites; first MCP call downloads the CLI.
+- "Offline / enterprise / BYO CLI" section documenting `ARCHCORE_BIN` and `ARCHCORE_SKIP_DOWNLOAD=1`.
+- Keep Cursor install documented with the external-MCP step.
+
+**Files:** `README.md` (modify)
 
 ## Acceptance Criteria
 
@@ -158,12 +245,21 @@ Create all Cursor-specific adapter files.
 - [x] Direct write blocking works in Cursor
 - [x] All config formats verified against official host documentation
 - [x] No skills or agents contain host-specific references (invariant maintained)
-- [x] `bin/session-start` emits actionable guidance when the external MCP server is unreachable
+- [x] `bin/session-start` emits actionable guidance when `.archcore/` is missing (routes through `mcp__archcore__init_project`)
+- [x] `bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`, `bin/CLI_VERSION` exist and implement the full resolution order
+- [x] Launcher downloads are SHA-256 verified against `checksums.txt`
+- [x] `.mcp.json` at plugin root registers `archcore` against `${CLAUDE_PLUGIN_ROOT}/bin/archcore mcp`
+- [x] `bin/session-start` passes `ARCHCORE_SKIP_DOWNLOAD=1` to the launcher
+- [x] All SKILL.md files have the "Step 0: Verify MCP" block removed
+- [x] `test/unit/launcher.bats` covers launcher resolution and failure modes
+- [x] Users with a global `archcore` on `PATH` experience no behavior change (launcher defers to `PATH`)
 
 ## Dependencies
 
-- Multi-Host Plugin Architecture ADR (`.archcore/plugin/multi-host-plugin-architecture.adr.md`) — architectural decision
+- Multi-Host Plugin Architecture ADR (`.archcore/plugin/multi-host-plugin-architecture.adr.md`) — architectural decision for the shared-core / per-host split
+- Bundled CLI Launcher ADR (`.archcore/plugin/bundled-cli-launcher.adr.md`) — architectural decision for Phase 5 (launcher + plugin-owned MCP)
 - Multi-Host Compatibility Layer Specification (`.archcore/plugin/multi-host-compatibility-layer.spec.md`) — technical contract
 - Hooks and Validation System Specification (`.archcore/plugin/hooks-validation-system.spec.md`) — hook semantics
 - Cursor IDE installed for testing
 - Cursor plugin documentation (docs.cursor.com) for format verification
+- Archcore CLI GitHub Releases publishing platform-targeted archives with `checksums.txt`
