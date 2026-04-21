@@ -8,17 +8,7 @@ Git-native context for AI coding agents.
 
 ## Quick Start
 
-**Prerequisites:** [Archcore CLI](https://archcore.ai) — required.
-
-```bash
-# 1. Install the CLI (macOS / Linux)
-curl -fsSL https://archcore.ai/install.sh | bash
-
-# 2. Initialize a project
-archcore init
-```
-
-On **Windows**, run in PowerShell: `irm https://archcore.ai/install.ps1 | iex`. For WSL, `go install`, and other options, see the [full install guide](https://docs.archcore.ai/cli/install/).
+No prerequisites. The plugin bundles a launcher that downloads the Archcore CLI on first use (cached between sessions).
 
 ### Claude Code
 
@@ -34,6 +24,8 @@ Or from within Claude Code:
 /plugin install archcore@archcore-plugins
 ```
 
+That's it — open your project and say "record an ADR that we picked PostgreSQL". The first Archcore tool call downloads the CLI (~5s, one-time), initializes `.archcore/` if needed, and creates the document.
+
 ### Cursor
 
 Install from the Cursor plugin marketplace, or locally:
@@ -48,6 +40,12 @@ cursor --plugin-dir ./archcore-plugin
 claude --plugin-dir ./archcore-plugin    # Claude Code
 cursor --plugin-dir ./archcore-plugin    # Cursor
 ```
+
+### Offline / enterprise / BYO CLI
+
+If you already have the Archcore CLI installed (via `curl -fsSL https://archcore.ai/install.sh | bash`, `go install`, or similar), the launcher respects it — the global install on `PATH` wins over the plugin-managed cache.
+
+For fully offline environments: install the CLI manually and set `ARCHCORE_SKIP_DOWNLOAD=1` to disable the launcher's auto-download. The launcher will refuse to download and fall through to `ARCHCORE_BIN` or `PATH`. Alternatively, set `ARCHCORE_BIN=/abs/path/to/archcore` to pin an explicit binary.
 
 ---
 
@@ -102,7 +100,7 @@ The plugin uses open standards (Agent Skills, MCP) — skills, agents, and MCP t
 - **2 Agents** — a universal assistant and a read-only auditor
 - **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 
-The plugin does **not** ship its own MCP server — it uses the one provided by the [Archcore CLI](https://archcore.ai) (`archcore mcp`). This avoids duplicate-server conflicts in repos that already register `archcore` in `.mcp.json` or via `claude mcp add`.
+The plugin ships a launcher that resolves the [Archcore CLI](https://archcore.ai) (`archcore mcp`) and registers the MCP server automatically via the plugin's bundled `.mcp.json`. If the CLI isn't on `PATH`, the launcher downloads it on first use and caches it under `$CLAUDE_PLUGIN_DATA/archcore/cli/` (survives plugin updates). An existing global `archcore` install on `PATH` always wins — no duplicate-server conflicts.
 
 ## How it works
 

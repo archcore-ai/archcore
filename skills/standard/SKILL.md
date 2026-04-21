@@ -33,19 +33,6 @@ Default: full standard-track chain (adr → rule → guide).
 
 ## Execution
 
-### Step 0: Verify MCP
-
-Check if `mcp__archcore__list_documents` exists in your available tools. If the tool does not exist or returns an error, **stop immediately** and tell the user:
-
-**Archcore CLI is not installed.** The plugin provides skills and hooks, but document operations need the CLI (it runs the MCP server).
-
-To set up:
-1. Install: `curl -fsSL https://archcore.ai/install.sh | bash`
-2. Initialize project: `archcore init`
-3. Restart the session, then rerun this command.
-
-Do not proceed without MCP tools. Do not write to `.archcore/` directly.
-
 ### Step 1: Check existing
 
 `mcp__archcore__list_documents(types=["adr", "rule", "guide"])` — check what exists on this topic. If ADR exists, skip to rule. If rule exists, skip to guide.

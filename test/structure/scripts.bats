@@ -8,7 +8,7 @@ setup() {
 
 @test "all bin scripts are executable" {
   local not_exec=""
-  for f in "$PLUGIN_ROOT"/bin/check-* "$PLUGIN_ROOT"/bin/validate-* "$PLUGIN_ROOT"/bin/session-start; do
+  for f in "$PLUGIN_ROOT"/bin/check-* "$PLUGIN_ROOT"/bin/validate-* "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/archcore; do
     [ -f "$f" ] || continue
     if [ ! -x "$f" ]; then
       not_exec="$not_exec $(basename "$f")"
@@ -19,7 +19,7 @@ setup() {
 
 @test "all bin scripts have #!/bin/sh shebang" {
   local bad_shebang=""
-  for f in "$PLUGIN_ROOT"/bin/check-* "$PLUGIN_ROOT"/bin/validate-* "$PLUGIN_ROOT"/bin/session-start; do
+  for f in "$PLUGIN_ROOT"/bin/check-* "$PLUGIN_ROOT"/bin/validate-* "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/archcore; do
     [ -f "$f" ] || continue
     local first_line
     first_line=$(head -1 "$f")
@@ -55,4 +55,30 @@ setup() {
 
 @test "check-staleness does NOT source normalize-stdin.sh" {
   ! grep -q 'normalize-stdin.sh' "$PLUGIN_ROOT/bin/check-staleness"
+}
+
+@test "Windows launcher files exist" {
+  [ -f "$PLUGIN_ROOT/bin/archcore.ps1" ]
+  [ -f "$PLUGIN_ROOT/bin/archcore.cmd" ]
+}
+
+@test "CLI_VERSION file exists and matches semver" {
+  [ -f "$PLUGIN_ROOT/bin/CLI_VERSION" ]
+  local version
+  version=$(tr -d '[:space:]' < "$PLUGIN_ROOT/bin/CLI_VERSION")
+  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "CLI_VERSION '$version' is not semver"
+}
+
+@test ".mcp.json ships at plugin root" {
+  [ -f "$PLUGIN_ROOT/.mcp.json" ]
+  grep -q '"archcore"' "$PLUGIN_ROOT/.mcp.json"
+  grep -q 'CLAUDE_PLUGIN_ROOT' "$PLUGIN_ROOT/.mcp.json"
+}
+
+@test "session-start uses launcher" {
+  grep -q '"\$LAUNCHER"' "$PLUGIN_ROOT/bin/session-start"
+}
+
+@test "validate-archcore uses launcher" {
+  grep -q '"\$LAUNCHER"' "$PLUGIN_ROOT/bin/validate-archcore"
 }

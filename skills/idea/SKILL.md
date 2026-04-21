@@ -17,15 +17,6 @@ description: 'Expert — Captures product or technical concepts worth exploring 
 - Technical proposal needing review → **rfc**
 - Decision already made → **adr**
 
-## Prerequisite
-
-Requires Archcore MCP tools. If `mcp__archcore__*` tools are not available in this session, **do not proceed** — tell the user:
-
-**Archcore CLI is not installed.** To set up:
-1. Install: `curl -fsSL https://archcore.ai/install.sh | bash`
-2. Initialize project: `archcore init`
-3. Restart the session, then rerun this command.
-
 ## Quick create
 
 1. `mcp__archcore__list_documents(types=["idea"])` — check duplicates

@@ -1,10 +1,17 @@
 #!/bin/sh
-# SessionStart hook: load archcore context or warn if CLI is missing.
+# SessionStart hook: load archcore context via the plugin launcher.
 # Uses normalized stdin — works across Claude Code, Cursor, and other hosts.
+#
+# The launcher handles CLI resolution (ARCHCORE_BIN → PATH → cache → download).
+# We pass ARCHCORE_SKIP_DOWNLOAD=1 so session start never blocks on a network
+# download — if the CLI is not yet cached, the first MCP tool call triggers
+# the download instead. That keeps SessionStart fast and quiet on first use.
 
 SCRIPT_DIR=$(dirname "$0")
 # shellcheck source=lib/normalize-stdin.sh
 . "$SCRIPT_DIR/lib/normalize-stdin.sh"
+
+LAUNCHER="$SCRIPT_DIR/archcore"
 
 # Emit informational context to the agent (structured for Claude Code/Copilot, plain for others).
 _archcore_emit_info() {
@@ -20,29 +27,17 @@ _archcore_emit_info() {
   esac
 }
 
-# Check if archcore CLI is available
-if ! command -v archcore >/dev/null 2>&1; then
-  _archcore_emit_info "[Archcore] CLI not installed. The plugin provides skills, agents, and hooks, but document operations require the Archcore CLI (it supplies the MCP server).
-
-Install: curl -fsSL https://archcore.ai/install.sh | bash
-Initialize: archcore init
-Register MCP: claude mcp add archcore archcore mcp -s user  (or add to project .mcp.json)
-
-Until the CLI is installed, mcp__archcore__* tools will not be available. If the user asks for an Archcore operation (create ADR, audit docs, etc.), tell them the CLI needs to be installed first — do NOT attempt to write to .archcore/ directly (hooks will block it)."
-  exit 0
-fi
-
-# Check if .archcore/ exists (not initialized)
+# Check if .archcore/ exists. If not, the plugin's MCP server starts in
+# uninitialized mode — the agent can call mcp__archcore__init_project to
+# initialize on demand. No manual setup required.
 if [ ! -d ".archcore" ]; then
-  _archcore_emit_info "[Archcore] CLI is installed but this project has no .archcore/ directory. Run: archcore init
-
-Skills and agents need an initialized knowledge base. If the user asks for an Archcore operation, offer to run 'archcore init' first."
+  _archcore_emit_info "[Archcore] no .archcore/ directory in this project yet. When the user asks for any Archcore operation (create ADR, audit docs, etc.), call mcp__archcore__init_project once to initialize, then proceed. Do NOT write to .archcore/ directly — hooks will block it."
   exit 0
 fi
 
-# All good — run the host-specific session-start hook
-# Pipe raw stdin through since archcore CLI parses it
-printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_HOST" session-start
+# Initialized project — run the host-specific session-start hook via launcher.
+# ARCHCORE_SKIP_DOWNLOAD=1 so we never block on network here.
+printf '%s' "$ARCHCORE_RAW_STDIN" | ARCHCORE_SKIP_DOWNLOAD=1 "$LAUNCHER" hooks "$ARCHCORE_HOST" session-start 2>/dev/null || true
 
 # Run staleness check (code-document drift detection)
 STALENESS=$("$SCRIPT_DIR/check-staleness" 2>/dev/null) || true

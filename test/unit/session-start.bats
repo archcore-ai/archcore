@@ -6,23 +6,25 @@ setup() {
   common_setup
 }
 
-@test "reports missing archcore CLI" {
-  # Override PATH to exclude real archcore but keep system tools
-  run sh -c "PATH='/usr/bin:/bin' && printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
-  assert_success
-  assert_output --partial "CLI not installed"
-  assert_output --partial "archcore.ai/install.sh"
-  assert_output --partial "hookSpecificOutput"
-}
-
-@test "reports missing .archcore/ directory" {
+@test "reports missing .archcore/ directory and tells agent to call init_project" {
   mock_archcore ""
   cd "$BATS_TEST_TMPDIR"
   run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
   assert_success
   assert_output --partial "no .archcore/ directory"
-  assert_output --partial "archcore init"
+  assert_output --partial "mcp__archcore__init_project"
   assert_output --partial "hookSpecificOutput"
+}
+
+@test "survives when launcher cannot resolve CLI (no PATH, no cache, no network)" {
+  # Initialized project + restricted PATH + ARCHCORE_SKIP_DOWNLOAD=1:
+  # launcher exits 1, but session-start wraps with '|| true' and still succeeds.
+  local workdir="$BATS_TEST_TMPDIR/project"
+  mkdir -p "$workdir/.archcore"
+  cd "$workdir"
+
+  run sh -c "PATH='/usr/bin:/bin' ARCHCORE_SKIP_DOWNLOAD=1 printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
 }
 
 @test "runs archcore hooks when both CLI and dir exist" {
