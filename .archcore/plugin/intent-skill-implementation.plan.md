@@ -11,6 +11,8 @@ tags:
 
 Migrate the Archcore Claude Plugin from a flat 27-skill surface to the 4-layer intent-based command hierarchy defined in `intent-based-skill-architecture.adr.md`. After this plan is complete, users see 8 primary intent commands, with track and type skills properly tiered.
 
+> **Subsequent additions (post-plan)**: the `graph` intent skill (rendering the relation graph as Mermaid) was added later, bringing intent count to 9; the `verify` utility skill was added separately. Total skill directories on disk today: 33 (9 intent + 6 track + 17 type + 1 utility). The acceptance criteria below describe the state at plan completion, not current state — see `component-registry.doc.md` for current inventory.
+
 ## Tasks
 
 ### Phase 1: Create Intent Skills (Layer 1) — DONE
@@ -57,21 +59,24 @@ Added 8th intent skill after the Actualize System ADR and Specification were com
 
 ### Phase 6: Validate — DONE
 
-- [x] All 8 intent skills exist with `disable-model-invocation: true`
+- [x] All 8 intent skills exist with `disable-model-invocation: true` (note: this flag was later REMOVED by the Inverted Invocation Policy ADR — intent skills are now auto-invocable)
 - [x] All 6 track descriptions start with "Advanced —"
 - [x] All 12 non-high-freq type descriptions start with "Expert —"
 - [x] 5 high-frequency types (adr, prd, rule, guide, idea) keep original descriptions
 - [x] `skills/create/` removed
 - [x] Agent trimmed — no duplicate taxonomy
-- [x] Total: 31 skill directories (8 intent + 6 track + 17 type)
+- [x] Total at plan completion: 31 skill directories (8 intent + 6 track + 17 type)
 
 ## Acceptance Criteria
 
-All met. The `plan` type skill was absorbed into the `/archcore:plan` intent skill, bringing type skill count to 17 (from original 18). The `actualize` intent skill was added in Phase 1b, bringing intent count to 8. Total 31 = 8 + 6 + 17.
+All met at plan completion. The `plan` type skill was absorbed into the `/archcore:plan` intent skill, bringing type skill count to 17 (from original 18). The `actualize` intent skill was added in Phase 1b, bringing intent count to 8. Total at completion: 31 = 8 + 6 + 17.
+
+Note: Subsequent work added the `graph` intent skill (intent count → 9) and the `verify` utility skill (utility count = 1). Current total on disk is 33. Invocation flags were also re-tuned by the Inverted Invocation Policy ADR after this plan completed: intent and track skills lost `disable-model-invocation`; mainstream types gained it; niche types gained `user-invocable: false`.
 
 ## Dependencies
 
 - `intent-based-skill-architecture.adr.md` — the decision being implemented ✓
+- `inverted-invocation-policy.adr.md` — supersedes the per-class invocation flags decided here (added after plan completion)
 - `skills-system.spec.md` — defines the 5-section intent skill structure ✓
 - `commands-system.spec.md` — defines tier prefixes and discoverability rules ✓
 - `plugin-architecture.spec.md` — defines the 4-layer model ✓

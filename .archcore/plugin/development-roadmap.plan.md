@@ -27,52 +27,72 @@ Created comprehensive project documentation using Archcore's own document types 
 
 Built skills across the 4-layer hierarchy:
 
-- [x] Intent skills (8): capture, plan, decide, standard, review, status, actualize, help
+- [x] Intent skills (9): capture, plan, decide, standard, review, status, actualize, graph, help
 - [x] Track skills (6): product-track, sources-track, iso-track, architecture-track, standard-track, feature-track
 - [x] Type skills (17): adr, rfc, rule, guide, doc, spec, prd, idea, mrd, brd, urd, brs, strs, syrs, srs, task-type, cpat
+- [x] Utility skill (1): verify
 - [x] Each skill follows the structure defined in skills-system.spec.md (Intent: 5 sections, Track: sequential steps, Type: 3 sections)
 - [x] All skills reference MCP tools by exact name, never instruct direct file writes
 - [x] Tier prefixes applied: "Advanced —" for tracks, "Expert —" for non-high-frequency types
+- [x] Inverted Invocation Policy applied: intent + track auto-invocable; mainstream types user-only via `/`; niche types hidden from `/` (model reaches them via tracks)
 
 ### Phase 3: Commands and Agents — DONE
 
 Built user-invoked command surface and subagents:
 
-- [x] 8 intent skills as primary user entry points (`/archcore:capture`, `/archcore:plan`, etc.)
+- [x] 9 intent skills as primary user entry points (`/archcore:capture`, `/archcore:plan`, `/archcore:graph`, etc.)
 - [x] 6 track skills for advanced multi-document flows (`/archcore:product-track`, etc.)
-- [x] 17 type skills for expert quick-create (`/archcore:adr`, `/archcore:prd`, etc.)
+- [x] 10 mainstream type skills for expert quick-create (`/archcore:adr`, `/archcore:prd`, etc.)
+- [x] 7 niche type skills hidden from `/` but model-visible (mrd, brd, urd, brs, strs, syrs, srs)
+- [x] 1 utility skill (`/archcore:verify`) for plugin developers
 - [x] `archcore-assistant` agent — read/write agent with full MCP tool access
 - [x] `archcore-auditor` agent — read-only auditor with code-document correlation
 
 ### Phase 4: Hooks and Validation — DONE
 
-Built the enforcement and freshness detection layer:
+Built the enforcement and freshness detection layer (4 active entries in `hooks/hooks.json` for Claude Code; 3 events in `hooks/cursor.hooks.json` for Cursor):
 
 - [x] SessionStart hook (`bin/session-start`) — CLI check, project check, context loading, staleness check via `bin/check-staleness`
 - [x] PreToolUse hook (`bin/check-archcore-write`) — blocks direct `.archcore/**/*.md` writes, redirects to MCP tools
-- [x] PostToolUse hook (`bin/validate-archcore`) — validates after Write/Edit to `.archcore/` paths
-- [x] PostToolUse hook (`bin/validate-archcore`) — validates after MCP document mutations
+- [x] PostToolUse hook (`bin/validate-archcore`) — validates after MCP document mutations (create_document, update_document, remove_document, add_relation, remove_relation)
 - [x] PostToolUse hook (`bin/check-cascade`) — detects cascade staleness after `update_document` via relation graph
 - [x] All hooks idempotent, PreToolUse within 1s, PostToolUse within 3s
+- [x] No PostToolUse `Write|Edit` validate-archcore entry: PreToolUse already blocks `.archcore/*.md` writes (PostToolUse only fires on success), so a Write/Edit PostToolUse entry would fork a shell on every write anywhere in the repo for no benefit. Anti-regression test guards against re-introduction.
+
+### Phase 5: Multi-Host Support and Bundled Launcher — DONE
+
+Extended to Cursor and shipped a bundled CLI launcher:
+
+- [x] Cursor adapter layer (`.cursor-plugin/`, `hooks/cursor.hooks.json`, `rules/`)
+- [x] Stdin normalization library (`bin/lib/normalize-stdin.sh`) for cross-host bin scripts
+- [x] Cross-platform CLI launcher (`bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`, `bin/CLI_VERSION`)
+- [x] Plugin-shipped `.mcp.json` for Claude Code wired to the launcher
+- [x] Cursor users still register MCP externally (no host-side path substitution available yet)
 
 ## Acceptance Criteria
 
 - All 18 document types are covered — 17 via dedicated type skills plus `plan` via the `/archcore:plan` intent skill
-- 8 intent skills operational as primary user surface
+- 9 intent skills operational as primary user surface (including `graph`)
 - 6 track skills for multi-document flows
+- 10 mainstream type skills + 7 niche type skills + 1 utility skill (33 total on disk; 26 visible in `/`)
 - Two agents: archcore-assistant (read/write) and archcore-auditor (read-only)
 - PreToolUse hook blocks 100% of direct Write/Edit attempts on `.archcore/*.md` files
 - PostToolUse hooks report validation issues and cascade staleness
 - SessionStart hook loads context and detects code-document drift
 - All plugin components use MCP tools exclusively — zero direct file writes
+- Plugin runs identically in Claude Code and Cursor
 
 ## Dependencies
 
-- Archcore CLI installed and in PATH (provides MCP server and validation)
+- Archcore CLI installed and in PATH OR auto-resolved by the bundled launcher
 - Claude Code plugin system supports: skills/, agents/, hooks/, bin/
+- Cursor plugin system supports: skills/, agents/, hooks/, rules/
 - MCP tools available: create_document, update_document, list_documents, get_document, add_relation, remove_relation, list_relations, remove_document
 - ADR: Always Use MCP Tools (architectural constraint)
 - ADR: Plugin Component Architecture (component mapping)
 - ADR: Single Universal Agent → extended by Add Read-Only Auditor Agent
 - ADR: Intent-Based Skill Architecture (4-layer hierarchy)
+- ADR: Inverted Invocation Policy (per-class invocation flags)
 - ADR: Actualize System (freshness detection)
+- ADR: Multi-Host Plugin Architecture (shared core + per-host adapters)
+- ADR: Bundled CLI Launcher (auto-resolve CLI; plugin-owned MCP for Claude Code)

@@ -30,17 +30,19 @@ Invert the invocation policy across the skill catalog.
 
 | Layer             | Skills                                                                                     | `disable-model-invocation` | `user-invocable`    | In `/` menu | Model auto-invokes                |
 | ----------------- | ------------------------------------------------------------------------------------------ | -------------------------- | ------------------- | ----------- | --------------------------------- |
-| Intent            | capture, plan, decide, standard, review, status, actualize, help                           | — (removed)                | default (`true`)    | ✓           | ✓                                 |
+| Intent            | capture, plan, decide, standard, review, status, actualize, graph, help                    | — (removed)                | default (`true`)    | ✓           | ✓                                 |
 | Track             | product-track, architecture-track, standard-track, feature-track, sources-track, iso-track | — (removed)                | default (`true`)    | ✓           | ✓                                 |
 | Type — mainstream | adr, prd, rfc, rule, guide, doc, spec, idea, task-type, cpat                               | **`true`**                 | default (`true`)    | ✓           | ✗                                 |
 | Type — niche      | mrd, brd, urd, brs, strs, syrs, srs                                                        | — (default)                | **`false`**         | ✗           | ✓ (typically via track orchestration) |
 | Utility           | verify                                                                                     | `true` (unchanged)         | default (`true`)    | ✓           | ✗                                 |
 
+Note: `graph` was added to the intent layer after the initial inversion. It follows the same auto-invocable contract (no flags), bringing intent count to 9 and visible `/` menu to 26.
+
 ### Rationale per class
 
 - **Intent and track skills become auto-invocable** so the model routes user intent through them. Their descriptions carry explicit "Activate when X. Do NOT activate for Y (use /archcore:other)." guidance as the routing signal.
 - **Mainstream type skills become expert-only** via `disable-model-invocation: true`. This removes their descriptions from the model's initial context (token savings) and forces all auto-invocation through the intent layer. Users who know exactly what they want can still `/archcore:adr <topic>`.
-- **Niche type skills become hidden** via `user-invocable: false`. The model still sees their descriptions (needed for track orchestration — `iso-track` internally invokes `brs/strs/syrs/srs`, `sources-track` invokes `mrd/brd/urd`), but users do not see them in `/` autocomplete. The visible `/` menu drops from 32 to 25 commands.
+- **Niche type skills become hidden** via `user-invocable: false`. The model still sees their descriptions (needed for track orchestration — `iso-track` internally invokes `brs/strs/syrs/srs`, `sources-track` invokes `mrd/brd/urd`), but users do not see them in `/` autocomplete. The visible `/` menu is now 26 commands (9 intent + 6 track + 10 mainstream type + 1 utility).
 - **Utility (`verify`) stays user-only** — it is a maintenance skill for plugin developers, not for end users, and should not auto-activate.
 
 ## Alternatives Considered
@@ -66,14 +68,14 @@ Deferred. A future `archcore-iso` sub-plugin is a valid option, but it requires 
 ### Positive
 
 - Intent routing is load-bearing — duplicate checks, relation suggestions, and multi-document follow-up execute for auto-invoked flows, not just explicit `/` invocations.
-- Visible `/` menu drops from 32 to 25 commands (22% reduction), concentrated on what newcomers should see first.
+- Visible `/` menu went from 32 to 25 commands at the time of the inversion, then to 26 after the `graph` intent skill was added — concentrated on what newcomers should see first.
 - Model's initial context no longer carries 10 mainstream type-skill descriptions — token savings on every session start and more budget for intent descriptions to be precise.
-- Cognitive load is stratified: newcomers see 8 intent + 6 tracks + 11 mainstream types = 25; ISO/discovery specialists reach niche types via tracks or direct MCP tools.
+- Cognitive load is stratified: newcomers see 9 intent + 6 tracks + 10 mainstream types + 1 utility = 26; ISO/discovery specialists reach niche types via tracks or direct MCP tools.
 
 ### Negative
 
 - Supersedes principle 4 ("User-only invocation") of `intent-based-skill-architecture.adr.md`. That principle is explicitly reversed here; the 4-layer structural decomposition stands, only the invocation wiring flips.
-- Intent skill descriptions become the single source of routing truth. Imprecise descriptions lead to mis-routing. Mitigated by the Phase 1.3 description rewrite enforcing the "Activate when X. Do NOT activate for Y." format.
+- Intent skill descriptions become the single source of routing truth. Imprecise descriptions lead to mis-routing. Mitigated by the description-rewrite enforcing the "Activate when X. Do NOT activate for Y." format.
 - Niche types are harder to discover directly. `/archcore:help` must document the track-based access path, and the niche types' `SKILL.md` still exist so tracks can invoke them.
 
 ### Constraints

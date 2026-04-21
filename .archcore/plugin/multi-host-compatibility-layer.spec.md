@@ -32,7 +32,7 @@ The plugin splits into a **shared core** (skills, agents, bin scripts, CLI launc
 ┌─────────────────────────────────────────────────────────┐
 │                    Shared Core                           │
 │                                                         │
-│  skills/ (32)  agents/ (2)                              │
+│  skills/ (33)  agents/ (2)                              │
 │  bin/ — 5 hook scripts + 3 launcher scripts + pin file  │
 │                                                         │
 │  100% host-agnostic — uses only MCP tools + Read/Grep   │
@@ -173,19 +173,19 @@ SHA-256 via `sha256sum` / `shasum -a 256` (POSIX) or `Get-FileHash -Algorithm SH
 
 ### 3. Hook Event Mapping
 
-| Plugin Hook               | Claude Code Event                 | Cursor Event          | Notes                                |
-| ------------------------- | --------------------------------- | --------------------- | ------------------------------------ |
-| Session context load      | `SessionStart`                    | `sessionStart`        | Both hosts support this event        |
-| Block .archcore/ writes   | `PreToolUse` (Write\|Edit)        | `preToolUse` (Write)  | Cursor has no Edit tool              |
-| Validate after file write | `PostToolUse` (Write\|Edit)       | `postToolUse` (Write) | Defense-in-depth                     |
-| Validate after MCP ops    | `PostToolUse` (mcp**archcore**\*) | `afterMCPExecution`   | Cursor has dedicated MCP event       |
-| Cascade detection         | `PostToolUse` (update_document)   | `afterMCPExecution`   | Script filters for update internally |
+| Plugin Hook             | Claude Code Event                 | Cursor Event         | Notes                                |
+| ----------------------- | --------------------------------- | -------------------- | ------------------------------------ |
+| Session context load    | `SessionStart`                    | `sessionStart`       | Both hosts support this event        |
+| Block .archcore/ writes | `PreToolUse` (Write\|Edit)        | `preToolUse` (Write) | Cursor has no Edit tool              |
+| Validate after MCP ops  | `PostToolUse` (mcp**archcore**\*) | `afterMCPExecution`  | Cursor has dedicated MCP event       |
+| Cascade detection       | `PostToolUse` (update_document)   | `afterMCPExecution`  | Script filters for update internally |
 
 Key differences:
 
 - **Event naming**: Claude Code uses PascalCase (`PreToolUse`), Cursor uses camelCase (`preToolUse`)
 - **MCP hooks**: Claude Code uses `PostToolUse` with MCP tool matcher; Cursor has `afterMCPExecution` — a dedicated event for all MCP operations
 - **Cascade filtering**: Claude Code matcher filters for `update_document` only; Cursor's `afterMCPExecution` fires for all MCP tools — `check-cascade` script exits early when `ARCHCORE_DOC_PATH` is empty
+- **No Write/Edit PostToolUse**: neither host runs `validate-archcore` after `Write`/`Edit`. `PreToolUse` already blocks writes to `.archcore/*.md` (PostToolUse only fires on success), so a Write/Edit PostToolUse entry would fork a shell on every write anywhere in the repo for no benefit. Validation runs only on the MCP path.
 
 ### 4. Per-Host Hooks Configuration
 
@@ -204,10 +204,6 @@ Key differences:
       }
     ],
     "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/bin/validate-archcore", "timeout": 3 }]
-      },
       {
         "matcher": "mcp__archcore__create_document|mcp__archcore__update_document|mcp__archcore__remove_document|mcp__archcore__add_relation|mcp__archcore__remove_relation",
         "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/bin/validate-archcore", "timeout": 3 }]
@@ -234,12 +230,6 @@ Key differences:
       {
         "matcher": "Write",
         "hooks": [{ "type": "command", "command": "${CURSOR_PLUGIN_ROOT}/bin/check-archcore-write", "timeout": 1 }]
-      }
-    ],
-    "postToolUse": [
-      {
-        "matcher": "Write",
-        "hooks": [{ "type": "command", "command": "${CURSOR_PLUGIN_ROOT}/bin/validate-archcore", "timeout": 3 }]
       }
     ],
     "afterMCPExecution": [
@@ -337,7 +327,7 @@ Rules in `rules/` provide context injection. Two files:
 - The normalizer MUST handle escaped JSON strings in Cursor's `tool_input` field.
 - `archcore_hook_block` MUST use exit code 2 for all hosts (universally recognized).
 - `archcore_hook_info` MUST emit the correct JSON format per host.
-- Per-host hooks config files MUST map all five hook functions.
+- Per-host hooks config files MUST map the four active hook functions (session-start, check-archcore-write, validate-archcore on the MCP path, check-cascade on update_document). No host MUST register `validate-archcore` on the Write/Edit PostToolUse path.
 - Plugin manifests MUST use identical `name`, `description`, and `version` across all hosts.
 - Plugin manifests (i.e., `plugin.json`) MUST NOT declare `mcpServers`. Claude Code MCP wiring lives in the plugin-root `.mcp.json`, not in the manifest.
 - The CLI launcher MUST resolve in order: `$ARCHCORE_BIN` → `PATH` (with loop guard) → cache → download. Downloads MUST be checksum-verified.
@@ -382,7 +372,7 @@ The multi-host compatibility layer conforms to this specification if:
 3. MCP tool names are normalized to `mcp__archcore__` prefix regardless of host
 4. Output helpers emit correct format per detected host
 5. The CLI launcher implements the full resolution order, with checksum verification on downloads
-6. Each supported host has a complete hooks config mapping all five hook functions
+6. Each supported host has a complete hooks config mapping the four active hook functions (session-start, check-archcore-write, MCP-path validate-archcore, update_document check-cascade) and does NOT register validate-archcore on Write/Edit PostToolUse
 7. Each supported host has a valid plugin manifest with consistent metadata and no `mcpServers` field in the manifest itself
 8. Claude Code's plugin root ships `.mcp.json` pointing at `${CLAUDE_PLUGIN_ROOT}/bin/archcore mcp`
 9. Shared components (skills, agents, hook scripts, launcher) contain zero host-specific references

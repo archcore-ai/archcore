@@ -21,6 +21,7 @@ Implement the 3-layer Actualize system for documentation freshness detection as 
 New POSIX shell script that detects code-document drift via git.
 
 Logic:
+
 1. Check if in a git repo (`git rev-parse --git-dir`)
 2. Find last `.archcore/` commit: `git log -1 --format=%H -- .archcore/`
 3. If no commit → exit 0 (docs never committed)
@@ -54,6 +55,7 @@ Files: `bin/session-start` (edit, ~5 lines added)
 New POSIX shell script that detects cascade staleness after `update_document`.
 
 Logic:
+
 1. Read JSON from stdin
 2. Extract `tool_input.path` (the updated document path)
 3. If extraction fails → exit 0
@@ -94,17 +96,19 @@ Files: `hooks/hooks.json` (edit)
 New Layer 1 intent skill for comprehensive staleness analysis.
 
 Frontmatter:
+
 - `name: actualize`
 - `argument-hint: "[scope: tag, category, or 'all']"`
 - `description: Detect stale documentation and suggest updates based on code changes and relation graph.`
-- `disable-model-invocation: true`
+
+Note: under the Inverted Invocation Policy (adopted after this plan was drafted), intent skills are auto-invocable and do NOT carry `disable-model-invocation`. The actualize skill follows that policy as shipped.
 
 Content structure (following intent skill pattern):
+
 1. Title + one-liner
 2. When to Use (vs review, vs status)
 3. Routing Table (full / tag-scoped / category-scoped / type-scoped)
 4. Execution:
-   - Step 0: Verify MCP
    - Step 1: Gather (list_documents + list_relations + git log)
    - Step 2: Apply scope filter from $ARGUMENTS
    - Step 3: Analyze Code→Doc drift (for each doc: extract path references, check git changes)
@@ -129,42 +133,45 @@ Add a 6th audit dimension: "Code-Document Correlation" — check if documents re
 ### Phase 5: Validation
 
 **5.1 Structural validation**
+
 - Verify `bin/check-staleness` and `bin/check-cascade` are executable
-- Verify `hooks/hooks.json` has 5 hook entries (1 SessionStart, 1 PreToolUse, 3 PostToolUse)
+- Verify `hooks/hooks.json` has 4 hook entries (1 SessionStart, 1 PreToolUse, 2 PostToolUse — MCP mutations + cascade)
 - Verify `skills/actualize/SKILL.md` exists with correct frontmatter
-- Count: 32 skill directories (8 intent + 6 track + 18 type)
+- Count at plan completion: 32 skill directories (8 intent + 6 track + 17 type + 1 utility). Today: 33 (intent grew to 9 with `graph`).
 
 **5.2 Content validation**
+
 - `bin/check-staleness`: exits 0 in all cases, output < 2KB, works without git
 - `bin/check-cascade`: exits 0 in all cases, reads sync-state.json correctly, outputs valid JSON
 - `skills/actualize/SKILL.md`: has all 5 intent skill sections, routing table, within 300 lines
-- `skills/help/SKILL.md`: lists all 8 primary commands
+- `skills/help/SKILL.md`: lists all primary intent commands
 
 **5.3 Integration validation**
+
 - `bin/session-start` calls `bin/check-staleness` after context loading
 - `hooks/hooks.json` cascade matcher fires only on `update_document`
 - No existing hook behavior is broken
 
 ## Acceptance Criteria
 
-- [ ] `bin/check-staleness` produces code-drift warnings when `.archcore/` is behind code changes
-- [ ] `bin/check-staleness` exits cleanly with no output when no drift or git unavailable
-- [ ] `bin/session-start` includes staleness check output in session context
-- [ ] `bin/check-cascade` produces cascade warnings after `update_document` when dependents exist
-- [ ] `bin/check-cascade` exits cleanly with no output when no cascade
-- [ ] `hooks/hooks.json` has 5 entries: SessionStart, PreToolUse, 3x PostToolUse
-- [ ] `/archcore:actualize` skill exists with routing table, 3-dimension analysis, and assisted fix
-- [ ] `/archcore:help` lists all 8 primary commands including actualize
-- [ ] `archcore-auditor` includes code-doc correlation dimension
-- [ ] All bin scripts are POSIX shell compatible and exit 0
-- [ ] All bin scripts degrade gracefully when git or CLI is unavailable
-- [ ] Total skill directory count: 32
+- [x] `bin/check-staleness` produces code-drift warnings when `.archcore/` is behind code changes
+- [x] `bin/check-staleness` exits cleanly with no output when no drift or git unavailable
+- [x] `bin/session-start` includes staleness check output in session context
+- [x] `bin/check-cascade` produces cascade warnings after `update_document` when dependents exist
+- [x] `bin/check-cascade` exits cleanly with no output when no cascade
+- [x] `hooks/hooks.json` has 4 entries: SessionStart, PreToolUse, 2x PostToolUse (MCP mutations + update_document cascade). No PostToolUse Write|Edit entry — PreToolUse already blocks.
+- [x] `/archcore:actualize` skill exists with routing table, 3-dimension analysis, and assisted fix
+- [x] `/archcore:help` lists all primary commands including actualize
+- [x] `archcore-auditor` includes code-doc correlation dimension
+- [x] All bin scripts are POSIX shell compatible and exit 0
+- [x] All bin scripts degrade gracefully when git or CLI is unavailable
+- [x] Total skill directory count at plan completion: 32 (today 33 after `graph` was added)
 
 ## Dependencies
 
 - Actualize System ADR (accepted) — architectural decision
-- Actualize System Specification (draft) — detailed contract
+- Actualize System Specification (accepted) — detailed contract
 - Hooks and Validation System Specification (updated) — extended hook contract
-- Plugin Architecture Specification (updated) — 8 intent skills, 5 hooks
-- Skills System Specification (updated) — 8 intent skills
+- Plugin Architecture Specification (updated) — intent skills, hooks
+- Skills System Specification (updated) — intent skills
 - Commands System Specification (updated) — actualize in Tier 1

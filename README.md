@@ -98,7 +98,7 @@ The plugin uses open standards (Agent Skills, MCP) — skills, agents, and MCP t
 
 ## What ships in the box
 
-- **32 Skills** — 18 document types, 8 intent commands, 6 multi-step tracks
+- **33 Skills** — 17 document types, 9 intent commands, 6 multi-step tracks, 1 utility
 - **2 Agents** — a universal assistant and a read-only auditor
 - **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 
@@ -114,7 +114,7 @@ The plugin ships a launcher that resolves the [Archcore CLI](https://archcore.ai
 
 ## Skills
 
-### Intent commands (8)
+### Intent commands (9)
 
 The primary user interface — describe what you want, the skill routes to the right types and flows.
 
@@ -127,17 +127,17 @@ The primary user interface — describe what you want, the skill routes to the r
 | Review    | `/archcore:review`    | Documentation health review — gaps, staleness, orphaned docs, missing relations |
 | Status    | `/archcore:status`    | Dashboard — counts by category, type, status, relation coverage, tags           |
 | Actualize | `/archcore:actualize` | Detect stale docs via code drift, cascade analysis, and temporal staleness      |
+| Graph     | `/archcore:graph`     | Render the document relation graph as a Mermaid flowchart                       |
 | Help      | `/archcore:help`      | Navigate the system — discover skills, types, and workflows                     |
 
-### Document types (18)
+### Document types (17)
 
-Each skill teaches the agent about one document type: when to use it, required sections, best practices, common mistakes, and how to relate it to other documents.
+Each skill teaches the agent about one document type: when to use it, required sections, best practices, common mistakes, and how to relate it to other documents. The `plan` type is served by the `/archcore:plan` intent skill rather than a standalone type skill.
 
 | Type        | Category   | What it captures                                     |
 | ----------- | ---------- | ---------------------------------------------------- |
 | `prd`       | vision     | Product requirements — goals, scope, success metrics |
 | `idea`      | vision     | Low-commitment concepts and explorations             |
-| `plan`      | vision     | Phased implementation with tasks and dependencies    |
 | `mrd`       | vision     | Market landscape, TAM/SAM/SOM, competition           |
 | `brd`       | vision     | Business objectives, stakeholders, ROI               |
 | `urd`       | vision     | User personas, journeys, usability requirements      |
@@ -154,7 +154,7 @@ Each skill teaches the agent about one document type: when to use it, required s
 | `task-type` | experience | Recurring task patterns with proven workflows        |
 | `cpat`      | experience | Before/after code pattern changes with scope         |
 
-Invoke any type directly: `/archcore:adr`, `/archcore:prd`, `/archcore:spec`, etc.
+Invoke mainstream types directly: `/archcore:adr`, `/archcore:prd`, `/archcore:spec`, etc. The 7 niche types (`mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`) are hidden from `/` autocomplete to reduce cognitive load — reach them through `/archcore:sources-track` or `/archcore:iso-track`, or call `mcp__archcore__create_document` directly.
 
 ### Tracks (6)
 

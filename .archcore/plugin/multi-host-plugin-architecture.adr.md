@@ -19,7 +19,7 @@ Analysis of the current plugin shows that **~95% of code is already host-agnosti
 
 | Component         | Count | Host-specific?                                             |
 | ----------------- | ----- | ---------------------------------------------------------- |
-| Skills (SKILL.md) | 32    | No — use only `mcp__archcore__*`, `Read`, `Grep`, `Glob`   |
+| Skills (SKILL.md) | 33    | No — use only `mcp__archcore__*`, `Read`, `Grep`, `Glob`   |
 | Agents (.md)      | 2     | No — same frontmatter format, same MCP tools               |
 | Bin scripts       | 5     | **Partially** — stdin JSON format varies by host           |
 | hooks.json        | 1     | **Yes** — event names and matcher syntax differ            |
@@ -31,7 +31,7 @@ The only host-specific parts are: plugin manifests (~10 lines JSON each), hooks 
 
 - Users of Cursor, Copilot, Codex CLI ask for Archcore integration
 - Industry convergence on Agent Skills + MCP makes cross-host support low-effort
-- Maintaining separate repos per host would mean duplicating 32 skills, 2 agents, and 5 bin scripts
+- Maintaining separate repos per host would mean duplicating 33 skills, 2 agents, and 5 bin scripts
 
 ## Decision
 
@@ -43,7 +43,7 @@ Architecture (as originally decided, with an addendum below for the current MCP 
 
 ```
 archcore-plugin/
-├── skills/                      # Shared — Agent Skills standard (32 skills)
+├── skills/                      # Shared — Agent Skills standard (33 skills)
 ├── agents/                      # Shared — markdown agent definitions (2 agents)
 ├── bin/                         # Shared — hook scripts with stdin normalization
 │   ├── lib/normalize-stdin.sh   # Detects host format, outputs normalized JSON
@@ -100,7 +100,7 @@ One repo for Claude Code, one for Cursor, one for Copilot. Each contains full co
 
 **Rejected because:**
 
-- 32 skills × N hosts = massive duplication
+- 33 skills × N hosts = massive duplication
 - Any skill update must be synced across all repos
 - Agents and bin scripts also duplicated
 - Only ~5% of code is actually host-specific
@@ -142,7 +142,7 @@ Ship `.mcp.json` (Claude Code) and `mcp.json` (Cursor) at the plugin root so MCP
 
 ### Positive
 
-- **Zero skill/agent duplication**: 32 skills and 2 agents maintained in one place
+- **Zero skill/agent duplication**: 33 skills and 2 agents maintained in one place
 - **Low per-host cost**: Adding a new host requires only a manifest (~10 lines) and hooks config (~30 lines)
 - **Standard compliance**: Uses Agent Skills, MCP, and markdown agents — all open standards
 - **Single source of truth**: Bug fixes in skills/agents/bin/launcher propagate to all hosts automatically

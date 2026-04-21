@@ -80,10 +80,11 @@ Create all Cursor-specific adapter files.
 
 #### 2.4 Create `hooks/cursor.hooks.json`
 
-- Map all 5 hook functions to Cursor event names
+- Map all active hook functions to Cursor event names (sessionStart, preToolUse Write, afterMCPExecution running validate-archcore + check-cascade)
 - Handle SessionStart gap: use `beforeSubmitPrompt` or rules
 - Use correct Cursor stdin/stdout protocol
 - Use Cursor's plugin root variable name
+- Do NOT register a `postToolUse Write` validate-archcore entry — that path was removed (PreToolUse already blocks; PostToolUse on every Write would fork a shell repo-wide for no benefit)
 
 **Files:** `hooks/cursor.hooks.json` (new)
 
@@ -214,7 +215,7 @@ Eliminate the out-of-band CLI install and MCP registration steps for Claude Code
 #### 5.7 Remove "Step 0: Verify MCP" from all skills
 
 - Under the old install model, every SKILL.md started with a "Verify MCP" block instructing the user to install the CLI if MCP tools were missing. With the launcher, MCP is always present on first tool call. The block is dead weight and confuses onboarding.
-- Sweep all 32 SKILL.md files to drop the block.
+- Sweep all SKILL.md files (33 today, was 32 at the time of this sweep — `graph` was added later) to drop the block.
 
 **Files:** all `skills/*/SKILL.md` (modify)
 
@@ -239,7 +240,7 @@ Eliminate the out-of-band CLI install and MCP registration steps for Claude Code
 - [x] All 5 bin scripts use `bin/lib/normalize-stdin.sh` for stdin parsing
 - [x] Claude Code plugin works identically after refactor (zero regression)
 - [x] `.cursor-plugin/plugin.json` exists with correct manifest format and no `mcpServers` field
-- [x] `hooks/cursor.hooks.json` maps all 5 hook functions to Cursor events
+- [x] `hooks/cursor.hooks.json` maps the active hook functions to Cursor events (sessionStart, preToolUse Write, afterMCPExecution running validate-archcore + check-cascade) and contains no postToolUse entry
 - [x] Plugin loads in Cursor: skills discoverable, user-registered MCP tools available
 - [x] Core flow works in Cursor: create document → validate → cascade
 - [x] Direct write blocking works in Cursor
@@ -250,7 +251,7 @@ Eliminate the out-of-band CLI install and MCP registration steps for Claude Code
 - [x] Launcher downloads are SHA-256 verified against `checksums.txt`
 - [x] `.mcp.json` at plugin root registers `archcore` against `${CLAUDE_PLUGIN_ROOT}/bin/archcore mcp`
 - [x] `bin/session-start` passes `ARCHCORE_SKIP_DOWNLOAD=1` to the launcher
-- [x] All SKILL.md files have the "Step 0: Verify MCP" block removed
+- [x] All SKILL.md files have the "Step 0: Verify MCP" block removed (33 files today)
 - [x] `test/unit/launcher.bats` covers launcher resolution and failure modes
 - [x] Users with a global `archcore` on `PATH` experience no behavior change (launcher defers to `PATH`)
 

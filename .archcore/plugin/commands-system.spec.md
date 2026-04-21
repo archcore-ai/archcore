@@ -1,6 +1,6 @@
 ---
 title: "User-Invoked Skills — Tiered Command Surface Specification"
-status: draft
+status: accepted
 tags:
   - "commands"
   - "plugin"
