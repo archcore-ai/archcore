@@ -30,18 +30,32 @@ That's it — open your project and say "record an ADR that we picked PostgreSQL
 
 ### Cursor
 
-Install from the Cursor plugin marketplace, or locally:
+Requires Cursor 2.5+. Archcore is not yet on the official [Cursor Marketplace](https://cursor.com/marketplace), so install it directly from GitHub — open a new Agent chat and run:
 
-```bash
-cursor --plugin-dir ./archcore-plugin
+```sh
+/add-plugin archcore@https://github.com/archcore-ai/archcore-plugin
 ```
 
-### Local development (any host)
+Note: `/add-plugin` doesn't show up in autocomplete — type the full command. For team rollouts, add the same GitHub URL under Dashboard → Settings → Plugins → Team Marketplaces → Import.
+
+### Local development
+
+Clone the repo, then:
+
+**Claude Code** — load the plugin for the current session:
 
 ```bash
-claude --plugin-dir ./archcore-plugin    # Claude Code
-cursor --plugin-dir ./archcore-plugin    # Cursor
+claude --plugin-dir /path/to/archcore-claude-plugin
 ```
+
+**Cursor** — Cursor has no `--plugin-dir` flag. Symlink the repo into Cursor's local plugins directory and reload the window:
+
+```bash
+ln -s /path/to/archcore-claude-plugin ~/.cursor/plugins/local/archcore
+# then in Cursor: Cmd/Ctrl+Shift+P → "Developer: Reload Window"
+```
+
+Both manifests (`.claude-plugin/plugin.json` and `.cursor-plugin/plugin.json`) live at the repo root.
 
 ### Offline / enterprise / BYO CLI
 
