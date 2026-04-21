@@ -58,7 +58,7 @@ Claude Code reads this and registers `archcore` as a plugin-provided MCP server.
 
 ### Pinned CLI version
 
-`bin/CLI_VERSION` is a single-line file containing the semver of the CLI release the plugin is tested against (currently `0.1.6`). The launcher reads this and uses it for cache keying and the download URL. Bumping the plugin's CLI pin is a one-file change.
+`bin/CLI_VERSION` is a single-line file containing the semver of the CLI release the plugin is tested against (currently `0.1.7`). The launcher reads this and uses it for cache keying and the download URL. Bumping the plugin's CLI pin is a one-file change.
 
 ### Checksum verification
 

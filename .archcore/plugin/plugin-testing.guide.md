@@ -37,13 +37,13 @@ Runs all checks in order: JSON validation → permission check → ShellCheck �
 make test
 ```
 
-Runs both unit and structure tests via bats-core (128 tests total as of CLI v0.1.6).
+Runs both unit and structure tests via bats-core (136 tests total as of CLI v0.1.7).
 
 To run a subset:
 
 ```bash
-make test-unit       # 78 unit tests (incl. launcher.bats)
-make test-structure  # 50 structure tests
+make test-unit       # 81 unit tests (incl. launcher.bats)
+make test-structure  # 55 structure tests
 ```
 
 To run a single test file:
@@ -125,7 +125,7 @@ When writing launcher tests, override the cache directory via `CLAUDE_PLUGIN_DAT
 ## Verification
 
 - `make verify` exits 0 with "All checks passed"
-- All 128 tests show `ok` in the TAP output
+- All 136 tests show `ok` in the TAP output
 - ShellCheck reports "all clean"
 - No `not ok` lines in test output
 - After breaking something intentionally (e.g., remove execute permission from a bin script, or clear `bin/CLI_VERSION`), the relevant test fails
