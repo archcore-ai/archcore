@@ -12,16 +12,18 @@ No prerequisites. The plugin bundles a launcher that downloads the Archcore CLI 
 
 ### Claude Code
 
-```bash
-claude plugin marketplace add archcore-ai/archcore-plugin
-claude plugin install archcore@archcore-plugins
-```
-
-Or from within Claude Code:
+Run claude:
 
 ```bash
 /plugin marketplace add archcore-ai/archcore-plugin
 /plugin install archcore@archcore-plugins
+```
+
+Or from your terminal:
+
+```bash
+claude plugin marketplace add archcore-ai/archcore-plugin
+claude plugin install archcore@archcore-plugins
 ```
 
 That's it — open your project and say "record an ADR that we picked PostgreSQL". The first Archcore tool call downloads the CLI (~5s, one-time), initializes `.archcore/` if needed, and creates the document.
