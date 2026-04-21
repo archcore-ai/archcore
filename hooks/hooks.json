@@ -25,16 +25,6 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/validate-archcore",
-            "timeout": 3
-          }
-        ]
-      },
-      {
         "matcher": "mcp__archcore__create_document|mcp__archcore__update_document|mcp__archcore__remove_document|mcp__archcore__add_relation|mcp__archcore__remove_relation",
         "hooks": [
           {

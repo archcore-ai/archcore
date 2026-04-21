@@ -2,6 +2,7 @@
 name: mrd
 argument-hint: "[topic]"
 description: "Expert — Documents market analysis, competitive positioning, and market sizing (TAM/SAM/SOM). Activates when analyzing a market before defining a product — e.g., 'market research', 'competitive analysis', 'market opportunity document'."
+user-invocable: false
 ---
 
 # MRD — Market Requirements Document

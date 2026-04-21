@@ -1,7 +1,6 @@
 ---
 name: status
-description: Show Archcore documentation dashboard — document counts, relation stats, and potential issues.
-disable-model-invocation: true
+description: "Show a compact Archcore dashboard — document counts, status breakdown, relation stats. Activate when user asks 'how many docs', 'show status', 'dashboard'. Do NOT activate for health audits with recommendations (use /archcore:review) or staleness detection (use /archcore:actualize)."
 ---
 
 # /archcore:status

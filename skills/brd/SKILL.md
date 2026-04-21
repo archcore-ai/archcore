@@ -2,6 +2,7 @@
 name: brd
 argument-hint: "[topic]"
 description: "Expert — Documents business requirements, objectives, and ROI to justify a project. Activates when making a business case or documenting ROI expectations — e.g., 'business case for X', 'justify this project', 'business requirements document'."
+user-invocable: false
 ---
 
 # BRD — Business Requirements Document

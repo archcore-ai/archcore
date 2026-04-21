@@ -12,11 +12,13 @@ Reference document listing all components of the Archcore Plugin (multi-host: Cl
 
 Note: Claude Code has merged commands into skills. All slash commands use `skills/<name>/SKILL.md`. The `commands/` directory is legacy and not used.
 
+Per the Inverted Invocation Policy ADR, skills are classified into four invocation classes: intent/track (auto-invocable by model + user), mainstream type (user-only via `/`), niche type (model-only, hidden from `/`), and utility (user-only).
+
 ## Content
 
-### Skills — Intent (8, user-only, disable-model-invocation: true)
+### Skills — Intent (9, auto-invocable by model + user)
 
-Intent skills translate user intent into the correct document types, tracks, or analysis modes. They are the primary user entry points (Layer 1).
+Intent skills translate user intent into the correct document types, tracks, or analysis modes. They are the primary user entry points (Layer 1) and are auto-invocable — the model picks them up from user phrasing ("record a decision" → `decide`, "plan this feature" → `plan`, "show the graph" → `graph`). No invocation-restricting flags.
 
 | Skill     | Directory           | User Intent                                                |
 | --------- | ------------------- | ---------------------------------------------------------- |
@@ -27,11 +29,12 @@ Intent skills translate user intent into the correct document types, tracks, or 
 | review    | `skills/review/`    | Check documentation health → analysis + recommendations    |
 | status    | `skills/status/`    | Show dashboard → counts, relations, issues                 |
 | actualize | `skills/actualize/` | Detect stale docs → code drift, cascade, temporal analysis |
+| graph     | `skills/graph/`     | Render the relation graph as a Mermaid flowchart           |
 | help      | `skills/help/`      | Navigate the system → layer guide, onboarding              |
 
-### Skills — Tracks (6, user-only, disable-model-invocation: true)
+### Skills — Tracks (6, auto-invocable by model + user)
 
-Track skills orchestrate complete multi-document flows, creating documents in sequence with proper relations. Descriptions prefixed "Advanced —" (Layer 2).
+Track skills orchestrate complete multi-document flows, creating documents in sequence with proper relations. Descriptions prefixed "Advanced —" (Layer 2). Auto-invocable so the model can route multi-document requests through them; `sources-track` and `iso-track` also programmatically invoke niche type skills.
 
 | Skill              | Directory                    | Flow                          |
 | ------------------ | ---------------------------- | ----------------------------- |
@@ -42,36 +45,46 @@ Track skills orchestrate complete multi-document flows, creating documents in se
 | standard-track     | `skills/standard-track/`     | adr → rule → guide            |
 | feature-track      | `skills/feature-track/`      | prd → spec → plan → task-type |
 
-### Skills — Document Types (18, model + user invoked)
+### Skills — Document Types, Mainstream (10, user-only via `/`, `disable-model-invocation: true`)
 
-Each teaches Claude about one document type. Model-invoked (auto-activate) and user-invokable via `/archcore:<type> <topic>`. Non-high-frequency types prefixed "Expert —" (Layer 3).
+Expert-level shortcuts for power users who know the exact type they want. Description NOT in model context — the model reaches these types only through intent-skill routing. Non-high-frequency types are prefixed "Expert —" (Layer 3).
 
 | Skill               | Type                          | Category   |
 | ------------------- | ----------------------------- | ---------- |
 | `skills/adr/`       | Architecture Decision Record  | knowledge  |
+| `skills/prd/`       | Product Requirements          | vision     |
 | `skills/rfc/`       | Request for Comments          | knowledge  |
 | `skills/rule/`      | Team Standard                 | knowledge  |
 | `skills/guide/`     | How-To Instructions           | knowledge  |
 | `skills/doc/`       | Reference Material            | knowledge  |
 | `skills/spec/`      | Technical Specification       | knowledge  |
-| `skills/prd/`       | Product Requirements          | vision     |
 | `skills/idea/`      | Product/Technical Concept     | vision     |
-| `skills/plan/`      | Implementation Plan           | vision     |
-| `skills/mrd/`       | Market Requirements           | vision     |
-| `skills/brd/`       | Business Requirements         | vision     |
-| `skills/urd/`       | User Requirements             | vision     |
-| `skills/brs/`       | Business Requirements Spec    | vision     |
-| `skills/strs/`      | Stakeholder Requirements Spec | vision     |
-| `skills/syrs/`      | System Requirements Spec      | vision     |
-| `skills/srs/`       | Software Requirements Spec    | vision     |
 | `skills/task-type/` | Recurring Task Pattern        | experience |
 | `skills/cpat/`      | Code Pattern Change           | experience |
 
-### Skills — Utility (1, user-only, disable-model-invocation: true)
+### Skills — Document Types, Niche (7, model-only, `user-invocable: false`, hidden from `/`)
+
+Discovery and ISO 29148 types that are rarely invoked directly by users. Hidden from the `/` autocomplete menu to reduce cognitive load. The model still sees their descriptions so `sources-track` and `iso-track` can orchestrate them. Users reach these types by invoking the appropriate track or calling MCP tools directly.
+
+| Skill          | Type                          | Category | Typical access path          |
+| -------------- | ----------------------------- | -------- | ---------------------------- |
+| `skills/mrd/`  | Market Requirements           | vision   | via `/archcore:sources-track` |
+| `skills/brd/`  | Business Requirements         | vision   | via `/archcore:sources-track` |
+| `skills/urd/`  | User Requirements             | vision   | via `/archcore:sources-track` |
+| `skills/brs/`  | Business Requirements Spec    | vision   | via `/archcore:iso-track`     |
+| `skills/strs/` | Stakeholder Requirements Spec | vision   | via `/archcore:iso-track`     |
+| `skills/syrs/` | System Requirements Spec      | vision   | via `/archcore:iso-track`     |
+| `skills/srs/`  | Software Requirements Spec    | vision   | via `/archcore:iso-track`     |
+
+### Skills — Utility (1, user-only, `disable-model-invocation: true`)
 
 | Skill  | Directory        | Purpose                                                                        |
 | ------ | ---------------- | ------------------------------------------------------------------------------ |
 | verify | `skills/verify/` | Run plugin integrity checks — tests, lint, config validation, cross-references |
+
+### Visible `/` menu surface
+
+Intent (9) + Tracks (6) + Mainstream types (10) + Utility (1) = **26 visible commands**. The 7 niche type skills exist as directories and are model-invocable but do not appear in `/` autocomplete. Total on disk: 33 skills.
 
 ### Agents (2)
 
@@ -84,17 +97,18 @@ Each teaches Claude about one document type. Model-invoked (auto-activate) and u
 
 **archcore-auditor** — documentation health checks: coverage gaps, orphaned docs, stale statuses, code-document correlation (cross-references document path mentions with git history to flag drift). Background, yellow, max 15 turns.
 
-### Hooks (5 entries across 3 events)
+### Hooks (4 entries across 3 events)
 
 | #   | Event        | Matcher                                                                                           | Handler                    | Timeout |
 | --- | ------------ | ------------------------------------------------------------------------------------------------- | -------------------------- | ------- |
 | 1   | SessionStart | (all)                                                                                             | `bin/session-start`        | —       |
 | 2   | PreToolUse   | `Write\|Edit`                                                                                     | `bin/check-archcore-write` | 1s      |
-| 3   | PostToolUse  | `Write\|Edit`                                                                                     | `bin/validate-archcore`    | 3s      |
-| 4   | PostToolUse  | `mcp__archcore__create_document\|update_document\|remove_document\|add_relation\|remove_relation` | `bin/validate-archcore`    | 3s      |
-| 5   | PostToolUse  | `mcp__archcore__update_document`                                                                  | `bin/check-cascade`        | 3s      |
+| 3   | PostToolUse  | `mcp__archcore__create_document\|update_document\|remove_document\|add_relation\|remove_relation` | `bin/validate-archcore`    | 3s      |
+| 4   | PostToolUse  | `mcp__archcore__update_document`                                                                  | `bin/check-cascade`        | 3s      |
 
 Hook configs: `hooks/hooks.json` (Claude Code, PascalCase events), `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`).
+
+Historical note: a prior revision had a 5th entry — `PostToolUse` with matcher `Write|Edit` invoking `validate-archcore`. It was removed because PreToolUse already blocks all Write/Edit to `.archcore/*.md` (PostToolUse fires only on success), so the matcher was dead weight forking a shell on every Write/Edit anywhere in the repo. See `hooks-validation-system.spec.md` for the rationale. Structure tests guard against its re-introduction.
 
 ### Bin Scripts
 
@@ -122,16 +136,16 @@ See the Bundled CLI Launcher ADR for rationale.
 | `bin/lib/normalize-stdin.sh` | (library)                                    | Multi-host stdin normalization. Detects host (Claude Code/Cursor/Copilot), extracts fields (tool_name, file_path, path), normalizes MCP tool names, provides output helpers (archcore_hook_block, archcore_hook_info, archcore_hook_allow). Sourced by all hook scripts except check-staleness.           |
 | `bin/session-start`          | SessionStart                                 | Sources the normalizer, detects missing `.archcore/` and emits init guidance (instructs the agent to call `mcp__archcore__init_project`), otherwise invokes the local launcher with `ARCHCORE_SKIP_DOWNLOAD=1` to run `archcore hooks <host> session-start`, then calls `bin/check-staleness`. Always exits 0. |
 | `bin/check-archcore-write`   | PreToolUse                                   | Blocks direct Write/Edit to `.archcore/**/*.md` with exit 2 + stderr message redirecting to MCP tools. Allows `.archcore/settings.json` and `.archcore/.sync-state.json`. Allows all paths outside `.archcore/`.                                                                                         |
-| `bin/validate-archcore`      | PostToolUse                                  | Runs `archcore validate` via the launcher after `.archcore/` file changes (Write/Edit by path check) or MCP document operations (by tool_name prefix). Outputs JSON `hookSpecificOutput` when issues found, empty otherwise. Silently exits 0 if the launcher/CLI is unavailable. Always exits 0.         |
-| `bin/check-staleness`        | SessionStart (called by `bin/session-start`) | Detects code-document drift via git: finds source files changed since the last `.archcore/` commit, cross-references with documents that mention affected directories. Outputs plain text warning (max 2KB) or empty. Always exits 0.                                                                    |
+| `bin/validate-archcore`      | PostToolUse                                  | Runs `archcore validate` via the launcher after MCP document operations (by tool_name prefix). The legacy Write/Edit branch in the script is retained as defensive code but is never reached from the current hooks config. Outputs JSON `hookSpecificOutput` when issues found, empty otherwise. Silently exits 0 if the launcher/CLI is unavailable. Always exits 0. |
+| `bin/check-staleness`        | SessionStart (called by `bin/session-start`) | Detects code-document drift via git: finds source files changed since the last `.archcore/` commit, cross-references with documents that mention affected directories. Rate-limited to once per 24h via a timestamp file (`$CLAUDE_PLUGIN_DATA/archcore/last-staleness`, with XDG/HOME fallbacks). Emits only when matching documents exist — no generic "N files changed" fallback. Outputs plain text warning (max 2KB) or empty. Always exits 0. |
 | `bin/check-cascade`          | PostToolUse                                  | After `update_document`, queries `.sync-state.json` relation graph for documents connected via `implements`, `depends_on`, or `extends` to the updated document. Outputs JSON `hookSpecificOutput` listing potentially stale dependents, or empty if no cascade. Always exits 0.                          |
 
 ### Test Suite
 
 | Component       | Location                     | Tests    | Description                                                                                             |
 | --------------- | ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------- |
-| Unit tests      | `test/unit/`                 | 69+      | Test each bin script: stdin parsing, host detection, exit codes, output format, edge cases. Includes `launcher.bats` covering the CLI launcher resolution order. |
-| Structure tests | `test/structure/`            | 45       | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules |
+| Unit tests      | `test/unit/`                 | 81+      | Test each bin script: stdin parsing, host detection, exit codes, output format, edge cases. Includes `launcher.bats` (CLI launcher resolution order) and `check-staleness.bats` (24h rate limit, corrupt-stamp recovery). |
+| Structure tests | `test/structure/`            | 50+      | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules. `hooks.bats` includes Phase 2.1 anti-regression invariants: no Write/Edit matcher on PostToolUse, no postToolUse event on Cursor, exact event-set invariants per host. |
 | Fixtures        | `test/fixtures/stdin/`       | 12 files | Mock stdin JSON for Claude Code, Cursor, Copilot, and malformed inputs                                  |
 | Helpers         | `test/helpers/`              | —        | common.bash (setup, mocks, timeout shim), bats-support, bats-assert (git submodules)                    |
 | Makefile        | `Makefile`                   | —        | Targets: `test`, `test-unit`, `test-structure`, `lint`, `check-json`, `check-perms`, `verify`           |
@@ -176,10 +190,10 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 
 ## Examples
 
-### All skills available as slash commands
+### All skills available as slash commands (visible `/` surface)
 
 ```
-## Primary (intent skills)
+## Primary (intent skills — auto-invocable)
 /archcore:capture          — document a module or component
 /archcore:plan             — plan a feature end-to-end
 /archcore:decide           — record a decision
@@ -187,12 +201,13 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 /archcore:review           — documentation health check
 /archcore:status           — dashboard
 /archcore:actualize        — detect stale docs, suggest updates
+/archcore:graph            — render the relation graph (Mermaid)
 /archcore:help             — system guide
 
 ## Utility
 /archcore:verify           — run plugin integrity checks
 
-## Advanced (track skills)
+## Advanced (track skills — auto-invocable)
 /archcore:product-track    — idea → prd → plan
 /archcore:sources-track    — mrd → brd → urd
 /archcore:iso-track        — brs → strs → syrs → srs
@@ -200,9 +215,20 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 /archcore:standard-track   — adr → rule → guide
 /archcore:feature-track    — prd → spec → plan → task-type
 
-## Expert (type skills)
+## Expert (mainstream type skills — user-only via /)
 /archcore:adr <topic>      — quick ADR creation
 /archcore:prd <topic>      — quick PRD creation
+/archcore:rfc <topic>      — quick RFC creation
 /archcore:rule <topic>     — quick rule creation
-... (all 18 types available)
+/archcore:guide <topic>    — quick guide creation
+/archcore:doc <topic>      — quick doc creation
+/archcore:spec <topic>     — quick spec creation
+/archcore:idea <topic>     — quick idea creation
+/archcore:task-type <topic> — quick task-type creation
+/archcore:cpat <topic>     — quick cpat creation
+
+## Hidden (niche type skills — model-only, not in autocomplete)
+(mrd, brd, urd, brs, strs, syrs, srs — reach via sources-track or iso-track)
 ```
+
+Total visible in `/` menu: 26 commands.

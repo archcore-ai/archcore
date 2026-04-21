@@ -2,6 +2,7 @@
 name: task-type
 argument-hint: "[topic]"
 description: "Expert — Documents a recurring task pattern with steps, variations, and known pitfalls. Activates when a task is performed repeatedly — e.g., 'document our release process', 'playbook for X', 'we always do this the same way'. For one-time procedures use /archcore:guide."
+disable-model-invocation: true
 ---
 
 # Task-Type — Recurring Task Pattern

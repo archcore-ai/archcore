@@ -2,6 +2,7 @@
 name: adr
 argument-hint: "[topic]"
 description: Records architectural decisions with context, alternatives, and consequences. Activates for finalized technical decisions, technology choices, or trade-off discussions.
+disable-model-invocation: true
 ---
 
 # ADR — Architecture Decision Record

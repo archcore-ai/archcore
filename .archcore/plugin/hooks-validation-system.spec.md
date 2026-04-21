@@ -13,7 +13,7 @@ Define the contract for the hook-based validation and freshness detection layer 
 
 ## Scope
 
-This specification covers all hook entries in `hooks/hooks.json`: the SessionStart hook (via `bin/session-start` wrapper with staleness check), the PreToolUse hook for blocking direct writes, the PostToolUse hooks for validation after both file writes and MCP document operations, and the PostToolUse hook for cascade detection after document updates. It does not cover the MCP server itself, the CLI launcher (see Bundled CLI Launcher ADR and Multi-Host Compatibility Layer Specification), or the agent's tool restrictions.
+This specification covers all hook entries in `hooks/hooks.json`: the SessionStart hook (via `bin/session-start` wrapper with staleness check), the PreToolUse hook for blocking direct writes, the PostToolUse hook for validation after MCP document operations, and the PostToolUse hook for cascade detection after document updates. It does not cover the MCP server itself, the CLI launcher (see Bundled CLI Launcher ADR and Multi-Host Compatibility Layer Specification), or the agent's tool restrictions.
 
 ## Authority
 
@@ -21,7 +21,7 @@ This specification is the authoritative reference for the plugin's hook configur
 
 ## Subject
 
-The hooks system consists of event handlers registered in `hooks/hooks.json` that respond to Claude Code lifecycle events. Three event types with five hook entries enforce quality, the MCP-only principle, and documentation freshness.
+The hooks system consists of event handlers registered in `hooks/hooks.json` that respond to Claude Code lifecycle events. Three event types with four hook entries enforce quality, the MCP-only principle, and documentation freshness.
 
 ## Contract Surface
 
@@ -55,16 +55,6 @@ The hooks system consists of event handlers registered in `hooks/hooks.json` tha
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/validate-archcore",
-            "timeout": 3
-          }
-        ]
-      },
-      {
         "matcher": "mcp__archcore__create_document|mcp__archcore__update_document|mcp__archcore__remove_document|mcp__archcore__add_relation|mcp__archcore__remove_relation",
         "hooks": [
           {
@@ -89,6 +79,8 @@ The hooks system consists of event handlers registered in `hooks/hooks.json` tha
 }
 ```
 
+Historical note: a prior revision included a PostToolUse `Write|Edit` matcher invoking `validate-archcore` as defense-in-depth. The hook was dead in practice — PreToolUse blocks all Write/Edit to `.archcore/*.md` before they reach PostToolUse (PostToolUse fires only on success per Claude Code hooks semantics), and `.archcore/settings.json` / `.archcore/.sync-state.json` are allowlisted, so `validate-archcore` never had an edge case to handle through that path. It was removed to eliminate a per-Write/Edit shell fork across the entire repository. The MCP matcher below remains the single validation entry point.
+
 ### Hook 1: SessionStart (Context Loading + Staleness Check)
 
 **Event**: SessionStart (fires when a session begins or resumes)
@@ -98,7 +90,7 @@ The hooks system consists of event handlers registered in `hooks/hooks.json` tha
 
 1. **Project check**: if `.archcore/` does not exist, emit `additionalContext` instructing the agent to call `mcp__archcore__init_project` on first Archcore operation, then exit 0. No manual install/init required.
 2. **Context loading**: if `.archcore/` exists, pipe stdin into `${SCRIPT_DIR}/archcore hooks <host> session-start` with `ARCHCORE_SKIP_DOWNLOAD=1` set. The local launcher resolves the CLI (from `$ARCHCORE_BIN`, `PATH`, or the plugin-managed cache); any failure (CLI missing, cache miss, launcher exit non-zero) is swallowed so session start remains non-blocking.
-3. **Staleness check**: call `bin/check-staleness` to detect code-doc drift via git. Append findings to session context via the emit-info helper.
+3. **Staleness check**: call `bin/check-staleness` to detect code-doc drift via git. Append findings to session context via the emit-info helper. Rate-limited to once per 24h (see `bin/check-staleness` requirements).
 
 `ARCHCORE_SKIP_DOWNLOAD=1` prevents the launcher from downloading the CLI during SessionStart — the first MCP tool call triggers the download instead, keeping SessionStart fast and quiet on first use.
 
@@ -139,26 +131,7 @@ This ensures validation, templates, and the sync manifest stay consistent.
 - `.archcore/settings.json` — configuration file, not a document
 - `.archcore/.sync-state.json` — managed by MCP tools internally
 
-### Hook 3: PostToolUse — Validate After Write/Edit (defense-in-depth)
-
-**Event**: PostToolUse (fires after a tool call succeeds)
-**Matcher**: `Write|Edit`
-**Handler**: `${CLAUDE_PLUGIN_ROOT}/bin/validate-archcore`
-**Timeout**: 3 seconds
-**Input**: JSON on stdin containing the completed tool call details
-
-**Behavior**:
-
-1. Extract `tool_name` and `file_path` from stdin JSON
-2. Check if the path is under `.archcore/`
-3. If NO match: exit 0 with empty output (no validation needed)
-4. If MATCH: run `archcore validate` via the launcher (`${SCRIPT_DIR}/archcore validate`) and capture output
-5. If validation passes: exit 0 with empty output
-6. If validation fails: exit 0 with JSON output containing validation context
-
-Note: In practice, the PreToolUse hook blocks most direct writes to `.archcore/*.md` before they execute. This PostToolUse entry serves as defense-in-depth for edge cases (e.g., writes to `.archcore/settings.json` or other non-.md files).
-
-### Hook 4: PostToolUse — Validate After MCP Document Operations
+### Hook 3: PostToolUse — Validate After MCP Document Operations
 
 **Event**: PostToolUse (fires after a tool call succeeds)
 **Matcher**: `mcp__archcore__create_document|mcp__archcore__update_document|mcp__archcore__remove_document|mcp__archcore__add_relation|mcp__archcore__remove_relation`
@@ -173,9 +146,9 @@ Note: In practice, the PreToolUse hook blocks most direct writes to `.archcore/*
 3. If validation passes: exit 0 with empty output
 4. If validation fails: exit 0 with JSON output containing validation context
 
-This is the primary validation hook. MCP tools are the supported interface for document operations, so this hook fires after every document mutation to ensure consistency.
+This is the sole validation hook. Because PreToolUse blocks all direct Write/Edit to `.archcore/*.md` and MCP tools are the supported interface for document operations, this single matcher fires after every document mutation that can actually touch the knowledge base.
 
-### Hook 5: PostToolUse — Cascade Detection After Document Updates
+### Hook 4: PostToolUse — Cascade Detection After Document Updates
 
 **Event**: PostToolUse (fires after a tool call succeeds)
 **Matcher**: `mcp__archcore__update_document`
@@ -190,7 +163,7 @@ This is the primary validation hook. MCP tools are the supported interface for d
 3. If no such relations found: exit 0 with empty output (no cascade)
 4. If cascade found: exit 0 with JSON output containing affected document list
 
-This hook fires **in addition to** Hook 4 (validation). Both hooks fire independently on `update_document` — Hook 4 validates structural integrity, Hook 5 detects cascade staleness. Neither depends on the other.
+This hook fires **in addition to** Hook 3 (validation). Both hooks fire independently on `update_document` — Hook 3 validates structural integrity, Hook 4 detects cascade staleness. Neither depends on the other.
 
 **Fires only on `update_document`**: New documents (`create_document`) cannot cause cascade because nothing depends on them yet. Removed documents (`remove_document`) are intentional deletions.
 
@@ -198,7 +171,7 @@ This hook fires **in addition to** Hook 4 (validation). Both hooks fire independ
 
 ### PostToolUse Output Formats
 
-**Validation (Hooks 3 & 4)** — when issues found:
+**Validation (Hook 3)** — when issues found:
 
 ```json
 {
@@ -209,7 +182,7 @@ This hook fires **in addition to** Hook 4 (validation). Both hooks fire independ
 }
 ```
 
-**Cascade Detection (Hook 5)** — when cascade detected:
+**Cascade Detection (Hook 4)** — when cascade detected:
 
 ```json
 {
@@ -234,7 +207,7 @@ This hook fires **in addition to** Hook 4 (validation). Both hooks fire independ
 
 ### bin/ Scripts
 
-Five executable hook scripts in `bin/`, plus the normalizer library and the CLI launcher (launcher covered in the Bundled CLI Launcher ADR).
+Four executable hook scripts in `bin/`, plus the normalizer library and the CLI launcher (launcher covered in the Bundled CLI Launcher ADR).
 
 #### `bin/session-start`
 
@@ -264,13 +237,13 @@ Requirements:
 
 #### `bin/validate-archcore`
 
-Shell script that reads stdin JSON, determines if validation is needed (by tool_name or file_path), and runs `archcore validate` through the launcher.
+Shell script that reads stdin JSON, determines if validation is needed (by tool_name prefix), and runs `archcore validate` through the launcher.
 
 Requirements:
 
 - Must be executable (`chmod +x`)
 - Must read JSON from stdin
-- Must handle both Write/Edit tools (check file_path) and MCP tools (validate unconditionally)
+- Must fire unconditionally for `mcp__archcore__*` tools; the legacy Write/Edit branch in the script is retained as defensive code but is never reached from the current hooks config
 - Must invoke the CLI via `"$SCRIPT_DIR/archcore"` (launcher) rather than a bare `archcore` on `PATH`
 - Must exit 0 in all cases, even if the launcher returns non-zero (silent skip on missing CLI)
 - Must output valid JSON with `hookSpecificOutput` object when reporting issues, empty output when clean
@@ -288,6 +261,8 @@ Requirements:
 - Output must not exceed 2KB
 - Must complete within 3 seconds
 - Must skip gracefully if git is unavailable, `.archcore/` has no commits, or project is not a git repo
+- Must be rate-limited to emit at most once per 24h per project via a timestamp file at `$CLAUDE_PLUGIN_DATA/archcore/last-staleness` (falling back to `$XDG_DATA_HOME/archcore-plugin/last-staleness`, then `$HOME/.local/share/archcore-plugin/last-staleness`). Stamp is written only when a warning is actually emitted; corrupt or missing stamps are treated as "never emitted"
+- Must emit a warning ONLY when matching documents are found — no generic "N files changed" fallback
 - POSIX shell compatible
 
 #### `bin/check-cascade`
@@ -310,12 +285,14 @@ Requirements:
 - The PreToolUse hook MUST block all Write/Edit calls targeting `.archcore/**/*.md` files via exit code 2 with stderr message.
 - The PreToolUse hook MUST NOT block writes to `.archcore/settings.json` or `.archcore/.sync-state.json`.
 - The PreToolUse hook MUST NOT block writes to files outside `.archcore/`.
-- The PostToolUse validation hooks report validation issues via `hookSpecificOutput.additionalContext` but do not block or revert operations.
+- The PostToolUse validation hook reports validation issues via `hookSpecificOutput.additionalContext` but does not block or revert operations.
 - The PostToolUse MCP validation matcher MUST fire after all document mutation MCP tools.
+- The hooks config MUST NOT register a Write/Edit matcher on PostToolUse. PreToolUse guarantees no Write/Edit reaches `.archcore/*.md` content, and revalidating on every non-archcore Write/Edit in the repo is wasted shell forks.
 - The PostToolUse cascade hook MUST fire only after `update_document`, not after `create_document` or `remove_document`.
 - The PostToolUse cascade hook MUST only flag documents connected via `implements`, `depends_on`, or `extends` (not `related`).
 - The SessionStart staleness check MUST run after context loading, not before.
 - The SessionStart staleness check output MUST NOT exceed 2KB.
+- The SessionStart staleness check MUST rate-limit itself to once per 24h via a persistent timestamp file.
 - Hook scripts that invoke the CLI MUST do so via the local launcher (`"$SCRIPT_DIR/archcore"`) so resolution order (`ARCHCORE_BIN` → `PATH` → cache → download) applies uniformly.
 - `bin/session-start` MUST set `ARCHCORE_SKIP_DOWNLOAD=1` when invoking the launcher.
 - All hooks MUST be idempotent — running them multiple times produces the same result.
@@ -334,10 +311,11 @@ Requirements:
 - The PreToolUse hook blocks 100% of direct Write/Edit to `.archcore/**/*.md` files.
 - The PreToolUse hook never blocks writes outside `.archcore/`.
 - The PostToolUse hooks never modify files — they only report.
-- Hook 4 (validation) and Hook 5 (cascade) fire independently on `update_document` — neither depends on the other.
+- Hook 3 (validation) and Hook 4 (cascade) fire independently on `update_document` — neither depends on the other.
 - SessionStart and PostToolUse hooks exit 0 regardless of outcome.
 - PreToolUse exits 0 (allow) or 2 (block) — never other codes.
 - SessionStart context loading never initiates a network download.
+- SessionStart emits the staleness warning at most once per 24h per project.
 
 ## Error Handling
 
@@ -346,18 +324,19 @@ Requirements:
 - If `archcore validate` hangs: enforced by `timeout` field in hooks.json (3 seconds).
 - If git is unavailable for staleness check: skip silently, context loading continues.
 - If relation graph is empty for cascade check: produce no output (no cascade possible).
+- If the staleness timestamp file is missing, empty, or contains non-numeric data: treat as "never emitted" and run the check normally.
 
 ## Conformance
 
 The hooks system conforms to this specification if:
 
-1. `hooks/hooks.json` contains all five hook entries (SessionStart, PreToolUse, three PostToolUse)
-2. `bin/session-start` emits init guidance when `.archcore/` is missing, otherwise delegates context loading through the launcher with `ARCHCORE_SKIP_DOWNLOAD=1` and then calls `bin/check-staleness`
-3. `bin/check-archcore-write` blocks `.archcore/**/*.md` writes via exit 2 + stderr and allows everything else
-4. `bin/validate-archcore` runs validation via the launcher after `.archcore/` Write/Edit and after MCP document operations
-5. `bin/check-staleness` detects code-doc drift via git and outputs warnings
-6. `bin/check-cascade` detects relation cascade after `update_document` via the launcher and outputs warnings
-7. PreToolUse completes within 1 second
-8. PostToolUse completes within 3 seconds
-9. SessionStart never initiates a network download (launcher called with `ARCHCORE_SKIP_DOWNLOAD=1`)
-10. Output formats follow Claude Code hooks documentation (exit codes, hookSpecificOutput object)
+1. `hooks/hooks.json` contains all four hook entries (SessionStart, PreToolUse, two PostToolUse).
+2. `bin/session-start` emits init guidance when `.archcore/` is missing, otherwise delegates context loading through the launcher with `ARCHCORE_SKIP_DOWNLOAD=1` and then calls `bin/check-staleness`.
+3. `bin/check-archcore-write` blocks `.archcore/**/*.md` writes via exit 2 + stderr and allows everything else.
+4. `bin/validate-archcore` runs validation via the launcher for `mcp__archcore__*` tool calls.
+5. `bin/check-staleness` detects code-doc drift via git, emits only when matching documents are found, and is rate-limited to once per 24h via a persistent timestamp file.
+6. `bin/check-cascade` detects relation cascade after `update_document` via the launcher and outputs warnings.
+7. PreToolUse completes within 1 second.
+8. PostToolUse completes within 3 seconds.
+9. SessionStart never initiates a network download (launcher called with `ARCHCORE_SKIP_DOWNLOAD=1`).
+10. Output formats follow Claude Code hooks documentation (exit codes, hookSpecificOutput object).

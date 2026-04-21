@@ -2,6 +2,7 @@
 name: urd
 argument-hint: "[topic]"
 description: "Expert — Documents user requirements, personas, and journeys. Activates when defining who the users are and what they need — e.g., 'user research', 'define our personas', 'document user journeys', 'usability requirements'."
+user-invocable: false
 ---
 
 # URD — User Requirements Document

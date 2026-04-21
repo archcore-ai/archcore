@@ -24,18 +24,6 @@
         ]
       }
     ],
-    "postToolUse": [
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CURSOR_PLUGIN_ROOT}/bin/validate-archcore",
-            "timeout": 3
-          }
-        ]
-      }
-    ],
     "afterMCPExecution": [
       {
         "matcher": "",

@@ -2,6 +2,7 @@
 name: rule
 argument-hint: "[topic]"
 description: Defines mandatory team standards and required behaviors with rationale and examples. Activates for coding conventions, enforceable practices, or standards codified from decisions.
+disable-model-invocation: true
 ---
 
 # Rule — Team Standard

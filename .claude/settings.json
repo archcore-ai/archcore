@@ -1,3 +1,6 @@
 {
-  "hooks": {}
+  "hooks": {},
+  "enabledPlugins": {
+    "archcore@archcore-plugins": true
+  }
 }

@@ -2,6 +2,7 @@
 name: guide
 argument-hint: "[topic]"
 description: Provides step-by-step instructions for completing a specific task with prerequisites and verification. Activates for how-to procedures, setup instructions, or runbooks.
+disable-model-invocation: true
 ---
 
 # Guide — How-To Instructions

@@ -2,6 +2,31 @@
 # SessionStart staleness check: detect code-document drift via git.
 # Called from bin/session-start after context loading.
 # Output: plain text warning (max 2KB) or empty. Always exits 0.
+#
+# Rate-limited to once per 24h via a timestamp file so that repeated session
+# starts in an actively developed project do not produce alarm fatigue. The
+# stamp is updated only when a warning is actually emitted.
+
+# Resolve stamp directory in the same precedence order as the launcher cache.
+if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
+  STAMP_DIR="$CLAUDE_PLUGIN_DATA/archcore"
+elif [ -n "${XDG_DATA_HOME:-}" ]; then
+  STAMP_DIR="$XDG_DATA_HOME/archcore-plugin"
+else
+  STAMP_DIR="${HOME:-/tmp}/.local/share/archcore-plugin"
+fi
+STAMP="$STAMP_DIR/last-staleness"
+
+# Rate limit: skip if a warning was emitted within the last 24h.
+if [ -f "$STAMP" ]; then
+  NOW=$(date +%s 2>/dev/null) || exit 0
+  LAST=$(cat "$STAMP" 2>/dev/null)
+  case "$LAST" in
+    ''|*[!0-9]*) LAST=0 ;;
+  esac
+  AGE=$((NOW - LAST))
+  [ "$AGE" -lt 86400 ] && exit 0
+fi
 
 # Must be in a git repo
 git rev-parse --git-dir >/dev/null 2>&1 || exit 0
@@ -39,15 +64,18 @@ for DIR in $CHANGED_DIRS; do
   done
 done
 
-# Output warning
+# Emit a warning only when we have concrete evidence (matching documents).
+# The previous "CHANGED_COUNT > 5" fallback emitted alerts without actionable
+# targets — dropped as pure noise.
 if [ "$AFFECTED_COUNT" -gt 0 ]; then
   printf '[Archcore Staleness] %s source files changed since last documentation update.\n' "$CHANGED_COUNT"
   printf 'Potentially affected documents:\n'
   printf '%s' "$AFFECTED" | head -10
   printf 'Run /archcore:actualize for detailed analysis.\n'
-elif [ "$CHANGED_COUNT" -gt 5 ]; then
-  printf '[Archcore Staleness] %s source files changed since last documentation update.\n' "$CHANGED_COUNT"
-  printf 'Consider running /archcore:actualize to check for stale documentation.\n'
+
+  # Touch the stamp so we don't re-warn for 24h.
+  mkdir -p "$STAMP_DIR" 2>/dev/null || true
+  date +%s > "$STAMP" 2>/dev/null || true
 fi
 
 exit 0

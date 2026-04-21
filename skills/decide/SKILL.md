@@ -1,8 +1,7 @@
 ---
 name: decide
 argument-hint: "[decision topic]"
-description: Record an architectural or technical decision with context and alternatives.
-disable-model-invocation: true
+description: "Record a finalized technical or architectural decision — creates ADR, optionally codifies into rule + guide. Activate when user says 'we decided', 'record this decision', 'capture why we chose X'. Do NOT activate for open proposals (use /archcore:rfc), feature planning (use /archcore:plan), or documenting existing code (use /archcore:capture)."
 ---
 
 # /archcore:decide

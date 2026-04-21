@@ -4,6 +4,9 @@
 setup() {
   load '../helpers/common'
   common_setup
+  # Isolate the rate-limit stamp into a per-test location so prior runs
+  # (in this test suite or on the user's machine) do not silence warnings.
+  export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/plugin-data"
 }
 
 setup_git_repo() {
@@ -82,7 +85,11 @@ setup_git_repo() {
   assert_output --partial "/archcore:actualize"
 }
 
-@test "many source changes without doc references suggests running actualize" {
+@test "source changes without doc references exit silently" {
+  # Formerly verified the "CHANGED_COUNT > 5" fallback warning.
+  # Per the Inverted Invocation Policy / staleness rate-limit refactor,
+  # the fallback was dropped — we only warn when there is concrete evidence
+  # of affected documents.
   local repo="$BATS_TEST_TMPDIR/repo-many"
   mkdir -p "$repo/.archcore" "$repo/lib"
   cd "$repo"
@@ -93,11 +100,68 @@ setup_git_repo() {
   for i in $(seq 1 8); do echo "file$i" > "lib/file$i.py"; done
   git add -A && git commit -q -m "initial"
 
-  # Change many files
   for i in $(seq 1 8); do echo "updated$i" > "lib/file$i.py"; done
   git add -A && git commit -q -m "bulk update"
 
   run "$PLUGIN_ROOT/bin/check-staleness"
   assert_success
-  assert_output --partial "source files changed"
+  assert_output ""
+}
+
+@test "rate limit suppresses repeat warnings within 24h" {
+  local repo
+  repo=$(setup_git_repo)
+  cd "$repo"
+
+  echo "updated" > src/auth/handler.py
+  git add -A && git commit -q -m "update"
+
+  # First run — warning emitted, stamp created.
+  run "$PLUGIN_ROOT/bin/check-staleness"
+  assert_success
+  assert_output --partial "Archcore Staleness"
+
+  # Second run — stamp is fresh, warning suppressed.
+  run "$PLUGIN_ROOT/bin/check-staleness"
+  assert_success
+  assert_output ""
+}
+
+@test "rate limit lets warning through after stamp ages past 24h" {
+  local repo
+  repo=$(setup_git_repo)
+  cd "$repo"
+
+  echo "updated" > src/auth/handler.py
+  git add -A && git commit -q -m "update"
+
+  # First run populates the stamp.
+  run "$PLUGIN_ROOT/bin/check-staleness"
+  assert_success
+  assert_output --partial "Archcore Staleness"
+
+  # Age the stamp to >24h ago (86400s + 1 buffer).
+  local stamp="$CLAUDE_PLUGIN_DATA/archcore/last-staleness"
+  echo "$(($(date +%s) - 86401))" > "$stamp"
+
+  run "$PLUGIN_ROOT/bin/check-staleness"
+  assert_success
+  assert_output --partial "Archcore Staleness"
+}
+
+@test "corrupt stamp is treated as missing" {
+  local repo
+  repo=$(setup_git_repo)
+  cd "$repo"
+
+  echo "updated" > src/auth/handler.py
+  git add -A && git commit -q -m "update"
+
+  # Pre-create a stamp with garbage content.
+  mkdir -p "$CLAUDE_PLUGIN_DATA/archcore"
+  echo "not-a-number" > "$CLAUDE_PLUGIN_DATA/archcore/last-staleness"
+
+  run "$PLUGIN_ROOT/bin/check-staleness"
+  assert_success
+  assert_output --partial "Archcore Staleness"
 }

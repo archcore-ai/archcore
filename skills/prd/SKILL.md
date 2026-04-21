@@ -2,6 +2,7 @@
 name: prd
 argument-hint: "[topic]"
 description: Defines product requirements with vision, goals, and success metrics. Activates for product scoping, feature definitions, or when establishing what to build and why.
+disable-model-invocation: true
 ---
 
 # PRD — Product Requirements Document

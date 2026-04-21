@@ -2,7 +2,6 @@
 name: iso-track
 argument-hint: "[topic]"
 description: "Advanced — Formal ISO 29148 requirements cascade: BRS → StRS → SyRS → SRS. Best for regulated systems, multi-team projects, or complex distributed systems requiring traceable, auditable requirements. For lighter product discovery use /archcore:sources-track."
-disable-model-invocation: true
 ---
 
 # ISO 29148 Track: BRS → StRS → SyRS → SRS

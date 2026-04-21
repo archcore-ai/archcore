@@ -1,8 +1,7 @@
 ---
 name: standard-track
 argument-hint: "[topic]"
-description: "Advanced — Create ADR, rule, and guide to codify a standard."
-disable-model-invocation: true
+description: "Advanced — Create an ADR → rule → guide cascade to codify a team standard. Activate when user explicitly requests a standard cascade or a full 'decision to enforcement' chain. For a single decision without enforcement, use /archcore:decide; for mixed intent routing, use /archcore:standard."
 ---
 
 # Standard Track: ADR → rule → guide

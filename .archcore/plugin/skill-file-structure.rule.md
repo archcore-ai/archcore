@@ -10,7 +10,12 @@ tags:
 ## Rule
 
 1. Each skill MUST live at `skills/<name>/SKILL.md` where `<name>` is the intent name (for Layer 1), track name (for Layer 2), or Archcore document type identifier (for Layer 3).
-2. Each SKILL.md MUST contain frontmatter with `name` and `description`. Intent and track skills MUST include `disable-model-invocation: true`. Track skill descriptions MUST be prefixed with "Advanced —". Non-high-frequency type skill descriptions MUST be prefixed with "Expert —".
+2. Each SKILL.md MUST contain frontmatter with `name` and `description`. Invocation flags follow the Inverted Invocation Policy (see `inverted-invocation-policy.adr.md`):
+   - **Intent and track skills:** MUST NOT carry invocation-restricting flags. The model auto-invokes them from user phrasing.
+   - **Mainstream type skills** (adr, prd, rfc, rule, guide, doc, spec, idea, task-type, cpat): MUST include `disable-model-invocation: true`. User-invokable via `/` only; descriptions not in model context.
+   - **Niche type skills** (mrd, brd, urd, brs, strs, syrs, srs): MUST include `user-invocable: false`. Hidden from `/` menu; model reaches them via track orchestration.
+   - **Utility skills** (`verify`): MUST include `disable-model-invocation: true`. Maintenance-only, user-invoked.
+   - Track skill descriptions MUST be prefixed with "Advanced —". Non-high-frequency type skill descriptions MUST be prefixed with "Expert —".
 3. Section structure varies by skill group:
    - **Intent skills (Layer 1):** Title+one-liner, When to Use, Routing Table, Execution, Result (5 sections).
    - **Track skills (Layer 2):** Sequential steps — Check existing → Scope → Create doc 1 → Create doc 2 → ... → Cross-relate → Result.
@@ -18,6 +23,7 @@ tags:
 4. Creation flows (intent inline recipes, track steps, type Quick Create) MUST show `create_document` MCP tool usage — never Write/Edit.
 5. Skills MUST NOT embed full document templates — reference the template system instead.
 6. Line limits differ by group: Intent skills ≤ 300 lines, Track skills ≤ 200 lines, Type skills ≤ 100 lines.
+7. Intent and track skill descriptions MUST explicitly enumerate trigger phrases and anti-triggers using the "Activate when X. Do NOT activate for Y (use /archcore:other)." format, so model routing is deterministic.
 
 ## Rationale
 
@@ -29,6 +35,7 @@ Consistent structure within each skill group ensures:
 - No drift — referencing templates instead of embedding them prevents staleness when CLI templates change
 - MCP-only enforcement — creation flows model the correct behavior
 - Tier signaling — description prefixes help users identify skill complexity in the flat skill picker
+- Routing correctness — under the Inverted Invocation Policy, intent skills are the sole auto-invocation entry point. Precise trigger/anti-trigger language in descriptions prevents the model from mis-routing into a neighboring intent.
 
 ## Examples
 
@@ -38,8 +45,7 @@ Consistent structure within each skill group ensures:
 ---
 name: capture
 argument-hint: "[topic or description]"
-description: Capture documentation for a module, component, or topic.
-disable-model-invocation: true
+description: "Document a module, component, or system — automatically picks the right type (ADR, spec, doc, or guide). Activate when user says 'document this module', 'capture how X works', 'write reference docs'. Do NOT activate for recording a decision (use /archcore:decide) or planning a feature (use /archcore:plan)."
 ---
 
 # /archcore:capture
@@ -52,10 +58,12 @@ disable-model-invocation: true
 | Signal | Route |
 |---|---|
 ## Execution
-Step 0: Verify MCP...
+...
 ## Result
 ...
 ```
+
+No invocation-restricting flag — the model auto-invokes from user phrasing.
 
 ### Good — Track Skill (Layer 2)
 
@@ -63,12 +71,10 @@ Step 0: Verify MCP...
 ---
 name: product-track
 argument-hint: "[topic]"
-description: "Advanced — Create idea, PRD, and plan with full traceability."
-disable-model-invocation: true
+description: "Advanced — Lightweight product requirements flow: idea → PRD → plan. Activate when user explicitly requests a full product cascade for a small-scope feature. For architectural design, use /archcore:architecture-track; for ISO cascade, use /archcore:iso-track."
 ---
 
 # /archcore:product-track
-## Step 0: Verify MCP...
 ## Step 1: Check existing...
 ## Step 2: Create idea...
 ## Step 3: Create PRD...
@@ -76,14 +82,14 @@ disable-model-invocation: true
 ## Result
 ```
 
-### Good — Type Skill (Layer 3)
+### Good — Mainstream Type Skill (Layer 3)
 
 ```markdown
 ---
 name: adr
 argument-hint: "[topic]"
-description: >
-  Record an architectural decision with context and alternatives.
+description: Records architectural decisions with context, alternatives, and consequences. Activates for finalized technical decisions, technology choices, or trade-off discussions.
+disable-model-invocation: true
 ---
 
 ## When to Use
@@ -98,11 +104,31 @@ add_relation(source=..., target=..., type="implements")
 - Outgoing: `related` to rule...
 ```
 
+User-invoked only via `/archcore:adr`; the model reaches ADR creation through `/archcore:decide` or `/archcore:capture` routing.
+
+### Good — Niche Type Skill (Layer 3)
+
+```markdown
+---
+name: brs
+argument-hint: "[topic]"
+description: "Expert — Formalizes business requirements into a traceable specification per ISO 29148..."
+user-invocable: false
+---
+
+## When to Use
+Use BRS within the ISO 29148 cascade (brs → strs → syrs → srs)...
+```
+
+Hidden from `/` autocomplete; the model invokes via `/archcore:iso-track` orchestration.
+
 ### Bad
 
 ```markdown
 # Missing frontmatter name/description
-# Missing disable-model-invocation for intent/track skills
+# Intent/track skill with disable-model-invocation: true (inverted policy violation — blocks routing)
+# Mainstream type skill without disable-model-invocation: true (pollutes model context)
+# Niche type skill without user-invocable: false (noise in / menu)
 # Template content embedded verbatim (will drift from CLI)
 # Example uses Write instead of create_document
 # Intent skill missing Routing Table section
@@ -114,4 +140,5 @@ add_relation(source=..., target=..., type="implements")
 - Code review during skill development
 - Skills System Specification defines the normative contract
 - Plugin Architecture Specification defines the 4-layer hierarchy
-- Future: automated lint script in `bin/` to check skill structure
+- Inverted Invocation Policy ADR defines per-layer flag requirements
+- Future: automated lint script in `bin/` to check skill structure and invocation flags

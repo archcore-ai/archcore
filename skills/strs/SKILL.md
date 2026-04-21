@@ -2,6 +2,7 @@
 name: strs
 argument-hint: "[topic]"
 description: "Expert — Formalizes stakeholder requirements per ISO 29148 by decomposing BRS into stakeholder-specific specs. Activates when multiple stakeholder groups have different requirement sets, or progressing through an ISO 29148 cascade after BRS. Use /archcore:urd for informal user needs."
+user-invocable: false
 ---
 
 # StRS — Stakeholder Requirements Specification (ISO 29148)

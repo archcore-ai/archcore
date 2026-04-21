@@ -2,6 +2,7 @@
 name: idea
 argument-hint: "[topic]"
 description: 'Expert — Captures product or technical concepts worth exploring before commitment. Activates for brainstorming, "what if" discussions, or early-stage concept exploration.'
+disable-model-invocation: true
 ---
 
 # Idea — Concept Exploration

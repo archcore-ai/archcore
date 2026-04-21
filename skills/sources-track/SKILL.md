@@ -2,7 +2,6 @@
 name: sources-track
 argument-hint: "[topic]"
 description: "Advanced — Discovery requirements flow: MRD (market) → BRD (business) → URD (user). Best for product teams doing research, stakeholder alignment, or business analysis before committing to a product. Not for technical requirements — use /archcore:iso-track."
-disable-model-invocation: true
 ---
 
 # Sources Track: MRD → BRD → URD

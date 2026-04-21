@@ -2,6 +2,7 @@
 name: syrs
 argument-hint: "[topic]"
 description: "Expert — Formalizes system requirements per ISO 29148 by translating StRS into system-level specifications covering boundaries, interfaces, and operational modes. Activates after completing StRS in an ISO 29148 cascade. Not for software-specific requirements — use /archcore:srs."
+user-invocable: false
 ---
 
 # SyRS — System Requirements Specification (ISO 29148)

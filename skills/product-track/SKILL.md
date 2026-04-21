@@ -2,7 +2,6 @@
 name: product-track
 argument-hint: "[topic]"
 description: "Advanced — Lightweight product requirements flow: idea → PRD → plan. Best for individual features, small teams, or rapid prototyping. For engineer-led feature delivery use /archcore:feature-track; for ISO requirements cascade use /archcore:iso-track."
-disable-model-invocation: true
 ---
 
 # Product Track: idea → PRD → plan

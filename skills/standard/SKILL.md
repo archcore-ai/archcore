@@ -1,8 +1,7 @@
 ---
 name: standard
 argument-hint: "[standard topic]"
-description: Establish a team standard — creates decision, rule, and how-to guide in sequence.
-disable-model-invocation: true
+description: "Establish a team standard end-to-end — creates ADR → rule → guide chain for codifying practices. Activate when user says 'make this a standard', 'establish a convention', 'codify this practice'. Do NOT activate for recording a one-off decision (use /archcore:decide) or feature planning (use /archcore:plan)."
 ---
 
 # /archcore:standard
