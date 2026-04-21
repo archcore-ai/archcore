@@ -1,4 +1,10 @@
-# archcore launcher (Windows) — resolves and execs the real archcore CLI.
+# archcore launcher (Windows) - resolves and execs the real archcore CLI.
+#
+# IMPORTANT: keep this file ASCII-only. Windows PowerShell 5.1 reads .ps1
+# source as the legacy ANSI codepage when there is no BOM, so non-ASCII
+# characters (em-dash, smart quotes) get mis-decoded and can terminate
+# string literals early, producing cryptic parser errors. See
+# test/structure/launcher-ascii.bats.
 #
 # Resolution order (same as POSIX launcher):
 #   1. $env:ARCHCORE_BIN override (if set and exists)
@@ -11,8 +17,8 @@
 #   $env:LOCALAPPDATA\archcore-plugin\cli
 #
 # Env:
-#   ARCHCORE_BIN            — explicit path to the CLI binary
-#   ARCHCORE_SKIP_DOWNLOAD  — if "1", skip step 4 and exit 1 instead
+#   ARCHCORE_BIN            - explicit path to the CLI binary
+#   ARCHCORE_SKIP_DOWNLOAD  - if "1", skip step 4 and exit 1 instead
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -82,7 +88,7 @@ if ($env:ARCHCORE_SKIP_DOWNLOAD -eq '1') {
     exit 1
 }
 
-# Arch detection — use OS architecture so x64 PowerShell under Prism emulation
+# Arch detection - use OS architecture so x64 PowerShell under Prism emulation
 # still installs the correct ARM64 binary.
 $rawArch = $null
 try {
@@ -111,7 +117,7 @@ $tmpDir = Join-Path $env:TEMP "archcore-launcher-$([guid]::NewGuid())"
 New-Item -ItemType Directory -Path $tmpDir -Force | Out-Null
 
 try {
-    [Console]::Error.WriteLine("[archcore launcher] Downloading archcore v$version (windows/$arch) — first run, one-time...")
+    [Console]::Error.WriteLine("[archcore launcher] Downloading archcore v$version (windows/$arch) - first run, one-time...")
 
     $archivePath = Join-Path $tmpDir $archiveName
     $checksumsPath = Join-Path $tmpDir 'checksums.txt'
@@ -128,7 +134,7 @@ try {
             $ok = $true
         } catch {
             if ($attempts -ge 3) {
-                Write-LauncherError "Failed to download $archiveUrl — check network connectivity or set ARCHCORE_BIN."
+                Write-LauncherError "Failed to download $archiveUrl - check network connectivity or set ARCHCORE_BIN."
                 exit 1
             }
             Start-Sleep -Seconds 2

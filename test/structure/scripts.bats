@@ -62,6 +62,16 @@ setup() {
   [ -f "$PLUGIN_ROOT/bin/archcore.cmd" ]
 }
 
+@test "archcore.ps1 is ASCII-only (Windows PowerShell 5.1 reads without BOM as ANSI)" {
+  # Non-ASCII chars (em-dash, smart quotes) get mis-decoded by PS 5.1 as
+  # Windows-1252, and can terminate string literals early (U+201D from the
+  # em-dash trailing byte 0x94), producing parser errors at MCP startup.
+  # Portable across BSD/GNU grep: match any byte outside printable ASCII + tab.
+  run env LC_ALL=C grep -n '[^ -~	]' "$PLUGIN_ROOT/bin/archcore.ps1"
+  [ "$status" -ne 0 ] || fail "archcore.ps1 contains non-ASCII bytes:
+$output"
+}
+
 @test "CLI_VERSION file exists and matches semver" {
   [ -f "$PLUGIN_ROOT/bin/CLI_VERSION" ]
   local version
