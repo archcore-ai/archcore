@@ -3126,6 +3126,31 @@
       "source": "plugin/readme-first-60-seconds.idea.md",
       "target": "plugin/skills-system.spec.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/subagent-knowledge-tree-preload.idea.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/subagent-knowledge-tree-preload.idea.md",
+      "target": "plugin/add-read-only-auditor-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/subagent-knowledge-tree-preload.idea.md",
+      "target": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/subagent-knowledge-tree-preload.idea.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/subagent-knowledge-tree-preload.idea.md",
+      "target": "plugin/multi-host-compatibility-layer.spec.md",
+      "type": "related"
     }
   ]
 }
