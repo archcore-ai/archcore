@@ -1,46 +1,43 @@
 # Archcore Plugin
 
-Git-native context for AI coding agents.
+**Stop your AI agent from forgetting how your repo works.**
 
 > Git versions your code.
 > CI/CD ships it.
 > **Archcore makes your AI understand it.**
 
-## Quick Start
+Make your AI agent code with your project's architecture, rules, and decisions — automatically, on every request, across sessions and subagents.
+
+_Not a spec workflow kit. Not chat memory. Archcore is a Git-backed repo context layer for coding agents._
+
+## What changes the moment you install it
+
+- **Architecture** — the agent places code where your system expects it, not where it guesses
+- **Rules** — it follows your team's standards instead of improvising
+- **Decisions** — prior ADRs aren't re-litigated, they're respected
+- **Workflows** — multi-step tasks (PRD → plan, ADR → rule → guide) execute end-to-end
+
+## Install
 
 No prerequisites. The plugin bundles a launcher that downloads the Archcore CLI on first use (cached between sessions).
 
-### Claude Code
-
-Run claude:
+**Claude Code** — inside `claude`:
 
 ```bash
 /plugin marketplace add archcore-ai/archcore-plugin
 /plugin install archcore@archcore-plugins
 ```
 
-Or from your terminal:
-
-```bash
-claude plugin marketplace add archcore-ai/archcore-plugin
-claude plugin install archcore@archcore-plugins
-```
-
-That's it — open your project and say "record an ADR that we picked PostgreSQL". The first Archcore tool call downloads the CLI (~5s, one-time), initializes `.archcore/` if needed, and creates the document.
-
-### Cursor
-
-Requires Cursor 2.5+. Archcore is not yet on the official [Cursor Marketplace](https://cursor.com/marketplace), so install it directly from GitHub — open a new Agent chat and run:
+**Cursor** — requires Cursor 2.5+. Archcore is not yet on the official [Cursor Marketplace](https://cursor.com/marketplace), so install directly from GitHub — open a new Agent chat and run:
 
 ```sh
 /add-plugin archcore@https://github.com/archcore-ai/archcore-plugin
 ```
 
-Note: `/add-plugin` doesn't show up in autocomplete — type the full command. For team rollouts, add the same GitHub URL under Dashboard → Settings → Plugins → Team Marketplaces → Import.
+`/add-plugin` doesn't appear in autocomplete — type the full command.
 
-### Local development
-
-Clone the repo, then:
+<details>
+<summary>Local development, offline, enterprise, team rollouts</summary>
 
 **Claude Code** — load the plugin for the current session:
 
@@ -48,7 +45,7 @@ Clone the repo, then:
 claude --plugin-dir /path/to/archcore-claude-plugin
 ```
 
-**Cursor** — Cursor has no `--plugin-dir` flag. Symlink the repo into Cursor's local plugins directory and reload the window:
+**Cursor** — no `--plugin-dir` flag. Symlink the repo into Cursor's local plugins directory and reload the window:
 
 ```bash
 ln -s /path/to/archcore-claude-plugin ~/.cursor/plugins/local/archcore
@@ -57,22 +54,58 @@ ln -s /path/to/archcore-claude-plugin ~/.cursor/plugins/local/archcore
 
 Both manifests (`.claude-plugin/plugin.json` and `.cursor-plugin/plugin.json`) live at the repo root.
 
-### Offline / enterprise / BYO CLI
+**Cursor team rollouts** — add the GitHub URL under Dashboard → Settings → Plugins → Team Marketplaces → Import.
 
-If you already have the Archcore CLI installed (via `curl -fsSL https://archcore.ai/install.sh | bash`, `go install`, or similar), the launcher respects it — the global install on `PATH` wins over the plugin-managed cache.
+**Offline / BYO CLI** — if you already have the Archcore CLI installed (via `curl -fsSL https://archcore.ai/install.sh | bash`, `go install`, etc.), the launcher respects it — a global install on `PATH` wins over the plugin-managed cache.
 
-For fully offline environments: install the CLI manually and set `ARCHCORE_SKIP_DOWNLOAD=1` to disable the launcher's auto-download. The launcher will refuse to download and fall through to `ARCHCORE_BIN` or `PATH`. Alternatively, set `ARCHCORE_BIN=/abs/path/to/archcore` to pin an explicit binary.
+For fully offline environments: install the CLI manually and set `ARCHCORE_SKIP_DOWNLOAD=1` to disable the launcher's auto-download. Alternatively, set `ARCHCORE_BIN=/abs/path/to/archcore` to pin an explicit binary.
 
----
+</details>
 
-## What it does
+## Try these 3 prompts first
 
-Archcore Plugin turns your AI coding agent into a first-class citizen of your project's knowledge base. Four things change the moment you install it:
+Install, open your project, and try these — each shows a different side of what your agent can now do:
 
-- **Architecture** — the agent places code where your system expects it
-- **Rules** — it follows your team's standards instead of improvising
-- **Decisions** — prior ADRs aren't re-litigated
-- **Workflows** — multi-step tasks (PRD → plan, ADR → rule → guide, ISO 29148 cascades) execute end-to-end
+**1. "Show me what context this repo already has."**
+Agent reads `.archcore/`, summarizes existing decisions, rules, and specs. If empty, it'll offer to bootstrap from your existing docs.
+
+**2. "Create a rule: API handlers live in `src/api/handlers/`."**
+Agent creates the rule, validates it, and from now on places new handlers there without being reminded.
+
+**3. "Record an ADR that we picked PostgreSQL, then show me what future work it should affect."**
+Agent creates the ADR, scans the relation graph, and lists related specs, plans, and rules that should be reviewed.
+
+If any of these feels valuable, the rest of Archcore is more of the same, just structured.
+
+## When to use Archcore
+
+Archcore is for teams whose agents already write code but keep missing project-specific context. Install it when:
+
+- Your `CLAUDE.md` / `.cursorrules` / `AGENTS.md` keeps growing and drifting
+- You work with 2+ agents or 2+ host tools (Claude Code + Cursor + Copilot)
+- The agent keeps re-deciding things your team already decided
+- You want decisions, rules, and specs in Git — not in chat scrollback
+
+Archcore is **not** the right fit if you just want chat memory, a prompt library, or a one-shot spec-to-code generator.
+
+## Is Archcore like BMAD / Spec Kit / claude-mem / Memory Bank?
+
+No — these solve different problems. Quick map:
+
+| Tool                     | Category    | What it is                                                                   | How Archcore differs                                                                                                                         |
+| ------------------------ | ----------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BMAD**                 | Methodology | Agentic SDLC methodology — 12+ roles, 34+ workflows, installer               | Archcore stores _artifacts_; BMAD prescribes _process_. Durable knowledge in BMAD lives in generated skills, not relation-aware repo memory  |
+| **Superpowers**          | Methodology | Skills framework + dev methodology (TDD, plan writing, subagent-driven dev)  | Shapes _agent behavior_ during coding; Archcore provides _canonical project knowledge_ any agent can read                                    |
+| **Spec Kit**             | Methodology | Spec-driven workflow: `specify → plan → tasks → implement`, one-shot         | Spec Kit is a one-shot handoff; Archcore maintains a living graph that evolves with the codebase                                             |
+| **Agent OS**             | Methodology | Codebase standards extraction + spec-driven development, alongside IDE tools | Closest positioning. Archcore adds typed documents, validated relations, and an optional ISO 29148 cascade for regulated teams               |
+| **claude-mem**           | Memory      | Auto-captures session memory (SQLite + Chroma, MCP search, web viewer)       | claude-mem remembers _what you did_; Archcore stores _how the system is built and what was decided_                                          |
+| **agentmemory**          | Memory      | Cross-agent memory server (hooks, BM25 + vector + graph, 4-tier consolidation) | Infrastructure for recall over observations; Archcore is repo-native canonical knowledge                                                     |
+| **OpenMemory / Mem0**    | Memory      | Memory infrastructure — SDK, MCP, self-hosted or managed                     | General-purpose agent memory; Archcore is project truth for coding agents                                                                    |
+| **claude-brain**         | Memory      | One-file local memory (`.claude/mind.mv2`), searchable, portable             | Solo session continuity; Archcore is a team-grade, relation-aware layer                                                                      |
+| **Cline Memory Bank**    | Docs        | Fixed-schema markdown files (`projectbrief`, `activeContext`, `systemPatterns`…) | Same spirit, lower ceremony. Archcore adds typed relations, MCP validation, and multi-step cascades                                          |
+| **codeplow / obsidian-kb** | Docs      | Per-project Obsidian vault with explicit handoff and file:line doc-audit     | Knowledge vault + auditing; Archcore is a typed context _compiler_ — less "notes", more "artifacts"                                          |
+
+**Choose by what you need.** Pick a methodology tool (BMAD, Superpowers, Spec Kit, Agent OS) for an opinionated dev flow. Pick a memory tool (claude-mem, Mem0, agentmemory, claude-brain) for session continuity in general-purpose agents. Pick Archcore when you want typed, queryable _project truth_ — the decisions, rules, and architecture of _this_ repo — that your coding agent respects on every request.
 
 ## Without vs. with Archcore
 
@@ -90,16 +123,7 @@ With Archcore, the same ask and the agent:
 - respects ADRs and existing specs
 - reuses patterns (`cpat`) you've already captured
 
-## Mental model
-
-Two pieces work together. Keep the analogy in your head:
-
-- **Archcore CLI — the compiler.** Reads `.archcore/`, builds the context graph, exposes it over MCP.
-- **Archcore Plugin — the runtime.** Applies that context inside your AI agent — skills, guardrails, workflows.
-
-Result: your agent ships code aligned with your system by default, not by accident.
-
-## Supported Hosts
+## Supported hosts
 
 | Host            | Status      | Install            |
 | --------------- | ----------- | ------------------ |
@@ -125,6 +149,13 @@ The plugin ships a launcher that resolves the [Archcore CLI](https://archcore.ai
 3. **Skills activate** — the agent matches your request to the right skill, which provides document-type knowledge, required sections, and relation guidance
 4. **MCP tools execute** — all reads and writes go through `archcore mcp`, ensuring validation, template generation, and sync manifest updates
 5. **Hooks guard quality** — direct `.archcore/` writes are blocked (MCP-only), and every change is validated automatically
+
+### Mental model
+
+Two pieces work together:
+
+- **Archcore CLI — the compiler.** Reads `.archcore/`, builds the context graph, exposes it over MCP.
+- **Archcore Plugin — the runtime.** Applies that context inside your AI agent — skills, guardrails, workflows.
 
 ## Skills
 

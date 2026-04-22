@@ -1,6 +1,6 @@
 ---
 title: "Preload Knowledge Tree into Sub-Agents at Invocation"
-status: draft
+status: accepted
 tags:
   - "agents"
   - "architecture"
@@ -20,10 +20,13 @@ Two candidate mechanisms:
 
 ## Value
 
+> **Status upgrade (2026-04-22):** after the JTBD-vs-implementation audit in `jtbd-alignment-analysis.idea.md`, this proposal now sits on the **critical path of JTBD #1 ("make a feature without breaking the repo's logic") and JTBD #2 ("continue work without re-explaining the project")**. Any delegated-to-subagent work today breaks both promises because the subagent starts blind. This is no longer a nice-to-have — it is the cheapest lever that closes part of the gap between README promise and engineered reality, and should be the first engineering task in the strategic alignment plan.
+
 - **Better first-shot decisions**: the sub-agent can disambiguate (e.g., "is there already an ADR on this?") before proposing an action, instead of creating near-duplicates.
 - **Fewer round-trips**: today a well-behaved sub-agent still burns 1–2 tool calls bootstrapping its view; a preloaded snapshot removes that cost.
 - **Consistency with main session**: the main session already gets the tree for free via `SessionStart`; sub-agents should operate from the same baseline so user experience doesn't degrade when work is delegated.
 - **Lower risk of orphaned documents**: agents that "see" the relation graph are more likely to link new docs to relevant existing ones, which is one of the current documented gaps audited by `archcore-auditor`.
+- **Prerequisite for the pre-code hook's subagent coverage**: `pre-code-context-injection.idea.md` injects rules/ADRs per edit, but without the tree preload, the sub-agent sees individual injections without the surrounding structure. The two mechanisms compound — delivering one without the other leaves subagent coverage incomplete.
 
 ## Possible Implementation
 

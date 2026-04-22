@@ -16,7 +16,7 @@ This specification covers both agent definitions in `agents/`, their system prom
 
 ## Authority
 
-This specification is the authoritative reference for both agents. The Single Universal Agent Design ADR provides the original rationale; the Add Read-Only Auditor Agent ADR extends it.
+This specification is the authoritative reference for both agents. The Single Universal Agent Design ADR provides the original rationale; the Add Read-Only Auditor Agent ADR extends it. The Knowledge Tree Bootstrap ADR (`subagent-knowledge-tree-bootstrap.adr`) is authoritative for the mandatory preamble section in both agent system prompts.
 
 ## Subject
 
@@ -112,6 +112,12 @@ The auditor runs with `background: true` by default. This means:
 
 ## Contract Surface
 
+### Knowledge Tree Bootstrap (both agents)
+
+Sub-agents do NOT receive the `SessionStart` additional context that the main conversation gets. Both agent system prompts MUST carry a `# First Step — Bootstrap Knowledge Tree` section as the first content section after the YAML frontmatter, mandating parallel calls to `list_documents` and `list_relations` as the first tool calls in every invocation. The preamble MUST cross-reference both `remove-skill-verify-mcp-preamble.cpat` (to prevent removal by analogy) and `subagent-knowledge-tree-bootstrap.adr` (for rationale).
+
+`archcore-assistant` preamble MAY include a narrow exception for strictly single-document reads with explicit paths (`get_document` alone acceptable). `archcore-auditor` preamble MUST NOT include any exception — audits without the full graph produce incomplete findings.
+
 ### Shared Domain Knowledge
 
 Both agents MUST understand:
@@ -176,8 +182,9 @@ Three tracks that can coexist:
 
 ### Both Agents
 
+- MUST bootstrap the knowledge tree by calling `list_documents` and `list_relations` in parallel as the first tool calls in every invocation, before any domain action. See `subagent-knowledge-tree-bootstrap.adr` for the rationale and the explicit boundary against `remove-skill-verify-mcp-preamble.cpat`.
 - MUST use MCP tools for all `.archcore/` operations (no Write/Edit/Bash).
-- MUST call `list_documents` before creating any document to prevent duplicates.
+- MUST call `list_documents` before creating any document to prevent duplicates (subsumed by the bootstrap requirement above, retained for emphasis).
 - Should explain reasoning when choosing document types or relation types.
 
 ### archcore-assistant Only
@@ -185,11 +192,13 @@ Three tracks that can coexist:
 - MUST create relations between documents it creates when semantic links exist.
 - Should present a plan before creating multiple documents, letting the user approve.
 - MUST NOT create more than 10 documents in a single invocation without user confirmation.
+- MAY skip `list_relations` during the bootstrap only when the user's task is a strictly single-document read with an explicit path; `list_documents` is still required.
 
 ### archcore-auditor Only
 
 - MUST NOT attempt to create, update, or delete any document.
 - MUST produce a structured audit report (not free-form commentary).
+- MUST perform the full bootstrap (`list_documents` + `list_relations`) with no exceptions — audits without the graph produce incomplete findings.
 - Should cross-reference documentation with actual code via Read/Grep/Glob.
 - Should use `Grep` to find path references in document content, then check via `git log` if those paths changed since the document was last modified.
 - Should prioritize specs, ADRs, and guides that describe specific code modules for code-document correlation checks.
@@ -205,6 +214,8 @@ Three tracks that can coexist:
 - `archcore-assistant` never uses Write/Edit/Bash on `.archcore/` files.
 - `archcore-auditor` has zero write tools — enforcement by tool whitelist.
 - Both agents check for existing documents before suggesting creation.
+- Every sub-agent invocation's first tool calls are `list_documents` and `list_relations` (bootstrap requirement per `subagent-knowledge-tree-bootstrap.adr`). `archcore-auditor` has no exception to this invariant; `archcore-assistant` has a narrow exception only for strictly single-document reads with explicit paths.
+- Both agent system prompts carry a `# First Step — Bootstrap Knowledge Tree` section as the first content section after the YAML frontmatter, with cross-references to `remove-skill-verify-mcp-preamble.cpat` and `subagent-knowledge-tree-bootstrap.adr`.
 
 ## Error Handling
 
@@ -221,3 +232,5 @@ An agent conforms to this specification if:
 3. Its system prompt covers the shared domain knowledge
 4. It follows the normative behavior for its role
 5. archcore-auditor produces no mutations; archcore-assistant produces structured output
+6. Its system prompt carries the `# First Step — Bootstrap Knowledge Tree` section per `subagent-knowledge-tree-bootstrap.adr`, including cross-references to that ADR and to `remove-skill-verify-mcp-preamble.cpat`
+7. `test/structure/agents.bats` asserts the bootstrap preamble is present in both agent files

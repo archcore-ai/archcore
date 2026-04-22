@@ -10,7 +10,7 @@
     {
       "name": "archcore",
       "source": "./",
-      "description": "Git-native context for AI coding agents"
+      "description": "Make your AI agent code with your project's architecture, rules, and decisions."
     }
   ]
 }

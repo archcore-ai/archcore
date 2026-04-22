@@ -49,3 +49,19 @@ setup() {
   grep -q 'mcp__archcore__create_document' "$file"
   grep -q 'mcp__archcore__update_document' "$file"
 }
+
+@test "assistant has knowledge tree bootstrap preamble" {
+  local file="$PLUGIN_ROOT/agents/archcore-assistant.md"
+  grep -q 'First Step — Bootstrap Knowledge Tree' "$file"
+  grep -q 'list_documents' "$file"
+  grep -q 'list_relations' "$file"
+  grep -q 'subagent-knowledge-tree-bootstrap.adr' "$file"
+}
+
+@test "auditor has knowledge tree bootstrap preamble" {
+  local file="$PLUGIN_ROOT/agents/archcore-auditor.md"
+  grep -q 'First Step — Bootstrap Knowledge Tree' "$file"
+  grep -q 'list_documents' "$file"
+  grep -q 'list_relations' "$file"
+  grep -q 'subagent-knowledge-tree-bootstrap.adr' "$file"
+}

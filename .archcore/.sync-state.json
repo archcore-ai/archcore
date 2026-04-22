@@ -3151,6 +3151,121 @@
       "source": "plugin/subagent-knowledge-tree-preload.idea.md",
       "target": "plugin/multi-host-compatibility-layer.spec.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/jtbd-alignment-analysis.idea.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/jtbd-alignment-analysis.idea.md",
+      "target": "plugin/plugin-architecture.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/jtbd-alignment-analysis.idea.md",
+      "target": "plugin/pre-code-context-injection.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/jtbd-alignment-analysis.idea.md",
+      "target": "plugin/code-alignment-intent-skill.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/jtbd-alignment-analysis.idea.md",
+      "target": "plugin/subagent-knowledge-tree-preload.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/jtbd-alignment-analysis.idea.md",
+      "target": "plugin/readme-first-60-seconds.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/jtbd-alignment-analysis.idea.md",
+      "target": "plugin/inverted-invocation-policy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/pre-code-context-injection.idea.md",
+      "target": "plugin/jtbd-alignment-analysis.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/pre-code-context-injection.idea.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/pre-code-context-injection.idea.md",
+      "target": "plugin/code-alignment-intent-skill.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/pre-code-context-injection.idea.md",
+      "target": "plugin/subagent-knowledge-tree-preload.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/pre-code-context-injection.idea.md",
+      "target": "plugin/multi-host-compatibility-layer.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/code-alignment-intent-skill.idea.md",
+      "target": "plugin/jtbd-alignment-analysis.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/code-alignment-intent-skill.idea.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/code-alignment-intent-skill.idea.md",
+      "target": "plugin/plugin-architecture.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/code-alignment-intent-skill.idea.md",
+      "target": "plugin/inverted-invocation-policy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/subagent-knowledge-tree-bootstrap.adr.md",
+      "target": "plugin/subagent-knowledge-tree-preload.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/subagent-knowledge-tree-bootstrap.adr.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/subagent-knowledge-tree-bootstrap.adr.md",
+      "target": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/subagent-knowledge-tree-bootstrap.adr.md",
+      "target": "plugin/jtbd-alignment-analysis.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/subagent-knowledge-tree-bootstrap.adr.md",
+      "target": "plugin/single-universal-agent.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/agent-system.spec.md",
+      "target": "plugin/subagent-knowledge-tree-bootstrap.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/subagent-knowledge-tree-preload.idea.md",
+      "target": "plugin/subagent-knowledge-tree-bootstrap.adr.md",
+      "type": "related"
     }
   ]
 }
