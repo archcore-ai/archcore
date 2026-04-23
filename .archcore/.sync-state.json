@@ -3321,6 +3321,66 @@
       "source": "plugin/pre-code-hook-implementation.plan.md",
       "target": "plugin/hooks-validation-system.spec.md",
       "type": "extends"
+    },
+    {
+      "source": "plugin/jtbd1-phase2-hardening-delegated.plan.md",
+      "target": "plugin/jtbd-alignment-analysis.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/jtbd1-phase2-hardening-delegated.plan.md",
+      "target": "plugin/subagent-knowledge-tree-preload.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/jtbd1-phase2-hardening-delegated.plan.md",
+      "target": "plugin/pre-code-hook-implementation.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/jtbd1-phase2-hardening-delegated.plan.md",
+      "target": "plugin/context-skill-implementation.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/jtbd1-phase2-hardening-delegated.plan.md",
+      "target": "plugin/subagent-knowledge-tree-bootstrap.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/jtbd1-phase2-hardening-delegated.plan.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/cli-path-index.plan.md",
+      "target": "plugin/jtbd-alignment-analysis.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/cli-path-index.plan.md",
+      "target": "plugin/pre-code-context-injection.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/cli-path-index.plan.md",
+      "target": "plugin/pre-code-hook-implementation.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/cli-path-index.plan.md",
+      "target": "plugin/jtbd1-phase2-hardening-delegated.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/cli-path-index.plan.md",
+      "target": "plugin/bundled-cli-launcher.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/jtbd1-phase2-hardening-delegated.plan.md",
+      "target": "plugin/cli-path-index.plan.md",
+      "type": "related"
     }
   ]
 }
