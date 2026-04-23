@@ -116,6 +116,22 @@ archcore_hook_info() {
   esac
 }
 
+# Emit context injection for PreToolUse hooks (additive, non-blocking).
+# Preserves multi-line output via literal "\n" in JSON (not concatenation).
+# Does NOT exit — caller continues. Callers exit 0 afterward.
+archcore_hook_pretool_info() {
+  _msg="$1"
+  _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
+  case "$ARCHCORE_HOST" in
+    claude-code|copilot)
+      printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}' "$_escaped"
+      ;;
+    cursor)
+      printf '{"additional_context":"%s"}' "$_escaped"
+      ;;
+  esac
+}
+
 # Allow the operation silently and exit.
 archcore_hook_allow() {
   exit 0

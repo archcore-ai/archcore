@@ -19,6 +19,11 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-archcore-write",
             "timeout": 1
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-code-alignment",
+            "timeout": 1
           }
         ]
       }

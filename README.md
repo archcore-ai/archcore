@@ -6,7 +6,7 @@
 > CI/CD ships it.
 > **Archcore makes your AI understand it.**
 
-Make your AI agent code with your project's architecture, rules, and decisions — loaded on session start, surfaced on demand for any code area, and carried across sessions and subagents.
+Make your AI agent code with your project's architecture, rules, and decisions — loaded on session start, auto-injected before source edits, surfaced on demand for any code area, and carried across sessions and subagents.
 
 _Not a spec workflow kit. Not chat memory. Archcore is a Git-backed repo context layer for coding agents._
 

@@ -1,6 +1,6 @@
 ---
 title: "Pre-Code Context Injection — PreToolUse Hook for Source-File Edits"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "hooks"
@@ -10,9 +10,25 @@ tags:
 
 ## Idea
 
-Add a `PreToolUse Write|Edit` hook entry that fires on source-file paths (outside `.archcore/`) and injects a compact list of relevant documents — ADRs, rules, specs, cpats — into the agent's context before the write executes. The hook uses a pre-built path index so lookup is O(1) per file path. Output is injected as `additionalContext` with one-line excerpts, not full document content.
+Add a `PreToolUse Write|Edit` hook entry that fires on source-file paths (outside `.archcore/`) and injects a compact list of relevant documents — ADRs, rules, specs, cpats — into the agent's context before the write executes. Output is injected as `additionalContext` with one-line excerpts, not full document content.
 
 This closes the biggest gap identified in `jtbd-alignment-analysis.idea.md` — the absence of any mechanism that activates when the agent is about to modify code, rather than documentation. Without this hook, "Archcore makes the agent code with your project's architecture, rules, and decisions" is an aspirational claim. With this hook, it becomes an engineered guarantee the plugin can demonstrate on first install.
+
+## Status — Realized (Phase 1, MVP)
+
+Shipped in plugin 0.3.0 via `bin/check-code-alignment`. Registered in both `hooks/hooks.json` (Claude Code) and `hooks/cursor.hooks.json` (Cursor) as a second entry on the `PreToolUse Write|Edit` matcher, coexisting with the existing `check-archcore-write` blocking hook. See `pre-code-hook-implementation.plan.md` for the execution plan and acceptance criteria. See `hooks-validation-system.spec.md` (Hook 3) for the formal contract.
+
+Phase 1 is **grep-based, no path index** — scans `.archcore/**/*.md` via `grep -rlF` per token on each edit. Ranking: specificity (longest matching directory prefix) → type priority (`rule > cpat > adr > spec > guide`). Eligible types: rule, cpat, adr, spec, guide (prd/idea/plan/rfc/etc. are filtered out as not line-of-code enforceable). Top-3 cap, 2 KB output cap.
+
+Settings shape implemented:
+
+```json
+{ "codeAlignment": { "sourceRoots": ["src", "lib", ...] } }
+```
+
+Default roots when `sourceRoots` is absent: `src lib app pkg cmd internal apps packages modules components`. Escape hatch: `ARCHCORE_DISABLE_INJECTION=1` environment variable.
+
+Unit tests: 13 cases in `test/unit/check-code-alignment.bats` — silent-pass paths, injection correctness, specificity ranking, top-3 truncation, type allowlist, settings override, Cursor JSON shape, non-blocking safety.
 
 ### Concrete shape
 
@@ -20,34 +36,26 @@ This closes the biggest gap identified in `jtbd-alignment-analysis.idea.md` — 
 Agent calls Write/Edit on src/api/handlers/users.ts
   ↓
 [PreToolUse Write|Edit] bin/check-archcore-write   → allow (path not .archcore/)
-[PreToolUse Write|Edit] bin/check-code-alignment   → query path index
+[PreToolUse Write|Edit] bin/check-code-alignment   → scan .archcore/
   ↓
-  Index lookup: documents referencing src/api/handlers/ or src/api/
+  Token set: "src/api/handlers/", "src/api/", "src/" (longest first, cap 5)
   ↓
   additionalContext injected:
-    "[Archcore Context] Before editing src/api/handlers/users.ts, these apply:
-     - rule:api-handlers-layout — 'Handlers live in src/api/handlers/, one per resource'
-     - adr:rest-conventions — 'We use REST, not RPC-over-HTTP'
-     - cpat:handler-error-wrapping — 'Wrap errors with withErrorBoundary(), not try/catch'"
+    "[Archcore Context] Before editing src/api/handlers/users.ts:
+     - rule: API Handlers Layout [plugin/api-handlers.rule.md]
+     - adr: REST Conventions [plugin/rest-conventions.adr.md]
+     - cpat: Handler Error Wrapping [plugin/handler-error.cpat.md]"
   ↓
-Write proceeds, but agent now has the right constraints in context
+Write proceeds, agent now has the right constraints in context
 ```
 
-### Path index
+### Path index — deferred to Phase 2
 
-A pre-computed map from source path prefixes to document paths, maintained by `archcore` CLI:
+The originally proposed pre-built path index in `.sync-state.json` remains a Phase 2 item. The MVP scans each edit with `grep -rlF` per token. This is acceptable for corpora ≤50 documents within the 1-second hook timeout; larger corpora benefit from the index.
 
-```
-src/api/              → [rule:api-handlers-layout, adr:rest-conventions]
-src/api/handlers/     → [rule:api-handlers-layout, cpat:handler-error-wrapping]
-src/payments/         → [adr:use-stripe, spec:payment-flow, rule:money-arithmetic]
-```
+A CLI subcommand `archcore align <path>` (or equivalent backing for `search_documents`) is a natural home for the index and unifies the hook and `/archcore:context` skill on one primitive.
 
-Built by scanning document content for path-like tokens (`src/...`, `lib/...`, module names from `package.json`/`go.mod`/etc.), and updated whenever `create_document` / `update_document` fires (tie into existing PostToolUse validation path, or regenerate lazily on sync manifest write).
-
-### hooks.json addition
-
-Sits alongside the existing `check-archcore-write` entry in the same `PreToolUse Write|Edit` matcher block — both run, each handles its own domain:
+### hooks.json addition (as implemented)
 
 ```json
 {
@@ -59,20 +67,20 @@ Sits alongside the existing `check-archcore-write` entry in the same `PreToolUse
 }
 ```
 
-`check-archcore-write` blocks `.archcore/*.md` and passes through otherwise. `check-code-alignment` ignores `.archcore/*.md` and injects context on source paths. They do not conflict because `check-archcore-write` returns exit 2 only on `.archcore/*.md`, and at that point Claude Code has already rejected the call — `check-code-alignment`'s output is irrelevant for blocked calls.
+Cursor parity via `hooks/cursor.hooks.json` `preToolUse` `Write` matcher, same second-entry placement.
 
-### bin/check-code-alignment
+`check-archcore-write` blocks `.archcore/*.md` and passes through otherwise. `check-code-alignment` short-circuits silently inside `.archcore/` and only does real work on source paths. They act on disjoint path sets by construction.
 
-New POSIX-shell script. Responsibilities:
+### bin/check-code-alignment (as implemented)
 
-1. Read JSON from stdin, extract `tool_input.file_path`
-2. Skip if path is inside `.archcore/` (sister hook handles it)
-3. Skip if path does not match any project source root (configurable in `.archcore/settings.json`)
-4. Query the path index via `archcore` CLI — new subcommand `archcore align <path>` that returns a ranked list of documents referencing the path, up to N (default 3)
-5. If no matches: exit 0 with empty output
-6. If matches: emit `hookSpecificOutput.additionalContext` with compact one-liner per document
+POSIX-shell script. Responsibilities:
 
-Output cap: 2 KB. Ranking: specificity first (deeper path match > root path match), then type priority (`rule` > `adr` > `spec` > `cpat` > `guide`), then most recently updated.
+1. Read JSON from stdin via `bin/lib/normalize-stdin.sh` — host-normalized extraction.
+2. Short-circuit (exit 0, empty output) when: no `file_path`, no `.archcore/`, path inside `.archcore/`, absolute path outside `$CWD`, `ARCHCORE_DISABLE_INJECTION=1`.
+3. Source-root filter against `.archcore/settings.json → codeAlignment.sourceRoots` (fallback to built-in defaults).
+4. Generate candidate tokens — directory prefixes, longest-first, cap 5 levels.
+5. Scan `.archcore/**/*.md` via `grep -rlF` per token; de-duplicate documents (longest matching token wins); filter to eligible types; rank and cap at top-3.
+6. Render compact block and emit via `archcore_hook_pretool_info` (host-aware JSON shape). Cap 2 KB.
 
 ## Value
 
@@ -92,46 +100,40 @@ claude-mem, Memory Bank, Mem0 all solve "recall past context". None of them inje
 
 The README hero reel immediately becomes compelling: user asks for a feature, agent sees rule+ADR appear in its context before it writes, produces code that respects both. No narrative required.
 
-## Possible Implementation
+## Remaining Phases (Phase 2–4)
 
-### Phase 1 — Minimum viable injection (2–3 days)
-
-- CLI: `archcore align <path> [--limit N]` — returns JSON array of `{path, type, title, summary}`. Initial implementation: grep document bodies for path tokens on each call. Slow but correct; acceptable for projects under ~50 docs.
-- Plugin: new `bin/check-code-alignment` script, new hooks.json entry in both Claude Code and Cursor manifests.
-- Settings: add `codeAlignment: { enabled: bool, sourceRoots: ["src", "lib"], maxMatches: 3 }` to `.archcore/settings.json`.
-- Spec update: extend `hooks-validation-system.spec.md` with a fifth hook, and add the invariant "every `Write|Edit` to a source path that references documented constraints produces an `additionalContext` injection".
-
-### Phase 2 — Path index (3–5 days)
+### Phase 2 — Path index (deferred)
 
 - CLI: persist a path index in the sync manifest, updated on every `create_document` / `update_document` / `remove_document`. Lookup becomes O(1).
-- Performance budget: hook must complete in under 500ms on a 500-document repo.
+- Performance budget: hook must complete in under 500 ms on a 500-document repo.
+- Prerequisite for corpora > ~50 documents.
 
-### Phase 3 — Ranking and de-duplication (2–3 days)
+### Phase 3 — Ranking improvements and session dedup (deferred)
 
-- Rank by specificity (longest matching path wins), then type priority, then recency.
-- De-duplicate when multiple documents reference the same rule.
-- Session-level de-duplication: do not re-inject the same document within the same session unless the document has changed.
+- Session-level de-duplication: do not re-inject the same document within the same session unless the document has changed. Reduces repetition fatigue.
+- More nuanced specificity scoring (e.g., penalize documents that mention many paths as generic reference).
 
-### Phase 4 — Measurement (1 day)
+### Phase 4 — Measurement (deferred)
 
 - CLI telemetry (opt-in): count of injections per session, top-cited documents. Feeds back into `/archcore:review` as "most-applied rules".
 
 ## Risks and Constraints
 
-- **Performance.** 1-second `PreToolUse` budget is tight. Phase 1 grep-based lookup is risky for large repos — Phase 2 path index is a hard prerequisite for repos over ~50 docs. Budget must hold at the 99th percentile, not the median.
-- **False positives.** A document referencing `src/` generically is not necessarily applicable to a specific edit in `src/payments/utils/`. Ranking must penalize generic path prefixes and reward specific ones. If precision is low, users learn to ignore injections — the same failure mode as overzealous linters.
-- **Hook noise vs value.** Two `PreToolUse` entries on `Write|Edit` double the per-edit shell fork. On a large repo with many edits, the cumulative overhead is non-trivial even if each call is fast. Mitigation: short-circuit in shell before invoking the CLI when the path is outside configured source roots.
-- **Trigger surface too narrow.** `Write|Edit` catches inline edits, but not agent-generated code reviewed in a planning tool and pasted later. Acceptable for v1 — the vast majority of coding-agent edits go through `Write|Edit`.
-- **Coupling to path conventions.** A repo without a clean `src/` layout (e.g., monorepos with many roots) requires configuration. The `sourceRoots` setting is the escape hatch. Default conservative: if `sourceRoots` is not configured, do not inject.
-- **Subagent compatibility.** Hooks fire for subagent tool calls too, so the mechanism works for delegated work as long as the subagent has already received the knowledge tree (see `subagent-knowledge-tree-preload.idea.md`). Without the tree preload, the subagent sees the injection but not the overall structure — still useful, but weaker.
-- **Cursor parity.** Cursor's `preToolUse` hook event is similar but not identical to Claude Code's. The multi-host compatibility layer must normalize both.
-- **Churn on document renames.** When a document is renamed or removed, the path index must be invalidated. Tie this to the existing sync manifest write path.
-- **User control.** Users need a way to mute injections per-path or globally for a session (e.g., `ARCHCORE_SKIP_ALIGNMENT=1`). Default-on is correct for the value prop; an escape hatch is correct for UX when users know better than the index.
+- **Performance.** Phase 1 grep-per-token is O(tokens × docs). Acceptable for ≤50 docs; degrades for larger corpora. Phase 2 path index is the fix.
+- **False positives.** A document referencing `src/` generically matches every source edit. Specificity ranking mitigates but does not eliminate. Monitor precision via user feedback.
+- **Hook noise vs value.** Two `PreToolUse` entries on `Write|Edit` double the per-edit shell fork. Short-circuit paths keep the overhead minimal for non-source files, but watch cumulative overhead on hot repos.
+- **Trigger surface too narrow.** `Write|Edit` catches inline edits, not code reviewed in a planning tool and pasted later. Acceptable for v1.
+- **Coupling to path conventions.** Monorepos with non-standard roots need `codeAlignment.sourceRoots` configured. Default conservative set covers common layouts.
+- **Subagent compatibility.** Hooks fire for subagent tool calls too — combined with `subagent-knowledge-tree-bootstrap.adr`, delegated work is covered.
+- **Cursor parity.** Whether Cursor's `preToolUse` respects `additional_context` is host-version-dependent. Graceful degradation: if ignored, the hook becomes a no-op on Cursor; SessionStart context + `/archcore:context` skill still carry the pull path.
+- **User control.** `ARCHCORE_DISABLE_INJECTION=1` gives a global off-switch. Per-path muting is not yet implemented.
 
 ## Related work in this repo
 
 - `jtbd-alignment-analysis.idea.md` — names this proposal as the single highest-impact addition to close the JTBD #1 gap
-- `hooks-validation-system.spec.md` — target for extension; this becomes the fifth hook
-- `subagent-knowledge-tree-preload.idea.md` — complementary; subagent coverage requires both the preload and this hook
-- `code-alignment-intent-skill.idea.md` — user-facing pull counterpart to this push mechanism
-- `multi-host-compatibility-layer.spec.md` — path for Cursor parity
+- `pre-code-hook-implementation.plan.md` — execution plan and acceptance criteria (Phase 1 delivered)
+- `hooks-validation-system.spec.md` — formal contract for the 5-hook system
+- `subagent-knowledge-tree-bootstrap.adr` — complementary; subagent coverage requires both
+- `code-alignment-intent-skill.idea.md` — pull counterpart (now realized as `/archcore:context`)
+- `context-skill-implementation.plan.md` — pull-mode implementation plan
+- `multi-host-compatibility-layer.spec.md` — Cursor parity path
