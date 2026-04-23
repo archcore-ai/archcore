@@ -80,6 +80,20 @@ One subagent that covers all documentation scenarios:
 - **PostToolUse (`update_document`) — cascade** (`check-cascade`): After document updates, list documents that reference the updated one via `implements` / `depends_on` / `extends` so the agent can review them for drift.
 - **SessionStart**: Loads project context at session start (document index + tags + relation count).
 
+#### FR-5: Empty-State Session Nudge
+
+When a session starts in a repo that is either missing `.archcore/` or functionally empty (no `.md` file ≥ 200 bytes), the SessionStart hook emits a one-line advisory pointing the user at `/archcore:bootstrap`. The nudge is purely informational — never blocks — and can be disabled via `ARCHCORE_HIDE_EMPTY_NUDGE=1`. Once any substantial document exists, the nudge disappears automatically (no persistent flag).
+
+#### FR-6: Bootstrap Skill
+
+A `/archcore:bootstrap` intent skill that seeds an empty `.archcore/` with a useful starting set in three independently-confirmable steps:
+
+1. A short imperative **stack rule** (≤ 6 lines, no versions, ≤ 5 signals) derived from project manifests (`package.json`, `pyproject.toml`, `Cargo.toml`, etc.).
+2. A short **run-the-app guide** derived from the README's install/setup section or from manifest `scripts:`, with monorepo awareness.
+3. An **opt-in import** of existing agent-instruction files (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`, `.windsurfrules`, `.junie/guidelines.md`, `CONVENTIONS.md`). Default mode is **link** (doc with single-line pointer, zero content duplication); optional **extract** mode routes content into typed `rule` / `adr` / `doc` documents. A cost warning fires for large inputs (> 50 KB OR > 5 files OR > 8 estimated docs) and requires explicit `do` confirmation.
+
+Each step is skippable, re-runs are idempotent (detected via `imported` + `source:<slug>` tags), and every creation goes through MCP tools. The skill is auto-invocable on phrases like "bootstrap archcore", "initialize archcore", "set up archcore", "first-time setup".
+
 ### Non-Functional Requirements
 
 - **NFR-1: MCP-only operations** — All `.archcore/` document operations MUST go through MCP tools. No plugin component (skill, command, agent) should ever instruct direct file writes.
@@ -92,9 +106,10 @@ One subagent that covers all documentation scenarios:
 ## Delivered capabilities (v0.3.0)
 
 - **SessionStart index** — loads documents, tags, relation count on session start (JTBD #2).
+- **SessionStart empty-state nudge** — on missing or functionally-empty `.archcore/`, emits a one-line pointer at `/archcore:bootstrap`; suppressible via `ARCHCORE_HIDE_EMPTY_NUDGE=1`.
 - **PreToolUse guardrails** — `check-archcore-write` blocks direct `.archcore/*.md` writes; `check-code-alignment` injects applicable rules/ADRs/specs/cpats for source-file edits (JTBD #1 push mode).
 - **PostToolUse validation** — `validate-archcore` + `check-cascade` run on every MCP mutation (JTBD #1/#3 back-pressure).
-- **Intent skills** — 9 Layer 1 skills (capture, decide, standard, plan, review, actualize, status, graph, **context**) route natural-language intent into the right document type or workflow.
+- **Intent skills** — 11 Layer 1 skills (**bootstrap**, capture, context, plan, decide, standard, review, actualize, status, graph, help) route natural-language intent into the right document type or workflow.
 - **Type skills** — SKILL.md for every mainstream document type; niche ISO-cascade types hidden behind track orchestration.
 - **Tracks** — 6 multi-step workflows (product, sources, iso, architecture, standard, feature) for JTBD #4.
 - **Universal agent** — `archcore-assistant` for complex multi-document tasks; `archcore-auditor` as a read-only reviewer.

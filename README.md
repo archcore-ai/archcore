@@ -66,6 +66,8 @@ For fully offline environments: install the CLI manually and set `ARCHCORE_SKIP_
 
 Install, open your project, and try these — each shows a different side of what your agent can now do:
 
+_Empty repo? Run `/archcore:bootstrap` first to seed a stack rule, a run-the-app guide, and (optionally) imports from your existing CLAUDE.md / AGENTS.md / .cursorrules._
+
 **1. "What rules and decisions apply to `src/` in this repo?"**
 Agent runs `/archcore:context src/`, surfacing the rules, ADRs, specs, and patterns that reference that path — grouped by type and ranked by specificity — before you change anything. Works the same way for a file or topic, or with no argument to recap what you're in the middle of.
 
@@ -136,7 +138,7 @@ The plugin uses open standards (Agent Skills, MCP) — skills, agents, and MCP t
 
 ## What ships in the box
 
-- **34 Skills** — 17 document types, 10 intent commands, 6 multi-step tracks, 1 utility
+- **35 Skills** — 17 document types, 11 intent commands, 6 multi-step tracks, 1 utility
 - **2 Agents** — a universal assistant and a read-only auditor
 - **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 
@@ -159,13 +161,15 @@ Two pieces work together:
 
 ## Skills
 
-### Intent commands (9)
+### Intent commands (11)
 
 The primary user interface — describe what you want, the skill routes to the right types and flows.
 
 | Skill     | Command               | What it does                                                                    |
 | --------- | --------------------- | ------------------------------------------------------------------------------- |
+| Bootstrap | `/archcore:bootstrap` | First-time onboarding — seeds a stack rule, run-the-app guide, optional imports |
 | Capture   | `/archcore:capture`   | Document a module, component, or API — routes to adr, spec, doc, or guide       |
+| Context   | `/archcore:context`   | Pull applicable rules, ADRs, specs, and patterns for a code area, file, or topic |
 | Plan      | `/archcore:plan`      | Plan a feature end-to-end — routes to product-track or single plan              |
 | Decide    | `/archcore:decide`    | Record a finalized decision — creates ADR, offers rule + guide follow-up        |
 | Standard  | `/archcore:standard`  | Establish a team standard — drives standard-track (adr → rule → guide)          |

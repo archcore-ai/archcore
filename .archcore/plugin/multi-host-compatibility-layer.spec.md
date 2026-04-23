@@ -165,6 +165,7 @@ A host-agnostic launcher that resolves the Archcore CLI binary on demand. Invoke
 | ------------------------ | ----------------------------------------------------------------------------------------------------- |
 | `ARCHCORE_BIN`           | If set and executable, used unconditionally. Skips all other resolution steps.                       |
 | `ARCHCORE_SKIP_DOWNLOAD` | If `"1"`, step 4 (download) is skipped and the launcher exits 1 when the cache miss. Used by `bin/session-start` to keep SessionStart non-blocking. |
+| `ARCHCORE_HIDE_EMPTY_NUDGE` | If `"1"`, `bin/session-start` suppresses the empty-state advisory that points at `/archcore:bootstrap`. Does **not** suppress the "no .archcore/ directory" init prompt — that message is always required so agents know to call `init_project`. Use when Archcore is installed but you do not want users nudged about `/archcore:bootstrap`. |
 
 Stdin, stdout, stderr pass through unchanged. Exit code is the CLI's exit code verbatim.
 
@@ -349,6 +350,7 @@ Rules in `rules/` provide context injection. Two files:
 - Plugin manifests (i.e., `plugin.json`) MUST NOT declare `mcpServers`. Claude Code MCP wiring lives in the plugin-root `.mcp.json`, not in the manifest.
 - The CLI launcher MUST resolve in order: `$ARCHCORE_BIN` → `PATH` (with loop guard) → cache → download. Downloads MUST be checksum-verified.
 - `bin/session-start` MUST pass `ARCHCORE_SKIP_DOWNLOAD=1` when invoking the launcher so SessionStart never blocks on network.
+- `bin/session-start` MUST respect `ARCHCORE_HIDE_EMPTY_NUDGE=1` by suppressing the bootstrap advisory line while still emitting the `init_project` prompt for missing `.archcore/`.
 - Adding a new host MUST NOT require changes to skills, agents, core bin script logic, or the launcher.
 
 ## Constraints
@@ -379,6 +381,7 @@ Rules in `rules/` provide context injection. Two files:
 - **Plugin root variable not set**: Bin scripts use `$(dirname "$0")` for relative paths.
 - **Launcher cannot resolve CLI and `ARCHCORE_SKIP_DOWNLOAD=1`**: exits 1 with a stderr message. Calling hook scripts (`validate-archcore`, `check-cascade`) treat this as a silent skip and exit 0 (don't break the session).
 - **Launcher download fails (network, checksum mismatch, unsupported OS/arch)**: exits 1 with a diagnostic on stderr. MCP calls fail until resolved; the agent surfaces the error to the user. `bin/session-start` never hits this path because it always passes `ARCHCORE_SKIP_DOWNLOAD=1`.
+- **`.archcore/` exists but is functionally empty (no `.md` file ≥ 200 bytes)**: `bin/session-start` emits a non-blocking advisory pointing at `/archcore:bootstrap` unless `ARCHCORE_HIDE_EMPTY_NUDGE=1`. Empty-state check uses `bin/lib/empty-state.sh` (POSIX shell, no jq, no MCP calls).
 - **Cursor `preToolUse` does not honor `additional_context`**: the injection hook's output is silently ignored by the host. Graceful degradation — the SessionStart index and the `/archcore:context` pull skill still cover JTBD #1 on Cursor until Cursor exposes an equivalent.
 
 ## Conformance
@@ -396,3 +399,4 @@ The multi-host compatibility layer conforms to this specification if:
 9. Shared components (skills, agents, hook scripts, launcher) contain zero host-specific references
 10. Adding a new host requires only new config files, not changes to shared components
 11. `bin/session-start` passes `ARCHCORE_SKIP_DOWNLOAD=1` when invoking the launcher
+12. `bin/session-start` honors `ARCHCORE_HIDE_EMPTY_NUDGE=1` by suppressing the bootstrap advisory line (and only that line)

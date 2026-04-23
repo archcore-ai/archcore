@@ -69,16 +69,28 @@ Extended to Cursor and shipped a bundled CLI launcher:
 - [x] Plugin-shipped `.mcp.json` for Claude Code wired to the launcher
 - [x] Cursor users still register MCP externally (no host-side path substitution available yet)
 
+### Phase 6: Zero-Content Onboarding — DONE
+
+Seeded first-session experience for repos with empty `.archcore/`:
+
+- [x] SessionStart empty-state helper (`bin/lib/empty-state.sh`) — 200-byte `.md` body floor detection
+- [x] SessionStart advisory hook (`bin/session-start`) — emits `/archcore:bootstrap` nudge on missing or functionally-empty `.archcore/`; suppressible via `ARCHCORE_HIDE_EMPTY_NUDGE=1`
+- [x] `/archcore:bootstrap` intent skill — three independently-confirmable steps: stack rule, run-the-app guide, opt-in agent-instruction-file import (link / extract / skip per file with cost warning)
+- [x] Skill support libraries: `skills/bootstrap/lib/detect-stack.md`, `lib/extract-run-instructions.md`, `lib/agent-files.md`, `lib/extract-routing.md`
+- [x] Tag + body source convention for imported documents (`imported` + `source:<slug>` tags; body first line `> Imported from <path> on <date>.`) — survives the CLI's frontmatter strip
+- [x] Idempotent re-runs via `list_documents(tags=['imported'])` lookup, per-source-slug skip semantics
+- [x] Documentation sync: README (skill counts + bootstrap discovery line + Intent-commands table), PRD (FR-5 empty-state nudge + FR-6 bootstrap skill), multi-host spec (`ARCHCORE_HIDE_EMPTY_NUDGE` env var), this roadmap
+
 ## Acceptance Criteria
 
 - All 18 document types are covered — 17 via dedicated type skills plus `plan` via the `/archcore:plan` intent skill
-- 9 intent skills operational as primary user surface (including `graph`)
+- 11 intent skills operational as primary user surface (bootstrap, capture, context, plan, decide, standard, review, status, actualize, graph, help)
 - 6 track skills for multi-document flows
-- 10 mainstream type skills + 7 niche type skills + 1 utility skill (33 total on disk; 26 visible in `/`)
+- 10 mainstream type skills + 7 niche type skills + 1 utility skill + 1 bootstrap intent skill (35 total on disk; 28 visible in `/`)
 - Two agents: archcore-assistant (read/write) and archcore-auditor (read-only)
 - PreToolUse hook blocks 100% of direct Write/Edit attempts on `.archcore/*.md` files
 - PostToolUse hooks report validation issues and cascade staleness
-- SessionStart hook loads context and detects code-document drift
+- SessionStart hook loads context, detects code-document drift, and nudges users to `/archcore:bootstrap` on empty `.archcore/`
 - All plugin components use MCP tools exclusively — zero direct file writes
 - Plugin runs identically in Claude Code and Cursor
 
