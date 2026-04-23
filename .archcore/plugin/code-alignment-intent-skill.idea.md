@@ -1,11 +1,22 @@
 ---
 title: "Code-Oriented Intent Skill — /archcore:align"
-status: draft
+status: rejected
 tags:
   - "architecture"
   - "plugin"
   - "skills"
 ---
+
+## Status — Rejected (superseded by shipped push + pull mechanisms)
+
+As of plugin 0.3.0, the functionality proposed here is already delivered by two complementary mechanisms that together cover both push and pull modes of JTBD #1 without requiring a dedicated `/archcore:align` intent skill:
+
+- **Pull mode already shipped** — `/archcore:context <path | topic>` classifies scope (path / topic / pickup) and returns grouped rules / ADRs / specs / cpats for the given code area. This is functionally what `/archcore:align` proposed, under a more general name that also covers topic-level queries and session pickup. Skill: `skills/context/SKILL.md`. Plan: `context-skill-implementation.plan.md` (accepted, realized).
+- **Push mode already shipped** — `bin/check-code-alignment` PreToolUse Write|Edit hook auto-injects the same top-3 ranked docs as `additionalContext` on every source edit outside `.archcore/`. Plan: `pre-code-hook-implementation.plan.md` (accepted, realized).
+
+Adding `/archcore:align` on top of these would duplicate surface area and introduce routing ambiguity between two pull intents ("context" vs "align"). The `Inverted Invocation Policy` explicitly prefers a minimal set of Layer 1 intents, and `/archcore:context` already covers the code-area pull use-case (path mode).
+
+Decision preserved below for audit trail and for the reasoning about rankers/resolvers, which informed both `/archcore:context` and `check-code-alignment`. If a distinct push-command is ever needed (e.g. a programmatic `archcore align <path>` CLI for non-interactive use — batch scripts, CI), it belongs in the CLI repo, not as a plugin intent skill. Tracked as a deferred follow-up in `pre-code-hook-implementation.plan.md`.
 
 ## Idea
 

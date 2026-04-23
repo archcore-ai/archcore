@@ -1,12 +1,33 @@
 ---
 title: "JTBD-Implementation Alignment Analysis — Repo-Alignment Gap"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "marketing"
   - "plugin"
   - "vision"
 ---
+
+## Status — Gap Closed (primary JTBD #1 mechanisms shipped)
+
+As of plugin 0.3.0, the analysis's central finding — that JTBD #1 was engineered as a passive nudge rather than an active guardrail — has been addressed on both axes.
+
+Shipped mechanisms (both required to move from "sees" to "applies"):
+
+- **Pull mode** — `/archcore:context` skill (commit `3dccbd5`). User-invoked, takes a code area / topic / or empty argument, returns grouped rules / ADRs / specs / cpats with guide routing and top-5 truncation. Plan: `context-skill-implementation.plan.md` (accepted, realized).
+- **Push mode** — `bin/check-code-alignment` PreToolUse Write|Edit hook (commit `87d384c`). Runs on every source-file edit outside `.archcore/`, injects top-3 applicable docs by specificity → type priority as `additionalContext`. Plan: `pre-code-hook-implementation.plan.md` (accepted, realized).
+
+Path B proposal #3 — `/archcore:align` code-oriented intent skill — is **superseded**, not shipped. `/archcore:context` already provides the pull surface; adding a second pull command would duplicate. See `code-alignment-intent-skill.idea.md` (rejected).
+
+Path B proposal #1 — subagent knowledge preload — is **still open**. Tracked in `subagent-knowledge-tree-preload.idea.md` and `subagent-knowledge-tree-bootstrap.adr.md` (accepted); first implementation lives in the sub-agent preamble mandate. Not yet a guardrail for delegated coding work; follow-up required.
+
+Positioning status:
+
+- README hero line 9 now reads "auto-injected before source edits, surfaced on demand" — matches the engineered reality.
+- JTBD #1 is no longer an overclaim. Repositioning from Path A ("soften") to Path B ("engineer") was executed.
+- JTBD #3 reframing (standard-track as the entry point that produces applicable rules) is not yet done in README copy — follow-up.
+
+Kept as historical context below: the original gap analysis and promise-vs-reality matrix as of 2026-04-22. Useful for post-mortem and for reasoning about future JTBD framing.
 
 ## Idea
 
@@ -87,7 +108,7 @@ Mechanisms present:
 
 Verdict: the most strongly engineered JTBD. Correctly positioned as "Advanced" — it is the deepest capability but the wrong primary frame (competes head-on with Spec Kit, and is document-centric where the main user job is code-centric).
 
-### Promise-vs-reality matrix
+### Promise-vs-reality matrix (as of 2026-04-22, pre-fix)
 
 | JTBD                        | Positioning rank (promise) | Implementation rank (reality) | Delta                                    |
 | --------------------------- | -------------------------- | ----------------------------- | ---------------------------------------- |
@@ -95,6 +116,8 @@ Verdict: the most strongly engineered JTBD. Correctly positioned as "Advanced" �
 | #2 Session continuity       | 2 (secondary)              | 1 (strongest)                 | Aligned                                  |
 | #3 Decision → future code   | 3 (supporting)             | 3 (half of the loop missing)  | Medium gap                               |
 | #4 Multi-step cascades      | 4 (advanced)               | 2 (very strong)               | Inverse — implementation exceeds promise |
+
+Updated state (post-0.3.0): JTBD #1 implementation rank moves from 3 → 1-tier by both push and pull, matching the primary positioning. Matrix row for JTBD #1 now reads "Aligned" instead of "Large gap".
 
 ## Value
 

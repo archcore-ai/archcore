@@ -1,6 +1,6 @@
 ---
 title: "Creating a Batch of Related Skills"
-status: draft
+status: accepted
 tags:
   - "experience"
   - "plugin"

@@ -1,12 +1,31 @@
 ---
 title: "Context Skill Implementation Plan — Phase 1 of JTBD #1"
-status: draft
+status: accepted
 tags:
   - "commands"
   - "onboarding"
   - "plugin"
   - "skills"
 ---
+
+## Status — Realized (Phase 1)
+
+Shipped in commit `3dccbd5` (feat: new skill context), plugin version 0.3.0.
+
+Delivered:
+
+- `skills/context/SKILL.md` — pull-mode skill with scope classifier (path / topic / pickup), guide-routing, top-5 per group, classification footer.
+- Anti-trigger bullets added to 6 sibling skills (capture, decide, standard, plan, review, actualize).
+- README hero copy aligned; `/context` demo prompt added to "Try these 3 prompts first".
+- CLI `search_documents` MCP tool consumed by the skill (shipped earlier in CLI 0.1.7).
+
+The push counterpart (`bin/check-code-alignment`) shipped separately in commit `87d384c` — see `pre-code-hook-implementation.plan.md`. Together they close the JTBD #1 repo-alignment gap (pull + push).
+
+Deferred (non-blocking, tracked here for follow-up):
+
+- Snapshot tests with fixture `.archcore/` repos under `tests/fixtures/context/`.
+- CLI MCP-instructions nudge to steer models toward the skill when appropriate.
+- `/archcore:align` push-mode command — **superseded** by the shipped hook + /context skill. See `code-alignment-intent-skill.idea.md` (rejected).
 
 ## Goal
 

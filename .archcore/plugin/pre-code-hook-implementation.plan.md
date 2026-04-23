@@ -1,7 +1,28 @@
 ---
 title: "Pre-Code Context Injection Hook Implementation Plan"
-status: draft
+status: accepted
 ---
+
+## Status — Realized (Phase 1, MVP)
+
+Shipped in commit `87d384c` (feat: hook for push context), plugin version 0.3.0.
+
+Delivered:
+
+- `bin/check-code-alignment` — POSIX-shell PreToolUse Write|Edit hook.
+- `archcore_hook_pretool_info` helper in `bin/lib/normalize-stdin.sh`.
+- Registered in `hooks/hooks.json` and `hooks/cursor.hooks.json`.
+- 13 bats test cases (`test/unit/check-code-alignment.bats`); full suite 152/152 green.
+- Updated: `hooks-validation-system.spec.md`, `component-registry.doc.md`, `multi-host-compatibility-layer.spec.md`, `pre-code-context-injection.idea.md` (→ accepted), README hero copy.
+
+Deferred to follow-up plans (Phase 2+):
+
+- Persistent path index in `.sync-state.json` (replace grep with O(1) lookup).
+- Session-level deduplication (avoid re-injecting the same document on consecutive edits).
+- CLI `archcore align <path>` subcommand (programmatic pull wrapper).
+- Violation detection via `archcore check` CLI.
+- Telemetry / metrics.
+- Greenfield proactive bootstrap.
 
 ## Goal
 
