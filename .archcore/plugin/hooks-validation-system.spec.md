@@ -172,6 +172,27 @@ This ensures validation, templates, and the sync manifest stay consistent.
 
 **Relationship to Hook 2**: both hooks fire on the same matcher. Hook 2 handles `.archcore/*.md` paths (blocks). Hook 3 handles source paths (injects). Their active path sets are disjoint by construction.
 
+#### Sub-agent tool invocations (Task-dispatched)
+
+PreToolUse hooks in Claude Code fire at the tool-execution boundary, not at the session boundary. Any Write or Edit tool call matches the `Write|Edit` matcher regardless of whether the call originates from the main conversation or from a sub-agent dispatched via the Task tool. Hook 2 and Hook 3 therefore cover Task-dispatched Write/Edit identically to main-session Write/Edit. Input stdin carries `tool_name` and `tool_input.file_path` in the same shape; the host does not annotate sub-agent origin in a way that the hooks need to consume or branch on.
+
+Scope clarifications:
+
+- **Archcore's own sub-agents** (`archcore-assistant`, `archcore-auditor`) do NOT have `Write` or `Edit` in their tools allowlist (see `agent-system.spec.md` Tool Access Matrix). They cannot trigger Hooks 2 or 3 by definition. The sub-agent coverage discussion concerns general-purpose and third-party Task agents dispatched by the user for code work.
+- **Claude Code**: hook coverage for Task-dispatched Write/Edit holds by the host's PreToolUse contract. An empirical probe is recommended on major host releases but not required for the specification to stand.
+- **Cursor**: the PreToolUse matcher in `cursor.hooks.json` is `Write` only, not `Write|Edit` — a pre-existing multi-host asymmetry documented in `multi-host-compatibility-layer.spec.md`, independent of the sub-agent question. Sub-agent-originated Edit calls on Cursor go unhooked for the same reason main-session Edit calls do.
+
+Empirical-probe protocol for fresh-session verification (not a shipped artifact):
+
+1. Load this repo as the plugin source (Claude Code: `claude --plugin-dir <repo>`; Cursor: symlink into plugins directory).
+2. Add a transient probe line at the top of `bin/check-code-alignment` (after the shebang): `[ -n "${ARCHCORE_PROBE_LOG:-}" ] && printf '%s hook-fired\n' "$(date -u +%FT%TZ)" >> "$ARCHCORE_PROBE_LOG" || :`.
+3. Open a fresh session with `ARCHCORE_PROBE_LOG=/tmp/archcore-probe.log`.
+4. Probe A (control): main-session `Write test/probe-src.ts` — expect one log line.
+5. Probe B (delegated Write): `Task(general-purpose)` dispatched to write `test/probe-delegated.ts` — expect one log line if the contract holds; absence indicates a host divergence requiring escalation to snapshot-injection (Option B of `subagent-knowledge-tree-preload.idea`).
+6. Probe C (delegated Edit): `Task(general-purpose)` dispatched to edit an existing source file — same expectation.
+7. If stdin shape needs pinning, also capture stdin via a transient `cat >> "$ARCHCORE_PROBE_STDIN"` at the same site and diff Probe A vs Probe B.
+8. Revert the probe line. Evidence lives in the commit message for the corresponding spec update and in `/tmp/archcore-probe.log`; the probe must never ship in committed code.
+
 ### Hook 4: PostToolUse — Validate After MCP Document Operations
 
 **Event**: PostToolUse (fires after a tool call succeeds)
@@ -367,6 +388,7 @@ Requirements:
 - The PreToolUse injection hook MUST rank matches by specificity first (longest matching directory prefix wins), type priority second, and MUST restrict eligible types to `rule`, `cpat`, `adr`, `spec`, `guide`.
 - The PreToolUse injection hook MUST cap output at 3 documents and 2 KB.
 - The PreToolUse injection hook MUST honor the `ARCHCORE_DISABLE_INJECTION=1` environment variable as an unconditional off-switch.
+- The PreToolUse hooks MUST treat Task-dispatched Write/Edit tool calls identically to main-session calls — no special-casing, no skipping.
 - The PostToolUse validation hook reports validation issues via `hookSpecificOutput.additionalContext` but does not block or revert operations.
 - The PostToolUse MCP validation matcher MUST fire after all document mutation MCP tools.
 - The hooks config MUST NOT register a Write/Edit matcher on PostToolUse. PreToolUse guarantees no Write/Edit reaches `.archcore/*.md` content, and revalidating on every non-archcore Write/Edit in the repo is wasted shell forks.
@@ -378,6 +400,7 @@ Requirements:
 - Hook scripts that invoke the CLI MUST do so via the local launcher (`"$SCRIPT_DIR/archcore"`) so resolution order (`ARCHCORE_BIN` → `PATH` → cache → download) applies uniformly.
 - `bin/session-start` MUST set `ARCHCORE_SKIP_DOWNLOAD=1` when invoking the launcher.
 - All hooks MUST be idempotent — running them multiple times produces the same result.
+- No shipped script in `bin/` may contain a probe line used for hook-firing verification (the empirical-probe protocol in Hook 3's Sub-agent subsection applies only to transient, local, never-committed experiments).
 
 ## Constraints
 
@@ -395,6 +418,7 @@ Requirements:
 - The PreToolUse block hook never blocks writes outside `.archcore/`.
 - The PreToolUse injection hook never blocks any edit, regardless of result or error mode.
 - The PreToolUse injection hook and the PreToolUse block hook act on disjoint path sets — the injection hook is silent for every path the block hook acts on.
+- Task-dispatched Write/Edit tool calls are subject to the same PreToolUse behavior as main-session calls; there is no dispatcher-based bypass.
 - The PostToolUse hooks never modify files — they only report.
 - Hook 4 (validation) and Hook 5 (cascade) fire independently on `update_document` — neither depends on the other.
 - SessionStart and PostToolUse hooks exit 0 regardless of outcome.
@@ -428,3 +452,4 @@ The hooks system conforms to this specification if:
 9. PostToolUse completes within 3 seconds.
 10. SessionStart never initiates a network download (launcher called with `ARCHCORE_SKIP_DOWNLOAD=1`).
 11. Output formats follow Claude Code hooks documentation (exit codes, hookSpecificOutput object) with host-normalized Cursor shape where applicable.
+12. Sub-agent tool invocations (Task-dispatched Write/Edit) are covered by Hooks 2 and 3 identically to main-session calls, per Claude Code's tool-boundary PreToolUse contract; no committed code contains a probe line.

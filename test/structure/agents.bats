@@ -56,6 +56,7 @@ setup() {
   grep -q 'list_documents' "$file"
   grep -q 'list_relations' "$file"
   grep -q 'subagent-knowledge-tree-bootstrap.adr' "$file"
+  grep -q 'recent accepted decisions' "$file"
 }
 
 @test "auditor has knowledge tree bootstrap preamble" {
@@ -64,4 +65,5 @@ setup() {
   grep -q 'list_documents' "$file"
   grep -q 'list_relations' "$file"
   grep -q 'subagent-knowledge-tree-bootstrap.adr' "$file"
+  grep -q 'recent accepted decisions' "$file"
 }

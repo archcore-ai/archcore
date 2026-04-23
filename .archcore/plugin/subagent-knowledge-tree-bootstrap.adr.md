@@ -25,6 +25,8 @@ A complicating factor: `remove-skill-verify-mcp-preamble.cpat` (accepted) explic
 
 Every sub-agent invocation MUST bootstrap the knowledge tree as its first action. Both `agents/archcore-assistant.md` and `agents/archcore-auditor.md` carry a `# First Step — Bootstrap Knowledge Tree` section at the top of the system prompt that mandates parallel calls to `list_documents` and `list_relations` before any domain action.
 
+Immediately after the bootstrap calls return, the sub-agent MUST note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding with the user's task. This synthesis step is advisory output-shaping — it uses only data already returned by the two bootstrap calls and adds no new tool calls. It mirrors the situational summary the main session receives from `SessionStart`.
+
 Implementation: Option A from `subagent-knowledge-tree-preload.idea` — prompt preamble. Not Option B (snapshot injection) because that requires host-specific plumbing (no sub-agent-start hook exists on Claude Code; Cursor's surface differs) and couples invocation logic to host capabilities. Option A is host-portable, ships in a small diff, and keeps the agent's view live (no cache-staleness concern).
 
 Scope of the mandate:
@@ -32,7 +34,7 @@ Scope of the mandate:
 - **archcore-assistant**: both calls required; narrow exception for strictly single-document reads with explicit paths (e.g., "show me `.archcore/auth/jwt.adr.md`") where `get_document` alone is acceptable.
 - **archcore-auditor**: both calls required, no exceptions — audits without the full graph produce incomplete findings.
 
-Enforcement: `test/structure/agents.bats` asserts the preamble section, both tool names, and the cross-reference to this ADR are present in both agent files.
+Enforcement: `test/structure/agents.bats` asserts the preamble section, both tool names, the cross-reference to this ADR, and the synthesis directive anchor are present in both agent files.
 
 This decision is distinct from, and does not conflict with, `remove-skill-verify-mcp-preamble.cpat`. The cpat removed an *availability check* preamble from SKILL.md files used inside the main session (where MCP is always available and `SessionStart` already loaded the tree). This ADR adds a *knowledge bootstrap* preamble to agent files used in sub-agent sessions (where MCP is still available, but the tree has not been loaded because `SessionStart` did not fire for the sub-agent). Different surface, different problem, different rationale — the two are not redundant and the sub-agent preamble must not be removed by analogy.
 
@@ -65,19 +67,22 @@ Rejected. File-based caching introduces invalidation problems when the main sess
 - Orphaned-document rate drops because the sub-agent sees the relation graph and can link new content to existing nodes.
 - `archcore-auditor` findings gain graph-level coverage (orphans, broken chains, coverage gaps) without changing the auditor's audit dimensions.
 - Unblocks the `pre-code-context-injection.idea` rollout — that hook injects per-edit constraints, but its value in sub-agent sessions depends on the sub-agent already having the tree structure to contextualize each injection.
+- Synthesis directive closes the remaining asymmetry versus the main session: the main session receives a pre-distilled SessionStart summary; sub-agents now synthesize the equivalent from their bootstrap calls.
 
 ### Negative
 
 - Two additional tool calls at the start of every sub-agent invocation. For narrow tasks (single read) this is overhead; the explicit exception for `archcore-assistant` partially mitigates.
 - The preamble adds ~20 lines to each agent's system prompt. Negligible token cost; trivial maintenance.
 - Token cost of the bootstrap scales with knowledge-base size. At ~35 documents and 646 relations in this repo (current state), the payload is small. At 10× scale the payload could be meaningful — mitigation path: switch to Option B at that point.
+- Synthesis directive relies on LLM compliance; structural tests only verify the prompt text is present, not that the agent actually produces the summary. Escalation path (richer template or Option B snapshot) is available if drift is observed.
 - Future risk of cleanup-by-analogy with `remove-skill-verify-mcp-preamble.cpat`. Mitigated by explicit cross-reference in both the preamble text and in this ADR.
 
 ### Constraints
 
 - Both agent files MUST carry a `# First Step — Bootstrap Knowledge Tree` section as the first content section after the YAML frontmatter.
 - The section MUST reference both `list_documents` and `list_relations` by name.
+- The section MUST include a directive to note categories, common tags, recent accepted decisions, and draft plans after the two bootstrap calls return. The anchor literal `recent accepted decisions` must appear in both agent files.
 - The section MUST include a cross-reference to `remove-skill-verify-mcp-preamble.cpat` explaining why removal by analogy is wrong.
 - The section MUST include a cross-reference to this ADR.
-- `test/structure/agents.bats` MUST assert all four strings (`First Step — Bootstrap Knowledge Tree`, `list_documents`, `list_relations`, `subagent-knowledge-tree-bootstrap.adr`) are present in both agent files.
+- `test/structure/agents.bats` MUST assert all five strings (`First Step — Bootstrap Knowledge Tree`, `list_documents`, `list_relations`, `subagent-knowledge-tree-bootstrap.adr`, `recent accepted decisions`) are present in both agent files.
 - Removal or structural changes to the preamble MUST go through an ADR update, not an ad-hoc edit.

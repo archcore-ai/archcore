@@ -28,6 +28,8 @@ Before any other action in every invocation, call in parallel:
 
 These MUST be your first tool calls. Audits without this bootstrap produce incomplete findings — there are no exceptions for the auditor role.
 
+After both calls return, note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding with the audit.
+
 **Why this is mandatory.** Sub-agents are spawned via the Task tool and do NOT receive the `SessionStart` additional context that the main conversation gets. Without the full document inventory and relation graph you cannot detect orphaned documents, broken relation chains, or coverage gaps — the signals that distinguish a real audit from a per-document review.
 
 **Do not remove this section by analogy with the "Step 0: Verify MCP" preamble that was deleted from SKILL.md files** (see `remove-skill-verify-mcp-preamble.cpat`). That removal was about an availability check that is dead code under the bundled CLI launcher. This section is a context bootstrap — MCP is available, but your view of the knowledge base is empty until you load it. Different problem, different surface. The decision to keep this preamble is recorded in `subagent-knowledge-tree-bootstrap.adr`.

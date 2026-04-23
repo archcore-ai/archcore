@@ -28,9 +28,10 @@ User-invocable skills are organized into tiers with decreasing prominence; a fif
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  TIER 1 — PRIMARY (9 skills, auto-invocable)         │
+│  TIER 1 — PRIMARY (10 skills, auto-invocable)        │
 │  What most users see and use daily                   │
 │                                                      │
+│  /archcore:bootstrap  "initialize archcore"          │
 │  /archcore:capture    "document this"                │
 │  /archcore:plan       "plan this feature"            │
 │  /archcore:decide     "record this decision"         │
@@ -72,7 +73,7 @@ User-invocable skills are organized into tiers with decreasing prominence; a fif
 └──────────────────────────────────────────────────────┘
 ```
 
-Total visible in `/` menu: **26 commands**. Total skills on disk: 33 (26 visible + 7 hidden).
+Total visible in `/` menu: **27 commands**. Total skills on disk: 34 (27 visible + 7 hidden).
 
 ### Tier 1 — Primary Commands
 
@@ -80,6 +81,7 @@ Primary commands are intent-based. The user describes what they want to do, and 
 
 | Command               | Description (in skill picker)                                  | Argument                  | Behavior                                          |
 | --------------------- | -------------------------------------------------------------- | ------------------------- | ------------------------------------------------- |
+| `/archcore:bootstrap` | First-time onboarding — seed stack rule + run guide + imports  | —                         | Three-step flow, each step accept/edit/skip       |
 | `/archcore:capture`   | Document a module/component/system                              | `[topic]`                 | Routes to adr/spec/doc/guide based on context    |
 | `/archcore:plan`      | Plan a feature or initiative end-to-end                         | `[topic]`                 | Routes to product-track or single plan            |
 | `/archcore:decide`    | Record an architectural or technical decision                   | `[topic]`                 | Creates adr, offers rule+guide follow-up          |
@@ -151,7 +153,7 @@ Users who need direct access to these types can call `mcp__archcore__create_docu
 ### Naming Conventions
 
 - All commands use the `archcore:` plugin prefix
-- Tier 1 commands use **action verbs or clear nouns**: capture, plan, decide, standard, review, status, actualize, graph, help
+- Tier 1 commands use **action verbs or clear nouns**: bootstrap, capture, plan, decide, standard, review, status, actualize, graph, help
 - Tier 2 commands use **`<domain>-track`** pattern: product-track, iso-track, etc.
 - Tier 3 commands use **Archcore type identifiers**: adr, prd, spec, etc.
 - No sub-namespaces (no `archcore:track:iso` or `archcore:type:strs`) — Claude Code uses a single colon as plugin separator
@@ -167,18 +169,22 @@ Intent skills (Tier 1) treat the argument as a **description of intent** or **sc
 
 The `/archcore:actualize` command treats the argument as a **scope filter** — a tag, category, or type name to narrow the analysis. The `/archcore:graph` command does the same.
 
+The `/archcore:bootstrap` command takes no argument; its flow is deterministic (three sequential steps).
+
 ### Discoverability
 
 Claude Code shows all user-invocable skills in a flat list. The tiered hierarchy is communicated through:
 
 1. **Description prefixes** — "Advanced —" for Tier 2, "Expert —" for Tier 3 (except high-frequency types).
 2. **`/archcore:help`** — dedicated skill that explains the tier structure, guides users to the right command, and documents how to reach hidden niche types.
-3. **Natural conversation** — when a user describes an intent ("record the decision to use X", "show the graph"), Claude auto-invokes the matching Tier 1 skill thanks to the Inverted Invocation Policy. The user does not need to know which command exists.
+3. **SessionStart empty-state nudge** — on fresh repos, the session-start hook points users at `/archcore:bootstrap` so onboarding is self-routing.
+4. **Natural conversation** — when a user describes an intent ("record the decision to use X", "show the graph", "set up archcore"), Claude auto-invokes the matching Tier 1 skill thanks to the Inverted Invocation Policy. The user does not need to know which command exists.
 
 The `/archcore:help` output structure:
 
 ```
 ## Quick Start (most users start here)
+/archcore:bootstrap  — seed an empty repo (stack rule, run guide, optional imports)
 /archcore:capture    — document a module or component
 /archcore:plan       — plan a feature end-to-end
 /archcore:decide     — record a technical decision
@@ -226,11 +232,12 @@ The `skills/plan/` directory contains the intent skill, not a type skill. Users 
 - All creation commands MUST suggest `add_relation` calls after document creation.
 - Analysis commands (review, status, actualize, graph) MUST use MCP read tools for data gathering.
 - The help command MUST present Tier 1 commands first, Tiers 2–3 as secondary sections, and the hidden-niche-type access path as a tertiary section.
+- The `/archcore:bootstrap` command MUST be idempotent: each step detects existing artifacts and asks before regenerating; re-runs on a partially-bootstrapped repo only offer the missing steps.
 
 ## Constraints
 
 - No sub-namespaces. All commands are `archcore:<name>`.
-- Intent commands ask at most one scope-confirmation question before starting execution.
+- Intent commands ask at most one scope-confirmation question before starting execution — except `/archcore:bootstrap`, which runs its three-step flow and asks per-step accept/edit/skip.
 - Type quick-create commands ask at most 2–3 content questions.
 - The hidden niche-type surface MUST be kept in sync with the `sources-track` and `iso-track` document lists; removing a niche type requires removing its track step.
 

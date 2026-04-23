@@ -6,7 +6,7 @@ setup() {
   common_setup
 }
 
-@test "all 31 skill directories have SKILL.md" {
+@test "every skill directory has a SKILL.md" {
   local count
   count=$(find "$PLUGIN_ROOT/skills" -name "SKILL.md" | wc -l | tr -d ' ')
   [ "$count" -ge 32 ]

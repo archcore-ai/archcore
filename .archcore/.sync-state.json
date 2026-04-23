@@ -3381,6 +3381,91 @@
       "source": "plugin/jtbd1-phase2-hardening-delegated.plan.md",
       "target": "plugin/cli-path-index.plan.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/zero-content-onboarding.idea.md",
+      "target": "plugin/jtbd-alignment-analysis.idea.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/zero-content-onboarding.idea.md",
+      "target": "plugin/readme-first-60-seconds.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/zero-content-onboarding.idea.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/zero-content-onboarding.idea.md",
+      "target": "plugin/context-skill-implementation.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/zero-content-onboarding.idea.md",
+      "target": "plugin/pre-code-hook-implementation.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/zero-content-onboarding.idea.md",
+      "target": "plugin/inverted-invocation-policy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/zero-content-onboarding.idea.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/zero-content-onboarding.idea.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/zero-content-onboarding-implementation.plan.md",
+      "target": "plugin/zero-content-onboarding.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/zero-content-onboarding-implementation.plan.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/zero-content-onboarding-implementation.plan.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/zero-content-onboarding-implementation.plan.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/zero-content-onboarding-implementation.plan.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/zero-content-onboarding-implementation.plan.md",
+      "target": "plugin/inverted-invocation-policy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/zero-content-onboarding-implementation.plan.md",
+      "target": "plugin/intent-based-skill-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/zero-content-onboarding-implementation.plan.md",
+      "target": "plugin/skill-file-structure.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/zero-content-onboarding-implementation.plan.md",
+      "target": "plugin/readme-first-60-seconds.idea.md",
+      "type": "related"
     }
   ]
 }
