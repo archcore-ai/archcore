@@ -6,7 +6,7 @@
 > CI/CD ships it.
 > **Archcore makes your AI understand it.**
 
-Make your AI agent code with your project's architecture, rules, and decisions — automatically, on every request, across sessions and subagents.
+Make your AI agent code with your project's architecture, rules, and decisions — loaded on session start, surfaced on demand for any code area, and carried across sessions and subagents.
 
 _Not a spec workflow kit. Not chat memory. Archcore is a Git-backed repo context layer for coding agents._
 
@@ -66,8 +66,8 @@ For fully offline environments: install the CLI manually and set `ARCHCORE_SKIP_
 
 Install, open your project, and try these — each shows a different side of what your agent can now do:
 
-**1. "Show me what context this repo already has."**
-Agent reads `.archcore/`, summarizes existing decisions, rules, and specs. If empty, it'll offer to bootstrap from your existing docs.
+**1. "What rules and decisions apply to `src/` in this repo?"**
+Agent runs `/archcore:context src/`, surfacing the rules, ADRs, specs, and patterns that reference that path — grouped by type and ranked by specificity — before you change anything. Works the same way for a file or topic, or with no argument to recap what you're in the middle of.
 
 **2. "Create a rule: API handlers live in `src/api/handlers/`."**
 Agent creates the rule, validates it, and from now on places new handlers there without being reminded.
@@ -136,7 +136,7 @@ The plugin uses open standards (Agent Skills, MCP) — skills, agents, and MCP t
 
 ## What ships in the box
 
-- **33 Skills** — 17 document types, 9 intent commands, 6 multi-step tracks, 1 utility
+- **34 Skills** — 17 document types, 10 intent commands, 6 multi-step tracks, 1 utility
 - **2 Agents** — a universal assistant and a read-only auditor
 - **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 

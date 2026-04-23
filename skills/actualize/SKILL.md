@@ -19,6 +19,8 @@ Detect stale `.archcore/` documentation by cross-referencing code changes, the r
 - Coverage gaps, missing relations → `/archcore:review`
 - Quick counts and stats → `/archcore:status`
 - Creating new documentation → `/archcore:capture`, `/archcore:plan`
+- Reading applicable rules/ADRs/specs before coding → `/archcore:context`
+- Picking up where work left off → `/archcore:context`
 
 ## Routing table
 

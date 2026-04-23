@@ -14,7 +14,7 @@ Per-class invocation flags follow the Inverted Invocation Policy ADR (`inverted-
 
 ## Scope
 
-This specification covers all skill files in the `skills/` directory: 9 intent skills, 6 track skills, 17 document-type skills (10 mainstream + 7 niche), and 1 utility skill — 33 in total. It defines naming convention, content structure, invocation triggers, relationship to MCP tools, and tier classification. It does not cover agents (subagents).
+This specification covers all skill files in the `skills/` directory: 10 intent skills, 6 track skills, 17 document-type skills (10 mainstream + 7 niche), and 1 utility skill — 34 in total. It defines naming convention, content structure, invocation triggers, relationship to MCP tools, and tier classification. It does not cover agents (subagents).
 
 ## Authority
 
@@ -24,7 +24,7 @@ This specification is the authoritative reference for all skill files in the plu
 
 The skills system consists of directories under `skills/`, each containing a `SKILL.md` file. Skills fall into four groups organized into a hierarchy.
 
-### Intent Skills (9) — Layer 1: Primary User Entry
+### Intent Skills (10) — Layer 1: Primary User Entry
 
 Intent skills are the main user-facing entry points. They translate user intent into the correct document types, tracks, or analysis modes. They use explicit routing tables to classify input and operate via MCP tools.
 
@@ -39,6 +39,7 @@ Intent skills are the main user-facing entry points. They translate user intent 
 | `skills/actualize/` | actualize | Detect stale docs, suggest updates | code drift, cascade, temporal analysis |
 | `skills/graph/` | graph | Render the relation graph | Mermaid flowchart, orphan list |
 | `skills/help/` | help | Navigate the system | layer guide, onboarding |
+| `skills/context/` | context | Surface rules/decisions for a code area or pickup | search_documents-backed grouped markdown |
 
 Intent skills are auto-invocable (no invocation-restricting flag) per the Inverted Invocation Policy. The model picks them up from user phrasing, which is the routing entry point for natural-language requests. Their descriptions enumerate explicit triggers and anti-triggers ("Activate when X. Do NOT activate for Y (use /archcore:other).") so routing is deterministic.
 
@@ -118,7 +119,7 @@ The previous `plan` type skill is absorbed by the `/archcore:plan` intent skill,
 ### File Location
 
 Each skill resides at `skills/<name>/SKILL.md` where `<name>` is:
-- The intent name (for intent skills): `capture`, `plan`, `decide`, `standard`, `review`, `status`, `actualize`, `graph`, `help`
+- The intent name (for intent skills): `capture`, `plan`, `decide`, `standard`, `review`, `status`, `actualize`, `graph`, `help`, `context`
 - The track name (for track skills): `product-track`, `sources-track`, etc.
 - The Archcore type identifier (for type skills): `adr`, `prd`, `spec`, etc.
 - The utility name (for utility skills): `verify`
@@ -249,18 +250,18 @@ Type skills are deliberately concise. They provide disambiguation, elicitation, 
 
 ## Invariants
 
-- There are exactly 9 intent skills (Layer 1).
+- There are exactly 10 intent skills (Layer 1).
 - There are exactly 6 track skills (Layer 2).
 - There are exactly 17 type skills, one per Archcore document type except `plan` (which is served by the `/archcore:plan` intent skill): 10 mainstream + 7 niche.
 - There is exactly 1 utility skill (`verify`).
-- Total skills on disk: 33. Visible in `/` menu: 26 (33 − 7 niche hidden).
+- Total skills on disk: 34. Visible in `/` menu: 27 (34 − 7 niche hidden).
 - Every intent skill has a routing table section.
 - Every track skill follows the sequential step structure.
 - Every type skill has When to Use, Quick Create, and Relations sections.
 - Every creation skill references `create_document` in its workflow.
 - Every analysis skill references `list_documents` and `list_relations` in its workflow.
 - No skill instructs direct Write/Edit to `.archcore/` files.
-- Auto-invocable surface: intent (9) + track (6) = 15. User-only surface: mainstream type (10) + utility (1) = 11. Hidden surface: niche type (7).
+- Auto-invocable surface: intent (10) + track (6) = 16. User-only surface: mainstream type (10) + utility (1) = 11. Hidden surface: niche type (7).
 
 ## Error Handling
 

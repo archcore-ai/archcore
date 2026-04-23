@@ -19,6 +19,8 @@ Document a module, component, or topic. You describe what needs documenting — 
 - Recording a specific decision → `/archcore:decide`
 - Planning a feature → `/archcore:plan`
 - Making something a standard → `/archcore:standard`
+- Reading applicable rules/ADRs/specs before coding → `/archcore:context`
+- Picking up where work left off → `/archcore:context`
 
 ## Routing table
 

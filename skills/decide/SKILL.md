@@ -20,6 +20,8 @@ Record a decision. Creates an ADR (Architecture Decision Record) and optionally 
 - Making a standard → `/archcore:standard` (use this if you already know it should become a rule)
 - Documenting a component → `/archcore:capture`
 - Still discussing, no decision yet → use `/archcore:rfc` directly
+- Reading applicable rules/ADRs/specs before coding → `/archcore:context`
+- Picking up where work left off → `/archcore:context`
 
 ## Routing table
 

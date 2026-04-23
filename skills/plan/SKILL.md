@@ -19,6 +19,8 @@ Plan a feature or initiative. Creates the full requirements chain (idea → PRD 
 - Recording a decision → `/archcore:decide`
 - Documenting existing code → `/archcore:capture`
 - Establishing a standard → `/archcore:standard`
+- Reading applicable rules/ADRs/specs before coding → `/archcore:context`
+- Picking up where work left off → `/archcore:context`
 
 ## Routing table
 

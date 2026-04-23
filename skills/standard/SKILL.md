@@ -19,6 +19,8 @@ Establish a team standard. Creates the full chain: ADR (why this standard) → r
 - Recording a decision without enforcement → `/archcore:decide`
 - Planning a feature → `/archcore:plan`
 - Documenting existing behavior → `/archcore:capture`
+- Reading applicable rules/ADRs/specs before coding → `/archcore:context`
+- Picking up where work left off → `/archcore:context`
 
 ## Routing table
 

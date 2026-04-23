@@ -3266,6 +3266,36 @@
       "source": "plugin/subagent-knowledge-tree-preload.idea.md",
       "target": "plugin/subagent-knowledge-tree-bootstrap.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/context-skill-implementation.plan.md",
+      "target": "plugin/jtbd-alignment-analysis.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/context-skill-implementation.plan.md",
+      "target": "plugin/code-alignment-intent-skill.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/context-skill-implementation.plan.md",
+      "target": "plugin/inverted-invocation-policy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/context-skill-implementation.plan.md",
+      "target": "plugin/pre-code-context-injection.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/context-skill-implementation.plan.md",
+      "target": "plugin/intent-skill-implementation.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/context-skill-implementation.plan.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
     }
   ]
 }

@@ -18,6 +18,8 @@ Review Archcore documentation health. Finds gaps, stale documents, orphaned rela
 **Not review:**
 - Quick counts and stats → `/archcore:status`
 - Creating new documentation → `/archcore:capture`, `/archcore:plan`, `/archcore:decide`
+- Reading applicable rules/ADRs/specs before coding → `/archcore:context`
+- Picking up where work left off → `/archcore:context`
 
 ## Routing table
 

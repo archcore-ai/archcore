@@ -16,7 +16,7 @@ Per the Inverted Invocation Policy ADR, skills are classified into four invocati
 
 ## Content
 
-### Skills — Intent (9, auto-invocable by model + user)
+### Skills — Intent (10, auto-invocable by model + user)
 
 Intent skills translate user intent into the correct document types, tracks, or analysis modes. They are the primary user entry points (Layer 1) and are auto-invocable — the model picks them up from user phrasing ("record a decision" → `decide`, "plan this feature" → `plan`, "show the graph" → `graph`). No invocation-restricting flags.
 
@@ -31,6 +31,7 @@ Intent skills translate user intent into the correct document types, tracks, or 
 | actualize | `skills/actualize/` | Detect stale docs → code drift, cascade, temporal analysis |
 | graph     | `skills/graph/`     | Render the relation graph as a Mermaid flowchart           |
 | help      | `skills/help/`      | Navigate the system → layer guide, onboarding              |
+| context   | `skills/context/`   | Surface rules/decisions for a code area or pickup          |
 
 ### Skills — Tracks (6, auto-invocable by model + user)
 
@@ -84,7 +85,7 @@ Discovery and ISO 29148 types that are rarely invoked directly by users. Hidden 
 
 ### Visible `/` menu surface
 
-Intent (9) + Tracks (6) + Mainstream types (10) + Utility (1) = **26 visible commands**. The 7 niche type skills exist as directories and are model-invocable but do not appear in `/` autocomplete. Total on disk: 33 skills.
+Intent (10) + Tracks (6) + Mainstream types (10) + Utility (1) = **27 visible commands**. The 7 niche type skills exist as directories and are model-invocable but do not appear in `/` autocomplete. Total on disk: 34 skills.
 
 ### Agents (2)
 
@@ -203,6 +204,7 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 /archcore:actualize        — detect stale docs, suggest updates
 /archcore:graph            — render the relation graph (Mermaid)
 /archcore:help             — system guide
+/archcore:context          — rules/decisions for a code area or pickup
 
 ## Utility
 /archcore:verify           — run plugin integrity checks
@@ -231,4 +233,4 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 (mrd, brd, urd, brs, strs, syrs, srs — reach via sources-track or iso-track)
 ```
 
-Total visible in `/` menu: 26 commands.
+Total visible in `/` menu: 27 commands.
