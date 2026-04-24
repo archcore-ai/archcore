@@ -1,21 +1,10 @@
 # Archcore Plugin
 
-**Stop your AI agent from forgetting how your repo works.**
+**Make your AI code like it already knows your repo.**
 
-> Git versions your code.
-> CI/CD ships it.
-> **Archcore makes your AI understand it.**
+Archcore gives coding agents the architecture, rules, and past decisions of this repo — so new changes land in the right place and follow team conventions.
 
-Make your AI agent code with your project's architecture, rules, and decisions — loaded on session start, auto-injected before source edits, surfaced on demand for any code area, and carried across sessions and subagents.
-
-_Not a spec workflow kit. Not chat memory. Archcore is a Git-backed repo context layer for coding agents._
-
-## What changes the moment you install it
-
-- **Architecture** — the agent places code where your system expects it, not where it guesses
-- **Rules** — it follows your team's standards instead of improvising
-- **Decisions** — prior ADRs aren't re-litigated, they're respected
-- **Workflows** — multi-step tasks (PRD → plan, ADR → rule → guide) execute end-to-end
+It works across sessions, across agents, and across host tools. When your team makes a new decision, Archcore can turn it into a rule the next code change respects.
 
 ## Install
 
@@ -62,68 +51,47 @@ For fully offline environments: install the CLI manually and set `ARCHCORE_SKIP_
 
 </details>
 
-## Try these 3 prompts first
+## Try these first
 
-Install, open your project, and try these — each shows a different side of what your agent can now do:
+Install, open your project, and try these three prompts. Each shows a different side of what your agent can now do.
 
 _Empty repo? Run `/archcore:bootstrap` first to seed a stack rule, a run-the-app guide, and (optionally) imports from your existing CLAUDE.md / AGENTS.md / .cursorrules._
 
-**1. "What rules and decisions apply to `src/` in this repo?"**
-Agent runs `/archcore:context src/`, surfacing the rules, ADRs, specs, and patterns that reference that path — grouped by type and ranked by specificity — before you change anything. Works the same way for a file or topic, or with no argument to recap what you're in the middle of.
+**1. "Before I change anything in `src/auth/`, what rules and prior decisions apply here?"**
+Archcore loads the rules, ADRs, specs, and patterns tied to that path — grouped by type, ranked by specificity — before the agent edits code. Works the same way for a file, a directory, or a topic.
 
-**2. "Create a rule: API handlers live in `src/api/handlers/`."**
-Agent creates the rule, validates it, and from now on places new handlers there without being reminded.
+**2. "Add a new API handler and follow this repo's conventions."**
+Archcore surfaces the relevant rule (e.g., "handlers live in `src/api/handlers/`") and injects it into context before the write. The agent places code where your architecture says it belongs, instead of guessing.
 
-**3. "We picked PostgreSQL — make it a team standard so future edits respect it."**
-Agent runs `/archcore:standard`: records the decision as an ADR, codifies the constraint as a rule, drafts a guide. Next time an agent edits database code, the rule is auto-injected into its context before the write — decision becomes an enforced constraint, not just history.
+**3. "We picked PostgreSQL — record it as a team standard so future database changes respect it."**
+Archcore records the decision as an ADR, codifies the constraint as a rule, and drafts a guide. Next time an agent edits database code, that rule is auto-injected — decision becomes an enforced constraint, not history buried in docs.
 
 If any of these feels valuable, the rest of Archcore is more of the same, just structured.
 
-## When to use Archcore
+## What changes after install
 
-Archcore is for teams whose agents already write code but keep missing project-specific context. Install it when:
+Without Archcore, the agent:
 
+- guesses your folder structure
+- re-litigates decisions your team already made
+- needs the same conventions repeated in every chat
+- loses project truth the moment the session ends
+
+With Archcore, the same asks produce code that:
+
+- lands where your architecture says it belongs
+- respects ADRs, specs, and rules already in Git
+- follows team conventions loaded automatically on session start
+- reflects new decisions as future guardrails, not markdown graveyards
+
+## Use Archcore when
+
+- Your agent writes code, but not in the way this repo expects
 - Your `CLAUDE.md` / `.cursorrules` / `AGENTS.md` keeps growing and drifting
 - You work with 2+ agents or 2+ host tools (Claude Code + Cursor + Copilot)
-- The agent keeps re-deciding things your team already decided
 - You want decisions, rules, and specs in Git — not in chat scrollback
 
-Archcore is **not** the right fit if you just want chat memory, a prompt library, or a one-shot spec-to-code generator.
-
-## Is Archcore like BMAD / Spec Kit / claude-mem / Memory Bank?
-
-No — these solve different problems. Quick map:
-
-| Tool                     | Category    | What it is                                                                   | How Archcore differs                                                                                                                         |
-| ------------------------ | ----------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **BMAD**                 | Methodology | Agentic SDLC methodology — 12+ roles, 34+ workflows, installer               | Archcore stores _artifacts_; BMAD prescribes _process_. Durable knowledge in BMAD lives in generated skills, not relation-aware repo memory  |
-| **Superpowers**          | Methodology | Skills framework + dev methodology (TDD, plan writing, subagent-driven dev)  | Shapes _agent behavior_ during coding; Archcore provides _canonical project knowledge_ any agent can read                                    |
-| **Spec Kit**             | Methodology | Spec-driven workflow: `specify → plan → tasks → implement`, one-shot         | Spec Kit is a one-shot handoff; Archcore maintains a living graph that evolves with the codebase                                             |
-| **Agent OS**             | Methodology | Codebase standards extraction + spec-driven development, alongside IDE tools | Closest positioning. Archcore adds typed documents, validated relations, and an optional ISO 29148 cascade for regulated teams               |
-| **claude-mem**           | Memory      | Auto-captures session memory (SQLite + Chroma, MCP search, web viewer)       | claude-mem remembers _what you did_; Archcore stores _how the system is built and what was decided_                                          |
-| **agentmemory**          | Memory      | Cross-agent memory server (hooks, BM25 + vector + graph, 4-tier consolidation) | Infrastructure for recall over observations; Archcore is repo-native canonical knowledge                                                     |
-| **OpenMemory / Mem0**    | Memory      | Memory infrastructure — SDK, MCP, self-hosted or managed                     | General-purpose agent memory; Archcore is project truth for coding agents                                                                    |
-| **claude-brain**         | Memory      | One-file local memory (`.claude/mind.mv2`), searchable, portable             | Solo session continuity; Archcore is a team-grade, relation-aware layer                                                                      |
-| **Cline Memory Bank**    | Docs        | Fixed-schema markdown files (`projectbrief`, `activeContext`, `systemPatterns`…) | Same spirit, lower ceremony. Archcore adds typed relations, MCP validation, and multi-step cascades                                          |
-| **codeplow / obsidian-kb** | Docs      | Per-project Obsidian vault with explicit handoff and file:line doc-audit     | Knowledge vault + auditing; Archcore is a typed context _compiler_ — less "notes", more "artifacts"                                          |
-
-**Choose by what you need.** Pick a methodology tool (BMAD, Superpowers, Spec Kit, Agent OS) for an opinionated dev flow. Pick a memory tool (claude-mem, Mem0, agentmemory, claude-brain) for session continuity in general-purpose agents. Pick Archcore when you want typed, queryable _project truth_ — the decisions, rules, and architecture of _this_ repo — that your coding agent respects on every request.
-
-## Without vs. with Archcore
-
-Without Archcore, ask for "a new service" and the agent:
-
-- guesses the folder structure
-- ignores conventions it has never been told about
-- produces code that drifts from decisions buried in docs
-- rediscovers patterns you've already written down
-
-With Archcore, the same ask and the agent:
-
-- places files where your architecture says they belong
-- follows rules defined in `.archcore/`
-- respects ADRs and existing specs
-- reuses patterns (`cpat`) you've already captured
+**Not for** — chat memory, a prompt library, or a one-shot spec-to-code generator. Archcore is a repo truth layer for coding agents, not a methodology kit.
 
 ## Supported hosts
 
@@ -136,13 +104,7 @@ With Archcore, the same ask and the agent:
 
 The plugin uses open standards (Agent Skills, MCP) — skills, agents, and MCP tools are shared across hosts. Only hooks and manifests are host-specific.
 
-## What ships in the box
-
-- **35 Skills** — 17 document types, 11 intent commands, 6 multi-step tracks, 1 utility
-- **2 Agents** — a universal assistant and a read-only auditor
-- **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
-
-The plugin ships a launcher that resolves the [Archcore CLI](https://archcore.ai) (`archcore mcp`) and registers the MCP server automatically via the plugin's bundled `.mcp.json`. If the CLI isn't on `PATH`, the launcher downloads it on first use and caches it under `$CLAUDE_PLUGIN_DATA/archcore/cli/` (survives plugin updates). An existing global `archcore` install on `PATH` always wins — no duplicate-server conflicts.
+---
 
 ## How it works
 
@@ -159,29 +121,33 @@ Two pieces work together:
 - **Archcore CLI — the compiler.** Reads `.archcore/`, builds the context graph, exposes it over MCP.
 - **Archcore Plugin — the runtime.** Applies that context inside your AI agent — skills, guardrails, workflows.
 
-## Skills
+## What ships in the box
 
-### Intent commands (11)
+- **35 Skills** — 17 document types, 11 intent commands, 6 multi-step tracks, 1 utility
+- **2 Agents** — a universal assistant and a read-only auditor
+- **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 
-The primary user interface — describe what you want, the skill routes to the right types and flows.
+The plugin ships a launcher that resolves the [Archcore CLI](https://archcore.ai) (`archcore mcp`) and registers the MCP server automatically via the plugin's bundled `.mcp.json`. If the CLI isn't on `PATH`, the launcher downloads it on first use and caches it under `$CLAUDE_PLUGIN_DATA/archcore/cli/` (survives plugin updates). An existing global `archcore` install on `PATH` always wins — no duplicate-server conflicts.
 
-| Skill     | Command               | What it does                                                                    |
-| --------- | --------------------- | ------------------------------------------------------------------------------- |
-| Bootstrap | `/archcore:bootstrap` | First-time onboarding — seeds a stack rule, run-the-app guide, optional imports |
-| Capture   | `/archcore:capture`   | Document a module, component, or API — routes to adr, spec, doc, or guide       |
-| Context   | `/archcore:context`   | Pull applicable rules, ADRs, specs, and patterns for a code area, file, or topic |
-| Plan      | `/archcore:plan`      | Plan a feature end-to-end — routes to product-track or single plan              |
-| Decide    | `/archcore:decide`    | Record a finalized decision — creates ADR, offers rule + guide follow-up        |
-| Standard  | `/archcore:standard`  | Establish a team standard — drives standard-track (adr → rule → guide)          |
-| Review    | `/archcore:review`    | Documentation health review — gaps, staleness, orphaned docs, missing relations |
-| Status    | `/archcore:status`    | Dashboard — counts by category, type, status, relation coverage, tags           |
-| Actualize | `/archcore:actualize` | Detect stale docs via code drift, cascade analysis, and temporal staleness      |
-| Graph     | `/archcore:graph`     | Render the document relation graph as a Mermaid flowchart                       |
-| Help      | `/archcore:help`      | Navigate the system — discover skills, types, and workflows                     |
+## What you ask Archcore to do
+
+Describe what you want in plain English — Archcore routes it to the right skill and document flow. The command is a shortcut, not the interface.
+
+- **Understand what applies before a change** — `/archcore:context`
+- **Document a module, component, or API** — `/archcore:capture`
+- **Record a finalized decision** — `/archcore:decide`
+- **Establish a team standard** — `/archcore:standard`
+- **Plan a feature end-to-end** — `/archcore:plan`
+- **Review documentation health** — `/archcore:review`
+- **Detect stale docs after code drift** — `/archcore:actualize`
+- **See the project dashboard** — `/archcore:status`
+- **Render the relation graph** — `/archcore:graph`
+- **First-time onboarding** — `/archcore:bootstrap`
+- **Navigate the system** — `/archcore:help`
 
 ### Document types (17)
 
-Each skill teaches the agent about one document type: when to use it, required sections, best practices, common mistakes, and how to relate it to other documents. The `plan` type is served by the `/archcore:plan` intent skill rather than a standalone type skill.
+Each type skill teaches the agent about one document type: when to use it, required sections, best practices, common mistakes, and how to relate it to other documents. The `plan` type is served by the `/archcore:plan` intent skill rather than a standalone type skill.
 
 | Type        | Category   | What it captures                                     |
 | ----------- | ---------- | ---------------------------------------------------- |
@@ -234,6 +200,25 @@ The plugin enforces the **MCP-only principle**: all `.archcore/` operations must
 - **Write blocking** — intercepts and blocks direct Write/Edit calls targeting `.archcore/`
 - **Validation** — runs `archcore validate` after every document mutation
 - **Cascade detection** — warns when an updated document has dependents that may need review
+
+## Is Archcore like BMAD / Spec Kit / claude-mem / Memory Bank?
+
+No — these solve different problems. Quick map:
+
+| Tool                     | Category    | What it is                                                                   | How Archcore differs                                                                                                                         |
+| ------------------------ | ----------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BMAD**                 | Methodology | Agentic SDLC methodology — 12+ roles, 34+ workflows, installer               | Archcore stores _artifacts_; BMAD prescribes _process_. Durable knowledge in BMAD lives in generated skills, not relation-aware repo memory  |
+| **Superpowers**          | Methodology | Skills framework + dev methodology (TDD, plan writing, subagent-driven dev)  | Shapes _agent behavior_ during coding; Archcore provides _canonical project knowledge_ any agent can read                                    |
+| **Spec Kit**             | Methodology | Spec-driven workflow: `specify → plan → tasks → implement`, one-shot         | Spec Kit is a one-shot handoff; Archcore maintains a living graph that evolves with the codebase                                             |
+| **Agent OS**             | Methodology | Codebase standards extraction + spec-driven development, alongside IDE tools | Closest positioning. Archcore adds typed documents, validated relations, and an optional ISO 29148 cascade for regulated teams               |
+| **claude-mem**           | Memory      | Auto-captures session memory (SQLite + Chroma, MCP search, web viewer)       | claude-mem remembers _what you did_; Archcore stores _how the system is built and what was decided_                                          |
+| **agentmemory**          | Memory      | Cross-agent memory server (hooks, BM25 + vector + graph, 4-tier consolidation) | Infrastructure for recall over observations; Archcore is repo-native canonical knowledge                                                     |
+| **OpenMemory / Mem0**    | Memory      | Memory infrastructure — SDK, MCP, self-hosted or managed                     | General-purpose agent memory; Archcore is project truth for coding agents                                                                    |
+| **claude-brain**         | Memory      | One-file local memory (`.claude/mind.mv2`), searchable, portable             | Solo session continuity; Archcore is a team-grade, relation-aware layer                                                                      |
+| **Cline Memory Bank**    | Docs        | Fixed-schema markdown files (`projectbrief`, `activeContext`, `systemPatterns`…) | Same spirit, lower ceremony. Archcore adds typed relations, MCP validation, and multi-step cascades                                          |
+| **codeplow / obsidian-kb** | Docs      | Per-project Obsidian vault with explicit handoff and file:line doc-audit     | Knowledge vault + auditing; Archcore is a typed context _compiler_ — less "notes", more "artifacts"                                          |
+
+**Choose by what you need.** Pick a methodology tool (BMAD, Superpowers, Spec Kit, Agent OS) for an opinionated dev flow. Pick a memory tool (claude-mem, Mem0, agentmemory, claude-brain) for session continuity in general-purpose agents. Pick Archcore when you want typed, queryable _project truth_ — the decisions, rules, and architecture of _this_ repo — that your coding agent respects on every request.
 
 ## Philosophy
 
