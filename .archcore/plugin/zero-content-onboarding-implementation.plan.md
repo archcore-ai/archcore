@@ -14,7 +14,7 @@ tags:
 Implement **Variants A + B** from `zero-content-onboarding.idea` so a fresh-install user goes from empty `.archcore/` to a useful seeded state in one short session. Two coupled deliverables:
 
 1. **Phase A — SessionStart nudge.** When `.archcore/` is empty/missing, the SessionStart hook adds one advisory line pointing the user at `/archcore:bootstrap`. Pure copy, ~10 lines of shell.
-2. **Phase B — `/archcore:bootstrap` intent skill.** Three sequential steps, each independently confirmable:
+2. **Phase B — `/archcore:bootstrap` intent skill.** Three sequential steps. B1 and B2 generate artifacts directly (no accept/edit/skip prompt — the output is a short file that is trivially edited, deleted, or regenerated on demand). B3 is opt-in with a cost warning and a dry-run preview because it can create many documents at once.
    - **B1.** Generate a terse **stack rule** (imperative, no library inventory, no versions) from manifest detection.
    - **B2.** Generate a short **run-the-app guide** from README + scripts, monorepo-aware.
    - **B3.** **Opt-in parse** of existing agent-instruction files (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`, `.windsurfrules`, `.junie/guidelines.md`, `CONVENTIONS.md`) with cost warning when input is large. Default mode per file is **link by reference** — a `doc` whose body holds a one-line pointer and whose tags carry the source identifier (no content duplication). Optional **extract** mode routes content into typed rules / ADRs / docs.
@@ -71,8 +71,8 @@ CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
     Manage state with {state-lib}.
     ```
     Lines without detected signals are dropped, not left as placeholders.
-5. **Show preview, ask user.** "I detected {stack signals}. Proposing the rule below — accept, edit, or skip?" Three options. On accept or after edit, call `mcp__archcore__create_document(type='rule', filename='project-stack', directory='conventions', status='accepted')`.
-6. **Idempotency.** Before running, check via `list_documents` for an existing `rule` with title containing "stack" in `conventions/` directory. If exists, ask: regenerate / skip.
+5. **Create directly.** Call `mcp__archcore__create_document(type='rule', filename='project-stack', directory='conventions', status='accepted')` with the composed body. Report one line: *"Stack: {signals} → {path}"*. No "accept, edit, or skip" prompt — the output is ≤ 6 lines; if the user wants changes, they edit the file or say "regenerate the stack rule".
+6. **Idempotency.** Before running, check via `list_documents` for an existing `rule` with title containing "stack" in `conventions/` directory. If exists, ask: regenerate / skip. (Kept as a confirm gate because overwriting user edits is destructive.)
 
 **Files touched.**
 
@@ -82,7 +82,7 @@ CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
 | `skills/bootstrap/lib/detect-stack.md` | **New (skill-internal reference).** Manifest-to-signals lookup tables that the skill reads at runtime. Markdown so it stays editable, not code. |
 | `test/structure/skills.bats` | Extend to assert presence of `bootstrap` SKILL.md and required sections. |
 
-**Acceptance for B1.** On a fixture `package.json` declaring `next`, `react`, `prisma`, `tailwindcss`, the skill produces a draft rule mentioning those four signals (and only those), without versions, in ≤ 6 lines.
+**Acceptance for B1.** On a fixture `package.json` declaring `next`, `react`, `prisma`, `tailwindcss`, the skill produces a stack rule mentioning those four signals (and only those), without versions, in ≤ 6 lines, created directly (no preview/confirm round-trip with the user).
 
 #### B2. Run-the-app guide generation
 
@@ -107,8 +107,8 @@ CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
        {detected test command, if present}
        ```
    - **Monorepo:** prerequisites + workspace install at top, then per-app subsection with that app's commands.
-5. **Preview + confirm + create.** Same UX as B1. Save as `guide` type with filename `running-the-project`, directory `onboarding/`, status `accepted`.
-6. **Idempotency.** Skip if a `guide` titled "running" or "run" exists in `onboarding/`.
+5. **Create directly.** Save as `guide` type with filename `running-the-project`, directory `onboarding/`, status `accepted`. Report one line: *"Run commands from {README section X / package.json scripts / user answer} → {path}"*. No confirm prompt — same rationale as B1.
+6. **Idempotency.** Skip if a `guide` titled "running" or "run" exists in `onboarding/`. Overwrite is gated by a regenerate/skip prompt.
 
 **Files touched.**
 
@@ -117,7 +117,7 @@ CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
 | `skills/bootstrap/SKILL.md` | Extend with B2 step. |
 | `skills/bootstrap/lib/extract-run-instructions.md` | **New.** Heuristics for README section selection and command-block extraction. |
 
-**Acceptance for B2.** On a fixture repo with README "Quick Start" section containing `pnpm install` + `pnpm dev`, the skill produces a guide with those commands in correct order, ≤ 15 lines, no marketing prose copied.
+**Acceptance for B2.** On a fixture repo with README "Quick Start" section containing `pnpm install` + `pnpm dev`, the skill produces a guide with those commands in correct order, ≤ 15 lines, no marketing prose copied, created directly.
 
 #### B3. Opt-in parse of agent-instruction files
 
@@ -171,7 +171,7 @@ CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
 
     Schema migration path (deferred, out of this plan's scope): if the CLI later accepts custom frontmatter, B3 can migrate to a true `source:` field via a one-pass `get_document` → re-create round trip. The `imported` tag stays for backward compatibility.
 
-6. **Dry-run preview.** Before any `create_document` calls, show the user the full list: *"Will create N documents: rule(3), adr(1), doc(2). Confirm?"* Single y/n on the batch.
+6. **Dry-run preview.** Before any `create_document` calls, show the user the full list: *"Will create N documents: rule(3), adr(1), doc(2). Confirm?"* Single y/n on the batch. (Kept because B3 creates many documents in one go — unlike B1/B2, the user cannot cheaply inspect each result after the fact.)
 
 7. **Batch create.** Use `mcp__archcore__create_document` per item; create all `related` edges via `mcp__archcore__add_relation` after creates succeed. If any create fails, roll forward (do not delete partial set), surface the error, continue with remaining items.
 
@@ -223,12 +223,12 @@ CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
 1. **Empty-state nudge fires correctly:** `bin/session-start` emits the advisory line on missing or substantively-empty `.archcore/`; absent on populated `.archcore/`. Verified by `session-start-empty.bats`.
 2. **`ARCHCORE_HIDE_EMPTY_NUDGE=1` suppresses the nudge** unconditionally. Verified by a dedicated bats case.
 3. **`/archcore:bootstrap` is discoverable and auto-invoked** on phrases listed in B4. Verified by structural assertions in `test/structure/skills.bats`.
-4. **B1 produces a stack rule** of ≤ 6 lines, no version numbers, ≤ 5 stack signals, on the fixture repo described.
-5. **B2 produces a run guide** of ≤ 15 lines, with monorepo-detection branching working on fixture repos for both single-app and pnpm workspace.
+4. **B1 produces a stack rule** of ≤ 6 lines, no version numbers, ≤ 5 stack signals, on the fixture repo described, written directly without a confirm prompt.
+5. **B2 produces a run guide** of ≤ 15 lines, with monorepo-detection branching working on fixture repos for both single-app and pnpm workspace, written directly without a confirm prompt.
 6. **B3 detects all files in the documented list**, reports cost accurately within ±20%, and gates HIGH COST behind explicit `do` confirmation.
 7. **B3 link mode creates `doc` documents with the canonical tag + body pointer convention** (`imported` + `source:<slug>` tags; body first line `> Imported from \`<path>\` on <date>.`) and zero content duplication. Verified by checking that `body length < 200 chars` for link-mode imports and that the tag set matches the source filename slug.
 8. **B3 extract mode routes imperatives → rule, decisions → adr, reference → doc** on the fixture file with mixed content; all extracted documents carry the `imported` and `source:<slug>` tags plus the body pointer line.
-9. **All bootstrap steps are idempotent** — re-run skips already-created artifacts with a clear message. Idempotency check uses tag-based lookup (`source:<slug>`).
+9. **All bootstrap steps are idempotent** — re-run skips already-created artifacts with a clear message. Idempotency check uses tag-based lookup (`source:<slug>`). Idempotency prompt (regenerate / skip / keep) is retained for B1 and B2 because overwriting existing files is destructive.
 10. **PRD updated** with FR-7 and FR-8; spec docs reflect the new skill and env var.
 11. **Test suite green:** baseline + new bats cases.
 
@@ -240,9 +240,9 @@ CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
 
 ## Risks
 
-- **B1 detection false positives.** "react" in dev-deps may not be the actual UI lib; "@types/react" alone shouldn't trigger. Mitigation: signal allowlist excludes `@types/*`, `eslint-*`, `prettier`, test runners, build tools. Always show preview before write.
-- **B2 README extraction quality.** Marketing-heavy READMEs may yield no usable command blocks. Fallback to `scripts:` extraction is solid; if that also fails, ask user one open question and proceed manually.
-- **B3 extract-mode quality.** Heuristic routing produces imperfect rules/ADRs. Mitigation: dry-run preview is mandatory; user sees titles + types before any write. Default mode is link (zero quality risk), extract is opt-in per file.
+- **B1 detection false positives.** "react" in dev-deps may not be the actual UI lib; "@types/react" alone shouldn't trigger. Mitigation: signal allowlist excludes `@types/*`, `eslint-*`, `prettier`, test runners, build tools. With direct-write (no preview), a bad detection is corrected by the user editing the 6-line file or invoking "regenerate the stack rule" — acceptable because the output is small and the repro cycle is fast.
+- **B2 README extraction quality.** Marketing-heavy READMEs may yield no usable command blocks. Fallback to `scripts:` extraction is solid; if that also fails, ask user one open question and proceed manually. Same correction path as B1 if the extracted commands are wrong.
+- **B3 extract-mode quality.** Heuristic routing produces imperfect rules/ADRs. Mitigation: dry-run preview is mandatory (B3 creates many documents at once, unlike B1/B2). User sees titles + types before any write. Default mode is link (zero quality risk), extract is opt-in per file.
 - **B3 cost estimate accuracy.** Heuristic 1 doc / 800 bytes is rough. Real yield may diverge ±50% on extreme inputs. Acceptable — the warning is directional, not contractual. Refine after first usage data.
 - **Tag-spec compatibility.** The tag convention `source:<slug>` relies on the existing tag regex permitting colons. If a future plugin tightens the regex, the tag form breaks. Mitigation: lock the regex behaviour by adding a targeted unit test that creates a doc with `source:agents-md` and asserts persistence; if that ever fails, fall back to `source-agents-md` (hyphen-separated) — semantics preserved, idempotency lookup adapts.
 - **Slug collisions.** Two source files slugify to the same `<slug>` (e.g., `.cursor/rules/styling.mdc` and `.cursor/rules/styling.md`). Mitigation: include the file extension in the slug (`source:cursor-rules-styling-mdc` vs `source:cursor-rules-styling-md`).

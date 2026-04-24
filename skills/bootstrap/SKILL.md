@@ -6,9 +6,9 @@ description: "First-time onboarding: seed an empty .archcore/ with a short stack
 
 # /archcore:bootstrap
 
-First-time onboarding. Generates a small, useful starting set of `.archcore/` documents so later push-mode (`check-code-alignment` hook) and pull-mode (`/archcore:context`) have something to inject. Each step is independently confirmable — accept, edit, or skip.
+First-time onboarding. Generates a small, useful starting set of `.archcore/` documents so later push-mode (`check-code-alignment` hook) and pull-mode (`/archcore:context`) have something to inject. Steps 1–2 generate directly; Step 3 is opt-in and previewed. If the generated stack rule or run guide isn't right, edit or delete the file after — they're a few lines each.
 
-_Run this once on a fresh repo. Re-running is safe: each step detects existing artifacts and asks before regenerating._
+_Run this once on a fresh repo. Re-running is safe: each step detects existing artifacts and asks before overwriting._
 
 ## When to use
 
@@ -37,7 +37,7 @@ If all three are true, the repo is already bootstrapped. Reply with:
 
 > Bootstrap already ran. You have a stack rule, a run guide, and imported agent-files. Use `/archcore:context` to see what's loaded, or re-run specific steps (e.g. "regenerate the stack rule") on demand.
 
-Otherwise proceed. Mention in the opening line that this is a three-step flow and that each step asks before writing.
+Otherwise proceed. Mention in the opening line that this is a three-step flow — Steps 1 and 2 generate directly; Step 3 (import) is opt-in.
 
 ### Step 1: Stack rule
 
@@ -51,24 +51,18 @@ Otherwise proceed. Mention in the opening line that this is a three-step flow an
 
     If no manifest exists, fall back to file-extension detection: scan the top-level source directories (`src/`, `lib/`, `app/`, or the repo root) for the majority language(s), up to 2.
 
-3. **Compose a draft.** Use the template in `detect-stack.md`. Drop any template line whose placeholder has no detected signal — never leave placeholders unfilled. Stay imperative. No versions. No library enumerations. The final rule body should be ≤ 6 lines.
+3. **Compose the body.** Use the template in `detect-stack.md`. Drop any template line whose placeholder has no detected signal — never leave placeholders unfilled. Stay imperative. No versions. No library enumerations. The final rule body should be ≤ 6 lines.
 
-4. **Show and confirm.** Tell the user which signals you detected. Show the full draft rule (title + body). Ask: *"Accept, edit, or skip?"*
-
-    - **Accept** — proceed to create.
-    - **Edit** — take the user's revised text verbatim as the body.
-    - **Skip** — move on to Step 2 without creating.
-
-5. **Create.** Call `mcp__archcore__create_document` with:
+4. **Create.** Call `mcp__archcore__create_document` with:
     - `type: 'rule'`
     - `filename: 'project-stack'`
     - `directory: 'conventions'`
     - `title: 'Project stack'`
     - `status: 'accepted'`
-    - `content: <the confirmed body>`
+    - `content: <the composed body>`
     - `tags: ['stack', 'conventions']`
 
-    After creation, print a one-line confirmation with the resulting path.
+    Report one line: detected signals + resulting path. Example: *"Stack: TypeScript, React, Node → `.archcore/conventions/project-stack.rule.md`"*. If the user wants to edit, they can open the file or say "regenerate the stack rule".
 
 ### Step 2: Run-the-app guide
 
@@ -86,22 +80,20 @@ Otherwise proceed. Mention in the opening line that this is a three-step flow an
 
 4. **Detect prerequisites.** Look for runtime-version declarations: `engines` in `package.json`, `python` in `pyproject.toml` `[project]`, `rust-version` in `Cargo.toml`, `go` directive in `go.mod`. State them as-is. Do not invent prerequisites the manifests don't declare.
 
-5. **Compose a draft.** Use the template in `extract-run-instructions.md`. Single-app vs monorepo has separate skeletons there. The total body must be ≤ 15 lines for single-app; monorepos may go longer but keep each app's subsection ≤ 6 lines.
+5. **Compose the body.** Use the template in `extract-run-instructions.md`. Single-app vs monorepo has separate skeletons there. The total body must be ≤ 15 lines for single-app; monorepos may go longer but keep each app's subsection ≤ 6 lines.
 
     Strip marketing prose — never copy flavor text from the README; only the commands and the detected prerequisite lines.
 
-6. **Show and confirm.** Tell the user where the commands came from (README section X / `scripts:` / user answer). Show the full draft. Ask: *"Accept, edit, or skip?"*
-
-7. **Create.** Call `mcp__archcore__create_document` with:
+6. **Create.** Call `mcp__archcore__create_document` with:
     - `type: 'guide'`
     - `filename: 'running-the-project'`
     - `directory: 'onboarding'`
     - `title: 'Running the project locally'`
     - `status: 'accepted'`
-    - `content: <the confirmed body>`
+    - `content: <the composed body>`
     - `tags: ['onboarding']`
 
-    After creation, print a one-line confirmation with the resulting path.
+    Report one line: command source + resulting path. Example: *"Run commands from `README.md` → `.archcore/onboarding/running-the-project.guide.md`"*. If the user wants to edit, they can open the file or say "regenerate the run guide".
 
 ### Step 3: Import agent-instruction files (opt-in)
 
