@@ -12,70 +12,40 @@ Reference document listing all components of the Archcore Plugin (multi-host: Cl
 
 Note: Claude Code has merged commands into skills. All slash commands use `skills/<name>/SKILL.md`. The `commands/` directory is legacy and not used.
 
-Per the Inverted Invocation Policy ADR, skills are classified into four invocation classes: intent/track (auto-invocable by model + user), mainstream type (user-only via `/`), niche type (model-only, hidden from `/`), and utility (user-only).
+Per the Inverted Invocation Policy ADR (as amended by `remove-document-type-skills.adr.md`), skills are classified into three invocation classes: intent/track (auto-invocable by model + user) and utility (user-only). There are no per-document-type skills.
 
 ## Content
 
-### Skills — Intent (10, auto-invocable by model + user)
+### Skills — Intent (11, auto-invocable by model + user)
 
-Intent skills translate user intent into the correct document types, tracks, or analysis modes. They are the primary user entry points (Layer 1) and are auto-invocable — the model picks them up from user phrasing ("record a decision" → `decide`, "plan this feature" → `plan`, "show the graph" → `graph`). No invocation-restricting flags.
+Intent skills translate user intent into the correct document types, tracks, or analysis modes. They are the primary user entry points (Layer 1) and are auto-invocable — the model picks them up from user phrasing ("record a decision" → `decide`, "plan this feature" → `plan`, "show the graph" → `graph`). No invocation-restricting flags. Creation-oriented intents inline per-type elicitation.
 
-| Skill     | Directory           | User Intent                                                |
-| --------- | ------------------- | ---------------------------------------------------------- |
-| capture   | `skills/capture/`   | Document a module/component → routes to adr/spec/doc/guide |
-| plan      | `skills/plan/`      | Plan a feature → routes to product-track or single plan    |
-| decide    | `skills/decide/`    | Record a decision → creates adr, offers rule+guide         |
-| standard  | `skills/standard/`  | Establish a standard → routes to standard-track            |
-| review    | `skills/review/`    | Check documentation health → analysis + recommendations    |
-| status    | `skills/status/`    | Show dashboard → counts, relations, issues                 |
-| actualize | `skills/actualize/` | Detect stale docs → code drift, cascade, temporal analysis |
-| graph     | `skills/graph/`     | Render the relation graph as a Mermaid flowchart           |
-| help      | `skills/help/`      | Navigate the system → layer guide, onboarding              |
-| context   | `skills/context/`   | Surface rules/decisions for a code area or pickup          |
+| Skill     | Directory           | User Intent                                                                          |
+| --------- | ------------------- | ------------------------------------------------------------------------------------ |
+| bootstrap | `skills/bootstrap/` | Seed an empty `.archcore/` on first install                                          |
+| capture   | `skills/capture/`   | Document a module/component → routes to adr/spec/doc/guide                           |
+| plan      | `skills/plan/`      | Plan a feature → routes to product-track or single plan                              |
+| decide    | `skills/decide/`    | Record a decision (adr) or draft a proposal (rfc); offer rule+guide after ADR        |
+| standard  | `skills/standard/`  | Establish a standard → routes to standard-track (adr → optional cpat → rule → guide) |
+| review    | `skills/review/`    | Check documentation health → analysis + recommendations                              |
+| status    | `skills/status/`    | Show dashboard → counts, relations, issues                                           |
+| actualize | `skills/actualize/` | Detect stale docs → code drift, cascade, temporal analysis                           |
+| graph     | `skills/graph/`     | Render the relation graph as a Mermaid flowchart                                     |
+| help      | `skills/help/`      | Navigate the system → layer guide, onboarding                                        |
+| context   | `skills/context/`   | Surface rules/decisions for a code area or pickup                                    |
 
 ### Skills — Tracks (6, auto-invocable by model + user)
 
-Track skills orchestrate complete multi-document flows, creating documents in sequence with proper relations. Descriptions prefixed "Advanced —" (Layer 2). Auto-invocable so the model can route multi-document requests through them; `sources-track` and `iso-track` also programmatically invoke niche type skills.
+Track skills orchestrate complete multi-document flows, creating documents in sequence with proper relations. Descriptions prefixed "Advanced —" (Layer 2). Each track step inlines per-type elicitation.
 
-| Skill              | Directory                    | Flow                          |
-| ------------------ | ---------------------------- | ----------------------------- |
-| product-track      | `skills/product-track/`      | idea → prd → plan             |
-| sources-track      | `skills/sources-track/`      | mrd → brd → urd               |
-| iso-track          | `skills/iso-track/`          | brs → strs → syrs → srs       |
-| architecture-track | `skills/architecture-track/` | adr → spec → plan             |
-| standard-track     | `skills/standard-track/`     | adr → rule → guide            |
-| feature-track      | `skills/feature-track/`      | prd → spec → plan → task-type |
-
-### Skills — Document Types, Mainstream (10, user-only via `/`, `disable-model-invocation: true`)
-
-Expert-level shortcuts for power users who know the exact type they want. Description NOT in model context — the model reaches these types only through intent-skill routing. Non-high-frequency types are prefixed "Expert —" (Layer 3).
-
-| Skill               | Type                          | Category   |
-| ------------------- | ----------------------------- | ---------- |
-| `skills/adr/`       | Architecture Decision Record  | knowledge  |
-| `skills/prd/`       | Product Requirements          | vision     |
-| `skills/rfc/`       | Request for Comments          | knowledge  |
-| `skills/rule/`      | Team Standard                 | knowledge  |
-| `skills/guide/`     | How-To Instructions           | knowledge  |
-| `skills/doc/`       | Reference Material            | knowledge  |
-| `skills/spec/`      | Technical Specification       | knowledge  |
-| `skills/idea/`      | Product/Technical Concept     | vision     |
-| `skills/task-type/` | Recurring Task Pattern        | experience |
-| `skills/cpat/`      | Code Pattern Change           | experience |
-
-### Skills — Document Types, Niche (7, model-only, `user-invocable: false`, hidden from `/`)
-
-Discovery and ISO 29148 types that are rarely invoked directly by users. Hidden from the `/` autocomplete menu to reduce cognitive load. The model still sees their descriptions so `sources-track` and `iso-track` can orchestrate them. Users reach these types by invoking the appropriate track or calling MCP tools directly.
-
-| Skill          | Type                          | Category | Typical access path          |
-| -------------- | ----------------------------- | -------- | ---------------------------- |
-| `skills/mrd/`  | Market Requirements           | vision   | via `/archcore:sources-track` |
-| `skills/brd/`  | Business Requirements         | vision   | via `/archcore:sources-track` |
-| `skills/urd/`  | User Requirements             | vision   | via `/archcore:sources-track` |
-| `skills/brs/`  | Business Requirements Spec    | vision   | via `/archcore:iso-track`     |
-| `skills/strs/` | Stakeholder Requirements Spec | vision   | via `/archcore:iso-track`     |
-| `skills/syrs/` | System Requirements Spec      | vision   | via `/archcore:iso-track`     |
-| `skills/srs/`  | Software Requirements Spec    | vision   | via `/archcore:iso-track`     |
+| Skill              | Directory                    | Flow                                      |
+| ------------------ | ---------------------------- | ----------------------------------------- |
+| product-track      | `skills/product-track/`      | idea → prd → plan                         |
+| sources-track      | `skills/sources-track/`      | mrd → brd → urd                           |
+| iso-track          | `skills/iso-track/`          | brs → strs → syrs → srs                   |
+| architecture-track | `skills/architecture-track/` | adr → spec → plan                         |
+| standard-track     | `skills/standard-track/`     | adr → (optional cpat) → rule → guide      |
+| feature-track      | `skills/feature-track/`      | prd → spec → plan → task-type             |
 
 ### Skills — Utility (1, user-only, `disable-model-invocation: true`)
 
@@ -83,16 +53,20 @@ Discovery and ISO 29148 types that are rarely invoked directly by users. Hidden 
 | ------ | ---------------- | ------------------------------------------------------------------------------ |
 | verify | `skills/verify/` | Run plugin integrity checks — tests, lint, config validation, cross-references |
 
+### Document-type coverage
+
+There are no per-document-type skills. Every Archcore document type is reachable via an intent skill, a track skill, or direct MCP (`mcp__archcore__create_document(type=<any>)`). See `skills-system.spec.md` → "Document-type coverage without type skills" for the full mapping.
+
 ### Visible `/` menu surface
 
-Intent (10) + Tracks (6) + Mainstream types (10) + Utility (1) = **27 visible commands**. The 7 niche type skills exist as directories and are model-invocable but do not appear in `/` autocomplete. Total on disk: 34 skills.
+Intent (11) + Tracks (6) + Utility (1) = **18 visible commands**. All 18 skills on disk are visible in `/` autocomplete — no hidden or flagged-out skills.
 
 ### Agents (2)
 
 | Agent                | File                           | Role                            | Model  | Tools                       |
 | -------------------- | ------------------------------ | ------------------------------- | ------ | --------------------------- |
-| `archcore-assistant` | `agents/archcore-assistant.md` | Read/write documentation agent  | sonnet | All 8 MCP + Read/Grep/Glob  |
-| `archcore-auditor`   | `agents/archcore-auditor.md`   | Read-only documentation auditor | sonnet | 3 read MCP + Read/Grep/Glob |
+| `archcore-assistant` | `agents/archcore-assistant.md` | Read/write documentation agent  | sonnet | All MCP + Read/Grep/Glob    |
+| `archcore-auditor`   | `agents/archcore-auditor.md`   | Read-only documentation auditor | sonnet | Read MCP + Read/Grep/Glob   |
 
 **archcore-assistant** — complex multi-document tasks: creation, requirements engineering, relation management. Foreground, blue, max 20 turns.
 
@@ -199,9 +173,10 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 
 ```
 ## Primary (intent skills — auto-invocable)
+/archcore:bootstrap        — seed an empty .archcore/ on first install
 /archcore:capture          — document a module or component
 /archcore:plan             — plan a feature end-to-end
-/archcore:decide           — record a decision
+/archcore:decide           — record a decision (ADR) or draft a proposal (RFC)
 /archcore:standard         — establish a team standard
 /archcore:review           — documentation health check
 /archcore:status           — dashboard
@@ -210,31 +185,16 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 /archcore:help             — system guide
 /archcore:context          — rules/decisions for a code area or pickup
 
+## Advanced (track skills — auto-invocable)
+/archcore:product-track      — idea → prd → plan
+/archcore:sources-track      — mrd → brd → urd
+/archcore:iso-track          — brs → strs → syrs → srs
+/archcore:architecture-track — adr → spec → plan
+/archcore:standard-track     — adr → (optional cpat) → rule → guide
+/archcore:feature-track      — prd → spec → plan → task-type
+
 ## Utility
 /archcore:verify           — run plugin integrity checks
-
-## Advanced (track skills — auto-invocable)
-/archcore:product-track    — idea → prd → plan
-/archcore:sources-track    — mrd → brd → urd
-/archcore:iso-track        — brs → strs → syrs → srs
-/archcore:architecture-track — adr → spec → plan
-/archcore:standard-track   — adr → rule → guide
-/archcore:feature-track    — prd → spec → plan → task-type
-
-## Expert (mainstream type skills — user-only via /)
-/archcore:adr <topic>      — quick ADR creation
-/archcore:prd <topic>      — quick PRD creation
-/archcore:rfc <topic>      — quick RFC creation
-/archcore:rule <topic>     — quick rule creation
-/archcore:guide <topic>    — quick guide creation
-/archcore:doc <topic>      — quick doc creation
-/archcore:spec <topic>     — quick spec creation
-/archcore:idea <topic>     — quick idea creation
-/archcore:task-type <topic> — quick task-type creation
-/archcore:cpat <topic>     — quick cpat creation
-
-## Hidden (niche type skills — model-only, not in autocomplete)
-(mrd, brd, urd, brs, strs, syrs, srs — reach via sources-track or iso-track)
 ```
 
-Total visible in `/` menu: 27 commands.
+Total visible in `/` menu: 18 commands. Every Archcore document type is reachable via these skills or directly through `mcp__archcore__create_document(type=<any>)`.

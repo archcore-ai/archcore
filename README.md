@@ -123,7 +123,7 @@ Two pieces work together:
 
 ## What ships in the box
 
-- **35 Skills** — 17 document types, 11 intent commands, 6 multi-step tracks, 1 utility
+- **18 Skills** — 11 intent commands, 6 multi-step tracks, 1 utility
 - **2 Agents** — a universal assistant and a read-only auditor
 - **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 

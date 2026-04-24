@@ -418,76 +418,6 @@
       "type": "related"
     },
     {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/agent-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/always-use-mcp-tools.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/claude-plugin.prd.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/commands-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/development-roadmap.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/hooks-validation-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/mcp-only-operations.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/plugin-component-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/plugin-development.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/single-universal-agent.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/skill-file-structure.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/skills-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/adding-document-type-skill.guide.md",
-      "target": "plugin/skill-file-structure.rule.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "plugin/component-registry.doc.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
       "source": "plugin/component-registry.doc.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
@@ -545,86 +475,6 @@
     {
       "source": "plugin/component-registry.doc.md",
       "target": "plugin/skills-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/agent-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/always-use-mcp-tools.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/claude-plugin.prd.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/commands-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/component-registry.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/development-roadmap.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/hooks-validation-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/mcp-only-operations.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/plugin-component-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/plugin-development.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/single-universal-agent.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/skill-file-structure.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/skills-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/creating-skill-batch.task-type.md",
-      "target": "plugin/skill-file-structure.rule.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "plugin/skill-mcp-interaction.rule.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
       "type": "related"
     },
     {
@@ -650,11 +500,6 @@
     {
       "source": "plugin/skill-mcp-interaction.rule.md",
       "target": "plugin/component-registry.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/skill-mcp-interaction.rule.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
       "type": "related"
     },
     {
@@ -709,11 +554,6 @@
     },
     {
       "source": "plugin/add-read-only-auditor-agent.adr.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/add-read-only-auditor-agent.adr.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -735,11 +575,6 @@
     {
       "source": "plugin/add-read-only-auditor-agent.adr.md",
       "target": "plugin/component-registry.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/add-read-only-auditor-agent.adr.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
       "type": "related"
     },
     {
@@ -804,11 +639,6 @@
     },
     {
       "source": "plugin/scenario-track-skills.idea.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/scenario-track-skills.idea.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -830,11 +660,6 @@
     {
       "source": "plugin/scenario-track-skills.idea.md",
       "target": "plugin/component-registry.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/scenario-track-skills.idea.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
       "type": "related"
     },
     {
@@ -889,11 +714,6 @@
     },
     {
       "source": "plugin/scenario-track-skills-implementation.plan.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/scenario-track-skills-implementation.plan.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -915,11 +735,6 @@
     {
       "source": "plugin/scenario-track-skills-implementation.plan.md",
       "target": "plugin/component-registry.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/scenario-track-skills-implementation.plan.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
       "type": "related"
     },
     {
@@ -984,11 +799,6 @@
     },
     {
       "source": "plugin/plugin-architecture.spec.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/plugin-architecture.spec.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -1010,11 +820,6 @@
     {
       "source": "plugin/plugin-architecture.spec.md",
       "target": "plugin/component-registry.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/plugin-architecture.spec.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
       "type": "related"
     },
     {
@@ -1103,118 +908,8 @@
       "type": "implements"
     },
     {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/add-read-only-auditor-agent.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/agent-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/always-use-mcp-tools.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/claude-plugin.prd.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/commands-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/component-registry.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/development-roadmap.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/hooks-validation-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/mcp-only-operations.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/plugin-architecture.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/plugin-component-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/plugin-development.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/scenario-track-skills-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/scenario-track-skills.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/single-universal-agent.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/skill-file-structure.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/skill-mcp-interaction.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/skills-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/keep-document-type-skills.adr.md",
-      "target": "plugin/claude-plugin.prd.md",
-      "type": "implements"
-    },
-    {
       "source": "plugin/intent-based-skill-architecture.adr.md",
       "target": "plugin/add-read-only-auditor-agent.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/intent-based-skill-architecture.adr.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
       "type": "related"
     },
     {
@@ -1244,22 +939,12 @@
     },
     {
       "source": "plugin/intent-based-skill-architecture.adr.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/intent-based-skill-architecture.adr.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
     {
       "source": "plugin/intent-based-skill-architecture.adr.md",
       "target": "plugin/hooks-validation-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/intent-based-skill-architecture.adr.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -1316,11 +1001,6 @@
       "source": "plugin/intent-based-skill-architecture.adr.md",
       "target": "plugin/claude-plugin.prd.md",
       "type": "implements"
-    },
-    {
-      "source": "plugin/intent-based-skill-architecture.adr.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
-      "type": "extends"
     },
     {
       "source": "plugin/intent-based-skill-architecture.adr.md",
@@ -1349,11 +1029,6 @@
     },
     {
       "source": "plugin/intent-skill-implementation.plan.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/intent-skill-implementation.plan.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -1379,11 +1054,6 @@
     },
     {
       "source": "plugin/intent-skill-implementation.plan.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/intent-skill-implementation.plan.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -1395,11 +1065,6 @@
     {
       "source": "plugin/intent-skill-implementation.plan.md",
       "target": "plugin/intent-based-skill-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/intent-skill-implementation.plan.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -1479,11 +1144,6 @@
     },
     {
       "source": "plugin/actualize-system.adr.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/actualize-system.adr.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -1509,11 +1169,6 @@
     },
     {
       "source": "plugin/actualize-system.adr.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/actualize-system.adr.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -1530,11 +1185,6 @@
     {
       "source": "plugin/actualize-system.adr.md",
       "target": "plugin/intent-skill-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/actualize-system.adr.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -1599,11 +1249,6 @@
     },
     {
       "source": "plugin/actualize-system.spec.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/actualize-system.spec.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -1629,11 +1274,6 @@
     },
     {
       "source": "plugin/actualize-system.spec.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/actualize-system.spec.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -1650,11 +1290,6 @@
     {
       "source": "plugin/actualize-system.spec.md",
       "target": "plugin/intent-skill-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/actualize-system.spec.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -1754,11 +1389,6 @@
     },
     {
       "source": "plugin/actualize-implementation.plan.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/actualize-implementation.plan.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -1784,11 +1414,6 @@
     },
     {
       "source": "plugin/actualize-implementation.plan.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/actualize-implementation.plan.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -1805,11 +1430,6 @@
     {
       "source": "plugin/actualize-implementation.plan.md",
       "target": "plugin/intent-skill-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/actualize-implementation.plan.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -1904,11 +1524,6 @@
     },
     {
       "source": "plugin/multi-host-plugin-architecture.adr.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-plugin-architecture.adr.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -1934,11 +1549,6 @@
     },
     {
       "source": "plugin/multi-host-plugin-architecture.adr.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-plugin-architecture.adr.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -1955,11 +1565,6 @@
     {
       "source": "plugin/multi-host-plugin-architecture.adr.md",
       "target": "plugin/intent-skill-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-plugin-architecture.adr.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -2034,11 +1639,6 @@
     },
     {
       "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -2064,11 +1664,6 @@
     },
     {
       "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -2085,11 +1680,6 @@
     {
       "source": "plugin/multi-host-compatibility-layer.spec.md",
       "target": "plugin/intent-skill-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -2169,11 +1759,6 @@
     },
     {
       "source": "plugin/multi-host-implementation.plan.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-implementation.plan.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -2199,11 +1784,6 @@
     },
     {
       "source": "plugin/multi-host-implementation.plan.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-implementation.plan.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -2220,11 +1800,6 @@
     {
       "source": "plugin/multi-host-implementation.plan.md",
       "target": "plugin/intent-skill-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-implementation.plan.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -2339,11 +1914,6 @@
     },
     {
       "source": "plugin/plugin-testing.guide.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/plugin-testing.guide.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -2369,11 +1939,6 @@
     },
     {
       "source": "plugin/plugin-testing.guide.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/plugin-testing.guide.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -2390,11 +1955,6 @@
     {
       "source": "plugin/plugin-testing.guide.md",
       "target": "plugin/intent-skill-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/plugin-testing.guide.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -2489,11 +2049,6 @@
     },
     {
       "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -2519,11 +2074,6 @@
     },
     {
       "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -2540,11 +2090,6 @@
     {
       "source": "plugin/bundled-cli-launcher.adr.md",
       "target": "plugin/intent-skill-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -2659,11 +2204,6 @@
     },
     {
       "source": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -2694,11 +2234,6 @@
     },
     {
       "source": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -2715,11 +2250,6 @@
     {
       "source": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
       "target": "plugin/intent-skill-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -2819,11 +2349,6 @@
     },
     {
       "source": "plugin/inverted-invocation-policy.adr.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/inverted-invocation-policy.adr.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -2854,11 +2379,6 @@
     },
     {
       "source": "plugin/inverted-invocation-policy.adr.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/inverted-invocation-policy.adr.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -2875,11 +2395,6 @@
     {
       "source": "plugin/inverted-invocation-policy.adr.md",
       "target": "plugin/intent-skill-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/inverted-invocation-policy.adr.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -2984,11 +2499,6 @@
     },
     {
       "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/adding-document-type-skill.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
       "target": "plugin/agent-system.spec.md",
       "type": "related"
     },
@@ -3019,11 +2529,6 @@
     },
     {
       "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/creating-skill-batch.task-type.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
       "target": "plugin/development-roadmap.plan.md",
       "type": "related"
     },
@@ -3045,11 +2550,6 @@
     {
       "source": "plugin/readme-first-60-seconds.idea.md",
       "target": "plugin/inverted-invocation-policy.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/keep-document-type-skills.adr.md",
       "type": "related"
     },
     {
@@ -3495,6 +2995,46 @@
     {
       "source": "plugin/bootstrap-scale-modes.plan.md",
       "target": "plugin/code-alignment-intent-skill.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/remove-document-type-skills.adr.md",
+      "target": "plugin/intent-based-skill-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/remove-document-type-skills.adr.md",
+      "target": "plugin/inverted-invocation-policy.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/remove-document-type-skills.adr.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/remove-document-type-skills.adr.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/remove-document-type-skills.adr.md",
+      "target": "plugin/plugin-architecture.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/remove-document-type-skills.adr.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/remove-document-type-skills.adr.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/remove-document-type-skills.adr.md",
+      "target": "plugin/skill-file-structure.rule.md",
       "type": "related"
     }
   ]

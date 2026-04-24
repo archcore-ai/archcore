@@ -137,7 +137,7 @@ Add a 6th audit dimension: "Code-Document Correlation" — check if documents re
 - Verify `bin/check-staleness` and `bin/check-cascade` are executable
 - Verify `hooks/hooks.json` has 4 hook entries (1 SessionStart, 1 PreToolUse, 2 PostToolUse — MCP mutations + cascade)
 - Verify `skills/actualize/SKILL.md` exists with correct frontmatter
-- Count at plan completion: 32 skill directories (8 intent + 6 track + 17 type + 1 utility). Today: 33 (intent grew to 9 with `graph`).
+- Count at plan completion: 32 skill directories (8 intent + 6 track + 17 type + 1 utility). Today: 18 skill directories (11 intent + 6 track + 1 utility) after `remove-document-type-skills.adr.md` removed the type-skill layer.
 
 **5.2 Content validation**
 
@@ -165,7 +165,7 @@ Add a 6th audit dimension: "Code-Document Correlation" — check if documents re
 - [x] `archcore-auditor` includes code-doc correlation dimension
 - [x] All bin scripts are POSIX shell compatible and exit 0
 - [x] All bin scripts degrade gracefully when git or CLI is unavailable
-- [x] Total skill directory count at plan completion: 32 (today 33 after `graph` was added)
+- [x] Total skill directory count at plan completion: 32. Current count (post type-skill removal): 18.
 
 ## Dependencies
 

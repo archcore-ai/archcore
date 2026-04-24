@@ -9,20 +9,17 @@ tags:
 
 ## Rule
 
-1. Each skill MUST live at `skills/<name>/SKILL.md` where `<name>` is the intent name (for Layer 1), track name (for Layer 2), or Archcore document type identifier (for Layer 3).
-2. Each SKILL.md MUST contain frontmatter with `name` and `description`. Invocation flags follow the Inverted Invocation Policy (see `inverted-invocation-policy.adr.md`):
+1. Each skill MUST live at `skills/<name>/SKILL.md` where `<name>` is the intent name (for Layer 1), the track name (for Layer 2), or the utility name.
+2. Each SKILL.md MUST contain frontmatter with `name` and `description`. Invocation flags follow the Inverted Invocation Policy (see `inverted-invocation-policy.adr.md`), as amended by `remove-document-type-skills.adr.md`:
    - **Intent and track skills:** MUST NOT carry invocation-restricting flags. The model auto-invokes them from user phrasing.
-   - **Mainstream type skills** (adr, prd, rfc, rule, guide, doc, spec, idea, task-type, cpat): MUST include `disable-model-invocation: true`. User-invokable via `/` only; descriptions not in model context.
-   - **Niche type skills** (mrd, brd, urd, brs, strs, syrs, srs): MUST include `user-invocable: false`. Hidden from `/` menu; model reaches them via track orchestration.
    - **Utility skills** (`verify`): MUST include `disable-model-invocation: true`. Maintenance-only, user-invoked.
-   - Track skill descriptions MUST be prefixed with "Advanced —". Non-high-frequency type skill descriptions MUST be prefixed with "Expert —".
+   - Track skill descriptions MUST be prefixed with "Advanced —". Intent and utility descriptions use clean (unprefixed) text.
 3. Section structure varies by skill group:
-   - **Intent skills (Layer 1):** Title+one-liner, When to Use, Routing Table, Execution, Result (5 sections).
-   - **Track skills (Layer 2):** Sequential steps — Check existing → Scope → Create doc 1 → Create doc 2 → ... → Cross-relate → Result.
-   - **Type skills (Layer 3):** When to Use, Quick Create, Relations (3 sections).
-4. Creation flows (intent inline recipes, track steps, type Quick Create) MUST show `create_document` MCP tool usage — never Write/Edit.
-5. Skills MUST NOT embed full document templates — reference the template system instead.
-6. Line limits differ by group: Intent skills ≤ 300 lines, Track skills ≤ 200 lines, Type skills ≤ 100 lines.
+   - **Intent skills (Layer 1):** Title+one-liner, When to Use, Routing Table, Execution, Result (5 sections). Creation-oriented intents inline per-type elicitation (question + sections + create_document + add_relation) within the Execution section.
+   - **Track skills (Layer 2):** Sequential steps — Check existing → Scope → Create doc 1 → Create doc 2 → ... → Cross-relate → Result. Each creation step inlines per-type elicitation.
+4. Creation flows (intent inline recipes, track steps) MUST show `create_document` MCP tool usage — never Write/Edit.
+5. Skills MUST NOT embed full document templates — reference the template system (MCP server templates) instead.
+6. Line limits differ by group: Intent skills ≤ 300 lines, Track skills ≤ 200 lines.
 7. Intent and track skill descriptions MUST explicitly enumerate trigger phrases and anti-triggers using the "Activate when X. Do NOT activate for Y (use /archcore:other)." format, so model routing is deterministic.
 
 ## Rationale
@@ -35,7 +32,8 @@ Consistent structure within each skill group ensures:
 - No drift — referencing templates instead of embedding them prevents staleness when CLI templates change
 - MCP-only enforcement — creation flows model the correct behavior
 - Tier signaling — description prefixes help users identify skill complexity in the flat skill picker
-- Routing correctness — under the Inverted Invocation Policy, intent skills are the sole auto-invocation entry point. Precise trigger/anti-trigger language in descriptions prevents the model from mis-routing into a neighboring intent.
+- Routing correctness — under the Inverted Invocation Policy, intent skills are the primary auto-invocation entry point. Precise trigger/anti-trigger language in descriptions prevents the model from mis-routing into a neighboring intent.
+- Single home for per-type elicitation — intent and track skills inline the per-type recipes; there is no separate per-type skill layer.
 
 ## Examples
 
@@ -58,6 +56,7 @@ description: "Document a module, component, or system — automatically picks th
 | Signal | Route |
 |---|---|
 ## Execution
+Step 3 (per-type creation inlines: ask question → compose sections → create_document → add_relation)
 ...
 ## Result
 ...
@@ -76,69 +75,45 @@ description: "Advanced — Lightweight product requirements flow: idea → PRD �
 
 # /archcore:product-track
 ## Step 1: Check existing...
-## Step 2: Create idea...
-## Step 3: Create PRD...
-## Step 4: Create plan...
+## Step 2: Determine scope...
+## Step 3: Create idea (question + sections + create_document + add_relation)
+## Step 4: Create PRD (same pattern)
+## Step 5: Create plan (same pattern)
+## Step 6: Relate to existing
 ## Result
 ```
 
-### Good — Mainstream Type Skill (Layer 3)
+Each creation step inlines per-type elicitation.
+
+### Good — Utility Skill
 
 ```markdown
 ---
-name: adr
-argument-hint: "[topic]"
-description: Records architectural decisions with context, alternatives, and consequences. Activates for finalized technical decisions, technology choices, or trade-off discussions.
+name: verify
+argument-hint: "[options]"
+description: "Run plugin integrity checks — tests, lint, config validation, cross-references."
 disable-model-invocation: true
 ---
-
-## When to Use
-Use ADR when a technical decision has been made...
-
-## Quick Create
-create_document(type="adr", content="## Context\n...", ...)
-add_relation(source=..., target=..., type="implements")
-
-## Relations
-- Incoming: `implements` from plan or spec...
-- Outgoing: `related` to rule...
 ```
 
-User-invoked only via `/archcore:adr`; the model reaches ADR creation through `/archcore:decide` or `/archcore:capture` routing.
-
-### Good — Niche Type Skill (Layer 3)
-
-```markdown
----
-name: brs
-argument-hint: "[topic]"
-description: "Expert — Formalizes business requirements into a traceable specification per ISO 29148..."
-user-invocable: false
----
-
-## When to Use
-Use BRS within the ISO 29148 cascade (brs → strs → syrs → srs)...
-```
-
-Hidden from `/` autocomplete; the model invokes via `/archcore:iso-track` orchestration.
+User-only; `disable-model-invocation: true` ensures the model does not auto-run maintenance checks.
 
 ### Bad
 
 ```markdown
 # Missing frontmatter name/description
 # Intent/track skill with disable-model-invocation: true (inverted policy violation — blocks routing)
-# Mainstream type skill without disable-model-invocation: true (pollutes model context)
-# Niche type skill without user-invocable: false (noise in / menu)
 # Template content embedded verbatim (will drift from CLI)
 # Example uses Write instead of create_document
 # Intent skill missing Routing Table section
-# Type skill exceeds 100 lines
+# Intent skill exceeds 300 lines
+# Track skill exceeds 200 lines
 ```
 
 ## Enforcement
 
 - Code review during skill development
 - Skills System Specification defines the normative contract
-- Plugin Architecture Specification defines the 4-layer hierarchy
-- Inverted Invocation Policy ADR defines per-layer flag requirements
+- Plugin Architecture Specification defines the layer hierarchy
+- Inverted Invocation Policy ADR (as amended by `remove-document-type-skills.adr.md`) defines per-layer flag requirements
 - Future: automated lint script in `bin/` to check skill structure and invocation flags

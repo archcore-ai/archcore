@@ -23,28 +23,26 @@ Created comprehensive project documentation using Archcore's own document types 
 - [x] Development standards (rules) and how-to guides
 - [x] Component registry (reference document)
 
-### Phase 2: Skills — DONE
+### Phase 2: Skills — DONE (post-type-skill-removal)
 
-Built skills across the 4-layer hierarchy:
+Built skills across the current 3-group hierarchy (intent, track, utility). Historical evolution: a Layer 3 of 17 per-type skills existed between the initial build and the removal decision (`remove-document-type-skills.adr.md`). Their per-type elicitation now lives inline in intent and track skills.
 
-- [x] Intent skills (9): capture, plan, decide, standard, review, status, actualize, graph, help
+- [x] Intent skills (11): bootstrap, capture, plan, decide, standard, review, status, actualize, graph, help, context
 - [x] Track skills (6): product-track, sources-track, iso-track, architecture-track, standard-track, feature-track
-- [x] Type skills (17): adr, rfc, rule, guide, doc, spec, prd, idea, mrd, brd, urd, brs, strs, syrs, srs, task-type, cpat
 - [x] Utility skill (1): verify
-- [x] Each skill follows the structure defined in skills-system.spec.md (Intent: 5 sections, Track: sequential steps, Type: 3 sections)
+- [x] Each skill follows the structure defined in skills-system.spec.md (Intent: 5 sections, Track: sequential steps)
 - [x] All skills reference MCP tools by exact name, never instruct direct file writes
-- [x] Tier prefixes applied: "Advanced —" for tracks, "Expert —" for non-high-frequency types
-- [x] Inverted Invocation Policy applied: intent + track auto-invocable; mainstream types user-only via `/`; niche types hidden from `/` (model reaches them via tracks)
+- [x] Tier prefix applied: "Advanced —" for tracks. Intent and utility use clean descriptions.
+- [x] Inverted Invocation Policy applied (intent + track auto-invocable; utility user-only). Type-skill portion of that policy is now moot — type skills have been removed.
 
 ### Phase 3: Commands and Agents — DONE
 
 Built user-invoked command surface and subagents:
 
-- [x] 9 intent skills as primary user entry points (`/archcore:capture`, `/archcore:plan`, `/archcore:graph`, etc.)
+- [x] 11 intent skills as primary user entry points (`/archcore:bootstrap`, `/archcore:capture`, `/archcore:plan`, `/archcore:decide`, `/archcore:standard`, `/archcore:review`, `/archcore:status`, `/archcore:actualize`, `/archcore:graph`, `/archcore:help`, `/archcore:context`)
 - [x] 6 track skills for advanced multi-document flows (`/archcore:product-track`, etc.)
-- [x] 10 mainstream type skills for expert quick-create (`/archcore:adr`, `/archcore:prd`, etc.)
-- [x] 7 niche type skills hidden from `/` but model-visible (mrd, brd, urd, brs, strs, syrs, srs)
 - [x] 1 utility skill (`/archcore:verify`) for plugin developers
+- [x] Every Archcore document type reachable via intent/track skill or direct MCP (`create_document(type=<any>)`)
 - [x] `archcore-assistant` agent — read/write agent with full MCP tool access
 - [x] `archcore-auditor` agent — read-only auditor with code-document correlation
 
@@ -81,12 +79,25 @@ Seeded first-session experience for repos with empty `.archcore/`:
 - [x] Idempotent re-runs via `list_documents(tags=['imported'])` lookup, per-source-slug skip semantics
 - [x] Documentation sync: README (skill counts + bootstrap discovery line + Intent-commands table), PRD (FR-5 empty-state nudge + FR-6 bootstrap skill), multi-host spec (`ARCHCORE_HIDE_EMPTY_NUDGE` env var), this roadmap
 
+### Phase 7: Type Skill Removal — DONE
+
+Collapsed the per-document-type skill layer:
+
+- [x] RFC elicitation absorbed into `/archcore:decide` (open-proposal branch alongside the finalized-decision ADR branch)
+- [x] CPAT elicitation absorbed into `/archcore:standard-track` (optional step between ADR and rule)
+- [x] 17 type-skill directories deleted (10 mainstream + 7 niche)
+- [x] Count invariants updated in README, bats structure test, skills-system spec, plugin-architecture spec, component-registry, commands-system spec, skill-file-structure rule
+- [x] Obsolete lifecycle docs removed (`adding-document-type-skill.guide.md`, `creating-skill-batch.task-type.md`, `keep-document-type-skills.adr.md`)
+- [x] Reversal recorded in `remove-document-type-skills.adr.md`
+- [x] Visible `/` palette: 18 commands (11 intent + 6 track + 1 utility)
+
 ## Acceptance Criteria
 
-- All 18 document types are covered — 17 via dedicated type skills plus `plan` via the `/archcore:plan` intent skill
+- All 17 Archcore document types are covered through intent/track skills or direct MCP (`create_document(type=<any>)`)
 - 11 intent skills operational as primary user surface (bootstrap, capture, context, plan, decide, standard, review, status, actualize, graph, help)
 - 6 track skills for multi-document flows
-- 10 mainstream type skills + 7 niche type skills + 1 utility skill + 1 bootstrap intent skill (35 total on disk; 28 visible in `/`)
+- 1 utility skill (verify)
+- Total skills on disk: 18. All visible in `/`; no hidden surface.
 - Two agents: archcore-assistant (read/write) and archcore-auditor (read-only)
 - PreToolUse hook blocks 100% of direct Write/Edit attempts on `.archcore/*.md` files
 - PostToolUse hooks report validation issues and cascade staleness
@@ -99,12 +110,13 @@ Seeded first-session experience for repos with empty `.archcore/`:
 - Archcore CLI installed and in PATH OR auto-resolved by the bundled launcher
 - Claude Code plugin system supports: skills/, agents/, hooks/, bin/
 - Cursor plugin system supports: skills/, agents/, hooks/, rules/
-- MCP tools available: create_document, update_document, list_documents, get_document, add_relation, remove_relation, list_relations, remove_document
+- MCP tools available: create_document, update_document, list_documents, get_document, add_relation, remove_relation, list_relations, remove_document, search_documents, init_project
 - ADR: Always Use MCP Tools (architectural constraint)
 - ADR: Plugin Component Architecture (component mapping)
 - ADR: Single Universal Agent → extended by Add Read-Only Auditor Agent
-- ADR: Intent-Based Skill Architecture (4-layer hierarchy)
-- ADR: Inverted Invocation Policy (per-class invocation flags)
+- ADR: Intent-Based Skill Architecture (layer hierarchy; Layer 3 later collapsed)
+- ADR: Inverted Invocation Policy (per-class invocation flags; type-skill portion superseded)
+- ADR: Remove Document Type Skills (type-skill layer removal)
 - ADR: Actualize System (freshness detection)
 - ADR: Multi-Host Plugin Architecture (shared core + per-host adapters)
 - ADR: Bundled CLI Launcher (auto-resolve CLI; plugin-owned MCP for Claude Code)

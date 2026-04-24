@@ -9,7 +9,7 @@ setup() {
 @test "every skill directory has a SKILL.md" {
   local count
   count=$(find "$PLUGIN_ROOT/skills" -name "SKILL.md" | wc -l | tr -d ' ')
-  [ "$count" -ge 32 ]
+  [ "$count" -ge 18 ]
 }
 
 @test "every skill has name: in frontmatter" {

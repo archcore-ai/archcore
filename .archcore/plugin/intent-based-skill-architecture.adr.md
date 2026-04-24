@@ -129,3 +129,22 @@ Type suggestion is classification over natural language — belongs in the promp
 - Each intent skill MUST be self-contained with inline creation recipes per document type
 - The existing `plan` type skill MUST be absorbed into the `/archcore:plan` intent skill
 - Layer 2-3 skill descriptions MUST include tier prefixes ("Advanced —" / "Expert —")
+
+## Addendum — Post-Decision Evolution
+
+### Inverted invocation policy (superseded principle 4)
+
+Principle 4 above — "User-only invocation" for intent skills — was reversed by `inverted-invocation-policy.adr.md`. Intent and track skills are now auto-invocable (no `disable-model-invocation`). The 4-layer structural decomposition stands; only the invocation wiring flipped.
+
+### Layer 3 collapse (superseded by `remove-document-type-skills.adr.md`)
+
+The type-skill layer (Layer 3) has been removed. Per-type elicitation (questions + sections + create + relate) that previously lived in type skills is now inlined inside Layer 1 (intent) and Layer 2 (track) skills. The effective runtime layering is:
+
+- Layer 1: Intent skills (11)
+- Layer 2: Track skills (6)
+- Utility: verify (1)
+- Layer 4 (formerly): MCP primitives — unchanged, now acting as the universal document-creation primitive for all 17 Archcore document types without any type-skill mediation
+
+The original rationale for keeping type skills (domain knowledge layer) was superseded by the finding that intent/track skills had already duplicated all type-skill content inline. See `remove-document-type-skills.adr.md` for the full reasoning.
+
+Naming decisions, design principles (1, 2, 3, 5), and progressive disclosure mechanism from the original Decision all remain valid and are in force.
