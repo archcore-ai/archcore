@@ -1,6 +1,6 @@
 # Agent-instruction file catalog
 
-Reference data for `/archcore:bootstrap` Step 3. Edit this file to add new agent-instruction file types as the ecosystem grows.
+Reference data for `/archcore:bootstrap` Step 8 (agent-instruction import). Edit this file to add new agent-instruction file types as the ecosystem grows.
 
 ## Probe paths
 

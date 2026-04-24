@@ -3466,6 +3466,36 @@
       "source": "plugin/zero-content-onboarding-implementation.plan.md",
       "target": "plugin/readme-first-60-seconds.idea.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/bootstrap-scale-modes.plan.md",
+      "target": "plugin/zero-content-onboarding-implementation.plan.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/bootstrap-scale-modes.plan.md",
+      "target": "plugin/zero-content-onboarding.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/bootstrap-scale-modes.plan.md",
+      "target": "plugin/claude-plugin.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/bootstrap-scale-modes.plan.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/bootstrap-scale-modes.plan.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/bootstrap-scale-modes.plan.md",
+      "target": "plugin/code-alignment-intent-skill.idea.md",
+      "type": "related"
     }
   ]
 }
