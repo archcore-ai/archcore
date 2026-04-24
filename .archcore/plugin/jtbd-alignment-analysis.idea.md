@@ -8,7 +8,7 @@ tags:
   - "vision"
 ---
 
-## Status — Gap Closed (primary JTBD #1 mechanisms shipped)
+## Status — Gap Closed (primary JTBD #1 mechanisms shipped, JTBD #3 reframing landed)
 
 As of plugin 0.3.0, the analysis's central finding — that JTBD #1 was engineered as a passive nudge rather than an active guardrail — has been addressed on both axes.
 
@@ -25,7 +25,7 @@ Positioning status:
 
 - README hero line 9 now reads "auto-injected before source edits, surfaced on demand" — matches the engineered reality.
 - JTBD #1 is no longer an overclaim. Repositioning from Path A ("soften") to Path B ("engineer") was executed.
-- JTBD #3 reframing (standard-track as the entry point that produces applicable rules) is not yet done in README copy — follow-up.
+- JTBD #3 reframing landed in README copy — the "Try these 3 prompts first" third prompt switched from ADR-only ("Record an ADR that we picked PostgreSQL…") to standard-track ("We picked PostgreSQL — make it a team standard so future edits respect it"). Narrative now connects `/archcore:standard` output (rule) to `check-code-alignment` push-injection, so decision → enforced constraint, not decision → relation-graph inspection.
 
 Kept as historical context below: the original gap analysis and promise-vs-reality matrix as of 2026-04-22. Useful for post-mortem and for reasoning about future JTBD framing.
 
@@ -117,7 +117,7 @@ Verdict: the most strongly engineered JTBD. Correctly positioned as "Advanced" �
 | #3 Decision → future code   | 3 (supporting)             | 3 (half of the loop missing)  | Medium gap                               |
 | #4 Multi-step cascades      | 4 (advanced)               | 2 (very strong)               | Inverse — implementation exceeds promise |
 
-Updated state (post-0.3.0): JTBD #1 implementation rank moves from 3 → 1-tier by both push and pull, matching the primary positioning. Matrix row for JTBD #1 now reads "Aligned" instead of "Large gap".
+Updated state (post-0.3.0): JTBD #1 implementation rank moves from 3 → 1-tier by both push and pull, matching the primary positioning. Matrix row for JTBD #1 now reads "Aligned" instead of "Large gap". JTBD #3 demo prompt in README now uses `/archcore:standard` + push-injection narrative, closing the "sees vs applies" copy gap.
 
 ## Value
 

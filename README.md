@@ -74,8 +74,8 @@ Agent runs `/archcore:context src/`, surfacing the rules, ADRs, specs, and patte
 **2. "Create a rule: API handlers live in `src/api/handlers/`."**
 Agent creates the rule, validates it, and from now on places new handlers there without being reminded.
 
-**3. "Record an ADR that we picked PostgreSQL, then show me what future work it should affect."**
-Agent creates the ADR, scans the relation graph, and lists related specs, plans, and rules that should be reviewed.
+**3. "We picked PostgreSQL — make it a team standard so future edits respect it."**
+Agent runs `/archcore:standard`: records the decision as an ADR, codifies the constraint as a rule, drafts a guide. Next time an agent edits database code, the rule is auto-injected into its context before the write — decision becomes an enforced constraint, not just history.
 
 If any of these feels valuable, the rest of Archcore is more of the same, just structured.
 
