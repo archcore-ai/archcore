@@ -11,6 +11,8 @@
 
 Archcore stores your decisions, rules, and conventions in Git — so your AI agent follows them automatically. Works across Claude Code, Cursor, Copilot, Gemini CLI, Codex, OpenCode, Roo Code, and Cline.
 
+> **Using Claude Code or Cursor?** Pair the CLI with the [Archcore Plugin](https://github.com/archcore-ai/archcore-plugin) — same engine, plus skills, intent commands, and guardrails out of the box. Sticking with the CLI is great too — it works across every other agent.
+
 ## In 60 seconds
 
 ```bash
