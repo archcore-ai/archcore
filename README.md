@@ -41,6 +41,7 @@ Now open your AI agent and say: _"Record an ADR: we're using PostgreSQL for prim
 - [Document Relations](#document-relations)
 - [Commands](#commands)
 - [AI Agent Integration](#ai-agent-integration)
+  - [Prompts](#prompts)
 - [Configuration](#configuration)
 - [Development](#development)
 - [Links & License](#links--license)
@@ -60,7 +61,7 @@ The real context lives in your head, in scattered docs, and in implicit patterns
 - **Works across agents** — Claude Code, Cursor, Gemini CLI, GitHub Copilot, Codex CLI, OpenCode, Roo Code, and Cline
 - **Structured document types** — ADRs, RFCs, rules, guides, plans, PRDs, incidents, and more
 - **Git-native** — local-first, version-controlled, reviewable with code
-- **MCP-powered** — agents read, create, update, and link documents in real time
+- **MCP-powered** — agents search, read, create, update, and link documents in real time
 - **Built for teams** — context survives sessions, teammates, and tool changes
 
 > **AI should follow your system, not guess it.**
@@ -253,6 +254,7 @@ Each document is a Markdown file with YAML frontmatter:
 ---
 title: "Use PostgreSQL for Primary Storage"
 status: draft
+tags: [database, infrastructure]
 ---
 
 ## Context
@@ -260,7 +262,7 @@ status: draft
 ...
 ```
 
-Valid statuses: `draft`, `accepted`, and `rejected`.
+Valid statuses: `draft`, `accepted`, and `rejected`. Tags are optional and free-form — use them to mark cross-cutting topics (`security`, `golang`, `frontend`).
 
 ## Document Relations
 
@@ -305,10 +307,25 @@ archcore mcp install --agent gemini-cli
 
 ## AI Agent Integration
 
-Archcore integrates with AI coding agents in two ways:
+Archcore integrates with AI coding agents in three ways:
 
 - **Hooks** inject context at session start, so the agent is aware of your `.archcore/` documents from the first message.
-- **MCP** (Model Context Protocol) gives the agent tools to list, read, create, update, and link documents in real time.
+- **MCP tools** give the agent capabilities to list, search, read, create, update, and link documents in real time. The MCP server also works in an empty repo and exposes an `init_project` tool, so agents can bootstrap `.archcore/` themselves.
+- **MCP prompts** are ready-made multi-document workflows you trigger from your agent as slash commands.
+
+### Prompts
+
+Prompts orchestrate full document cascades in one call — the agent creates and links every document in the track for you. Most MCP-compatible agents surface them as slash commands (e.g. `/architecture_track`); the exact prefix depends on the client.
+
+| Prompt                | What it does                                              |
+| --------------------- | --------------------------------------------------------- |
+| `product_track`       | idea → PRD → plan (lightweight feature flow)              |
+| `architecture_track`  | ADR → spec → plan (technical design + implementation)     |
+| `standard_track`      | ADR → rule → guide (codify a team standard)               |
+| `sources_track`       | MRD → BRD → URD (market / business / user discovery)      |
+| `iso_track`           | BRS → StRS → SyRS → SRS (formal ISO 29148 cascade)        |
+
+**Example.** In your agent, run `/product_track feature="user notifications"`. The agent drafts an idea, derives a PRD, builds an implementation plan, and links them automatically.
 
 ### Supported Agents
 
