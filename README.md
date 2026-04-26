@@ -11,6 +11,8 @@
 
 Archcore stores your decisions, rules, and conventions in Git — so your AI agent follows them automatically. Works across Claude Code, Cursor, Copilot, Gemini CLI, Codex, OpenCode, Roo Code, and Cline.
 
+Archcore ships as a CLI **and** a local stdio MCP server — any MCP-compatible coding agent can read and write your repo context through standard tools, while the Claude Code / Cursor plugin adds a higher-level workflow layer.
+
 > **Using Claude Code or Cursor?** Pair the CLI with the [Archcore Plugin](https://github.com/archcore-ai/archcore-plugin) — same engine, plus skills, intent commands, and guardrails out of the box. Sticking with the CLI is great too — it works across every other agent.
 
 ## In 60 seconds
@@ -115,6 +117,8 @@ With Archcore, the same asks produce code that:
 Instruction files tell the agent _what you want_. Archcore tells the agent _how your system works_ — so the agent can follow your system instead of guessing it.
 
 ## Supported agents
+
+Archcore CLI is itself a local stdio MCP server — that is the shared integration surface for every MCP-compatible agent in the table below. Hooks add proactive session-start context where the agent supports them.
 
 | Agent          | Hooks | MCP    |
 | -------------- | ----- | ------ |
@@ -288,6 +292,26 @@ Prompts orchestrate full document cascades in one call — the agent creates and
 | `iso_track`          | BRS → StRS → SyRS → SRS (formal ISO 29148 cascade)    |
 
 **Example.** In your agent, run `/product_track feature="user notifications"`. The agent drafts an idea, derives a PRD, builds an implementation plan, and links them automatically.
+
+### Local MCP server
+
+Archcore does not require a hosted service. The CLI runs a local stdio MCP server:
+
+```bash
+archcore mcp
+```
+
+Wire it into Claude Code:
+
+```bash
+claude mcp add --transport stdio archcore -- archcore mcp
+```
+
+Or install automatically for a supported agent:
+
+```bash
+archcore mcp install --agent cursor
+```
 
 ### Install integrations
 
