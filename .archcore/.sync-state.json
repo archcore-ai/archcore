@@ -3036,6 +3036,11 @@
       "source": "plugin/remove-document-type-skills.adr.md",
       "target": "plugin/skill-file-structure.rule.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/no-auto-generated-context.adr.md",
+      "target": "plugin/precision-over-coverage.adr.md",
+      "type": "related"
     }
   ]
 }

@@ -48,6 +48,16 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "matcher": "mcp__archcore__create_document|mcp__archcore__update_document",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-precision",
+            "timeout": 3
+          }
+        ]
       }
     ]
   }

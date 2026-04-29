@@ -42,6 +42,11 @@
             "type": "command",
             "command": "${CURSOR_PLUGIN_ROOT}/bin/check-cascade",
             "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "${CURSOR_PLUGIN_ROOT}/bin/check-precision",
+            "timeout": 3
           }
         ]
       }

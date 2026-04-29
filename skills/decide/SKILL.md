@@ -50,8 +50,9 @@ If user language suggests the decision is still open ("thinking about", "should 
 
 ### Step 3: Create ADR (finalized decision path)
 
-- Ask: "What was the decision? What alternatives were considered?"
-- Compose content covering Context, Decision, Alternatives Considered, Consequences.
+- Read `skills/_shared/precision-rules.md` and `skills/_shared/adr-contract.md` once before composing. The contract specifies required structure; the rules specify forbidden lexicon and authoring conventions.
+- Ask: "What was the decision (specific choice with version/name)? What alternatives were considered, and why was each rejected? What conditions would invalidate this decision?"
+- Compose ADR content per the contract: fill Context with one concrete trigger and a code/measurement reference (or `[assumption]` if forward-looking), Decision in one specific sentence, Alternatives Considered with ≥2 named items each carrying an explicit rejection reason, Consequences split into positive + tradeoff with falsifiable claims (or `[expected]`), and Superseded when with ≥2 measurable conditions when feasible. Avoid forbidden lexicon from the rules.
 - `mcp__archcore__create_document(type="adr")`
 
 Then continue to Step 4.
@@ -76,8 +77,9 @@ Ask: "Want to codify this into a team standard? I can create a rule (mandatory b
 **If yes:**
 
 **Rule:**
-- Ask: "What are the mandatory behaviors? How should this be enforced?"
-- Compose content covering Rule (imperative statements), Rationale, Examples (Good/Bad), Enforcement.
+- Read `skills/_shared/precision-rules.md` if not already loaded.
+- Ask: "What are the mandatory behaviors (MUST / MUST NOT statements)? How will each be verified — test, lint, CI signal, or manual review?"
+- Compose rule content with imperative directives; provide Rationale, Good/Bad Examples grounded in actual code paths or scenarios, and Enforcement that names the verifier per directive. Avoid forbidden lexicon.
 - `mcp__archcore__create_document(type="rule")`
 - `mcp__archcore__add_relation` — rule `implements` adr
 

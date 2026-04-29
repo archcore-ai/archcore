@@ -53,6 +53,17 @@ Track skills orchestrate complete multi-document flows, creating documents in se
 | ------ | ---------------- | ------------------------------------------------------------------------------ |
 | verify | `skills/verify/` | Run plugin integrity checks — tests, lint, config validation, cross-references |
 
+### Skills — Shared Runtime Assets (`skills/_shared/`)
+
+Plain-markdown assets loaded at runtime by skills before composing documents. They ship with the plugin; skill instructions reference plugin-internal paths only (never the consumer's `.archcore/`).
+
+| Asset                | Path                                  | Loaded by                            | Purpose                                                                              |
+| -------------------- | ------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------ |
+| `precision-rules.md` | `skills/_shared/precision-rules.md`   | `decide`, `standard`, `capture`      | Forbidden vagueness lexicon, imperative phrasing, `[assumption]` marker conventions  |
+| `adr-contract.md`    | `skills/_shared/adr-contract.md`      | `decide`, `standard`, `capture` (ADR) | Mandatory sections + bad/good examples for ADR content per MADR 4.0                  |
+
+Companion ADR: `precision-over-coverage.adr.md` documents the design rationale; the runtime assets above are the canonical content.
+
 ### Document-type coverage
 
 There are no per-document-type skills. Every Archcore document type is reachable via an intent skill, a track skill, or direct MCP (`mcp__archcore__create_document(type=<any>)`). See `skills-system.spec.md` → "Document-type coverage without type skills" for the full mapping.
@@ -72,7 +83,7 @@ Intent (11) + Tracks (6) + Utility (1) = **18 visible commands**. All 18 skills 
 
 **archcore-auditor** — documentation health checks: coverage gaps, orphaned docs, stale statuses, code-document correlation (cross-references document path mentions with git history to flag drift). Background, yellow, max 15 turns.
 
-### Hooks (5 entries across 3 events)
+### Hooks (6 entries across 3 events)
 
 | #   | Event        | Matcher                                                                                           | Handler                     | Timeout |
 | --- | ------------ | ------------------------------------------------------------------------------------------------- | --------------------------- | ------- |
@@ -81,10 +92,13 @@ Intent (11) + Tracks (6) + Utility (1) = **18 visible commands**. All 18 skills 
 | 3   | PreToolUse   | `Write\|Edit`                                                                                     | `bin/check-code-alignment`  | 1s      |
 | 4   | PostToolUse  | `mcp__archcore__create_document\|update_document\|remove_document\|add_relation\|remove_relation` | `bin/validate-archcore`     | 3s      |
 | 5   | PostToolUse  | `mcp__archcore__update_document`                                                                  | `bin/check-cascade`         | 3s      |
+| 6   | PostToolUse  | `mcp__archcore__create_document\|mcp__archcore__update_document`                                  | `bin/check-precision`       | 3s      |
 
 Hook configs: `hooks/hooks.json` (Claude Code, PascalCase events), `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`).
 
 Hook 2 and Hook 3 share the `Write|Edit` matcher. Hook 2 (`check-archcore-write`) blocks direct writes to `.archcore/*.md`. Hook 3 (`check-code-alignment`) injects relevant `.archcore/` context for source-file edits via `hookSpecificOutput.additionalContext`. They act on disjoint path sets by construction — no conflict.
+
+Hook 6 (`check-precision`) is the Phase 1 implementation of the Precision Initiative (see `precision-over-coverage.adr.md`). It emits soft warnings via `additionalContext` for forbidden vague words, missing mandatory sections, frontmatter gaps, and stub-length bodies. It never blocks (always exits 0).
 
 Historical note: a prior revision had a `PostToolUse` entry with matcher `Write|Edit` invoking `validate-archcore`. It was removed because PreToolUse already blocks all Write/Edit to `.archcore/*.md` (PostToolUse fires only on success), so the matcher was dead weight forking a shell on every Write/Edit anywhere in the repo. See `hooks-validation-system.spec.md` for the rationale. Structure tests guard against its re-introduction.
 
@@ -107,7 +121,7 @@ Env overrides: `ARCHCORE_BIN` pins an explicit binary; `ARCHCORE_SKIP_DOWNLOAD=1
 
 See the Bundled CLI Launcher ADR for rationale.
 
-#### Hook Scripts (6) and Library (1)
+#### Hook Scripts (7) and Library (1)
 
 | Script                       | Hook Event                                   | Purpose                                                                                                                                                                                                                                                                                                    |
 | ---------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -118,6 +132,7 @@ See the Bundled CLI Launcher ADR for rationale.
 | `bin/validate-archcore`      | PostToolUse                                  | Runs `archcore validate` via the launcher after MCP document operations (by tool_name prefix). The legacy Write/Edit branch in the script is retained as defensive code but is never reached from the current hooks config. Outputs JSON `hookSpecificOutput` when issues found, empty otherwise. Silently exits 0 if the launcher/CLI is unavailable. Always exits 0. |
 | `bin/check-staleness`        | SessionStart (called by `bin/session-start`) | Detects code-document drift via git: finds source files changed since the last `.archcore/` commit, cross-references with documents that mention affected directories. Rate-limited to once per 24h via a timestamp file (`$CLAUDE_PLUGIN_DATA/archcore/last-staleness`, with XDG/HOME fallbacks). Emits only when matching documents exist — no generic "N files changed" fallback. Outputs plain text warning (max 2KB) or empty. Always exits 0. |
 | `bin/check-cascade`          | PostToolUse                                  | After `update_document`, queries `.sync-state.json` relation graph for documents connected via `implements`, `depends_on`, or `extends` to the updated document. Outputs JSON `hookSpecificOutput` listing potentially stale dependents, or empty if no cascade. Always exits 0.                          |
+| `bin/check-precision`        | PostToolUse                                  | Phase 1 of the Precision Initiative. After `create_document` and `update_document`, reads the resulting file from disk and runs four checks: forbidden vagueness lexicon (hardcoded list mirroring `skills/_shared/precision-rules.md`), mandatory sections by type (adr/rule/spec/guide/rfc), frontmatter title+status presence, body length ≥200 chars. Emits soft warnings via `additionalContext`. Always exits 0 (never blocks). See `precision-over-coverage.adr.md`. |
 
 ### Test Suite
 
