@@ -33,10 +33,8 @@ Most users start here. Describe what you need — the system picks the right doc
 | `/archcore:plan [feature]` | Plan a feature end-to-end (idea → PRD → plan) |
 | `/archcore:decide [topic]` | Record a technical decision |
 | `/archcore:standard [topic]` | Establish a team standard (decision → rule → guide) |
-| `/archcore:review` | Check documentation health and find gaps |
-| `/archcore:status` | Quick dashboard of document counts and stats |
+| `/archcore:review` | Dashboard of document counts and stats; `--deep` for a full health audit |
 | `/archcore:actualize` | Detect stale docs and suggest updates |
-| `/archcore:graph [filter]` | Render the document relation graph (Mermaid) |
 
 **Tip:** You can also just describe what you need in natural language. Claude will pick the right command automatically.
 

@@ -50,7 +50,7 @@ Each mode additionally runs hotspot capture-candidate proposal (Step 6) and opti
 | Plan a feature | `/archcore:plan` |
 | Drill into another domain (large) | `/archcore:bootstrap --domain=<name>` |
 | Scope queries to a domain (large) | `/archcore:context domain:<slug>` |
-| See what's loaded | `/archcore:status`, `/archcore:review` |
+| See what's loaded | `/archcore:review` (short mode) |
 
 ## Execution
 
@@ -287,7 +287,7 @@ Summarize what was created and what remains in the tracked-context outlook. Per-
 
 Always end with:
 
-> Use `/archcore:status` for a dashboard, `/archcore:review` for a health audit.
+> Use `/archcore:review` for a dashboard, `/archcore:review --deep` for a health audit.
 
 ## Result
 

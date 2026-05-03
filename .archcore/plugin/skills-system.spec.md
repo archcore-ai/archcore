@@ -14,7 +14,7 @@ Per-class invocation flags follow the Inverted Invocation Policy ADR (`inverted-
 
 ## Scope
 
-This specification covers all skill files in the `skills/` directory: 11 intent skills, 6 track skills, and 1 utility skill — 18 in total. It defines naming convention, content structure, invocation triggers, relationship to MCP tools, and tier classification. It does not cover agents (subagents).
+This specification covers all skill files in the `skills/` directory: 9 intent skills, 6 track skills, and 1 utility skill — 16 in total. It defines naming convention, content structure, invocation triggers, relationship to MCP tools, and tier classification. It does not cover agents (subagents).
 
 ## Authority
 
@@ -24,7 +24,7 @@ This specification is the authoritative reference for all skill files in the plu
 
 The skills system consists of directories under `skills/`, each containing a `SKILL.md` file. Skills fall into three groups organized into a hierarchy.
 
-### Intent Skills (11) — Layer 1: Primary User Entry
+### Intent Skills (9) — Layer 1: Primary User Entry
 
 Intent skills are the main user-facing entry points. They translate user intent into the correct document types, tracks, or analysis modes. They use explicit routing tables to classify input and operate via MCP tools. Creation-oriented intents inline per-type elicitation (questions + sections + MCP calls + relation suggestions).
 
@@ -35,10 +35,8 @@ Intent skills are the main user-facing entry points. They translate user intent 
 | `skills/plan/` | plan | Plan a feature/initiative | product-track flow or single plan |
 | `skills/decide/` | decide | Record a decision or draft a proposal | adr (finalized) or rfc (open); offers rule+guide after ADR |
 | `skills/standard/` | standard | Establish a team standard | standard-track flow (adr → optional cpat → rule → guide) |
-| `skills/review/` | review | Check documentation health | analysis + recommendations |
-| `skills/status/` | status | Show dashboard | counts, relations, issues |
+| `skills/review/` | review | Documentation health (dashboard or `--deep` audit) | counts/relations/issues (default), or full coverage-gap and recommendation report |
 | `skills/actualize/` | actualize | Detect stale docs, suggest updates | code drift, cascade, temporal analysis |
-| `skills/graph/` | graph | Render the relation graph | Mermaid flowchart, orphan list |
 | `skills/help/` | help | Navigate the system | layer guide, onboarding |
 | `skills/context/` | context | Surface rules/decisions for a code area or pickup | search_documents-backed grouped markdown |
 
@@ -92,7 +90,7 @@ Every Archcore document type is reachable through an intent or track skill. Dire
 ### File Location
 
 Each skill resides at `skills/<name>/SKILL.md` where `<name>` is:
-- The intent name (for intent skills): `bootstrap`, `capture`, `plan`, `decide`, `standard`, `review`, `status`, `actualize`, `graph`, `help`, `context`
+- The intent name (for intent skills): `bootstrap`, `capture`, `plan`, `decide`, `standard`, `review`, `actualize`, `help`, `context`
 - The track name (for track skills): `product-track`, `sources-track`, `iso-track`, `architecture-track`, `standard-track`, `feature-track`
 - The utility name: `verify`
 
@@ -144,7 +142,7 @@ Every intent skill file MUST contain these sections in order:
 
 5. **Result** — Summary of what was created or found, and recommended next actions.
 
-Note: Creation-oriented intents (bootstrap, capture, plan, decide, standard) include inline creation recipes covering every document type they can produce. Analysis-oriented intents (review, status, actualize, graph) include analysis logic. The help intent includes the layer navigation guide.
+Note: Creation-oriented intents (bootstrap, capture, plan, decide, standard) include inline creation recipes covering every document type they can produce. Analysis-oriented intents (review, actualize) include analysis logic. The `review` intent has two output modes (short dashboard and `--deep` full audit) inside one skill. The help intent includes the layer navigation guide.
 
 ### Track Skill Content Structure (Layer 2)
 
@@ -164,7 +162,7 @@ Every track skill file MUST contain:
 - Intent and track skill descriptions MUST enumerate triggers and anti-triggers using the "Activate when X. Do NOT activate for Y." format.
 - Intent skills MUST default to minimum viable path. Expansion requires a binary scope question.
 - Creation-oriented intent skills MUST be self-contained with inline creation recipes (question + sections + create + relate per document type produced).
-- Analysis-oriented intent skills (review, status, actualize, graph) MUST use MCP read tools (list_documents, get_document, list_relations) and may use git/Grep/Glob for cross-referencing.
+- Analysis-oriented intent skills (review, actualize) MUST use MCP read tools (list_documents, get_document, list_relations) and may use git/Grep/Glob for cross-referencing.
 - Track skills MUST NOT carry `disable-model-invocation` — they are auto-invocable to support model-initiated cascades.
 - Track skills MUST create documents sequentially, asking focused questions before each creation step.
 - Track skills MUST inline per-type elicitation for each step (they are the authoritative home for that content within the plugin).
@@ -185,16 +183,16 @@ Every track skill file MUST contain:
 
 ## Invariants
 
-- There are exactly 11 intent skills (Layer 1).
+- There are exactly 9 intent skills (Layer 1).
 - There are exactly 6 track skills (Layer 2).
 - There is exactly 1 utility skill (`verify`).
-- Total skills on disk: 18. All are visible in `/` menu (no hidden skills post type-skill removal).
+- Total skills on disk: 16. All are visible in `/` menu (no hidden skills).
 - Every intent skill has a routing table section or a numbered step sequence with deterministic branches.
 - Every track skill follows the sequential step structure.
 - Every creation skill references `create_document` in its workflow.
 - Every analysis skill references `list_documents` and `list_relations` in its workflow.
 - No skill instructs direct Write/Edit to `.archcore/` files.
-- Auto-invocable surface: intent (11) + track (6) = 17. User-only surface: utility (1).
+- Auto-invocable surface: intent (9) + track (6) = 15. User-only surface: utility (1).
 - Every Archcore document type has at least one intent or track skill path.
 
 ## Error Handling

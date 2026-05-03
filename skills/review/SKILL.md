@@ -1,44 +1,78 @@
 ---
 name: review
-argument-hint: "[category or tag]"
-description: "Audit documentation health — finds coverage gaps, stale statuses, orphaned documents, and missing relations. Use when you want a full health report with recommendations. For quick counts use /archcore:status; for code-drift detection use /archcore:actualize."
+argument-hint: "[--deep] [category or tag]"
+description: "Review documentation health. Default: compact dashboard (counts, status breakdown, relations, orphans). With --deep: full audit with coverage gaps, staleness, relation health, and prioritized recommendations. Activate when user asks 'show status', 'how many docs', 'dashboard', 'review the docs', 'audit the knowledge base', 'documentation gaps'. For code-drift detection use /archcore:actualize."
 ---
 
 # /archcore:review
 
-Review Archcore documentation health. Finds gaps, stale documents, orphaned relations, and produces actionable recommendations.
+Review Archcore documentation health. Default mode is a compact dashboard; `--deep` runs a full audit with prioritized recommendations.
 
 ## When to use
 
-- "Review the docs"
-- "Check documentation health"
-- "Are there any documentation gaps?"
-- "Audit the knowledge base"
+- "Show status" / "How many docs do we have?" / "Dashboard" → default short mode
+- "Review the docs" / "Audit the knowledge base" / "Documentation gaps?" → `--deep`
 
 **Not review:**
-- Quick counts and stats → `/archcore:status`
 - Creating new documentation → `/archcore:capture`, `/archcore:plan`, `/archcore:decide`
 - Reading applicable rules/ADRs/specs before coding → `/archcore:context`
 - Picking up where work left off → `/archcore:context`
+- Stale docs after code drift → `/archcore:actualize`
 
 ## Routing table
 
-| Signal | Route | Scope |
+| Signal | Mode | Scope |
 |---|---|---|
-| No arguments | → full review | All documents |
-| Category name ("knowledge", "vision") | → category review | Filter to category |
-| Tag name ("auth", "payments") | → tag review | Filter to tag |
-| Specific type ("adr", "spec") | → type review | Filter to type |
+| No arguments | → short dashboard | All documents |
+| `--deep` | → full audit | All documents |
+| `--deep <category\|tag\|type>` | → full audit, filtered | Filter applied |
+| `<category\|tag\|type>` (no `--deep`) | → full audit, filtered | Same as `--deep <filter>` |
 
-Default: full review of all documents.
+The dashboard is project-wide by design — it doesn't take filters. Any non-flag argument implies the user wants more than counts, so route to deep mode.
 
 ## Execution
 
 ### Step 1: Gather data
 
-Call `mcp__archcore__list_documents` and `mcp__archcore__list_relations` to get the full inventory. If `$ARGUMENTS` provided, apply as filter.
+Call `mcp__archcore__list_documents` and `mcp__archcore__list_relations`. If a filter argument is present, apply it in-memory to the document list before analysis.
 
-### Step 2: Analyze
+### Step 2 (short mode — default): Present dashboard
+
+Output the four tables, then a one-line issues summary. Data only, no analysis.
+
+**Documents by Category**
+
+| Category | Count |
+|---|---|
+| Vision | _n_ |
+| Knowledge | _n_ |
+| Experience | _n_ |
+| **Total** | _n_ |
+
+**Documents by Status**
+
+| Status | Count |
+|---|---|
+| draft | _n_ |
+| accepted | _n_ |
+| rejected | _n_ |
+
+**Documents by Type** — list each type with count, skip types with 0.
+
+**Relations**
+
+| Type | Count |
+|---|---|
+| related | _n_ |
+| implements | _n_ |
+| extends | _n_ |
+| depends_on | _n_ |
+
+**Issues** — orphaned documents (no relations), high draft count. One line each, no explanations.
+
+End with: _For a full audit with recommendations, run `/archcore:review --deep`._
+
+### Step 2 (deep mode — `--deep` or any non-flag arg): Analyze and report
 
 Check for:
 
@@ -62,9 +96,7 @@ Check for:
 - Tags used only once (potential inconsistency)
 - Related documents with different tags
 
-### Step 3: Report
-
-Present a concise summary:
+Report with these sections:
 
 1. **Overview** — totals by category and status
 2. **Gaps** — missing documents or relations with specific recommendations
@@ -74,4 +106,4 @@ Present a concise summary:
 
 ## Result
 
-Actionable review report with prioritized fixes. No verbose analysis — findings and recommendations only.
+Short mode: compact dashboard, data only. Deep mode: actionable report with prioritized fixes — findings and recommendations only, no verbose analysis.

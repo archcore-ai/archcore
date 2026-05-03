@@ -3041,6 +3041,41 @@
       "source": "plugin/no-auto-generated-context.adr.md",
       "target": "plugin/precision-over-coverage.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/merge-review-status-remove-graph.adr.md",
+      "target": "plugin/remove-document-type-skills.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/merge-review-status-remove-graph.adr.md",
+      "target": "plugin/inverted-invocation-policy.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/merge-review-status-remove-graph.adr.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/merge-review-status-remove-graph.adr.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/merge-review-status-remove-graph.adr.md",
+      "target": "plugin/plugin-architecture.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/merge-review-status-remove-graph.adr.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/development-roadmap.plan.md",
+      "target": "plugin/merge-review-status-remove-graph.adr.md",
+      "type": "related"
     }
   ]
 }

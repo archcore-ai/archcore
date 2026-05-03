@@ -12,13 +12,13 @@ Reference document listing all components of the Archcore Plugin (multi-host: Cl
 
 Note: Claude Code has merged commands into skills. All slash commands use `skills/<name>/SKILL.md`. The `commands/` directory is legacy and not used.
 
-Per the Inverted Invocation Policy ADR (as amended by `remove-document-type-skills.adr.md`), skills are classified into three invocation classes: intent/track (auto-invocable by model + user) and utility (user-only). There are no per-document-type skills.
+Per the Inverted Invocation Policy ADR (as amended by `remove-document-type-skills.adr.md` and `merge-review-status-remove-graph.adr.md`), skills are classified into three invocation classes: intent/track (auto-invocable by model + user) and utility (user-only). There are no per-document-type skills.
 
 ## Content
 
-### Skills — Intent (11, auto-invocable by model + user)
+### Skills — Intent (9, auto-invocable by model + user)
 
-Intent skills translate user intent into the correct document types, tracks, or analysis modes. They are the primary user entry points (Layer 1) and are auto-invocable — the model picks them up from user phrasing ("record a decision" → `decide`, "plan this feature" → `plan`, "show the graph" → `graph`). No invocation-restricting flags. Creation-oriented intents inline per-type elicitation.
+Intent skills translate user intent into the correct document types, tracks, or analysis modes. They are the primary user entry points (Layer 1) and are auto-invocable — the model picks them up from user phrasing ("record a decision" → `decide`, "plan this feature" → `plan`, "review the docs" → `review`). No invocation-restricting flags. Creation-oriented intents inline per-type elicitation.
 
 | Skill     | Directory           | User Intent                                                                          |
 | --------- | ------------------- | ------------------------------------------------------------------------------------ |
@@ -27,10 +27,8 @@ Intent skills translate user intent into the correct document types, tracks, or 
 | plan      | `skills/plan/`      | Plan a feature → routes to product-track or single plan                              |
 | decide    | `skills/decide/`    | Record a decision (adr) or draft a proposal (rfc); offer rule+guide after ADR        |
 | standard  | `skills/standard/`  | Establish a standard → routes to standard-track (adr → optional cpat → rule → guide) |
-| review    | `skills/review/`    | Check documentation health → analysis + recommendations                              |
-| status    | `skills/status/`    | Show dashboard → counts, relations, issues                                           |
+| review    | `skills/review/`    | Dashboard (default) or full health audit (`--deep`) — counts, gaps, staleness, recommendations |
 | actualize | `skills/actualize/` | Detect stale docs → code drift, cascade, temporal analysis                           |
-| graph     | `skills/graph/`     | Render the relation graph as a Mermaid flowchart                                     |
 | help      | `skills/help/`      | Navigate the system → layer guide, onboarding                                        |
 | context   | `skills/context/`   | Surface rules/decisions for a code area or pickup                                    |
 
@@ -70,7 +68,7 @@ There are no per-document-type skills. Every Archcore document type is reachable
 
 ### Visible `/` menu surface
 
-Intent (11) + Tracks (6) + Utility (1) = **18 visible commands**. All 18 skills on disk are visible in `/` autocomplete — no hidden or flagged-out skills.
+Intent (9) + Tracks (6) + Utility (1) = **16 visible commands**. All 16 skills on disk are visible in `/` autocomplete — no hidden or flagged-out skills.
 
 ### Agents (2)
 
@@ -193,10 +191,8 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 /archcore:plan             — plan a feature end-to-end
 /archcore:decide           — record a decision (ADR) or draft a proposal (RFC)
 /archcore:standard         — establish a team standard
-/archcore:review           — documentation health check
-/archcore:status           — dashboard
+/archcore:review           — dashboard (default) or full health audit (`--deep`)
 /archcore:actualize        — detect stale docs, suggest updates
-/archcore:graph            — render the relation graph (Mermaid)
 /archcore:help             — system guide
 /archcore:context          — rules/decisions for a code area or pickup
 
@@ -212,4 +208,4 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 /archcore:verify           — run plugin integrity checks
 ```
 
-Total visible in `/` menu: 18 commands. Every Archcore document type is reachable via these skills or directly through `mcp__archcore__create_document(type=<any>)`.
+Total visible in `/` menu: 16 commands. Every Archcore document type is reachable via these skills or directly through `mcp__archcore__create_document(type=<any>)`.

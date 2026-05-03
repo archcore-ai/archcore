@@ -17,7 +17,7 @@ Detect stale `.archcore/` documentation by cross-referencing code changes, the r
 
 **Not actualize:**
 - Coverage gaps, missing relations → `/archcore:review`
-- Quick counts and stats → `/archcore:status`
+- Quick counts and stats → `/archcore:review` (default short mode)
 - Creating new documentation → `/archcore:capture`, `/archcore:plan`
 - Reading applicable rules/ADRs/specs before coding → `/archcore:context`
 - Picking up where work left off → `/archcore:context`

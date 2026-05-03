@@ -123,7 +123,7 @@ Two pieces work together:
 
 ## What ships in the box
 
-- **18 Skills** — 11 intent commands, 6 multi-step tracks, 1 utility
+- **16 Skills** — 9 intent commands, 6 multi-step tracks, 1 utility
 - **2 Agents** — a universal assistant and a read-only auditor
 - **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 
@@ -138,10 +138,8 @@ Describe what you want in plain English — Archcore routes it to the right skil
 - **Record a finalized decision** — `/archcore:decide`
 - **Establish a team standard** — `/archcore:standard`
 - **Plan a feature end-to-end** — `/archcore:plan`
-- **Review documentation health** — `/archcore:review`
+- **Review documentation health (dashboard or `--deep` audit)** — `/archcore:review`
 - **Detect stale docs after code drift** — `/archcore:actualize`
-- **See the project dashboard** — `/archcore:status`
-- **Render the relation graph** — `/archcore:graph`
 - **First-time onboarding** — `/archcore:bootstrap`
 - **Navigate the system** — `/archcore:help`
 

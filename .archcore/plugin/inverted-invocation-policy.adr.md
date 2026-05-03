@@ -28,11 +28,11 @@ Invert the invocation policy across the skill catalog.
 
 ### New matrix (current — post-supersession)
 
-| Layer     | Skills                                                                                     | `disable-model-invocation` | `user-invocable` | In `/` menu | Model auto-invokes |
-| --------- | ------------------------------------------------------------------------------------------ | -------------------------- | ---------------- | ----------- | ------------------ |
-| Intent    | bootstrap, capture, plan, decide, standard, review, status, actualize, graph, help, context | — (removed)                | default (`true`) | ✓           | ✓                  |
+| Layer     | Skills                                                                            | `disable-model-invocation` | `user-invocable` | In `/` menu | Model auto-invokes |
+| --------- | --------------------------------------------------------------------------------- | -------------------------- | ---------------- | ----------- | ------------------ |
+| Intent    | bootstrap, capture, plan, decide, standard, review, actualize, help, context      | — (removed)                | default (`true`) | ✓           | ✓                  |
 | Track     | product-track, architecture-track, standard-track, feature-track, sources-track, iso-track | — (removed)                | default (`true`) | ✓           | ✓                  |
-| Utility   | verify                                                                                     | `true` (unchanged)         | default (`true`) | ✓           | ✗                  |
+| Utility   | verify                                                                            | `true` (unchanged)         | default (`true`) | ✓           | ✗                  |
 
 **Historical matrix (type-skill rows, now superseded by `remove-document-type-skills.adr.md`):**
 
@@ -43,12 +43,14 @@ Invert the invocation policy across the skill catalog.
 
 Type skills no longer exist on disk. Their per-type elicitation moved inline into intent and track skills. See `remove-document-type-skills.adr.md` for the removal rationale (content duplication with intents/tracks; multi-host flag inconsistency; cognitive-load reduction).
 
+The `status` and `graph` intents were merged into `review` and removed respectively per `merge-review-status-remove-graph.adr.md` — that ADR is the source of truth for the current intent inventory.
+
 ### Rationale per remaining class
 
 - **Intent and track skills are auto-invocable** so the model routes user intent through them. Their descriptions carry explicit "Activate when X. Do NOT activate for Y (use /archcore:other)." guidance as the routing signal.
 - **Utility (`verify`) stays user-only** — it is a maintenance skill for plugin developers, not for end users, and should not auto-activate.
 
-Post-type-skill-removal visible `/` menu: 11 intent + 6 track + 1 utility = **18 commands**. No hidden surface.
+Post-merge visible `/` menu: 9 intent + 6 track + 1 utility = **16 commands**. No hidden surface.
 
 ## Alternatives Considered
 
@@ -73,7 +75,7 @@ Deferred. Superseded by the decision to remove type skills entirely — niche ty
 ### Positive
 
 - Intent routing is load-bearing — duplicate checks, relation suggestions, and multi-document follow-up execute for auto-invoked flows, not just explicit `/` invocations.
-- Visible `/` menu went from 32 to 25 at the time of the inversion, to 26 after the `graph` intent was added, and to **18** after type skills were removed (`remove-document-type-skills.adr.md`).
+- Visible `/` menu went from 32 to 25 at the time of the inversion, to 26 after the `graph` intent was added, to **18** after type skills were removed (`remove-document-type-skills.adr.md`), and to **16** after `status` was merged into `review` and `graph` was removed (`merge-review-status-remove-graph.adr.md`).
 - Model's initial context no longer carries per-type-skill descriptions — token savings on every session start and more budget for intent descriptions to be precise.
 - Cross-host parity: the intent/track/utility policy uses only "no flag" / `disable-model-invocation: true`, both of which work consistently in Claude Code. The more brittle `user-invocable: false` field (not supported in Cursor/Codex) is no longer relied upon because type skills have been removed.
 

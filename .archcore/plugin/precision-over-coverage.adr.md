@@ -37,7 +37,7 @@ Archcore default skill behavior generates **operational artifacts**, not descrip
 - "Usefulness ratio" (fraction of documents re-read or referenced after creation) is expected to rise; this is the primary success metric.
 - Authors must accept stricter skill prompts; draft mode (Phase 4) preserves a fast path for rapid capture.
 - Contract files (~3 of them in Phase 1) become first-class plugin assets in `skills/_shared/` and require maintenance as document standards evolve.
-- New documents become consistently structured; pre-existing documents remain readable but are signaled as inferior in `/archcore:status` and `/archcore:verify` reports.
+- New documents become consistently structured; pre-existing documents remain readable but are signaled as inferior in `/archcore:review` and `/archcore:verify` reports.
 
 ## Superseded when
 

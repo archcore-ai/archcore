@@ -13,7 +13,7 @@ Define how the Archcore Claude Plugin's components — intent skills, domain flo
 
 Individual component contracts are defined in dedicated specs (skills-system.spec, commands-system.spec, agent-system.spec, hooks-validation-system.spec, actualize-system.spec). This document is the overarching architecture that explains _how they work together_.
 
-Invocation policy (which layers auto-invoke vs user-only) is defined in `inverted-invocation-policy.adr.md`. The intent/track/utility portion of that ADR remains authoritative. The type-skill portion is superseded by `remove-document-type-skills.adr.md`; type skills no longer exist.
+Invocation policy (which layers auto-invoke vs user-only) is defined in `inverted-invocation-policy.adr.md`. The intent/track/utility portion of that ADR remains authoritative. The type-skill portion is superseded by `remove-document-type-skills.adr.md`; type skills no longer exist. The `status` and `graph` intents were merged into `review` and removed respectively per `merge-review-status-remove-graph.adr.md`.
 
 ## Scope
 
@@ -38,12 +38,11 @@ The plugin is a Claude Code plugin that makes Archcore effortless. It organizes 
        │                      │                      │
        ▼                      ▼                      ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  LAYER 1 — Intent API (PRIMARY, 11 skills)                      │
+│  LAYER 1 — Intent API (PRIMARY, 9 skills)                       │
 │                                                                 │
 │  /archcore:bootstrap /archcore:capture  /archcore:plan          │
 │  /archcore:decide   /archcore:standard  /archcore:review        │
-│  /archcore:status   /archcore:actualize /archcore:graph         │
-│  /archcore:help     /archcore:context                           │
+│  /archcore:actualize /archcore:help     /archcore:context       │
 │                                                                 │
 │  → Routes user intent to correct types/tracks                   │
 │  → Explicit routing tables, minimal elicitation                 │
@@ -59,7 +58,7 @@ The plugin is a Claude Code plugin that makes Archcore effortless. It organizes 
 │  → Inline per-type elicitation at each step                     │
 │  → Auto-invocable, description prefixed "Advanced —"            │
 ├─────────────────────────────────────────────────────────────────┤
-│  MCP PRIMITIVES (INFRASTRUCTURE, 8 tools)                       │
+│  MCP PRIMITIVES (INFRASTRUCTURE)                                │
 │                                                                 │
 │  create_document  update_document  remove_document              │
 │  list_documents   get_document     search_documents             │
@@ -85,9 +84,9 @@ The plugin is a Claude Code plugin that makes Archcore effortless. It organizes 
 
 | Layer | Role | Audience | Count | Invocation |
 |---|---|---|---|---|
-| 1 — Intent API | Translate user intent into document types/tracks; inline creation recipes | All users | 11 skills | Auto (model + user) |
+| 1 — Intent API | Translate user intent into document types/tracks; inline creation recipes | All users | 9 skills | Auto (model + user) |
 | 2 — Domain Flows | Orchestrate multi-document flows with relations; inline per-type elicitation | Advanced users | 6 skills | Auto (model + user) |
-| MCP Primitives | Atomic CRUD + relations; accepts any type | Skills, agents, Claude | 8 tools | Tool calls |
+| MCP Primitives | Atomic CRUD + relations; accepts any type | Skills, agents, Claude | tool calls | Tool calls |
 | Utility | Plugin integrity checks | Plugin developers | 1 skill | User-only |
 | Hooks | Enforce invariants, load context, detect staleness | Automatic | 4 entries | Event-driven |
 | Agents | Complex multi-document tasks, audits | Delegated | 2 agents | Model or user |
@@ -96,7 +95,7 @@ The plugin is a Claude Code plugin that makes Archcore effortless. It organizes 
 
 | Component | Count | Layer | Files |
 |---|---|---|---|
-| Intent skills | 11 | 1 | `skills/{bootstrap,capture,plan,decide,standard,review,status,actualize,graph,help,context}/SKILL.md` |
+| Intent skills | 9 | 1 | `skills/{bootstrap,capture,plan,decide,standard,review,actualize,help,context}/SKILL.md` |
 | Track skills | 6 | 2 | `skills/{product,sources,iso,architecture,standard,feature}-track/SKILL.md` |
 | Utility skills | 1 | cross-layer | `skills/verify/SKILL.md` |
 | Agents | 2 | cross-layer | `agents/{archcore-assistant,archcore-auditor}.md` |
@@ -104,7 +103,7 @@ The plugin is a Claude Code plugin that makes Archcore effortless. It organizes 
 | Bin scripts | 5 | cross-layer | `bin/{session-start,check-archcore-write,validate-archcore,check-staleness,check-cascade}` |
 | MCP server | 1 | MCP | Provided by archcore CLI |
 
-Total skills on disk: 18 (11 + 6 + 1). All 18 are visible in the `/` menu — no hidden or flagged-out skills.
+Total skills on disk: 16 (9 + 6 + 1). All 16 are visible in the `/` menu — no hidden or flagged-out skills.
 
 ## Contract Surface
 
@@ -231,7 +230,7 @@ PostToolUse (update_document):
 
 Skills are organized into two layers plus one utility class.
 
-#### Intent Skills (11) — Layer 1
+#### Intent Skills (9) — Layer 1
 
 - **Frontmatter**: `name`, `description`, `argument-hint`. No `disable-model-invocation` flag — auto-invocable per Inverted Invocation Policy.
 - **Auto-invocable**: model routes user phrasing to the matching intent skill.
@@ -246,10 +245,8 @@ Skills are organized into two layers plus one utility class.
 | `plan` | Plan a feature/initiative | product-track or single plan |
 | `decide` | Record a decision or draft a proposal | adr (finalized) or rfc (open); offer rule+guide after ADR |
 | `standard` | Establish a team standard | standard-track (adr → optional cpat → rule → guide) |
-| `review` | Check documentation health | analysis + recommendations |
-| `status` | Show dashboard | counts, relations, issues |
+| `review` | Documentation health (dashboard or `--deep` audit) | counts/relations/issues (default) or full coverage-gap and recommendation report |
 | `actualize` | Detect stale docs, suggest updates | code drift, cascade, temporal analysis |
-| `graph` | Render the relation graph | Mermaid flowchart, orphan list |
 | `help` | Navigate the system | layer guide, onboarding |
 | `context` | Surface rules/decisions for a code area or pickup | search_documents-backed grouped markdown |
 
@@ -286,8 +283,9 @@ See `skills-system.spec.md` → "Document-type coverage without type skills" for
 
 The previous workflow skills (create, review, status) are absorbed into Layer 1 intent skills:
 - `create` → absorbed by `/archcore:capture` (intent routing replaces type selection wizard)
-- `review` → becomes Layer 1 intent skill `/archcore:review`
-- `status` → becomes Layer 1 intent skill `/archcore:status`
+- `review` → Layer 1 intent skill `/archcore:review` (now also covers the dashboard role formerly served by `/archcore:status`)
+- `status` → merged into `/archcore:review` (default short mode)
+- `graph` → removed; orphan and relation analysis lives inside `/archcore:review --deep`
 
 ### Agent Integration
 
@@ -301,9 +299,9 @@ Agents are an escalation path, not the primary interface. Most documentation tas
 | "Record this decision" | 1 | `/archcore:decide` (intent, ADR path) |
 | "Draft an RFC" | 1 | `/archcore:decide` (intent, RFC path) |
 | "Document this module" | 1 | `/archcore:capture` (intent) |
-| "Check docs health" | 1 | `/archcore:review` (intent) |
+| "Show docs dashboard / counts" | 1 | `/archcore:review` (intent, default short mode) |
+| "Audit docs health" | 1 | `/archcore:review --deep` (intent, full audit) |
 | "Are any docs stale?" | 1 | `/archcore:actualize` (intent) |
-| "Show the relation graph" | 1 | `/archcore:graph` (intent) |
 | "What rules apply to src/X/" | 1 | `/archcore:context` (intent) |
 | Run ISO requirements cascade | 2 | `/archcore:iso-track` (track) |
 | Build full standard with pattern change | 2 | `/archcore:standard-track` (track, cpat optional) |
@@ -385,7 +383,7 @@ Example: User updates a PRD → check-cascade fires → finds plan that `impleme
 
 ## Constraints
 
-- Maximum 11 intent skills (Layer 1). New intent skills require updating this spec.
+- Maximum 9 intent skills (Layer 1). New intent skills require updating this spec.
 - Maximum 6 track skills (Layer 2). New tracks require an ADR.
 - Maximum 2 agents. New agents require an ADR.
 - Hooks must complete within their timeout (PreToolUse: 1s, PostToolUse: 3s).
@@ -421,7 +419,7 @@ Example: User updates a PRD → check-cascade fires → finds plan that `impleme
 The plugin architecture conforms to this specification if:
 
 1. All document operations flow through MCP tools.
-2. Layer 1 has exactly 11 intent skills, all auto-invocable (no `disable-model-invocation`).
+2. Layer 1 has exactly 9 intent skills, all auto-invocable (no `disable-model-invocation`).
 3. Layer 2 has exactly 6 track skills, all auto-invocable.
 4. Utility class has exactly 1 skill (`verify`) with `disable-model-invocation: true`.
 5. PreToolUse hook blocks 100% of direct `.archcore/**/*.md` writes.

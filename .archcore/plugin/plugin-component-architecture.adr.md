@@ -18,20 +18,27 @@ Each plugin capability maps to a specific Claude Code component type based on it
 
 ### Skills (model-invoked, context-aware)
 
-- **Purpose**: Teach Claude about each of the 18 document types
-- **Location**: `skills/<type-name>/SKILL.md`
-- **Behavior**: Claude activates skills automatically when the conversation context matches a document type. Skills provide type overview, required sections, best practices, common mistakes, relation guidance, and example MCP workflows.
-- **Count**: 18 skills (one per document type)
+- **Purpose**: Translate user intent and orchestrate multi-document flows; provide a small utility surface for plugin developers.
+- **Location**: `skills/<skill-name>/SKILL.md`
+- **Behavior**: Claude activates intent and track skills automatically when conversation context matches. Skills inline per-type elicitation (questions + sections + MCP calls + relation suggestions). The utility skill is user-only.
+- **Count**: 16 skills (9 intent + 6 track + 1 utility). No per-document-type skills.
 
 ### Commands (user-invoked slash commands)
 
 - **Purpose**: Accelerate common workflows with explicit user intent
-- **Location**: `commands/<name>.md`
-- **Commands**:
-  - `/archcore:create` — Interactive creation wizard
-  - `/archcore:review` — Documentation health review
-  - `/archcore:status` — Dashboard of documents, relations, tags
-  - Type shortcuts — `/archcore:adr`, `/archcore:prd`, `/archcore:rule`, etc.
+- **Note**: Claude Code merged commands into skills. The `commands/` directory is legacy; all user-invoked workflows use `skills/<name>/SKILL.md`.
+- **User-facing palette**:
+  - `/archcore:review` — Dashboard (default) or full audit (`--deep`)
+  - `/archcore:capture` — Document a module/component
+  - `/archcore:plan` — Plan a feature end-to-end
+  - `/archcore:decide` — Record a decision (ADR) or RFC
+  - `/archcore:standard` — Establish a team standard
+  - `/archcore:actualize` — Detect stale docs
+  - `/archcore:context` — Surface rules/decisions for a code area
+  - `/archcore:bootstrap` — First-time onboarding
+  - `/archcore:help` — Command guide
+  - `/archcore:<track>` — six advanced multi-document tracks
+  - `/archcore:verify` — plugin integrity (utility, user-only)
 
 ### Agent (universal subagent)
 
@@ -100,7 +107,6 @@ Bundle `.mcp.json` / `mcp.json` at the plugin root for zero-config MCP after ins
 
 ### Negative
 
-- 18 skill files to maintain (one per type)
-- Multiple command files to maintain
+- 16 skill files to maintain (9 intent + 6 track + 1 utility)
 - Must ensure consistency between skills, commands, and agent system prompt
 - Users must register MCP separately (one-time command); `bin/session-start` mitigates with actionable guidance when the server is unreachable

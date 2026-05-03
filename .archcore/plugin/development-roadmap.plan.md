@@ -23,11 +23,11 @@ Created comprehensive project documentation using Archcore's own document types 
 - [x] Development standards (rules) and how-to guides
 - [x] Component registry (reference document)
 
-### Phase 2: Skills — DONE (post-type-skill-removal)
+### Phase 2: Skills — DONE (post-type-skill-removal, post-status/graph-merge)
 
-Built skills across the current 3-group hierarchy (intent, track, utility). Historical evolution: a Layer 3 of 17 per-type skills existed between the initial build and the removal decision (`remove-document-type-skills.adr.md`). Their per-type elicitation now lives inline in intent and track skills.
+Built skills across the current 3-group hierarchy (intent, track, utility). Historical evolution: a Layer 3 of 17 per-type skills existed between the initial build and the type-skill removal decision (`remove-document-type-skills.adr.md`); the `status` and `graph` intents existed until the inspection-skill consolidation (`merge-review-status-remove-graph.adr.md`). Per-type elicitation now lives inline in intent and track skills; documentation health (counts and audit) lives in `/archcore:review`.
 
-- [x] Intent skills (11): bootstrap, capture, plan, decide, standard, review, status, actualize, graph, help, context
+- [x] Intent skills (9): bootstrap, capture, plan, decide, standard, review, actualize, help, context
 - [x] Track skills (6): product-track, sources-track, iso-track, architecture-track, standard-track, feature-track
 - [x] Utility skill (1): verify
 - [x] Each skill follows the structure defined in skills-system.spec.md (Intent: 5 sections, Track: sequential steps)
@@ -39,7 +39,7 @@ Built skills across the current 3-group hierarchy (intent, track, utility). Hist
 
 Built user-invoked command surface and subagents:
 
-- [x] 11 intent skills as primary user entry points (`/archcore:bootstrap`, `/archcore:capture`, `/archcore:plan`, `/archcore:decide`, `/archcore:standard`, `/archcore:review`, `/archcore:status`, `/archcore:actualize`, `/archcore:graph`, `/archcore:help`, `/archcore:context`)
+- [x] 9 intent skills as primary user entry points (`/archcore:bootstrap`, `/archcore:capture`, `/archcore:plan`, `/archcore:decide`, `/archcore:standard`, `/archcore:review`, `/archcore:actualize`, `/archcore:help`, `/archcore:context`)
 - [x] 6 track skills for advanced multi-document flows (`/archcore:product-track`, etc.)
 - [x] 1 utility skill (`/archcore:verify`) for plugin developers
 - [x] Every Archcore document type reachable via intent/track skill or direct MCP (`create_document(type=<any>)`)
@@ -89,15 +89,28 @@ Collapsed the per-document-type skill layer:
 - [x] Count invariants updated in README, bats structure test, skills-system spec, plugin-architecture spec, component-registry, commands-system spec, skill-file-structure rule
 - [x] Obsolete lifecycle docs removed (`adding-document-type-skill.guide.md`, `creating-skill-batch.task-type.md`, `keep-document-type-skills.adr.md`)
 - [x] Reversal recorded in `remove-document-type-skills.adr.md`
-- [x] Visible `/` palette: 18 commands (11 intent + 6 track + 1 utility)
+- [x] Visible `/` palette at end of phase: 18 commands (11 intent + 6 track + 1 utility)
+
+### Phase 8: Inspection Skill Consolidation — DONE
+
+Merged the secondary inspection intents into a single skill, removed the unused graph visualizer:
+
+- [x] `/archcore:status` (compact dashboard) absorbed into `/archcore:review` as the default short mode — counts by category/status/type, relation totals, one-line issues summary
+- [x] `/archcore:review --deep` (or any non-flag filter argument) runs the full audit — coverage gaps, staleness, orphans, prioritized recommendations
+- [x] `/archcore:graph` removed entirely — observed near-zero usage; orphan list and relation counts are already in the short dashboard
+- [x] `skills/status/` and `skills/graph/` directories deleted
+- [x] Sibling-skill anti-trigger lines updated in `skills/actualize/`, `skills/bootstrap/`, `skills/context/` (and `skills/help/` Quick Start)
+- [x] Count invariants updated: README (18 → 16, 11 intent → 9 intent), `test/structure/skills.bats` (`>= 18` → `>= 16`), and every `.archcore/plugin/` document referencing skill counts (skills-system spec, commands-system spec, plugin-architecture spec, component-registry doc, claude-plugin PRD, plugin-component-architecture ADR, inverted-invocation-policy ADR, precision-over-coverage ADR)
+- [x] Decision recorded in `merge-review-status-remove-graph.adr.md`
+- [x] Visible `/` palette: **16 commands** (9 intent + 6 track + 1 utility)
 
 ## Acceptance Criteria
 
 - All 17 Archcore document types are covered through intent/track skills or direct MCP (`create_document(type=<any>)`)
-- 11 intent skills operational as primary user surface (bootstrap, capture, context, plan, decide, standard, review, status, actualize, graph, help)
+- 9 intent skills operational as primary user surface (bootstrap, capture, context, plan, decide, standard, review, actualize, help)
 - 6 track skills for multi-document flows
 - 1 utility skill (verify)
-- Total skills on disk: 18. All visible in `/`; no hidden surface.
+- Total skills on disk: 16. All visible in `/`; no hidden surface.
 - Two agents: archcore-assistant (read/write) and archcore-auditor (read-only)
 - PreToolUse hook blocks 100% of direct Write/Edit attempts on `.archcore/*.md` files
 - PostToolUse hooks report validation issues and cascade staleness
@@ -117,6 +130,7 @@ Collapsed the per-document-type skill layer:
 - ADR: Intent-Based Skill Architecture (layer hierarchy; Layer 3 later collapsed)
 - ADR: Inverted Invocation Policy (per-class invocation flags; type-skill portion superseded)
 - ADR: Remove Document Type Skills (type-skill layer removal)
+- ADR: Merge `/archcore:status` into `/archcore:review` and Remove `/archcore:graph` (inspection-skill consolidation)
 - ADR: Actualize System (freshness detection)
 - ADR: Multi-Host Plugin Architecture (shared core + per-host adapters)
 - ADR: Bundled CLI Launcher (auto-resolve CLI; plugin-owned MCP for Claude Code)

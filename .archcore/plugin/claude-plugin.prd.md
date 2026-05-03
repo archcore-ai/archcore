@@ -18,7 +18,7 @@ The current Archcore Claude Plugin (v0.0.1) is a thin wrapper: it registers the 
 
 - **No guidance**: Claude doesn't know when or how to use each of the 18 document types. Users must manually instruct the agent about Archcore conventions.
 - **No guardrails**: Nothing prevents the agent from writing `.archcore/` files directly via Write/Edit, bypassing validation, templates, and the sync manifest.
-- **No workflows**: Common tasks (create an ADR, review documentation health, check status) require manual multi-step instructions every time.
+- **No workflows**: Common tasks (create an ADR, review documentation health) require manual multi-step instructions every time.
 - **No domain expertise**: Complex documentation tasks (requirements engineering, ISO 29148 cascades, multi-document planning) lack specialized assistance.
 - **Passive context, not applied context**: The SessionStart index tells the agent documents exist but does not force their content into the decision loop before the agent edits source code. Repo-alignment is a passive nudge, not an active guardrail.
 
@@ -38,8 +38,8 @@ Anyone using Claude Code with Archcore — individual developers, team leads, ar
 
 ### Success Metrics
 
-- All 18 document types have dedicated skills with guidance, best practices, and example workflows
-- Slash commands cover the most common workflows (create, review, status, type shortcuts)
+- All 18 document types reachable through intent skills, track skills, or direct MCP — no per-type skill required
+- Slash commands cover the most common workflows (review with dashboard or `--deep` audit, capture, plan, decide, standard, actualize, context, bootstrap)
 - PreToolUse hook intercepts 100% of direct Write/Edit attempts on `.archcore/` files
 - Users never need to manually explain Archcore conventions to Claude
 - Every source-file edit outside `.archcore/` triggers automatic top-3 context injection when any document references that path
@@ -48,19 +48,25 @@ Anyone using Claude Code with Archcore — individual developers, team leads, ar
 
 ### Functional Requirements
 
-#### FR-1: Skills (18 document type skills)
+#### FR-1: Skills (intent + track + utility)
 
-Each of the 18 Archcore document types gets a dedicated SKILL.md in `skills/<type-name>/SKILL.md`. Skills are model-invoked — Claude activates them automatically when the conversation context matches. Each skill covers: type overview, when to use, required sections, best practices, common mistakes, relation guidance, and an example MCP workflow.
+The plugin ships 16 skills total: 9 intent skills (Layer 1, primary user surface), 6 track skills (Layer 2, multi-document flows), and 1 utility skill (`verify`, plugin-developer maintenance). There are no per-document-type skills — per-type elicitation lives inline inside intent and track skills. Skills are auto-invoked by the model based on user phrasing; the utility skill is user-only. Each intent/track skill covers: when to use, routing/flow, MCP tool calls, and relation guidance.
 
 #### FR-2: Slash Commands
 
 User-invoked commands for common workflows:
 
-- `/archcore:create` — Interactive document creation wizard (prompts for type, collects context, creates via MCP)
-- `/archcore:review` — Review existing documentation for gaps, staleness, missing relations, orphaned documents
-- `/archcore:status` — Dashboard showing document count by category/type/status, relation coverage, tag distribution
-- `/archcore:context` — On-demand pull of applicable rules/ADRs/specs/cpats for a code area, topic, or current-focus pickup
-- Type shortcuts — `/archcore:adr`, `/archcore:prd`, `/archcore:rule`, etc. for quick single-type creation
+- `/archcore:review` — Default short dashboard (counts, status breakdown, relations, orphans). With `--deep` or any filter argument, runs a full health audit with coverage gaps, staleness, and prioritized recommendations.
+- `/archcore:capture` — Document a module, component, or system (routes to adr/spec/doc/guide).
+- `/archcore:plan` — Plan a feature end-to-end (idea → PRD → plan or single plan).
+- `/archcore:decide` — Record a decision (ADR) or draft a proposal (RFC).
+- `/archcore:standard` — Establish a team standard (ADR → optional CPAT → rule → guide).
+- `/archcore:actualize` — Detect stale documentation via code drift, cascade, and temporal analysis.
+- `/archcore:context` — On-demand pull of applicable rules/ADRs/specs/cpats for a code area, topic, or current-focus pickup.
+- `/archcore:bootstrap` — First-time onboarding (stack rule + run guide + optional imports).
+- `/archcore:help` — Guide to commands and capabilities.
+
+For any document type not directly covered by an intent (including niche ISO and discovery types), use the matching track skill (`/archcore:iso-track`, `/archcore:sources-track`, `/archcore:architecture-track`, `/archcore:standard-track`, `/archcore:product-track`, `/archcore:feature-track`) or call `mcp__archcore__create_document(type=<any>)` directly.
 
 #### FR-3: Universal Agent (archcore-assistant)
 
@@ -109,8 +115,7 @@ Each step is skippable, re-runs are idempotent (detected via `imported` + `sourc
 - **SessionStart empty-state nudge** — on missing or functionally-empty `.archcore/`, emits a one-line pointer at `/archcore:bootstrap`; suppressible via `ARCHCORE_HIDE_EMPTY_NUDGE=1`.
 - **PreToolUse guardrails** — `check-archcore-write` blocks direct `.archcore/*.md` writes; `check-code-alignment` injects applicable rules/ADRs/specs/cpats for source-file edits (JTBD #1 push mode).
 - **PostToolUse validation** — `validate-archcore` + `check-cascade` run on every MCP mutation (JTBD #1/#3 back-pressure).
-- **Intent skills** — 11 Layer 1 skills (**bootstrap**, capture, context, plan, decide, standard, review, actualize, status, graph, help) route natural-language intent into the right document type or workflow.
-- **Type skills** — SKILL.md for every mainstream document type; niche ISO-cascade types hidden behind track orchestration.
+- **Intent skills** — 9 Layer 1 skills (**bootstrap**, capture, context, plan, decide, standard, review, actualize, help) route natural-language intent into the right document type or workflow. The `review` intent covers both the dashboard role (former `status`) and the full audit; the standalone `graph` intent has been removed.
 - **Tracks** — 6 multi-step workflows (product, sources, iso, architecture, standard, feature) for JTBD #4.
 - **Universal agent** — `archcore-assistant` for complex multi-document tasks; `archcore-auditor` as a read-only reviewer.
 

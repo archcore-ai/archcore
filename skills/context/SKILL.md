@@ -1,7 +1,7 @@
 ---
 name: context
 argument-hint: "[file, directory, or topic; leave empty for current-focus pickup]"
-description: "Load the rules, ADRs, specs, and patterns that apply to a code area before changing it — or summarize current project focus when picking up work. Activate when user says 'what rules apply to X', 'what should I know before touching Y', 'before I refactor Z', 'pick up where we left off', 'where is the payments work right now', 'what was I working on in X', 'load project context', 'show me the decisions/rules/specs for X'. Do NOT activate for creating documentation (use /archcore:capture, /archcore:decide, /archcore:standard), for feature planning (use /archcore:plan), for detecting stale docs (use /archcore:actualize), for health audits (use /archcore:review), for visualizing the graph (use /archcore:graph), for general current-state reports or counts (use /archcore:status)."
+description: "Load the rules, ADRs, specs, and patterns that apply to a code area before changing it — or summarize current project focus when picking up work. Activate when user says 'what rules apply to X', 'what should I know before touching Y', 'before I refactor Z', 'pick up where we left off', 'where is the payments work right now', 'what was I working on in X', 'load project context', 'show me the decisions/rules/specs for X'. Do NOT activate for creating documentation (use /archcore:capture, /archcore:decide, /archcore:standard), for feature planning (use /archcore:plan), for detecting stale docs (use /archcore:actualize), for health audits or current-state counts (use /archcore:review)."
 ---
 
 # /archcore:context
@@ -24,9 +24,7 @@ _Not related to the AI context window or session state — this is about the `.a
 - Creating documentation → `/archcore:capture`, `/archcore:decide`, `/archcore:standard`
 - Planning a feature → `/archcore:plan`
 - Detecting stale docs → `/archcore:actualize`
-- Health audit with recommendations → `/archcore:review`
-- Visualizing the graph → `/archcore:graph`
-- Counts and status breakdown → `/archcore:status`
+- Health audit, counts, or status breakdown → `/archcore:review` (`--deep` for the full audit)
 
 ## Routing table
 

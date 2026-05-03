@@ -8,7 +8,7 @@ tags:
 
 ## Purpose
 
-Define the contract for user-invoked skills: their tier classification, discoverability, naming, argument handling, and behavior when users invoke them via slash commands. Reflects the Inverted Invocation Policy (`inverted-invocation-policy.adr.md`) for the intent/track/utility classes; the type-skill portion of that policy is superseded by `remove-document-type-skills.adr.md` — there are no per-type skills.
+Define the contract for user-invoked skills: their tier classification, discoverability, naming, argument handling, and behavior when users invoke them via slash commands. Reflects the Inverted Invocation Policy (`inverted-invocation-policy.adr.md`) for the intent/track/utility classes; the type-skill portion of that policy is superseded by `remove-document-type-skills.adr.md` — there are no per-type skills. The `status` and `graph` intents were merged into `review` and removed respectively per `merge-review-status-remove-graph.adr.md`.
 
 Note: Claude Code has merged commands into skills. The `commands/` directory is legacy. All user-invoked workflows use `skills/<name>/SKILL.md`.
 
@@ -28,7 +28,7 @@ User-invocable skills are organized into two tiers plus one utility class. All v
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  TIER 1 — PRIMARY (11 skills, auto-invocable)        │
+│  TIER 1 — PRIMARY (9 skills, auto-invocable)         │
 │  What most users see and use daily                   │
 │                                                      │
 │  /archcore:bootstrap  "initialize archcore"          │
@@ -36,10 +36,8 @@ User-invocable skills are organized into two tiers plus one utility class. All v
 │  /archcore:plan       "plan this feature"            │
 │  /archcore:decide     "record this decision"         │
 │  /archcore:standard   "make this a standard"         │
-│  /archcore:review     "check docs health"            │
-│  /archcore:status     "show dashboard"               │
+│  /archcore:review     "show dashboard / audit docs"  │
 │  /archcore:actualize  "are any docs stale?"          │
-│  /archcore:graph      "show the relation graph"      │
 │  /archcore:help       "what can I do?"               │
 │  /archcore:context    "what rules apply here?"       │
 ├──────────────────────────────────────────────────────┤
@@ -59,7 +57,7 @@ User-invocable skills are organized into two tiers plus one utility class. All v
 └──────────────────────────────────────────────────────┘
 ```
 
-Total visible in `/` menu: **18 commands**. Total skills on disk: 18. No hidden surface.
+Total visible in `/` menu: **16 commands**. Total skills on disk: 16. No hidden surface.
 
 ### Tier 1 — Primary Commands
 
@@ -72,10 +70,8 @@ Primary commands are intent-based. The user describes what they want to do, and 
 | `/archcore:plan`      | Plan a feature or initiative end-to-end                               | `[topic]`                 | Routes to product-track or single plan                  |
 | `/archcore:decide`    | Record a decision (ADR) or draft a proposal (RFC)                     | `[topic]`                 | Creates adr or rfc; offers rule+guide after ADR         |
 | `/archcore:standard`  | Establish a team standard                                             | `[topic]`                 | Routes to standard-track (adr → optional cpat → rule → guide) |
-| `/archcore:review`    | Audit documentation for gaps, staleness, and issues                   | `[category or tag]`       | Produces actionable findings                            |
-| `/archcore:status`    | Show documentation dashboard                                          | —                         | Compact counts and coverage                             |
+| `/archcore:review`    | Documentation health (dashboard or `--deep` audit)                    | `[--deep] [category or tag]` | Default: compact dashboard. With `--deep` or filter: gaps, staleness, recommendations |
 | `/archcore:actualize` | Detect stale documentation and suggest updates                        | `[scope: tag, cat, 'all']`| Code drift + cascade + temporal analysis                |
-| `/archcore:graph`     | Render the document relation graph as a Mermaid flowchart             | `[filter]`                | Grouped subgraphs, styled edges, orphan list            |
 | `/archcore:help`      | Guide to Archcore commands and capabilities                           | —                         | Layer navigation, onboarding                            |
 | `/archcore:context`   | Surface rules/decisions for a code area or pickup                     | `[path or topic]`         | search_documents-backed grouped markdown                |
 
@@ -115,20 +111,20 @@ See `skills-system.spec.md` → "Document-type coverage without type skills" for
 ### Naming Conventions
 
 - All commands use the `archcore:` plugin prefix
-- Tier 1 commands use **action verbs or clear nouns**: bootstrap, capture, plan, decide, standard, review, status, actualize, graph, help, context
+- Tier 1 commands use **action verbs or clear nouns**: bootstrap, capture, plan, decide, standard, review, actualize, help, context
 - Tier 2 commands use **`<domain>-track`** pattern: product-track, iso-track, etc.
 - No sub-namespaces (no `archcore:track:iso` or similar) — Claude Code uses a single colon as plugin separator
 
 ### Argument Handling
 
-All visible commands accept an optional `[topic]` argument (graph accepts `[filter]` — a tag, type, category, or document slug for scoping the subgraph):
+All visible commands accept an optional `[topic]` argument:
 
 - **With argument**: `/archcore:plan auth-redesign` — the topic is passed as `$ARGUMENTS`, skill uses it to scope the work and check for duplicates
 - **Without argument**: `/archcore:plan` — skill asks an initial question to establish topic/scope
 
 Intent skills (Tier 1) treat the argument as a **description of intent** or **scope filter**, not a document slug. Track skills (Tier 2) treat it as a **topic identifier**.
 
-The `/archcore:actualize` command treats the argument as a **scope filter** — a tag, category, or type name to narrow the analysis. The `/archcore:graph` command does the same. The `/archcore:context` command treats it as a **path or topic** for its grouped-markdown search.
+The `/archcore:actualize` command treats the argument as a **scope filter** — a tag, category, or type name to narrow the analysis. The `/archcore:review` command accepts an optional `--deep` flag plus an optional filter (tag, category, or type) for the deep mode. The `/archcore:context` command treats it as a **path or topic** for its grouped-markdown search.
 
 The `/archcore:bootstrap` command takes no argument; its flow is deterministic (three sequential steps).
 
@@ -139,7 +135,7 @@ Claude Code shows all user-invocable skills in a flat list. The tiered hierarchy
 1. **Description prefixes** — "Advanced —" for Tier 2. Tier 1 and Utility use clean descriptions.
 2. **`/archcore:help`** — dedicated skill that explains the tier structure and guides users to the right command.
 3. **SessionStart empty-state nudge** — on fresh repos, the session-start hook points users at `/archcore:bootstrap` so onboarding is self-routing.
-4. **Natural conversation** — when a user describes an intent ("record the decision to use X", "show the graph", "set up archcore", "draft an RFC"), Claude auto-invokes the matching Tier 1 skill thanks to the Inverted Invocation Policy. The user does not need to know which command exists.
+4. **Natural conversation** — when a user describes an intent ("record the decision to use X", "show docs status", "set up archcore", "draft an RFC"), Claude auto-invokes the matching Tier 1 skill thanks to the Inverted Invocation Policy. The user does not need to know which command exists.
 
 The `/archcore:help` output structure:
 
@@ -150,10 +146,8 @@ The `/archcore:help` output structure:
 /archcore:plan       — plan a feature end-to-end
 /archcore:decide     — record a decision (ADR) or draft a proposal (RFC)
 /archcore:standard   — establish a team standard
-/archcore:review     — check documentation health
-/archcore:status     — show dashboard
+/archcore:review     — dashboard (default) or full audit (`--deep`)
 /archcore:actualize  — detect stale docs, suggest updates
-/archcore:graph      — render the relation graph
 /archcore:context    — rules/decisions for a code area or pickup
 /archcore:help       — this guide
 
@@ -193,9 +187,10 @@ The `skills/plan/` directory contains the intent skill. Users who need a single 
 - Tier 2 track skills MUST inline per-type elicitation for each step (they are the authoritative home for per-type creation recipes within the plugin).
 - All creation commands MUST call `list_documents` before `create_document` to prevent duplicates.
 - All creation commands MUST suggest `add_relation` calls after document creation.
-- Analysis commands (review, status, actualize, graph, context) MUST use MCP read tools for data gathering.
+- Analysis commands (review, actualize, context) MUST use MCP read tools for data gathering.
 - The help command MUST present Tier 1 commands first, Tier 2 as a secondary section, Utility as a tertiary section, and direct-MCP access for any document type as a final note.
 - The `/archcore:bootstrap` command MUST be idempotent: each step detects existing artifacts and asks before regenerating; re-runs on a partially-bootstrapped repo only offer the missing steps.
+- The `/archcore:review` command MUST default to the short dashboard mode when invoked without arguments and MUST switch to the full audit mode when `--deep` or any non-flag filter is present.
 
 ## Constraints
 
