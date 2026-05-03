@@ -17,13 +17,20 @@ No prerequisites. The plugin bundles a launcher that downloads the Archcore CLI 
 /plugin install archcore@archcore-plugins
 ```
 
-**Cursor** — requires Cursor 2.5+. Archcore is not yet on the official [Cursor Marketplace](https://cursor.com/marketplace), so install directly from GitHub — open a new Agent chat and run:
+or from terminal:
 
-```sh
-/add-plugin archcore@https://github.com/archcore-ai/plugin
+```bash
+claude plugin marketplace add archcore-ai/pluginCopy command
+claude plugin install archcore@archcore-plugins
 ```
 
-`/add-plugin` doesn't appear in autocomplete — type the full command.
+**Cursor** — requires Cursor 2.5+. Archcore is not yet on the official [Cursor Marketplace](https://cursor.com/marketplace), so install from GitHub via the Plugins panel:
+
+1. Open Cursor → **Plugins**
+2. Paste `https://github.com/archcore-ai/plugin` into the **Search or paste link** field
+3. Click **Add Plugin**
+
+Cursor reads the repo's `marketplace.json`, shows the plugin, and installs it.
 
 <details>
 <summary>Local development, offline, enterprise, team rollouts</summary>
@@ -203,18 +210,18 @@ The plugin enforces the **MCP-only principle**: all `.archcore/` operations must
 
 No — these solve different problems. Quick map:
 
-| Tool                     | Category    | What it is                                                                   | How Archcore differs                                                                                                                         |
-| ------------------------ | ----------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **BMAD**                 | Methodology | Agentic SDLC methodology — 12+ roles, 34+ workflows, installer               | Archcore stores _artifacts_; BMAD prescribes _process_. Durable knowledge in BMAD lives in generated skills, not relation-aware repo memory  |
-| **Superpowers**          | Methodology | Skills framework + dev methodology (TDD, plan writing, subagent-driven dev)  | Shapes _agent behavior_ during coding; Archcore provides _canonical project knowledge_ any agent can read                                    |
-| **Spec Kit**             | Methodology | Spec-driven workflow: `specify → plan → tasks → implement`, one-shot         | Spec Kit is a one-shot handoff; Archcore maintains a living graph that evolves with the codebase                                             |
-| **Agent OS**             | Methodology | Codebase standards extraction + spec-driven development, alongside IDE tools | Closest positioning. Archcore adds typed documents, validated relations, and an optional ISO 29148 cascade for regulated teams               |
-| **claude-mem**           | Memory      | Auto-captures session memory (SQLite + Chroma, MCP search, web viewer)       | claude-mem remembers _what you did_; Archcore stores _how the system is built and what was decided_                                          |
-| **agentmemory**          | Memory      | Cross-agent memory server (hooks, BM25 + vector + graph, 4-tier consolidation) | Infrastructure for recall over observations; Archcore is repo-native canonical knowledge                                                     |
-| **OpenMemory / Mem0**    | Memory      | Memory infrastructure — SDK, MCP, self-hosted or managed                     | General-purpose agent memory; Archcore is project truth for coding agents                                                                    |
-| **claude-brain**         | Memory      | One-file local memory (`.claude/mind.mv2`), searchable, portable             | Solo session continuity; Archcore is a team-grade, relation-aware layer                                                                      |
-| **Cline Memory Bank**    | Docs        | Fixed-schema markdown files (`projectbrief`, `activeContext`, `systemPatterns`…) | Same spirit, lower ceremony. Archcore adds typed relations, MCP validation, and multi-step cascades                                          |
-| **codeplow / obsidian-kb** | Docs      | Per-project Obsidian vault with explicit handoff and file:line doc-audit     | Knowledge vault + auditing; Archcore is a typed context _compiler_ — less "notes", more "artifacts"                                          |
+| Tool                       | Category    | What it is                                                                       | How Archcore differs                                                                                                                        |
+| -------------------------- | ----------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BMAD**                   | Methodology | Agentic SDLC methodology — 12+ roles, 34+ workflows, installer                   | Archcore stores _artifacts_; BMAD prescribes _process_. Durable knowledge in BMAD lives in generated skills, not relation-aware repo memory |
+| **Superpowers**            | Methodology | Skills framework + dev methodology (TDD, plan writing, subagent-driven dev)      | Shapes _agent behavior_ during coding; Archcore provides _canonical project knowledge_ any agent can read                                   |
+| **Spec Kit**               | Methodology | Spec-driven workflow: `specify → plan → tasks → implement`, one-shot             | Spec Kit is a one-shot handoff; Archcore maintains a living graph that evolves with the codebase                                            |
+| **Agent OS**               | Methodology | Codebase standards extraction + spec-driven development, alongside IDE tools     | Closest positioning. Archcore adds typed documents, validated relations, and an optional ISO 29148 cascade for regulated teams              |
+| **claude-mem**             | Memory      | Auto-captures session memory (SQLite + Chroma, MCP search, web viewer)           | claude-mem remembers _what you did_; Archcore stores _how the system is built and what was decided_                                         |
+| **agentmemory**            | Memory      | Cross-agent memory server (hooks, BM25 + vector + graph, 4-tier consolidation)   | Infrastructure for recall over observations; Archcore is repo-native canonical knowledge                                                    |
+| **OpenMemory / Mem0**      | Memory      | Memory infrastructure — SDK, MCP, self-hosted or managed                         | General-purpose agent memory; Archcore is project truth for coding agents                                                                   |
+| **claude-brain**           | Memory      | One-file local memory (`.claude/mind.mv2`), searchable, portable                 | Solo session continuity; Archcore is a team-grade, relation-aware layer                                                                     |
+| **Cline Memory Bank**      | Docs        | Fixed-schema markdown files (`projectbrief`, `activeContext`, `systemPatterns`…) | Same spirit, lower ceremony. Archcore adds typed relations, MCP validation, and multi-step cascades                                         |
+| **codeplow / obsidian-kb** | Docs        | Per-project Obsidian vault with explicit handoff and file:line doc-audit         | Knowledge vault + auditing; Archcore is a typed context _compiler_ — less "notes", more "artifacts"                                         |
 
 **Choose by what you need.** Pick a methodology tool (BMAD, Superpowers, Spec Kit, Agent OS) for an opinionated dev flow. Pick a memory tool (claude-mem, Mem0, agentmemory, claude-brain) for session continuity in general-purpose agents. Pick Archcore when you want typed, queryable _project truth_ — the decisions, rules, and architecture of _this_ repo — that your coding agent respects on every request.
 
