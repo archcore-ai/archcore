@@ -42,8 +42,8 @@ At the time of this decision, the plugin did not ship an MCP server configuratio
 Architecture (as originally decided, with an addendum below for the current MCP wiring):
 
 ```
-archcore-plugin/
-├── skills/                      # Shared — Agent Skills standard (33 skills)
+plugin/
+├── skills/                      # Shared — Agent Skills standard (16 skills)
 ├── agents/                      # Shared — markdown agent definitions (2 agents)
 ├── bin/                         # Shared — hook scripts with stdin normalization
 │   ├── lib/normalize-stdin.sh   # Detects host format, outputs normalized JSON
@@ -142,7 +142,7 @@ Ship `.mcp.json` (Claude Code) and `mcp.json` (Cursor) at the plugin root so MCP
 
 ### Positive
 
-- **Zero skill/agent duplication**: 33 skills and 2 agents maintained in one place
+- **Zero skill/agent duplication**: skills and agents maintained in one place
 - **Low per-host cost**: Adding a new host requires only a manifest (~10 lines) and hooks config (~30 lines)
 - **Standard compliance**: Uses Agent Skills, MCP, and markdown agents — all open standards
 - **Single source of truth**: Bug fixes in skills/agents/bin/launcher propagate to all hosts automatically
@@ -153,4 +153,4 @@ Ship `.mcp.json` (Claude Code) and `mcp.json` (Cursor) at the plugin root so MCP
 - **Testing matrix**: Must verify plugin works in each supported host. Mitigation: start with 2 hosts (Claude Code + Cursor), expand incrementally.
 - **Hook event mapping is imperfect**: Not all hosts have equivalent hook events (e.g., Cursor has no direct `SessionStart` equivalent). Mitigation: use closest available event per host; document gaps per host.
 - **MCP wiring is host-specific**: Claude Code uses plugin-shipped `.mcp.json`, Cursor users still register externally. Cross-host MCP parity awaits Cursor-side plugin MCP support with path substitution. Mitigation: the launcher is host-agnostic — only the "who points at the launcher" differs per host.
-- **Repository naming**: ~~`archcore-claude-plugin` implies Claude Code only.~~ Resolved: renamed to `archcore-plugin`.
+- **Repository naming**: ~~`archcore-claude-plugin` implies Claude Code only.~~ ~~Renamed to `archcore-plugin`.~~ Resolved: now `archcore-ai/plugin` — the org name carries the brand and the repo name is host-agnostic.

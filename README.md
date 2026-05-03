@@ -13,14 +13,14 @@ No prerequisites. The plugin bundles a launcher that downloads the Archcore CLI 
 **Claude Code** — inside `claude`:
 
 ```bash
-/plugin marketplace add archcore-ai/archcore-plugin
+/plugin marketplace add archcore-ai/plugin
 /plugin install archcore@archcore-plugins
 ```
 
 **Cursor** — requires Cursor 2.5+. Archcore is not yet on the official [Cursor Marketplace](https://cursor.com/marketplace), so install directly from GitHub — open a new Agent chat and run:
 
 ```sh
-/add-plugin archcore@https://github.com/archcore-ai/archcore-plugin
+/add-plugin archcore@https://github.com/archcore-ai/plugin
 ```
 
 `/add-plugin` doesn't appear in autocomplete — type the full command.
@@ -31,13 +31,13 @@ No prerequisites. The plugin bundles a launcher that downloads the Archcore CLI 
 **Claude Code** — load the plugin for the current session:
 
 ```bash
-claude --plugin-dir /path/to/archcore-claude-plugin
+claude --plugin-dir /path/to/plugin
 ```
 
 **Cursor** — no `--plugin-dir` flag. Symlink the repo into Cursor's local plugins directory and reload the window:
 
 ```bash
-ln -s /path/to/archcore-claude-plugin ~/.cursor/plugins/local/archcore
+ln -s /path/to/plugin ~/.cursor/plugins/local/archcore
 # then in Cursor: Cmd/Ctrl+Shift+P → "Developer: Reload Window"
 ```
 
@@ -247,4 +247,4 @@ Cursor: remove from plugin settings.
 
 ## Contributing
 
-Issues and ideas: [GitHub Issues](https://github.com/archcore-ai/archcore-plugin/issues)
+Issues and ideas: [GitHub Issues](https://github.com/archcore-ai/plugin/issues)

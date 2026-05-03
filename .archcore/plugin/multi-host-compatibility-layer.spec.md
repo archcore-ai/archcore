@@ -32,7 +32,7 @@ The plugin splits into a **shared core** (skills, agents, bin scripts, CLI launc
 ┌─────────────────────────────────────────────────────────┐
 │                    Shared Core                           │
 │                                                         │
-│  skills/ (34)  agents/ (2)                              │
+│  skills/ (16)  agents/ (2)                              │
 │  bin/ — 6 hook scripts + 3 launcher scripts + pin file  │
 │                                                         │
 │  100% host-agnostic — uses only MCP tools + Read/Grep   │
@@ -272,7 +272,7 @@ Key differences:
   "version": "0.1.0",
   "author": { "name": "Archcore" },
   "license": "Apache-2.0",
-  "repository": "https://github.com/archcore-ai/archcore-plugin"
+  "repository": "https://github.com/archcore-ai/plugin"
 }
 ```
 
@@ -287,7 +287,7 @@ Claude Code discovers skills, agents, and hooks by convention (fixed directory n
   "version": "0.1.0",
   "author": { "name": "Archcore" },
   "license": "Apache-2.0",
-  "repository": "https://github.com/archcore-ai/archcore-plugin",
+  "repository": "https://github.com/archcore-ai/plugin",
   "keywords": ["documentation", "architecture", "knowledge-base", "mcp"],
   "skills": "skills/",
   "agents": "agents/",

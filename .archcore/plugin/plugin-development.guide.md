@@ -27,8 +27,8 @@ Initialize a project for testing with `mcp__archcore__init_project` (via a Claud
 ### 1. Clone the plugin repository
 
 ```bash
-git clone https://github.com/archcore-ai/archcore-plugin.git
-cd archcore-plugin
+git clone https://github.com/archcore-ai/plugin.git
+cd plugin
 git submodule update --init   # pulls bats-support and bats-assert
 ```
 
@@ -182,7 +182,7 @@ Cursor does not auto-register the plugin's MCP. Configure it in Cursor's MCP set
 {
   "mcpServers": {
     "archcore": {
-      "command": "/abs/path/to/archcore-plugin/bin/archcore",
+      "command": "/abs/path/to/plugin/bin/archcore",
       "args": ["mcp"]
     }
   }

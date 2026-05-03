@@ -125,7 +125,7 @@ Create all Cursor-specific adapter files.
 - Create a document via `/archcore:adr` — skill activates, MCP tool works
 - Try direct Write to `.archcore/` — hook blocks it
 - Update a document — validation and cascade hooks fire
-- Run `/archcore:status` — lists documents correctly
+- Run `/archcore:review` — lists documents correctly
 - Run `/archcore:actualize` — staleness detection works
 - Invoke archcore-assistant agent — complex task works
 
@@ -146,7 +146,8 @@ Create all Cursor-specific adapter files.
 #### 4.2 ~~Consider repository rename~~ Done
 
 - ~~Current: `archcore-claude-plugin`~~
-- Renamed to: `archcore-plugin`
+- ~~Renamed to: `archcore-plugin`~~
+- Final name: `archcore-ai/plugin` — the org carries the brand, the repo name is host-agnostic.
 
 ### Phase 5: Bundled CLI Launcher and Plugin-Owned MCP (Claude Code)
 
@@ -215,7 +216,7 @@ Eliminate the out-of-band CLI install and MCP registration steps for Claude Code
 #### 5.7 Remove "Step 0: Verify MCP" from all skills
 
 - Under the old install model, every SKILL.md started with a "Verify MCP" block instructing the user to install the CLI if MCP tools were missing. With the launcher, MCP is always present on first tool call. The block is dead weight and confuses onboarding.
-- Sweep all SKILL.md files (33 today, was 32 at the time of this sweep — `graph` was added later) to drop the block.
+- Sweep all SKILL.md files to drop the block.
 
 **Files:** all `skills/*/SKILL.md` (modify)
 
@@ -251,7 +252,7 @@ Eliminate the out-of-band CLI install and MCP registration steps for Claude Code
 - [x] Launcher downloads are SHA-256 verified against `checksums.txt`
 - [x] `.mcp.json` at plugin root registers `archcore` against `${CLAUDE_PLUGIN_ROOT}/bin/archcore mcp`
 - [x] `bin/session-start` passes `ARCHCORE_SKIP_DOWNLOAD=1` to the launcher
-- [x] All SKILL.md files have the "Step 0: Verify MCP" block removed (33 files today)
+- [x] All SKILL.md files have the "Step 0: Verify MCP" block removed
 - [x] `test/unit/launcher.bats` covers launcher resolution and failure modes
 - [x] Users with a global `archcore` on `PATH` experience no behavior change (launcher defers to `PATH`)
 
