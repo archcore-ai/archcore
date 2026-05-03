@@ -1,19 +1,24 @@
 {
   "name": "archcore",
+  "displayName": "Archcore",
   "description": "Make your AI agent code with your project's architecture, rules, and decisions.",
   "version": "0.3.7",
   "author": {
     "name": "Archcore"
   },
   "license": "Apache-2.0",
+  "homepage": "https://github.com/archcore-ai/plugin",
   "repository": "https://github.com/archcore-ai/plugin",
+  "category": "knowledge-management",
   "keywords": [
-    "claude-code",
     "cursor",
-    "claude-code-plugin",
+    "cursor-plugin",
+    "cursorrules",
+    "agents-md",
     "mcp",
     "ai-agents",
     "ai-coding",
+    "context",
     "context-engineering",
     "architecture",
     "adr",
@@ -25,7 +30,23 @@
     "skills",
     "subagents",
     "spec-driven",
-    "documentation"
+    "documentation",
+    "memory",
+    "specs"
+  ],
+  "tags": [
+    "context",
+    "documentation",
+    "architecture",
+    "decisions",
+    "knowledge-management",
+    "rules",
+    "adr",
+    "spec",
+    "memory",
+    "mcp",
+    "cursorrules",
+    "agents-md"
   ],
   "skills": "skills/",
   "agents": "agents/",
