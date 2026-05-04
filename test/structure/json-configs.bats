@@ -86,3 +86,14 @@ setup() {
   [ "$cc_ver" = "$cursor_ver" ]
 }
 
+@test "marketplace.json plugin metadata matches across Claude and Cursor" {
+  local cc="$PLUGIN_ROOT/.claude-plugin/marketplace.json"
+  local cursor="$PLUGIN_ROOT/.cursor-plugin/marketplace.json"
+  for field in name version description; do
+    local cc_val cursor_val
+    cc_val=$(jq -r ".plugins[0].$field" "$cc")
+    cursor_val=$(jq -r ".plugins[0].$field" "$cursor")
+    [ "$cc_val" = "$cursor_val" ] || fail "marketplace.json $field drift: claude='$cc_val' cursor='$cursor_val'"
+  done
+}
+

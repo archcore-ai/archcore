@@ -36,9 +36,11 @@ Cursor reads the repo's `marketplace.json`, shows the plugin, and installs it.
 
 ```bash
 codex plugin marketplace add archcore-ai/plugin
+codex
+# then run /plugins, open Archcore, and select Install plugin
 ```
 
-The Codex marketplace entry marks Archcore for default install and ships Codex-native component pointers for skills, plugin-owned MCP, and hook config. MCP is plugin-managed (no manual `codex mcp add`). Codex hooks currently depend on Codex's `codex_hooks` feature/runtime support; enable `[features] codex_hooks = true` if you want Codex to execute the bundled hook guardrails. The launcher caches under `$CODEX_PLUGIN_DATA/archcore/cli/` when Codex provides that data directory, with XDG/local fallbacks for local development.
+The Codex plugin browser groups plugins by marketplace. After install, start a new Codex thread and ask Codex to use Archcore, or type `@` and choose one of the bundled Archcore skills. MCP is plugin-managed (no manual `codex mcp add`). Codex hooks currently depend on Codex's `codex_hooks` feature/runtime support; enable `[features] codex_hooks = true` if you want Codex to execute the bundled hook guardrails. The launcher caches under `$CODEX_PLUGIN_DATA/archcore/cli/` when Codex provides that data directory, with XDG/local fallbacks for local development.
 
 <details>
 <summary>Local development, offline, enterprise, team rollouts</summary>

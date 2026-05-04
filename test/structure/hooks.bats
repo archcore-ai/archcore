@@ -86,6 +86,21 @@ setup() {
 
 # --- Phase 2.1 anti-regression invariants ---
 
+@test "hooks.json: PreToolUse matcher includes Write and Edit" {
+  local matcher
+  matcher=$(jq -r '.hooks.PreToolUse[0].matcher' "$PLUGIN_ROOT/hooks/hooks.json")
+  [[ "$matcher" == *"Write"* ]] || fail "Claude matcher missing Write: $matcher"
+  [[ "$matcher" == *"Edit"* ]] || fail "Claude matcher missing Edit: $matcher"
+}
+
+@test "cursor.hooks.json: preToolUse matcher is exactly 'Write' (Cursor has no Edit tool)" {
+  # Invariant from .archcore/plugin/multi-host-compatibility-layer.spec.md:
+  # Cursor's API exposes only a Write tool; Edit/apply_patch don't exist there.
+  local matcher
+  matcher=$(jq -r '.hooks.preToolUse[0].matcher' "$PLUGIN_ROOT/hooks/cursor.hooks.json")
+  [ "$matcher" = "Write" ] || fail "Cursor preToolUse matcher drifted from 'Write': $matcher"
+}
+
 @test "hooks.json: PostToolUse has no Write|Edit matcher (dead hook removed)" {
   local matchers
   matchers=$(jq -r '.hooks.PostToolUse[].matcher' "$PLUGIN_ROOT/hooks/hooks.json")

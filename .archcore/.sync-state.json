@@ -3151,6 +3151,26 @@
       "source": "plugin/codex-host-support.idea.md",
       "target": "plugin/add-read-only-auditor-agent.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/codex-local-plugin-testing.guide.md",
+      "target": "plugin/plugin-testing.guide.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/codex-local-plugin-testing.guide.md",
+      "target": "plugin/multi-host-compatibility-layer.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-local-plugin-testing.guide.md",
+      "target": "plugin/codex-host-support.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-local-plugin-testing.guide.md",
+      "target": "plugin/bundled-cli-launcher.adr.md",
+      "type": "related"
     }
   ]
 }

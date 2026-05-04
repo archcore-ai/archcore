@@ -85,6 +85,13 @@ $output"
   grep -q 'CLAUDE_PLUGIN_ROOT' "$PLUGIN_ROOT/.mcp.json"
 }
 
+@test ".mcp.json command and args are correct" {
+  local file="$PLUGIN_ROOT/.mcp.json"
+  [ "$(jq -r '.mcpServers.archcore.command' < "$file")" = "\${CLAUDE_PLUGIN_ROOT}/bin/archcore" ]
+  [ "$(jq -r '.mcpServers.archcore.args[0]' < "$file")" = "mcp" ]
+  [ "$(jq -r '.mcpServers.archcore.args | length' < "$file")" = "1" ]
+}
+
 @test "session-start uses launcher" {
   grep -q '"\$LAUNCHER"' "$PLUGIN_ROOT/bin/session-start"
 }
