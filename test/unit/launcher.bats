@@ -88,6 +88,67 @@ CACHE
   assert_output "from-xdg-cache"
 }
 
+@test "cache resolves to CODEX_PLUGIN_DATA when set" {
+  local cache_dir="$BATS_TEST_TMPDIR/codex-pdata/archcore/cli"
+  local version
+  version=$(tr -d '[:space:]' < "$PLUGIN_ROOT/bin/CLI_VERSION")
+  local cached_bin="$cache_dir/archcore-v$version"
+
+  mkdir -p "$cache_dir"
+  cat > "$cached_bin" <<'CACHE'
+#!/bin/sh
+printf 'from-codex-cache\n'
+CACHE
+  chmod +x "$cached_bin"
+
+  run sh -c "PATH='/usr/bin:/bin' CODEX_PLUGIN_DATA='$BATS_TEST_TMPDIR/codex-pdata' '$PLUGIN_ROOT/bin/archcore' --version"
+  assert_success
+  assert_output "from-codex-cache"
+}
+
+@test "CODEX_PLUGIN_DATA takes precedence over CLAUDE_PLUGIN_DATA" {
+  local version
+  version=$(tr -d '[:space:]' < "$PLUGIN_ROOT/bin/CLI_VERSION")
+
+  local codex_cache="$BATS_TEST_TMPDIR/codex-pdata/archcore/cli"
+  mkdir -p "$codex_cache"
+  cat > "$codex_cache/archcore-v$version" <<'CACHE'
+#!/bin/sh
+printf 'from-codex\n'
+CACHE
+  chmod +x "$codex_cache/archcore-v$version"
+
+  local claude_cache="$BATS_TEST_TMPDIR/claude-pdata/archcore/cli"
+  mkdir -p "$claude_cache"
+  cat > "$claude_cache/archcore-v$version" <<'CACHE'
+#!/bin/sh
+printf 'from-claude\n'
+CACHE
+  chmod +x "$claude_cache/archcore-v$version"
+
+  run sh -c "PATH='/usr/bin:/bin' CODEX_PLUGIN_DATA='$BATS_TEST_TMPDIR/codex-pdata' CLAUDE_PLUGIN_DATA='$BATS_TEST_TMPDIR/claude-pdata' '$PLUGIN_ROOT/bin/archcore' --version"
+  assert_success
+  assert_output "from-codex"
+}
+
+@test "falls back to CLAUDE_PLUGIN_DATA when CODEX_PLUGIN_DATA unset" {
+  local cache_dir="$BATS_TEST_TMPDIR/pdata/archcore/cli"
+  local version
+  version=$(tr -d '[:space:]' < "$PLUGIN_ROOT/bin/CLI_VERSION")
+  local cached_bin="$cache_dir/archcore-v$version"
+
+  mkdir -p "$cache_dir"
+  cat > "$cached_bin" <<'CACHE'
+#!/bin/sh
+printf 'from-claude-cache\n'
+CACHE
+  chmod +x "$cached_bin"
+
+  run sh -c "PATH='/usr/bin:/bin' CLAUDE_PLUGIN_DATA='$BATS_TEST_TMPDIR/pdata' '$PLUGIN_ROOT/bin/archcore' --version"
+  assert_success
+  assert_output "from-claude-cache"
+}
+
 # --- Download skip ---
 
 @test "fails with clear message when SKIP_DOWNLOAD=1 and no cache" {

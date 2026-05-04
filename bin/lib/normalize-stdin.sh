@@ -23,12 +23,17 @@ ARCHCORE_RAW_STDIN=$(cat)
 #
 # Cursor sends "conversation_id" in all hook events.
 # GitHub Copilot sends "hookEventName" (camelCase, distinct from Cursor's "hook_event_name").
-# Claude Code sends neither — fallback default.
+# Codex CLI sends "turn_id" in turn-scoped events (PreToolUse/PostToolUse/etc.); SessionStart
+#   has no turn_id but Codex shares Claude Code's snake_case schema, so the claude-code
+#   fallback handles SessionStart correctly.
+# Claude Code sends none of the above — fallback default.
 if [ -z "$ARCHCORE_HOST" ]; then
   if printf '%s' "$ARCHCORE_RAW_STDIN" | grep -q '"conversation_id"'; then
     ARCHCORE_HOST="cursor"
   elif printf '%s' "$ARCHCORE_RAW_STDIN" | grep -q '"hookEventName"'; then
     ARCHCORE_HOST="copilot"
+  elif printf '%s' "$ARCHCORE_RAW_STDIN" | grep -q '"turn_id"'; then
+    ARCHCORE_HOST="codex"
   else
     ARCHCORE_HOST="claude-code"
   fi
@@ -82,6 +87,14 @@ case "$ARCHCORE_HOST" in
     ARCHCORE_FILE_PATH=$(_archcore_json_val "file_path")
     ARCHCORE_DOC_PATH=$(_archcore_json_val "path")
     ;;
+  codex)
+    # Codex CLI shares Claude Code's snake_case stdin schema:
+    # tool_name carries the full mcp__archcore__* prefix for MCP events,
+    # tool_input.file_path for Write/Edit/apply_patch, tool_input.path for MCP doc ops.
+    ARCHCORE_TOOL_NAME=$(_archcore_json_val "tool_name")
+    ARCHCORE_FILE_PATH=$(_archcore_json_val "file_path")
+    ARCHCORE_DOC_PATH=$(_archcore_json_val "path")
+    ;;
   *)
     # Unknown host — best-effort extraction, treat as Claude Code
     ARCHCORE_HOST="claude-code"
@@ -107,7 +120,7 @@ archcore_hook_info() {
   _msg="$1"
   _escaped=$(printf '%s' "$_msg" | sed 's/"/\\"/g' | tr '\n' ' ')
   case "$ARCHCORE_HOST" in
-    claude-code|copilot)
+    claude-code|copilot|codex)
       printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}' "$_escaped"
       ;;
     cursor)
@@ -123,7 +136,7 @@ archcore_hook_pretool_info() {
   _msg="$1"
   _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
   case "$ARCHCORE_HOST" in
-    claude-code|copilot)
+    claude-code|copilot|codex)
       printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}' "$_escaped"
       ;;
     cursor)

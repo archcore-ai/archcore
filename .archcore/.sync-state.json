@@ -3076,6 +3076,81 @@
       "source": "plugin/development-roadmap.plan.md",
       "target": "plugin/merge-review-status-remove-graph.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/codex-host-support.prd.md",
+      "target": "plugin/codex-host-support.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/codex-host-support.plan.md",
+      "target": "plugin/codex-host-support.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/codex-host-support.idea.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/codex-host-support.prd.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/codex-host-support.plan.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/codex-host-support.prd.md",
+      "target": "plugin/multi-host-compatibility-layer.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/codex-host-support.plan.md",
+      "target": "plugin/multi-host-compatibility-layer.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/codex-host-support.plan.md",
+      "target": "plugin/multi-host-implementation.plan.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/codex-host-support.idea.md",
+      "target": "plugin/multi-host-implementation.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-host-support.plan.md",
+      "target": "plugin/bundled-cli-launcher.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/codex-host-support.prd.md",
+      "target": "plugin/bundled-cli-launcher.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-host-support.idea.md",
+      "target": "plugin/bundled-cli-launcher.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-host-support.plan.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/codex-host-support.plan.md",
+      "target": "plugin/add-read-only-auditor-agent.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-host-support.idea.md",
+      "target": "plugin/add-read-only-auditor-agent.adr.md",
+      "type": "related"
     }
   ]
 }

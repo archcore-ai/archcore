@@ -5,9 +5,10 @@ LIB_SCRIPTS := bin/lib/normalize-stdin.sh
 ALL_SCRIPTS := $(BIN_SCRIPTS) $(LIB_SCRIPTS)
 JSON_FILES := .claude-plugin/plugin.json .claude-plugin/marketplace.json \
               .cursor-plugin/plugin.json .cursor-plugin/marketplace.json \
-              hooks/hooks.json hooks/cursor.hooks.json .mcp.json
+              .codex-plugin/plugin.json .codex.mcp.json .agents/plugins/marketplace.json \
+              hooks/hooks.json hooks/cursor.hooks.json hooks/codex.hooks.json .mcp.json
 
-.PHONY: test lint check-json check-perms verify all
+.PHONY: test test-codex-smoke lint check-json check-perms verify all
 
 all: check-json check-perms lint test
 
@@ -22,6 +23,10 @@ test-unit:
 test-structure:
 	@command -v bats >/dev/null 2>&1 || { echo "bats-core not found. Install: brew install bats-core"; exit 1; }
 	@PLUGIN_ROOT=$(PLUGIN_ROOT) bats test/structure/
+
+test-codex-smoke:
+	@command -v bats >/dev/null 2>&1 || { echo "bats-core not found. Install: brew install bats-core"; exit 1; }
+	@PLUGIN_ROOT=$(PLUGIN_ROOT) bats test/integration/codex-plugin-smoke.bats
 
 lint:
 	@command -v shellcheck >/dev/null 2>&1 || { echo "shellcheck not found, skipping"; exit 0; }

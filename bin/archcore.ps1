@@ -13,6 +13,7 @@
 #   4. Download from GitHub Releases into <cache>, verify, cache, use
 #
 # Cache directory, in order of preference:
+#   $env:CODEX_PLUGIN_DATA\archcore\cli
 #   $env:CLAUDE_PLUGIN_DATA\archcore\cli
 #   $env:LOCALAPPDATA\archcore-plugin\cli
 #
@@ -68,7 +69,9 @@ if (-not (Test-Path -LiteralPath $versionFile)) {
 $version = (Get-Content -LiteralPath $versionFile -Raw).Trim()
 
 # Resolve cache directory.
-if ($env:CLAUDE_PLUGIN_DATA) {
+if ($env:CODEX_PLUGIN_DATA) {
+    $cacheDir = Join-Path $env:CODEX_PLUGIN_DATA 'archcore\cli'
+} elseif ($env:CLAUDE_PLUGIN_DATA) {
     $cacheDir = Join-Path $env:CLAUDE_PLUGIN_DATA 'archcore\cli'
 } elseif ($env:LOCALAPPDATA) {
     $cacheDir = Join-Path $env:LOCALAPPDATA 'archcore-plugin\cli'

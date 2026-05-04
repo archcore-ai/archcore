@@ -46,6 +46,32 @@ setup() {
   [ -z "$missing" ] || fail "Missing files: $missing"
 }
 
+# --- codex.hooks.json ---
+
+@test "codex.hooks.json: all commands reference existing files" {
+  local missing=""
+  while IFS= read -r cmd; do
+    local resolved
+    resolved="$PLUGIN_ROOT/${cmd#./}"
+    if [ ! -f "$resolved" ]; then
+      missing="$missing $cmd"
+    fi
+  done < <(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/codex.hooks.json")
+  [ -z "$missing" ] || fail "Missing files: $missing"
+}
+
+@test "codex.hooks.json: all referenced scripts are executable" {
+  local not_exec=""
+  while IFS= read -r cmd; do
+    local resolved
+    resolved="$PLUGIN_ROOT/${cmd#./}"
+    if [ -f "$resolved" ] && [ ! -x "$resolved" ]; then
+      not_exec="$not_exec $cmd"
+    fi
+  done < <(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/codex.hooks.json")
+  [ -z "$not_exec" ] || fail "Not executable: $not_exec"
+}
+
 @test "cursor.hooks.json: all referenced scripts are executable" {
   local not_exec=""
   while IFS= read -r cmd; do
@@ -103,6 +129,15 @@ setup() {
   }
 }
 
+@test "codex.hooks.json: event set is exactly SessionStart/PreToolUse/PostToolUse" {
+  local events
+  events=$(jq -r '.hooks | keys[]' "$PLUGIN_ROOT/hooks/codex.hooks.json" | sort | tr '\n' ',')
+  [ "$events" = "PostToolUse,PreToolUse,SessionStart," ] || {
+    echo "Actual events: $events"
+    fail "codex.hooks.json event set drifted from the expected {SessionStart, PreToolUse, PostToolUse}."
+  }
+}
+
 # --- Consistency ---
 
 @test "both hook configs reference the same set of scripts" {
@@ -113,5 +148,16 @@ setup() {
     echo "Claude Code scripts: $cc_scripts"
     echo "Cursor scripts: $cursor_scripts"
     fail "Script sets differ between hosts"
+  }
+}
+
+@test "codex hook config references the same script set as Claude Code" {
+  local cc_scripts codex_scripts
+  cc_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/hooks.json" | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sort -u)
+  codex_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/codex.hooks.json" | sed 's|^\./||' | sort -u)
+  [ "$cc_scripts" = "$codex_scripts" ] || {
+    echo "Claude Code scripts: $cc_scripts"
+    echo "Codex scripts: $codex_scripts"
+    fail "Script sets differ between Claude Code and Codex"
   }
 }

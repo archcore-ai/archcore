@@ -32,6 +32,14 @@ claude plugin install archcore@archcore-plugins
 
 Cursor reads the repo's `marketplace.json`, shows the plugin, and installs it.
 
+**Codex CLI** — requires Codex CLI v0.117.0+ (March 2026 plugin system):
+
+```bash
+codex plugin marketplace add archcore-ai/plugin
+```
+
+The Codex marketplace entry marks Archcore for default install and ships Codex-native component pointers for skills, plugin-owned MCP, and hook config. MCP is plugin-managed (no manual `codex mcp add`). Codex hooks currently depend on Codex's `codex_hooks` feature/runtime support; enable `[features] codex_hooks = true` if you want Codex to execute the bundled hook guardrails. The launcher caches under `$CODEX_PLUGIN_DATA/archcore/cli/` when Codex provides that data directory, with XDG/local fallbacks for local development.
+
 <details>
 <summary>Local development, offline, enterprise, team rollouts</summary>
 
@@ -106,8 +114,8 @@ With Archcore, the same asks produce code that:
 | --------------- | ----------- | ------------------ |
 | **Claude Code** | Production  | Plugin marketplace |
 | **Cursor**      | Implemented | Plugin marketplace |
+| **Codex CLI**   | Implemented | Plugin marketplace |
 | GitHub Copilot  | Planned     | —                  |
-| Codex CLI       | Planned     | —                  |
 
 The plugin uses open standards (Agent Skills, MCP) — skills, agents, and MCP tools are shared across hosts. Only hooks and manifests are host-specific.
 
@@ -134,7 +142,7 @@ Two pieces work together:
 - **2 Agents** — a universal assistant and a read-only auditor
 - **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 
-The plugin ships a launcher that resolves the [Archcore CLI](https://archcore.ai) (`archcore mcp`) and registers the MCP server automatically via the plugin's bundled `.mcp.json`. If the CLI isn't on `PATH`, the launcher downloads it on first use and caches it under `$CLAUDE_PLUGIN_DATA/archcore/cli/` (survives plugin updates). An existing global `archcore` install on `PATH` always wins — no duplicate-server conflicts.
+The plugin ships a launcher that resolves the [Archcore CLI](https://archcore.ai) (`archcore mcp`) and registers the MCP server automatically through host-specific bundled MCP configs: `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI. If the CLI isn't on `PATH`, the launcher downloads it on first use and caches it under `$CODEX_PLUGIN_DATA/archcore/cli/`, `$CLAUDE_PLUGIN_DATA/archcore/cli/`, or the local XDG cache. An existing global `archcore` install on `PATH` always wins — no duplicate-server conflicts.
 
 ## What you ask Archcore to do
 
@@ -234,7 +242,7 @@ No — these solve different problems. Quick map:
 ## Roadmap
 
 - Deeper IDE integrations (VS Code, JetBrains)
-- Additional hosts (GitHub Copilot, Codex CLI)
+- Additional hosts (GitHub Copilot)
 - Multi-agent coordination for long cascades
 - Richer staleness and drift analytics
 

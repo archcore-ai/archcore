@@ -162,9 +162,9 @@ The plugin **ships MCP registration** for Claude Code via `.mcp.json` at the plu
 
 The `command` points at the bundled launcher, which resolves the actual CLI binary at invocation time (`$ARCHCORE_BIN` → `PATH` → cache → download). Users with a global `archcore` on `PATH` hit their existing install; users without one get a one-time auto-download on first MCP call. No manual `claude mcp add` or project-level `.mcp.json` required.
 
-Cursor users still register MCP externally (via Cursor's MCP settings or a project `mcp.json`) — the launcher works identically for them, just isn't wired in via a plugin-shipped MCP config.
+Codex CLI uses `.codex-plugin/plugin.json` to point at plugin-root `.codex.mcp.json`, which registers the same launcher with a plugin-relative command (`./bin/archcore`). Cursor users still register MCP externally (via Cursor's MCP settings or a project `mcp.json`) — the launcher works identically for them, just isn't wired in via a plugin-shipped MCP config.
 
-Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP" stance (documented in the Multi-Host Plugin Architecture ADR) is superseded for Claude Code; duplicate-suppression concerns are resolved because the launcher defers to an existing global install when present, making the effective command identical to a user-registered one.
+Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP" stance (documented in the Multi-Host Plugin Architecture ADR) is superseded for Claude Code and Codex CLI; duplicate-suppression concerns are resolved because the launcher defers to an existing global install when present, making the effective command identical to a user-registered one.
 
 ### Plugin Configs
 
@@ -172,11 +172,15 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 | --------------------------------- | ----------- | ---------------------------------------------------------------------- |
 | `.claude-plugin/plugin.json`      | Claude Code | Plugin manifest                                                        |
 | `.cursor-plugin/plugin.json`      | Cursor      | Plugin manifest (with explicit component paths; no `mcpServers` field) |
+| `.codex-plugin/plugin.json`       | Codex CLI   | Plugin manifest with `skills`, `hooks`, and `mcpServers` pointers      |
 | `.claude-plugin/marketplace.json` | Claude Code | Marketplace metadata                                                   |
 | `.cursor-plugin/marketplace.json` | Cursor      | Marketplace metadata                                                   |
+| `.agents/plugins/marketplace.json` | Codex CLI  | Marketplace metadata and default-install policy                        |
 | `.mcp.json`                       | Claude Code | Plugin-provided MCP server registration (launcher-backed)              |
+| `.codex.mcp.json`                 | Codex CLI   | Plugin-provided MCP server registration (launcher-backed)              |
 | `hooks/hooks.json`                | Claude Code | Hook event config (PascalCase)                                         |
 | `hooks/cursor.hooks.json`         | Cursor      | Hook event config (camelCase + afterMCPExecution)                      |
+| `hooks/codex.hooks.json`          | Codex CLI   | Hook event config (PascalCase + apply_patch matcher)                   |
 | `rules/archcore-context.mdc`      | Cursor      | Always-apply context rule                                              |
 | `rules/archcore-files.mdc`        | Cursor      | .archcore/ glob-triggered MCP-only rule                                |
 

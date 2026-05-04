@@ -8,15 +8,17 @@ tags:
 
 ## Prerequisites
 
-- Claude Code or Cursor installed with plugin support
+- Claude Code, Cursor, or Codex CLI installed with plugin support
 - Git for version control
 - bats-core for tests (`brew install bats-core` on macOS)
 - jq for JSON validation (`brew install jq`)
 - ShellCheck (optional, `brew install shellcheck`)
 
-That's it for developing against the plugin. The Archcore CLI is **not** a prerequisite — the plugin bundles a launcher (`bin/archcore{,.cmd,.ps1}`) that resolves the CLI on first use (from `$ARCHCORE_BIN`, `PATH`, a plugin-managed cache, or a checksum-verified download). MCP is registered automatically for Claude Code via a plugin-root `.mcp.json` pointed at that launcher.
+That's it for developing against the plugin. The Archcore CLI is **not** a prerequisite — the plugin bundles a launcher (`bin/archcore{,.cmd,.ps1}`) that resolves the CLI on first use (from `$ARCHCORE_BIN`, `PATH`, a plugin-managed cache, or a checksum-verified download). MCP is registered automatically for Claude Code via plugin-root `.mcp.json`, and for Codex CLI via `.codex-plugin/plugin.json` pointing at plugin-root `.codex.mcp.json`.
 
 For Cursor development, you still register MCP externally (via Cursor's MCP settings or a project `mcp.json`). Point Cursor's MCP config at `${CURSOR_PLUGIN_ROOT}/bin/archcore` with args `["mcp"]`, or at a globally-installed `archcore`.
+
+For Codex development, `codex plugin marketplace add /path/to/plugin` registers the marketplace. The current CLI loads enabled plugins from its installed plugin cache; run `make test-codex-smoke` for the local installed-cache smoke that verifies skill discovery and plugin-managed MCP.
 
 If you want to run the MCP server against a pre-existing global install or a locally-built CLI, set `ARCHCORE_BIN=/abs/path/to/archcore` — the launcher will use that binary and skip the cache/download path.
 
@@ -162,11 +164,11 @@ No other changes required — the cache is version-keyed by filename so old bina
 - On macOS, the test suite provides a `timeout` shim automatically
 - See `plugin-testing.guide.md` for detailed troubleshooting
 
-### MCP server not connecting (Claude Code)
+### MCP server not connecting (Claude Code / Codex CLI)
 
-The plugin ships `.mcp.json` at its root pointing at `${CLAUDE_PLUGIN_ROOT}/bin/archcore mcp`. Diagnose in this order:
+The plugin ships `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI. Diagnose in this order:
 
-1. **Plugin loaded?** — `/plugin` should list `archcore` as installed. If `.mcp.json` was modified or removed, the MCP server won't register; restore it from git.
+1. **Plugin loaded?** — `/plugin` (Claude Code) or `codex mcp list --json` (Codex CLI) should show `archcore`. If `.mcp.json`, `.codex.mcp.json`, or the Codex `mcpServers` pointer was modified or removed, the MCP server won't register; restore it from git.
 2. **Launcher resolves?** — run `bin/archcore --version` from the plugin root. Expected: prints a version. Errors indicate:
    - Missing `bin/CLI_VERSION` → restore from git.
    - Network failure on first run → re-run with network, or set `ARCHCORE_BIN=/abs/path/to/archcore` to bypass download.

@@ -26,6 +26,24 @@ setup() {
   assert_line "HOST=copilot"
 }
 
+@test "detects codex host from turn_id" {
+  run_normalizer '{"turn_id":"abc","hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":"src/app.py"}}'
+  assert_success
+  assert_line "HOST=codex"
+}
+
+@test "cursor wins over codex when both conversation_id and turn_id present" {
+  run_normalizer '{"conversation_id":"x","turn_id":"y","hook_event_name":"preToolUse","tool_name":"Write"}'
+  assert_success
+  assert_line "HOST=cursor"
+}
+
+@test "copilot wins over codex when both hookEventName and turn_id present" {
+  run_normalizer '{"hookEventName":"PreToolUse","turn_id":"y","tool_name":"Write"}'
+  assert_success
+  assert_line "HOST=copilot"
+}
+
 @test "env ARCHCORE_HOST overrides detection" {
   run_normalizer_with_env '{"tool_name":"Write"}' "cursor"
   assert_success
@@ -116,6 +134,26 @@ setup() {
   assert_line "TOOL=Write"
 }
 
+# --- Codex field extraction ---
+
+@test "codex: preserves snake_case mcp tool_name" {
+  run_normalizer '{"turn_id":"abc","hook_event_name":"PostToolUse","tool_name":"mcp__archcore__create_document","tool_input":{}}'
+  assert_success
+  assert_line "TOOL=mcp__archcore__create_document"
+}
+
+@test "codex: extracts file_path from tool_input" {
+  run_normalizer '{"turn_id":"abc","hook_event_name":"PreToolUse","tool_name":"apply_patch","tool_input":{"file_path":".archcore/test.adr.md"}}'
+  assert_success
+  assert_line "FILE=.archcore/test.adr.md"
+}
+
+@test "codex: extracts doc path from tool_input" {
+  run_normalizer '{"turn_id":"abc","hook_event_name":"PostToolUse","tool_name":"mcp__archcore__update_document","tool_input":{"path":"auth/jwt.adr.md"}}'
+  assert_success
+  assert_line "DOC=auth/jwt.adr.md"
+}
+
 # --- archcore_hook_block ---
 
 @test "archcore_hook_block exits with code 2" {
@@ -153,6 +191,16 @@ setup() {
   "'
   assert_success
   assert_output --partial '"additional_context":"test message"'
+}
+
+@test "archcore_hook_info codex: outputs hookSpecificOutput JSON" {
+  run sh -c 'printf "%s" "{\"turn_id\":\"x\"}" | sh -c "
+    . \"${PLUGIN_ROOT}/bin/lib/normalize-stdin.sh\"
+    archcore_hook_info \"test message\"
+  "'
+  assert_success
+  assert_output --partial '"hookSpecificOutput"'
+  assert_output --partial '"additionalContext":"test message"'
 }
 
 @test "archcore_hook_info escapes quotes in message" {

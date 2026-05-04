@@ -67,3 +67,48 @@ setup() {
   grep -q 'subagent-knowledge-tree-bootstrap.adr' "$file"
   grep -q 'recent accepted decisions' "$file"
 }
+
+# --- Codex TOML subagents ---
+
+@test "archcore-assistant.toml exists (Codex format)" {
+  [ -f "$PLUGIN_ROOT/agents/archcore-assistant.toml" ]
+}
+
+@test "archcore-auditor.toml exists (Codex format)" {
+  [ -f "$PLUGIN_ROOT/agents/archcore-auditor.toml" ]
+}
+
+@test "auditor.toml has read-only sandbox" {
+  grep -qE '^sandbox_mode = "read-only"' "$PLUGIN_ROOT/agents/archcore-auditor.toml"
+}
+
+@test "auditor.toml disables mutating MCP tools" {
+  local file="$PLUGIN_ROOT/agents/archcore-auditor.toml"
+  grep -q 'mcp__archcore__create_document' "$file"
+  grep -q 'mcp__archcore__update_document' "$file"
+  grep -q 'mcp__archcore__remove_document' "$file"
+  grep -q 'mcp__archcore__add_relation' "$file"
+  grep -q 'mcp__archcore__remove_relation' "$file"
+}
+
+@test "assistant.toml uses workspace-write sandbox" {
+  grep -qE '^sandbox_mode = "workspace-write"' "$PLUGIN_ROOT/agents/archcore-assistant.toml"
+}
+
+@test "TOML agents have required top-level fields" {
+  for f in archcore-assistant.toml archcore-auditor.toml; do
+    local file="$PLUGIN_ROOT/agents/$f"
+    grep -qE '^name = ' "$file" || fail "$f: missing name"
+    grep -qE '^description = ' "$file" || fail "$f: missing description"
+    grep -qE '^developer_instructions = ' "$file" || fail "$f: missing developer_instructions"
+    grep -qE '^sandbox_mode = ' "$file" || fail "$f: missing sandbox_mode"
+  done
+}
+
+@test "TOML agents preserve knowledge tree bootstrap preamble" {
+  for f in archcore-assistant.toml archcore-auditor.toml; do
+    local file="$PLUGIN_ROOT/agents/$f"
+    grep -q 'First Step — Bootstrap Knowledge Tree' "$file" || fail "$f: missing bootstrap preamble"
+    grep -q 'subagent-knowledge-tree-bootstrap.adr' "$file" || fail "$f: missing ADR reference"
+  done
+}

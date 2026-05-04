@@ -8,6 +8,7 @@
 #   4. Download from GitHub Releases into <cache>, verify, cache, use
 #
 # Cache directory, in order of preference:
+#   $CODEX_PLUGIN_DATA/archcore/cli     (Codex CLI plugin data dir — survives updates)
 #   $CLAUDE_PLUGIN_DATA/archcore/cli    (Claude Code plugin data dir — survives updates)
 #   $XDG_DATA_HOME/archcore-plugin/cli
 #   $HOME/.local/share/archcore-plugin/cli
@@ -43,7 +44,9 @@ fi
 VERSION=$(tr -d '[:space:]' < "$SCRIPT_DIR/CLI_VERSION")
 
 # Resolve cache directory.
-if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
+if [ -n "${CODEX_PLUGIN_DATA:-}" ]; then
+  CACHE_DIR="$CODEX_PLUGIN_DATA/archcore/cli"
+elif [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
   CACHE_DIR="$CLAUDE_PLUGIN_DATA/archcore/cli"
 elif [ -n "${XDG_DATA_HOME:-}" ]; then
   CACHE_DIR="$XDG_DATA_HOME/archcore-plugin/cli"
