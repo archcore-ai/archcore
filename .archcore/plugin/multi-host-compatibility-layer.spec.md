@@ -16,7 +16,7 @@ MCP server registration is **partially in scope**: Claude Code and Codex CLI rec
 
 ## Scope
 
-The compatibility layer — specifically: `bin/lib/normalize-stdin.sh`, `bin/archcore` / `bin/archcore.cmd` / `bin/archcore.ps1` / `bin/CLI_VERSION` (the launcher and its version pin), per-host `hooks/*.hooks.json` files, per-host plugin manifests, plugin-shipped MCP configs (`.mcp.json` for Claude Code, `.codex.mcp.json` for Codex CLI), and the Codex-specific subagent TOML files (`agents/archcore-*.toml`). Does NOT cover the shared hook script logic (skills, agents, hook scripts themselves), which are host-agnostic by design, nor the CLI binary's own behavior.
+The compatibility layer — specifically: `bin/lib/normalize-stdin.sh`, `bin/archcore` / `bin/archcore.cmd` / `bin/archcore.ps1` / `bin/CLI_VERSION` (the launcher and its version pin), per-host `hooks/*.hooks.json` files, per-host plugin manifests, plugin-shipped MCP configs (`.mcp.json` for Claude Code, `.codex.mcp.json` for Codex CLI), the Codex-specific subagent TOML files (`agents/archcore-*.toml`), and the Codex-specific slash command wrappers (`commands/*.md`). Does NOT cover the shared hook script logic (skills, agents, hook scripts themselves), which are host-agnostic by design, nor the CLI binary's own behavior.
 
 ## Authority
 
@@ -26,13 +26,13 @@ This specification is authoritative for cross-host behavior. The Multi-Host Plug
 
 ### System Overview
 
-The plugin splits into a **shared core** (skills, agents, bin scripts, CLI launcher) and a **host adapter layer** (manifests, hooks configs, stdin normalization, plugin-shipped MCP wiring for Claude Code and Codex CLI, Codex-specific subagent TOML files). The adapter layer is pure configuration plus one small shell library for stdin format detection.
+The plugin splits into a **shared core** (skills, agents, bin scripts, CLI launcher) and a **host adapter layer** (manifests, hooks configs, stdin normalization, plugin-shipped MCP wiring for Claude Code and Codex CLI, Codex-specific subagent TOML files, Codex-specific slash command wrappers). The adapter layer is pure configuration plus one small shell library for stdin format detection.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    Shared Core                           │
 │                                                         │
-│  skills/ (17)  agents/ (2 MD + 2 TOML)                  │
+│  skills/ (16)  agents/ (2 MD + 2 TOML)                  │
 │  bin/ — 6 hook scripts + 3 launcher scripts + pin file  │
 │                                                         │
 │  100% host-agnostic — uses only MCP tools + Read/Grep   │
@@ -47,6 +47,7 @@ The plugin splits into a **shared core** (skills, agents, bin scripts, CLI launc
 │  │ hooks.json  │ │ cursor.hk   │ │ codex.hk    │ │ TBD│ │
 │  │ .mcp.json   │ │ (user MCP)  │ │ .codex.mcp  │ │    │ │
 │  │ MD agents   │ │ MD agents   │ │ TOML agents │ │    │ │
+│  │             │ │             │ │ commands/   │ │    │ │
 │  └─────────────┘ └─────────────┘ └─────────────┘ └────┘ │
 │                                                         │
 │  bin/lib/normalize-stdin.sh — detects host, normalizes  │
@@ -366,7 +367,7 @@ Cursor requires explicit paths to components. Only `name` is required; all other
 }
 ```
 
-Codex CLI requires component paths to be explicit and prefixed with `./` (relative-to-plugin-root convention). Manifest declares `mcpServers` pointing at the Codex-specific plugin-root `.codex.mcp.json` — Codex resolves the pointer and registers the MCP server automatically. UI metadata belongs under `interface{}`; legacy top-level `displayName`, `category`, and `tags` fields MUST NOT be used in the Codex manifest. `.codex-plugin/` contains only `plugin.json`; marketplace metadata lives in `.agents/plugins/marketplace.json`.
+Codex CLI requires component paths to be explicit and prefixed with `./` (relative-to-plugin-root convention). Manifest declares `mcpServers` pointing at the Codex-specific plugin-root `.codex.mcp.json` — Codex resolves the pointer and registers the MCP server automatically. UI metadata belongs under `interface{}`; legacy top-level `displayName`, `category`, and `tags` fields MUST NOT be used in the Codex manifest. `.codex-plugin/` contains only `plugin.json`; marketplace metadata lives in `.agents/plugins/marketplace.json`. Slash command discovery comes from root-level `commands/*.md` (see section 8) — no manifest pointer is required.
 
 Plugin manifests MUST use identical `name`, `description`, and `version` across all hosts. This is enforced by `test/structure/codex-plugin.bats` and the existing claude/cursor parity tests.
 
@@ -431,7 +432,45 @@ Codex CLI requires subagents in TOML format with `developer_instructions`, `sand
 
 Both TOML files contain identical `developer_instructions` content to their MD counterparts (knowledge-tree bootstrap preamble, core principle, working guidelines). Tests enforce this structural parity (`test/structure/agents.bats`).
 
-### 8. Cursor Rules
+### 8. Codex Slash Command Wrappers
+
+Codex CLI does not surface skills directly in the host `/` menu. Claude Code and Cursor render `/<plugin>:<skill-name>` from the `skills/<name>/SKILL.md` set; Codex CLI scans the plugin root's `commands/` directory for `*.md` files and offers them as slash commands. To expose `/archcore:<name>` discovery in Codex without duplicating workflow logic, the plugin ships a thin wrapper per user-facing skill.
+
+Each wrapper has the following shape:
+
+```markdown
+---
+description: <one-line description, ideally matching the skill's first sentence>
+---
+
+# /archcore:<name>
+
+## Arguments
+
+The user invoked this command with: $ARGUMENTS
+
+## Instructions
+
+Use the Archcore skill at `skills/<name>/SKILL.md`.
+```
+
+The wrapper MUST:
+
+- Reside at `commands/<name>.md` at the plugin root.
+- Carry a `description:` frontmatter field (used by Codex's `/` autocomplete preview).
+- Reference the matching `skills/<name>/SKILL.md` in its instructions section so the agent delegates to the skill for behavior.
+- Contain no workflow logic — no MCP calls, no inlined elicitation, no tier-routing. Behavior remains in the skill, the single source of truth across all three hosts.
+
+A wrapper MUST exist for every user-facing skill that should appear in Codex's `/` menu (currently 9 intent + 6 track + 1 utility = 16). Skills with `disable-model-invocation: true` (e.g., `verify`) still receive a wrapper because they are user-invocable.
+
+Conformance is enforced by `test/structure/codex-plugin.bats`:
+
+- "codex slash command wrappers exist for every user-facing skill" — asserts each `commands/<name>.md` exists, references its matching skill, and that the file count matches the user-facing skill set exactly (no missing, no extras).
+- "codex slash command wrappers have descriptions" — asserts every `commands/*.md` carries `description:` frontmatter.
+
+Claude Code and Cursor do NOT use `commands/*.md`. The directory is a pure host-adapter layer for Codex CLI.
+
+### 9. Cursor Rules
 
 Rules in `rules/` provide context injection. Two files:
 
@@ -456,6 +495,7 @@ Rules in `rules/` provide context injection. Two files:
 - `bin/session-start` MUST pass `ARCHCORE_SKIP_DOWNLOAD=1` when invoking the launcher so SessionStart never blocks on network.
 - `bin/session-start` MUST respect `ARCHCORE_HIDE_EMPTY_NUDGE=1` by suppressing the bootstrap advisory line while still emitting the `init_project` prompt for missing `.archcore/`.
 - For Codex CLI, both subagents MUST ship as TOML files (`agents/archcore-{assistant,auditor}.toml`) alongside the MD originals. The auditor TOML MUST have `sandbox_mode = "read-only"` and `disabled_tools[]` containing all five mutating MCP tools.
+- For Codex CLI, every user-facing skill MUST have a matching `commands/<name>.md` wrapper. Each wrapper MUST carry a `description:` frontmatter field and reference the corresponding `skills/<name>/SKILL.md` in its instructions section. Wrappers MUST NOT contain workflow logic, MCP calls, or inlined elicitation — those live exclusively in the skill.
 - Adding a new host MUST NOT require changes to skills, agents (MD or TOML), core bin script logic, or the launcher.
 
 ## Constraints
@@ -472,12 +512,13 @@ Rules in `rules/` provide context injection. Two files:
 
 - Shared core components (skills, agents, hook scripts, launcher) are identical across all hosts.
 - A change to a skill, agent, or launcher benefits all hosts simultaneously.
-- Per-host adapter files contain no business logic — only configuration and format mapping.
+- Per-host adapter files contain no business logic — only configuration and format mapping. This applies to manifests, hook configs, MCP configs, TOML subagent variants, and Codex slash command wrappers.
 - The normalizer always falls back to Claude Code format if host detection fails (backward compatible).
 - Hook semantics (what gets blocked, what gets validated, what gets injected) are identical across hosts — only the wire format differs.
 - Exit code 2 blocks operations universally across all supported hosts.
 - The launcher always prefers an existing global `archcore` on `PATH` over the plugin-managed cache (avoids double-binary situations on systems where the user manages their own install).
 - Codex TOML subagents and MD subagents share the same `developer_instructions` content; structural drift is detected by `test/structure/agents.bats`.
+- The Codex `commands/*.md` wrapper set is exactly 1-to-1 with the user-facing skill set; drift is detected by `test/structure/codex-plugin.bats`.
 
 ## Error Handling
 
@@ -507,3 +548,4 @@ The multi-host compatibility layer conforms to this specification if:
 11. Adding a new host requires only new config files, not changes to shared components
 12. `bin/session-start` passes `ARCHCORE_SKIP_DOWNLOAD=1` when invoking the launcher
 13. `bin/session-start` honors `ARCHCORE_HIDE_EMPTY_NUDGE=1` by suppressing the bootstrap advisory line (and only that line)
+14. Codex CLI ships a `commands/<name>.md` wrapper for every user-facing skill (1-to-1 parity, no missing, no extras). Each wrapper carries `description:` frontmatter, references its matching `skills/<name>/SKILL.md`, and contains no workflow logic. Parity is enforced by `test/structure/codex-plugin.bats`.

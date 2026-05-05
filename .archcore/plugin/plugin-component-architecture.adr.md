@@ -26,7 +26,7 @@ Each plugin capability maps to a specific Claude Code component type based on it
 ### Commands (user-invoked slash commands)
 
 - **Purpose**: Accelerate common workflows with explicit user intent
-- **Note**: Claude Code merged commands into skills. The `commands/` directory is legacy; all user-invoked workflows use `skills/<name>/SKILL.md`.
+- **Note**: Claude Code and Cursor surface user-invoked workflows directly from skills (`skills/<name>/SKILL.md`) — the host-level `/` menu is sourced from skill files, no separate command files needed. Codex CLI does not yet do this; it discovers slash commands from root-level `commands/*.md` wrappers — host-adapter shims that delegate to the matching `skills/<name>/SKILL.md` for behavior. Wrappers carry only `description:` frontmatter and a delegate instruction; they MUST NOT duplicate workflow logic. The skill remains the single behavioral source of truth across all three hosts.
 - **User-facing palette**:
   - `/archcore:review` — Dashboard (default) or full audit (`--deep`)
   - `/archcore:capture` — Document a module/component
@@ -108,5 +108,6 @@ Bundle `.mcp.json` / `mcp.json` at the plugin root for zero-config MCP after ins
 ### Negative
 
 - 16 skill files to maintain (9 intent + 6 track + 1 utility)
+- Codex CLI requires 16 thin slash-command wrappers in `commands/` to surface skills in the `/` menu (mechanical parity, no logic duplication)
 - Must ensure consistency between skills, commands, and agent system prompt
 - Users must register MCP separately (one-time command); `bin/session-start` mitigates with actionable guidance when the server is unreachable

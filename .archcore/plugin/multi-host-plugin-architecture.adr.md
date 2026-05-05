@@ -43,7 +43,8 @@ Architecture (as originally decided, with an addendum below for the current MCP 
 
 ```
 plugin/
-├── skills/                      # Shared — Agent Skills standard (17 skills)
+├── commands/                    # Codex CLI slash command wrappers
+├── skills/                      # Shared — Agent Skills standard (16 skills)
 ├── agents/                      # Shared — markdown agent definitions (2 agents) + Codex TOML variants
 │   ├── archcore-assistant.md    # Claude Code / Cursor
 │   ├── archcore-assistant.toml  # Codex CLI

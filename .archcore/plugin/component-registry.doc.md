@@ -8,9 +8,9 @@ tags:
 
 ## Overview
 
-Reference document listing all components of the Archcore Plugin (multi-host: Claude Code, Cursor).
+Reference document listing all components of the Archcore Plugin (multi-host: Claude Code, Cursor, Codex CLI).
 
-Note: Claude Code has merged commands into skills. All slash commands use `skills/<name>/SKILL.md`. The `commands/` directory is legacy and not used.
+Note: Claude Code and Cursor surface user-invoked workflows directly from skills (`skills/<name>/SKILL.md`) — the host-level `/` menu is sourced from skill files. Codex CLI discovers slash commands from root-level `commands/*.md` wrappers — thin host-adapter shims that delegate behavior to the matching skill. The skill remains the single behavioral source of truth across all three hosts; no workflow logic lives in `commands/`.
 
 Per the Inverted Invocation Policy ADR (as amended by `remove-document-type-skills.adr.md` and `merge-review-status-remove-graph.adr.md`), skills are classified into three invocation classes: intent/track (auto-invocable by model + user) and utility (user-only). There are no per-document-type skills.
 
@@ -62,13 +62,23 @@ Plain-markdown assets loaded at runtime by skills before composing documents. Th
 
 Companion ADR: `precision-over-coverage.adr.md` documents the design rationale; the runtime assets above are the canonical content.
 
+### Codex Slash Command Wrappers (`commands/`)
+
+Codex CLI requires a thin wrapper per user-facing skill so that `/archcore:<name>` appears in its `/` menu. Each wrapper is a host-adapter shim — `description:` frontmatter plus a one-line delegate instruction pointing at `skills/<name>/SKILL.md`. No workflow logic lives here.
+
+| Wrapper Set                       | Count | Purpose                                                                        |
+| --------------------------------- | ----- | ------------------------------------------------------------------------------ |
+| `commands/<name>.md` (Codex CLI) | 16    | One per user-facing skill (9 intent + 6 track + 1 utility) — surfaces `/archcore:<name>` in Codex |
+
+Conformance is enforced by `test/structure/codex-plugin.bats`: every entry must exist, carry `description:`, and reference the matching `skills/<name>/SKILL.md`. Claude Code and Cursor do not need wrappers — they surface skills directly.
+
 ### Document-type coverage
 
 There are no per-document-type skills. Every Archcore document type is reachable via an intent skill, a track skill, or direct MCP (`mcp__archcore__create_document(type=<any>)`). See `skills-system.spec.md` → "Document-type coverage without type skills" for the full mapping.
 
 ### Visible `/` menu surface
 
-Intent (9) + Tracks (6) + Utility (1) = **16 visible commands**. All 16 skills on disk are visible in `/` autocomplete — no hidden or flagged-out skills.
+Intent (9) + Tracks (6) + Utility (1) = **16 visible commands**. All 16 skills on disk are visible in `/` autocomplete — no hidden or flagged-out skills. Codex CLI exposes the same 16 entries via the matching `commands/*.md` wrappers.
 
 ### Agents (2)
 
@@ -81,6 +91,8 @@ Intent (9) + Tracks (6) + Utility (1) = **16 visible commands**. All 16 skills o
 
 **archcore-auditor** — documentation health checks: coverage gaps, orphaned docs, stale statuses, code-document correlation (cross-references document path mentions with git history to flag drift). Background, yellow, max 15 turns.
 
+For Codex CLI, both subagents also ship as TOML variants (`agents/archcore-assistant.toml`, `agents/archcore-auditor.toml`) — same `developer_instructions` content, plus Codex-specific `sandbox_mode` and `disabled_tools[]` fields.
+
 ### Hooks (6 entries across 3 events)
 
 | #   | Event        | Matcher                                                                                           | Handler                     | Timeout |
@@ -92,7 +104,7 @@ Intent (9) + Tracks (6) + Utility (1) = **16 visible commands**. All 16 skills o
 | 5   | PostToolUse  | `mcp__archcore__update_document`                                                                  | `bin/check-cascade`         | 3s      |
 | 6   | PostToolUse  | `mcp__archcore__create_document\|mcp__archcore__update_document`                                  | `bin/check-precision`       | 3s      |
 
-Hook configs: `hooks/hooks.json` (Claude Code, PascalCase events), `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`).
+Hook configs: `hooks/hooks.json` (Claude Code, PascalCase events), `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`), `hooks/codex.hooks.json` (Codex CLI, PascalCase events with `apply_patch` matcher addition for Codex's native edit primitive).
 
 Hook 2 and Hook 3 share the `Write|Edit` matcher. Hook 2 (`check-archcore-write`) blocks direct writes to `.archcore/*.md`. Hook 3 (`check-code-alignment`) injects relevant `.archcore/` context for source-file edits via `hookSpecificOutput.additionalContext`. They act on disjoint path sets by construction — no conflict.
 
@@ -113,7 +125,7 @@ The `bin/` tree contains four distinct kinds of files: the CLI launcher, the CLI
 | `bin/archcore.ps1`      | PowerShell launcher. Same resolution order as the POSIX launcher; uses `Invoke-WebRequest` + `Get-FileHash` for download/verify; calls `Unblock-File` to strip MOTW so SmartScreen doesn't prompt.            |
 | `bin/CLI_VERSION`       | Single-line file with the pinned semver of the CLI release the plugin is tested against. Launchers read this for cache key (`archcore-v${VERSION}`) and download URL.                                         |
 
-Cache directory (first existing): `$CLAUDE_PLUGIN_DATA/archcore/cli` → `$XDG_DATA_HOME/archcore-plugin/cli` → `$HOME/.local/share/archcore-plugin/cli` (POSIX), or `$env:LOCALAPPDATA\archcore-plugin\cli` (Windows).
+Cache directory (first existing): `$CODEX_PLUGIN_DATA/archcore/cli` → `$CLAUDE_PLUGIN_DATA/archcore/cli` → `$XDG_DATA_HOME/archcore-plugin/cli` → `$HOME/.local/share/archcore-plugin/cli` (POSIX), or `$env:CODEX_PLUGIN_DATA\archcore\cli` → `$env:CLAUDE_PLUGIN_DATA\archcore\cli` → `$env:LOCALAPPDATA\archcore-plugin\cli` (Windows).
 
 Env overrides: `ARCHCORE_BIN` pins an explicit binary; `ARCHCORE_SKIP_DOWNLOAD=1` disables step 4 (used by `bin/session-start` to keep SessionStart non-blocking).
 
@@ -123,10 +135,10 @@ See the Bundled CLI Launcher ADR for rationale.
 
 | Script                       | Hook Event                                   | Purpose                                                                                                                                                                                                                                                                                                    |
 | ---------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bin/lib/normalize-stdin.sh` | (library)                                    | Multi-host stdin normalization. Detects host (Claude Code/Cursor/Copilot), extracts fields (tool_name, file_path, path), normalizes MCP tool names, provides output helpers (archcore_hook_block, archcore_hook_info, archcore_hook_pretool_info, archcore_hook_allow). Sourced by all hook scripts except check-staleness. |
+| `bin/lib/normalize-stdin.sh` | (library)                                    | Multi-host stdin normalization. Detects host (Claude Code/Cursor/Copilot/Codex), extracts fields (tool_name, file_path, path), normalizes MCP tool names, provides output helpers (archcore_hook_block, archcore_hook_info, archcore_hook_pretool_info, archcore_hook_allow). Sourced by all hook scripts except check-staleness. |
 | `bin/session-start`          | SessionStart                                 | Sources the normalizer, detects missing `.archcore/` and emits init guidance (instructs the agent to call `mcp__archcore__init_project`), otherwise invokes the local launcher with `ARCHCORE_SKIP_DOWNLOAD=1` to run `archcore hooks <host> session-start`, then calls `bin/check-staleness`. Always exits 0. |
 | `bin/check-archcore-write`   | PreToolUse                                   | Blocks direct Write/Edit to `.archcore/**/*.md` with exit 2 + stderr message redirecting to MCP tools. Allows `.archcore/settings.json` and `.archcore/.sync-state.json`. Allows all paths outside `.archcore/`.                                                                                         |
-| `bin/check-code-alignment`   | PreToolUse                                   | Injects relevant `.archcore/` context for source-file Write/Edit. Greps `.archcore/**/*.md` for documents referencing the edit path (directory prefixes, longest-first). Ranks by specificity → type priority (rule > cpat > adr > spec > guide). Emits top-3 via `hookSpecificOutput.additionalContext` (Claude Code/Copilot) or `additional_context` (Cursor). Never blocks; always exits 0. Honors `ARCHCORE_DISABLE_INJECTION=1` escape hatch and `.archcore/settings.json → codeAlignment.sourceRoots` override. |
+| `bin/check-code-alignment`   | PreToolUse                                   | Injects relevant `.archcore/` context for source-file Write/Edit. Greps `.archcore/**/*.md` for documents referencing the edit path (directory prefixes, longest-first). Ranks by specificity → type priority (rule > cpat > adr > spec > guide). Emits top-3 via `hookSpecificOutput.additionalContext` (Claude Code/Codex/Copilot) or `additional_context` (Cursor). Never blocks; always exits 0. Honors `ARCHCORE_DISABLE_INJECTION=1` escape hatch and `.archcore/settings.json → codeAlignment.sourceRoots` override. |
 | `bin/validate-archcore`      | PostToolUse                                  | Runs `archcore validate` via the launcher after MCP document operations (by tool_name prefix). The legacy Write/Edit branch in the script is retained as defensive code but is never reached from the current hooks config. Outputs JSON `hookSpecificOutput` when issues found, empty otherwise. Silently exits 0 if the launcher/CLI is unavailable. Always exits 0. |
 | `bin/check-staleness`        | SessionStart (called by `bin/session-start`) | Detects code-document drift via git: finds source files changed since the last `.archcore/` commit, cross-references with documents that mention affected directories. Rate-limited to once per 24h via a timestamp file (`$CLAUDE_PLUGIN_DATA/archcore/last-staleness`, with XDG/HOME fallbacks). Emits only when matching documents exist — no generic "N files changed" fallback. Outputs plain text warning (max 2KB) or empty. Always exits 0. |
 | `bin/check-cascade`          | PostToolUse                                  | After `update_document`, queries `.sync-state.json` relation graph for documents connected via `implements`, `depends_on`, or `extends` to the updated document. Outputs JSON `hookSpecificOutput` listing potentially stale dependents, or empty if no cascade. Always exits 0.                          |
@@ -137,8 +149,8 @@ See the Bundled CLI Launcher ADR for rationale.
 | Component       | Location                     | Tests    | Description                                                                                             |
 | --------------- | ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------- |
 | Unit tests      | `test/unit/`                 | 94+      | Test each bin script: stdin parsing, host detection, exit codes, output format, edge cases. Includes `launcher.bats` (CLI launcher resolution order), `check-staleness.bats` (24h rate limit, corrupt-stamp recovery), and `check-code-alignment.bats` (source-root filter, specificity ranking, top-3 cap, settings override, Cursor JSON shape, non-blocking safety). |
-| Structure tests | `test/structure/`            | 50+      | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules. `hooks.bats` includes Phase 2.1 anti-regression invariants: no Write/Edit matcher on PostToolUse, no postToolUse event on Cursor, exact event-set invariants per host. |
-| Fixtures        | `test/fixtures/stdin/`       | 12 files | Mock stdin JSON for Claude Code, Cursor, Copilot, and malformed inputs                                  |
+| Structure tests | `test/structure/`            | 50+      | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules. `hooks.bats` includes Phase 2.1 anti-regression invariants: no Write/Edit matcher on PostToolUse, no postToolUse event on Cursor, exact event-set invariants per host. `codex-plugin.bats` enforces Codex manifest, marketplace schema, hooks shape, MCP wiring, TOML agents, and parity between `commands/*.md` wrappers and `skills/<name>/SKILL.md`. |
+| Fixtures        | `test/fixtures/stdin/`       | 12 files | Mock stdin JSON for Claude Code, Cursor, Copilot, Codex CLI, and malformed inputs                       |
 | Helpers         | `test/helpers/`              | —        | common.bash (setup, mocks, timeout shim), bats-support, bats-assert (git submodules)                    |
 | Makefile        | `Makefile`                   | —        | Targets: `test`, `test-unit`, `test-structure`, `lint`, `check-json`, `check-perms`, `verify`           |
 | CI              | `.github/workflows/test.yml` | —        | GitHub Actions: macOS + Linux matrix, bats + shellcheck                                                 |
@@ -181,6 +193,9 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 | `hooks/hooks.json`                | Claude Code | Hook event config (PascalCase)                                         |
 | `hooks/cursor.hooks.json`         | Cursor      | Hook event config (camelCase + afterMCPExecution)                      |
 | `hooks/codex.hooks.json`          | Codex CLI   | Hook event config (PascalCase + apply_patch matcher)                   |
+| `commands/*.md`                   | Codex CLI   | Slash command wrappers (16) — thin shims delegating to `skills/<name>/SKILL.md` |
+| `agents/archcore-assistant.toml`  | Codex CLI   | Codex TOML subagent (`sandbox_mode = "workspace-write"`); MD original used by Claude Code/Cursor |
+| `agents/archcore-auditor.toml`    | Codex CLI   | Codex TOML subagent (`sandbox_mode = "read-only"` + `disabled_tools[]`); MD original used by Claude Code/Cursor |
 | `rules/archcore-context.mdc`      | Cursor      | Always-apply context rule                                              |
 | `rules/archcore-files.mdc`        | Cursor      | .archcore/ glob-triggered MCP-only rule                                |
 
@@ -212,4 +227,4 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 /archcore:verify           — run plugin integrity checks
 ```
 
-Total visible in `/` menu: 16 commands. Every Archcore document type is reachable via these skills or directly through `mcp__archcore__create_document(type=<any>)`.
+Total visible in `/` menu: 16 commands. Every Archcore document type is reachable via these skills or directly through `mcp__archcore__create_document(type=<any>)`. Codex CLI surfaces the same 16 entries via the matching `commands/*.md` wrappers.

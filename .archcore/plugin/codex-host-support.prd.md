@@ -9,7 +9,7 @@ tags:
 
 ## Vision
 
-Archcore plugin runs natively in OpenAI Codex CLI as a third first-class host alongside Claude Code (production) and Cursor (implemented), installable via `codex plugin marketplace add archcore-ai/plugin`, with Codex-native packaging for skills, plugin-managed MCP, hooks config, and read-only auditor subagent TOML. Hook execution depends on Codex's `codex_hooks` feature/runtime support, so the plugin ships the documented hook surface while treating live hook execution as a runtime smoke-test item. Zero regression for existing Claude Code and Cursor users. The Multi-Host Compatibility Layer Specification's "Codex CLI" row is promoted from `TBD / Future` to actual implementation values.
+Archcore plugin runs natively in OpenAI Codex CLI as a third first-class host alongside Claude Code (production) and Cursor (implemented), installable via `codex plugin marketplace add archcore-ai/plugin`, with Codex-native packaging for slash commands, skills, plugin-managed MCP, hooks config, and read-only auditor subagent TOML. Hook execution depends on Codex's `codex_hooks` feature/runtime support, so the plugin ships the documented hook surface while treating live hook execution as a runtime smoke-test item. Zero regression for existing Claude Code and Cursor users. The Multi-Host Compatibility Layer Specification's "Codex CLI" row is promoted from `TBD / Future` to actual implementation values.
 
 ## Problem Statement
 
@@ -20,7 +20,8 @@ Users of OpenAI Codex CLI need the same Archcore surfaces Claude Code users get:
 | Goal | Metric |
 |------|--------|
 | Single-command install | `codex plugin marketplace add archcore-ai/plugin` registers the marketplace; enabled installs load skills and plugin-managed MCP without manual `codex mcp add` |
-| Skill parity | All 17 skills (`skills/<name>/SKILL.md`) discoverable and invokable in Codex without modifications to existing SKILL.md files |
+| Skill parity | All 16 skills (`skills/<name>/SKILL.md`) discoverable and invokable in Codex without modifications to existing SKILL.md files |
+| Slash command parity | All 16 user-facing Archcore workflows available in Codex as `/archcore:*` commands through root-level `commands/*.md` wrappers |
 | MCP parity with Claude Code | Plugin-shipped MCP wiring works in Codex (no external `claude mcp add`-equivalent needed); first MCP tool call triggers launcher resolution exactly as in Claude Code |
 | Hook packaging | `hooks/codex.hooks.json` ships the same guardrails as Claude Code with Codex matchers; live execution is verified when `codex_hooks` runtime support is active |
 | Auditor subagent | `archcore-auditor` runs in `sandbox_mode = "read-only"` with no file-write capability and no access to mutating MCP tools |
@@ -35,6 +36,8 @@ Users of OpenAI Codex CLI need the same Archcore surfaces Claude Code users get:
 **F1 — Plugin Manifest.** Create `.codex-plugin/plugin.json` with required `name`, `version`, `description` synchronized to `.claude-plugin/plugin.json` and `.cursor-plugin/plugin.json`. Component pointers as Codex relative paths (`./...`): `skills`, `hooks`, `mcpServers`. Optional `interface{}` block for marketplace UI metadata (displayName, category, keywords, capabilities, defaultPrompt, brandColor, screenshots). Identical metadata across hosts is mandated by the Compatibility Layer spec invariant.
 
 **F2 — Marketplace Listing.** Create `.agents/plugins/marketplace.json` with the Codex marketplace schema. The entry uses `INSTALLED_BY_DEFAULT` and points the `archcore` plugin at the repo root. Do not create legacy `.codex-plugin/marketplace.json`.
+
+**F2a — Slash Commands.** Create root-level Codex command wrappers under `commands/*.md` for every user-facing Archcore workflow. These files are host adapter shims: each command exposes Codex `/archcore:<name>` discovery and delegates behavior to the matching `skills/<name>/SKILL.md`. Do not duplicate workflow logic in commands.
 
 **F3 — Hooks Config.** Create `hooks/codex.hooks.json` mapping the five active hook functions:
 - SessionStart → `bin/session-start`
@@ -55,7 +58,7 @@ Use plugin-relative commands (`./bin/...`) rather than `${CODEX_PLUGIN_ROOT}`; c
 
 If Codex doesn't expose `$CODEX_PLUGIN_DATA`, the existing XDG/LOCALAPPDATA fallbacks already work — no breakage, just slightly less locality.
 
-**F7 — Skills Compatibility.** All 17 `skills/<name>/SKILL.md` files must work unchanged in Codex. The `argument-hint` frontmatter field is non-standard for Codex but is expected to be ignored gracefully (frontmatter spec does not require strict field validation). Verify in spike; if it causes failures, propose minimal frontmatter cleanup that doesn't break Claude Code/Cursor.
+**F7 — Skills Compatibility.** All 16 `skills/<name>/SKILL.md` files must work unchanged in Codex. The `argument-hint` frontmatter field is non-standard for Codex but is expected to be ignored gracefully (frontmatter spec does not require strict field validation). Verify in spike; if it causes failures, propose minimal frontmatter cleanup that doesn't break Claude Code/Cursor.
 
 **F8 — Subagent TOML Conversion.** Convert `agents/archcore-auditor.md` to `agents/archcore-auditor.toml`:
 - `name = "archcore-auditor"`

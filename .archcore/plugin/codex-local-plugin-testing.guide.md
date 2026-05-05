@@ -105,7 +105,7 @@ tags:
    find ~/.codex/plugins/cache -maxdepth 5 -type d -path '*archcore*' -print
    ```
 
-   Expected result: `~/.codex/config.toml` contains an enabled `archcore@<marketplace>` entry, and the cache contains a copied plugin bundle with `.codex-plugin/plugin.json`, `skills/`, `.codex.mcp.json`, `hooks/`, and `bin/`.
+   Expected result: `~/.codex/config.toml` contains an enabled `archcore@<marketplace>` entry, and the cache contains a copied plugin bundle with `.codex-plugin/plugin.json`, `commands/`, `skills/`, `.codex.mcp.json`, `hooks/`, and `bin/`.
 
 8. Verify MCP registration from a neutral directory.
 
@@ -117,15 +117,15 @@ tags:
 
    A plugin-managed Archcore MCP entry should be enabled. If the command shown is `./bin/archcore`, Codex is reading the plugin bundle. If the command is plain `archcore`, a project or user-level MCP config may be contributing the server; inspect configs before treating this as proof of plugin-managed MCP.
 
-9. Verify skills from a new Codex thread.
+9. Verify slash commands and skills from a new Codex thread.
 
-   Start a fresh Codex session after installation. Type `@` and confirm Archcore skills appear, for example `archcore:review`, `archcore:plan`, `archcore:context`, and `archcore:verify`. Then run a small prompt such as:
+   Start a fresh Codex session after installation. Type `/archcore:` and confirm slash commands appear, for example `/archcore:review`, `/archcore:plan`, `/archcore:context`, and `/archcore:verify`. Type `@` and confirm the matching Archcore skills also appear. Then run a small prompt such as:
 
    ```text
-   Use archcore:context to summarize the project knowledge base.
+   /archcore:context
    ```
 
-   If the skill list is missing, return to `/plugins`, confirm `Archcore` is installed and enabled, close Codex, and start a new thread.
+   If the command or skill list is missing, return to `/plugins`, confirm `Archcore` is installed and enabled, close Codex, and start a new thread.
 
 10. Refresh after local source changes.
 
@@ -139,7 +139,7 @@ tags:
 - `~/.codex/config.toml` contains `[plugins."archcore@<marketplace>"]` with `enabled = true`.
 - `~/.codex/plugins/cache/<marketplace>/archcore/<version>/` contains the plugin bundle.
 - `codex mcp list --json` includes an enabled `archcore` server. In a neutral directory, prefer seeing the plugin-relative `./bin/archcore` command when validating plugin-managed MCP.
-- A new Codex thread can discover Archcore skills via `@` and can use an Archcore skill without manual `codex mcp add`.
+- A new Codex thread can discover Archcore slash commands via `/archcore:` and Archcore skills via `@`, without manual `codex mcp add`.
 - Optional hook verification: with Codex hook runtime support enabled, `hooks/codex.hooks.json` should load `SessionStart`, `PreToolUse`, and `PostToolUse` guardrails. Keep this as a runtime smoke test because hook execution depends on Codex's `codex_hooks` feature support.
 
 ## Common Issues

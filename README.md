@@ -40,7 +40,7 @@ codex
 # then run /plugins, open Archcore, and select Install plugin
 ```
 
-The Codex plugin browser groups plugins by marketplace. After install, start a new Codex thread and ask Codex to use Archcore, or type `@` and choose one of the bundled Archcore skills. MCP is plugin-managed (no manual `codex mcp add`). Codex hooks currently depend on Codex's `codex_hooks` feature/runtime support; enable `[features] codex_hooks = true` if you want Codex to execute the bundled hook guardrails. The launcher caches under `$CODEX_PLUGIN_DATA/archcore/cli/` when Codex provides that data directory, with XDG/local fallbacks for local development.
+The Codex plugin browser groups plugins by marketplace. After install, start a new Codex thread and use `/archcore:*` slash commands, ask Codex to use Archcore in natural language, or type `@` and choose one of the bundled Archcore skills. MCP is plugin-managed (no manual `codex mcp add`). Codex hooks currently depend on Codex's `codex_hooks` feature/runtime support; enable `[features] codex_hooks = true` if you want Codex to execute the bundled hook guardrails. The launcher caches under `$CODEX_PLUGIN_DATA/archcore/cli/` when Codex provides that data directory, with XDG/local fallbacks for local development.
 
 <details>
 <summary>Local development, offline, enterprise, team rollouts</summary>
@@ -140,7 +140,8 @@ Two pieces work together:
 
 ## What ships in the box
 
-- **16 Skills** — 9 intent commands, 6 multi-step tracks, 1 utility
+- **16 Skills** — 9 intent workflows, 6 multi-step tracks, 1 utility
+- **16 Codex slash commands** — thin command wrappers over the same skill workflows
 - **2 Agents** — a universal assistant and a read-only auditor
 - **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 
@@ -162,7 +163,7 @@ Describe what you want in plain English — Archcore routes it to the right skil
 
 ### Document types (17)
 
-Each type skill teaches the agent about one document type: when to use it, required sections, best practices, common mistakes, and how to relate it to other documents. The `plan` type is served by the `/archcore:plan` intent skill rather than a standalone type skill.
+Archcore supports 17 document types. There are no standalone per-type skills; intent and track commands inline the creation recipes for the document types they produce.
 
 | Type        | Category   | What it captures                                     |
 | ----------- | ---------- | ---------------------------------------------------- |
@@ -184,7 +185,7 @@ Each type skill teaches the agent about one document type: when to use it, requi
 | `task-type` | experience | Recurring task patterns with proven workflows        |
 | `cpat`      | experience | Before/after code pattern changes with scope         |
 
-Invoke mainstream types directly: `/archcore:adr`, `/archcore:prd`, `/archcore:spec`, etc. The 7 niche types (`mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`) are hidden from `/` autocomplete to reduce cognitive load — reach them through `/archcore:sources-track` or `/archcore:iso-track`, or call `mcp__archcore__create_document` directly.
+Create documents through intent commands such as `/archcore:decide`, `/archcore:capture`, and `/archcore:plan`; use `/archcore:sources-track` or `/archcore:iso-track` for niche requirements cascades. For exact type-level control, call `mcp__archcore__create_document` directly with the matching `type` parameter.
 
 ### Tracks (6)
 

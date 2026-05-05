@@ -10,11 +10,11 @@ tags:
 
 Define the contract for user-invoked skills: their tier classification, discoverability, naming, argument handling, and behavior when users invoke them via slash commands. Reflects the Inverted Invocation Policy (`inverted-invocation-policy.adr.md`) for the intent/track/utility classes; the type-skill portion of that policy is superseded by `remove-document-type-skills.adr.md` — there are no per-type skills. The `status` and `graph` intents were merged into `review` and removed respectively per `merge-review-status-remove-graph.adr.md`.
 
-Note: Claude Code has merged commands into skills. The `commands/` directory is legacy. All user-invoked workflows use `skills/<name>/SKILL.md`.
+Note: Claude Code has merged commands into skills. Codex still discovers slash commands from root-level `commands/*.md`, so those files are thin host-adapter wrappers that delegate to `skills/<name>/SKILL.md`. The skill file remains the behavioral source of truth.
 
 ## Scope
 
-This specification covers the user-invoked surface of the plugin: how users discover, invoke, and interact with the skills that appear in the `/` menu. It does not cover MCP tools.
+This specification covers the user-invoked surface of the plugin: how users discover, invoke, and interact with the skills or Codex command wrappers that appear in the `/` menu. It does not cover MCP tools.
 
 ## Authority
 
@@ -219,9 +219,9 @@ The `skills/plan/` directory contains the intent skill. Users who need a single 
 
 ## Conformance
 
-A user-invoked skill conforms to this specification if:
+A user-invoked skill or Codex command wrapper conforms to this specification if:
 
-1. It resides at `skills/<name>/SKILL.md`.
+1. Its behavior resides at `skills/<name>/SKILL.md`; Codex may also expose a matching `commands/<name>.md` wrapper.
 2. Its invocation flags match its class per the Inverted Invocation Policy ADR.
 3. Its description carries the appropriate tier prefix (or none for Tier 1 / Utility).
 4. It uses MCP tools exclusively for document operations.

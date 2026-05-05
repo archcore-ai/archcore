@@ -65,9 +65,31 @@ Required frontmatter fields: `name` (must match directory name), `description`. 
 
 Reload and test: `/reload-plugins`, then try `/archcore:my-skill`.
 
+#### 3a. Add a Codex slash command wrapper (required for user-facing skills)
+
+Claude Code and Cursor surface skills directly in the `/` menu. Codex CLI does not — it discovers slash commands from root-level `commands/<name>.md` files. For every user-facing skill (intent, track, or utility), add a thin wrapper at `commands/my-skill.md`:
+
+```markdown
+---
+description: <one-line description, ideally matching the skill's first sentence>
+---
+
+# /archcore:my-skill
+
+## Arguments
+
+The user invoked this command with: $ARGUMENTS
+
+## Instructions
+
+Use the Archcore skill at `skills/my-skill/SKILL.md`.
+```
+
+Wrappers carry no workflow logic — behavior lives in the skill, the single source of truth. `test/structure/codex-plugin.bats` enforces parity: every wrapper must exist, carry `description:`, and reference its matching `skills/<name>/SKILL.md`. Skills with `disable-model-invocation: true` (user-only utilities like `verify`) still get wrappers because they are user-invocable in the `/` menu.
+
 ### 4. Add or modify hooks
 
-Edit `hooks/hooks.json` (Claude Code) or `hooks/cursor.hooks.json` (Cursor) to add event handlers.
+Edit `hooks/hooks.json` (Claude Code), `hooks/cursor.hooks.json` (Cursor), or `hooks/codex.hooks.json` (Codex CLI) to add event handlers.
 
 Hook scripts go in `bin/` and must:
 
@@ -77,7 +99,7 @@ Hook scripts go in `bin/` and must:
 - Add `# shellcheck source=lib/normalize-stdin.sh` before the source line
 - Invoke the CLI through `"$SCRIPT_DIR/archcore"` (the launcher) rather than a bare `archcore`, so the resolution order (ARCHCORE_BIN → PATH → cache → download) applies
 
-Use `${CLAUDE_PLUGIN_ROOT}` (Claude Code) or `${CURSOR_PLUGIN_ROOT}` (Cursor) in hook configs.
+Use `${CLAUDE_PLUGIN_ROOT}` (Claude Code), `${CURSOR_PLUGIN_ROOT}` (Cursor), or plugin-relative `./bin/...` (Codex CLI — does not expose a documented plugin-root variable) in hook configs.
 
 ### 5. Modify agents
 
@@ -85,6 +107,8 @@ Edit `agents/archcore-assistant.md` or `agents/archcore-auditor.md`:
 
 - Frontmatter: `name`, `description`, `model`, `maxTurns`, `tools`
 - The auditor must remain read-only (only list_documents, get_document, list_relations MCP tools)
+
+For Codex CLI, also update the matching TOML variant (`agents/archcore-assistant.toml`, `agents/archcore-auditor.toml`) — TOML and MD must keep identical `developer_instructions` content; structural drift is detected by `test/structure/agents.bats`.
 
 ### 6. Run tests
 
@@ -112,7 +136,7 @@ See `plugin-testing.guide.md` for detailed testing instructions.
 ### 7. Test all components manually
 
 - Skills: discuss relevant topics and verify Claude activates the skill
-- Commands: run each `/archcore:<name>` command and verify behavior
+- Commands: run each `/archcore:<name>` command (in all three hosts where applicable) and verify behavior — Codex pulls these from `commands/`, Claude Code and Cursor pull them from `skills/`
 - Agent: invoke the agent on a multi-document task
 - Hooks: trigger Write/Edit on `.archcore/` and verify PreToolUse blocks it
 - Launcher: temporarily unset `ARCHCORE_BIN`, remove the cached binary, and confirm the next MCP call downloads and caches the CLI without prompting
@@ -141,8 +165,8 @@ No other changes required — the cache is version-keyed by filename so old bina
 
 ### Plugin not loading
 
-- Ensure `.claude-plugin/plugin.json` (Claude Code) or `.cursor-plugin/plugin.json` (Cursor) exists and has valid JSON
-- Check that directories (skills/, agents/, hooks/) are at the plugin root
+- Ensure `.claude-plugin/plugin.json` (Claude Code), `.cursor-plugin/plugin.json` (Cursor), or `.codex-plugin/plugin.json` (Codex CLI) exists and has valid JSON
+- Check that directories (skills/, agents/, hooks/, commands/) are at the plugin root
 - Run `claude --debug` to see plugin loading details
 
 ### Skill not activating
@@ -150,6 +174,13 @@ No other changes required — the cache is version-keyed by filename so old bina
 - Check the `description` field in SKILL.md frontmatter — it determines when Claude activates the skill
 - Ensure `name` matches the directory name
 - Run `/reload-plugins` after changes
+
+### `/archcore:<name>` missing in Codex `/` menu
+
+- Confirm `commands/<name>.md` exists and has `description:` frontmatter
+- Confirm it references `skills/<name>/SKILL.md` (the bats parity test enforces this)
+- Run `make test-structure` — `codex-plugin.bats` will flag missing or malformed wrappers
+- Restart Codex after adding new wrappers (the marketplace cache is read once on session start)
 
 ### Hook not firing
 

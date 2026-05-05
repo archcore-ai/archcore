@@ -35,8 +35,11 @@ Most users start here. Describe what you need — the system picks the right doc
 | `/archcore:standard [topic]` | Establish a team standard (decision → rule → guide) |
 | `/archcore:review` | Dashboard of document counts and stats; `--deep` for a full health audit |
 | `/archcore:actualize` | Detect stale docs and suggest updates |
+| `/archcore:bootstrap` | Seed an empty repo with initial Archcore docs |
+| `/archcore:context [path or topic]` | Surface rules and decisions for a code area |
+| `/archcore:help` | Show this guide |
 
-**Tip:** You can also just describe what you need in natural language. Claude will pick the right command automatically.
+**Tip:** You can also just describe what you need in natural language. The agent will pick the right command automatically.
 
 ## Advanced — Multi-Document Flows
 
@@ -51,19 +54,9 @@ For users who know which documentation flow they need:
 | `/archcore:standard-track [topic]` | ADR → rule → guide |
 | `/archcore:feature-track [topic]` | PRD → spec → plan → task-type |
 
-## Expert — Single Document Types
+## Direct Document Creation
 
-Create a specific document type directly. These commands are user-only shortcuts (the model routes through Quick Start commands for natural-language requests).
-
-**Knowledge:** `/archcore:adr`, `/archcore:rfc`, `/archcore:rule`, `/archcore:guide`, `/archcore:doc`, `/archcore:spec`
-
-**Vision:** `/archcore:prd`, `/archcore:idea`
-
-**Experience:** `/archcore:task-type`, `/archcore:cpat`
-
-## Hidden — Niche Discovery & ISO 29148 Types
-
-Seven document types are not shown in `/` autocomplete to reduce cognitive load: `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`. The model still knows about them and will reach them when you invoke the right track:
+There are no per-type slash commands. Create documents through the intent and track commands above, or call `mcp__archcore__create_document` directly when you need exact type-level control.
 
 - **Market / business / user requirements (`mrd` / `brd` / `urd`):** use `/archcore:sources-track [topic]`
 - **ISO 29148 cascade (`brs` → `strs` → `syrs` → `srs`):** use `/archcore:iso-track [topic]`

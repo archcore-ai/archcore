@@ -77,6 +77,48 @@ setup() {
   [ "$(jq -r '.description' < "$codex")" = "$(jq -r '.description' < "$claude")" ]
 }
 
+@test "codex slash command wrappers exist for every user-facing skill" {
+  local commands_dir="$PLUGIN_ROOT/commands"
+  [ -d "$commands_dir" ]
+
+  local expected=(
+    actualize
+    architecture-track
+    bootstrap
+    capture
+    context
+    decide
+    feature-track
+    help
+    iso-track
+    plan
+    product-track
+    review
+    sources-track
+    standard
+    standard-track
+    verify
+  )
+
+  local name
+  for name in "${expected[@]}"; do
+    [ -f "$commands_dir/$name.md" ] || fail "missing Codex command wrapper: $name"
+    [ -d "$PLUGIN_ROOT/skills/$name" ] || fail "command has no matching skill: $name"
+    grep -q "skills/$name/SKILL.md" "$commands_dir/$name.md" || fail "command does not delegate to matching skill: $name"
+  done
+
+  local count
+  count=$(find "$commands_dir" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
+  [ "$count" = "${#expected[@]}" ] || fail "expected ${#expected[@]} Codex commands, found $count"
+}
+
+@test "codex slash command wrappers have descriptions" {
+  local file
+  for file in "$PLUGIN_ROOT"/commands/*.md; do
+    grep -q '^description:' "$file" || fail "missing description in $file"
+  done
+}
+
 @test ".agents/plugins/marketplace.json exists and uses Codex marketplace schema" {
   local file="$PLUGIN_ROOT/.agents/plugins/marketplace.json"
   [ -f "$file" ]

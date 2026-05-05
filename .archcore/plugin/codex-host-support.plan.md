@@ -10,7 +10,7 @@ tags:
 
 ## Goal
 
-Implement OpenAI Codex CLI as the third first-class host for the Archcore plugin with Codex-native packaging for skills, plugin-managed MCP, hooks config, and subagent TOML files. Promote the Codex CLI row in the Multi-Host Compatibility Layer Specification's Supported Hosts table from "TBD / Future" to "Implemented". Marketplace registration (`codex plugin marketplace add archcore-ai/plugin`), no manual `codex mcp add`, zero regression for Claude Code/Cursor, no host-specific business logic in shared core.
+Implement OpenAI Codex CLI as the third first-class host for the Archcore plugin with Codex-native packaging for slash command wrappers, skills, plugin-managed MCP, hooks config, and subagent TOML files. Promote the Codex CLI row in the Multi-Host Compatibility Layer Specification's Supported Hosts table from "TBD / Future" to "Implemented". Marketplace registration (`codex plugin marketplace add archcore-ai/plugin`), no manual `codex mcp add`, zero regression for Claude Code/Cursor, no host-specific business logic in shared core.
 
 ## Tasks
 
@@ -58,7 +58,7 @@ Estimate: 1–2 days. Run spike before committing to design choices in Phases 1�
 #### 0.6 Verify SKILL.md frontmatter compatibility
 
 - Copy a real SKILL.md from `skills/decide/` into the test plugin. Verify Codex loads it without error (specifically, whether `argument-hint` field causes warnings/failures).
-- Test description budget — 17 skills with current descriptions, fits in ~2% / 8000 chars budget?
+- Test description budget — 16 skills with current descriptions, fits in ~2% / 8000 chars budget?
 
 **Output:** Confirmation that existing SKILL.md files load cleanly OR list of minimal frontmatter fixes needed.
 
@@ -96,6 +96,58 @@ Estimate: 0.5–1 day. Depends on 0.1, 0.2.
 - Install plugin locally in Codex via `codex plugin marketplace add file:///path/to/plugin`.
 - Verify MCP server starts; `list_documents` MCP tool callable.
 - No regression in Claude Code (still installs, still works).
+
+### Phase 1.5: Codex Slash Command Wrappers
+
+Estimate: 0.25–0.5 day. Depends on 0.1, 0.4.
+
+Codex CLI does not surface skills directly in the `/` menu the way Claude Code and Cursor do. To expose `/archcore:<name>` discovery in Codex, ship a thin wrapper file at the plugin root for every user-facing skill. Wrappers carry no workflow logic — behavior remains in the matching `skills/<name>/SKILL.md`.
+
+#### 1.5.1 Create `commands/<name>.md` for every user-facing skill
+
+For each entry in the user-facing skill set (9 intent + 6 track + 1 utility = 16 entries), create a wrapper file:
+
+```markdown
+---
+description: <one-line description, ideally matching the skill's first sentence>
+---
+
+# /archcore:<name>
+
+## Arguments
+
+The user invoked this command with: $ARGUMENTS
+
+## Instructions
+
+Use the Archcore skill at `skills/<name>/SKILL.md`.
+```
+
+The wrapper MUST:
+
+- Reside at `commands/<name>.md` at the plugin root.
+- Have a `description:` frontmatter field.
+- Reference the matching `skills/<name>/SKILL.md` in its instructions section.
+- Contain no workflow logic, no MCP calls, no inlined elicitation — the skill is the single source of truth.
+
+Skills with `disable-model-invocation: true` (currently `verify`) still receive a wrapper because they are user-invocable in `/`.
+
+**Files:** `commands/actualize.md`, `commands/architecture-track.md`, `commands/bootstrap.md`, `commands/capture.md`, `commands/context.md`, `commands/decide.md`, `commands/feature-track.md`, `commands/help.md`, `commands/iso-track.md`, `commands/plan.md`, `commands/product-track.md`, `commands/review.md`, `commands/sources-track.md`, `commands/standard.md`, `commands/standard-track.md`, `commands/verify.md` (16 new files)
+
+#### 1.5.2 Add structure tests for wrapper parity
+
+Extend `test/structure/codex-plugin.bats` with two tests:
+
+- "codex slash command wrappers exist for every user-facing skill" — enumerates the 16 expected names, asserts each `commands/<name>.md` exists, asserts each has a matching `skills/<name>/` directory, asserts each wrapper references `skills/<name>/SKILL.md`, and pins the file count to 16.
+- "codex slash command wrappers have descriptions" — every `commands/*.md` carries a `description:` frontmatter line.
+
+**Files:** `test/structure/codex-plugin.bats` (modify)
+
+#### 1.5.3 Smoke test in Codex
+
+- Reinstall the plugin locally in Codex.
+- Open a fresh thread; type `/archcore:` — confirm the 16 entries appear.
+- Trigger a sample wrapper (`/archcore:review`); confirm Codex routes through to the underlying skill behavior.
 
 ### Phase 2: Hooks Configuration and Stdin Normalization
 
@@ -191,7 +243,7 @@ Estimate: 0.25 day. Depends on 0.1.
 
 Estimate: 0.25 day. Depends on 0.6.
 
-- If spike 0.6 confirmed clean load of all 17 SKILL.md files: no action.
+- If spike 0.6 confirmed clean load of all 16 SKILL.md files: no action.
 - If spike found `argument-hint` causes warnings: leave as-is if non-fatal; otherwise plan a CPAT to remove `argument-hint` (low-risk: it's a Claude-Code-specific UX hint, removing it doesn't affect functionality).
 - If description budget exceeded: identify the most descriptive skills (decide, plan, capture, standard) as priority; consider compressing descriptions of less-frequently-used skills (iso-track, sources-track, product-track, feature-track, architecture-track, standard-track).
 
@@ -208,14 +260,15 @@ Estimate: 0.5 day.
 - Per-Host Hooks Configuration: add Codex subsection mirroring Claude Code's.
 - Plugin Manifests: add Codex subsection.
 - MCP Server Wiring: add Codex subsection ("Plugin-shipped" parity with Claude Code).
-- Normative Behavior, Constraints, Conformance: amend to include `codex` as a recognized host.
+- Add a Codex Slash Command Wrappers section (parallel to Codex Subagent TOML Files), describing the `commands/*.md` host-adapter shim and its conformance rule (delegate-only, no logic duplication).
+- Normative Behavior, Constraints, Conformance: amend to include `codex` as a recognized host and to require slash command wrappers for every user-facing skill.
 
 **Files:** `multi-host-compatibility-layer.spec.md` (modify)
 
 #### 6.2 Update `multi-host-plugin-architecture.adr.md`
 
 - Update the "Drivers" subsection: Codex now confirmed in production support list, not just an "ask".
-- Update the directory tree under Decision: add `.codex-plugin/`, `hooks/codex.hooks.json`, `agents/*.toml`.
+- Update the directory tree under Decision: add `.codex-plugin/`, `hooks/codex.hooks.json`, `agents/*.toml`, `commands/*.md`.
 - Update Negative consequence about MCP wiring: Codex joins Claude Code in plugin-shipped MCP; Cursor remains the outlier.
 
 **Files:** `multi-host-plugin-architecture.adr.md` (modify)
@@ -232,6 +285,7 @@ Estimate: 0.5 day.
 - Add "Codex CLI" install section: `codex plugin marketplace add archcore-ai/plugin`.
 - Document minimum Codex version (v0.117.0+).
 - Update supported-hosts list at the top.
+- Mention Codex slash command surface (16 `/archcore:*` commands sourced from `commands/`).
 - Note the manual subagent install step if Phase 3.3 fallback is needed.
 
 **Files:** `README.md` (modify)
@@ -242,6 +296,7 @@ Estimate: 0.5 day.
 
 - Fresh Codex install (no existing `~/.codex/` config). Run: `codex plugin marketplace add archcore-ai/plugin`.
 - Open a fresh project. Initialize Archcore via MCP (`init_project`). Verify MCP tools. With `[features].codex_hooks = true` enabled, verify SessionStart context and hook guardrails blocking direct writes.
+- Type `/archcore:` in a fresh Codex thread; confirm all 16 wrappers appear; trigger 2–3 of them and verify they delegate to the matching skill.
 - Spawn `archcore-auditor`; attempt a mutating MCP call from inside the auditor session — verify rejection (or soft refusal if `disabled_tools[]` not honored).
 - Run the existing Claude Code test suite (`make test`). Pass.
 - Manual smoke test in Cursor (existing flow). Pass.
@@ -251,6 +306,8 @@ Estimate: 0.5 day.
 - [ ] All 6 Phase 0 spikes complete; findings captured (in this plan's risks or in a separate ADR).
 - [ ] `.codex-plugin/plugin.json` exists with synchronized metadata, valid component pointers, and `interface{}` marketplace block.
 - [ ] Plugin-shipped MCP wiring works in Codex without external `codex mcp add` step.
+- [ ] `commands/<name>.md` wrappers exist for all 16 user-facing skills, each carrying `description:` frontmatter and delegating to `skills/<name>/SKILL.md`. Parity tests in `test/structure/codex-plugin.bats` pass.
+- [ ] In a fresh Codex thread, `/archcore:` autocompletes to all 16 wrappers and triggering one routes through to the underlying skill.
 - [ ] `hooks/codex.hooks.json` maps the five active hook functions with correct matchers and timeouts.
 - [ ] `bin/lib/normalize-stdin.sh` has explicit `codex` host detection and field extraction.
 - [ ] `bin/archcore` and `bin/archcore.ps1` extend cache resolution with `$CODEX_PLUGIN_DATA` directory.
@@ -259,8 +316,8 @@ Estimate: 0.5 day.
 - [ ] `codex plugin marketplace add archcore-ai/plugin` succeeds end-to-end on a fresh install.
 - [ ] All existing Claude Code tests pass unchanged.
 - [ ] Cursor manual smoke test passes unchanged.
-- [ ] `multi-host-compatibility-layer.spec.md` Codex CLI row promoted from TBD to actual values.
-- [ ] README documents Codex install path.
+- [ ] `multi-host-compatibility-layer.spec.md` Codex CLI row promoted from TBD to actual values; the spec includes a Codex Slash Command Wrappers section.
+- [ ] README documents Codex install path and the slash command surface.
 
 ## Dependencies
 
@@ -283,11 +340,12 @@ Estimate: 0.5 day.
 | Plugin-side `.mcp.json` schema differs from Claude Code wrapper | Resolved | Low | Use public Codex examples' `{"mcpServers": {...}}` wrapper in plugin-root `.codex.mcp.json` |
 | Skill `argument-hint` frontmatter rejected | Low | Low | Spike 0.6 resolves; CPAT to remove if needed |
 | Skill flat namespace causes collisions with other plugins | Low | Low | Spike 0.4 resolves; rename skills with `archcore-` prefix if needed |
+| Slash command wrapper drift from skills | Low | Medium | `test/structure/codex-plugin.bats` enforces 1-to-1 parity (count, names, delegate reference); CI catches missing/stale wrappers |
 | Codex CLI rapid-iteration on plugin API breaks compatibility | Medium | Medium | Pin minimum Codex version in README; add version check to `bin/session-start` if practical |
 | Marketplace install requires repo-level changes | Resolved | Low | `.agents/plugins/marketplace.json` is accepted by `codex plugin marketplace add` |
 
 ## Estimate
 
 Phase 0 spike: 1–2 days (blocking).
-Phases 1–7 implementation: ~3.5–4 days.
-Total: 4.5–6 days dev work + 1–2 days for documentation/test polish = **6–8 days**.
+Phases 1–7 implementation: ~3.75–4.5 days (Phase 1.5 adds 0.25–0.5 day to the original ~3.5–4).
+Total: 4.75–6.5 days dev work + 1–2 days for documentation/test polish = **6–8.5 days**.
