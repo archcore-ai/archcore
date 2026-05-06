@@ -16,8 +16,10 @@ setup() {
 }
 
 # Canonical archcore CLI subcommands — keep in sync with bin/CLI_VERSION.
-# As of 0.2.2: config, doctor, help, hooks, init, mcp, status, update.
-ARCHCORE_SUBCOMMANDS="config doctor help hooks init mcp status update"
+# As of 0.3.0: config, doctor, help, hooks, init, mcp, status, update, where.
+# (`sync` exists but is Hidden: true in the CLI cobra spec, so it does not
+# appear in `archcore --help` Available Commands and is excluded here.)
+ARCHCORE_SUBCOMMANDS="config doctor help hooks init mcp status update where"
 
 # Return 0 if $1 is a whitespace-separated token in $ARCHCORE_SUBCOMMANDS.
 _is_allowlisted() {
@@ -123,8 +125,12 @@ _extract_launcher_subcommands() {
   # Try to enumerate the real CLI's subcommands. If the launcher can't resolve
   # the binary (no cache, no network, restricted CI), skip — we cannot ground
   # the allowlist in this environment, and the static tests above still apply.
+  #
+  # NOTE: as of CLI v0.3.0, `archcore --help` prints the welcome banner on
+  # stdout but the cobra usage block (including `Available Commands:`) on
+  # stderr. We merge stderr into stdout so the parser below can see it.
   local help_out
-  help_out=$(ARCHCORE_SKIP_DOWNLOAD=1 "$PLUGIN_ROOT/bin/archcore" --help 2>/dev/null) \
+  help_out=$(ARCHCORE_SKIP_DOWNLOAD=1 "$PLUGIN_ROOT/bin/archcore" --help 2>&1) \
     || skip "archcore launcher cannot resolve CLI in this environment"
 
   # Parse the "Available Commands:" block: every non-blank, non-flag line

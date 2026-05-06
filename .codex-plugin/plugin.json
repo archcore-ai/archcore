@@ -1,7 +1,7 @@
 {
   "name": "archcore",
   "description": "Make your AI agent code with your project's architecture, rules, and decisions.",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "author": {
     "name": "Archcore"
   },
@@ -40,11 +40,7 @@
     "longDescription": "Archcore brings project architecture, decisions, rules, and requirements into Codex through skills, hooks, MCP tools, and documentation-focused agents.",
     "developerName": "Archcore",
     "category": "Coding",
-    "capabilities": [
-      "Interactive",
-      "Read",
-      "Write"
-    ],
+    "capabilities": ["Interactive", "Read", "Write"],
     "websiteURL": "https://github.com/archcore-ai/plugin",
     "privacyPolicyURL": "https://github.com/archcore-ai/plugin",
     "termsOfServiceURL": "https://github.com/archcore-ai/plugin",
