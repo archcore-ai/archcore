@@ -3,13 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"archcore-cli/internal/api"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
 	"archcore-cli/internal/git"
-	"archcore-cli/internal/projectroot"
 	archsync "archcore-cli/internal/sync"
 
 	"github.com/charmbracelet/huh"
@@ -83,11 +83,10 @@ func newSyncCmd() *cobra.Command {
 }
 
 func runSync(cmd *cobra.Command, flags *syncFlags) error {
-	res, err := resolveProjectRoot(cmd, projectroot.ModeRuntime)
+	cwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	cwd := res.Path
 
 	// 1. Validate preconditions.
 	pre, err := checkSyncPreconditions(cwd)

@@ -8,30 +8,7 @@ import (
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/mcp/prompts"
 	"archcore-cli/internal/mcp/tools"
-	"archcore-cli/internal/projectroot"
 )
-
-// Option configures a server instance. Use functional options to attach the
-// projectroot.Resolution and CLI version so the which_project tool has them.
-type Option func(*serverConfig)
-
-type serverConfig struct {
-	resolution *projectroot.Resolution
-	version    string
-}
-
-// WithResolution attaches the resolved project root to the server. Surfaced
-// to the which_project diagnostic tool. If omitted, NewServer synthesizes a
-// minimal resolution from baseDir.
-func WithResolution(r *projectroot.Resolution) Option {
-	return func(c *serverConfig) { c.resolution = r }
-}
-
-// WithVersion sets the CLI version string surfaced by which_project as
-// `cli_version`. Defaults to "dev" if empty.
-func WithVersion(v string) Option {
-	return func(c *serverConfig) { c.version = v }
-}
 
 var mcpServerInstructions = `You are working with a project that uses Archcore — Git-native context for AI coding agents.
 
@@ -189,20 +166,8 @@ LANGUAGE REQUIREMENT:
 All document content (title, body text) MUST be written in %q. YAML frontmatter keys and status values remain in English. Slug must still be lowercase ASCII with hyphens.`, language)
 }
 
-// NewServer creates a new MCP server with archcore tools registered.
-//
-// Options can attach the projectroot.Resolution (surfaced via the
-// which_project diagnostic tool) and the CLI version. Both are optional —
-// callers that only need a working server can call NewServer(baseDir).
-func NewServer(baseDir string, opts ...Option) *server.MCPServer {
-	cfg := &serverConfig{
-		resolution: &projectroot.Resolution{Path: baseDir, Source: projectroot.SourceCwd},
-		version:    "dev",
-	}
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
+// NewServer creates a new MCP server with archcore tools.
+func NewServer(baseDir string) *server.MCPServer {
 	language := ""
 	if settings, err := config.Load(baseDir); err == nil {
 		language = settings.Language
@@ -225,7 +190,6 @@ func NewServer(baseDir string, opts ...Option) *server.MCPServer {
 	s.AddTool(tools.NewAddRelationTool(), tools.HandleAddRelation(baseDir))
 	s.AddTool(tools.NewRemoveRelationTool(), tools.HandleRemoveRelation(baseDir))
 	s.AddTool(tools.NewListRelationsTool(), tools.HandleListRelations(baseDir))
-	s.AddTool(tools.NewWhichProjectTool(), tools.HandleWhichProject(cfg.resolution, cfg.version))
 
 	prompts.RegisterAll(s)
 
@@ -233,7 +197,7 @@ func NewServer(baseDir string, opts ...Option) *server.MCPServer {
 }
 
 // RunStdio starts the MCP server on stdin/stdout.
-func RunStdio(baseDir string, opts ...Option) error {
-	s := NewServer(baseDir, opts...)
+func RunStdio(baseDir string) error {
+	s := NewServer(baseDir)
 	return server.ServeStdio(s)
 }

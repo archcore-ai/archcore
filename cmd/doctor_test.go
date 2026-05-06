@@ -14,26 +14,9 @@ import (
 
 func TestDoctor_NotInitialized(t *testing.T) {
 	dir := t.TempDir()
-	// Mark this as a project (so resolver passes) but without .archcore/.
-	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
-		t.Fatal(err)
-	}
 	out, _ := runCmdInDir(t, dir, "doctor")
 	if !strings.Contains(out, "not found") {
 		t.Errorf("expected 'not found' in output, got: %s", out)
-	}
-}
-
-func TestDoctor_NoProjectMarkers(t *testing.T) {
-	dir := t.TempDir()
-	// Plain directory, no .git, no .archcore — resolver should refuse.
-	out, err := runCmdInDir(t, dir, "doctor")
-	if err == nil {
-		t.Fatal("expected error for no-markers directory, got nil")
-	}
-	combined := out + " " + err.Error()
-	if !strings.Contains(combined, "ERR_NO_PROJECT") && !strings.Contains(combined, "ERR_NOT_PROJECT") {
-		t.Errorf("expected ERR_NO_PROJECT or ERR_NOT_PROJECT in combined output/err, got: %q", combined)
 	}
 }
 

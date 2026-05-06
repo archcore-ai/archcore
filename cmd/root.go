@@ -82,7 +82,6 @@ func NewRootCmd(version string) *cobra.Command {
 	}
 
 	root.SetVersionTemplate("{{.Version}}\n")
-	addBaseDirFlag(root)
 
 	defaultHelp := root.HelpFunc()
 	root.SetHelpFunc(func(cmd *cobra.Command, args []string) {
@@ -101,10 +100,9 @@ func NewRootCmd(version string) *cobra.Command {
 		newDoctorCmd(),
 		newStatusCmd(),
 		newHooksCmd(ver),
-		newMCPCmd(ver),
+		newMCPCmd(),
 		newSyncCmd(),
 		newUpdateCmd(ver),
-		newWhereCmd(ver),
 	)
 
 	return root

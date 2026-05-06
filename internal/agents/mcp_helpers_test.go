@@ -12,7 +12,7 @@ func TestWriteStandardMCPJSON_NewFile(t *testing.T) {
 	base := t.TempDir()
 	filePath := filepath.Join(base, ".mcp.json")
 
-	if err := WriteStandardMCPJSON(filePath, base); err != nil {
+	if err := WriteStandardMCPJSON(filePath); err != nil {
 		t.Fatalf("WriteStandardMCPJSON: %v", err)
 	}
 
@@ -55,10 +55,10 @@ func TestWriteStandardMCPJSON_Idempotent(t *testing.T) {
 	base := t.TempDir()
 	filePath := filepath.Join(base, ".mcp.json")
 
-	if err := WriteStandardMCPJSON(filePath, base); err != nil {
+	if err := WriteStandardMCPJSON(filePath); err != nil {
 		t.Fatalf("first call: %v", err)
 	}
-	if err := WriteStandardMCPJSON(filePath, base); err != nil {
+	if err := WriteStandardMCPJSON(filePath); err != nil {
 		t.Fatalf("second call: %v", err)
 	}
 
@@ -101,7 +101,7 @@ func TestWriteStandardMCPJSON_MergesExisting(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	if err := WriteStandardMCPJSON(filePath, base); err != nil {
+	if err := WriteStandardMCPJSON(filePath); err != nil {
 		t.Fatalf("WriteStandardMCPJSON: %v", err)
 	}
 
@@ -131,7 +131,7 @@ func TestWriteStandardMCPJSON_CreatesDirs(t *testing.T) {
 	base := t.TempDir()
 	filePath := filepath.Join(base, ".cursor", "mcp.json")
 
-	if err := WriteStandardMCPJSON(filePath, base); err != nil {
+	if err := WriteStandardMCPJSON(filePath); err != nil {
 		t.Fatalf("WriteStandardMCPJSON: %v", err)
 	}
 
@@ -145,7 +145,7 @@ func TestWriteVSCodeMCPJSON_NewFile(t *testing.T) {
 	base := t.TempDir()
 	filePath := filepath.Join(base, ".vscode", "mcp.json")
 
-	if err := WriteVSCodeMCPJSON(filePath, base); err != nil {
+	if err := WriteVSCodeMCPJSON(filePath); err != nil {
 		t.Fatalf("WriteVSCodeMCPJSON: %v", err)
 	}
 
@@ -192,10 +192,10 @@ func TestWriteVSCodeMCPJSON_Idempotent(t *testing.T) {
 	base := t.TempDir()
 	filePath := filepath.Join(base, ".vscode", "mcp.json")
 
-	if err := WriteVSCodeMCPJSON(filePath, base); err != nil {
+	if err := WriteVSCodeMCPJSON(filePath); err != nil {
 		t.Fatalf("first call: %v", err)
 	}
-	if err := WriteVSCodeMCPJSON(filePath, base); err != nil {
+	if err := WriteVSCodeMCPJSON(filePath); err != nil {
 		t.Fatalf("second call: %v", err)
 	}
 
@@ -243,7 +243,7 @@ func TestWriteVSCodeMCPJSON_MergesExisting(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	if err := WriteVSCodeMCPJSON(filePath, base); err != nil {
+	if err := WriteVSCodeMCPJSON(filePath); err != nil {
 		t.Fatalf("WriteVSCodeMCPJSON: %v", err)
 	}
 
@@ -268,311 +268,6 @@ func TestWriteVSCodeMCPJSON_MergesExisting(t *testing.T) {
 	}
 }
 
-func TestWriteStandardMCPJSON_EmitsCwdAndEnv(t *testing.T) {
-	t.Parallel()
-	base := t.TempDir()
-	filePath := filepath.Join(base, ".mcp.json")
-	if err := WriteStandardMCPJSON(filePath, base); err != nil {
-		t.Fatalf("WriteStandardMCPJSON: %v", err)
-	}
-	data, _ := os.ReadFile(filePath)
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		t.Fatalf("Unmarshal: %v", err)
-	}
-	var servers map[string]json.RawMessage
-	if err := json.Unmarshal(raw["mcpServers"], &servers); err != nil {
-		t.Fatalf("Unmarshal servers: %v", err)
-	}
-	var entry struct {
-		Cwd string            `json:"cwd"`
-		Env map[string]string `json:"env"`
-	}
-	if err := json.Unmarshal(servers["archcore"], &entry); err != nil {
-		t.Fatalf("Unmarshal entry: %v", err)
-	}
-	if entry.Cwd != base {
-		t.Errorf("cwd = %q, want %q", entry.Cwd, base)
-	}
-	if entry.Env["ARCHCORE_BASE_DIR"] != base {
-		t.Errorf("env.ARCHCORE_BASE_DIR = %q, want %q", entry.Env["ARCHCORE_BASE_DIR"], base)
-	}
-}
-
-func TestWriteVSCodeMCPJSON_EmitsCwdAndEnv(t *testing.T) {
-	t.Parallel()
-	base := t.TempDir()
-	filePath := filepath.Join(base, ".vscode", "mcp.json")
-	if err := WriteVSCodeMCPJSON(filePath, base); err != nil {
-		t.Fatalf("WriteVSCodeMCPJSON: %v", err)
-	}
-	data, _ := os.ReadFile(filePath)
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		t.Fatalf("Unmarshal: %v", err)
-	}
-	var servers map[string]json.RawMessage
-	if err := json.Unmarshal(raw["servers"], &servers); err != nil {
-		t.Fatalf("Unmarshal servers: %v", err)
-	}
-	var entry struct {
-		Type string            `json:"type"`
-		Cwd  string            `json:"cwd"`
-		Env  map[string]string `json:"env"`
-	}
-	if err := json.Unmarshal(servers["archcore"], &entry); err != nil {
-		t.Fatalf("Unmarshal entry: %v", err)
-	}
-	if entry.Cwd != base {
-		t.Errorf("cwd = %q, want %q", entry.Cwd, base)
-	}
-	if entry.Env["ARCHCORE_BASE_DIR"] != base {
-		t.Errorf("env.ARCHCORE_BASE_DIR = %q, want %q", entry.Env["ARCHCORE_BASE_DIR"], base)
-	}
-}
-
-func TestWriteStandardMCPJSON_RewritesStaleEntry(t *testing.T) {
-	t.Parallel()
-	base := t.TempDir()
-	filePath := filepath.Join(base, ".mcp.json")
-	stale := map[string]any{
-		"mcpServers": map[string]any{
-			"archcore": map[string]any{
-				"command": "archcore",
-				"args":    []string{"mcp"},
-				// no cwd, no env — pre-v0.5.0 shape
-			},
-		},
-	}
-	data, _ := json.MarshalIndent(stale, "", "  ")
-	if err := os.WriteFile(filePath, data, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := WriteStandardMCPJSON(filePath, base); err != nil {
-		t.Fatalf("WriteStandardMCPJSON: %v", err)
-	}
-	updated, _ := os.ReadFile(filePath)
-	var raw map[string]json.RawMessage
-	json.Unmarshal(updated, &raw)
-	var servers map[string]json.RawMessage
-	json.Unmarshal(raw["mcpServers"], &servers)
-	var entry struct {
-		Cwd string `json:"cwd"`
-	}
-	json.Unmarshal(servers["archcore"], &entry)
-	if entry.Cwd != base {
-		t.Errorf("stale entry not rewritten: cwd = %q, want %q", entry.Cwd, base)
-	}
-}
-
-func TestWriteStandardMCPJSON_RewritesWhenStale(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name    string
-		oldBase string
-		entry   func(oldBase string) map[string]any
-	}{
-		{
-			name:    "cwd_mismatch",
-			oldBase: "/old/project",
-			entry: func(oldBase string) map[string]any {
-				return map[string]any{
-					"command": "archcore",
-					"args":    []string{"mcp"},
-					"cwd":     oldBase,
-					"env":     map[string]any{"ARCHCORE_BASE_DIR": oldBase},
-				}
-			},
-		},
-		{
-			name:    "env_mismatch",
-			oldBase: "/old/project",
-			entry: func(oldBase string) map[string]any {
-				return map[string]any{
-					"command": "archcore",
-					"args":    []string{"mcp"},
-					// cwd correct, env stale
-					"cwd": "PLACEHOLDER",
-					"env": map[string]any{"ARCHCORE_BASE_DIR": oldBase},
-				}
-			},
-		},
-		{
-			name:    "env_missing",
-			oldBase: "/old/project",
-			entry: func(oldBase string) map[string]any {
-				return map[string]any{
-					"command": "archcore",
-					"args":    []string{"mcp"},
-					"cwd":     "PLACEHOLDER",
-					// no env at all
-				}
-			},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-			base := t.TempDir()
-			filePath := filepath.Join(base, ".mcp.json")
-
-			entry := c.entry(c.oldBase)
-			if cwd, ok := entry["cwd"].(string); ok && cwd == "PLACEHOLDER" {
-				entry["cwd"] = base
-			}
-			seed := map[string]any{
-				"mcpServers": map[string]any{
-					"archcore": entry,
-				},
-			}
-			data, err := json.MarshalIndent(seed, "", "  ")
-			if err != nil {
-				t.Fatalf("MarshalIndent: %v", err)
-			}
-			if err := os.WriteFile(filePath, data, 0o644); err != nil {
-				t.Fatalf("WriteFile: %v", err)
-			}
-
-			if err := WriteStandardMCPJSON(filePath, base); err != nil {
-				t.Fatalf("WriteStandardMCPJSON: %v", err)
-			}
-
-			updated, err := os.ReadFile(filePath)
-			if err != nil {
-				t.Fatalf("ReadFile: %v", err)
-			}
-			var raw map[string]json.RawMessage
-			if err := json.Unmarshal(updated, &raw); err != nil {
-				t.Fatalf("Unmarshal: %v", err)
-			}
-			var servers map[string]json.RawMessage
-			if err := json.Unmarshal(raw["mcpServers"], &servers); err != nil {
-				t.Fatalf("Unmarshal mcpServers: %v", err)
-			}
-			var got struct {
-				Cwd string            `json:"cwd"`
-				Env map[string]string `json:"env"`
-			}
-			if err := json.Unmarshal(servers["archcore"], &got); err != nil {
-				t.Fatalf("Unmarshal entry: %v", err)
-			}
-			if got.Cwd != base {
-				t.Errorf("cwd = %q, want %q", got.Cwd, base)
-			}
-			if got.Env["ARCHCORE_BASE_DIR"] != base {
-				t.Errorf("env.ARCHCORE_BASE_DIR = %q, want %q", got.Env["ARCHCORE_BASE_DIR"], base)
-			}
-		})
-	}
-}
-
-func TestWriteVSCodeMCPJSON_RewritesWhenStale(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name    string
-		oldBase string
-		entry   func(oldBase string) map[string]any
-	}{
-		{
-			name:    "cwd_mismatch",
-			oldBase: "/old/project",
-			entry: func(oldBase string) map[string]any {
-				return map[string]any{
-					"type":    "stdio",
-					"command": "archcore",
-					"args":    []string{"mcp"},
-					"cwd":     oldBase,
-					"env":     map[string]any{"ARCHCORE_BASE_DIR": oldBase},
-				}
-			},
-		},
-		{
-			name:    "env_mismatch",
-			oldBase: "/old/project",
-			entry: func(oldBase string) map[string]any {
-				return map[string]any{
-					"type":    "stdio",
-					"command": "archcore",
-					"args":    []string{"mcp"},
-					"cwd":     "PLACEHOLDER",
-					"env":     map[string]any{"ARCHCORE_BASE_DIR": oldBase},
-				}
-			},
-		},
-		{
-			name:    "env_missing",
-			oldBase: "/old/project",
-			entry: func(oldBase string) map[string]any {
-				return map[string]any{
-					"type":    "stdio",
-					"command": "archcore",
-					"args":    []string{"mcp"},
-					"cwd":     "PLACEHOLDER",
-				}
-			},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-			base := t.TempDir()
-			filePath := filepath.Join(base, ".vscode", "mcp.json")
-			if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
-				t.Fatalf("MkdirAll: %v", err)
-			}
-
-			entry := c.entry(c.oldBase)
-			if cwd, ok := entry["cwd"].(string); ok && cwd == "PLACEHOLDER" {
-				entry["cwd"] = base
-			}
-			seed := map[string]any{
-				"servers": map[string]any{
-					"archcore": entry,
-				},
-			}
-			data, err := json.MarshalIndent(seed, "", "  ")
-			if err != nil {
-				t.Fatalf("MarshalIndent: %v", err)
-			}
-			if err := os.WriteFile(filePath, data, 0o644); err != nil {
-				t.Fatalf("WriteFile: %v", err)
-			}
-
-			if err := WriteVSCodeMCPJSON(filePath, base); err != nil {
-				t.Fatalf("WriteVSCodeMCPJSON: %v", err)
-			}
-
-			updated, err := os.ReadFile(filePath)
-			if err != nil {
-				t.Fatalf("ReadFile: %v", err)
-			}
-			var raw map[string]json.RawMessage
-			if err := json.Unmarshal(updated, &raw); err != nil {
-				t.Fatalf("Unmarshal: %v", err)
-			}
-			var servers map[string]json.RawMessage
-			if err := json.Unmarshal(raw["servers"], &servers); err != nil {
-				t.Fatalf("Unmarshal servers: %v", err)
-			}
-			var got struct {
-				Cwd string            `json:"cwd"`
-				Env map[string]string `json:"env"`
-			}
-			if err := json.Unmarshal(servers["archcore"], &got); err != nil {
-				t.Fatalf("Unmarshal entry: %v", err)
-			}
-			if got.Cwd != base {
-				t.Errorf("cwd = %q, want %q", got.Cwd, base)
-			}
-			if got.Env["ARCHCORE_BASE_DIR"] != base {
-				t.Errorf("env.ARCHCORE_BASE_DIR = %q, want %q", got.Env["ARCHCORE_BASE_DIR"], base)
-			}
-		})
-	}
-}
-
 func TestWriteStandardMCPJSON_InvalidJSON(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
@@ -582,7 +277,7 @@ func TestWriteStandardMCPJSON_InvalidJSON(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	if err := WriteStandardMCPJSON(filePath, base); err != nil {
+	if err := WriteStandardMCPJSON(filePath); err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 

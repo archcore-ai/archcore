@@ -9,53 +9,23 @@ import (
 	"path/filepath"
 )
 
-// mcpServerEntry represents an MCP server configuration. cwd and env are
-// emitted unconditionally so the host launches archcore in the resolved
-// project — without them, hosts default cwd to the workspace folder (which
-// is sometimes $HOME under user-scope MCP installs) and the CLI's project
-// resolution gets confused. ARCHCORE_BASE_DIR is the canonical signal.
+// mcpServerEntry represents an MCP server configuration.
 type mcpServerEntry struct {
-	Command string            `json:"command"`
-	Args    []string          `json:"args"`
-	Cwd     string            `json:"cwd,omitempty"`
-	Env     map[string]string `json:"env,omitempty"`
+	Command string   `json:"command"`
+	Args    []string `json:"args"`
 }
 
 // vscodeMCPEntry represents an MCP server entry in VS Code format (used by Copilot).
 type vscodeMCPEntry struct {
-	Type    string            `json:"type"`
-	Command string            `json:"command"`
-	Args    []string          `json:"args"`
-	Cwd     string            `json:"cwd,omitempty"`
-	Env     map[string]string `json:"env,omitempty"`
-}
-
-// archcoreEntryUpToDate reports whether an existing archcore MCP entry
-// already targets baseDir. The entry is considered fresh iff `cwd` equals
-// baseDir AND the env map under envKey contains ARCHCORE_BASE_DIR=baseDir.
-// envKey differs by host: standard JSON / VS Code use "env"; OpenCode uses
-// "environment".
-func archcoreEntryUpToDate(existing map[string]any, baseDir, envKey string) bool {
-	cwd, ok := existing["cwd"].(string)
-	if !ok || cwd != baseDir {
-		return false
-	}
-	envRaw, ok := existing[envKey].(map[string]any)
-	if !ok {
-		return false
-	}
-	got, ok := envRaw["ARCHCORE_BASE_DIR"].(string)
-	if !ok {
-		return false
-	}
-	return got == baseDir
+	Type    string   `json:"type"`
+	Command string   `json:"command"`
+	Args    []string `json:"args"`
 }
 
 // writeMCPConfig is the shared implementation for writing MCP config files.
 // It reads/creates a JSON file, merges an "archcore" entry under the given
-// serversKey, and writes it back. baseDir is used to detect stale entries
-// from prior installs and force a rewrite when cwd or env drifted.
-func writeMCPConfig(filePath, serversKey, baseDir string, entry any) error {
+// serversKey, and writes it back.
+func writeMCPConfig(filePath, serversKey string, entry any) error {
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("creating directory %s: %w", dir, err)
@@ -83,18 +53,8 @@ func writeMCPConfig(filePath, serversKey, baseDir string, entry any) error {
 		servers = make(map[string]json.RawMessage)
 	}
 
-	// If an archcore entry already exists, only skip when it is already
-	// up-to-date — both `cwd` and `env.ARCHCORE_BASE_DIR` must match the
-	// current baseDir. Anything stale (project moved, missing env, old
-	// shape) gets rewritten so a re-run of `archcore mcp install` heals
-	// past installs automatically.
-	if existingRaw, exists := servers["archcore"]; exists {
-		var existing map[string]any
-		if json.Unmarshal(existingRaw, &existing) == nil {
-			if archcoreEntryUpToDate(existing, baseDir, "env") {
-				return nil
-			}
-		}
+	if _, exists := servers["archcore"]; exists {
+		return nil // already configured
 	}
 
 	entryJSON, err := json.Marshal(entry)
@@ -120,27 +80,19 @@ func writeMCPConfig(filePath, serversKey, baseDir string, entry any) error {
 
 // WriteStandardMCPJSON writes or merges an archcore entry into a standard
 // mcpServers JSON config file (used by Claude Code, Cursor, Roo Code).
-//
-// baseDir is emitted as both `cwd` and `env.ARCHCORE_BASE_DIR` so the host
-// launches the MCP server in the project — and even if the host overrides
-// cwd, the env var anchors the CLI to the right directory.
-func WriteStandardMCPJSON(filePath, baseDir string) error {
-	return writeMCPConfig(filePath, "mcpServers", baseDir, mcpServerEntry{
+func WriteStandardMCPJSON(filePath string) error {
+	return writeMCPConfig(filePath, "mcpServers", mcpServerEntry{
 		Command: "archcore",
 		Args:    []string{"mcp"},
-		Cwd:     baseDir,
-		Env:     map[string]string{"ARCHCORE_BASE_DIR": baseDir},
 	})
 }
 
 // WriteVSCodeMCPJSON writes or merges an archcore entry into a VS Code-style
 // MCP config file (uses "servers" key + "type": "stdio"), used by GitHub Copilot.
-func WriteVSCodeMCPJSON(filePath, baseDir string) error {
-	return writeMCPConfig(filePath, "servers", baseDir, vscodeMCPEntry{
+func WriteVSCodeMCPJSON(filePath string) error {
+	return writeMCPConfig(filePath, "servers", vscodeMCPEntry{
 		Type:    "stdio",
 		Command: "archcore",
 		Args:    []string{"mcp"},
-		Cwd:     baseDir,
-		Env:     map[string]string{"ARCHCORE_BASE_DIR": baseDir},
 	})
 }

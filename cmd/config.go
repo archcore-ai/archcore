@@ -2,12 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
-	"archcore-cli/internal/projectroot"
 
 	"github.com/spf13/cobra"
 )
@@ -22,11 +22,10 @@ func newConfigCmd() *cobra.Command {
 }
 
 func runConfig(cmd *cobra.Command, args []string) error {
-	res, err := resolveProjectRoot(cmd, projectroot.ModeRuntime)
+	cwd, err := os.Getwd()
 	if err != nil {
 		return err
 	}
-	cwd := res.Path
 	settings, err := config.Load(cwd)
 	if err != nil {
 		fmt.Println(display.FailLine("Settings not found or invalid"))

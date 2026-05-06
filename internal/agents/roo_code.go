@@ -12,7 +12,7 @@ func rooCodeAgent() *Agent {
 			return filepath.Join(baseDir, rooCodeMCPPath)
 		},
 		WriteMCPConfig: func(baseDir string) error {
-			return WriteStandardMCPJSON(filepath.Join(baseDir, rooCodeMCPPath), baseDir)
+			return WriteStandardMCPJSON(filepath.Join(baseDir, rooCodeMCPPath))
 		},
 		DetectFn: func(baseDir string) bool {
 			return dirExists(filepath.Join(baseDir, ".roo"))

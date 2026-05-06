@@ -12,7 +12,7 @@ func cursorAgent() *Agent {
 			return filepath.Join(baseDir, cursorMCPPath)
 		},
 		WriteMCPConfig: func(baseDir string) error {
-			return WriteStandardMCPJSON(filepath.Join(baseDir, cursorMCPPath), baseDir)
+			return WriteStandardMCPJSON(filepath.Join(baseDir, cursorMCPPath))
 		},
 		DetectFn: func(baseDir string) bool {
 			return dirExists(filepath.Join(baseDir, ".cursor"))
