@@ -1,7 +1,7 @@
 {
   "name": "archcore",
   "description": "Make your AI agent code with your project's architecture, rules, and decisions.",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "author": {
     "name": "Archcore"
   },
