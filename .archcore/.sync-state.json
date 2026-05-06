@@ -3171,6 +3171,36 @@
       "source": "plugin/codex-local-plugin-testing.guide.md",
       "target": "plugin/bundled-cli-launcher.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/cli-integration-tests.rule.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/cli-integration-tests.rule.md",
+      "target": "plugin/mcp-only-operations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/cli-integration-tests.rule.md",
+      "target": "plugin/plugin-testing.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/cli-integration-tests.rule.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/cli-integration-tests.rule.md",
+      "target": "plugin/plugin-architecture.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/cli-integration-tests.rule.md",
+      "target": "plugin/bundled-cli-launcher.adr.md",
+      "type": "related"
     }
   ]
 }

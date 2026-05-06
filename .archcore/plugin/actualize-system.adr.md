@@ -10,7 +10,7 @@ tags:
 
 ## Context
 
-The Archcore Claude Plugin has a comprehensive validation system (PreToolUse blocking, PostToolUse validation via `archcore validate`) that ensures **structural integrity** of `.archcore/` documents. The `/archcore:review` skill provides on-demand health checks for coverage gaps, relation health, and status issues.
+The Archcore Claude Plugin has a comprehensive validation system (PreToolUse blocking, PostToolUse validation via `archcore doctor`) that ensures **structural integrity** of `.archcore/` documents. The `/archcore:review` skill provides on-demand health checks for coverage gaps, relation health, and status issues.
 
 However, no mechanism detects when documentation **content becomes stale**. Three types of staleness go undetected:
 

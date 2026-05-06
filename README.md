@@ -214,7 +214,7 @@ The plugin enforces the **MCP-only principle**: all `.archcore/` operations must
 
 - **Session start** — loads document index and relations into context, detects code-document drift
 - **Write blocking** — intercepts and blocks direct Write/Edit calls targeting `.archcore/`
-- **Validation** — runs `archcore validate` after every document mutation
+- **Validation** — runs `archcore doctor` after every document mutation
 - **Cascade detection** — warns when an updated document has dependents that may need review
 
 ## Is Archcore like BMAD / Spec Kit / claude-mem / Memory Bank?

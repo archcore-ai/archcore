@@ -69,6 +69,28 @@ MOCK
   assert_output --partial "HOST_ARG: cursor"
 }
 
+@test "session-start invokes only the 'hooks' subcommand" {
+  # Lock the contract: session-start must call `archcore hooks`, nothing else.
+  # Catches accidental regressions where the script swaps to a phantom or
+  # different subcommand.
+  export MOCK_ARCHCORE_LOG="$BATS_TEST_TMPDIR/archcore.log"
+  mock_archcore_logging ""
+
+  local workdir="$BATS_TEST_TMPDIR/project"
+  mkdir -p "$workdir/.archcore"
+  cd "$workdir"
+  git init -q 2>/dev/null || true
+
+  run sh -c "MOCK_ARCHCORE_LOG='$MOCK_ARCHCORE_LOG' printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  [ -f "$MOCK_ARCHCORE_LOG" ] || fail "expected archcore to be invoked"
+
+  local invoked
+  invoked=$(sort -u < "$MOCK_ARCHCORE_LOG" | tr '\n' ' ' | sed 's/ $//')
+  [ "$invoked" = "hooks" ] \
+    || fail "expected only 'hooks' subcommand, got: '$invoked'"
+}
+
 @test "staleness check failure is non-fatal" {
   cat > "$MOCK_BIN/archcore" <<'MOCK'
 #!/bin/sh

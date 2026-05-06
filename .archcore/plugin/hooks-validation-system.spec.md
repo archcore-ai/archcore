@@ -204,7 +204,7 @@ Empirical-probe protocol for fresh-session verification (not a shipped artifact)
 **Behavior**:
 
 1. Extract `tool_name` from stdin JSON
-2. Detect `mcp__archcore__*` prefix — run `archcore validate` via the launcher unconditionally
+2. Detect `mcp__archcore__*` prefix — run `archcore doctor` via the launcher unconditionally
 3. If validation passes: exit 0 with empty output
 4. If validation fails: exit 0 with JSON output containing validation context
 
@@ -239,7 +239,7 @@ This hook fires **in addition to** Hook 4 (validation). Both hooks fire independ
 {
   "hookSpecificOutput": {
     "hookEventName": "PostToolUse",
-    "additionalContext": "Archcore validation found issues: <issues>. Run archcore validate --fix to auto-fix orphaned relations."
+    "additionalContext": "Archcore validation found issues: <issues>. Run archcore doctor --fix to auto-fix orphaned relations."
   }
 }
 ```
@@ -335,7 +335,7 @@ Requirements:
 
 #### `bin/validate-archcore`
 
-Shell script that reads stdin JSON, determines if validation is needed (by tool_name prefix), and runs `archcore validate` through the launcher.
+Shell script that reads stdin JSON, determines if validation is needed (by tool_name prefix), and runs `archcore doctor` through the launcher.
 
 Requirements:
 
@@ -346,6 +346,19 @@ Requirements:
 - Must exit 0 in all cases, even if the launcher returns non-zero (silent skip on missing CLI)
 - Must output valid JSON with `hookSpecificOutput` object when reporting issues, empty output when clean
 - Must complete within 3 seconds
+
+##### Test Contract
+
+The script's CLI subcommand invocation is locked by tests at two layers, so a phantom subcommand (e.g. an accidental return to the historical `archcore validate`) cannot reach production:
+
+- **Allowlist guard (structure)** — `test/structure/cli-contract.bats` extracts every token following `"$LAUNCHER"` in `bin/validate-archcore` and asserts each is a member of the canonical CLI surface (sourced from `bin/CLI_VERSION`: `config|doctor|help|hooks|init|mcp|status|update`). The same allowlist guards every other `bin/*` script that shells out to the launcher and the `args[0]` of `.mcp.json` / `.codex.mcp.json`.
+- **Invocation assertion (unit)** — `test/unit/validate-archcore.bats` runs the script under a logging mock (`mock_archcore_logging` + `MOCK_ARCHCORE_LOG`) and asserts that `doctor` was invoked and no non-allowlisted subcommand was. Mocks that print canned output for any input are insufficient and forbidden in this hook's tests.
+- **Sentinel** — a regex-based regression guard in `cli-contract.bats` fails if any executable file or hook config reintroduces `archcore validate` or `archcore sync`.
+- **CLI-version drift** — when `bin/CLI_VERSION` bumps, the live cross-check in `cli-contract.bats` (gated on the launcher resolving the binary) verifies the hardcoded allowlist still matches `archcore --help` and fails with a clear migration message otherwise.
+
+Adding a new hook script that shells out to the launcher requires both the allowlist guard (automatic — the structure test scans every `bin/*` script) and a script-specific invocation-log assertion in its unit test.
+
+The `cli-integration-tests.rule.md` rule mandates this contract for every change to plugin scripts, hook configs, MCP launcher configs, or skill/agent prose that prescribes CLI usage.
 
 #### `bin/check-staleness`
 
@@ -398,6 +411,7 @@ Requirements:
 - The SessionStart staleness check output MUST NOT exceed 2KB.
 - The SessionStart staleness check MUST rate-limit itself to once per 24h via a persistent timestamp file.
 - Hook scripts that invoke the CLI MUST do so via the local launcher (`"$SCRIPT_DIR/archcore"`) so resolution order (`ARCHCORE_BIN` → `PATH` → cache → download) applies uniformly.
+- Hook scripts that invoke the CLI MUST only pass subcommands present in the canonical surface (`config|doctor|help|hooks|init|mcp|status|update`); the contract is enforced by `test/structure/cli-contract.bats` and a per-script invocation-log assertion.
 - `bin/session-start` MUST set `ARCHCORE_SKIP_DOWNLOAD=1` when invoking the launcher.
 - All hooks MUST be idempotent — running them multiple times produces the same result.
 - No shipped script in `bin/` may contain a probe line used for hook-firing verification (the empirical-probe protocol in Hook 3's Sub-agent subsection applies only to transient, local, never-committed experiments).
@@ -431,7 +445,7 @@ Requirements:
 
 - If the launcher cannot resolve a CLI binary: PostToolUse hooks skip validation/cascade silently. PreToolUse hooks do not depend on the CLI — Hook 2 only inspects file paths; Hook 3 scans `.archcore/` via shell grep. SessionStart emits init guidance only when `.archcore/` is absent; it otherwise swallows launcher failures.
 - If stdin JSON is malformed: exit 0 with empty output (fail open, don't break the session).
-- If `archcore validate` hangs: enforced by `timeout` field in hooks.json (3 seconds).
+- If `archcore doctor` hangs: enforced by `timeout` field in hooks.json (3 seconds).
 - If git is unavailable for staleness check: skip silently, context loading continues.
 - If relation graph is empty for cascade check: produce no output (no cascade possible).
 - If the staleness timestamp file is missing, empty, or contains non-numeric data: treat as "never emitted" and run the check normally.
@@ -445,7 +459,7 @@ The hooks system conforms to this specification if:
 2. `bin/session-start` emits init guidance when `.archcore/` is missing, otherwise delegates context loading through the launcher with `ARCHCORE_SKIP_DOWNLOAD=1` and then calls `bin/check-staleness`.
 3. `bin/check-archcore-write` blocks `.archcore/**/*.md` writes via exit 2 + stderr and allows everything else.
 4. `bin/check-code-alignment` injects top-ranked `.archcore/` context for source-file edits inside configured source roots, exits 0 on every code path, and honors the `ARCHCORE_DISABLE_INJECTION=1` escape hatch.
-5. `bin/validate-archcore` runs validation via the launcher for `mcp__archcore__*` tool calls.
+5. `bin/validate-archcore` runs validation via the launcher for `mcp__archcore__*` tool calls and is covered by the Test Contract above.
 6. `bin/check-staleness` detects code-doc drift via git, emits only when matching documents are found, and is rate-limited to once per 24h via a persistent timestamp file.
 7. `bin/check-cascade` detects relation cascade after `update_document` via the launcher and outputs warnings.
 8. Both PreToolUse hooks complete within 1 second.
@@ -453,3 +467,4 @@ The hooks system conforms to this specification if:
 10. SessionStart never initiates a network download (launcher called with `ARCHCORE_SKIP_DOWNLOAD=1`).
 11. Output formats follow Claude Code hooks documentation (exit codes, hookSpecificOutput object) with host-normalized Cursor shape where applicable.
 12. Sub-agent tool invocations (Task-dispatched Write/Edit) are covered by Hooks 2 and 3 identically to main-session calls, per Claude Code's tool-boundary PreToolUse contract; no committed code contains a probe line.
+13. Every script that invokes the launcher passes only allowlisted CLI subcommands; the contract is enforced by `test/structure/cli-contract.bats` and per-script invocation-log assertions.

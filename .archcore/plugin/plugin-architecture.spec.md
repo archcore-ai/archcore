@@ -177,9 +177,9 @@ Intent skills follow this pattern:
 5. Create  → For each document in the flow:
    a. Ask  → AskUserQuestion                      // content questions (1-2 per doc)
    b. Make → create_document(type, content, ...)   // MCP tool
-      ├──→ [PostToolUse] archcore validate         // integrity check
+      ├──→ [PostToolUse] archcore doctor           // integrity check
    c. Link → add_relation(source, target, type)    // connect to chain
-      └──→ [PostToolUse] archcore validate         // integrity check
+      └──→ [PostToolUse] archcore doctor           // integrity check
 6. Cross   → Suggest relations to existing docs    // outside the flow
 7. Report  → Summary of created docs + relations   // what was done
 ```
@@ -376,7 +376,7 @@ Example: User updates a PRD → check-cascade fires → finds plan that `impleme
 - Agents MUST use MCP tools exclusively for `.archcore/` operations.
 - Hooks MUST fire for every relevant tool call, regardless of which layer initiated it.
 - The PreToolUse hook MUST block `.archcore/**/*.md` writes with exit code 2.
-- PostToolUse validation hooks MUST run `archcore validate` after every MCP document mutation.
+- PostToolUse validation hooks MUST run `archcore doctor` after every MCP document mutation.
 - PostToolUse cascade hook MUST run after `update_document` to detect relation-graph staleness.
 - No PostToolUse hook MUST be registered for `Write|Edit` — PreToolUse already blocks `.archcore/*.md` writes before they succeed.
 - SessionStart MUST include staleness check after context loading.

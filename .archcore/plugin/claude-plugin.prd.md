@@ -82,7 +82,7 @@ One subagent that covers all documentation scenarios:
 
 - **PreToolUse (Write|Edit) — block** (`check-archcore-write`): If the target file matches `.archcore/**/*.md`, block the operation and return a message redirecting to the appropriate MCP tool.
 - **PreToolUse (Write|Edit) — inject** (`check-code-alignment`): If the target file is outside `.archcore/` and inside a configured source root, scan `.archcore/` for documents referencing the path and inject top-3 (by specificity → type priority) as `additionalContext`. Non-blocking by design.
-- **PostToolUse (MCP mutations) — validate** (`validate-archcore`): After `create_document` / `update_document` / `remove_document` / `add_relation` / `remove_relation`, run `archcore validate` and report issues.
+- **PostToolUse (MCP mutations) — validate** (`validate-archcore`): After `create_document` / `update_document` / `remove_document` / `add_relation` / `remove_relation`, run `archcore doctor` and report issues.
 - **PostToolUse (`update_document`) — cascade** (`check-cascade`): After document updates, list documents that reference the updated one via `implements` / `depends_on` / `extends` so the agent can review them for drift.
 - **SessionStart**: Loads project context at session start (document index + tags + relation count).
 

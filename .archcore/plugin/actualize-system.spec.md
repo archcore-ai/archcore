@@ -16,7 +16,7 @@ Define the contract for the Actualize system — a 3-layer documentation freshne
 
 This specification covers: the SessionStart staleness check (Layer 1), the PostToolUse cascade detection (Layer 2), and the `/archcore:actualize` intent skill (Layer 3). It defines their triggers, detection logic, output formats, and interaction with existing hooks and MCP tools.
 
-It does not cover: structural validation (`archcore validate`), the `/archcore:review` skill (coverage/relation health), or the archcore-auditor agent (read-only background audits). Those are complementary but separate.
+It does not cover: structural validation (`archcore doctor`), the `/archcore:review` skill (coverage/relation health), or the archcore-auditor agent (read-only background audits). Those are complementary but separate.
 
 ## Authority
 
@@ -350,7 +350,7 @@ Requirements:
 ## Invariants
 
 - SessionStart always loads context even if staleness check fails or is skipped.
-- PostToolUse validation (`archcore validate`) runs independently of cascade detection — both fire, neither depends on the other.
+- PostToolUse validation (`archcore doctor`) runs independently of cascade detection — both fire, neither depends on the other.
 - The actualize skill reads documents via MCP tools, never via direct file reads for `.archcore/` content.
 - Cascade detection never fires on `create_document` — only `update_document`.
 - No layer ever modifies documents autonomously — Layer 3 requires user confirmation.

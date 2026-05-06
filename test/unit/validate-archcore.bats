@@ -79,3 +79,38 @@ setup() {
   assert_success
   assert_output --partial "additional_context"
 }
+
+# --- Invocation contract: which subcommand actually ran? ---
+
+@test "validate-archcore calls archcore doctor (not validate)" {
+  # Guard against the real bug class: silently invoking a phantom subcommand.
+  # mock_archcore_logging records every invocation to MOCK_ARCHCORE_LOG so we
+  # can assert which subcommand the script chose.
+  export MOCK_ARCHCORE_LOG="$BATS_TEST_TMPDIR/archcore.log"
+  mock_archcore_logging "All checks passed ✓"
+  run_with_fixture validate-archcore claude-code/mcp-create.json
+  assert_success
+  [ -f "$MOCK_ARCHCORE_LOG" ] || fail "expected archcore to be invoked"
+  grep -qx 'doctor' "$MOCK_ARCHCORE_LOG" \
+    || fail "expected 'doctor', got: $(cat "$MOCK_ARCHCORE_LOG")"
+  ! grep -qx 'validate' "$MOCK_ARCHCORE_LOG" \
+    || fail "phantom subcommand 'validate' was invoked"
+}
+
+@test "validate-archcore invokes only allowlisted subcommands" {
+  export MOCK_ARCHCORE_LOG="$BATS_TEST_TMPDIR/archcore.log"
+  mock_archcore_logging "All checks passed ✓"
+  run_with_fixture validate-archcore claude-code/mcp-create.json
+  assert_success
+  [ -f "$MOCK_ARCHCORE_LOG" ] || fail "expected archcore to be invoked"
+
+  # Must match cli-contract.bats allowlist.
+  local allowed=" config doctor help hooks init mcp status update "
+  while IFS= read -r sub; do
+    [ -z "$sub" ] && continue
+    case "$allowed" in
+      *" $sub "*) ;;
+      *) fail "validate-archcore invoked non-allowlisted subcommand '$sub'" ;;
+    esac
+  done < "$MOCK_ARCHCORE_LOG"
+}

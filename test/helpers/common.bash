@@ -41,15 +41,34 @@ MOCK
   chmod +x "$MOCK_BIN/archcore"
 }
 
-# Create a mock archcore CLI that handles subcommands
+# Create a mock archcore CLI that handles subcommands.
+# If MOCK_ARCHCORE_LOG is set in the test, every invocation appends $1 (the
+# subcommand) to that file. Lets tests assert which subcommand was actually
+# called, not just that something was called.
 mock_archcore_multi() {
   cat > "$MOCK_BIN/archcore" <<'MOCK'
 #!/bin/sh
+[ -n "$MOCK_ARCHCORE_LOG" ] && printf '%s\n' "$1" >> "$MOCK_ARCHCORE_LOG"
 case "$1" in
-  validate) printf '%s\n' "$MOCK_VALIDATE_OUTPUT"; exit "${MOCK_VALIDATE_EXIT:-0}" ;;
-  hooks)    printf '%s\n' "$MOCK_HOOKS_OUTPUT"; exit 0 ;;
-  *)        exit 0 ;;
+  doctor) printf '%s\n' "$MOCK_DOCTOR_OUTPUT"; exit "${MOCK_DOCTOR_EXIT:-0}" ;;
+  hooks)  printf '%s\n' "$MOCK_HOOKS_OUTPUT"; exit 0 ;;
+  *)      exit 0 ;;
 esac
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+}
+
+# Like mock_archcore but also logs the invoked subcommand to MOCK_ARCHCORE_LOG.
+# Use when the test needs to assert *which* subcommand was called, not just
+# the script's stdout.
+mock_archcore_logging() {
+  local output="$1"
+  local exit_code="${2:-0}"
+  cat > "$MOCK_BIN/archcore" <<MOCK
+#!/bin/sh
+[ -n "\$MOCK_ARCHCORE_LOG" ] && printf '%s\n' "\$1" >> "\$MOCK_ARCHCORE_LOG"
+printf '%s\n' '${output}'
+exit ${exit_code}
 MOCK
   chmod +x "$MOCK_BIN/archcore"
 }

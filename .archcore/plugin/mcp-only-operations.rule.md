@@ -26,7 +26,7 @@ MCP tools enforce the full Archcore toolchain:
 - **Nearby relations**: auto-discovered when documents share a directory
 - **Consistency**: single path for all operations eliminates edge cases
 
-Direct file writes bypass all of these guarantees. A document created via Write may have invalid frontmatter, missing sections, no manifest entry, and no relation discovery. This creates drift that `archcore validate` will flag as errors.
+Direct file writes bypass all of these guarantees. A document created via Write may have invalid frontmatter, missing sections, no manifest entry, and no relation discovery. This creates drift that `archcore doctor` will flag as errors.
 
 ## Examples
 
@@ -65,7 +65,7 @@ Bash("echo '---\ntitle: ...' > .archcore/plugin/use-postgres.adr.md")
 ## Enforcement
 
 - **PreToolUse hook**: Intercepts Write/Edit calls targeting `.archcore/**/*.md` and blocks them with a redirect message
-- **PostToolUse hook**: Runs `archcore validate` after any `.archcore/` file changes and reports issues
+- **PostToolUse hook**: Runs `archcore doctor` after any `.archcore/` file changes and reports issues
 - **Skill instructions**: Every skill's Example Workflow section uses MCP tools exclusively
 - **Agent tool restrictions**: The archcore-assistant agent has no access to Write/Edit
 - **Command instructions**: Every command prompt references MCP tools for document operations
