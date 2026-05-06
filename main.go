@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -37,6 +38,12 @@ func main() {
 			fmt.Println(msg)
 		} else {
 			fmt.Fprintln(os.Stderr, err)
+		}
+		// Honor custom exit codes (e.g., `archcore where` distinguishes
+		// "not resolved" from "guards failed").
+		var ec interface{ ExitCode() int }
+		if errors.As(err, &ec) {
+			os.Exit(ec.ExitCode())
 		}
 		os.Exit(1)
 	}

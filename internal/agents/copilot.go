@@ -12,7 +12,7 @@ func copilotAgent() *Agent {
 			return filepath.Join(baseDir, copilotMCPPath)
 		},
 		WriteMCPConfig: func(baseDir string) error {
-			return WriteVSCodeMCPJSON(filepath.Join(baseDir, copilotMCPPath))
+			return WriteVSCodeMCPJSON(filepath.Join(baseDir, copilotMCPPath), baseDir)
 		},
 		DetectFn: func(baseDir string) bool {
 			return fileExists(filepath.Join(baseDir, ".github", "copilot-instructions.md"))

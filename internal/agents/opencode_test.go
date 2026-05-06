@@ -150,6 +150,114 @@ func TestOpenCode_WriteMCPConfig_MergesExisting(t *testing.T) {
 	}
 }
 
+func TestWriteOpenCodeMCPConfig_RewritesWhenStale(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		oldBase string
+		entry   func(oldBase string) map[string]any
+	}{
+		{
+			name:    "cwd_mismatch",
+			oldBase: "/old/project",
+			entry: func(oldBase string) map[string]any {
+				return map[string]any{
+					"type":        "local",
+					"command":     []string{"archcore", "mcp"},
+					"cwd":         oldBase,
+					"environment": map[string]any{"ARCHCORE_BASE_DIR": oldBase},
+				}
+			},
+		},
+		{
+			name:    "env_mismatch",
+			oldBase: "/old/project",
+			entry: func(oldBase string) map[string]any {
+				return map[string]any{
+					"type":        "local",
+					"command":     []string{"archcore", "mcp"},
+					"cwd":         "PLACEHOLDER",
+					"environment": map[string]any{"ARCHCORE_BASE_DIR": oldBase},
+				}
+			},
+		},
+		{
+			name:    "env_missing",
+			oldBase: "/old/project",
+			entry: func(oldBase string) map[string]any {
+				return map[string]any{
+					"type":    "local",
+					"command": []string{"archcore", "mcp"},
+					"cwd":     "PLACEHOLDER",
+				}
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			base := t.TempDir()
+			filePath := filepath.Join(base, "opencode.json")
+
+			entry := c.entry(c.oldBase)
+			if cwd, ok := entry["cwd"].(string); ok && cwd == "PLACEHOLDER" {
+				entry["cwd"] = base
+			}
+			seed := map[string]any{
+				"mcp": map[string]any{
+					"archcore": entry,
+				},
+			}
+			data, err := json.MarshalIndent(seed, "", "  ")
+			if err != nil {
+				t.Fatalf("MarshalIndent: %v", err)
+			}
+			if err := os.WriteFile(filePath, data, 0o644); err != nil {
+				t.Fatalf("WriteFile: %v", err)
+			}
+
+			if err := writeOpenCodeMCPConfig(base); err != nil {
+				t.Fatalf("writeOpenCodeMCPConfig: %v", err)
+			}
+
+			updated, err := os.ReadFile(filePath)
+			if err != nil {
+				t.Fatalf("ReadFile: %v", err)
+			}
+			var raw map[string]json.RawMessage
+			if err := json.Unmarshal(updated, &raw); err != nil {
+				t.Fatalf("Unmarshal: %v", err)
+			}
+			var mcpSection map[string]json.RawMessage
+			if err := json.Unmarshal(raw["mcp"], &mcpSection); err != nil {
+				t.Fatalf("Unmarshal mcp: %v", err)
+			}
+			var got struct {
+				Type        string            `json:"type"`
+				Command     []string          `json:"command"`
+				Cwd         string            `json:"cwd"`
+				Environment map[string]string `json:"environment"`
+			}
+			if err := json.Unmarshal(mcpSection["archcore"], &got); err != nil {
+				t.Fatalf("Unmarshal entry: %v", err)
+			}
+			if got.Type != "local" {
+				t.Errorf("type = %q, want local", got.Type)
+			}
+			if len(got.Command) != 2 || got.Command[0] != "archcore" || got.Command[1] != "mcp" {
+				t.Errorf("command = %v, want [archcore mcp]", got.Command)
+			}
+			if got.Cwd != base {
+				t.Errorf("cwd = %q, want %q", got.Cwd, base)
+			}
+			if got.Environment["ARCHCORE_BASE_DIR"] != base {
+				t.Errorf("environment.ARCHCORE_BASE_DIR = %q, want %q", got.Environment["ARCHCORE_BASE_DIR"], base)
+			}
+		})
+	}
+}
+
 func TestOpenCode_Detect_JsonFile(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()

@@ -2,13 +2,13 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"archcore-cli/internal/api"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
+	"archcore-cli/internal/projectroot"
 )
 
 func newDoctorCmd() *cobra.Command {
@@ -22,10 +22,11 @@ func newDoctorCmd() *cobra.Command {
 			fmt.Println(display.Banner())
 			fmt.Println()
 
-			cwd, err := os.Getwd()
+			res, err := resolveProjectRoot(cmd, projectroot.ModeRuntime)
 			if err != nil {
-				return fmt.Errorf("getting working directory: %w", err)
+				return err
 			}
+			cwd := res.Path
 
 			issues := 0
 

@@ -28,6 +28,7 @@ func TestToolRegistrationCanary(t *testing.T) {
 		"remove_relation",
 		"search_documents",
 		"update_document",
+		"which_project",
 	}
 	slices.Sort(expectedTools)
 

@@ -15,6 +15,7 @@ import (
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
 	"archcore-cli/internal/mcp/tools"
+	"archcore-cli/internal/projectroot"
 	"archcore-cli/internal/sync"
 	"archcore-cli/templates"
 )
@@ -24,11 +25,11 @@ func newStatusCmd() *cobra.Command {
 		Use:   "status",
 		Short: "Check .archcore/ structure and document health",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
+			res, err := resolveProjectRoot(cmd, projectroot.ModeRuntime)
 			if err != nil {
-				return fmt.Errorf("getting working directory: %w", err)
+				return err
 			}
-			issues := runStatus(cwd)
+			issues := runStatus(res.Path)
 			if issues > 0 {
 				return fmt.Errorf("%d issue(s) found", issues)
 			}

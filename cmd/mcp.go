@@ -11,33 +11,60 @@ import (
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
 	mcpserver "archcore-cli/internal/mcp"
+	"archcore-cli/internal/projectroot"
 )
 
-func newMCPCmd() *cobra.Command {
+func newMCPCmd(version string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mcp",
 		Short: "MCP stdio server for archcore documents",
 		Long:  "Starts an MCP (Model Context Protocol) stdio server that exposes archcore document tools.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
+			res, err := resolveProjectRoot(cmd, projectroot.ModeRuntime)
 			if err != nil {
 				return err
 			}
+			cwd := res.Path
 
 			fmt.Fprintln(os.Stderr, display.WelcomeBanner())
 			fmt.Fprintln(os.Stderr)
+			fmt.Fprintln(os.Stderr, mcpStartupBanner(version, res))
 			if !config.DirExists(cwd) {
 				fmt.Fprintln(os.Stderr, display.Dim.Render("  MCP server running on stdio (uninitialized project — only init_project tool is useful until the agent initializes .archcore/)..."))
 			} else {
 				fmt.Fprintln(os.Stderr, display.Dim.Render("  MCP server running on stdio..."))
 			}
 
-			return mcpserver.RunStdio(cwd)
+			return mcpserver.RunStdio(cwd,
+				mcpserver.WithResolution(res),
+				mcpserver.WithVersion(version),
+			)
 		},
 	}
 
 	cmd.AddCommand(newMCPInstallCmd())
 	return cmd
+}
+
+// mcpStartupBanner formats the single-line stderr banner that MCP host logs
+// capture. Plain text (grep-stable, no ANSI codes) — host log viewers don't
+// render styles and the line should be copy-pasteable into bug reports.
+func mcpStartupBanner(version string, res *projectroot.Resolution) string {
+	guards := "strict"
+	if res != nil && res.LegacyMode {
+		guards = "legacy"
+	}
+	v := version
+	if v == "" {
+		v = "dev"
+	}
+	path := ""
+	source := ""
+	if res != nil {
+		path = res.Path
+		source = string(res.Source)
+	}
+	return fmt.Sprintf("archcore %s | base=%s | source=%s | guards=%s", v, path, source, guards)
 }
 
 func newMCPInstallCmd() *cobra.Command {
@@ -47,10 +74,11 @@ func newMCPInstallCmd() *cobra.Command {
 		Use:   "install",
 		Short: "Install MCP server config for coding agents",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
+			res, err := resolveProjectRoot(cmd, projectroot.ModeRuntime)
 			if err != nil {
 				return err
 			}
+			cwd := res.Path
 			if !config.DirExists(cwd) {
 				return errors.New(".archcore/ not found — run 'archcore init' first")
 			}

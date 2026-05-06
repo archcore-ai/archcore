@@ -12,7 +12,7 @@ func claudeCodeAgent() *Agent {
 			return filepath.Join(baseDir, claudeCodeMCPPath)
 		},
 		WriteMCPConfig: func(baseDir string) error {
-			return WriteStandardMCPJSON(filepath.Join(baseDir, claudeCodeMCPPath))
+			return WriteStandardMCPJSON(filepath.Join(baseDir, claudeCodeMCPPath), baseDir)
 		},
 		DetectFn: func(baseDir string) bool {
 			return dirExists(filepath.Join(baseDir, ".claude"))

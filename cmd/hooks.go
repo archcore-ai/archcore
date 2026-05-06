@@ -11,6 +11,7 @@ import (
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
+	"archcore-cli/internal/projectroot"
 
 	"github.com/spf13/cobra"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
@@ -58,10 +59,11 @@ func newHooksInstallCmd() *cobra.Command {
 		Use:   "install",
 		Short: "Install archcore hooks for coding agents",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
+			res, err := resolveProjectRoot(cmd, projectroot.ModeRuntime)
 			if err != nil {
 				return err
 			}
+			cwd := res.Path
 			if !config.DirExists(cwd) {
 				return fmt.Errorf(".archcore/ not found — run 'archcore init' first")
 			}

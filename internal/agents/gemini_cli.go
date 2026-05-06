@@ -12,7 +12,7 @@ func geminiCLIAgent() *Agent {
 			return filepath.Join(baseDir, geminiCLIMCPPath)
 		},
 		WriteMCPConfig: func(baseDir string) error {
-			return WriteStandardMCPJSON(filepath.Join(baseDir, geminiCLIMCPPath))
+			return WriteStandardMCPJSON(filepath.Join(baseDir, geminiCLIMCPPath), baseDir)
 		},
 		DetectFn: func(baseDir string) bool {
 			return dirExists(filepath.Join(baseDir, ".gemini"))

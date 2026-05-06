@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"archcore-cli/internal/display"
+	"archcore-cli/internal/projectroot"
 
 	"github.com/spf13/cobra"
 )
@@ -25,12 +26,24 @@ type hookOutput struct {
 	SystemMessage      string         `json:"systemMessage,omitempty"`
 }
 
-// resolveBaseDir returns the base directory from hook input, falling back to cwd.
-func resolveBaseDir(input *hookInput) (string, error) {
-	if input.CWD != "" {
-		return input.CWD, nil
+// resolveBaseDir returns the base directory for a hook, using the projectroot
+// resolver. The hook input's CWD (set by the host MCP integration) is treated
+// as an explicit signal and takes precedence over walk-up. ModeHooks lets us
+// accept the host-supplied directory even if it lacks markers, since the host
+// has explicitly chosen it.
+func resolveBaseDir(cmd *cobra.Command, input *hookInput) (string, error) {
+	flagVal := baseDirFlag(cmd)
+	if flagVal == "" {
+		flagVal = input.CWD
 	}
-	return os.Getwd()
+	res, err := projectroot.Resolve(projectroot.Options{
+		Flag: flagVal,
+		Mode: projectroot.ModeHooks,
+	})
+	if err != nil {
+		return "", err
+	}
+	return res.Path, nil
 }
 
 // readHookInput parses the hook input JSON from a reader.
@@ -74,7 +87,7 @@ func newSessionStartHookCmd(use, short, version string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			baseDir, err := resolveBaseDir(input)
+			baseDir, err := resolveBaseDir(cmd, input)
 			if err != nil {
 				return err
 			}

@@ -73,12 +73,28 @@ func initValidDir(t *testing.T) string {
 
 func TestStatus_NoArchcoreDir(t *testing.T) {
 	dir := t.TempDir()
+	// Mark this as a project (so resolver passes) but without .archcore/.
+	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	out, err := runCmdInDir(t, dir, "status")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 	if !strings.Contains(out, "not found") {
 		t.Errorf("expected 'not found' in output, got: %s", out)
+	}
+}
+
+func TestStatus_NoProjectMarkers(t *testing.T) {
+	dir := t.TempDir()
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error for no-markers directory, got nil")
+	}
+	combined := out + " " + err.Error()
+	if !strings.Contains(combined, "ERR_NO_PROJECT") && !strings.Contains(combined, "ERR_NOT_PROJECT") {
+		t.Errorf("expected ERR_NO_PROJECT or ERR_NOT_PROJECT in output/err, got: %q", combined)
 	}
 }
 

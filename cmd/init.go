@@ -10,6 +10,7 @@ import (
 	"archcore-cli/internal/api"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
+	"archcore-cli/internal/projectroot"
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -74,10 +75,11 @@ func newInitCmd() *cobra.Command {
 			fmt.Println(display.WelcomeBanner())
 			fmt.Println()
 
-			cwd, err := os.Getwd()
+			res, err := resolveProjectRoot(cmd, projectroot.ModeInit)
 			if err != nil {
 				return err
 			}
+			cwd := res.Path
 
 			if config.DirExists(cwd) {
 				var reinit bool
