@@ -9,7 +9,7 @@ tags:
 
 ## Idea
 
-A new user installs the plugin on an existing repo. `.archcore/` is empty. SessionStart loads zero documents. They open a file in `src/api/` — `check-code-alignment` greps an empty knowledge base and injects nothing. `/archcore:context src/api/` returns "no documents reference this path." `/archcore:status` reports "0 documents."
+A new user installs the plugin on an existing repo. `.archcore/` is empty. SessionStart loads zero documents. They open a file in `src/api/` — `check-code-alignment` greps an empty knowledge base and injects nothing. `/archcore:context src/api/` returns "no documents reference this path." `/archcore:review` reports "0 documents."
 
 The plugin gives no signal that anything has changed. The user does not know what to do next, sees no value, and uninstalls or forgets. **All the machinery that delivers JTBD #1 / #2 / #3 silently no-ops on a fresh repo until the user manually populates `.archcore/` — but nothing in the plugin guides them through that first step.**
 
@@ -31,7 +31,7 @@ This already removes the "I installed it and nothing happens" failure mode. It d
 
 A new Layer 1 intent skill that runs an explicit first-time onboarding flow:
 
-1. **Detect state.** If `.archcore/` already has ≥3 documents, inform the user it's not their first session and route them to `/archcore:context` or `/archcore:status`. Otherwise proceed.
+1. **Detect state.** If `.archcore/` already has ≥3 documents, inform the user it's not their first session and route them to `/archcore:context` or `/archcore:review`. Otherwise proceed.
 2. **One question.** "What's the most important convention or decision in this repo that you'd want a future agent to know about?" — single open question, one round trip.
 3. **Route to existing skill.** Based on the answer's shape:
     - "we always do X" → route to `/archcore:standard` (ADR → rule → guide chain)

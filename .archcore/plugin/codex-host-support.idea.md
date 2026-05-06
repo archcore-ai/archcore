@@ -1,6 +1,6 @@
 ---
 title: "Codex CLI Host Support — Promote from P2 Future to Implemented"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "codex"

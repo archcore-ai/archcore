@@ -1,6 +1,6 @@
 ---
 title: "Codex CLI Host Support Implementation Plan"
-status: draft
+status: accepted
 tags:
   - "codex"
   - "multi-host"

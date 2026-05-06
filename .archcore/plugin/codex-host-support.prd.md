@@ -1,6 +1,6 @@
 ---
 title: "PRD: Codex CLI Host Support"
-status: draft
+status: accepted
 tags:
   - "codex"
   - "multi-host"

@@ -27,6 +27,8 @@ Deferred (non-blocking, tracked here for follow-up):
 - CLI MCP-instructions nudge to steer models toward the skill when appropriate.
 - `/archcore:align` push-mode command — **superseded** by the shipped hook + /context skill. See `code-alignment-intent-skill.idea.md` (rejected).
 
+> **Note (post-merge cleanup, 2026-05-07):** This plan originally referenced `/archcore:status` and `/archcore:graph` in its routing matrix and anti-regression checklist. Both were removed/merged after the plan landed (see `merge-review-status-remove-graph.adr.md`): `/archcore:status` is now the default short mode of `/archcore:review`; `/archcore:graph` was deleted entirely. The references below have been updated accordingly so the doc remains a useful reference.
+
 ## Goal
 
 Ship `/archcore:context` as the user-facing pull-mode entry point for JTBD #1 ("repo-alignment at coding time"), backed by the CLI's `search_documents` MCP tool. Close the JTBD-implementation gap for on-demand code-area lookup and session pickup, without touching PreToolUse hooks (deferred to Phase 2).
@@ -50,7 +52,7 @@ Frontmatter (final, post-prompt-engineer review):
 
 - `name: context`
 - `argument-hint: "[file, directory, or topic; leave empty for current-focus pickup]"`
-- `description`: trigger phrases include "what rules apply to X", "before I refactor Z", "pick up where we left off", "where is the payments work right now", "what was I working on in X", "show me the decisions/rules/specs for X". DO-NOT list routes creation/planning/audits/graph/status away.
+- `description`: trigger phrases include "what rules apply to X", "before I refactor Z", "pick up where we left off", "where is the payments work right now", "what was I working on in X", "show me the decisions/rules/specs for X". DO-NOT list routes creation/planning/audits away.
 
 Body sections:
 - **Classify scope** — empty/whitespace → pickup; contains `/` OR is an existing repo directory → path; otherwise → topic.
@@ -109,15 +111,14 @@ Two or three fixture `.archcore/` repos under `tests/fixtures/context/`. Run the
 - No section header is rendered when its group is empty (other than the classification footer).
 - Classification footer is always present.
 
-**Routing precision (manual test matrix — 14 cases)**
+**Routing precision (manual test matrix — 13 cases)**
 - "what rules apply to src/payments/" → `/archcore:context` path mode
 - "before I touch the billing flow" → `/archcore:context` path or topic
 - "pick up where I left off" → `/archcore:context` pickup mode
 - "where is the payments work right now" → `/archcore:context` pickup
 - "show me the decisions for src/payments/" → `/archcore:context` path
-- "how many docs do we have" → `/archcore:status` (NOT context)
-- "draw the graph" → `/archcore:graph` (NOT context)
-- "review docs health" → `/archcore:review` (NOT context)
+- "how many docs do we have" → `/archcore:review` (NOT context — short dashboard mode)
+- "review docs health" → `/archcore:review --deep` (NOT context)
 - "check for stale docs" → `/archcore:actualize` (NOT context)
 - "document the auth module" → `/archcore:capture` (NOT context)
 - "we decided on PostgreSQL" → `/archcore:decide` (NOT context)
@@ -142,9 +143,9 @@ Two or three fixture `.archcore/` repos under `tests/fixtures/context/`. Run the
 
 1. `skills/context/SKILL.md` present, frontmatter parses (name, description, argument-hint).
 2. No YAML frontmatter errors across all modified SKILL.md files (lint: plugin test suite).
-3. Manual routing test — run 14 trigger phrases above in Claude Code + Cursor, confirm activation / non-activation matches expectations.
+3. Manual routing test — run 13 trigger phrases above in Claude Code + Cursor, confirm activation / non-activation matches expectations.
 4. Manual skill execution — `/archcore:context src/payments/`, `/archcore:context "money rounding"`, `/archcore:context` on a non-trivial `.archcore/` repo; verify output shape.
-5. Anti-regression — run `/archcore:status`, `/archcore:graph`, `/archcore:review`, `/archcore:actualize` to confirm siblings still work after edits.
+5. Anti-regression — run `/archcore:review`, `/archcore:actualize` to confirm sibling intent skills still work after edits.
 6. README renders cleanly on GitHub (no broken code fences, valid markdown).
 7. Plan doc (this file) links in the graph (relations to jtbd-alignment-analysis, code-alignment-intent-skill, inverted-invocation-policy, pre-code-context-injection, intent-skill-implementation).
 8. No direct writes to `.archcore/` — all doc ops via MCP.

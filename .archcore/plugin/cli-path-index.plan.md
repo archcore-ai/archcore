@@ -40,7 +40,7 @@ What the hook actually needs from each grep is: *which document files mention th
 
 ### What the CLI already produces
 
-`.sync-state.json` today carries the relation manifest (source/target/type triples) plus some metadata. The file is written by `archcore sync` and read by `archcore validate` / other subcommands, and serves as the git-committed truth for relations. Readers treat unknown top-level keys as opaque, so additions are backward-compatible. The plugin's MCP server reads from the same file when listing relations.
+`.sync-state.json` today carries the relation manifest (source/target/type triples) plus some metadata. The file is written by `archcore sync` and read by `archcore doctor` / other subcommands, and serves as the git-committed truth for relations. Readers treat unknown top-level keys as opaque, so additions are backward-compatible. The plugin's MCP server reads from the same file when listing relations.
 
 Adding `path_index` on this same write path is a pure extension: same sync cadence, same atomic write, same git-tracked artifact. No new commands, no new files.
 
@@ -159,7 +159,7 @@ The CLI indexes against the *same* root list the plugin uses by default — this
 - Thread the active roots list through `internal/config/settings.go` — resolve priority `.archcore/settings.json` → CLI flag → default.
 - Update the manifest serializer to include `path_index`; ensure existing manifest fields stay byte-identical when `path_index` is absent (unchanged behaviour when the indexer is disabled).
 - Add `--no-path-index` CLI flag for emergency disablement. Operators can drop the index without a CLI downgrade.
-- Update `archcore validate` to accept (but not require) `path_index` and lightly check schema (`schema=="v1"` means required keys present). Never hard-fail on index anomalies — the index is advisory, manifest correctness is load-bearing.
+- Update `archcore doctor` to accept (but not require) `path_index` and lightly check schema (`schema=="v1"` means required keys present). Never hard-fail on index anomalies — the index is advisory, manifest correctness is load-bearing.
 
 ### Phase CLI-3 — Tests and docs
 
@@ -170,7 +170,7 @@ The CLI indexes against the *same* root list the plugin uses by default — this
 
 ### Phase CLI-4 — Release coordination (when plugin consumer ships)
 
-- Cut CLI release (target `0.1.8` from current `0.1.7` — minor bump, additive feature, no breaking changes). Confirm by running `archcore validate` against a plugin repo with the *previous* CLI's `.sync-state.json` — must pass unchanged.
+- Cut CLI release (target `0.1.8` from current `0.1.7` — minor bump, additive feature, no breaking changes). Confirm by running `archcore doctor` against a plugin repo with the *previous* CLI's `.sync-state.json` — must pass unchanged.
 - Plugin consumer ships in a later release (not v0.4.0); coordination with that release's planning owns the `bin/CLI_VERSION` bump.
 - Announce in CLI CHANGELOG; plugin-side changelog entry appears only when the consumer ships.
 
@@ -244,7 +244,7 @@ Upgrade order therefore does not matter — both directions are safe. The target
 
 1. `archcore sync` on a fresh repo produces a `.sync-state.json` with a valid `path_index` object conforming to the schema above, verifiable via `jq '.path_index.schema' == "v1"`.
 2. `archcore sync` on a pre-existing repo (without `path_index` in the prior manifest) does not alter any relation data; only the new `path_index` field appears.
-3. `archcore validate` passes on both pre-migration and post-migration manifests.
+3. `archcore doctor` passes on both pre-migration and post-migration manifests.
 4. `archcore sync --no-path-index` produces a manifest without `path_index` even if one was present before; idempotent.
 5. Benchmark in `internal/pathindex/pathindex_bench_test.go` shows build time ≤ 50 ms for a 100-document synthetic corpus on commodity hardware.
 6. Index size ≤ 5% of the cumulative body size of included documents on a real-world test repo.
