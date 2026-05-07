@@ -33,6 +33,25 @@ composing documents of type `adr`, `spec`, `rule`, `guide`. See also
    Adjective-only claims (`fast`, `scalable`, `low-latency`) without a
    measurement are forbidden.
 
+5. **No cross-document body sections.** Documents MUST NOT contain a body
+   section that enumerates other `.archcore/` documents — for example
+   `## Related Documents`, `## Related Resources`, `## Related Materials`,
+   `## References` listing ADRs/RFCs/rules/guides, or `### Related Artifacts`
+   listing archcore docs. Cross-document links live exclusively in the
+   relation graph, managed by `mcp__archcore__add_relation` and queried via
+   `mcp__archcore__list_relations`.
+
+   The body MAY cite:
+   - source code via `@path/to/file` notation (`@internal/mcp/server.go`)
+   - commits, PRs, dashboards, metrics, runbooks
+   - external authorities (RFCs, papers, vendor docs, blog posts)
+   - the document's own enforcement artifacts (lint rules, CI checks)
+
+   Rationale: the relation graph is the single source of truth for
+   cross-document links. Duplicating them in body markdown causes drift when
+   relations change, hides structure that callers can already query, and
+   pollutes prose with plumbing that belongs in metadata.
+
 ## Examples
 
 ### Good
@@ -45,6 +64,8 @@ composing documents of type `adr`, `spec`, `rule`, `guide`. See also
   dashboard #42, 2024-03-15)."
 - "MUST NOT call this function from within a transaction — it acquires its
   own connection."
+- "Implementation lives in `@internal/mcp/server.go`; conformance tests in
+  `@internal/mcp/server_test.go`."
 
 ### Bad
 
@@ -52,6 +73,10 @@ composing documents of type `adr`, `spec`, `rule`, `guide`. See also
 - "Authentication should be reliable and modern."
 - "Significantly improves performance under load."
 - "It is recommended to use the helper for convenience."
+- A `## Related Documents` section listing `.archcore/auth/popup/architecture.doc.md`
+  and `.archcore/auth/popup/component-interaction.rule.md` — those links
+  belong in the relation graph (`mcp__archcore__add_relation`), not in the
+  body.
 
 ## Enforcement
 

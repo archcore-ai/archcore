@@ -165,6 +165,71 @@ status: draft
   assert_output --partial "placeholder"
 }
 
+@test "body referencing other .archcore/ documents produces finding" {
+  # Body padded so length warning does NOT fire (isolates cross-doc check).
+  local doc='---
+title: Auth Frame Extraction
+status: draft
+---
+
+## Context
+
+We chose this path with concrete constraints from the team standard, documented inline so future readers can trace the reasoning end to end without external context.
+
+## Decision
+
+Adopt approach X with explicit versioning and ownership for downstream teams.
+
+## Alternatives Considered
+
+Approach Y was ruled out due to specific compatibility constraints last quarter.
+
+## Consequences
+
+Migration tasks will follow this exact pattern with explicit hand-off rules and clear ownership boundaries between modules.
+
+## Related Documents
+
+- `.archcore/auth/popup/architecture.doc.md`
+- `.archcore/auth/popup/component-interaction.rule.md`
+'
+  make_doc "auth-frame.adr.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"auth-frame.adr.md"}}'
+  assert_success
+  assert_output --partial "references other .archcore/ documents"
+  assert_output --partial "architecture.doc.md"
+  assert_output --partial "relation graph"
+}
+
+@test "body without .archcore/ paths does not trigger cross-doc finding" {
+  # Body cites code via @path notation and external sources — both allowed.
+  local doc='---
+title: Use Postgres
+status: accepted
+---
+
+## Context
+
+Latency spikes in @internal/scheduler/dispatcher.go forced a database review tied to Grafana dashboard #42 from the recent oncall incident notes.
+
+## Decision
+
+Adopt PostgreSQL 16.2 on RDS db.r7g.xlarge with explicit ownership and runbook coverage.
+
+## Alternatives Considered
+
+MySQL 8 was ruled out because the scheduler module needs pg_advisory_lock semantics not portable across engines.
+
+## Consequences
+
+Teams owning @internal/scheduler/ inherit migration responsibility per the runbook hand-off pattern documented in oncall notes.
+'
+  make_doc "use-postgres.adr.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"use-postgres.adr.md"}}'
+  assert_success
+  refute_output --partial "references other .archcore/ documents"
+}
+
 @test "multiple findings concatenated with separator" {
   # ADR triggering: forbidden word, missing sections, missing title, short body.
   local doc='---

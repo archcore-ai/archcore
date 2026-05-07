@@ -12,6 +12,8 @@
 #   2. Mandatory sections by document type
 #   3. Frontmatter title and status presence
 #   4. Body length above placeholder threshold
+#   5. No cross-document body references to other .archcore/ documents
+#      (precision-rules.rule.md Rule 5 — relations belong in the graph)
 
 SCRIPT_DIR=$(dirname "$0")
 # shellcheck source=lib/normalize-stdin.sh
@@ -121,6 +123,17 @@ fi
 BODY_LEN=$(printf '%s' "$BODY" | wc -c | tr -d ' ')
 if [ "$BODY_LEN" -lt 200 ]; then
   add_finding "body is $BODY_LEN chars (<200, likely placeholder)"
+fi
+
+# --- Check 5: Cross-document body references ---
+# Source of truth: skills/_shared/precision-rules.md Rule 5.
+# Cross-document links belong in the relation graph (mcp__archcore__add_relation),
+# not enumerated as a markdown section in the body. Detect any .archcore/...md
+# path reference; the hook is soft, so false positives are acceptable.
+CROSS_HITS=$(printf '%s' "$BODY" | grep -oE '\.archcore/[A-Za-z0-9_./-]+\.md' 2>/dev/null \
+  | sort -u | head -3 | tr '\n' ',' | sed 's/,$//')
+if [ -n "$CROSS_HITS" ]; then
+  add_finding "body references other .archcore/ documents ($CROSS_HITS) — move these links to the relation graph via mcp__archcore__add_relation"
 fi
 
 # --- Emit soft warnings if any ---

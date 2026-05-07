@@ -41,6 +41,15 @@ Plugin runtime asset. Loaded by skills creating ADRs (`decide`, `standard`,
    - Required form: measurable conditions ("revisit if daily transaction volume
      exceeds 50M (current max tested: 5M)").
 
+## Forbidden sections
+
+The body MUST NOT contain a section enumerating other `.archcore/` documents
+(e.g., `## Related Documents`, `## References` listing ADRs/RFCs/rules,
+`### Related Artifacts`). Cross-document links live in the relation graph,
+managed by `mcp__archcore__add_relation`. The body MAY cite source code
+(`@path/to/file`), commits, dashboards, and external authorities. See
+`skills/_shared/precision-rules.md` Rule 5.
+
 ## Rationale
 
 MADR 4.0 (September 2024) ships full and minimal templates; the plugin
