@@ -16,10 +16,11 @@ setup() {
 }
 
 # Canonical archcore CLI subcommands — keep in sync with bin/CLI_VERSION.
-# As of 0.3.0: config, doctor, help, hooks, init, mcp, status, update, where.
+# As of 0.3.1: config, doctor, help, hooks, init, mcp, status, update.
+# (0.3.0 also exposed `where`; reverted in 0.3.1.)
 # (`sync` exists but is Hidden: true in the CLI cobra spec, so it does not
 # appear in `archcore --help` Available Commands and is excluded here.)
-ARCHCORE_SUBCOMMANDS="config doctor help hooks init mcp status update where"
+ARCHCORE_SUBCOMMANDS="config doctor help hooks init mcp status update"
 
 # Return 0 if $1 is a whitespace-separated token in $ARCHCORE_SUBCOMMANDS.
 _is_allowlisted() {
@@ -130,8 +131,15 @@ _extract_launcher_subcommands() {
   # stdout but the cobra usage block (including `Available Commands:`) on
   # stderr. We merge stderr into stdout so the parser below can see it.
   local help_out
-  help_out=$(ARCHCORE_SKIP_DOWNLOAD=1 "$PLUGIN_ROOT/bin/archcore" --help 2>&1) \
-    || skip "archcore launcher cannot resolve CLI in this environment"
+  if ! help_out=$(ARCHCORE_SKIP_DOWNLOAD=1 "$PLUGIN_ROOT/bin/archcore" --help 2>&1); then
+    # In CI we refuse to silently skip — that would mask allowlist drift after a
+    # CLI bump. GitHub Actions sets CI=true automatically; pre-install the CLI
+    # or set ARCHCORE_BIN to satisfy this test.
+    if [ "${CI:-}" = "true" ]; then
+      fail "archcore launcher cannot resolve CLI in CI — pre-install bin/CLI_VERSION or set ARCHCORE_BIN. Output: $help_out"
+    fi
+    skip "archcore launcher cannot resolve CLI in this environment"
+  fi
 
   # Parse the "Available Commands:" block: every non-blank, non-flag line
   # whose first token is a lowercase word.
