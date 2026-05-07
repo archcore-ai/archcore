@@ -339,12 +339,6 @@ Key implementation considerations:
 - Migration path (if applicable)
 - Dependencies affected
 - Timeline considerations
-
-## References
-
-- Link to relevant documentation
-- Link to discussions or RFCs
-- Related ADRs
 `
 }
 
@@ -471,12 +465,6 @@ How to rollback if issues are discovered.
 - [ ] Step 3: Description
 - [ ] Step 4: Description
 - [ ] Step 5: Description
-
-## References
-
-- Related RFCs or ADRs
-- External documentation
-- Research or benchmarks
 `
 }
 
@@ -530,11 +518,6 @@ How this rule is enforced:
 
 - Enforcement method 1: Description
 - Enforcement method 2: Description
-
-## References
-
-- Link to related ADR/RFC
-- Link to related documentation
 `
 }
 
@@ -647,12 +630,6 @@ What to do after completing this guide:
 
 - Next step 1: Link or description
 - Next step 2: Link or description
-
-## Related Resources
-
-- Link to related guide
-- Link to reference documentation
-- Link to troubleshooting guide
 `
 }
 
@@ -732,12 +709,6 @@ Answer to the question.
 ### Q: Common question 2?
 
 Answer to the question.
-
-## Related Resources
-
-- Link to related documentation
-- Link to API reference
-- Link to tutorials
 `
 }
 
@@ -997,7 +968,6 @@ Key technical considerations (defer details to RFC/design doc):
 
 - Reference 1: Link
 - Reference 2: Link
-- Related PRDs: Link
 `
 }
 
@@ -1035,8 +1005,6 @@ Describe the core idea in 2-3 sentences.
 
 - [ ] Step 1
 - [ ] Step 2
-
-## Related Materials
 `
 }
 
@@ -1103,13 +1071,6 @@ It is normative for:
 This document is the normative specification for [subject].
 
 If implementation, tests, or operational behavior differ from this specification, this specification takes precedence until it is amended.
-
-### Related Artifacts
-
-- [Machine-readable schema, OpenAPI, protobuf, SQL schema, etc.]
-- [Related ADRs]
-- [Related rules]
-- [Related guides]
 
 ## Subject
 

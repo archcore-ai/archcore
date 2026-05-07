@@ -20,7 +20,7 @@ func TestGenerateTemplate(t *testing.T) {
 		{
 			name:         "ADR template",
 			documentType: TypeADR,
-			wantContains: []string{"## Context", "## Decision", "## Consequences", "### Positive", "### Negative", "## References", "## Alternatives Considered"},
+			wantContains: []string{"## Context", "## Decision", "## Consequences", "### Positive", "### Negative", "## Alternatives Considered"},
 		},
 		{
 			name:         "RFC template",
@@ -30,17 +30,17 @@ func TestGenerateTemplate(t *testing.T) {
 		{
 			name:         "Rule template",
 			documentType: TypeRule,
-			wantContains: []string{"## Description", "## Rule", "## Examples", "### Good", "### Bad", "## Exceptions", "## References", "## Enforcement"},
+			wantContains: []string{"## Description", "## Rule", "## Examples", "### Good", "### Bad", "## Exceptions", "## Enforcement"},
 		},
 		{
 			name:         "Guide template",
 			documentType: TypeGuide,
-			wantContains: []string{"## Overview", "## Prerequisites", "## Steps", "### Step 1:", "### Step 2:", "### Step 3:", "## Common Issues", "## Related Resources", "## Verification"},
+			wantContains: []string{"## Overview", "## Prerequisites", "## Steps", "### Step 1:", "### Step 2:", "### Step 3:", "## Common Issues", "## Verification"},
 		},
 		{
 			name:         "Doc template",
 			documentType: TypeDoc,
-			wantContains: []string{"## Overview", "## Content", "## Examples", "## Related Resources", "## Best Practices", "## FAQ"},
+			wantContains: []string{"## Overview", "## Content", "## Examples", "## Best Practices", "## FAQ"},
 		},
 		{
 			name:         "Task-Type template",
@@ -110,7 +110,7 @@ func TestGenerateTemplate(t *testing.T) {
 		{
 			name:         "Unknown type falls back to doc template",
 			documentType: DocumentType("unknown"),
-			wantContains: []string{"## Overview", "## Content", "## Examples", "## Related Resources"},
+			wantContains: []string{"## Overview", "## Content", "## Examples"},
 		},
 	}
 
@@ -142,7 +142,6 @@ func TestGenerateADRTemplate(t *testing.T) {
 		"## Consequences",
 		"### Positive",
 		"### Negative",
-		"## References",
 		"## Alternatives Considered",
 		"### Rationale",
 	}
@@ -150,6 +149,16 @@ func TestGenerateADRTemplate(t *testing.T) {
 	for _, section := range requiredSections {
 		if !strings.Contains(template, section) {
 			t.Errorf("ADR template missing section: %q", section)
+		}
+	}
+
+	forbiddenSections := []string{
+		"## References",
+		"## Related Documents",
+	}
+	for _, section := range forbiddenSections {
+		if strings.Contains(template, section) {
+			t.Errorf("ADR template must not contain cross-document section: %q", section)
 		}
 	}
 
@@ -195,7 +204,6 @@ func TestGenerateRuleTemplate(t *testing.T) {
 		"### Good",
 		"### Bad",
 		"## Exceptions",
-		"## References",
 		"## Enforcement",
 		"## Rationale",
 	}
@@ -204,6 +212,10 @@ func TestGenerateRuleTemplate(t *testing.T) {
 		if !strings.Contains(template, section) {
 			t.Errorf("Rule template missing section: %q", section)
 		}
+	}
+
+	if strings.Contains(template, "## References") {
+		t.Error("Rule template must not contain a References section listing other archcore documents")
 	}
 
 	if !strings.Contains(template, "```") {
@@ -223,7 +235,6 @@ func TestGenerateGuideTemplate(t *testing.T) {
 		"### Step 3:",
 		"### Step 4:",
 		"## Common Issues",
-		"## Related Resources",
 		"## Verification",
 		"## Next Steps",
 	}
@@ -232,6 +243,10 @@ func TestGenerateGuideTemplate(t *testing.T) {
 		if !strings.Contains(template, section) {
 			t.Errorf("Guide template missing section: %q", section)
 		}
+	}
+
+	if strings.Contains(template, "## Related Resources") {
+		t.Error("Guide template must not contain a Related Resources section listing other archcore documents")
 	}
 
 	stepCount := strings.Count(template, "### Step")
@@ -247,7 +262,6 @@ func TestGenerateDocTemplate(t *testing.T) {
 		"## Overview",
 		"## Content",
 		"## Examples",
-		"## Related Resources",
 		"## Best Practices",
 		"## FAQ",
 	}
@@ -256,6 +270,10 @@ func TestGenerateDocTemplate(t *testing.T) {
 		if !strings.Contains(template, section) {
 			t.Errorf("Doc template missing section: %q", section)
 		}
+	}
+
+	if strings.Contains(template, "## Related Resources") {
+		t.Error("Doc template must not contain a Related Resources section listing other archcore documents")
 	}
 }
 
@@ -314,6 +332,11 @@ func TestGenerateSpecTemplate(t *testing.T) {
 	optionalMarkers := strings.Count(template, "Include only if")
 	if optionalMarkers < 3 {
 		t.Errorf("Spec template should mark optional sections, got %d 'Include only if' markers", optionalMarkers)
+	}
+
+	// Cross-document linking belongs in the relation graph, not in the body.
+	if strings.Contains(template, "Related Artifacts") {
+		t.Error("Spec template must not contain a Related Artifacts section listing other archcore documents")
 	}
 }
 
@@ -399,16 +422,16 @@ func TestTemplateStructure(t *testing.T) {
 		docType  DocumentType
 		minBytes int
 	}{
-		{TypeADR, 634},
-		{TypeRFC, 1040},
-		{TypeRule, 402},
-		{TypeGuide, 947},
-		{TypeDoc, 545},
-		{TypeSpec, 2822},
+		{TypeADR, 510},
+		{TypeRFC, 940},
+		{TypeRule, 320},
+		{TypeGuide, 830},
+		{TypeDoc, 440},
+		{TypeSpec, 2670},
 		{TypeTaskType, 252},
 		{TypeCPAT, 198},
-		{TypePRD, 1952},
-		{TypeIdea, 201},
+		{TypePRD, 1925},
+		{TypeIdea, 175},
 		{TypePlan, 175},
 		{TypeMRD, 1151},
 		{TypeBRD, 1279},
@@ -522,13 +545,16 @@ func TestGenerateIdeaTemplate(t *testing.T) {
 		"### Potential Risks",
 		"### Known Constraints",
 		"## Next Steps",
-		"## Related Materials",
 	}
 
 	for _, section := range requiredSections {
 		if !strings.Contains(template, section) {
 			t.Errorf("Idea template missing section: %q", section)
 		}
+	}
+
+	if strings.Contains(template, "## Related Materials") {
+		t.Error("Idea template must not contain a Related Materials section listing other archcore documents")
 	}
 
 	// Verify checklist format
