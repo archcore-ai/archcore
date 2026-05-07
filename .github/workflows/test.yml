@@ -42,5 +42,12 @@ jobs:
       - name: ShellCheck
         run: make lint
 
+      - name: Warm archcore CLI cache
+        # The cli-contract structure test calls `bin/archcore --help` with
+        # ARCHCORE_SKIP_DOWNLOAD=1 to verify the hardcoded subcommand allowlist
+        # matches the live CLI. In CI it refuses to skip, so we must pre-cache
+        # the binary by running the launcher once (download enabled) here.
+        run: ./bin/archcore --help >/dev/null
+
       - name: Run tests
         run: make test
