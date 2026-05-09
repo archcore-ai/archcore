@@ -127,9 +127,9 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 			title = filenameToTitle(filename)
 		}
 
-		status := request.GetString("status", "draft")
+		status := templates.DocStatus(request.GetString("status", "draft"))
 		if !templates.IsValidStatus(status) {
-			return errorResult(fmt.Sprintf("invalid status %q (valid: %s)", status, strings.Join(templates.ValidStatuses(), ", "))), nil
+			return errorResult(fmt.Sprintf("invalid status %q (valid: %s)", status, strings.Join(templates.ValidStatusStrings(), ", "))), nil
 		}
 		content := request.GetString("content", "")
 		directory := request.GetString("directory", "")

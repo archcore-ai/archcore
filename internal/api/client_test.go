@@ -393,11 +393,11 @@ func TestSync(t *testing.T) {
 			defer srv.Close()
 
 			c := NewAuthenticatedClient(srv.URL, "test-token")
-			payload := &archsync.SyncPayload{
-				Created: []archsync.SyncFileEntry{
+			payload := &archsync.Payload{
+				Created: []archsync.FileEntry{
 					{Path: "vision/test.md", SHA256: "abc", Content: "# Test"},
 				},
-				Modified: []archsync.SyncFileEntry{},
+				Modified: []archsync.FileEntry{},
 				Deleted:  []string{},
 			}
 			resp, created, err := c.Sync(context.Background(), payload)
@@ -425,7 +425,7 @@ func TestSync_SendsPayloadFields(t *testing.T) {
 	projectName := "my-project"
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var payload archsync.SyncPayload
+		var payload archsync.Payload
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			t.Fatalf("decode payload: %v", err)
 		}
@@ -449,13 +449,13 @@ func TestSync_SendsPayloadFields(t *testing.T) {
 	defer srv.Close()
 
 	c := NewAuthenticatedClient(srv.URL, "token")
-	payload := &archsync.SyncPayload{
+	payload := &archsync.Payload{
 		ProjectID:   &pid,
 		ProjectName: &projectName,
-		Created: []archsync.SyncFileEntry{
+		Created: []archsync.FileEntry{
 			{Path: "vision/test.md", SHA256: "abc", Content: "# Test"},
 		},
-		Modified: []archsync.SyncFileEntry{},
+		Modified: []archsync.FileEntry{},
 		Deleted:  []string{"vision/old.md"},
 	}
 	_, _, err := c.Sync(context.Background(), payload)
@@ -469,9 +469,9 @@ func TestSync_ConnectionRefused(t *testing.T) {
 	srv.Close()
 
 	c := NewAuthenticatedClient(srv.URL, "token")
-	_, _, err := c.Sync(context.Background(), &archsync.SyncPayload{
-		Created:  []archsync.SyncFileEntry{},
-		Modified: []archsync.SyncFileEntry{},
+	_, _, err := c.Sync(context.Background(), &archsync.Payload{
+		Created:  []archsync.FileEntry{},
+		Modified: []archsync.FileEntry{},
 		Deleted:  []string{},
 	})
 	if err == nil {

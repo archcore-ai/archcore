@@ -16,13 +16,13 @@ import (
 // mockSyncClient implements syncClient for tests.
 type mockSyncClient struct {
 	called         bool
-	payload        *archsync.SyncPayload
+	payload        *archsync.Payload
 	resp           *api.SyncResponse
 	projectCreated bool
 	err            error
 }
 
-func (m *mockSyncClient) Sync(_ context.Context, payload *archsync.SyncPayload) (*api.SyncResponse, bool, error) {
+func (m *mockSyncClient) Sync(_ context.Context, payload *archsync.Payload) (*api.SyncResponse, bool, error) {
 	m.called = true
 	m.payload = payload
 	return m.resp, m.projectCreated, m.err

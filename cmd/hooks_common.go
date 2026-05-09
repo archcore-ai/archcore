@@ -7,6 +7,7 @@ import (
 
 	"archcore-cli/internal/mcp/tools"
 	"archcore-cli/internal/sync"
+	"archcore-cli/templates"
 )
 
 // buildSessionContext generates the session-start context string
@@ -23,14 +24,14 @@ func buildSessionContext(baseDir string) (string, int) {
 	b.WriteString("You have MCP tools available: list_documents, get_document, create_document, update_document, add_relation, remove_relation, list_relations.\n")
 
 	// Pre-group documents by category.
-	docsByCategory := make(map[string][]tools.LocalDocument, 3)
+	docsByCategory := make(map[templates.Category][]tools.LocalDocument, 3)
 	for _, doc := range docs {
 		docsByCategory[doc.Category] = append(docsByCategory[doc.Category], doc)
 	}
 
 	// Existing documents by category.
 	b.WriteString("\nEXISTING DOCUMENTS:\n")
-	for _, cat := range []string{"knowledge", "vision", "experience"} {
+	for _, cat := range []templates.Category{templates.CategoryKnowledge, templates.CategoryVision, templates.CategoryExperience} {
 		fmt.Fprintf(&b, "  [%s]\n", cat)
 		catDocs := docsByCategory[cat]
 		if len(catDocs) == 0 {

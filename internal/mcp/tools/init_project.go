@@ -33,7 +33,7 @@ Returns: JSON with { initialized: true, settings: {...}, already_initialized: bo
 		),
 		mcp.WithString("sync_mode",
 			mcp.Description(`Sync mode for the project. "none" keeps everything local (default). "cloud" and "on-prem" require additional setup via the CLI and are typically configured later — prefer "none" for in-session initialization.`),
-			mcp.Enum(config.SyncTypeNone, config.SyncTypeCloud, config.SyncTypeOnPrem),
+			mcp.Enum(string(config.SyncTypeNone), string(config.SyncTypeCloud), string(config.SyncTypeOnPrem)),
 		),
 		mcp.WithString("archcore_url",
 			mcp.Description(`Required only when sync_mode="on-prem". The URL of the on-prem Archcore server.`),
@@ -55,7 +55,7 @@ func HandleInitProject(baseDir string) func(ctx context.Context, request mcp.Cal
 			language = ""
 		}
 
-		syncMode := strings.TrimSpace(request.GetString("sync_mode", ""))
+		syncMode := config.SyncType(strings.TrimSpace(request.GetString("sync_mode", "")))
 		if syncMode == "" {
 			syncMode = config.SyncTypeNone
 		}

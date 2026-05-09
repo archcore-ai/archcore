@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"archcore-cli/templates"
 )
 
 func TestParseFrontmatter(t *testing.T) {
@@ -14,7 +16,7 @@ func TestParseFrontmatter(t *testing.T) {
 		name       string
 		content    string
 		wantTitle  string
-		wantStatus string
+		wantStatus templates.DocStatus
 		wantTags   []string
 	}{
 		{
@@ -329,7 +331,7 @@ func TestBuildPayload_DocTypeAndCategory(t *testing.T) {
 		name         string
 		relPath      string
 		wantDocType  string
-		wantCategory string
+		wantCategory templates.Category
 	}{
 		{
 			name:         "adr in custom dir",

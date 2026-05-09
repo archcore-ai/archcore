@@ -841,16 +841,16 @@ func TestIsValidType(t *testing.T) {
 func TestIsValidStatus(t *testing.T) {
 	t.Parallel()
 	for _, s := range ValidStatuses() {
-		t.Run("valid/"+s, func(t *testing.T) {
+		t.Run("valid/"+string(s), func(t *testing.T) {
 			t.Parallel()
 			if !IsValidStatus(s) {
 				t.Errorf("IsValidStatus(%q) = false, want true", s)
 			}
 		})
 	}
-	invalid := []string{"", "Draft", "ACCEPTED", "pending", "active"}
+	invalid := []DocStatus{"", "Draft", "ACCEPTED", "pending", "active"}
 	for _, v := range invalid {
-		t.Run("invalid/"+v, func(t *testing.T) {
+		t.Run("invalid/"+string(v), func(t *testing.T) {
 			t.Parallel()
 			if IsValidStatus(v) {
 				t.Errorf("IsValidStatus(%q) = true, want false", v)
@@ -861,7 +861,7 @@ func TestIsValidStatus(t *testing.T) {
 
 func TestValidStatuses(t *testing.T) {
 	t.Parallel()
-	want := []string{StatusDraft, StatusAccepted, StatusRejected}
+	want := []DocStatus{StatusDraft, StatusAccepted, StatusRejected}
 	got := ValidStatuses()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ValidStatuses() = %v, want %v", got, want)
@@ -871,8 +871,8 @@ func TestValidStatuses(t *testing.T) {
 func TestCategoryForType(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		docType  DocumentType
-		wantCat  string
+		docType DocumentType
+		wantCat Category
 	}{
 		{TypePRD, CategoryVision},
 		{TypeIdea, CategoryVision},
@@ -908,7 +908,7 @@ func TestCategoryForType(t *testing.T) {
 func TestTypesByCategory(t *testing.T) {
 	t.Parallel()
 	byCategory := TypesByCategory()
-	knownCategories := map[string]bool{
+	knownCategories := map[Category]bool{
 		CategoryVision:     true,
 		CategoryKnowledge:  true,
 		CategoryExperience: true,
@@ -918,7 +918,7 @@ func TestTypesByCategory(t *testing.T) {
 			t.Errorf("unexpected category key %q in TypesByCategory result", cat)
 		}
 	}
-	seen := map[string]string{}
+	seen := map[string]Category{}
 	for cat, types := range byCategory {
 		for _, typ := range types {
 			if prev, exists := seen[typ]; exists {

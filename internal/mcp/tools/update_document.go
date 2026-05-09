@@ -67,7 +67,7 @@ func HandleUpdateDocument(baseDir string) func(ctx context.Context, request mcp.
 
 		// Require at least one update field.
 		newTitle := request.GetString("title", "")
-		newStatus := request.GetString("status", "")
+		newStatus := templates.DocStatus(request.GetString("status", ""))
 		newContent := request.GetString("content", "")
 
 		var newTags []string
@@ -86,7 +86,7 @@ func HandleUpdateDocument(baseDir string) func(ctx context.Context, request mcp.
 		}
 
 		if newStatus != "" && !templates.IsValidStatus(newStatus) {
-			return errorResult(fmt.Sprintf("invalid status %q (valid: %s)", newStatus, strings.Join(templates.ValidStatuses(), ", "))), nil
+			return errorResult(fmt.Sprintf("invalid status %q (valid: %s)", newStatus, strings.Join(templates.ValidStatusStrings(), ", "))), nil
 		}
 
 		// Read existing file.

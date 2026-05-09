@@ -18,7 +18,7 @@ import (
 
 // syncClient abstracts the sync API call for testability.
 type syncClient interface {
-	Sync(ctx context.Context, payload *archsync.SyncPayload) (*api.SyncResponse, bool, error)
+	Sync(ctx context.Context, payload *archsync.Payload) (*api.SyncResponse, bool, error)
 }
 
 // syncPreconditions holds validated configuration for a sync operation.

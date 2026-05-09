@@ -9,35 +9,35 @@ import (
 	"archcore-cli/templates"
 )
 
-// SyncFrontmatter holds the parsed frontmatter fields sent per file.
-type SyncFrontmatter struct {
-	Title  string   `json:"title"`
-	Status string   `json:"status,omitempty"`
-	Tags   []string `json:"tags,omitempty"`
+// Frontmatter holds the parsed frontmatter fields sent per file.
+type Frontmatter struct {
+	Title  string              `json:"title"`
+	Status templates.DocStatus `json:"status,omitempty"`
+	Tags   []string            `json:"tags,omitempty"`
 }
 
-// SyncFileEntry is a single file in the sync request body.
-type SyncFileEntry struct {
-	Path        string          `json:"path"`
-	SHA256      string          `json:"sha256"`
-	DocType     string          `json:"doc_type,omitempty"`
-	Category    string          `json:"category,omitempty"`
-	Frontmatter SyncFrontmatter `json:"frontmatter"`
-	Content     string          `json:"content"`
+// FileEntry is a single file in the sync request body.
+type FileEntry struct {
+	Path        string             `json:"path"`
+	SHA256      string             `json:"sha256"`
+	DocType     string             `json:"doc_type,omitempty"`
+	Category    templates.Category `json:"category,omitempty"`
+	Frontmatter Frontmatter        `json:"frontmatter"`
+	Content     string             `json:"content"`
 }
 
-// SyncPayload is the full request body for POST /sync.
-type SyncPayload struct {
-	ProjectID   *int            `json:"project_id,omitempty"`
-	ProjectName *string         `json:"project_name,omitempty"`
-	RepoURL     *string         `json:"repo_url,omitempty"`
-	Created     []SyncFileEntry `json:"created"`
-	Modified    []SyncFileEntry `json:"modified"`
-	Deleted     []string        `json:"deleted"`
+// Payload is the full request body for POST /sync.
+type Payload struct {
+	ProjectID   *int        `json:"project_id,omitempty"`
+	ProjectName *string     `json:"project_name,omitempty"`
+	RepoURL     *string     `json:"repo_url,omitempty"`
+	Created     []FileEntry `json:"created"`
+	Modified    []FileEntry `json:"modified"`
+	Deleted     []string    `json:"deleted"`
 }
 
 // ParseFrontmatter extracts title, status, and tags from raw document content.
-func ParseFrontmatter(content string) (title, status string, tags []string) {
+func ParseFrontmatter(content string) (title string, status templates.DocStatus, tags []string) {
 	fm, _ := templates.SplitDocument([]byte(content))
 	return fm.Title, fm.Status, fm.Tags
 }
@@ -54,10 +54,10 @@ func validateRelPath(relPath string) error {
 // BuildPayload constructs the sync payload from diff entries.
 // It reads file content for created/modified files, parses frontmatter,
 // and collects deleted paths.
-func BuildPayload(baseDir string, entries []DiffEntry) (*SyncPayload, error) {
-	payload := &SyncPayload{
-		Created:  []SyncFileEntry{},
-		Modified: []SyncFileEntry{},
+func BuildPayload(baseDir string, entries []DiffEntry) (*Payload, error) {
+	payload := &Payload{
+		Created:  []FileEntry{},
+		Modified: []FileEntry{},
 		Deleted:  []string{},
 	}
 
@@ -82,19 +82,19 @@ func BuildPayload(baseDir string, entries []DiffEntry) (*SyncPayload, error) {
 
 			if status != "" && !templates.IsValidStatus(status) {
 				return nil, fmt.Errorf("file %s has invalid status %q (valid values: %s)",
-					e.RelPath, status, strings.Join(templates.ValidStatuses(), ", "))
+					e.RelPath, status, strings.Join(templates.ValidStatusStrings(), ", "))
 			}
 
 			filename := filepath.Base(e.RelPath)
 			docType := templates.ExtractDocType(filename)
 			category := templates.CategoryForType(templates.DocumentType(docType))
 
-			fe := SyncFileEntry{
-				Path:        e.RelPath,
-				SHA256:      e.Hash,
-				DocType:     docType,
-				Category:    category,
-				Frontmatter: SyncFrontmatter{
+			fe := FileEntry{
+				Path:    e.RelPath,
+				SHA256:  e.Hash,
+				DocType: docType,
+				Category: category,
+				Frontmatter: Frontmatter{
 					Title:  title,
 					Status: status,
 					Tags:   tags,

@@ -33,16 +33,20 @@ const (
 	TypeSRS      DocumentType = "srs"
 )
 
-const (
-	CategoryVision     = "vision"
-	CategoryKnowledge  = "knowledge"
-	CategoryExperience = "experience"
-)
+type Category string
 
 const (
-	StatusDraft    = "draft"
-	StatusAccepted = "accepted"
-	StatusRejected = "rejected"
+	CategoryVision     Category = "vision"
+	CategoryKnowledge  Category = "knowledge"
+	CategoryExperience Category = "experience"
+)
+
+type DocStatus string
+
+const (
+	StatusDraft    DocStatus = "draft"
+	StatusAccepted DocStatus = "accepted"
+	StatusRejected DocStatus = "rejected"
 )
 
 // TagRe validates a single tag: lowercase alphanumeric with hyphens, underscores, colons, and pipes.
@@ -53,9 +57,9 @@ var SlugRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // Frontmatter holds the parsed YAML frontmatter fields of a document.
 type Frontmatter struct {
-	Title  string   `yaml:"title"`
-	Status string   `yaml:"status"`
-	Tags   []string `yaml:"tags"`
+	Title  string    `yaml:"title"`
+	Status DocStatus `yaml:"status"`
+	Tags   []string  `yaml:"tags"`
 }
 
 // SkipFiles are non-document meta files that live in .archcore/ and should be
@@ -65,13 +69,19 @@ var SkipFiles = map[string]bool{
 	".sync-state.json": true,
 }
 
-// ValidStatuses returns all valid document status strings.
-func ValidStatuses() []string {
-	return []string{StatusDraft, StatusAccepted, StatusRejected}
+// ValidStatuses returns all valid document status values.
+func ValidStatuses() []DocStatus {
+	return []DocStatus{StatusDraft, StatusAccepted, StatusRejected}
 }
 
-// IsValidStatus checks whether the given string is a valid document status.
-func IsValidStatus(s string) bool {
+// ValidStatusStrings returns all valid document statuses as plain strings.
+// Useful for assembling error messages with strings.Join.
+func ValidStatusStrings() []string {
+	return []string{string(StatusDraft), string(StatusAccepted), string(StatusRejected)}
+}
+
+// IsValidStatus checks whether the given value is a valid document status.
+func IsValidStatus(s DocStatus) bool {
 	switch s {
 	case StatusDraft, StatusAccepted, StatusRejected:
 		return true
@@ -79,7 +89,7 @@ func IsValidStatus(s string) bool {
 	return false
 }
 
-var categoryMap = map[DocumentType]string{
+var categoryMap = map[DocumentType]Category{
 	TypePRD:  CategoryVision,
 	TypeIdea: CategoryVision,
 	TypePlan: CategoryVision,
@@ -91,19 +101,19 @@ var categoryMap = map[DocumentType]string{
 	TypeSyRS: CategoryVision,
 	TypeSRS:  CategoryVision,
 
-	TypeADR:     CategoryKnowledge,
-	TypeRFC:     CategoryKnowledge,
-	TypeRule:    CategoryKnowledge,
-	TypeGuide:   CategoryKnowledge,
-	TypeDoc:     CategoryKnowledge,
-	TypeSpec:    CategoryKnowledge,
+	TypeADR:   CategoryKnowledge,
+	TypeRFC:   CategoryKnowledge,
+	TypeRule:  CategoryKnowledge,
+	TypeGuide: CategoryKnowledge,
+	TypeDoc:   CategoryKnowledge,
+	TypeSpec:  CategoryKnowledge,
 
 	TypeTaskType: CategoryExperience,
 	TypeCPAT:     CategoryExperience,
 }
 
-// CategoryForType returns the category directory for a document type.
-func CategoryForType(docType DocumentType) string {
+// CategoryForType returns the category for a document type.
+func CategoryForType(docType DocumentType) Category {
 	if cat, ok := categoryMap[docType]; ok {
 		return cat
 	}
@@ -135,8 +145,8 @@ func ValidTypes() []string {
 }
 
 // TypesByCategory returns types grouped by category.
-func TypesByCategory() map[string][]string {
-	result := map[string][]string{}
+func TypesByCategory() map[Category][]string {
+	result := map[Category][]string{}
 	for dt, cat := range categoryMap {
 		result[cat] = append(result[cat], string(dt))
 	}

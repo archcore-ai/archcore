@@ -30,16 +30,16 @@ type EnrichedDocument struct {
 
 // LocalDocument represents a document discovered in .archcore/.
 type LocalDocument struct {
-	Path     string    `json:"path"`              // relative: ".archcore/auth/jwt-strategy.adr.md"
-	Category string    `json:"category"`          // virtual: vision, knowledge, experience (derived from type)
-	Type     string    `json:"type"`              // adr, rfc, rule...
-	Filename string    `json:"filename"`          // "jwt-strategy.adr.md"
-	Slug     string    `json:"slug"`              // "jwt-strategy"
-	Title    string    `json:"title,omitempty"`   // from frontmatter
-	Status   string    `json:"status,omitempty"`  // from frontmatter
-	Tags     []string  `json:"tags,omitempty"`    // from frontmatter
-	ModTime  time.Time `json:"mtime,omitzero"`    // file modification time
-	Content  string    `json:"content,omitempty"` // full markdown (optional)
+	Path     string              `json:"path"`              // relative: ".archcore/auth/jwt-strategy.adr.md"
+	Category templates.Category  `json:"category"`          // virtual: vision, knowledge, experience (derived from type)
+	Type     string              `json:"type"`              // adr, rfc, rule...
+	Filename string              `json:"filename"`          // "jwt-strategy.adr.md"
+	Slug     string              `json:"slug"`              // "jwt-strategy"
+	Title    string              `json:"title,omitempty"`   // from frontmatter
+	Status   templates.DocStatus `json:"status,omitempty"`  // from frontmatter
+	Tags     []string            `json:"tags,omitempty"`    // from frontmatter
+	ModTime  time.Time           `json:"mtime,omitzero"`    // file modification time
+	Content  string              `json:"content,omitempty"` // full markdown (optional)
 }
 
 // ScanDocuments discovers all .md files recursively inside .archcore/.
@@ -181,7 +181,7 @@ func errorResult(msg string) *mcp.CallToolResult {
 }
 
 // buildDocumentFile reconstructs a full document file from frontmatter fields and body.
-func buildDocumentFile(title, status string, tags []string, body string) string {
+func buildDocumentFile(title string, status templates.DocStatus, tags []string, body string) string {
 	var buf strings.Builder
 	buf.WriteString("---\n")
 	fmt.Fprintf(&buf, "title: %q\n", title)

@@ -11,20 +11,25 @@ import (
 const (
 	dirName  = ".archcore"
 	fileName = "settings.json"
+)
 
-	SyncTypeNone   = "none"
-	SyncTypeCloud  = "cloud"
-	SyncTypeOnPrem = "on-prem"
+// SyncType identifies the sync mode of a project.
+type SyncType string
+
+const (
+	SyncTypeNone   SyncType = "none"
+	SyncTypeCloud  SyncType = "cloud"
+	SyncTypeOnPrem SyncType = "on-prem"
 )
 
 // CloudServerURL is the hardcoded URL for cloud sync. Var for test override.
 var CloudServerURL = "https://app.archcore.ai"
 
 type Settings struct {
-	Sync        string `json:"sync"`
-	ProjectID   *int   `json:"project_id,omitempty"`
-	ArchcoreURL string `json:"archcore_url,omitempty"`
-	Language    string `json:"language,omitempty"`
+	Sync        SyncType `json:"sync"`
+	ProjectID   *int     `json:"project_id,omitempty"`
+	ArchcoreURL string   `json:"archcore_url,omitempty"`
+	Language    string   `json:"language,omitempty"`
 }
 
 // NewNoneSettings creates settings with sync disabled.
@@ -82,14 +87,14 @@ func (s *Settings) ServerURL() string {
 }
 
 // allowedFields defines which JSON fields are valid per sync type (besides "sync" itself).
-var allowedFields = map[string]map[string]bool{
+var allowedFields = map[SyncType]map[string]bool{
 	SyncTypeNone:   {"language": true},
 	SyncTypeCloud:  {"project_id": true, "language": true},
 	SyncTypeOnPrem: {"project_id": true, "archcore_url": true, "language": true},
 }
 
 // requiredFields defines which JSON fields must be present per sync type.
-var requiredFields = map[string][]string{
+var requiredFields = map[SyncType][]string{
 	SyncTypeNone:   {},
 	SyncTypeCloud:  {},
 	SyncTypeOnPrem: {"archcore_url"},
@@ -99,23 +104,23 @@ func (s Settings) MarshalJSON() ([]byte, error) {
 	switch s.Sync {
 	case SyncTypeNone:
 		return json.Marshal(struct {
-			Sync     string `json:"sync"`
-			Language string `json:"language,omitempty"`
+			Sync     SyncType `json:"sync"`
+			Language string   `json:"language,omitempty"`
 		}{Sync: s.Sync, Language: s.Language})
 
 	case SyncTypeCloud:
 		return json.Marshal(struct {
-			Sync      string `json:"sync"`
-			ProjectID *int   `json:"project_id,omitempty"`
-			Language  string `json:"language,omitempty"`
+			Sync      SyncType `json:"sync"`
+			ProjectID *int     `json:"project_id,omitempty"`
+			Language  string   `json:"language,omitempty"`
 		}{Sync: s.Sync, ProjectID: s.ProjectID, Language: s.Language})
 
 	case SyncTypeOnPrem:
 		return json.Marshal(struct {
-			Sync        string `json:"sync"`
-			ProjectID   *int   `json:"project_id,omitempty"`
-			ArchcoreURL string `json:"archcore_url"`
-			Language    string `json:"language,omitempty"`
+			Sync        SyncType `json:"sync"`
+			ProjectID   *int     `json:"project_id,omitempty"`
+			ArchcoreURL string   `json:"archcore_url"`
+			Language    string   `json:"language,omitempty"`
 		}{Sync: s.Sync, ProjectID: s.ProjectID, ArchcoreURL: s.ArchcoreURL, Language: s.Language})
 
 	default:
@@ -135,10 +140,11 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if !ok {
 		return fmt.Errorf("missing required field \"sync\"")
 	}
-	var syncType string
-	if err := json.Unmarshal(syncRaw, &syncType); err != nil {
+	var syncRawString string
+	if err := json.Unmarshal(syncRaw, &syncRawString); err != nil {
 		return fmt.Errorf("field \"sync\" must be a string")
 	}
+	syncType := SyncType(syncRawString)
 
 	allowed, knownType := allowedFields[syncType]
 	if !knownType {

@@ -240,12 +240,12 @@ func TestMarshalJSON_UnknownSync(t *testing.T) {
 func TestUnmarshalJSON_Valid(t *testing.T) {
 	pid := 42
 	tests := []struct {
-		name      string
-		input     string
-		wantSync  string
-		wantPID   *int
-		wantURL   string
-		wantLang  string
+		name     string
+		input    string
+		wantSync SyncType
+		wantPID  *int
+		wantURL  string
+		wantLang string
 	}{
 		{
 			"none",

@@ -73,15 +73,15 @@ type searchMatch struct {
 
 // searchResult is the per-document row returned by search_documents.
 type searchResult struct {
-	Path              string             `json:"path"`
-	Title             string             `json:"title"`
-	Type              string             `json:"type"`
-	Status            string             `json:"status,omitempty"`
-	ModTime           time.Time          `json:"mtime"`
-	Tags              []string           `json:"tags,omitempty"`
-	Matches           []searchMatch      `json:"matches"`
-	IncomingRelations []DocumentRelation `json:"incoming_relations"`
-	OutgoingRelations []DocumentRelation `json:"outgoing_relations"`
+	Path              string              `json:"path"`
+	Title             string              `json:"title"`
+	Type              string              `json:"type"`
+	Status            templates.DocStatus `json:"status,omitempty"`
+	ModTime           time.Time           `json:"mtime"`
+	Tags              []string            `json:"tags,omitempty"`
+	Matches           []searchMatch       `json:"matches"`
+	IncomingRelations []DocumentRelation  `json:"incoming_relations"`
+	OutgoingRelations []DocumentRelation  `json:"outgoing_relations"`
 
 	// Private ranking keys, not serialized.
 	maxSpecificity int
@@ -141,7 +141,7 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 		pathRefFilter := strings.TrimSpace(request.GetString("path_ref", ""))
 		contentFilter := request.GetString("content", "")
 		types := request.GetStringSlice("types", nil)
-		status := request.GetString("status", "")
+		status := templates.DocStatus(request.GetString("status", ""))
 		mtimeAfterRaw := strings.TrimSpace(request.GetString("mtime_after", ""))
 		sortMode := request.GetString("sort", "relevance")
 		limitFloat := request.GetFloat("limit", float64(searchDefaultLimit))

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"slices"
 
+	"archcore-cli/templates"
+
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -52,8 +54,8 @@ func HandleListDocuments(baseDir string) func(ctx context.Context, request mcp.C
 		}
 
 		types := request.GetStringSlice("types", nil)
-		category := request.GetString("category", "")
-		status := request.GetString("status", "")
+		category := templates.Category(request.GetString("category", ""))
+		status := templates.DocStatus(request.GetString("status", ""))
 		filterTags := request.GetStringSlice("tags", nil)
 		if len(filterTags) > 0 {
 			if err := validateTags(filterTags); err != nil {

@@ -34,7 +34,7 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(args) == 0 {
-		fmt.Println(display.KeyValue("sync", settings.Sync))
+		fmt.Println(display.KeyValue("sync", string(settings.Sync)))
 		return nil
 	}
 
@@ -78,7 +78,7 @@ func runConfig(cmd *cobra.Command, args []string) error {
 func getSettingsValue(s *config.Settings, key string) (string, error) {
 	switch key {
 	case "sync":
-		return s.Sync, nil
+		return string(s.Sync), nil
 	case "project_id":
 		if s.Sync == config.SyncTypeNone {
 			return "", fmt.Errorf("project_id is not available for sync type %q", config.SyncTypeNone)
@@ -105,19 +105,20 @@ func getSettingsValue(s *config.Settings, key string) (string, error) {
 func setSettingsValue(s *config.Settings, key, value string) error {
 	switch key {
 	case "sync":
-		switch value {
+		st := config.SyncType(value)
+		switch st {
 		case config.SyncTypeNone:
-			s.Sync = value
+			s.Sync = st
 			s.ProjectID = nil
 			s.ArchcoreURL = ""
 		case config.SyncTypeCloud:
-			s.Sync = value
+			s.Sync = st
 			s.ArchcoreURL = ""
 		case config.SyncTypeOnPrem:
 			if s.ArchcoreURL == "" {
 				return fmt.Errorf("cannot switch to %q without archcore_url — run 'archcore config set archcore_url <url>' instead", config.SyncTypeOnPrem)
 			}
-			s.Sync = value
+			s.Sync = st
 		default:
 			return fmt.Errorf("invalid sync type %q — use %q, %q, or %q",
 				value, config.SyncTypeNone, config.SyncTypeCloud, config.SyncTypeOnPrem)

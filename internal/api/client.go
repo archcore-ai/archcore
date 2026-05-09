@@ -181,7 +181,7 @@ func (c *Client) GetProject(ctx context.Context, id int64) (*Project, error) {
 
 // Sync pushes document changes to POST /sync.
 // Returns the response, whether the project was auto-created (201), and any error.
-func (c *Client) Sync(ctx context.Context, payload *archsync.SyncPayload) (*SyncResponse, bool, error) {
+func (c *Client) Sync(ctx context.Context, payload *archsync.Payload) (*SyncResponse, bool, error) {
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return nil, false, fmt.Errorf("marshaling request body: %w", err)
