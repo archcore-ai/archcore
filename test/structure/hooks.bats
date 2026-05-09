@@ -52,7 +52,7 @@ setup() {
   local missing=""
   while IFS= read -r cmd; do
     local resolved
-    resolved=$(echo "$cmd" | sed "s|\${PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
+    resolved="$PLUGIN_ROOT/${cmd#./}"
     if [ ! -f "$resolved" ]; then
       missing="$missing $cmd"
     fi
@@ -64,7 +64,7 @@ setup() {
   local not_exec=""
   while IFS= read -r cmd; do
     local resolved
-    resolved=$(echo "$cmd" | sed "s|\${PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
+    resolved="$PLUGIN_ROOT/${cmd#./}"
     if [ -f "$resolved" ] && [ ! -x "$resolved" ]; then
       not_exec="$not_exec $cmd"
     fi
@@ -169,7 +169,7 @@ setup() {
 @test "codex hook config references the same script set as Claude Code" {
   local cc_scripts codex_scripts
   cc_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/hooks.json" | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sort -u)
-  codex_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/codex.hooks.json" | sed 's|${PLUGIN_ROOT}/||' | sort -u)
+  codex_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/codex.hooks.json" | sed 's|^\./||' | sort -u)
   [ "$cc_scripts" = "$codex_scripts" ] || {
     echo "Claude Code scripts: $cc_scripts"
     echo "Codex scripts: $codex_scripts"

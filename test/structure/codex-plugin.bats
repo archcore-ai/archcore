@@ -59,27 +59,13 @@ setup() {
   [ "$mcp_path" = "./.codex.mcp.json" ]
 }
 
-@test ".codex.mcp.json points at relative launcher command rebased via cwd" {
-  # Codex 0.130.0 spawns plugin MCP servers from the project's CWD, not the
-  # plugin install dir, and does NOT substitute ${CODEX_PLUGIN_ROOT} or
-  # ${CLAUDE_PLUGIN_ROOT} in `command`/`args`. The only plugin-aware rewrite is
-  # in core-plugins/src/loader.rs::normalize_plugin_mcp_server_value, which
-  # rebases a relative `cwd` field against the plugin install root. So a
-  # relative `command: "./bin/archcore"` only resolves correctly if `cwd` is
-  # also set; otherwise the spawn fails with ENOENT.
-  # See: https://github.com/openai/codex/issues/19582
+@test ".codex.mcp.json points at relative launcher command" {
   local file="$PLUGIN_ROOT/.codex.mcp.json"
   jq . < "$file" > /dev/null
   [ "$(jq -r '.mcpServers.archcore.command' < "$file")" = "./bin/archcore" ]
   [ "$(jq -r '.mcpServers.archcore.args[0]' < "$file")" = "mcp" ]
-  local cwd
-  cwd=$(jq -r '.mcpServers.archcore.cwd // empty' < "$file")
-  [ -n "$cwd" ] || fail "missing 'cwd' — without it Codex resolves ./bin/archcore against the user's project, not the plugin"
-  case "$cwd" in
-    /*) fail "cwd must be plugin-relative ('.' or './...'), not absolute: $cwd" ;;
-  esac
   if grep -q '\${CLAUDE_PLUGIN_ROOT}\|\${CODEX_PLUGIN_ROOT}' "$file"; then
-    fail "Codex MCP config does not support env substitution; do not reference plugin root env vars"
+    fail "Codex MCP config should not depend on host root env substitution"
   fi
 }
 
@@ -162,24 +148,13 @@ setup() {
   jq . < "$PLUGIN_ROOT/hooks/codex.hooks.json" > /dev/null
 }
 
-@test "codex.hooks.json uses \${PLUGIN_ROOT}/bin/... substitution (host-neutral canonical)" {
-  # Codex's hooks engine injects two env vars (codex-rs/hooks/src/engine/discovery.rs):
-  #   env.insert("PLUGIN_ROOT", ...);                   // canonical, host-neutral
-  #   env.insert("CLAUDE_PLUGIN_ROOT", ...);            // OOTB compat shim only
-  # The substitution loop folds ${KEY} over the command string at spawn.
-  # We use the canonical PLUGIN_ROOT in this Codex-specific hook file rather
-  # than borrowing Claude's name. CLAUDE_PLUGIN_ROOT is intentionally NOT used
-  # here (it is a compat alias for porting old Claude plugins, not the right
-  # name for a Codex-native hook config).
-  # Plugin hooks require `codex features enable plugin_hooks` (currently
-  # `under development, false` in Codex 0.130.0).
+@test "codex.hooks.json uses plugin-relative commands, not root env substitution" {
   local file="$PLUGIN_ROOT/hooks/codex.hooks.json"
   while IFS= read -r command; do
-    [[ "$command" == \$\{PLUGIN_ROOT\}/bin/* ]] \
-      || fail "Codex hook command must use \${PLUGIN_ROOT}/bin/... (host-neutral canonical), got: $command"
+    [[ "$command" == ./* ]] || fail "Codex hook command must be plugin-relative: $command"
   done < <(jq -r '.. | .command? // empty' "$file")
-  if grep -q '\${CLAUDE_PLUGIN_ROOT}\|\${CODEX_PLUGIN_ROOT}\|\${CURSOR_PLUGIN_ROOT}' "$file"; then
-    fail "codex.hooks.json must not borrow other hosts' env-var names; use \${PLUGIN_ROOT}"
+  if grep -q '\${CLAUDE_PLUGIN_ROOT}\|\${CODEX_PLUGIN_ROOT}' "$file"; then
+    fail "codex hooks should not reference plugin root env vars"
   fi
 }
 

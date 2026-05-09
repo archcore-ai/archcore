@@ -104,10 +104,7 @@ For Codex CLI, both subagents also ship as TOML variants (`agents/archcore-assis
 | 5   | PostToolUse  | `mcp__archcore__update_document`                                                                  | `bin/check-cascade`         | 3s      |
 | 6   | PostToolUse  | `mcp__archcore__create_document\|mcp__archcore__update_document`                                  | `bin/check-precision`       | 3s      |
 
-Hook configs use each host's canonical plugin-root env var:
-- `hooks/hooks.json` (Claude Code, PascalCase events) — `${CLAUDE_PLUGIN_ROOT}/bin/...`
-- `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`) — `${CURSOR_PLUGIN_ROOT}/bin/...`
-- `hooks/codex.hooks.json` (Codex CLI, PascalCase events with `apply_patch` matcher addition for Codex's native edit primitive) — `${PLUGIN_ROOT}/bin/...` (Codex's canonical, host-neutral env var; `CLAUDE_PLUGIN_ROOT` is also injected as a backward-compat alias but not used here, and `CODEX_PLUGIN_ROOT` does not exist in Codex). See `plugin/codex-plugin-spawn-semantics.adr.md`.
+Hook configs: `hooks/hooks.json` (Claude Code, PascalCase events), `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`), `hooks/codex.hooks.json` (Codex CLI, PascalCase events with `apply_patch` matcher addition for Codex's native edit primitive).
 
 Hook 2 and Hook 3 share the `Write|Edit` matcher. Hook 2 (`check-archcore-write`) blocks direct writes to `.archcore/*.md`. Hook 3 (`check-code-alignment`) injects relevant `.archcore/` context for source-file edits via `hookSpecificOutput.additionalContext`. They act on disjoint path sets by construction — no conflict.
 
@@ -152,7 +149,7 @@ See the Bundled CLI Launcher ADR for rationale.
 | Component       | Location                     | Tests    | Description                                                                                             |
 | --------------- | ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------- |
 | Unit tests      | `test/unit/`                 | 94+      | Test each bin script: stdin parsing, host detection, exit codes, output format, edge cases. Includes `launcher.bats` (CLI launcher resolution order), `check-staleness.bats` (24h rate limit, corrupt-stamp recovery), and `check-code-alignment.bats` (source-root filter, specificity ranking, top-3 cap, settings override, Cursor JSON shape, non-blocking safety). |
-| Structure tests | `test/structure/`            | 50+      | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules. `hooks.bats` includes Phase 2.1 anti-regression invariants: no Write/Edit matcher on PostToolUse, no postToolUse event on Cursor, exact event-set invariants per host. `codex-plugin.bats` enforces Codex manifest, marketplace schema, hooks shape (`${PLUGIN_ROOT}` substitution form), MCP wiring (relative `command` paired with `cwd: "."`), TOML agents, and parity between `commands/*.md` wrappers and `skills/<name>/SKILL.md`. `cli-contract.bats` locks every `archcore <subcmd>` invocation in `bin/*` and MCP-launcher JSONs against an allowlist sourced from `bin/CLI_VERSION`; `readme-cli-references.bats` does the same for prescriptive README references. |
+| Structure tests | `test/structure/`            | 50+      | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules. `hooks.bats` includes Phase 2.1 anti-regression invariants: no Write/Edit matcher on PostToolUse, no postToolUse event on Cursor, exact event-set invariants per host. `codex-plugin.bats` enforces Codex manifest, marketplace schema, hooks shape, MCP wiring, TOML agents, and parity between `commands/*.md` wrappers and `skills/<name>/SKILL.md`. `cli-contract.bats` locks every `archcore <subcmd>` invocation in `bin/*` and MCP-launcher JSONs against an allowlist sourced from `bin/CLI_VERSION`; `readme-cli-references.bats` does the same for prescriptive README references. |
 | Fixtures        | `test/fixtures/stdin/`       | 12 files | Mock stdin JSON for Claude Code, Cursor, Copilot, Codex CLI, and malformed inputs                       |
 | Helpers         | `test/helpers/`              | —        | common.bash (setup, mocks, timeout shim), bats-support, bats-assert (git submodules)                    |
 | Makefile        | `Makefile`                   | —        | Targets: `test`, `test-unit`, `test-structure`, `lint`, `check-json`, `check-perms`, `verify`           |
@@ -177,9 +174,7 @@ The plugin **ships MCP registration** for Claude Code via `.mcp.json` at the plu
 
 The `command` points at the bundled launcher, which resolves the actual CLI binary at invocation time (`$ARCHCORE_BIN` → `PATH` → cache → download). Users with a global `archcore` on `PATH` hit their existing install; users without one get a one-time auto-download on first MCP call. No manual `claude mcp add` or project-level `.mcp.json` required.
 
-Codex CLI uses `.codex-plugin/plugin.json` to point at plugin-root `.codex.mcp.json`, which registers the same launcher with `command: "./bin/archcore"`, `args: ["mcp"]`, and `cwd: "."`. The `cwd: "."` is the resolution mechanism: Codex's `normalize_plugin_mcp_server_value` (`codex-rs/core-plugins/src/loader.rs`) rebases the relative cwd to the plugin install root, so the relative command resolves correctly regardless of the user's project directory. Codex does NOT substitute `${CODEX_PLUGIN_ROOT}` or any placeholder in MCP `command`/`args`. See `plugin/codex-plugin-spawn-semantics.adr.md`.
-
-Cursor users still register MCP externally (via Cursor's MCP settings or a project `mcp.json`) — the launcher works identically for them, just isn't wired in via a plugin-shipped MCP config.
+Codex CLI uses `.codex-plugin/plugin.json` to point at plugin-root `.codex.mcp.json`, which registers the same launcher with a plugin-relative command (`./bin/archcore`). Cursor users still register MCP externally (via Cursor's MCP settings or a project `mcp.json`) — the launcher works identically for them, just isn't wired in via a plugin-shipped MCP config.
 
 Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP" stance (documented in the Multi-Host Plugin Architecture ADR) is superseded for Claude Code and Codex CLI; duplicate-suppression concerns are resolved because the launcher defers to an existing global install when present, making the effective command identical to a user-registered one.
 
@@ -193,11 +188,11 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 | `.claude-plugin/marketplace.json` | Claude Code | Marketplace metadata                                                   |
 | `.cursor-plugin/marketplace.json` | Cursor      | Marketplace metadata                                                   |
 | `.agents/plugins/marketplace.json` | Codex CLI  | Marketplace metadata and default-install policy                        |
-| `.mcp.json`                       | Claude Code | Plugin-provided MCP server registration (launcher-backed; `${CLAUDE_PLUGIN_ROOT}/bin/archcore`) |
-| `.codex.mcp.json`                 | Codex CLI   | Plugin-provided MCP server registration (`./bin/archcore` + `cwd: "."` rebased to plugin install root) |
-| `hooks/hooks.json`                | Claude Code | Hook event config (PascalCase, `${CLAUDE_PLUGIN_ROOT}/bin/...`)        |
-| `hooks/cursor.hooks.json`         | Cursor      | Hook event config (camelCase + afterMCPExecution, `${CURSOR_PLUGIN_ROOT}/bin/...`) |
-| `hooks/codex.hooks.json`          | Codex CLI   | Hook event config (PascalCase + apply_patch matcher, `${PLUGIN_ROOT}/bin/...`) |
+| `.mcp.json`                       | Claude Code | Plugin-provided MCP server registration (launcher-backed)              |
+| `.codex.mcp.json`                 | Codex CLI   | Plugin-provided MCP server registration (launcher-backed)              |
+| `hooks/hooks.json`                | Claude Code | Hook event config (PascalCase)                                         |
+| `hooks/cursor.hooks.json`         | Cursor      | Hook event config (camelCase + afterMCPExecution)                      |
+| `hooks/codex.hooks.json`          | Codex CLI   | Hook event config (PascalCase + apply_patch matcher)                   |
 | `commands/*.md`                   | Codex CLI   | Slash command wrappers (16) — thin shims delegating to `skills/<name>/SKILL.md` |
 | `agents/archcore-assistant.toml`  | Codex CLI   | Codex TOML subagent (`sandbox_mode = "workspace-write"`); MD original used by Claude Code/Cursor |
 | `agents/archcore-auditor.toml`    | Codex CLI   | Codex TOML subagent (`sandbox_mode = "read-only"` + `disabled_tools[]`); MD original used by Claude Code/Cursor |

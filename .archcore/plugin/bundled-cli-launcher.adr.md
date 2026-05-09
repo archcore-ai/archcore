@@ -18,7 +18,7 @@ In practice this produced real friction:
 - The `claude mcp add ...` step is discoverable only by reading the README — `/plugin install` gives no hint that MCP registration is still required.
 - Error messages from `bin/session-start` when MCP was unreachable ("install the CLI and register the MCP server") were ignored or misread as install failures.
 
-The Claude Code plugin runtime now supports `${CLAUDE_PLUGIN_ROOT}` substitution in `.mcp.json` shipped at the plugin root, and treats plugin-provided MCP servers as first-class. Duplicate suppression only kicks in when the `command`/`args` exactly match a user- or project-registered server — and if a user has installed `archcore` globally, the PATH resolution inside the launcher picks it up, so the effective command is identical to the user's global registration and deduping is benign. Codex CLI v0.117.0+ (March 2026) gained plugin-shipped MCP via the Codex manifest's `mcpServers` pointer. Codex uses a different resolution mechanism than Claude Code: rather than env-var substitution in `command`/`args`, it rebases a relative `cwd` field against the plugin install root via `codex-rs/core-plugins/src/loader.rs::normalize_plugin_mcp_server_value`. Codex therefore ships a separate plugin-root MCP config at `.codex.mcp.json` with `command: "./bin/archcore"` and `cwd: "."`. The `cwd: "."` is the resolution mechanism — Codex rebases it to the plugin install root so the relative command resolves correctly regardless of the user's project directory; without `cwd`, Codex spawns from the user's project CWD and the MCP fails with ENOENT. See `plugin/codex-plugin-spawn-semantics.adr.md` for the canonical record on Codex's MCP cwd rebase vs hook `${PLUGIN_ROOT}` substitution.
+The Claude Code plugin runtime now supports `${CLAUDE_PLUGIN_ROOT}` substitution in `.mcp.json` shipped at the plugin root, and treats plugin-provided MCP servers as first-class. Duplicate suppression only kicks in when the `command`/`args` exactly match a user- or project-registered server — and if a user has installed `archcore` globally, the PATH resolution inside the launcher picks it up, so the effective command is identical to the user's global registration and deduping is benign. Codex CLI v0.117.0+ (March 2026) gained plugin-shipped MCP via the Codex manifest's `mcpServers` pointer, but its plugin examples use plugin-relative command paths rather than Claude's root-variable substitution. Codex therefore ships a separate plugin-root MCP config at `.codex.mcp.json` that points at the same launcher with `./bin/archcore`.
 
 ### Drivers
 
@@ -56,7 +56,7 @@ The plugin root ships `.mcp.json`:
 }
 ```
 
-Claude Code reads this and registers `archcore` as a plugin-provided MCP server. The command points at the launcher — the launcher resolves to the right binary at invocation time. Resolution mechanism: env-var substitution at the host level (`${CLAUDE_PLUGIN_ROOT}` is replaced with the plugin install path before spawn).
+Claude Code reads this and registers `archcore` as a plugin-provided MCP server. The command points at the launcher — the launcher resolves to the right binary at invocation time.
 
 Codex CLI reads `.codex-plugin/plugin.json` and follows its `mcpServers` pointer to `.codex.mcp.json`. The Codex build-plugins docs reserve `.codex-plugin/` for `plugin.json`, so the Codex-specific MCP file lives at the plugin root:
 
@@ -66,21 +66,20 @@ Codex CLI reads `.codex-plugin/plugin.json` and follows its `mcpServers` pointer
 }
 ```
 
-The pointed-to file uses the same wrapper shape as public Codex plugin examples, with the addition of a `cwd` field that's the resolution mechanism for Codex:
+The pointed-to file uses the same wrapper shape as public Codex plugin examples:
 
 ```json
 {
   "mcpServers": {
     "archcore": {
       "command": "./bin/archcore",
-      "args": ["mcp"],
-      "cwd": "."
+      "args": ["mcp"]
     }
   }
 }
 ```
 
-Codex resolves the command via its `cwd` rebase mechanism: `normalize_plugin_mcp_server_value` (`codex-rs/core-plugins/src/loader.rs`) rebases the relative `cwd` (`.`) to the plugin install root; `launch_server` (`codex-rs/rmcp-client/src/stdio_server_launcher.rs`) then sets that as `current_dir` for the spawned process, so `./bin/archcore` resolves against the plugin root rather than the user's project CWD. This avoids relying on an undocumented `${CODEX_PLUGIN_ROOT}` environment variable (Codex does not export one to MCP processes, nor does it substitute env-var placeholders in MCP `command`/`args`) while still using the same launcher and cache behavior. Without `cwd: "."`, Codex would spawn the MCP from the user's project CWD and fail with ENOENT — the original symptom that motivated the spawn-semantics investigation. See `plugin/codex-plugin-spawn-semantics.adr.md`.
+Codex resolves the plugin-relative command path from the installed plugin root. This avoids relying on an undocumented `${CODEX_PLUGIN_ROOT}` environment variable while still using the same launcher and cache behavior.
 
 ### Pinned CLI version
 
@@ -134,12 +133,12 @@ Add `bin/archcore` but leave MCP registration to the user.
 - **Enterprise/offline escape hatches.** `ARCHCORE_BIN` pins an explicit binary. `ARCHCORE_SKIP_DOWNLOAD=1` disables network access at the launcher layer.
 - **Survives plugin updates.** The cache lives under `$CLAUDE_PLUGIN_DATA/archcore/cli` (Claude Code's stable data dir) or `$CODEX_PLUGIN_DATA/archcore/cli` (Codex CLI's stable data dir), so plugin re-installs don't re-download.
 - **Security.** Downloads are checksum-verified before execution. No `curl | sh`.
-- **Codex parity with Claude Code.** Codex CLI uses the same launcher mechanism with a Codex-specific MCP config: `command: "./bin/archcore"` paired with `cwd: "."`, where Codex's `normalize_plugin_mcp_server_value` rebases the relative cwd to the plugin install root. Host-prefixed cache directories keep the binary lifecycle aligned with Claude Code. The resolution mechanism differs from Claude Code (cwd rebase vs env-var substitution), but the user experience is identical: zero-setup install, plugin-shipped MCP, same launcher binary, same cache.
+- **Codex parity with Claude Code.** Codex CLI uses the same launcher mechanism with a Codex-specific MCP config and plugin-relative command paths. Host-prefixed cache directories keep the binary lifecycle aligned with Claude Code without relying on undocumented root-variable substitution.
 
 ### Negative
 
 - **Plugin now owns part of the CLI lifecycle.** Cache invalidation (stale cached binaries after CLI bugfix releases) requires bumping `bin/CLI_VERSION` in the plugin and shipping a plugin release. Mitigation: cache is version-keyed by filename (`archcore-v${VERSION}`), so a pin bump always downloads fresh.
 - **First-run network dependency.** Air-gapped environments that don't pre-install the CLI fail at the first MCP call with a network error. Mitigation: documented `ARCHCORE_BIN` / `ARCHCORE_SKIP_DOWNLOAD=1` workflow in the README.
-- **Cursor remains the multi-host outlier.** Claude Code and Codex CLI both support plugin-shipped MCP configs (via different mechanisms — env-var substitution and `cwd` rebase respectively); Cursor does not. Cursor users still register MCP externally (via project `mcp.json` or Cursor MCP settings). The launcher still works for them — it just isn't wired in via a plugin-shipped `.mcp.json`. This is a deliberate host-by-host rollout; the ADR does not claim parity across all hosts.
+- **Cursor remains the multi-host outlier.** Claude Code and Codex CLI both support plugin-shipped MCP configs; Cursor does not. Cursor users still register MCP externally (via project `mcp.json` or Cursor MCP settings). The launcher still works for them — it just isn't wired in via a plugin-shipped `.mcp.json`. This is a deliberate host-by-host rollout; the ADR does not claim parity across all hosts.
 - **Inverts the Multi-Host Plugin Architecture ADR's "MCP ownership boundary" section.** That section is now historically accurate (rationale at the time) but no longer describes current behavior. See that ADR for the cross-link; this ADR supersedes the "plugin does not ship an MCP server configuration" claim for Claude Code and (by extension) Codex CLI specifically.
 - **Supply-chain surface area.** The launcher executes downloaded binaries. Checksum verification is the only gate. Any compromise of the GitHub Releases signing pipeline compromises the plugin's trust model. Acceptable given the CLI was the trust root already; the launcher doesn't introduce a new trust boundary.

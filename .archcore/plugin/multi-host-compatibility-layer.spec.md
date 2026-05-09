@@ -20,7 +20,7 @@ The compatibility layer — specifically: `bin/lib/normalize-stdin.sh`, `bin/arc
 
 ## Authority
 
-This specification is authoritative for cross-host behavior. The Multi-Host Plugin Architecture ADR provides the architectural rationale for the shared-core / per-host-adapter split. The Bundled CLI Launcher ADR is authoritative for launcher resolution order, auto-install policy, and plugin-owned MCP wiring. The Codex Plugin Spawn Semantics ADR (`plugin/codex-plugin-spawn-semantics.adr.md`) is authoritative for Codex's two distinct resolution mechanisms (MCP `cwd` rebase vs hook `${PLUGIN_ROOT}` substitution). The Hooks and Validation System Specification remains authoritative for hook semantics (what each hook does); this spec defines how hooks adapt to different host runtimes.
+This specification is authoritative for cross-host behavior. The Multi-Host Plugin Architecture ADR provides the architectural rationale for the shared-core / per-host-adapter split. The Bundled CLI Launcher ADR is authoritative for launcher resolution order, auto-install policy, and plugin-owned MCP wiring. The Hooks and Validation System Specification remains authoritative for hook semantics (what each hook does); this spec defines how hooks adapt to different host runtimes.
 
 ## Subject
 
@@ -275,29 +275,29 @@ Key differences:
 {
   "hooks": {
     "SessionStart": [
-      { "matcher": "", "hooks": [{ "type": "command", "command": "${PLUGIN_ROOT}/bin/session-start" }] }
+      { "matcher": "", "hooks": [{ "type": "command", "command": "./bin/session-start" }] }
     ],
     "PreToolUse": [
       {
         "matcher": "Write|Edit|apply_patch",
         "hooks": [
-          { "type": "command", "command": "${PLUGIN_ROOT}/bin/check-archcore-write", "timeout": 1 },
-          { "type": "command", "command": "${PLUGIN_ROOT}/bin/check-code-alignment", "timeout": 1 }
+          { "type": "command", "command": "./bin/check-archcore-write", "timeout": 1 },
+          { "type": "command", "command": "./bin/check-code-alignment", "timeout": 1 }
         ]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "mcp__archcore__create_document|mcp__archcore__update_document|mcp__archcore__remove_document|mcp__archcore__add_relation|mcp__archcore__remove_relation",
-        "hooks": [{ "type": "command", "command": "${PLUGIN_ROOT}/bin/validate-archcore", "timeout": 3 }]
+        "hooks": [{ "type": "command", "command": "./bin/validate-archcore", "timeout": 3 }]
       },
       {
         "matcher": "mcp__archcore__update_document",
-        "hooks": [{ "type": "command", "command": "${PLUGIN_ROOT}/bin/check-cascade", "timeout": 3 }]
+        "hooks": [{ "type": "command", "command": "./bin/check-cascade", "timeout": 3 }]
       },
       {
         "matcher": "mcp__archcore__create_document|mcp__archcore__update_document",
-        "hooks": [{ "type": "command", "command": "${PLUGIN_ROOT}/bin/check-precision", "timeout": 3 }]
+        "hooks": [{ "type": "command", "command": "./bin/check-precision", "timeout": 3 }]
       }
     ]
   }
@@ -306,17 +306,9 @@ Key differences:
 
 The Codex config mirrors Claude Code's structure with the `apply_patch` matcher addition for Codex's native edit primitive and the `check-precision` PostToolUse entry that has been part of the Claude Code config since the precision-over-coverage initiative.
 
-Codex hook commands MUST use `${PLUGIN_ROOT}/bin/...` substitution. Codex's hooks engine (`codex-rs/hooks/src/engine/discovery.rs`) injects two env vars and applies `${KEY}` substitution to the command string at spawn time:
+Codex hook commands MUST be plugin-relative (`./bin/...`). Current Codex plugin examples use relative command paths and the installed Codex binary does not expose a documented `${CODEX_PLUGIN_ROOT}` substitution variable.
 
-```rust
-env.insert("PLUGIN_ROOT".to_string(), plugin_root_value.clone());
-// For OOTB compat with existing plugins that use this env var.
-env.insert("CLAUDE_PLUGIN_ROOT".to_string(), plugin_root_value);
-```
-
-`PLUGIN_ROOT` is the canonical, host-neutral name and MUST be used in `hooks/codex.hooks.json`. `CLAUDE_PLUGIN_ROOT` is explicitly labeled in Codex source as a backward-compat alias for porting old Claude plugins and MUST NOT be used in a Codex-native config — borrowing another host's name in this file is forbidden. `CODEX_PLUGIN_ROOT` does not exist in Codex (neither as env injection nor as substitution placeholder). Plugin-relative paths like `./bin/...` are also forbidden — they would resolve against the user's project CWD and fail with ENOENT (Codex hooks do NOT auto-rebase relative paths the way MCP does). See `plugin/codex-plugin-spawn-semantics.adr.md`.
-
-Codex hooks are also gated by Codex runtime support: plugin-shipped hooks are behind the `plugin_hooks` feature flag, which is `under development, false` by default in Codex 0.130.0. Users must run `codex features enable plugin_hooks` to opt in. The plugin MUST still ship `hooks/codex.hooks.json` and the manifest pointer so it is ready for the documented plugin surface, but end-to-end hook execution MUST be treated as a runtime smoke test rather than assumed from static packaging alone.
+Codex hooks are also gated by Codex runtime support: the official hooks documentation requires `[features].codex_hooks = true`, and current upstream code/issues show plugin-local hook discovery has been in flux. The plugin MUST still ship `hooks/codex.hooks.json` and the manifest pointer so it is ready for the documented plugin surface, but end-to-end hook execution MUST be treated as a runtime smoke test rather than assumed from static packaging alone.
 
 ### 5. Plugin Manifests
 
@@ -396,7 +388,7 @@ The plugin root contains `.mcp.json`:
 }
 ```
 
-Claude Code reads this on plugin load and registers `archcore` as a plugin-provided MCP server. The `command` points at the bundled launcher (section 2), which resolves the actual CLI binary at invocation time. No manual `claude mcp add` or project-level `.mcp.json` is required. Resolution mechanism: env-var substitution at the Claude Code plugin runtime — `${CLAUDE_PLUGIN_ROOT}` is replaced with the plugin install path before spawn.
+Claude Code reads this on plugin load and registers `archcore` as a plugin-provided MCP server. The `command` points at the bundled launcher (section 2), which resolves the actual CLI binary at invocation time. No manual `claude mcp add` or project-level `.mcp.json` is required.
 
 **Duplicate suppression**: if a user has registered `archcore` globally (`claude mcp add ...`) or the repo has its own `.mcp.json` with a matching command, Claude Code dedupes. Because the launcher defers to `PATH` when a global `archcore` exists, users with prior installs see no behavior change — both registrations effectively resolve the same binary.
 
@@ -415,23 +407,20 @@ Codex CLI does not auto-discover the Claude-oriented `.mcp.json` the way Claude 
 { "mcpServers": "./.codex.mcp.json", ... }
 ```
 
-The file uses the same wrapper shape as Claude Code, with a relative command and a `cwd` field set to `"."`:
+The file uses the same wrapper shape as Claude Code but a plugin-relative command path:
 
 ```json
 {
   "mcpServers": {
     "archcore": {
       "command": "./bin/archcore",
-      "args": ["mcp"],
-      "cwd": "."
+      "args": ["mcp"]
     }
   }
 }
 ```
 
-Codex resolves the pointer at plugin load time and registers `archcore` as a plugin-provided MCP server. The resolution mechanism is a `cwd` rebase: Codex's `normalize_plugin_mcp_server_value` (`codex-rs/core-plugins/src/loader.rs`) rebases the relative `cwd` field against the plugin install root; `launch_server` (`codex-rs/rmcp-client/src/stdio_server_launcher.rs`) then spawns the process with that rebased path as `current_dir`. The `./bin/archcore` command is resolved relative to that rebased cwd, so it finds the bundled launcher regardless of the user's project directory. Without `cwd: "."`, the command resolves against the user's project CWD and fails with ENOENT (`MCP startup failed: No such file or directory (os error 2)`).
-
-The Codex MCP config MUST NOT reference `${CLAUDE_PLUGIN_ROOT}` or `${CODEX_PLUGIN_ROOT}` — Codex does not substitute placeholders in `command`, `args`, or `env` for MCP entries (only the `cwd` rebase applies). The Codex MCP config MUST set `cwd` to a plugin-relative path (typically `"."`) so the rebase resolves the relative command correctly. See `plugin/codex-plugin-spawn-semantics.adr.md`.
+Codex resolves the pointer at plugin load time and registers `archcore` as a plugin-provided MCP server. The Codex MCP config MUST NOT reference `${CLAUDE_PLUGIN_ROOT}` or `${CODEX_PLUGIN_ROOT}`.
 
 ### 7. Codex Subagent TOML Files
 
@@ -502,8 +491,6 @@ Rules in `rules/` provide context injection. Two files:
 - Both PreToolUse hooks on the `Write|Edit` / `Write` / `Write|Edit|apply_patch` matcher MUST coexist and act on disjoint path sets — `check-archcore-write` on `.archcore/*.md`, `check-code-alignment` on source paths outside `.archcore/`.
 - Plugin manifests MUST use identical `name`, `description`, and `version` across all hosts.
 - Plugin manifests for Claude Code (`.claude-plugin/plugin.json`) MUST NOT declare `mcpServers`; MCP wiring lives in the plugin-root `.mcp.json`. Plugin manifests for Codex CLI (`.codex-plugin/plugin.json`) MUST declare `mcpServers` as a pointer to `.codex.mcp.json` (Codex should not consume Claude's `${CLAUDE_PLUGIN_ROOT}`-based `.mcp.json`).
-- The Codex `.codex.mcp.json` MUST set `cwd` to a plugin-relative path (typically `"."`); without it, Codex spawns the MCP from the user's project CWD and the launcher path fails to resolve. Codex does NOT substitute env-var placeholders in MCP `command`/`args`/`env`; `${CLAUDE_PLUGIN_ROOT}` and `${CODEX_PLUGIN_ROOT}` MUST NOT appear in `.codex.mcp.json`.
-- Codex hook configs (`hooks/codex.hooks.json`) MUST use `${PLUGIN_ROOT}/bin/...` substitution. They MUST NOT use `${CLAUDE_PLUGIN_ROOT}` (a backward-compat alias intended for porting old Claude plugins, not for Codex-native configs), `${CURSOR_PLUGIN_ROOT}` (different host), or `${CODEX_PLUGIN_ROOT}` (does not exist in Codex). They MUST NOT use plugin-relative paths like `./bin/...` (Codex hooks do NOT auto-rebase; the path would resolve against the user's project CWD and fail).
 - The CLI launcher MUST resolve in order: `$ARCHCORE_BIN` → `PATH` (with loop guard) → cache → download. The cache directory list MUST favor host-prefixed dirs (`$CODEX_PLUGIN_DATA` and `$CLAUDE_PLUGIN_DATA`) before XDG/LOCALAPPDATA fallbacks. Downloads MUST be checksum-verified.
 - `bin/session-start` MUST pass `ARCHCORE_SKIP_DOWNLOAD=1` when invoking the launcher so SessionStart never blocks on network.
 - `bin/session-start` MUST respect `ARCHCORE_HIDE_EMPTY_NUDGE=1` by suppressing the bootstrap advisory line while still emitting the `init_project` prompt for missing `.archcore/`.
@@ -519,7 +506,7 @@ Rules in `rules/` provide context injection. Two files:
 - Stdin normalization MUST complete within 100ms (included in hook timeout budget).
 - Launcher resolution steps 1–3 MUST complete in under 100ms on a warm filesystem.
 - Launcher download (step 4) MAY take seconds — it runs only on first use, not inside hook-timeout-bounded contexts.
-- Plugin root variable handling per host (uniform: each host config uses its host's canonical name; no host borrows another's). Claude Code hook configs use `${CLAUDE_PLUGIN_ROOT}` (Claude's native injection). Cursor hook configs use `${CURSOR_PLUGIN_ROOT}` (Cursor's native; Cursor also recognizes `${CLAUDE_PLUGIN_ROOT}` as an alias). Codex hook configs use `${PLUGIN_ROOT}` (Codex's canonical, host-neutral injection — Codex's hooks engine sets it; `CLAUDE_PLUGIN_ROOT` is also injected as an "OOTB compat" alias but MUST NOT be used in Codex-native configs; `CODEX_PLUGIN_ROOT` does not exist). For Codex MCP configs, env-var substitution does NOT occur — set `cwd: "."` instead so Codex's `normalize_plugin_mcp_server_value` rebases it to plugin_root.
+- Plugin root variable handling varies by host. Claude Code hook configs use `${CLAUDE_PLUGIN_ROOT}`; Cursor hook configs use `${CURSOR_PLUGIN_ROOT}` (and Cursor also recognizes `${CLAUDE_PLUGIN_ROOT}` as an alias); Codex hook configs MUST use plugin-relative commands (`./bin/...`).
 
 ## Invariants
 
@@ -539,8 +526,6 @@ Rules in `rules/` provide context injection. Two files:
 - **Stdin JSON missing expected fields**: Export empty variables. Bin script logic handles missing fields gracefully.
 - **Escaped JSON extraction fails**: `ARCHCORE_DOC_PATH` remains empty. `check-cascade` exits early (no cascade possible).
 - **Plugin root variable not set**: Bin scripts use `$(dirname "$0")` for relative paths.
-- **Codex MCP starts from user project CWD with ENOENT** (`MCP startup failed: No such file or directory (os error 2)`): Indicates `.codex.mcp.json` is missing the `cwd` field. Add `"cwd": "."`. Verify with `codex mcp get archcore` — the `cwd` column should show an absolute path under `~/.codex/plugins/cache/...`, not a dash.
-- **Codex hook fails with command-not-found**: Indicates `hooks/codex.hooks.json` uses a relative `./bin/...` path or the wrong env var. Use `${PLUGIN_ROOT}/bin/...`. Ensure `codex features enable plugin_hooks` is on (the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0).
 - **Launcher cannot resolve CLI and `ARCHCORE_SKIP_DOWNLOAD=1`**: exits 1 with a stderr message. Calling hook scripts (`validate-archcore`, `check-cascade`) treat this as a silent skip and exit 0 (don't break the session).
 - **Launcher download fails (network, checksum mismatch, unsupported OS/arch)**: exits 1 with a diagnostic on stderr. MCP calls fail until resolved; the agent surfaces the error to the user. `bin/session-start` never hits this path because it always passes `ARCHCORE_SKIP_DOWNLOAD=1`.
 - **`.archcore/` exists but is functionally empty (no `.md` file ≥ 200 bytes)**: `bin/session-start` emits a non-blocking advisory pointing at `/archcore:bootstrap` unless `ARCHCORE_HIDE_EMPTY_NUDGE=1`. Empty-state check uses `bin/lib/empty-state.sh` (POSIX shell, no jq, no MCP calls).
@@ -555,9 +540,9 @@ The multi-host compatibility layer conforms to this specification if:
 3. MCP tool names are normalized to `mcp__archcore__` prefix regardless of host
 4. Output helpers emit correct format per detected host — `archcore_hook_info` for PostToolUse, `archcore_hook_pretool_info` for PreToolUse
 5. The CLI launcher implements the full resolution order, with checksum verification on downloads, and the cache directory chain favors host-prefixed dirs (`CODEX_PLUGIN_DATA`, `CLAUDE_PLUGIN_DATA`) before XDG/LOCALAPPDATA
-6. Each supported host has a complete hooks config mapping the active hook functions for its event model, using its host's canonical env var (`${CLAUDE_PLUGIN_ROOT}` for Claude Code, `${CURSOR_PLUGIN_ROOT}` for Cursor, `${PLUGIN_ROOT}` for Codex CLI)
+6. Each supported host has a complete hooks config mapping the active hook functions for its event model
 7. Each supported host has a valid plugin manifest with consistent metadata. Claude Code and Cursor manifests do NOT contain a `mcpServers` field; Codex CLI manifest declares `mcpServers` as a pointer to `.codex.mcp.json`
-8. The plugin root ships `.mcp.json` for Claude Code (`${CLAUDE_PLUGIN_ROOT}/bin/archcore` substitution) and `.codex.mcp.json` for Codex CLI (`./bin/archcore` paired with `cwd: "."` for the rebase mechanism); both point at the launcher with `args: ["mcp"]`
+8. The plugin root ships `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI; both point at the launcher with `args: ["mcp"]`
 9. Codex CLI ships TOML subagent files (`agents/archcore-{assistant,auditor}.toml`) with `developer_instructions` content matching the MD originals; auditor TOML has `sandbox_mode = "read-only"` and `disabled_tools[]` for all five mutating MCP tools
 10. Shared components (skills, agents, hook scripts, launcher) contain zero host-specific references
 11. Adding a new host requires only new config files, not changes to shared components

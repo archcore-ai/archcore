@@ -3201,51 +3201,6 @@
       "source": "plugin/cli-integration-tests.rule.md",
       "target": "plugin/bundled-cli-launcher.adr.md",
       "type": "related"
-    },
-    {
-      "source": "plugin/codex-host-support.plan.md",
-      "target": "plugin/codex-plugin-spawn-semantics.adr.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "plugin/codex-host-support.idea.md",
-      "target": "plugin/codex-plugin-spawn-semantics.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/codex-host-support.prd.md",
-      "target": "plugin/codex-plugin-spawn-semantics.adr.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "plugin/codex-local-plugin-testing.guide.md",
-      "target": "plugin/codex-plugin-spawn-semantics.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/plugin-development.guide.md",
-      "target": "plugin/codex-plugin-spawn-semantics.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/component-registry.doc.md",
-      "target": "plugin/codex-plugin-spawn-semantics.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-plugin-architecture.adr.md",
-      "target": "plugin/codex-plugin-spawn-semantics.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/codex-plugin-spawn-semantics.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/codex-plugin-spawn-semantics.adr.md",
-      "type": "implements"
     }
   ]
 }

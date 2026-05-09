@@ -24,7 +24,7 @@ Estimate: 1–2 days. Run spike before committing to design choices in Phases 1�
 - Verify whether Codex resolves plugin-relative component paths from `.codex-plugin/plugin.json`.
 - Treat `${CODEX_PLUGIN_ROOT}` as undocumented unless Codex docs/runtime prove otherwise.
 
-**Output:** Resolution mechanisms confirmed against Codex 0.130.0 source — see `plugin/codex-plugin-spawn-semantics.adr.md` for the canonical record. **MCP** (`.codex.mcp.json`): Codex does NOT substitute any placeholder in `command`/`args`; it DOES rebase a relative `cwd` field against the plugin install root (`codex-rs/core-plugins/src/loader.rs::normalize_plugin_mcp_server_value`). Fix: set `cwd: "."` — Codex rebases `"."` to the plugin install root, then `./bin/archcore` resolves correctly. Without `cwd`, the command resolves against the user's project CWD and fails with ENOENT. **Hooks** (`hooks/codex.hooks.json`): Codex's hooks engine (`codex-rs/hooks/src/engine/discovery.rs`) injects two env vars — `PLUGIN_ROOT` (canonical, host-neutral) and `CLAUDE_PLUGIN_ROOT` (compat alias for old Claude plugins, explicitly labeled in source as "OOTB compat") — and folds `${KEY}` substitution over the command string. The plugin uses `${PLUGIN_ROOT}/bin/...` (Codex's canonical, host-neutral name); we do NOT borrow Claude's compat alias. Note: `CODEX_PLUGIN_ROOT` does not exist in Codex. Plugin hooks are gated by the `plugin_hooks` feature (`under development, false` in Codex 0.130.0). Upstream tracker for full `${PLUGIN_ROOT}` MCP parity: https://github.com/openai/codex/issues/19582.
+**Output:** Confirmed plugin-relative path resolution for bundled MCP and hooks config; no dependency on `${CODEX_PLUGIN_ROOT}`.
 
 #### 0.2 Verify plugin-side `.mcp.json` schema
 
@@ -80,7 +80,7 @@ Estimate: 0.5–1 day. Depends on 0.1, 0.2.
 
 - Ship plugin-root `.codex.mcp.json` using the public Codex plugin examples' `{"mcpServers": {...}}` wrapper.
 - Do not reuse the existing root `.mcp.json`, because it is Claude-specific and references `${CLAUDE_PLUGIN_ROOT}`.
-- The `command` always points at `bin/archcore` with `args: ["mcp"]`, paired with `cwd: "."`. The `cwd` rebase is what makes the relative command resolve correctly (see `plugin/codex-plugin-spawn-semantics.adr.md`). Add `startup_timeout_sec` and `tool_timeout_sec` defaults if Codex requires them.
+- The `command` always points at `bin/archcore` with `args: ["mcp"]`. Add `startup_timeout_sec` and `tool_timeout_sec` defaults if Codex requires them.
 
 **Files:** `.codex.mcp.json` (new)
 
@@ -94,7 +94,7 @@ Estimate: 0.5–1 day. Depends on 0.1, 0.2.
 #### 1.4 Smoke test
 
 - Install plugin locally in Codex via `codex plugin marketplace add file:///path/to/plugin`.
-- Verify MCP server starts; `list_documents` MCP tool callable from a fresh user project directory (NOT from inside the plugin source repo — the cwd rebase is the whole point of the test).
+- Verify MCP server starts; `list_documents` MCP tool callable.
 - No regression in Claude Code (still installs, still works).
 
 ### Phase 1.5: Codex Slash Command Wrappers
@@ -155,7 +155,7 @@ Estimate: 0.5–1 day. Depends on 0.1.
 
 #### 2.1 Create `hooks/codex.hooks.json`
 
-- Clone `hooks/hooks.json` (Claude Code) semantically, replacing `${CLAUDE_PLUGIN_ROOT}/bin/...` with `${PLUGIN_ROOT}/bin/...`. Codex's hooks engine (`codex-rs/hooks/src/engine/discovery.rs`) injects `PLUGIN_ROOT` as the canonical, host-neutral name and folds `${KEY}` substitution over the command string at spawn time. Do NOT use `${CLAUDE_PLUGIN_ROOT}` here — Codex provides it only as a backward-compat alias for porting old Claude plugins; a Codex-native config should use Codex's own canonical name. Do NOT use `./bin/...` — that would resolve against the user's project CWD and fail with ENOENT. See `plugin/codex-plugin-spawn-semantics.adr.md`.
+- Clone `hooks/hooks.json` (Claude Code) semantically, then replace `${CLAUDE_PLUGIN_ROOT}/bin/...` with plugin-relative `./bin/...`.
 - PascalCase event names (same as Claude Code: `SessionStart`, `PreToolUse`, `PostToolUse`).
 - Match patterns identical except Codex PreToolUse includes `apply_patch` for Codex's native edit primitive; PostToolUse covers the five MCP mutation matchers.
 - Timeouts identical: 1s PreToolUse, 3s PostToolUse.
@@ -180,7 +180,7 @@ Estimate: 0.5–1 day. Depends on 0.1.
 
 #### 2.3 Hook smoke test in Codex
 
-- Run `codex features enable plugin_hooks` (the `plugin_hooks` feature flag is `under development, false` by default in Codex 0.130.0; plugin-shipped hooks require this opt-in until the feature stabilizes).
+- Enable `[features].codex_hooks = true` in the test Codex config.
 - Install plugin locally in Codex.
 - Trigger SessionStart — verify context loaded (or appropriate empty-state nudge).
 - Try direct Write to `.archcore/somefile.md` via Codex's edit tool — verify exit-2 block.
@@ -295,7 +295,7 @@ Estimate: 0.5 day.
 Estimate: 0.5 day.
 
 - Fresh Codex install (no existing `~/.codex/` config). Run: `codex plugin marketplace add archcore-ai/plugin`.
-- Open a fresh project. Initialize Archcore via MCP (`init_project`). Verify MCP tools. With `codex features enable plugin_hooks`, verify SessionStart context and hook guardrails blocking direct writes.
+- Open a fresh project. Initialize Archcore via MCP (`init_project`). Verify MCP tools. With `[features].codex_hooks = true` enabled, verify SessionStart context and hook guardrails blocking direct writes.
 - Type `/archcore:` in a fresh Codex thread; confirm all 16 wrappers appear; trigger 2–3 of them and verify they delegate to the matching skill.
 - Spawn `archcore-auditor`; attempt a mutating MCP call from inside the auditor session — verify rejection (or soft refusal if `disabled_tools[]` not honored).
 - Run the existing Claude Code test suite (`make test`). Pass.
@@ -326,7 +326,6 @@ Estimate: 0.5 day.
 - Multi-Host Plugin Implementation Plan (`.archcore/plugin/multi-host-implementation.plan.md`) — predecessor; this plan continues the same architecture.
 - Bundled CLI Launcher ADR (`.archcore/plugin/bundled-cli-launcher.adr.md`).
 - Hooks and Validation System Specification (`.archcore/plugin/hooks-validation-system.spec.md`).
-- Codex Plugin Spawn Semantics ADR (`.archcore/plugin/codex-plugin-spawn-semantics.adr.md`) — canonical reference for MCP `cwd` rebase vs hook `${PLUGIN_ROOT}` substitution.
 - Codex CLI v0.117.0+ available locally for spike and integration testing.
 - GitHub repo `archcore-ai/plugin` reachable as a Codex marketplace source.
 
@@ -334,8 +333,8 @@ Estimate: 0.5 day.
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| `${CODEX_PLUGIN_ROOT}` env var absent | Resolved | Low | Two distinct mechanisms (canonical record: `plugin/codex-plugin-spawn-semantics.adr.md`). For MCP, set `cwd: "."` in `.codex.mcp.json` — Codex's loader (`normalize_plugin_mcp_server_value`) rebases the relative cwd to plugin_root, so `./bin/archcore` resolves correctly (verified empirically against Codex 0.130.0). For hooks, use `${PLUGIN_ROOT}/bin/...` — Codex hooks engine injects `PLUGIN_ROOT` (canonical, host-neutral) and applies `${KEY}` substitution at spawn time. Note: `CODEX_PLUGIN_ROOT` does not exist in Codex; `CLAUDE_PLUGIN_ROOT` exists only as a backward-compat alias and is intentionally not used. Full `${PLUGIN_ROOT}` MCP parity tracked at https://github.com/openai/codex/issues/19582. |
-| Plugin-local hooks require feature/runtime support | Medium | Medium | Ship `hooks/codex.hooks.json`; verify live execution only with `codex features enable plugin_hooks` (the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0). Plugin-shipped hooks remain best-effort until the feature stabilizes. |
+| `${CODEX_PLUGIN_ROOT}` env var absent | Resolved | Low | Use plugin-relative `./bin/...` commands and manifest pointers; no root env substitution required |
+| Plugin-local hooks require feature/runtime support | Medium | Medium | Ship `hooks/codex.hooks.json`; verify live execution only with `[features].codex_hooks = true` and current Codex runtime support |
 | Plugin-bundled subagents not supported | Medium | Medium | Ship TOML variants side-by-side; fallback is `bin/install-codex-agents` helper + README step |
 | `disabled_tools[]` per-subagent not honored | High | Medium | Spike 0.5 resolves; fallback is `developer_instructions` enforcement (soft) plus optional `bin/archcore mcp --read-only` mode |
 | Plugin-side `.mcp.json` schema differs from Claude Code wrapper | Resolved | Low | Use public Codex examples' `{"mcpServers": {...}}` wrapper in plugin-root `.codex.mcp.json` |

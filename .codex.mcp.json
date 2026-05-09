@@ -2,8 +2,7 @@
   "mcpServers": {
     "archcore": {
       "command": "./bin/archcore",
-      "args": ["mcp"],
-      "cwd": "."
+      "args": ["mcp"]
     }
   }
 }

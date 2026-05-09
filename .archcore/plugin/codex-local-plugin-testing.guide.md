@@ -18,7 +18,6 @@ tags:
   - Local marketplaces: Codex reads repo marketplaces from `$REPO_ROOT/.agents/plugins/marketplace.json` and personal marketplaces from `~/.agents/plugins/marketplace.json`.
   - Installed plugins are loaded from the Codex plugin cache under `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/`; do not edit the cache as the source of truth.
 - When testing plugin-managed MCP, avoid relying only on this repo's project config. A project `.codex/config.toml` may register an `archcore` MCP server directly and hide plugin packaging defects.
-- For end-to-end MCP validation, run Codex from a directory **outside the plugin source repo** (e.g., `cd $(mktemp -d)`). The plugin source dir accidentally contains `bin/archcore` relative to CWD, which can mask `cwd: "."` mistakes in `.codex.mcp.json`. See `plugin/codex-plugin-spawn-semantics.adr.md`.
 
 ## Steps
 
@@ -50,8 +49,8 @@ tags:
    Confirm these invariants:
    - `.codex-plugin/plugin.json` points to `"./skills/"`, `"./hooks/codex.hooks.json"`, and `"./.codex.mcp.json"`.
    - `.agents/plugins/marketplace.json` has one `archcore` entry, `source.source = "local"`, `source.path = "./"`, `policy.installation`, `policy.authentication`, and `category`.
-   - `.codex.mcp.json` points at the plugin-relative launcher `./bin/archcore` with `args: ["mcp"]` AND `cwd: "."`. The `cwd: "."` is required: Codex's `normalize_plugin_mcp_server_value` rebases it to the plugin install root so the relative command resolves correctly. Without it, Codex spawns from the user's project CWD and the MCP fails with ENOENT.
-   - `hooks/codex.hooks.json` uses `${PLUGIN_ROOT}/bin/...` commands (Codex's canonical, host-neutral env var). Do NOT use `${CLAUDE_PLUGIN_ROOT}` (Codex provides it only as a backward-compat alias for old Claude plugins) or `./bin/...` (would resolve against the user's project CWD).
+   - `.codex.mcp.json` points at the plugin-relative launcher `./bin/archcore` with `args: ["mcp"]`.
+   - `hooks/codex.hooks.json` uses plugin-relative `./bin/...` commands, not host-specific root environment variables.
 
 4. Register this checkout as a local repo marketplace.
 
@@ -116,7 +115,7 @@ tags:
    codex mcp list --json | jq '.[] | select(.name == "archcore")'
    ```
 
-   A plugin-managed Archcore MCP entry should be enabled. Critical end-to-end check: from the same neutral directory, start a fresh Codex session and call any `mcp__archcore__*` tool. If the MCP starts and answers — `cwd: "."` rebase is working. If the MCP fails with `MCP startup failed: No such file or directory (os error 2)`, the `cwd` field is missing or wrong in `.codex.mcp.json`. Inspect the entry with `codex mcp get archcore`: the `cwd` column should show an absolute path inside `~/.codex/plugins/cache/<marketplace>/archcore/<version>/`, not a dash.
+   A plugin-managed Archcore MCP entry should be enabled. If the command shown is `./bin/archcore`, Codex is reading the plugin bundle. If the command is plain `archcore`, a project or user-level MCP config may be contributing the server; inspect configs before treating this as proof of plugin-managed MCP.
 
 9. Verify slash commands and skills from a new Codex thread.
 
@@ -139,9 +138,9 @@ tags:
 - `/plugins` shows `Archcore` under the expected marketplace tab and the details screen shows `Installed`.
 - `~/.codex/config.toml` contains `[plugins."archcore@<marketplace>"]` with `enabled = true`.
 - `~/.codex/plugins/cache/<marketplace>/archcore/<version>/` contains the plugin bundle.
-- `codex mcp list --json` includes an enabled `archcore` server. From a directory **outside** the plugin source repo, calling an `mcp__archcore__*` tool succeeds (proves the `cwd: "."` rebase works); `codex mcp get archcore` shows a non-dash `cwd` pointing into the plugin cache.
+- `codex mcp list --json` includes an enabled `archcore` server. In a neutral directory, prefer seeing the plugin-relative `./bin/archcore` command when validating plugin-managed MCP.
 - A new Codex thread can discover Archcore slash commands via `/archcore:` and Archcore skills via `@`, without manual `codex mcp add`.
-- Optional hook verification: with `codex features enable plugin_hooks`, `hooks/codex.hooks.json` should load `SessionStart`, `PreToolUse`, and `PostToolUse` guardrails. Keep this as a runtime smoke test because the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0.
+- Optional hook verification: with Codex hook runtime support enabled, `hooks/codex.hooks.json` should load `SessionStart`, `PreToolUse`, and `PostToolUse` guardrails. Keep this as a runtime smoke test because hook execution depends on Codex's `codex_hooks` feature support.
 
 ## Common Issues
 
@@ -165,10 +164,6 @@ Open the plugin details and select `Install plugin`. Pressing `Space` toggles en
 
 Run `codex mcp list --json` from a neutral temporary directory. Project-level `.codex/config.toml` can register `archcore` directly and shadow a missing plugin-managed MCP entry. For plugin-managed MCP validation, inspect the command and confirm it comes from the installed bundle, not from a manual global server config.
 
-### MCP tool calls fail with `MCP startup failed: No such file or directory (os error 2)`
-
-Symptom: `codex mcp list` shows `archcore` enabled, but any `mcp__archcore__*` tool call from a project directory returns ENOENT. Cause: `.codex.mcp.json` has `command: "./bin/archcore"` but is missing `cwd: "."`. Codex spawns the MCP from the project's CWD instead of the plugin install dir, and `./bin/archcore` doesn't exist there. Fix: add `"cwd": "."` to the server entry. Verify by `codex mcp get archcore` — the `cwd` column should show a real absolute path under `~/.codex/plugins/cache/...`, not a dash. See `plugin/codex-plugin-spawn-semantics.adr.md`.
-
 ### Skill discovery works only after restart
 
 Expected. The official Codex flow requires using a new thread after plugin installation. Close the existing session and start a new one before testing `@` skill discovery.
@@ -179,7 +174,7 @@ Codex installs a copy into `~/.codex/plugins/cache/...`. Restart Codex after sou
 
 ### Hook guardrails do not fire
 
-The plugin can package `hooks/codex.hooks.json`, but live hook execution depends on Codex's `plugin_hooks` feature flag. Run `codex features enable plugin_hooks` and retest with a fresh session. If the feature is unavailable in your Codex version (it's `under development, false` by default in Codex 0.130.0), upgrade Codex or treat plugin hooks as best-effort until it stabilizes.
+The plugin can package `hooks/codex.hooks.json`, but live hook execution depends on Codex hook runtime support. Enable `[features] codex_hooks = true` only in environments where the Codex version supports that feature, then retest with a fresh session.
 
 ### `codex debug prompt-input` fails with session permission errors
 
@@ -193,7 +188,5 @@ The plugin MCP command uses the bundled launcher. In online development, the lau
 
 - OpenAI Codex Plugins overview: https://developers.openai.com/codex/plugins
 - OpenAI Build plugins guide: https://developers.openai.com/codex/plugins/build
-- Codex Plugin Spawn Semantics ADR: `.archcore/plugin/codex-plugin-spawn-semantics.adr.md` (canonical reference for `cwd` rebase vs `${PLUGIN_ROOT}` substitution)
-- Upstream issue tracking full `${PLUGIN_ROOT}` MCP parity: https://github.com/openai/codex/issues/19582
 - Related Archcore guide: `.archcore/plugin/plugin-testing.guide.md`
 - Related Archcore spec: `.archcore/plugin/multi-host-compatibility-layer.spec.md`

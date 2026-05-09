@@ -16,7 +16,7 @@ setup() {
 }
 
 # Canonical archcore CLI subcommands — keep in sync with bin/CLI_VERSION.
-# As of 0.3.2: config, doctor, help, hooks, init, mcp, status, update.
+# As of 0.3.1: config, doctor, help, hooks, init, mcp, status, update.
 # (0.3.0 also exposed `where`; reverted in 0.3.1.)
 # (`sync` exists but is Hidden: true in the CLI cobra spec, so it does not
 # appear in `archcore --help` Available Commands and is excluded here.)

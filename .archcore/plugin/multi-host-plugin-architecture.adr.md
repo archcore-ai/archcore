@@ -76,17 +76,17 @@ plugin/
 │   └── marketplace.json
 │
 ├── hooks/
-│   ├── hooks.json               # Claude Code hook events (PascalCase, ${CLAUDE_PLUGIN_ROOT}/bin/...)
-│   ├── cursor.hooks.json        # Cursor hook events (camelCase, ${CURSOR_PLUGIN_ROOT}/bin/...)
-│   ├── codex.hooks.json         # Codex CLI hook events (PascalCase, ${PLUGIN_ROOT}/bin/...)
+│   ├── hooks.json               # Claude Code hook events (PascalCase)
+│   ├── cursor.hooks.json        # Cursor hook events (camelCase)
+│   ├── codex.hooks.json         # Codex CLI hook events (PascalCase, mirrors Claude Code)
 │   └── copilot.hooks.json       # GitHub Copilot hook events (future)
 │
-├── .mcp.json                    # Plugin-shipped MCP for Claude Code (${CLAUDE_PLUGIN_ROOT}/bin/archcore)
-├── .codex.mcp.json              # Plugin-shipped MCP for Codex CLI (./bin/archcore + cwd: ".")
+├── .mcp.json                    # Plugin-shipped MCP for Claude Code
+├── .codex.mcp.json              # Plugin-shipped MCP for Codex CLI
 └── rules/                       # Cursor-specific rules (.mdc files, optional)
 ```
 
-**Current addendum (see Bundled CLI Launcher ADR and `plugin/codex-plugin-spawn-semantics.adr.md`)**: `bin/` additionally ships `archcore`, `archcore.cmd`, `archcore.ps1`, and `CLI_VERSION` — a cross-platform launcher that resolves the Archcore CLI binary. The plugin root ships `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI, with `.codex-plugin/plugin.json` pointing at the Codex-specific file through `mcpServers`. Both MCP configs register the same launcher. Cursor users still register MCP externally.
+**Current addendum (see Bundled CLI Launcher ADR)**: `bin/` additionally ships `archcore`, `archcore.cmd`, `archcore.ps1`, and `CLI_VERSION` — a cross-platform launcher that resolves the Archcore CLI binary. The plugin root ships `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI, with `.codex-plugin/plugin.json` pointing at the Codex-specific file through `mcpServers`. Both MCP configs register the same launcher. Cursor users still register MCP externally.
 
 ### Shared core principle
 
@@ -102,7 +102,7 @@ At the time of this ADR, MCP configuration lived outside the plugin deliberately
 
 The rationale was to avoid Claude Code's duplicate-MCP suppression when a repo already declared `archcore` in `.mcp.json` or the user had registered it globally. Shipping MCP in the plugin would have produced a persistent "Errors (1)" in `/plugin` UI with no functional benefit.
 
-**Current state (per Bundled CLI Launcher ADR and `plugin/codex-plugin-spawn-semantics.adr.md`)**: the plugin ships MCP registration for Claude Code and Codex CLI via host-specific config files. Claude Code consumes plugin-root `.mcp.json` pointing at `${CLAUDE_PLUGIN_ROOT}/bin/archcore mcp` (env-var substitution at the host level). Codex consumes plugin-root `.codex.mcp.json` via the manifest pointer with `command: "./bin/archcore"`, `args: ["mcp"]`, and `cwd: "."` — Codex's `normalize_plugin_mcp_server_value` (`codex-rs/core-plugins/src/loader.rs`) rebases the relative cwd to the plugin install root so the relative command resolves correctly. Codex does NOT substitute env-var placeholders in MCP `command`/`args`; the `cwd` rebase is the resolution mechanism. Duplicate suppression is no longer a blocker because the launcher defers to an existing global `archcore` on `PATH` — the effective command resolved is identical to what a user-registered server would resolve to, so deduping is benign. Cursor users still register MCP externally.
+**Current state (per Bundled CLI Launcher ADR)**: the plugin ships MCP registration for Claude Code and Codex CLI via host-specific config files. Claude Code consumes plugin-root `.mcp.json` pointing at `${CLAUDE_PLUGIN_ROOT}/bin/archcore mcp`; Codex consumes plugin-root `.codex.mcp.json` via the manifest pointer and points at plugin-relative `./bin/archcore mcp`. Duplicate suppression is no longer a blocker because the launcher defers to an existing global `archcore` on `PATH` — the effective command resolved is identical to what a user-registered server would resolve to, so deduping is benign. Cursor users still register MCP externally.
 
 ### Stdin normalization approach
 
@@ -154,7 +154,7 @@ Ship `.mcp.json` (Claude Code) and `mcp.json` (Cursor) at the plugin root so MCP
 - Shared repos tend to have a canonical `.mcp.json` used by multiple AI tools (Cursor, Windsurf, Codex CLI, Gemini CLI); duplicating it inside the plugin added noise with zero benefit.
 - MCP lifecycle belonged to the CLI install — if the CLI was missing, the MCP server couldn't run regardless of where it was declared.
 
-**Status: reversed for Claude Code and Codex CLI** (see Bundled CLI Launcher ADR and `plugin/codex-plugin-spawn-semantics.adr.md`). The dedup concern was resolved by introducing the bundled launcher. Claude Code's `.mcp.json` points at `${CLAUDE_PLUGIN_ROOT}/bin/archcore`; Codex's `.codex.mcp.json` uses `./bin/archcore` paired with `cwd: "."` (Codex rebases the relative cwd to plugin install root). Both resolve through the same launcher, which defers to a global `archcore` on `PATH` when one exists. Deduping still happens but becomes benign. The friction of requiring an explicit `claude mcp add` / `codex mcp add` step proved worse than the duplicate-registration concern.
+**Status: reversed for Claude Code and Codex CLI** (see Bundled CLI Launcher ADR). The dedup concern was resolved by introducing the bundled launcher. Claude Code's `.mcp.json` points at `${CLAUDE_PLUGIN_ROOT}/bin/archcore`; Codex's `.codex.mcp.json` points at `./bin/archcore`. Both resolve through the same launcher, which defers to a global `archcore` on `PATH` when one exists. Deduping still happens but becomes benign. The friction of requiring an explicit `claude mcp add` / `codex mcp add` step proved worse than the duplicate-registration concern.
 
 ## Consequences
 
@@ -170,7 +170,6 @@ Ship `.mcp.json` (Claude Code) and `mcp.json` (Cursor) at the plugin root so MCP
 - **Stdin normalization complexity**: Bin scripts must handle multiple JSON formats. Mitigation: centralized normalizer (`lib/normalize-stdin.sh`) with clear format detection (claude-code, cursor, copilot, codex).
 - **Testing matrix**: Must verify plugin works in each supported host. Mitigation: started with 2 hosts (Claude Code + Cursor), expanded to Codex CLI; expand incrementally for the rest.
 - **Hook event mapping is imperfect**: Not all hosts have equivalent hook events (e.g., Cursor has no direct `SessionStart` equivalent). Codex shares Claude Code's PascalCase event names (`SessionStart`, `PreToolUse`, `PostToolUse`) so its hooks config is a near-copy. Mitigation: use closest available event per host; document gaps per host.
-- **MCP wiring is host-specific**: Claude Code and Codex CLI use plugin-shipped configs but with **different resolution mechanisms** — Claude Code uses `${CLAUDE_PLUGIN_ROOT}` env-var substitution, Codex uses `cwd: "."` rebased by `normalize_plugin_mcp_server_value`. Cursor users still register externally. Cross-host MCP parity for Cursor awaits Cursor-side plugin MCP support with path substitution. Mitigation: the launcher is host-agnostic — only the "who points at the launcher and how the path resolves" differs per host. See `plugin/codex-plugin-spawn-semantics.adr.md` for the canonical record on Codex's two resolution paths (MCP cwd rebase vs hooks `${PLUGIN_ROOT}` substitution).
-- **Per-host hook env vars also differ**: each hook config uses its host's canonical env var — `${CLAUDE_PLUGIN_ROOT}` for Claude Code, `${CURSOR_PLUGIN_ROOT}` for Cursor, `${PLUGIN_ROOT}` for Codex CLI (Codex's hooks engine injects `PLUGIN_ROOT` as canonical; `CLAUDE_PLUGIN_ROOT` exists only as a backward-compat alias). No host borrows another host's env-var name in its config — uniform per-host.
+- **MCP wiring is host-specific**: Claude Code and Codex CLI use plugin-shipped `.mcp.json`; Cursor users still register externally. Cross-host MCP parity for Cursor awaits Cursor-side plugin MCP support with path substitution. Mitigation: the launcher is host-agnostic — only the "who points at the launcher" differs per host.
 - **Subagent format divergence**: Claude Code and Cursor read MD agents with YAML frontmatter; Codex requires TOML. Mitigation: ship both formats side-by-side in `agents/` (`archcore-{assistant,auditor}.md` and `.toml`); shared `developer_instructions` body kept in sync via tests.
 - **Repository naming**: ~~`archcore-claude-plugin` implies Claude Code only.~~ ~~Renamed to `archcore-plugin`.~~ Resolved: now `archcore-ai/plugin` — the org name carries the brand and the repo name is host-agnostic.

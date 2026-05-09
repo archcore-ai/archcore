@@ -9,7 +9,7 @@ tags:
 
 ## Vision
 
-Archcore plugin runs natively in OpenAI Codex CLI as a third first-class host alongside Claude Code (production) and Cursor (implemented), installable via `codex plugin marketplace add archcore-ai/plugin`, with Codex-native packaging for slash commands, skills, plugin-managed MCP, hooks config, and read-only auditor subagent TOML. Hook execution depends on Codex's `plugin_hooks` feature/runtime support, so the plugin ships the documented hook surface while treating live hook execution as a runtime smoke-test item. Zero regression for existing Claude Code and Cursor users. The Multi-Host Compatibility Layer Specification's "Codex CLI" row is promoted from `TBD / Future` to actual implementation values.
+Archcore plugin runs natively in OpenAI Codex CLI as a third first-class host alongside Claude Code (production) and Cursor (implemented), installable via `codex plugin marketplace add archcore-ai/plugin`, with Codex-native packaging for slash commands, skills, plugin-managed MCP, hooks config, and read-only auditor subagent TOML. Hook execution depends on Codex's `codex_hooks` feature/runtime support, so the plugin ships the documented hook surface while treating live hook execution as a runtime smoke-test item. Zero regression for existing Claude Code and Cursor users. The Multi-Host Compatibility Layer Specification's "Codex CLI" row is promoted from `TBD / Future` to actual implementation values.
 
 ## Problem Statement
 
@@ -23,7 +23,7 @@ Users of OpenAI Codex CLI need the same Archcore surfaces Claude Code users get:
 | Skill parity | All 16 skills (`skills/<name>/SKILL.md`) discoverable and invokable in Codex without modifications to existing SKILL.md files |
 | Slash command parity | All 16 user-facing Archcore workflows available in Codex as `/archcore:*` commands through root-level `commands/*.md` wrappers |
 | MCP parity with Claude Code | Plugin-shipped MCP wiring works in Codex (no external `claude mcp add`-equivalent needed); first MCP tool call triggers launcher resolution exactly as in Claude Code |
-| Hook packaging | `hooks/codex.hooks.json` ships the same guardrails as Claude Code with Codex matchers; live execution is verified when `plugin_hooks` runtime support is enabled |
+| Hook packaging | `hooks/codex.hooks.json` ships the same guardrails as Claude Code with Codex matchers; live execution is verified when `codex_hooks` runtime support is active |
 | Auditor subagent | `archcore-auditor` runs in `sandbox_mode = "read-only"` with no file-write capability and no access to mutating MCP tools |
 | Zero regression | All existing `test/unit/`, `test/structure/` suites pass unchanged; Claude Code and Cursor flows verified manually |
 | Shared bin/ invariant | No host-specific logic added to bin scripts beyond an explicit `codex` branch in `normalize-stdin.sh` |
@@ -46,9 +46,9 @@ Users of OpenAI Codex CLI need the same Archcore surfaces Claude Code users get:
 - PostToolUse (matcher `mcp__archcore__update_document`) → `bin/check-cascade` (timeout 3s)
 - PostToolUse (matcher `mcp__archcore__create_document|mcp__archcore__update_document`) → `bin/check-precision` (timeout 3s)
 
-Use `${PLUGIN_ROOT}/bin/...` command form — Codex's hooks engine injects `PLUGIN_ROOT` as the canonical, host-neutral env var and folds `${KEY}` substitution at spawn time. Do NOT use `${CLAUDE_PLUGIN_ROOT}` (a backward-compat alias for old Claude plugins) or `./bin/...` (would resolve against the user's project CWD and fail). PascalCase event names (same as Claude Code). No `validate-archcore` on Write/Edit PostToolUse path (Compatibility Layer invariant). Runtime execution requires `codex features enable plugin_hooks`; the `plugin_hooks` feature flag is `under development, false` by default in Codex 0.130.0. See `plugin/codex-plugin-spawn-semantics.adr.md` for the full mechanism.
+Use plugin-relative commands (`./bin/...`) rather than `${CODEX_PLUGIN_ROOT}`; current Codex docs/examples do not require a root-substitution variable. PascalCase event names (same as Claude Code). No `validate-archcore` on Write/Edit PostToolUse path (Compatibility Layer invariant). Runtime execution requires Codex hooks support and `[features].codex_hooks = true`.
 
-**F4 — MCP Wiring.** Plugin-shipped MCP registration through `.codex-plugin/plugin.json` `mcpServers: "./.codex.mcp.json"`. The Codex-specific plugin-root file uses the `{"mcpServers": {...}}` wrapper with `command: "./bin/archcore"`, `args: ["mcp"]`, and `cwd: "."`. The `cwd: "."` is essential: Codex's `normalize_plugin_mcp_server_value` (`codex-rs/core-plugins/src/loader.rs`) rebases the relative cwd to the plugin install root, so `./bin/archcore` resolves correctly regardless of the user's project directory. Without `cwd`, Codex spawns from the user's project CWD and fails with ENOENT. Codex does NOT substitute `${CODEX_PLUGIN_ROOT}` or any placeholder in MCP entries. See `plugin/codex-plugin-spawn-semantics.adr.md`.
+**F4 — MCP Wiring.** Plugin-shipped MCP registration through `.codex-plugin/plugin.json` `mcpServers: "./.codex.mcp.json"`. The Codex-specific plugin-root file uses the public Codex examples' `{"mcpServers": {...}}` wrapper and points at the plugin-relative launcher (`./bin/archcore`) with `args: ["mcp"]`.
 
 **F5 — Stdin Normalization.** Add an explicit `codex` branch to `bin/lib/normalize-stdin.sh` host detection. Update the heuristic: presence of `turn_id` without `conversation_id` and without `hookEventName` → `codex`. The existing claude-code field-extraction logic (`tool_name`, `file_path`, `path`) is reused for codex (Codex uses identical snake_case stdin schema). Both PreToolUse and PostToolUse output helpers (`archcore_hook_pretool_info`, `archcore_hook_info`) must emit the `hookSpecificOutput.additionalContext` JSON shape for the `codex` branch (identical to claude-code branch).
 
@@ -100,6 +100,5 @@ Keep the original `archcore-auditor.md` for Claude Code/Cursor — do not delete
 - Multi-Host Compatibility Layer Specification — current spec; will be amended by F10.
 - Bundled CLI Launcher ADR — launcher resolution order; F6 extends step 3 cache directory list.
 - Multi-Host Implementation Plan — predecessor plan; Codex work is a continuation, not a replacement.
-- Codex Plugin Spawn Semantics ADR (`plugin/codex-plugin-spawn-semantics.adr.md`) — canonical reference for the two distinct mechanisms (MCP `cwd` rebase, hook `${PLUGIN_ROOT}` substitution).
-- Phase 0 spike resolution: For MCP, Codex rebases relative `cwd` against plugin_root (`normalize_plugin_mcp_server_value`); `.codex.mcp.json` therefore sets `cwd: "."`. For hooks, Codex injects `PLUGIN_ROOT` as canonical and applies `${KEY}` substitution; `hooks/codex.hooks.json` uses `${PLUGIN_ROOT}/bin/...`. Plugin hooks require `codex features enable plugin_hooks`. Skills load from installed plugin cache. Subagent TOML files packaged side-by-side with MD agents.
+- Phase 0 spike resolution: Codex uses plugin-relative commands for bundled MCP/hooks packaging; plugin-managed MCP loads from the manifest's `mcpServers` pointer; plugin-local hook execution remains gated by Codex hook feature/runtime support; skills load from installed plugin cache; subagent TOML files are packaged side-by-side with MD agents.
 - Codex CLI v0.117.0+ available for testing (the version that introduced the plugin system).

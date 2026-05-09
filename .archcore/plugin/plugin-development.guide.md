@@ -99,13 +99,7 @@ Hook scripts go in `bin/` and must:
 - Add `# shellcheck source=lib/normalize-stdin.sh` before the source line
 - Invoke the CLI through `"$SCRIPT_DIR/archcore"` (the launcher) rather than a bare `archcore`, so the resolution order (ARCHCORE_BIN → PATH → cache → download) applies
 
-Each host's hook config uses its host's canonical plugin-root env var:
-
-- `${CLAUDE_PLUGIN_ROOT}` — Claude Code's native injection (`hooks/hooks.json`).
-- `${CURSOR_PLUGIN_ROOT}` — Cursor's native injection (`hooks/cursor.hooks.json`).
-- `${PLUGIN_ROOT}` — Codex CLI's canonical, host-neutral env var (`hooks/codex.hooks.json`). Codex's hooks engine (`codex-rs/hooks/src/engine/discovery.rs`) injects `PLUGIN_ROOT` as the canonical name; `CLAUDE_PLUGIN_ROOT` is also injected but only as a backward-compat alias for porting old Claude plugins — do NOT use it in a Codex-native hook config. `CODEX_PLUGIN_ROOT` does not exist in Codex.
-
-Plugin-shipped Codex hooks require `codex features enable plugin_hooks` to actually fire (the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0). See `plugin/codex-plugin-spawn-semantics.adr.md` for the full mechanism (MCP `cwd` rebase vs hook `${PLUGIN_ROOT}` substitution).
+Use `${CLAUDE_PLUGIN_ROOT}` (Claude Code), `${CURSOR_PLUGIN_ROOT}` (Cursor), or plugin-relative `./bin/...` (Codex CLI — does not expose a documented plugin-root variable) in hook configs.
 
 ### 5. Modify agents
 
@@ -146,7 +140,6 @@ See `plugin-testing.guide.md` for detailed testing instructions.
 - Agent: invoke the agent on a multi-document task
 - Hooks: trigger Write/Edit on `.archcore/` and verify PreToolUse blocks it
 - Launcher: temporarily unset `ARCHCORE_BIN`, remove the cached binary, and confirm the next MCP call downloads and caches the CLI without prompting
-- For Codex: from a directory **outside** the plugin source repo (e.g., `cd $(mktemp -d)`), call any `mcp__archcore__*` tool and verify the MCP starts. The `cwd: "."` rebase in `.codex.mcp.json` is what makes this work; if it's missing the MCP fails with ENOENT outside the plugin source dir.
 - Verify: `/archcore:verify`
 
 ### 8. Bumping the bundled CLI version
@@ -167,7 +160,6 @@ No other changes required — the cache is version-keyed by filename so old bina
 - `/agents` lists `archcore-assistant` and `archcore-auditor`
 - Writing to `.archcore/*.md` via Write/Edit is blocked with a redirect message
 - A fresh install (no global `archcore`, no cache) resolves a CLI binary on first MCP call
-- For Codex: `codex mcp get archcore` shows `cwd` pointing into the plugin install cache (not a dash); MCP tools work from any project directory
 
 ## Common Issues
 
@@ -196,7 +188,6 @@ No other changes required — the cache is version-keyed by filename so old bina
 - Check the shebang line: `#!/bin/sh`
 - Verify the hook JSON structure matches the expected format
 - Test scripts manually: `echo '{"tool_name":"Write","tool_input":{"file_path":".archcore/test.adr.md"}}' | bin/check-archcore-write`
-- For Codex specifically: hooks require `codex features enable plugin_hooks` (the `plugin_hooks` feature is under development; absent the flag, Codex does not run plugin-shipped hooks)
 
 ### Tests failing
 
@@ -209,13 +200,12 @@ No other changes required — the cache is version-keyed by filename so old bina
 The plugin ships `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI. Diagnose in this order:
 
 1. **Plugin loaded?** — `/plugin` (Claude Code) or `codex mcp list --json` (Codex CLI) should show `archcore`. If `.mcp.json`, `.codex.mcp.json`, or the Codex `mcpServers` pointer was modified or removed, the MCP server won't register; restore it from git.
-2. **Codex MCP fails with `os error 2` from a project dir?** — verify `.codex.mcp.json` has `"cwd": "."`. Codex's `normalize_plugin_mcp_server_value` rebases the relative cwd to the plugin install root; without it, the spawn happens from the user's project CWD and `./bin/archcore` doesn't exist there. `codex mcp get archcore` should show an absolute `cwd` path under `~/.codex/plugins/cache/...` — not a dash.
-3. **Launcher resolves?** — run `bin/archcore --version` from the plugin root. Expected: prints a version. Errors indicate:
+2. **Launcher resolves?** — run `bin/archcore --version` from the plugin root. Expected: prints a version. Errors indicate:
    - Missing `bin/CLI_VERSION` → restore from git.
    - Network failure on first run → re-run with network, or set `ARCHCORE_BIN=/abs/path/to/archcore` to bypass download.
    - Checksum mismatch → corrupt download; delete the cache dir and retry.
-4. **Duplicate suppression?** — if `/plugin` shows "Errors (1)" with an `archcore` MCP message, a user- or project-registered `archcore` has the same command. This is benign; the resolved binary is the same either way. To silence the warning, remove the redundant user/project registration.
-5. **Using a custom CLI?** — if `ARCHCORE_BIN` is set but points at a non-existent or non-executable path, the launcher falls back to PATH/cache/download. Check the path and permissions.
+3. **Duplicate suppression?** — if `/plugin` shows "Errors (1)" with an `archcore` MCP message, a user- or project-registered `archcore` has the same command. This is benign; the resolved binary is the same either way. To silence the warning, remove the redundant user/project registration.
+4. **Using a custom CLI?** — if `ARCHCORE_BIN` is set but points at a non-existent or non-executable path, the launcher falls back to PATH/cache/download. Check the path and permissions.
 
 ### MCP server not connecting (Cursor)
 
