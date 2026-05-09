@@ -53,3 +53,8 @@ setup() {
   done | sort | uniq -d)
   [ -z "$dupes" ] || fail "Duplicate skill names: $dupes"
 }
+
+@test "bootstrap skill calls init_project before operating on uninitialized projects" {
+  grep -q "mcp__archcore__init_project" "$PLUGIN_ROOT/skills/bootstrap/SKILL.md" \
+    || fail "bootstrap/SKILL.md must instruct the agent to call mcp__archcore__init_project for uninitialized projects"
+}
