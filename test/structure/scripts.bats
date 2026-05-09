@@ -82,14 +82,25 @@ $output"
 @test ".mcp.json ships at plugin root" {
   [ -f "$PLUGIN_ROOT/.mcp.json" ]
   grep -q '"archcore"' "$PLUGIN_ROOT/.mcp.json"
-  grep -q 'CLAUDE_PLUGIN_ROOT' "$PLUGIN_ROOT/.mcp.json"
 }
 
-@test ".mcp.json command and args are correct" {
+@test ".mcp.json uses plugin-relative launcher path (no env-var substitution)" {
+  # Claude Code's ${CLAUDE_PLUGIN_ROOT} substitution only fires when this file
+  # is loaded as an installed plugin's MCP config. When the same .mcp.json is
+  # loaded as a project MCP config (e.g. dogfooding the plugin in its own
+  # source tree), the variable is unset and Claude raises:
+  #   [Warning] mcpServers.archcore: Missing environment variables: CLAUDE_PLUGIN_ROOT
+  # Using a plugin-relative command ("./bin/archcore") works in both contexts:
+  # Claude resolves it against the .mcp.json file location, which is the
+  # plugin install dir for installed plugins and the repo root for dogfooding.
+  # Mirrors the Codex MCP invariant in test/structure/codex-plugin.bats.
   local file="$PLUGIN_ROOT/.mcp.json"
-  [ "$(jq -r '.mcpServers.archcore.command' < "$file")" = "\${CLAUDE_PLUGIN_ROOT}/bin/archcore" ]
+  [ "$(jq -r '.mcpServers.archcore.command' < "$file")" = "./bin/archcore" ]
   [ "$(jq -r '.mcpServers.archcore.args[0]' < "$file")" = "mcp" ]
   [ "$(jq -r '.mcpServers.archcore.args | length' < "$file")" = "1" ]
+  if grep -q '\${CLAUDE_PLUGIN_ROOT}\|\${CODEX_PLUGIN_ROOT}\|\${CURSOR_PLUGIN_ROOT}\|\${PLUGIN_ROOT}' "$file"; then
+    fail ".mcp.json must not reference plugin-root env vars — they cause project-config warnings during dev and the plugin-relative launcher path works in both contexts"
+  fi
 }
 
 @test "session-start uses launcher" {
