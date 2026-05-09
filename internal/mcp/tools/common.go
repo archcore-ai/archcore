@@ -222,4 +222,3 @@ func validateArchcorePath(relPath string) (string, error) {
 	}
 	return cleaned, nil
 }
-

@@ -118,7 +118,7 @@ func NewSearchDocumentsTool() mcp.Tool {
 		),
 		mcp.WithString("status",
 			mcp.Description("Filter by frontmatter status."),
-			mcp.Enum("draft", "accepted", "rejected"),
+			mcp.Enum(templates.ValidStatusStrings()...),
 		),
 		mcp.WithString("mtime_after",
 			mcp.Description("Only include documents modified after this time. Accepts RFC3339 (ISO-8601) or a relative value like \"24h\", \"30d\", \"90d\"."),

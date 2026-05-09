@@ -36,7 +36,7 @@ Returns: JSON with the path of the updated file, its type, category, title, stat
 		),
 		mcp.WithString("status",
 			mcp.Description("New document status. Valid values: draft, accepted, rejected."),
-			mcp.Enum("draft", "accepted", "rejected"),
+			mcp.Enum(templates.ValidStatusStrings()...),
 		),
 		mcp.WithString("content",
 			mcp.Description("New markdown body for the document. Replaces everything after the frontmatter. If omitted, the existing body is preserved."),

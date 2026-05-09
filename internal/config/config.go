@@ -22,6 +22,17 @@ const (
 	SyncTypeOnPrem SyncType = "on-prem"
 )
 
+// ValidSyncTypes returns all valid sync type values.
+func ValidSyncTypes() []SyncType {
+	return []SyncType{SyncTypeNone, SyncTypeCloud, SyncTypeOnPrem}
+}
+
+// ValidSyncTypeStrings returns all valid sync types as plain strings.
+// Useful for assembling MCP enum schemas and error messages with strings.Join.
+func ValidSyncTypeStrings() []string {
+	return []string{string(SyncTypeNone), string(SyncTypeCloud), string(SyncTypeOnPrem)}
+}
+
 // CloudServerURL is the hardcoded URL for cloud sync. Var for test override.
 var CloudServerURL = "https://app.archcore.ai"
 

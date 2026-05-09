@@ -75,7 +75,7 @@ Returns: JSON with path, type, category, title, status, tags (when present), and
 		),
 		mcp.WithString("status",
 			mcp.Description("Initial document status. Valid values: draft, accepted, rejected. Defaults to \"draft\"."),
-			mcp.Enum("draft", "accepted", "rejected"),
+			mcp.Enum(templates.ValidStatusStrings()...),
 		),
 		mcp.WithString("content",
 			mcp.Description(`Markdown body of the document. RECOMMENDED: omit this parameter to get the standard template for the document type — it contains all required sections with guidance placeholders.

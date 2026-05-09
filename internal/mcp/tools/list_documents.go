@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 
 	"archcore-cli/templates"
 
@@ -30,11 +31,11 @@ Use the returned paths directly as input to get_document. Do not construct paths
 		),
 		mcp.WithString("category",
 			mcp.Description(`Filter by virtual category (derived from document type, not directory). Use "knowledge" for decisions/standards/guides/specs/docs/proposals, "vision" for requirements/ideas/plans, "experience" for task patterns and code pattern changes.`),
-			mcp.Enum("vision", "knowledge", "experience"),
+			mcp.Enum(templates.ValidCategoryStrings()...),
 		),
 		mcp.WithString("status",
 			mcp.Description("Filter by frontmatter status field. Valid values: draft, accepted, rejected."),
-			mcp.Enum("draft", "accepted", "rejected"),
+			mcp.Enum(templates.ValidStatusStrings()...),
 		),
 		mcp.WithArray("tags",
 			mcp.Description("Filter by tags. Returns documents that have at least one of the specified tags (OR semantics)."),
@@ -55,7 +56,13 @@ func HandleListDocuments(baseDir string) func(ctx context.Context, request mcp.C
 
 		types := request.GetStringSlice("types", nil)
 		category := templates.Category(request.GetString("category", ""))
+		if category != "" && !templates.IsValidCategory(category) {
+			return errorResult(fmt.Sprintf("invalid category %q (valid: %s)", category, strings.Join(templates.ValidCategoryStrings(), ", "))), nil
+		}
 		status := templates.DocStatus(request.GetString("status", ""))
+		if status != "" && !templates.IsValidStatus(status) {
+			return errorResult(fmt.Sprintf("invalid status %q (valid: %s)", status, strings.Join(templates.ValidStatusStrings(), ", "))), nil
+		}
 		filterTags := request.GetStringSlice("tags", nil)
 		if len(filterTags) > 0 {
 			if err := validateTags(filterTags); err != nil {
@@ -98,4 +105,3 @@ func hasAnyTag(docTags, filterTags []string) bool {
 	}
 	return false
 }
-

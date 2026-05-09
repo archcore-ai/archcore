@@ -193,8 +193,8 @@ func TestSetSettingsValue_ArchcoreURL(t *testing.T) {
 
 func TestSetSettingsValue_ArchcoreURL_SwitchesToOnPrem(t *testing.T) {
 	tests := []struct {
-		name     string
-		initial  *config.Settings
+		name    string
+		initial *config.Settings
 	}{
 		{"from cloud", config.NewCloudSettings()},
 		{"from none", config.NewNoneSettings()},

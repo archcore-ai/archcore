@@ -292,12 +292,12 @@ func TestApplyAuth_NoToken(t *testing.T) {
 
 func TestSync(t *testing.T) {
 	tests := []struct {
-		name           string
-		handler        http.HandlerFunc
-		wantErr        bool
-		wantCreated    bool
-		wantProjectID  int64
-		wantAccepted   int
+		name          string
+		handler       http.HandlerFunc
+		wantErr       bool
+		wantCreated   bool
+		wantProjectID int64
+		wantAccepted  int
 	}{
 		{
 			name: "200 OK - existing project",
@@ -389,6 +389,7 @@ func TestSync(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			srv := httptest.NewServer(tt.handler)
 			defer srv.Close()
 

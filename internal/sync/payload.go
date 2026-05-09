@@ -9,21 +9,14 @@ import (
 	"archcore-cli/templates"
 )
 
-// Frontmatter holds the parsed frontmatter fields sent per file.
-type Frontmatter struct {
-	Title  string              `json:"title"`
-	Status templates.DocStatus `json:"status,omitempty"`
-	Tags   []string            `json:"tags,omitempty"`
-}
-
 // FileEntry is a single file in the sync request body.
 type FileEntry struct {
-	Path        string             `json:"path"`
-	SHA256      string             `json:"sha256"`
-	DocType     string             `json:"doc_type,omitempty"`
-	Category    templates.Category `json:"category,omitempty"`
-	Frontmatter Frontmatter        `json:"frontmatter"`
-	Content     string             `json:"content"`
+	Path        string                `json:"path"`
+	SHA256      string                `json:"sha256"`
+	DocType     string                `json:"doc_type,omitempty"`
+	Category    templates.Category    `json:"category,omitempty"`
+	Frontmatter templates.Frontmatter `json:"frontmatter"`
+	Content     string                `json:"content"`
 }
 
 // Payload is the full request body for POST /sync.
@@ -78,11 +71,11 @@ func BuildPayload(baseDir string, entries []DiffEntry) (*Payload, error) {
 				return nil, fmt.Errorf("reading %s for sync payload: %w", e.RelPath, err)
 			}
 
-			title, status, tags := ParseFrontmatter(string(content))
+			fm, _ := templates.SplitDocument(content)
 
-			if status != "" && !templates.IsValidStatus(status) {
+			if fm.Status != "" && !templates.IsValidStatus(fm.Status) {
 				return nil, fmt.Errorf("file %s has invalid status %q (valid values: %s)",
-					e.RelPath, status, strings.Join(templates.ValidStatusStrings(), ", "))
+					e.RelPath, fm.Status, strings.Join(templates.ValidStatusStrings(), ", "))
 			}
 
 			filename := filepath.Base(e.RelPath)
@@ -90,16 +83,12 @@ func BuildPayload(baseDir string, entries []DiffEntry) (*Payload, error) {
 			category := templates.CategoryForType(templates.DocumentType(docType))
 
 			fe := FileEntry{
-				Path:    e.RelPath,
-				SHA256:  e.Hash,
-				DocType: docType,
-				Category: category,
-				Frontmatter: Frontmatter{
-					Title:  title,
-					Status: status,
-					Tags:   tags,
-				},
-				Content: string(content),
+				Path:        e.RelPath,
+				SHA256:      e.Hash,
+				DocType:     docType,
+				Category:    category,
+				Frontmatter: fm,
+				Content:     string(content),
 			}
 
 			if e.Action == ActionCreated {

@@ -217,8 +217,8 @@ func TestHandleRemoveDocument_BothDirectionRelations(t *testing.T) {
 	// A→B (outgoing from B's perspective: no), B→C (outgoing from B), C→B would be incoming to B.
 	// Make B both a source and a target: A→B and B→C.
 	m := sync.NewManifest()
-	m.AddRelation("a.adr.md", "b.prd.md", sync.RelRelated)   // B is target
-	m.AddRelation("b.prd.md", "c.plan.md", sync.RelExtends)   // B is source
+	m.AddRelation("a.adr.md", "b.prd.md", sync.RelRelated)  // B is target
+	m.AddRelation("b.prd.md", "c.plan.md", sync.RelExtends) // B is source
 	if err := sync.SaveManifest(base, m); err != nil {
 		t.Fatal(err)
 	}

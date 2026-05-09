@@ -56,10 +56,12 @@ var TagRe = regexp.MustCompile(`^[a-z][a-z0-9_:|-]*$`)
 var SlugRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 // Frontmatter holds the parsed YAML frontmatter fields of a document.
+// JSON tags are present so the same struct can serve as the wire shape for
+// sync payloads, avoiding a parallel type.
 type Frontmatter struct {
-	Title  string    `yaml:"title"`
-	Status DocStatus `yaml:"status"`
-	Tags   []string  `yaml:"tags"`
+	Title  string    `yaml:"title" json:"title"`
+	Status DocStatus `yaml:"status" json:"status,omitempty"`
+	Tags   []string  `yaml:"tags" json:"tags,omitempty"`
 }
 
 // SkipFiles are non-document meta files that live in .archcore/ and should be
@@ -84,6 +86,26 @@ func ValidStatusStrings() []string {
 func IsValidStatus(s DocStatus) bool {
 	switch s {
 	case StatusDraft, StatusAccepted, StatusRejected:
+		return true
+	}
+	return false
+}
+
+// ValidCategories returns all valid document category values.
+func ValidCategories() []Category {
+	return []Category{CategoryVision, CategoryKnowledge, CategoryExperience}
+}
+
+// ValidCategoryStrings returns all valid document categories as plain strings.
+// Useful for assembling MCP enum schemas and error messages with strings.Join.
+func ValidCategoryStrings() []string {
+	return []string{string(CategoryVision), string(CategoryKnowledge), string(CategoryExperience)}
+}
+
+// IsValidCategory checks whether the given value is a valid document category.
+func IsValidCategory(c Category) bool {
+	switch c {
+	case CategoryVision, CategoryKnowledge, CategoryExperience:
 		return true
 	}
 	return false
@@ -2112,4 +2134,3 @@ This SRS decomposes requirements from the system requirements specification via 
 | SR-F-002 | SyRS | Source ID or section |
 `
 }
-
