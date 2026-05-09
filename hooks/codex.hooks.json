@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./bin/session-start"
+            "command": "${PLUGIN_ROOT}/bin/session-start"
           }
         ]
       }
@@ -17,12 +17,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./bin/check-archcore-write",
+            "command": "${PLUGIN_ROOT}/bin/check-archcore-write",
             "timeout": 1
           },
           {
             "type": "command",
-            "command": "./bin/check-code-alignment",
+            "command": "${PLUGIN_ROOT}/bin/check-code-alignment",
             "timeout": 1
           }
         ]
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./bin/validate-archcore",
+            "command": "${PLUGIN_ROOT}/bin/validate-archcore",
             "timeout": 3
           }
         ]
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./bin/check-cascade",
+            "command": "${PLUGIN_ROOT}/bin/check-cascade",
             "timeout": 3
           }
         ]
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./bin/check-precision",
+            "command": "${PLUGIN_ROOT}/bin/check-precision",
             "timeout": 3
           }
         ]
