@@ -81,16 +81,19 @@ func runMCPInstallForAgent(baseDir string, id agents.AgentID) error {
 // runMCPInstallAutoDetect detects agents and installs MCP config for all found.
 // If none detected, prompts the user to pick from supported agents.
 func runMCPInstallAutoDetect(baseDir string) error {
-	detected, err := resolveAgents(baseDir)
+	sel, err := resolveAgents(baseDir)
 	if err != nil {
-		return err
+		fmt.Println(display.WarnLine(fmt.Sprintf("agent picker failed: %v", err)))
+		fmt.Println(display.Dim.Render(
+			"  Run 'archcore mcp install --agent <id>' to install for a specific agent."))
+		return nil
 	}
-	if len(detected) == 0 {
-		fmt.Println(display.Dim.Render("  No AI agent selected."))
+	if len(sel.agents) == 0 {
+		printAgentSelectionStatus(sel)
 		return nil
 	}
 
-	for _, agent := range detected {
+	for _, agent := range sel.agents {
 		if err := installMCPForAgent(baseDir, agent); err != nil {
 			fmt.Println(display.WarnLine(fmt.Sprintf("%s MCP install: %v", agent.DisplayName, err)))
 		}

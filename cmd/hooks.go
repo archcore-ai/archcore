@@ -119,25 +119,37 @@ func runHooksInstallForAgent(baseDir string, id agents.AgentID) error {
 // runHooksInstallAutoDetect detects agents and installs hooks + MCP config
 // for all that support them. If none detected, prompts the user.
 func runHooksInstallAutoDetect(baseDir string) error {
-	detected, err := resolveAgents(baseDir)
+	sel, err := resolveAgents(baseDir)
 	if err != nil {
-		return err
+		fmt.Println(display.WarnLine(fmt.Sprintf("agent picker failed: %v", err)))
+		fmt.Println(display.Dim.Render(
+			"  Run 'archcore hooks install --agent <id>' to install for a specific agent."))
+		return nil
 	}
-	if len(detected) == 0 {
-		fmt.Println(display.Dim.Render("  No AI agent selected."))
+	if len(sel.agents) == 0 {
+		printAgentSelectionStatus(sel)
 		return nil
 	}
 
-	for _, agent := range detected {
-		if _, err := installHooksForAgent(baseDir, agent); err != nil {
+	installAgents(baseDir, sel.agents)
+	return nil
+}
+
+// installAgents installs hooks (when supported) and MCP config for each agent
+// in list, logging per-agent failures as warnings without aborting the loop.
+// Shared by 'archcore init' and 'archcore hooks install' auto-detect paths.
+func installAgents(baseDir string, list []*agents.Agent) {
+	for _, agent := range list {
+		installed, err := installHooksForAgent(baseDir, agent)
+		if err != nil {
 			fmt.Println(display.WarnLine(fmt.Sprintf("%s hooks: %v", agent.DisplayName, err)))
+		} else if !installed {
+			fmt.Println(display.Dim.Render(fmt.Sprintf("  Skipping hooks for %s (not supported)", agent.DisplayName)))
 		}
 		if err := installMCPForAgent(baseDir, agent); err != nil {
 			fmt.Println(display.WarnLine(fmt.Sprintf("%s MCP: %v", agent.DisplayName, err)))
 		}
 	}
-
-	return nil
 }
 
 // runHooksInstall installs Claude Code hooks into .claude/settings.json.

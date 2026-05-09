@@ -17,6 +17,11 @@ import (
 
 var ErrServerUnreachable = errors.New("server unreachable")
 
+// skipAgentSentinel is the AgentID value used to represent the "Skip" option in
+// the agent picker. Empty AgentID is reserved for this sentinel and never
+// matches a real agent.
+const skipAgentSentinel agents.AgentID = ""
+
 type serverUnreachableError struct {
 	url string
 	err error
@@ -38,7 +43,33 @@ type initResult struct {
 	serverReachable bool // only meaningful when ServerURL != ""
 }
 
-var isInteractive = defaultIsInteractive
+// pickOutcome enumerates the possible outcomes of the agent picker. Using a
+// single enum (rather than parallel bools) makes invalid states like
+// "aborted+picked" unrepresentable.
+type pickOutcome int
+
+const (
+	outcomePicked         pickOutcome = iota // user picked one or more real agents (len(agents) > 0)
+	outcomeSkipped                           // user explicitly chose the "Skip" sentinel
+	outcomeAborted                           // user pressed Ctrl+C (huh.ErrUserAborted)
+	outcomeNonInteractive                    // no /dev/tty available, picker was not run
+)
+
+// agentSelection captures the outcome of the interactive agent picker.
+// agents is non-empty iff outcome == outcomePicked.
+type agentSelection struct {
+	outcome pickOutcome
+	agents  []*agents.Agent
+}
+
+// agentPicker is the test seam for the interactive agent picker. Production
+// uses defaultPickAgents; tests swap it with a stub.
+type agentPicker func() (agentSelection, error)
+
+var (
+	isInteractive             = defaultIsInteractive
+	pickAgents    agentPicker = defaultPickAgents
+)
 
 // runInit performs the init logic after prompts have been resolved.
 // settings is a fully constructed Settings value (from NewNoneSettings, etc.)
@@ -116,21 +147,19 @@ func newInitCmd() *cobra.Command {
 			fmt.Println(display.CheckLine("Settings saved to .archcore/settings.json"))
 
 			// Auto-detect agents and install hooks + MCP config for all found.
-			// If none detected, ask the user to pick from supported agents.
-			detected, err := resolveAgents(cwd)
+			// If none detected, ask the user to pick from supported agents. A
+			// picker error is shown as a warning so the user still sees the
+			// "Ready!" line — .archcore/ is already on disk and they can rerun
+			// 'archcore mcp install --agent <id>' later.
+			sel, err := resolveAgents(cwd)
 			if err != nil {
-				return err
-			}
-			if len(detected) == 0 {
-				fmt.Println(display.Dim.Render("  No AI agent selected. Run 'archcore hooks install' or 'archcore mcp install' later."))
-			}
-			for _, agent := range detected {
-				if _, err := installHooksForAgent(cwd, agent); err != nil {
-					fmt.Println(display.WarnLine(fmt.Sprintf("%s hooks: %v", agent.DisplayName, err)))
-				}
-				if err := installMCPForAgent(cwd, agent); err != nil {
-					fmt.Println(display.WarnLine(fmt.Sprintf("%s MCP: %v", agent.DisplayName, err)))
-				}
+				fmt.Println(display.WarnLine(fmt.Sprintf("agent picker failed: %v", err)))
+				fmt.Println(display.Dim.Render(
+					"  Run 'archcore mcp install --agent <id>' (or 'archcore hooks install --agent <id>') later."))
+			} else if len(sel.agents) == 0 {
+				printAgentSelectionStatus(sel)
+			} else {
+				installAgents(cwd, sel.agents)
 			}
 
 			fmt.Println()
@@ -140,48 +169,99 @@ func newInitCmd() *cobra.Command {
 	}
 }
 
-func resolveAgents(baseDir string) ([]*agents.Agent, error) {
+// resolveAgents detects installed agents in baseDir; if none are found and
+// stdin is interactive, it prompts the user via pickAgents. Returns an
+// agentSelection that callers translate into user-facing messages via
+// printAgentSelectionStatus.
+func resolveAgents(baseDir string) (agentSelection, error) {
 	detected := agents.Detect(baseDir)
 	if len(detected) != 0 {
-		return detected, nil
+		return agentSelection{outcome: outcomePicked, agents: detected}, nil
 	}
-	return promptSelectAgents()
+	if !isInteractive() {
+		return agentSelection{outcome: outcomeNonInteractive}, nil
+	}
+	return pickAgents()
 }
 
-// promptSelectAgents asks the user to pick which agents to install hooks + MCP
-// config for. Empty selection means "skip". Returns empty in non-interactive
-// environments (CI, tests) and on user cancel.
-func promptSelectAgents() ([]*agents.Agent, error) {
-	if !isInteractive() {
-		return nil, nil
+// printAgentSelectionStatus prints a user-facing message describing the
+// outcome of the agent picker when no agents will be installed. Each branch
+// uses a distinct anchor word ("Cancelled", "Skipped", "non-interactive") so
+// tests can assert on stable substrings.
+func printAgentSelectionStatus(sel agentSelection) {
+	switch sel.outcome {
+	case outcomeAborted:
+		fmt.Println(display.Dim.Render(
+			"  Cancelled — .archcore/ is in place. Run 'archcore mcp install --agent <id>' (or 'archcore hooks install --agent <id>') later."))
+	case outcomeSkipped:
+		fmt.Println(display.Dim.Render(
+			"  Skipped agent setup. Run 'archcore mcp install --agent <id>' (or 'archcore hooks install --agent <id>') later."))
+	case outcomeNonInteractive:
+		fmt.Println(display.Dim.Render(
+			"  No AI agent selected (non-interactive). Run 'archcore mcp install --agent <id>' later."))
 	}
+}
 
+// validateAgentSelection enforces that the user picked at least one option
+// (real agent or the Skip sentinel) before submitting the MultiSelect. Without
+// this, hitting Enter without pressing Space yields an empty selection that
+// silently bypasses the entire agent install loop.
+func validateAgentSelection(v []agents.AgentID) error {
+	if len(v) == 0 {
+		return errors.New("press space (or x) to toggle, then enter; or pick \"Skip — configure later\"")
+	}
+	return nil
+}
+
+// defaultPickAgents asks the user to pick which agents to install hooks + MCP
+// config for. The "Skip — configure later" sentinel is the last option and is
+// filtered out of the returned agents; if it was the only thing picked, the
+// selection's outcome is outcomeSkipped.
+func defaultPickAgents() (agentSelection, error) {
 	all := agents.All()
-	options := make([]huh.Option[agents.AgentID], 0, len(all))
+	options := make([]huh.Option[agents.AgentID], 0, len(all)+1)
 	for _, a := range all {
 		options = append(options, huh.NewOption(a.DisplayName, a.ID))
 	}
+	options = append(options, huh.NewOption("Skip — configure later", skipAgentSentinel))
 
 	var picked []agents.AgentID
 	err := huh.NewMultiSelect[agents.AgentID]().
 		Title("No AI agent auto-detected. Select agents to configure (space to toggle, enter to confirm)").
 		Options(options...).
+		Validate(validateAgentSelection).
 		Value(&picked).
 		Run()
 	if err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
-			return nil, nil
+			return agentSelection{outcome: outcomeAborted}, nil
 		}
-		return nil, err
+		return agentSelection{}, err
 	}
 
+	return agentsFromPicked(picked), nil
+}
+
+// agentsFromPicked translates a list of picked AgentIDs (from huh's
+// MultiSelect) into an agentSelection. The Skip sentinel is filtered out, and
+// unknown IDs (defensive — the picker only offers registered IDs) are
+// dropped. If nothing real survives, returns outcomeSkipped: validateAgentSelection
+// already guarantees the user pressed *something*, so an empty result here
+// means they chose only Skip.
+func agentsFromPicked(picked []agents.AgentID) agentSelection {
 	result := make([]*agents.Agent, 0, len(picked))
 	for _, id := range picked {
+		if id == skipAgentSentinel {
+			continue
+		}
 		if a := agents.ByID(id); a != nil {
 			result = append(result, a)
 		}
 	}
-	return result, nil
+	if len(result) == 0 {
+		return agentSelection{outcome: outcomeSkipped}
+	}
+	return agentSelection{outcome: outcomePicked, agents: result}
 }
 
 // defaultIsInteractive reports whether prompts can be shown. Used to skip
