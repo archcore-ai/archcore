@@ -20,7 +20,7 @@ No prerequisites. The plugin bundles a launcher that downloads the Archcore CLI 
 or from terminal:
 
 ```bash
-claude plugin marketplace add archcore-ai/pluginCopy command
+claude plugin marketplace add archcore-ai/plugin
 claude plugin install archcore@archcore-plugins
 ```
 
@@ -161,14 +161,15 @@ Describe what you want in plain English — Archcore routes it to the right skil
 - **First-time onboarding** — `/archcore:bootstrap`
 - **Navigate the system** — `/archcore:help`
 
-### Document types (17)
+### Document types (18)
 
-Archcore supports 17 document types. There are no standalone per-type skills; intent and track commands inline the creation recipes for the document types they produce.
+Archcore supports 18 document types. There are no standalone per-type skills; intent and track commands inline the creation recipes for the document types they produce.
 
 | Type        | Category   | What it captures                                     |
 | ----------- | ---------- | ---------------------------------------------------- |
 | `prd`       | vision     | Product requirements — goals, scope, success metrics |
 | `idea`      | vision     | Low-commitment concepts and explorations             |
+| `plan`      | vision     | Action plans — phased steps, milestones, ownership   |
 | `mrd`       | vision     | Market landscape, TAM/SAM/SOM, competition           |
 | `brd`       | vision     | Business objectives, stakeholders, ROI               |
 | `urd`       | vision     | User personas, journeys, usability requirements      |
@@ -204,7 +205,7 @@ Invoke: `/archcore:product-track`, `/archcore:architecture-track`, etc.
 
 ## Agents
 
-**archcore-assistant** — Universal read/write agent for complex multi-document tasks. Creates and updates documents, manages relations, handles requirement cascades. Uses all 8 MCP tools.
+**archcore-assistant** — Universal read/write agent for complex multi-document tasks. Creates and updates documents, manages relations, handles requirement cascades. Uses the 8 document and relation MCP tools (full read/write surface).
 
 **archcore-auditor** — Read-only background agent for documentation health. Detects coverage gaps, orphaned documents, stale statuses, broken relation chains, and naming inconsistencies. Safe by design — no write tools.
 
