@@ -5,7 +5,9 @@ description: Generate a polished changelog for the latest Git tag. Classifies co
 
 # Generate Release Changelog
 
-Produce a clean, human-readable changelog for the latest published Git tag and print it as the final assistant message. This skill is read-only — do not write, edit, or create any files, directories, or git/GitHub objects at any point.
+Produce a tight, human-readable changelog for the latest published Git tag and print it as the final assistant message. This skill is read-only — do not write, edit, or create any files, directories, or git/GitHub objects at any point.
+
+The product owner reads this to understand what changed for users, not what was implemented. Optimize for **impact density**: every bullet must answer "what is different now from a user's seat?". Cut anything that does not.
 
 ## Hard constraints (non-negotiable)
 
@@ -55,21 +57,36 @@ Buckets (use this order in the output):
 2. **Features** — new user-visible capability.
 3. **Improvements** — enhancements to existing behavior (UX, performance, validation, compatibility).
 4. **Fixes** — corrections to incorrect behavior.
-5. **Documentation** — README, docs, in-repo `.archcore/` docs.
-6. **Internal** — refactors, tests, build, CI, deps. Keep terse; omit entirely if nothing notable.
 
-Skip purely cosmetic commits (whitespace, typo) unless they are the only changes in the release.
+Drop everything else. Do not include sections for documentation, refactors, tests, CI, dependency bumps, or internal cleanup. The only exception: if a commit changes something downstream users will feel — minimum Go version bump, removed dependency, security CVE — surface it under Breaking changes or Improvements with a product-facing sentence.
+
+Skip purely cosmetic commits (whitespace, typo).
+
+Merge near-duplicates into one bullet. Two commits that fix the same bug get one line. Three commits that build one feature get one line.
 
 ## Step 4 — Write each bullet
 
-For **Breaking changes, Features, Improvements, and Fixes**: write one sentence that leads with the user-visible outcome and, when it adds clarity, names the concrete mechanism (flag, command, config field, file).
+**Strict rules — apply to every bullet:**
 
-Avoid echoing the commit subject. Rewrite for a reader who has not seen the code.
+- One sentence. **Maximum 15 words.** Aim for 8–12.
+- Lead with the user-visible state, not the work performed. Describe the new behavior as it now is.
+- Name the concrete surface (flag, command, config field, file) only when it is the thing the user touches. Drop it if the impact is clearer without it.
+- No filler: cut "now", "you can now", "users can", "we have", "this release", "added support for", "improved the way", "made it possible to".
+- No commit-message echoes. Rewrite for a reader who has not seen the code.
+- Active voice. Present tense.
+- No commit SHAs, no author names, no PR/issue numbers unless they carry meaning the reader needs.
 
-Bad: `feat: improve working with cwd`
-Good: `archcore commands now resolve .archcore/ from the nearest parent directory, so you can run them from anywhere inside the repo.`
+**Examples (calibrate against these):**
 
-For **Internal** entries, one terse line is fine. No product framing required.
+| Avoid                                                                                                             | Prefer                                                      |
+| ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `feat: improve working with cwd`                                                                                  | `Commands run from any subdirectory inside the repo.`       |
+| `Added support for storing local document relations in .sync-state.json so they survive across sync runs.`        | `Local relations persist across syncs.`                     |
+| `Fixed a bug where the init command would fail if the .archcore directory already existed with a partial config.` | ``init` no longer fails on partial existing configs.`       |
+| `Improved the validation logic for sync mode fields to provide clearer error messages.`                           | `Sync-mode validation errors point at the offending field.` |
+| `BREAKING: The project field has been removed from the configuration schema.`                                     | ``project` field removed from `settings.json`.`             |
+
+If you cannot write a bullet that meets these rules, the change probably does not belong in the changelog — drop it.
 
 ## Step 5 — Output format
 
@@ -78,34 +95,32 @@ Emit exactly this structure (omit any section that would be empty):
 ```markdown
 # <latest-tag>
 
-_Released YYYY-MM-DD · <N> commits since <previous-tag>_
+_<YYYY-MM-DD> · <N> commits_
 
-<2–4 sentence product summary. Lead with the most impactful change. No bullets.>
+<One sentence, max 20 words. The headline of the release in user-impact terms. Omit the line entirely if no single change dominates — do not pad.>
 
 ## Breaking changes
+
 - ...
 
 ## Features
+
 - ...
 
 ## Improvements
+
 - ...
 
 ## Fixes
-- ...
 
-## Documentation
-- ...
-
-## Internal
 - ...
 
 ---
-**Full diff:** `<previous-tag>...<latest-tag>`
+
+`<previous-tag>...<latest-tag>`
 ```
 
 - Release date: `git log -1 --format=%ai <latest-tag>` (date portion only).
-- No commit SHAs in bullets.
-- No author names.
 - Do not invent items not backed by a commit in the range.
-- The summary paragraph is mandatory.
+- The headline is optional. Skip it rather than write a generic one ("This release brings improvements and fixes.").
+- A release with three good bullets is better than one with twelve mediocre ones.
