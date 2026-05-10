@@ -53,3 +53,17 @@ setup() {
   done | sort | uniq -d)
   [ -z "$dupes" ] || fail "Duplicate skill names: $dupes"
 }
+
+@test "bootstrap skill calls init_project before operating on uninitialized projects" {
+  grep -q "mcp__archcore__init_project" "$PLUGIN_ROOT/skills/bootstrap/SKILL.md" \
+    || fail "bootstrap/SKILL.md must instruct the agent to call mcp__archcore__init_project for uninitialized projects"
+}
+
+@test "help skill documents the archcore init CLI recovery path" {
+  # /archcore:help is a likely first stop when MCP tools fail; it must explain
+  # how to install the CLI and run `archcore init` to recover. This is the
+  # MCP-unavailable fallback (distinct from the in-session init_project call
+  # that bootstrap uses when MCP works but .archcore/ is empty).
+  grep -q 'archcore init' "$PLUGIN_ROOT/skills/help/SKILL.md" \
+    || fail "help/SKILL.md must include 'archcore init' recovery instruction"
+}

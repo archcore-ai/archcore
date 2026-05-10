@@ -112,3 +112,16 @@ setup() {
     grep -q 'subagent-knowledge-tree-bootstrap.adr' "$file" || fail "$f: missing ADR reference"
   done
 }
+
+@test "all agent files document the archcore init CLI recovery path" {
+  # When MCP tools are unavailable (CLI not installed or unresolvable on PATH),
+  # mcp__archcore__init_project cannot fire. Agents must fall back to telling
+  # the user how to recover: install the CLI and run `archcore init` in the
+  # terminal. This must be present in every agent surface across hosts —
+  # .md (Claude/Cursor) and .toml (Codex) — or the fallback drifts silently.
+  for f in archcore-assistant.md archcore-auditor.md archcore-assistant.toml archcore-auditor.toml; do
+    local file="$PLUGIN_ROOT/agents/$f"
+    grep -q 'archcore init' "$file" \
+      || fail "$f: missing 'archcore init' recovery instruction for MCP-unavailable case"
+  done
+}

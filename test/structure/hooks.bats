@@ -176,3 +176,23 @@ setup() {
     fail "Script sets differ between Claude Code and Codex"
   }
 }
+
+@test "every host hook config registers bin/session-start on its session-start event" {
+  # bin/session-start emits the init_project nudge on first-time / empty-state
+  # sessions. If any host loses this wiring, onboarding silently breaks on that
+  # host. Event keys differ by casing per host: SessionStart (Claude/Codex,
+  # PascalCase) vs sessionStart (Cursor, camelCase).
+  local entries=(
+    "hooks/hooks.json:SessionStart"
+    "hooks/codex.hooks.json:SessionStart"
+    "hooks/cursor.hooks.json:sessionStart"
+  )
+  local entry file event cmds
+  for entry in "${entries[@]}"; do
+    file="${entry%:*}"
+    event="${entry#*:}"
+    cmds=$(jq -r --arg e "$event" '.hooks[$e][]?.hooks[]?.command // empty' "$PLUGIN_ROOT/$file")
+    echo "$cmds" | grep -q 'bin/session-start$' \
+      || fail "$file: '$event' event must invoke bin/session-start; got: $cmds"
+  done
+}

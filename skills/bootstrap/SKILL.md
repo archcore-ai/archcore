@@ -54,6 +54,12 @@ Each mode additionally runs hotspot capture-candidate proposal (Step 6) and opti
 
 ## Execution
 
+### Step -1: Ensure initialization
+
+Call `mcp__archcore__init_project()` before any other MCP operation. It is idempotent — safe on an already-initialized project (returns existing settings). It creates `.archcore/` and the settings file if they do not exist.
+
+Do NOT ask the user to run `archcore init` in the terminal — `mcp__archcore__init_project` is the correct path in a plugin session.
+
 ### Step 0: Check state
 
 Call `mcp__archcore__list_documents()`. Derive:
