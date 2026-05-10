@@ -3201,6 +3201,21 @@
       "source": "plugin/cli-integration-tests.rule.md",
       "target": "plugin/bundled-cli-launcher.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/codex-path-resolution.adr.md",
+      "target": "plugin/bundled-cli-launcher.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-path-resolution.adr.md",
+      "target": "plugin/multi-host-compatibility-layer.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-path-resolution.adr.md",
+      "target": "plugin/codex-host-support.prd.md",
+      "type": "related"
     }
   ]
 }
