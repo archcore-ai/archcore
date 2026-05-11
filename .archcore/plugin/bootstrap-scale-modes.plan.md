@@ -1,6 +1,6 @@
 ---
 title: "Bootstrap Scale Modes — Small / Medium / Large with Tracked-Context Targets"
-status: draft
+status: accepted
 tags:
   - "onboarding"
   - "plugin"

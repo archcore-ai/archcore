@@ -2774,11 +2774,6 @@
     },
     {
       "source": "plugin/context-skill-implementation.plan.md",
-      "target": "plugin/code-alignment-intent-skill.idea.md",
-      "type": "implements"
-    },
-    {
-      "source": "plugin/context-skill-implementation.plan.md",
       "target": "plugin/inverted-invocation-policy.adr.md",
       "type": "related"
     },
@@ -3230,6 +3225,31 @@
     {
       "source": "plugin/codex-mcp-cwd-rebase-to-user-project.idea.md",
       "target": "plugin/bundled-cli-launcher.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/stack-and-tooling.rule.md",
+      "target": "plugin/bundled-cli-launcher.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/stack-and-tooling.rule.md",
+      "target": "plugin/plugin-component-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/stack-and-tooling.rule.md",
+      "target": "plugin/mcp-only-operations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/stack-and-tooling.rule.md",
+      "target": "plugin/codex-mcp-cwd-rebase-to-user-project.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/stack-and-tooling.rule.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
       "type": "related"
     }
   ]

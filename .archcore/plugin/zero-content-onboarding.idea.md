@@ -1,6 +1,6 @@
 ---
 title: "Zero-Content Onboarding — From Empty .archcore to First Useful State"
-status: draft
+status: accepted
 tags:
   - "onboarding"
   - "plugin"

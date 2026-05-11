@@ -1,6 +1,6 @@
 ---
 title: "Zero-Content Onboarding Implementation — SessionStart Nudge + /archcore:bootstrap"
-status: draft
+status: accepted
 tags:
   - "hooks"
   - "onboarding"

@@ -1,6 +1,6 @@
 ---
-title: "Codex MCP — User-Project CWD Without Shell-Resync"
-status: draft
+title: "Codex MCP CWD — Opt-In ARCHCORE_CWD Via Shell Wrapper"
+status: accepted
 tags:
   - "codex"
   - "multi-host"
@@ -9,42 +9,89 @@ tags:
 
 ## Idea
 
-Restore the archcore MCP server's working directory to the user's project root when invoked from Codex, **without** depending on the inherited `$PWD` env var (which POSIX shells overwrite at startup).
+Make Codex-spawned archcore MCP servers operate in the user's project directory by combining three mechanisms — entirely within the existing shell launcher, no new language dependency:
 
-Codex spawns plugin MCP servers from the plugin install dir (via `.codex.mcp.json` `cwd: "."` rebase). The launcher itself is a `#!/bin/sh` script, so any `$PWD` value Codex inherits from the user's shell is **erased on launcher startup** — POSIX shells (sh, dash, bash --posix) resync `$PWD` to match `getcwd()` if the two diverge. That kills the obvious "follow `$PWD`" workaround.
+1. **Manifest passthrough.** `.codex.mcp.json` declares `env_vars: ["ARCHCORE_CWD"]`. Codex spawns MCP children with `.env_clear()` plus a fixed allowlist (HOME LOGNAME PATH SHELL USER __CF_USER_TEXT_ENCODING LANG LC_ALL TERM TMPDIR TZ); `env_vars` is the only knob for carrying additional env through that wall. Using a **custom name** (not `PWD`) is essential — POSIX shells (sh, dash, bash --posix) resync `$PWD` to `getcwd()` at startup, so any passed-through `PWD` is overwritten before our code runs. Custom names pass through both barriers.
 
-Two viable paths that survive sh's PWD-resync:
+2. **`bin/archcore` shell launcher.** Two cooperating blocks at the top:
+    - Step 0 — if `ARCHCORE_CWD` is set and points at a real directory, `cd` there before resolving and exec'ing the real archcore CLI.
+    - Step 0b — **plugin-install guard.** When invoked as `archcore mcp` AND cwd matches `*/plugins/cache/*` AND all three plugin-root markers exist in cwd, refuse with an actionable error. Converts the silent-fallback-to-plugin-docs failure into a loud, self-documenting one. Escape hatch: `ARCHCORE_ALLOW_PLUGIN_CWD=1`.
 
-1. **An explicit env var the shell does NOT resync** — e.g., `ARCHCORE_CWD` (or `CODEX_PROJECT_DIR`, if Codex ever exposes one). The launcher reads it before exec'ing the real CLI:
+3. **User opt-in via shell wrapper.** Users wrap their `codex` invocation so `ARCHCORE_CWD` is set to the current project just-in-time. Examples:
 
-    ```sh
-    if [ -n "${ARCHCORE_CWD:-}" ] && [ -d "$ARCHCORE_CWD" ]; then
-      cd "$ARCHCORE_CWD" 2>/dev/null || true
-    fi
-    ```
+    - fish: `~/.config/fish/functions/codex.fish` — `function codex; env ARCHCORE_CWD=$PWD command codex $argv; end`
+    - bash/zsh: in `~/.bashrc` / `~/.zshrc` — `codex() { ARCHCORE_CWD="$PWD" command codex "$@"; }`
 
-    Sh's PWD-resync only touches `PWD` and `OLDPWD`. A custom name passes through untouched. The cost: someone (Codex, or the user) has to set it. Until Codex exposes a canonical name, the user opts in per-session.
-
-2. **archcore CLI argument** — `archcore --project-root=PATH mcp`. Lets Codex (or a future plugin manifest version) pass the path explicitly. Doesn't require a custom env var, but does require Codex to thread an argument through MCP `args`. As of Codex 0.130.0 there is no env substitution in `args`, so this only helps if upstream adds it (openai/codex#19582).
+   This is opt-in by design: it adds zero runtime dependencies (no Python, no extra binary), but the user has to install the wrapper once. If the wrapper is missing, the **guard refuses to start and prints the wrapper recipe inline** — the user can't silently land on plugin docs.
 
 ## Value
 
-Today, calling any `mcp__archcore__*` tool from Codex creates `.archcore/` documents in `~/.codex/plugins/cache/<marketplace>/archcore/<version>/.archcore/` instead of the user's project. Observed during a Codex `/archcore:bootstrap` session against `test_project/`: two seed docs landed in the plugin cache before the agent gave up and started a manual MCP rooted at the project. ~9m41s of confused wallclock.
+Before: every `mcp__archcore__*` call from Codex operated in `~/.codex/plugins/cache/<marketplace>/archcore/<version>/`. A `/archcore:bootstrap` session against an empty `test_project/` cost ~9 m 41 s, half of it spent realizing the docs landed in the wrong place.
 
-Closing this gap turns Codex into a first-class Archcore host. Without the fix, the bundled-launcher value-prop of "no global install needed" silently degrades for Codex users — every MCP write pollutes the cache.
+After: with the shell wrapper installed, the MCP server's CWD is the project the user `cd`'d into before running `codex`. Without the wrapper, the guard fires loud and shows the user how to install it. No new tools, no new languages, no silent plugin-cache pollution.
 
 ## Possible Implementation
 
-1. **Add `ARCHCORE_CWD` support in `bin/archcore`** — guarded `cd "$ARCHCORE_CWD"` near the top of the launcher (after `SCRIPT_DIR=...` resolution), with `[ -d ]` and `cd ... || true` safety. Unit-tested via the existing Bats pattern (env var → fake `ARCHCORE_BIN` stub → assert stub's `pwd` output).
-2. **Diagnostic mode for env discovery** — `archcore mcp --debug-env` that streams a single JSON-RPC notification listing all `getenv` keys the MCP server sees at startup. Run it once from a real Codex session to identify which env vars Codex actually injects (PLUGIN_ROOT, CODEX_HOME, CODEX_CWD, ...). If a Codex-provided user-project var exists, switch the launcher to read it first; fall back to `ARCHCORE_CWD`.
-3. **Document the contract** in `codex-local-plugin-testing.guide.md` step 8 — add an assertion that an MCP `create_document` call from `mktemp -d` creates files under that tmpdir, **not** under `~/.codex/plugins/cache/...`. Pin the contract with a Bats E2E test if feasible.
-4. **Upstream issue** — file or watch openai/codex#19582 for `${PLUGIN_ROOT}` MCP substitution. Once shipped, drop `cwd: "."`, use `${PLUGIN_ROOT}/bin/archcore` directly, and Codex inherits the user's CWD by default — both legs become unnecessary.
-5. **One-time cleanup utility** — `archcore mcp cleanup-cache` that removes stray `.archcore/` directories that may have landed under `~/.codex/plugins/cache/<marketplace>/archcore/<version>/` before this fix shipped. Opt-in.
+Shipped:
+
+- `bin/archcore` (existing sh launcher):
+  - Step 0 — `if [ -n "${ARCHCORE_CWD:-}" ] && [ -d "$ARCHCORE_CWD" ]; then cd "$ARCHCORE_CWD" 2>/dev/null || true; fi`. No-op when the var is unset (the normal Claude Code path).
+  - Step 0b — guard block: refuse `archcore mcp` from cache cwd when plugin markers are present, unless `ARCHCORE_ALLOW_PLUGIN_CWD=1`.
+- `.codex.mcp.json`: `command: "./bin/archcore"`, `args: ["mcp"]`, `cwd: "."`, `env_vars: ["ARCHCORE_CWD"]`.
+- `test/unit/launcher.bats`: nine new tests — three for ARCHCORE_CWD chdir behavior, six for the guard (cache-cwd refusal, dev-checkout pass-through, ARCHCORE_CWD-honored bypass, escape hatch, non-mcp subcommand pass-through, partial-marker pass-through).
+- `test/structure/codex-plugin.bats`: manifest contract pinned (command, args, cwd, env_vars must include ARCHCORE_CWD).
+
+Discovery work that informed the design:
+
+- Codex source: `codex-rs/rmcp-client/src/stdio_server_launcher.rs:236-267` is the MCP spawn site; `utils.rs::DEFAULT_ENV_VARS` is the allowlist. PWD is not on it. `env_vars` from the manifest is the only passthrough hook.
+- POSIX `$PWD` resync is universal across `/bin/sh`, `dash`, `bash --posix` on macOS. Verified with `env PWD=/A sh -c 'echo $PWD'` from a different physical dir — child reports `getcwd()` even though parent set PWD to /A. Custom env var names (e.g. `ARCHCORE_CWD`) are untouched.
+
+Rejected alternatives (see `codex-path-resolution.adr` for full context):
+
+- **Python trampoline that reads `$PWD` and chdir's before exec'ing sh launcher.** Verified end-to-end — works perfectly, but introduces Python as a third language to a shell+Go plugin. Rejected per user decision: avoid adding new languages/tooling without explicit decision.
+- **Compiled Go trampoline binary.** No new runtime dep, but adds a darwin/linux × amd64/arm64 build matrix and macOS code-signing step. Rejected as over-engineering.
+- **`PWD`-rebase inside the existing sh launcher.** Dead end — sh resyncs PWD before the launcher's first line runs.
+- **`$PWD`-only `env_vars` declaration without a non-shell trampoline.** Codex passes PWD through, but sh erases it. Useless on its own.
+- **Silent opt-in without the guard.** Earlier iteration. Rejected because a fresh user without the wrapper experiences the original bug (MCP operates on plugin cache `.archcore/`, listing plugin docs as the user's). Hard to diagnose. The guard converts this to a loud, self-documenting failure.
+
+Upstream coupling:
+
+- `openai/codex#19582` — `${PLUGIN_ROOT}` substitution in MCP `command`/`args`. If/when shipped, we may drop `cwd: "."` and inherit Codex's caller CWD directly, retiring the wrapper. The `ARCHCORE_CWD` mechanism and the guard both stay harmless until then.
 
 ## Risks and Constraints
 
-- **POSIX `$PWD`-resync is non-negotiable.** Verified across `/bin/sh`, `dash`, and `bash --posix` on macOS: each rewrites `$PWD` to match `getcwd()` on every shell startup when they disagree. Any fix that depends on the kernel-inherited `$PWD` is moot in a shell-script launcher.
-- **`ARCHCORE_CWD` is opt-in.** Users who don't set it stay in the broken state. Mitigation: surface a clear "your MCP CWD looks like a plugin cache; set `ARCHCORE_CWD` to your project" warning when archcore CLI detects `getcwd()` matches a plugin-cache pattern (e.g., contains `/plugins/cache/` or `/plugin-install/`). Don't refuse to operate — too disruptive — but make the next step obvious.
-- **Codex env vars may not exist for MCP spawns.** The existing `codex-path-resolution.adr` confirms `${PLUGIN_ROOT}` is injected for hooks but says nothing about MCP. Step 2 (diagnostic mode) is the way to find out. Do this before committing to `ARCHCORE_CWD` as the canonical name.
-- **Cross-host concern.** Claude Code uses `${CLAUDE_PLUGIN_ROOT}/bin/archcore` with no chdir, so `$PWD == $(pwd)` and the issue doesn't surface. Cursor and other hosts may behave like Codex or like Claude — verify each before extending.
-- **Naming.** If we name our env var `ARCHCORE_CWD`, that mirrors `ARCHCORE_BIN` already used by the launcher. Alternative `ARCHCORE_PROJECT_ROOT` is more explicit. Stick with `ARCHCORE_CWD` for brevity unless a survey of other plugins' conventions argues otherwise.
+- **Opt-in surface.** Users who don't install the shell wrapper get a loud refusal at MCP start with the wrapper recipe printed inline. No more silent wrong-cwd operation. Mitigations:
+  - Document the wrapper recipe prominently in `codex-local-plugin-testing.guide.md` and the README.
+  - The guard itself prints the recipe — no docs lookup required to recover.
+  - Consider in a future iteration: a `archcore shell-init <shell>` command that prints the wrapper for the user to paste into their rc.
+- **Wrapper hygiene.** The wrapper sets `ARCHCORE_CWD=$PWD` at codex-launch time, not on every directory change inside Codex. If the user starts Codex in dir A and uses Codex to navigate to dir B, MCP still points at A. Acceptable because Codex itself treats the launch dir as the session's project root.
+- **Custom env-var name choice.** `ARCHCORE_CWD` mirrors the existing `ARCHCORE_BIN` convention. Anyone who happens to have ARCHCORE_CWD set globally will override the launcher's cwd; documented as a feature.
+- **Cross-host neutrality.** `.mcp.json` (Claude) and `.cursor-plugin/...` are untouched. Claude Code does not chdir before MCP spawn, so both the `ARCHCORE_CWD` block (no-op when the var is unset) and the guard (skipped when cwd is not in a plugin-cache path) have zero impact on other hosts.
+- **Guard false positives.** Three converging signals must align (subcommand=mcp, cache-path cwd, all three plugin markers present). Plugin development from a non-cache checkout (e.g., this repo on disk) does not trigger the guard. The `ARCHCORE_ALLOW_PLUGIN_CWD=1` escape hatch covers the plugin-maintainer-runs-MCP-against-installed-copy edge case.
+
+## Verification
+
+A/B reproducer (after deploying to the plugin cache):
+
+```sh
+SOURCE=/Users/dev/Documents/archcore/plugin
+CACHE=~/.codex/plugins/cache/archcore-personal/archcore/0.3.13
+
+# Source-only marker the cache cannot have
+printf -- '---\ntitle: marker\nstatus: draft\n---\n' > $SOURCE/.archcore/UNIQUE.md
+
+INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}'
+NOTIF='{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}'
+LIST='{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_documents","arguments":{}}}'
+
+# WITH ARCHCORE_CWD: launcher chdir's, sees marker
+( cd $CACHE && printf '%s\n%s\n%s\n' "$INIT" "$NOTIF" "$LIST" | \
+  env -i HOME=$HOME PATH=$PATH USER=$USER LANG=$LANG TERM=$TERM TMPDIR=$TMPDIR ARCHCORE_CWD=$SOURCE \
+  ./bin/archcore mcp 2>/dev/null | grep '"id":2' )
+
+# WITHOUT ARCHCORE_CWD: guard refuses to start, prints wrapper recipe on stderr
+( cd $CACHE && env -i HOME=$HOME PATH=$PATH USER=$USER LANG=$LANG TERM=$TERM TMPDIR=$TMPDIR \
+  ./bin/archcore mcp 2>&1 1>/dev/null )
+
+rm $SOURCE/.archcore/UNIQUE.md
+```

@@ -3,7 +3,8 @@
     "archcore": {
       "command": "./bin/archcore",
       "args": ["mcp"],
-      "cwd": "."
+      "cwd": ".",
+      "env_vars": ["ARCHCORE_CWD"]
     }
   }
 }

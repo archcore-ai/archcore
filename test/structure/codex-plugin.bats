@@ -59,25 +59,36 @@ setup() {
   [ "$mcp_path" = "./.codex.mcp.json" ]
 }
 
-@test ".codex.mcp.json points at relative launcher command rebased via cwd" {
-  # Codex 0.130.0 spawns plugin MCP servers from the project's CWD, not the
-  # plugin install dir, and does NOT substitute ${CODEX_PLUGIN_ROOT} or
-  # ${CLAUDE_PLUGIN_ROOT} in `command`/`args`. The only plugin-aware rewrite is
-  # in core-plugins/src/loader.rs::normalize_plugin_mcp_server_value, which
-  # rebases a relative `cwd` field against the plugin install root. So a
-  # relative `command: "./bin/archcore"` only resolves correctly if `cwd` is
-  # also set; otherwise the spawn fails with ENOENT.
-  # See: https://github.com/openai/codex/issues/19582
+@test ".codex.mcp.json invokes the launcher with cwd rebase + ARCHCORE_CWD passthrough" {
+  # Codex 0.130.0 contract (codex-rs/rmcp-client/src/stdio_server_launcher.rs:236-267
+  # and utils.rs::DEFAULT_ENV_VARS): MCP children are spawned with `.env_clear()`
+  # + a fixed allowlist (HOME LOGNAME PATH SHELL USER __CF_USER_TEXT_ENCODING LANG
+  # LC_ALL TERM TMPDIR TZ). PWD is NOT in the allowlist. The manifest's `env_vars`
+  # array is the only way to pass additional env through env_clear().
+  #
+  # We declare ARCHCORE_CWD as our passthrough channel. POSIX sh resyncs $PWD at
+  # startup so PWD itself cannot be used inside a `#!/bin/sh` launcher — but sh
+  # does NOT resync custom env-var names. The user sets ARCHCORE_CWD=$PWD (via a
+  # shell wrapper / function for `codex`) and the launcher honors it.
+  # See: .archcore/plugin/codex-mcp-cwd-rebase-to-user-project.idea.md,
+  #      .archcore/plugin/codex-path-resolution.adr.md,
+  #      https://github.com/openai/codex/issues/19582.
   local file="$PLUGIN_ROOT/.codex.mcp.json"
   jq . < "$file" > /dev/null
-  [ "$(jq -r '.mcpServers.archcore.command' < "$file")" = "./bin/archcore" ]
-  [ "$(jq -r '.mcpServers.archcore.args[0]' < "$file")" = "mcp" ]
+  [ "$(jq -r '.mcpServers.archcore.command' < "$file")" = "./bin/archcore" ] \
+    || fail "command must be ./bin/archcore (relative launcher)"
+  [ "$(jq -r '.mcpServers.archcore.args[0]' < "$file")" = "mcp" ] \
+    || fail "args[0] must be 'mcp'"
   local cwd
   cwd=$(jq -r '.mcpServers.archcore.cwd // empty' < "$file")
   [ -n "$cwd" ] || fail "missing 'cwd' — without it Codex resolves ./bin/archcore against the user's project, not the plugin"
   case "$cwd" in
     /*) fail "cwd must be plugin-relative ('.' or './...'), not absolute: $cwd" ;;
   esac
+  local archcore_cwd_passthrough
+  archcore_cwd_passthrough=$(jq -r '.mcpServers.archcore.env_vars | index("ARCHCORE_CWD")' < "$file")
+  [ "$archcore_cwd_passthrough" != "null" ] \
+    || fail "env_vars must include \"ARCHCORE_CWD\" — Codex's .env_clear() strips it otherwise"
   if grep -q '\${CLAUDE_PLUGIN_ROOT}\|\${CODEX_PLUGIN_ROOT}' "$file"; then
     fail "Codex MCP config does not support env substitution; do not reference plugin root env vars"
   fi

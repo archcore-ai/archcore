@@ -304,19 +304,19 @@ Estimate: 0.5 day.
 ## Acceptance Criteria
 
 - [ ] All 6 Phase 0 spikes complete; findings captured (in this plan's risks or in a separate ADR).
-- [ ] `.codex-plugin/plugin.json` exists with synchronized metadata, valid component pointers, and `interface{}` marketplace block.
-- [ ] Plugin-shipped MCP wiring works in Codex without external `codex mcp add` step.
-- [ ] `commands/<name>.md` wrappers exist for all 16 user-facing skills, each carrying `description:` frontmatter and delegating to `skills/<name>/SKILL.md`. Parity tests in `test/structure/codex-plugin.bats` pass.
+- [x] `.codex-plugin/plugin.json` exists with synchronized metadata, valid component pointers, and `interface{}` marketplace block.
+- [x] Plugin-shipped MCP wiring works in Codex without external `codex mcp add` step.
+- [x] `commands/<name>.md` wrappers exist for all 16 user-facing skills, each carrying `description:` frontmatter and delegating to `skills/<name>/SKILL.md`. Parity tests in `test/structure/codex-plugin.bats` pass.
 - [ ] In a fresh Codex thread, `/archcore:` autocompletes to all 16 wrappers and triggering one routes through to the underlying skill.
-- [ ] `hooks/codex.hooks.json` maps the five active hook functions with correct matchers and timeouts.
-- [ ] `bin/lib/normalize-stdin.sh` has explicit `codex` host detection and field extraction.
-- [ ] `bin/archcore` and `bin/archcore.ps1` extend cache resolution with `$CODEX_PLUGIN_DATA` directory.
+- [x] `hooks/codex.hooks.json` maps the five active hook functions with correct matchers and timeouts.
+- [x] `bin/lib/normalize-stdin.sh` has explicit `codex` host detection and field extraction.
+- [x] `bin/archcore` and `bin/archcore.ps1` extend cache resolution with `$CODEX_PLUGIN_DATA` directory.
 - [ ] All Archcore `SKILL.md` files load cleanly in Codex (smoke-confirmed through `codex debug prompt-input`).
-- [ ] `agents/archcore-auditor.toml` and `agents/archcore-assistant.toml` exist; auditor enforced read-only via `sandbox_mode` and (if supported) `disabled_tools[]`.
+- [x] `agents/archcore-auditor.toml` and `agents/archcore-assistant.toml` exist; auditor enforced read-only via `sandbox_mode` and (if supported) `disabled_tools[]`.
 - [ ] `codex plugin marketplace add archcore-ai/plugin` succeeds end-to-end on a fresh install.
 - [ ] All existing Claude Code tests pass unchanged.
 - [ ] Cursor manual smoke test passes unchanged.
-- [ ] `multi-host-compatibility-layer.spec.md` Codex CLI row promoted from TBD to actual values; the spec includes a Codex Slash Command Wrappers section.
+- [x] `multi-host-compatibility-layer.spec.md` Codex CLI row promoted from TBD to actual values; the spec includes a Codex Slash Command Wrappers section.
 - [ ] README documents Codex install path and the slash command surface.
 
 ## Dependencies

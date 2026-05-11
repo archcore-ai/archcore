@@ -24,6 +24,75 @@ set -u
 SCRIPT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 SELF="$SCRIPT_DIR/archcore"
 
+# --- 0. Honor $ARCHCORE_CWD ---
+#
+# Some hosts (notably Codex) spawn plugin MCP servers with cwd rebased to the
+# plugin install dir (.codex.mcp.json `cwd: "."`). The archcore CLI uses cwd to
+# locate the user's .archcore/, so we'd operate on the plugin cache instead of
+# the user's project.
+#
+# We cannot rely on $PWD: Codex's `.env_clear()` strips it, and even if passed
+# back via the manifest's env_vars allowlist, POSIX shells (/bin/sh, dash,
+# bash --posix) resync $PWD to getcwd() at startup. A custom env var name
+# bypasses both: Codex passes it through when listed in env_vars, and sh does
+# not touch it.
+#
+# Users opt in by setting ARCHCORE_CWD to their project root before launching
+# the host that spawns the MCP. Example wrappers — see
+# .archcore/plugin/codex-mcp-cwd-rebase-to-user-project.idea.md for the full
+# recipes:
+#
+#   # fish: ~/.config/fish/functions/codex.fish
+#   function codex; env ARCHCORE_CWD=$PWD command codex $argv; end
+#
+#   # bash/zsh: ~/.bashrc / ~/.zshrc
+#   codex() { ARCHCORE_CWD="$PWD" command codex "$@"; }
+if [ -n "${ARCHCORE_CWD:-}" ] && [ -d "$ARCHCORE_CWD" ]; then
+  cd "$ARCHCORE_CWD" 2>/dev/null || true
+fi
+
+# --- 0b. Guard: refuse to start MCP from this plugin's install dir ---
+#
+# Without a shell wrapper that sets ARCHCORE_CWD, Codex spawns the MCP child
+# with cwd rebased to the plugin install dir (.codex.mcp.json `cwd: "."`).
+# The CLI would then operate on the plugin's OWN .archcore/ instead of the
+# user's project — a silent, hard-to-diagnose failure.
+#
+# We trip on three converging signals (false positives near-impossible):
+#   1. invoked as `archcore mcp` (only the MCP child is silent; CLI calls
+#      show their cwd to the user)
+#   2. cwd path matches a plugin-cache pattern (Codex installs to
+#      `~/.codex/plugins/cache/<m>/<p>/<v>/`)
+#   3. all three plugin marker files exist in cwd — that combination is
+#      unique to this plugin's repo root
+#
+# Step 0 (above) has already cd'd to $ARCHCORE_CWD when set, so reaching
+# here with cache cwd means the wrapper was not installed.
+#
+# Escape hatch: set ARCHCORE_ALLOW_PLUGIN_CWD=1 to bypass (only for plugin
+# maintainers running MCP against the plugin's own docs intentionally).
+if [ "${1:-}" = "mcp" ] \
+   && [ "${ARCHCORE_ALLOW_PLUGIN_CWD:-0}" != "1" ] \
+   && [ -f .codex-plugin/plugin.json ] \
+   && [ -f .codex.mcp.json ] \
+   && [ -f bin/archcore ]
+then
+  case "$(pwd -P)" in
+    */plugins/cache/*)
+      printf '[archcore launcher] Refusing to start MCP from the plugin install dir.\n' >&2
+      printf '  cwd: %s\n' "$(pwd -P)" >&2
+      printf '  Without ARCHCORE_CWD the MCP would operate on plugin docs, not your project.\n' >&2
+      printf '  Fix — install the shell wrapper once:\n' >&2
+      # shellcheck disable=SC2016  # literal shell snippet; do not expand $PWD/$argv here
+      printf '    fish:  function codex; env ARCHCORE_CWD=$PWD command codex $argv; end\n' >&2
+      # shellcheck disable=SC2016  # literal shell snippet; do not expand $PWD/$@ here
+      printf '    bash:  codex() { ARCHCORE_CWD="$PWD" command codex "$@"; }\n' >&2
+      printf '  See: .archcore/plugin/codex-mcp-cwd-rebase-to-user-project.idea.md\n' >&2
+      exit 1
+      ;;
+  esac
+fi
+
 # --- 1. $ARCHCORE_BIN override ---
 if [ -n "${ARCHCORE_BIN:-}" ] && [ -x "$ARCHCORE_BIN" ]; then
   exec "$ARCHCORE_BIN" "$@"
