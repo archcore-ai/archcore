@@ -3216,6 +3216,21 @@
       "source": "plugin/codex-path-resolution.adr.md",
       "target": "plugin/codex-host-support.prd.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/codex-mcp-cwd-rebase-to-user-project.idea.md",
+      "target": "plugin/codex-path-resolution.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/codex-mcp-cwd-rebase-to-user-project.idea.md",
+      "target": "plugin/codex-local-plugin-testing.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-mcp-cwd-rebase-to-user-project.idea.md",
+      "target": "plugin/bundled-cli-launcher.adr.md",
+      "type": "related"
     }
   ]
 }

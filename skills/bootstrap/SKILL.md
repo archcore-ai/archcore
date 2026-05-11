@@ -29,16 +29,17 @@ First-time onboarding. Detects repo scale (small / medium / large) and seeds sca
 
 ## Routing table
 
-**Mode routing** — Step 0.5 classifier, evaluated top-to-bottom, first match wins. Precise conditions in `lib/detect-scale.md`.
+**Mode routing** — Step 0.5 classifier, evaluated top-to-bottom, first match wins. The **empty** route is decided earlier in Step 0(b) and short-circuits the classifier entirely. Precise conditions for the rest in `lib/detect-scale.md`.
 
 | Signal | Route | Seeded artifacts |
 |---|---|---|
+| No manifest AND no top-level source (Step 0b) | → **empty** | none — acknowledge-only, no placeholder docs |
 | `--mode=X` flag | → forced `X` (detected mode still reported) | per row below |
 | `domain_count ≤ 1` AND `module_count ≤ 15` | → **small** | stack rule, run guide |
 | `domain_count ≤ 2` AND `module_count ≤ 40` | → **medium** | small + entry-point inventory |
 | `domain_count ≥ 3` OR `module_count > 40` | → **large** | medium + top-level map + domain dialog |
 
-Each mode additionally runs hotspot capture-candidate proposal (Step 6) and optional agent-file import (Step 8). Medium additionally runs cross-cutting rule candidate (Step 7).
+Each non-empty mode additionally runs hotspot capture-candidate proposal (Step 6) and optional agent-file import (Step 8). Medium additionally runs cross-cutting rule candidate (Step 7). The empty route exits after Step 0.
 
 **Follow-up routing** — closing-message hand-offs. Bootstrap surfaces these as todos; MUST NOT auto-invoke.
 
@@ -54,15 +55,28 @@ Each mode additionally runs hotspot capture-candidate proposal (Step 6) and opti
 
 ## Execution
 
-### Step -1: Ensure initialization
+### Pre-flight: lazy reading
 
-Call `mcp__archcore__init_project()` before any other MCP operation. It is idempotent — safe on an already-initialized project (returns existing settings). It creates `.archcore/` and the settings file if they do not exist.
+Bootstrap MUST give the user fast feedback. The detection catalogs under `skills/bootstrap/lib/` are heavy (≥ 350 lines for scale alone) and they are read **lazily**: do NOT open any `lib/*.md` file until you reach the step that explicitly tells you to read it. Step 0 finishes before any `lib/` file is opened.
+
+### Step -1: Initialize and acknowledge (fast)
+
+Call `mcp__archcore__init_project()` exactly once. It is idempotent — safe on an already-initialized project (returns existing settings). It creates `.archcore/` and `settings.json` if missing.
+
+Immediately after the call, give the user a one-line confirmation so they see something tangible without waiting for any detection:
+
+- If the response includes `initialized: true` (created now) — print: *"Archcore initialized at `.archcore/`."*
+- If `already_initialized: true` — print nothing here; the existing knowledge base will speak for itself in Step 0(a).
 
 Do NOT ask the user to run `archcore init` in the terminal — `mcp__archcore__init_project` is the correct path in a plugin session.
 
-### Step 0: Check state
+### Step 0: Check state and source signal
 
-Call `mcp__archcore__list_documents()`. Derive:
+Two cheap probes, in order. Each can short-circuit the whole skill. Neither reads anything under `lib/`.
+
+#### Step 0(a) — Existing documents
+
+Call `mcp__archcore__list_documents()` once. Derive:
 
 - `has_stack_rule` — any `rule` whose title contains "stack" in `conventions/`.
 - `has_run_guide` — any `guide` whose title contains "run" or "running" in `onboarding/`.
@@ -76,7 +90,22 @@ If `has_stack_rule` AND `has_run_guide` are both true, reply:
 
 Then stop. Per-step idempotency checks (below) handle mode-specific artifacts when the user asks for a selective refresh.
 
-Otherwise proceed to Step 0.5.
+#### Step 0(b) — Source-signal gate (empty-repo early exit)
+
+Single filesystem probe — one shell call, no catalog reads. Detect whether the repository has any executable shape yet:
+
+- **`has_manifest`** — at least one of these exists at the project root (depth ≤ 2 for monorepo workspaces): `package.json`, `pyproject.toml`, `Pipfile`, `requirements.txt`, `Cargo.toml`, `go.mod`, `Gemfile`, `composer.json`, `*.csproj`, `*.fsproj`, `*.vbproj`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `mix.exs`, `Package.swift`.
+- **`has_top_level_source`** — at least one file with a recognizable source extension exists anywhere under the project root, capped at depth 3, excluding `.archcore/`, `.git/`, `node_modules/`, `vendor/`, `dist/`, `build/`, `out/`, `target/`, `coverage/`, `.venv/`, `__pycache__/`, `.next/`, `.turbo/`. Extensions: `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.py`, `.rs`, `.go`, `.rb`, `.php`, `.java`, `.kt`, `.kts`, `.swift`, `.cs`, `.fs`, `.ex`, `.exs`, `.scala`, `.clj`, `.cljs`.
+
+If BOTH are false, take the **empty** route. Reply with exactly:
+
+> Archcore is ready at `.archcore/`. No source code detected yet — nothing to bootstrap.
+>
+> Re-run `/archcore:bootstrap` after the first manifest or source file lands. The SessionStart empty-state nudge will keep pointing here until then.
+
+Then stop. **Do NOT** create placeholder documents (no "no stack selected yet" rule, no "no run command yet" guide). They have no practical value, they cost MCP roundtrips and tokens, and they suppress the SessionStart empty-state nudge — which is the user's primary breadcrumb back to bootstrap once code actually exists.
+
+Otherwise (`has_manifest` OR `has_top_level_source`), proceed to Step 0.5.
 
 ### Step 0.5: Detect scale
 
@@ -299,8 +328,9 @@ Always end with:
 
 Mode-appropriate `.archcore/` seed:
 
+- **Empty**: 0 seeded — `.archcore/` and `settings.json` only. Fast acknowledge + early exit. No catalog files read.
 - **Small**: 2 seeded (`rule`, `guide`) + 3 hotspot proposals.
 - **Medium**: 3 seeded (`rule`, `guide`, entry-point `doc`) + 5 hotspot proposals + ≤ 1 cross-cutting rule candidate.
 - **Large**: 4 seeded (`rule`, `guide`, top-level-map `doc`, entry-point `doc`) + domain selection + 3-per-domain hotspot proposals.
 
-All seeds idempotent. Agent-file import is opt-in and previewed.
+All seeds idempotent. Agent-file import is opt-in and previewed. The empty route never creates placeholder documents — it keeps `.archcore/` functionally empty so the SessionStart nudge continues pointing the user back here.
