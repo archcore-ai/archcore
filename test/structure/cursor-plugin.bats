@@ -2,11 +2,8 @@
 # Structure tests: validate the cursor.mcp.json template shipped at the plugin
 # root. This file is NOT auto-loaded by Cursor — it's a canonical snippet
 # users copy into their own .cursor/mcp.json (or ~/.cursor/mcp.json) when
-# wiring the archcore MCP server. The contract pinned here protects the two
-# fields that prevent cross-project content leakage:
-#   - cwd:                "${workspaceFolder}"
-#   - env.ARCHCORE_CWD:   "${workspaceFolder}"
-# See: .archcore/plugin/cwd-guard-for-cursor-and-claude.idea.md
+# wiring the archcore MCP server. The contract pinned here protects the cwd field
+# which prevents cross-project content leakage when archcore is registered globally.
 
 setup() {
   load '../helpers/common'
@@ -45,18 +42,6 @@ setup() {
     || fail "cwd must be \"\${workspaceFolder}\", got: '$cwd'"
 }
 
-@test "cursor.mcp.json passes ARCHCORE_CWD env (belt-and-braces for hosts that ignore cwd)" {
-  # Claude Code's `cwd` field in .mcp.json is silently ignored
-  # (anthropics/claude-code#17565). The bundled bin/archcore launcher honors
-  # ARCHCORE_CWD in Step 0 — so passing it alongside cwd is a free safety
-  # net if a user copies this template to ~/.claude/.mcp.json or any future
-  # host with similar behavior.
-  local file="$PLUGIN_ROOT/cursor.mcp.json"
-  local env_cwd
-  env_cwd=$(jq -r '.mcpServers.archcore.env.ARCHCORE_CWD // empty' < "$file")
-  [ "$env_cwd" = "\${workspaceFolder}" ] \
-    || fail "env.ARCHCORE_CWD must be \"\${workspaceFolder}\", got: '$env_cwd'"
-}
 
 @test "cursor.mcp.json has only one server defined (no leftover entries)" {
   local file="$PLUGIN_ROOT/cursor.mcp.json"

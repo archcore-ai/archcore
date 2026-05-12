@@ -27,13 +27,8 @@ if [ "$SHOULD_VALIDATE" = false ]; then
   exit 0
 fi
 
-# Use the launcher. ARCHCORE_SKIP_DOWNLOAD=1: this hook runs with a short
-# timeout after every document mutation — never trigger a network download
-# here. If the CLI is not yet cached, validation silently skips; it will run
-# after the next mutation once the launcher has populated the cache (the
-# first MCP tool call does that).
-LAUNCHER="$SCRIPT_DIR/archcore"
-RESULT=$(ARCHCORE_SKIP_DOWNLOAD=1 timeout 2 "$LAUNCHER" doctor 2>&1) || true
+# Use the CLI on PATH with a timeout.
+RESULT=$(timeout 2 archcore doctor 2>&1) || true
 
 # Check if there are issues
 if printf '%s' "$RESULT" | grep -q '✗\|FAIL\|Error'; then

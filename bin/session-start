@@ -1,17 +1,28 @@
 #!/bin/sh
-# SessionStart hook: load archcore context via the plugin launcher.
+# SessionStart hook: load archcore context via the CLI on PATH.
 # Uses normalized stdin — works across Claude Code, Cursor, and other hosts.
-#
-# The launcher handles CLI resolution (ARCHCORE_BIN → PATH → cache → download).
-# We pass ARCHCORE_SKIP_DOWNLOAD=1 so session start never blocks on a network
-# download — if the CLI is not yet cached, the first MCP tool call triggers
-# the download instead. That keeps SessionStart fast and quiet on first use.
 
 SCRIPT_DIR=$(dirname "$0")
 # shellcheck source=lib/normalize-stdin.sh
 . "$SCRIPT_DIR/lib/normalize-stdin.sh"
 
-LAUNCHER="$SCRIPT_DIR/archcore"
+# Check if archcore CLI is available on PATH
+if ! command -v archcore >/dev/null 2>&1; then
+  _msg="[Archcore] CLI not found on PATH. Install it first:
+  macOS: brew install archcore-ai/cli
+  Linux/Go: go install github.com/archcore-ai/cli@latest
+  Then re-run this session."
+  case "$ARCHCORE_HOST" in
+    claude-code|copilot)
+      _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
+      printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}' "$_escaped"
+      ;;
+    *)
+      printf '%s\n' "$_msg"
+      ;;
+  esac
+  exit 0
+fi
 
 # Emit informational context to the agent (structured for Claude Code/Copilot, plain for others).
 _archcore_emit_info() {
@@ -42,9 +53,8 @@ if [ ! -d ".archcore" ]; then
   exit 0
 fi
 
-# Initialized project — run the host-specific session-start hook via launcher.
-# ARCHCORE_SKIP_DOWNLOAD=1 so we never block on network here.
-printf '%s' "$ARCHCORE_RAW_STDIN" | ARCHCORE_SKIP_DOWNLOAD=1 "$LAUNCHER" hooks "$ARCHCORE_HOST" session-start 2>/dev/null || true
+# Initialized project — run the host-specific session-start hook via CLI.
+printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_HOST" session-start 2>/dev/null || true
 
 # Empty-state nudge: .archcore/ exists but carries no substantive documents.
 # Emitted as plain text (follows the staleness-output pattern below) so it

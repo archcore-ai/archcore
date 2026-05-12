@@ -6,9 +6,25 @@ Archcore gives coding agents the architecture, rules, and past decisions of this
 
 It works across sessions, across agents, and across host tools. When your team makes a new decision, Archcore can turn it into a rule the next code change respects.
 
-## Install
+## Prerequisites
 
-No prerequisites. The plugin bundles a launcher that downloads the Archcore CLI on first use (cached between sessions).
+Install the Archcore CLI first:
+
+**macOS:**
+```bash
+brew install archcore-ai/cli
+```
+
+**Linux / Go:**
+```bash
+go install github.com/archcore-ai/cli@latest
+```
+
+Verify: `archcore --version`
+
+Then install the plugin (next section).
+
+## Install
 
 **Claude Code** — inside `claude`:
 
@@ -36,11 +52,8 @@ Cursor reads the repo's `marketplace.json`, shows the plugin, and installs it.
 >
 > The Cursor plugin manifest does not register MCP servers (Cursor manages MCP through `~/.cursor/mcp.json` or `.cursor/mcp.json` instead). You configure `archcore` once, in one of those files. **Always pin the working directory** — otherwise a global registration leaks one project's docs into every other project.
 >
-> **If you've installed the plugin but see `[archcore launcher] Refusing to start MCP` in Cursor's MCP panel:**
-> Copy the template into your Cursor config:
-> 1. Find the installed plugin: **Cursor** → **Extensions** → find **Archcore** → **Copy the path shown** (or use `~/.cursor/plugins/local/archcore`)
-> 2. Open or create `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped)
-> 3. Paste this entire snippet:
+>> **MCP setup:**
+> Open or create `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped) and add:
 >
 > ```json
 > {
@@ -48,25 +61,14 @@ Cursor reads the repo's `marketplace.json`, shows the plugin, and installs it.
 >     "archcore": {
 >       "command": "archcore",
 >       "args": ["mcp"],
->       "cwd": "${workspaceFolder}",
->       "env": { "ARCHCORE_CWD": "${workspaceFolder}" }
+>       "cwd": "${workspaceFolder}"
 >     }
 >   }
 > }
 > ```
 >
-> **Key fields:**
-> - `cwd: "${workspaceFolder}"` — Cursor expands this to the active project root on every server spawn, so each window's MCP attaches to the right `.archcore/`.
-> - `env.ARCHCORE_CWD` — belt-and-braces. If Cursor or another host ever fails to honor `cwd` (Claude Code's `cwd` field is silently ignored, [#17565](https://github.com/anthropics/claude-code/issues/17565)), the bundled `bin/archcore` launcher `cd`s to `$ARCHCORE_CWD` before exec.
-> - `command: "archcore"` — assumes the CLI is on `PATH` (via `curl install.sh`, `go install`, etc.). To use the launcher bundled with the plugin, set `command` to the absolute path: `~/.cursor/plugins/local/archcore/bin/archcore`.
->
-> **Troubleshooting:**
-> - **"Refusing to start MCP"** error in MCP panel? The error message shows the exact path to `cursor.mcp.json` from your installed plugin. Copy that file's contents.
-> - **Per-project config?** Use `.cursor/mcp.json` (in the repo root) instead of `~/.cursor/mcp.json` to avoid one project leaking into others.
-> - **Cursor ignores the config?** This is a known issue (like Claude Code). Workaround: also set `ARCHCORE_CWD` via a shell alias or function in your `.zshrc`/`.bashrc`:
->   ```bash
->   function cursor { env ARCHCORE_CWD="$PWD" command cursor "$@"; }
->   ```
+> - `command: "archcore"` — uses the CLI installed on your PATH (e.g., via `brew install archcore-ai/cli`)
+> - `cwd: "${workspaceFolder}"` — attaches MCP to the active project root on every spawn
 
 **Codex CLI** — requires Codex CLI v0.117.0+ (March 2026 plugin system):
 
@@ -76,10 +78,10 @@ codex
 # then run /plugins, open Archcore, and select Install plugin
 ```
 
-The Codex plugin browser groups plugins by marketplace. After install, start a new Codex thread and use `/archcore:*` slash commands, ask Codex to use Archcore in natural language, or type `@` and choose one of the bundled Archcore skills. MCP is plugin-managed (no manual `codex mcp add`). Codex hooks currently depend on Codex's `codex_hooks` feature/runtime support; enable `[features] codex_hooks = true` if you want Codex to execute the bundled hook guardrails. The launcher caches under `$CODEX_PLUGIN_DATA/archcore/cli/` when Codex provides that data directory, with XDG/local fallbacks for local development.
+The Codex plugin browser groups plugins by marketplace. After install, start a new Codex thread and use `/archcore:*` slash commands, ask Codex to use Archcore in natural language, or type `@` and choose one of the bundled Archcore skills. MCP is plugin-managed (no manual `codex mcp add`).
 
 <details>
-<summary>Local development, offline, enterprise, team rollouts</summary>
+<summary>Local development, team rollouts</summary>
 
 **Claude Code** — load the plugin for the current session:
 
@@ -97,10 +99,6 @@ ln -s /path/to/plugin ~/.cursor/plugins/local/archcore
 Both manifests (`.claude-plugin/plugin.json` and `.cursor-plugin/plugin.json`) live at the repo root.
 
 **Cursor team rollouts** — add the GitHub URL under Dashboard → Settings → Plugins → Team Marketplaces → Import.
-
-**Offline / BYO CLI** — if you already have the Archcore CLI installed (via `curl -fsSL https://archcore.ai/install.sh | bash`, `go install`, etc.), the launcher respects it — a global install on `PATH` wins over the plugin-managed cache.
-
-For fully offline environments: install the CLI manually and set `ARCHCORE_SKIP_DOWNLOAD=1` to disable the launcher's auto-download. Alternatively, set `ARCHCORE_BIN=/abs/path/to/archcore` to pin an explicit binary.
 
 </details>
 

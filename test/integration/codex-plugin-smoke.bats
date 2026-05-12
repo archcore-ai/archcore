@@ -53,7 +53,6 @@ setup() {
   mkdir -p "$installed_root"
   ln -s "$PLUGIN_ROOT/.codex-plugin" "$installed_root/.codex-plugin"
   ln -s "$PLUGIN_ROOT/.codex.mcp.json" "$installed_root/.codex.mcp.json"
-  ln -s "$PLUGIN_ROOT/bin" "$installed_root/bin"
 
   mkdir -p "$TEST_HOME/.codex"
   {
@@ -68,55 +67,5 @@ setup() {
   run env HOME="$TEST_HOME" codex mcp list --json
   assert_success
   assert_output --partial '"archcore"'
-  assert_output --partial '"command": "./bin/archcore"'
-}
-
-@test "installed Codex MCP launcher uses ARCHCORE_CWD and guards plugin-cache cwd" {
-  if ! env PATH="/usr/bin:/bin" ARCHCORE_SKIP_DOWNLOAD=1 "$PLUGIN_ROOT/bin/archcore" --version >/dev/null 2>&1; then
-    skip "archcore CLI cache is not warm; run ./bin/archcore --help once before this smoke test"
-  fi
-
-  local installed_root="$TEST_HOME/.codex/plugins/cache/archcore-plugins/archcore/LOCAL"
-  mkdir -p "$installed_root"
-  ln -s "$PLUGIN_ROOT/.codex-plugin" "$installed_root/.codex-plugin"
-  ln -s "$PLUGIN_ROOT/.codex.mcp.json" "$installed_root/.codex.mcp.json"
-  ln -s "$PLUGIN_ROOT/bin" "$installed_root/bin"
-
-  local user_project="$BATS_TEST_TMPDIR/user-project"
-  mkdir -p "$user_project/.archcore"
-  printf -- '---\ntitle: codex review marker\nstatus: draft\n---\n\nmarker body\n' \
-    > "$user_project/.archcore/codex-review-marker.doc.md"
-
-  local rpc="$BATS_TEST_TMPDIR/list-documents.jsonl"
-  printf '%s\n' \
-    '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"codex-smoke","version":"0"}}}' \
-    '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}' \
-    '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_documents","arguments":{}}}' \
-    > "$rpc"
-
-  run env -i \
-    HOME="$HOME" \
-    PATH="/usr/bin:/bin" \
-    USER="${USER:-}" \
-    LANG="${LANG:-C}" \
-    TERM="${TERM:-xterm}" \
-    TMPDIR="${TMPDIR:-/tmp}" \
-    ARCHCORE_SKIP_DOWNLOAD=1 \
-    ARCHCORE_CWD="$user_project" \
-    sh -c 'cd "$1" && ./bin/archcore mcp < "$2"' sh "$installed_root" "$rpc"
-  assert_success
-  assert_output --partial "codex-review-marker"
-
-  run env -i \
-    HOME="$HOME" \
-    PATH="/usr/bin:/bin" \
-    USER="${USER:-}" \
-    LANG="${LANG:-C}" \
-    TERM="${TERM:-xterm}" \
-    TMPDIR="${TMPDIR:-/tmp}" \
-    ARCHCORE_SKIP_DOWNLOAD=1 \
-    sh -c 'cd "$1" && ./bin/archcore mcp' sh "$installed_root"
-  assert_failure
-  assert_output --partial "Refusing to start MCP from the plugin install dir"
-  assert_output --partial "ARCHCORE_CWD"
+  assert_output --partial '"command": "archcore"'
 }

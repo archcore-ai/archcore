@@ -55,6 +55,25 @@ Each non-empty mode additionally runs hotspot capture-candidate proposal (Step 6
 
 ## Execution
 
+### Pre-flight: CLI availability check
+
+Before any bootstrap step, verify that the Archcore CLI is available on PATH:
+
+1. Run: `archcore --version` (via Bash tool)
+2. If it **succeeds** → proceed immediately to Step -1
+3. If it **fails** (command not found):
+   - Try automated install:
+     - If `brew` exists (macOS): run `brew install archcore-ai/cli`
+     - Else if `go` exists: run `go install github.com/archcore-ai/cli@latest`
+     - Else skip automated install
+   - If install succeeded → print: *"Archcore CLI installed. Proceeding with bootstrap."* → go to Step -1
+   - If install failed OR no installer found:
+     - Print: *"Archcore CLI not found. Install it first:*
+       - *macOS: `brew install archcore-ai/cli`*
+       - *Linux/Go: `go install github.com/archcore-ai/cli@latest`*
+       - *Then re-run `/archcore:bootstrap`."*
+     - Stop.
+
 ### Pre-flight: lazy reading
 
 Bootstrap MUST give the user fast feedback. The detection catalogs under `skills/bootstrap/lib/` are heavy (≥ 350 lines for scale alone) and they are read **lazily**: do NOT open any `lib/*.md` file until you reach the step that explicitly tells you to read it. Step 0 finishes before any `lib/` file is opened.
