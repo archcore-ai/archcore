@@ -1,7 +1,7 @@
 ---
 name: bootstrap
 argument-hint: "[--mode=small|medium|large]"
-description: "First-time onboarding: detect repo scale (small / medium / large) and seed scale-appropriate `.archcore/` documents — stack rule, run guide, entry-point inventory (medium+), top-level domain map (large), hotspot capture candidates, and optional imports from existing agent-instruction files (CLAUDE.md, AGENTS.md, .cursorrules, etc.). Activate when user says 'bootstrap archcore', 'initialize archcore', 'set up archcore', 'seed archcore', 'first-time setup', 'what should I do first', or asks how to start after a fresh install. Do NOT activate for creating individual documents (use /archcore:capture, /archcore:decide, /archcore:standard), for feature planning (use /archcore:plan), for documentation audits (use /archcore:review), or for loading existing context (use /archcore:context)."
+description: "First-time onboarding: detect repo scale (small / medium / large) and seed scale-appropriate `.archcore/` documents — stack rule, run guide, entry-point inventory (medium+), top-level domain map (large), hotspot capture candidates, and optional imports from existing agent-instruction files (CLAUDE.md, AGENTS.md, .cursorrules, etc.). Activate when user says 'bootstrap archcore', 'initialize archcore', 'set up archcore', 'seed archcore', 'first-time setup', 'what should I do first', or asks how to start after a fresh install. Not for: individual docs (use /archcore:capture), decisions (use /archcore:decide), standards (use /archcore:standard), feature planning (use /archcore:plan), audits (use /archcore:review), loading context (use /archcore:context)."
 ---
 
 # /archcore:bootstrap

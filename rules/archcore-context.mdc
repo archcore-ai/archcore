@@ -18,12 +18,6 @@ You have Archcore MCP tools available for managing the `.archcore/` knowledge ba
 - `remove_relation` — unlink documents
 - `list_relations` — query the relation graph
 
-## Document Types
-
-**Knowledge:** adr (decisions), rfc (proposals), rule (standards), guide (how-tos), doc (reference), spec (contracts)
-**Vision:** prd (requirements), idea (concepts), plan (action plans), mrd, brd, urd, brs, strs, syrs, srs
-**Experience:** task-type (recurring patterns), cpat (code pattern changes)
-
 ## Critical Rule
 
 All `.archcore/` document operations MUST go through MCP tools. Never write directly to `.archcore/*.md` files — use `create_document`, `update_document`, or `remove_document` instead. This ensures validation, templates, and the sync manifest stay consistent.

@@ -1,7 +1,7 @@
 ---
 name: standard
 argument-hint: "[standard topic]"
-description: "Establish a team standard end-to-end — creates ADR → rule → guide chain for codifying practices. Activate when user says 'make this a standard', 'establish a convention', 'codify this practice'. Do NOT activate for recording a one-off decision (use /archcore:decide) or feature planning (use /archcore:plan)."
+description: "Establish a team standard end-to-end — creates ADR → rule → guide chain for codifying practices. Activate when user says 'make this a standard', 'establish a convention', 'codify this practice'. Not for: one-off decisions (use /archcore:decide), feature planning (use /archcore:plan)."
 ---
 
 # /archcore:standard

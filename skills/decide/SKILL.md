@@ -1,7 +1,7 @@
 ---
 name: decide
 argument-hint: "[decision topic]"
-description: "Record a decision — finalized (creates ADR, optionally rule + guide) or open proposal for team review (creates RFC). Activate when user says 'we decided', 'record this decision', 'draft an RFC', 'proposing X', 'should we switch to Y'. Do NOT activate for feature planning (use /archcore:plan), documenting existing code (use /archcore:capture), or making a full standard cascade (use /archcore:standard)."
+description: "Record a decision — finalized (creates ADR, optionally rule + guide) or open proposal for team review (creates RFC). Activate when user says 'we decided', 'record this decision', 'draft an RFC', 'proposing X', 'should we switch to Y'. Not for: feature planning (use /archcore:plan), documenting existing code (use /archcore:capture), full standard cascade (use /archcore:standard)."
 ---
 
 # /archcore:decide

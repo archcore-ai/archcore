@@ -1,7 +1,7 @@
 ---
 name: context
 argument-hint: "[file, directory, or topic; leave empty for current-focus pickup]"
-description: "Load the rules, ADRs, specs, and patterns that apply to a code area before changing it — or summarize current project focus when picking up work. Activate when user says 'what rules apply to X', 'what should I know before touching Y', 'before I refactor Z', 'pick up where we left off', 'where is the payments work right now', 'what was I working on in X', 'load project context', 'show me the decisions/rules/specs for X'. Do NOT activate for creating documentation (use /archcore:capture, /archcore:decide, /archcore:standard), for feature planning (use /archcore:plan), for detecting stale docs (use /archcore:actualize), for health audits or current-state counts (use /archcore:review)."
+description: "Load the rules, ADRs, specs, and patterns that apply to a code area before changing it — or summarize current project focus when picking up work. Activate when user says 'what rules apply to X', 'what should I know before touching Y', 'before I refactor Z', 'pick up where we left off', 'where is the payments work right now', 'what was I working on in X', 'load project context', 'show me the decisions/rules/specs for X'. Not for: creating docs (use /archcore:capture, /archcore:decide, /archcore:standard), feature planning (use /archcore:plan), staleness (use /archcore:actualize), health audits (use /archcore:review)."
 ---
 
 # /archcore:context
