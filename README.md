@@ -48,27 +48,7 @@ claude plugin install archcore@archcore-plugins
 
 Cursor reads the repo's `marketplace.json`, shows the plugin, and installs it.
 
-> **Cursor: project-scoped MCP setup (important)**
->
-> The Cursor plugin manifest does not register MCP servers (Cursor manages MCP through `~/.cursor/mcp.json` or `.cursor/mcp.json` instead). You configure `archcore` once, in one of those files. **Always pin the working directory** — otherwise a global registration leaks one project's docs into every other project.
->
->> **MCP setup:**
-> Open or create `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped) and add:
->
-> ```json
-> {
->   "mcpServers": {
->     "archcore": {
->       "command": "archcore",
->       "args": ["mcp"],
->       "cwd": "${workspaceFolder}"
->     }
->   }
-> }
-> ```
->
-> - `command: "archcore"` — uses the CLI installed on your PATH (see [install docs](https://docs.archcore.ai/cli/install/))
-> - `cwd: "${workspaceFolder}"` — attaches MCP to the active project root on every spawn
+> **Cursor MCP setup (one-time).** The Cursor plugin manifest can't register MCP servers, so copy [`cursor.mcp.json`](cursor.mcp.json) into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped). The template pins `cwd: "${workspaceFolder}"` — keep it, otherwise a global registration leaks one project's docs into every other project.
 
 **Codex CLI** — requires Codex CLI v0.117.0+ (March 2026 plugin system):
 
