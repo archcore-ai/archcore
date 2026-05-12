@@ -239,7 +239,8 @@ MOCK
 
   run sh -c "cd '$start' && PATH='$MOCK_BIN:/usr/bin:/bin' ARCHCORE_CWD='$BATS_TEST_TMPDIR/does-not-exist' '$PLUGIN_ROOT/bin/archcore' anything"
   assert_success
-  assert_output "$start"
+  assert_output --partial "ARCHCORE_CWD is set but is not a directory"
+  assert_output --partial "$start"
 }
 
 @test "launcher is a no-op when \$ARCHCORE_CWD is unset" {
@@ -582,4 +583,206 @@ MOCK
   run sh -c "cd '$proj' && PATH='$MOCK_BIN:/usr/bin:/bin' '$PLUGIN_ROOT/bin/archcore' doctor 2>&1 1>/dev/null"
   assert_success
   refute_output --partial "[archcore mcp]"
+}
+
+# --- Additional Step 0c coverage: filesystem root, all project markers, HOME with markers ---
+
+@test "sanity guard: refuses mcp when cwd is filesystem root (/)" {
+  run sh -c "cd / && PATH='/usr/bin:/bin' ARCHCORE_SKIP_DOWNLOAD=1 '$PLUGIN_ROOT/bin/archcore' mcp 2>&1"
+  assert_failure
+  assert_output --partial "Refusing to start MCP"
+  assert_output --partial "filesystem root"
+}
+
+@test "sanity guard: passes mcp when cwd has go.mod marker" {
+  local proj="$BATS_TEST_TMPDIR/proj-go"
+  mkdir -p "$proj"
+  : > "$proj/go.mod"
+
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+printf 'go-ok\n'
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  run sh -c "cd '$proj' && PATH='$MOCK_BIN:/usr/bin:/bin' '$PLUGIN_ROOT/bin/archcore' mcp 2>/dev/null"
+  assert_success
+  assert_output "go-ok"
+}
+
+@test "sanity guard: passes mcp when cwd has pyproject.toml marker" {
+  local proj="$BATS_TEST_TMPDIR/proj-python"
+  mkdir -p "$proj"
+  : > "$proj/pyproject.toml"
+
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+printf 'python-ok\n'
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  run sh -c "cd '$proj' && PATH='$MOCK_BIN:/usr/bin:/bin' '$PLUGIN_ROOT/bin/archcore' mcp 2>/dev/null"
+  assert_success
+  assert_output "python-ok"
+}
+
+@test "sanity guard: passes mcp when cwd has Cargo.toml marker" {
+  local proj="$BATS_TEST_TMPDIR/proj-rust"
+  mkdir -p "$proj"
+  : > "$proj/Cargo.toml"
+
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+printf 'rust-ok\n'
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  run sh -c "cd '$proj' && PATH='$MOCK_BIN:/usr/bin:/bin' '$PLUGIN_ROOT/bin/archcore' mcp 2>/dev/null"
+  assert_success
+  assert_output "rust-ok"
+}
+
+@test "sanity guard: passes mcp when cwd has pom.xml marker" {
+  local proj="$BATS_TEST_TMPDIR/proj-maven"
+  mkdir -p "$proj"
+  : > "$proj/pom.xml"
+
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+printf 'maven-ok\n'
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  run sh -c "cd '$proj' && PATH='$MOCK_BIN:/usr/bin:/bin' '$PLUGIN_ROOT/bin/archcore' mcp 2>/dev/null"
+  assert_success
+  assert_output "maven-ok"
+}
+
+@test "sanity guard: passes mcp when cwd has build.gradle marker" {
+  local proj="$BATS_TEST_TMPDIR/proj-gradle"
+  mkdir -p "$proj"
+  : > "$proj/build.gradle"
+
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+printf 'gradle-ok\n'
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  run sh -c "cd '$proj' && PATH='$MOCK_BIN:/usr/bin:/bin' '$PLUGIN_ROOT/bin/archcore' mcp 2>/dev/null"
+  assert_success
+  assert_output "gradle-ok"
+}
+
+@test "sanity guard: passes mcp when cwd has build.gradle.kts marker" {
+  local proj="$BATS_TEST_TMPDIR/proj-gradle-kotlin"
+  mkdir -p "$proj"
+  : > "$proj/build.gradle.kts"
+
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+printf 'gradle-kotlin-ok\n'
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  run sh -c "cd '$proj' && PATH='$MOCK_BIN:/usr/bin:/bin' '$PLUGIN_ROOT/bin/archcore' mcp 2>/dev/null"
+  assert_success
+  assert_output "gradle-kotlin-ok"
+}
+
+@test "sanity guard: HOME with .git marker is still refused" {
+  local fake_home="$BATS_TEST_TMPDIR/fake-home-with-git"
+  mkdir -p "$fake_home"
+  : > "$fake_home/.git"
+
+  run sh -c "cd '$fake_home' && HOME='$fake_home' PATH='/usr/bin:/bin' ARCHCORE_SKIP_DOWNLOAD=1 '$PLUGIN_ROOT/bin/archcore' mcp 2>&1"
+  assert_failure
+  assert_output --partial "Refusing to start MCP"
+  assert_output --partial "\$HOME"
+}
+
+# --- CURSOR_PLUGIN_ROOT interactions ---
+
+@test "sanity guard: refuses mcp when cwd == CURSOR_PLUGIN_ROOT and cwd has .git" {
+  local plugin_root="$BATS_TEST_TMPDIR/fake-cursor-plugin"
+  mkdir -p "$plugin_root"
+  cd "$plugin_root" && git init -q
+
+  run sh -c "cd '$plugin_root' && CURSOR_PLUGIN_ROOT='$plugin_root' PATH='/usr/bin:/bin' ARCHCORE_SKIP_DOWNLOAD=1 '$PLUGIN_ROOT/bin/archcore' mcp 2>&1"
+  assert_failure
+  assert_output --partial "Refusing to start MCP"
+  assert_output --partial "CURSOR_PLUGIN_ROOT"
+}
+
+@test "sanity guard: CURSOR_PLUGIN_ROOT set but cwd is different valid project — passes" {
+  local other_root="$BATS_TEST_TMPDIR/other-cursor-plugin"
+  local proj="$BATS_TEST_TMPDIR/proj-cursor-other"
+  mkdir -p "$other_root" "$proj"
+  : > "$proj/.git"
+
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+printf 'cursor-other-ok\n'
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  run sh -c "cd '$proj' && CURSOR_PLUGIN_ROOT='$other_root' PATH='$MOCK_BIN:/usr/bin:/bin' '$PLUGIN_ROOT/bin/archcore' mcp 2>/dev/null"
+  assert_success
+  assert_output "cursor-other-ok"
+}
+
+@test "ARCHCORE_CWD + CURSOR_PLUGIN_ROOT: redirected cwd passes guard" {
+  local cursor_root="$BATS_TEST_TMPDIR/cursor-plugin-with-git"
+  local target_proj="$BATS_TEST_TMPDIR/target-proj-cursor"
+  mkdir -p "$cursor_root" "$target_proj"
+  : > "$cursor_root/.git"
+  : > "$target_proj/.git"
+
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+printf 'archcore-cwd-rebase-ok\n'
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  run sh -c "cd '$cursor_root' && ARCHCORE_CWD='$target_proj' CURSOR_PLUGIN_ROOT='$cursor_root' PATH='$MOCK_BIN:/usr/bin:/bin' '$PLUGIN_ROOT/bin/archcore' mcp 2>/dev/null"
+  assert_success
+  assert_output "archcore-cwd-rebase-ok"
+}
+
+# --- ARCHCORE_CWD edge cases ---
+
+@test "ARCHCORE_CWD set to an existing file (not dir) — warns and keeps inherited cwd" {
+  local proj="$BATS_TEST_TMPDIR/proj-cwd-file"
+  local bad_file="$BATS_TEST_TMPDIR/bad-cwd-file"
+  mkdir -p "$proj"
+  : > "$proj/.git"
+  : > "$bad_file"
+
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+exit 0
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  run sh -c "cd '$proj' && ARCHCORE_CWD='$bad_file' PATH='$MOCK_BIN:/usr/bin:/bin' '$PLUGIN_ROOT/bin/archcore' doctor 2>&1 1>/dev/null"
+  assert_success
+  assert_output --partial "ARCHCORE_CWD is set but is not a directory"
+  assert_output --partial "$bad_file"
+}
+
+@test "ARCHCORE_CWD set to nonexistent path — silently ignored (no warning)" {
+  local proj="$BATS_TEST_TMPDIR/proj-cwd-nonexistent"
+  mkdir -p "$proj"
+  : > "$proj/.git"
+
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+printf 'no-warn-ok\n'
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  run sh -c "cd '$proj' && ARCHCORE_CWD='/does/not/exist/xyz' PATH='$MOCK_BIN:/usr/bin:/bin' '$PLUGIN_ROOT/bin/archcore' mcp 2>/dev/null"
+  assert_success
+  assert_output "no-warn-ok"
+  refute_output --partial "is not a directory"
 }

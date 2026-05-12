@@ -99,3 +99,19 @@ $output"
 @test "validate-archcore uses launcher" {
   grep -q '"\$LAUNCHER"' "$PLUGIN_ROOT/bin/validate-archcore"
 }
+
+@test ".mcp.json intentionally has no cwd field (Claude Code ignores it)" {
+  # Absence is the contract. Claude Code silently ignores cwd field in .mcp.json
+  # (anthropics/claude-code#17565). A cwd field would be misleading — it would
+  # have no effect. Absence documents this and prevents future confusion.
+  run jq -e '.mcpServers.archcore | has("cwd")' < "$PLUGIN_ROOT/.mcp.json"
+  assert_failure
+}
+
+@test ".mcp.json intentionally has no env.ARCHCORE_CWD (Claude Code cannot pass it)" {
+  # ARCHCORE_CWD cannot be injected via plugin manifest for Claude Code — the
+  # launcher's Step 0 would have nothing to cd to. The documented fix is to
+  # launch `claude` from the project directory. Absence here is intentional.
+  run jq -e '.mcpServers.archcore.env.ARCHCORE_CWD' < "$PLUGIN_ROOT/.mcp.json"
+  assert_failure
+}

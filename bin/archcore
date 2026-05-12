@@ -47,8 +47,13 @@ SELF="$SCRIPT_DIR/archcore"
 #
 #   # bash/zsh: ~/.bashrc / ~/.zshrc
 #   codex() { ARCHCORE_CWD="$PWD" command codex "$@"; }
-if [ -n "${ARCHCORE_CWD:-}" ] && [ -d "$ARCHCORE_CWD" ]; then
-  cd "$ARCHCORE_CWD" 2>/dev/null || true
+if [ -n "${ARCHCORE_CWD:-}" ]; then
+  if [ -d "$ARCHCORE_CWD" ]; then
+    cd "$ARCHCORE_CWD" 2>/dev/null || true
+  else
+    printf '[archcore launcher] ARCHCORE_CWD is set but is not a directory: %s (ignored)\n' \
+      "$ARCHCORE_CWD" >&2
+  fi
 fi
 
 # Resolve the bypass flag once. ARCHCORE_ALLOW_ANY_CWD is the canonical name
