@@ -13,14 +13,13 @@ tags:
 - bats-core for tests (`brew install bats-core` on macOS)
 - jq for JSON validation (`brew install jq`)
 - ShellCheck (optional, `brew install shellcheck`)
+- **Archcore CLI** installed globally: `brew install archcore-ai/cli` (macOS) or `go install github.com/archcore-ai/cli@latest` (Linux/Go)
 
-That's it for developing against the plugin. The Archcore CLI is **not** a prerequisite — the plugin bundles a launcher (`bin/archcore{,.cmd,.ps1}`) that resolves the CLI on first use (from `$ARCHCORE_BIN`, `PATH`, a plugin-managed cache, or a checksum-verified download). MCP is registered automatically for Claude Code via plugin-root `.mcp.json`, and for Codex CLI via `.codex-plugin/plugin.json` pointing at plugin-root `.codex.mcp.json`.
+That's it. The plugin no longer bundles a launcher — it assumes users have the Archcore CLI installed globally on PATH. MCP is registered automatically for Claude Code via plugin-root `.mcp.json`, and for Codex CLI via `.codex-plugin/plugin.json` pointing at plugin-root `.codex.mcp.json`.
 
-For Cursor development, you still register MCP externally (via Cursor's MCP settings or a project `mcp.json`). Point Cursor's MCP config at `${CURSOR_PLUGIN_ROOT}/bin/archcore` with args `["mcp"]`, or at a globally-installed `archcore`.
+For Cursor development, you still register MCP externally (via Cursor's MCP settings or a project `mcp.json`). Point Cursor's MCP config at `archcore` (resolved via PATH) with args `["mcp"]`, or use the bundled `cursor.mcp.json` template.
 
 For Codex development, `codex plugin marketplace add /path/to/plugin` registers the marketplace. The current CLI loads enabled plugins from its installed plugin cache; run `make test-codex-smoke` for the local installed-cache smoke that verifies skill discovery and plugin-managed MCP.
-
-If you want to run the MCP server against a pre-existing global install or a locally-built CLI, set `ARCHCORE_BIN=/abs/path/to/archcore` — the launcher will use that binary and skip the cache/download path.
 
 Initialize a project for testing with `mcp__archcore__init_project` (via a Claude Code or Cursor session) rather than an out-of-band CLI command; the plugin routes initialization through MCP.
 
@@ -97,7 +96,7 @@ Hook scripts go in `bin/` and must:
 - Be executable (`chmod +x`)
 - Source `bin/lib/normalize-stdin.sh` if they read hook stdin
 - Add `# shellcheck source=lib/normalize-stdin.sh` before the source line
-- Invoke the CLI through `"$SCRIPT_DIR/archcore"` (the launcher) rather than a bare `archcore`, so the resolution order (ARCHCORE_BIN → PATH → cache → download) applies
+- Invoke the CLI directly as `archcore` (resolved via PATH), not via a launcher wrapper
 
 Each host's hook config uses its host's canonical plugin-root env var:
 
@@ -105,7 +104,7 @@ Each host's hook config uses its host's canonical plugin-root env var:
 - `${CURSOR_PLUGIN_ROOT}` — Cursor's native injection (`hooks/cursor.hooks.json`).
 - `${PLUGIN_ROOT}` — Codex CLI's canonical, host-neutral env var (`hooks/codex.hooks.json`). Codex's hooks engine (`codex-rs/hooks/src/engine/discovery.rs`) injects `PLUGIN_ROOT` as the canonical name; `CLAUDE_PLUGIN_ROOT` is also injected but only as a backward-compat alias for porting old Claude plugins — do NOT use it in a Codex-native hook config. `CODEX_PLUGIN_ROOT` does not exist in Codex.
 
-Plugin-shipped Codex hooks require `codex features enable plugin_hooks` to actually fire (the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0). See `plugin/codex-path-resolution.adr.md` for the full mechanism (MCP `cwd` rebase vs hook `${PLUGIN_ROOT}` substitution).
+Plugin-shipped Codex hooks require `codex features enable plugin_hooks` to actually fire (the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0). See `codex-path-resolution.adr.md` for the full mechanism (Codex MCP and hook resolution).
 
 ### 5. Modify agents
 
@@ -128,7 +127,7 @@ Or run individual checks:
 
 ```bash
 make test           # all bats tests
-make test-unit      # unit tests (bin script logic, incl. launcher.bats)
+make test-unit      # unit tests (bin script logic)
 make test-structure # structure tests (configs, frontmatter)
 make lint           # shellcheck
 make check-json     # JSON validity
@@ -145,19 +144,9 @@ See `plugin-testing.guide.md` for detailed testing instructions.
 - Commands: run each `/archcore:<name>` command (in all three hosts where applicable) and verify behavior — Codex pulls these from `commands/`, Claude Code and Cursor pull them from `skills/`
 - Agent: invoke the agent on a multi-document task
 - Hooks: trigger Write/Edit on `.archcore/` and verify PreToolUse blocks it
-- Launcher: temporarily unset `ARCHCORE_BIN`, remove the cached binary, and confirm the next MCP call downloads and caches the CLI without prompting
-- For Codex: from a directory **outside** the plugin source repo (e.g., `cd $(mktemp -d)`), call any `mcp__archcore__*` tool and verify the MCP starts. The `cwd: "."` rebase in `.codex.mcp.json` is what makes this work; if it's missing the MCP fails with ENOENT outside the plugin source dir.
+- MCP availability: ensure `archcore` is on PATH and `archcore --version` works
+- For Codex: from a directory **outside** the plugin source repo (e.g., `cd $(mktemp -d)`), call any `mcp__archcore__*` tool and verify the MCP starts.
 - Verify: `/archcore:verify`
-
-### 8. Bumping the bundled CLI version
-
-When you want the plugin to pull in a new Archcore CLI release:
-
-1. Edit `bin/CLI_VERSION` — replace with the new semver (e.g., `0.1.7`).
-2. Run `make verify` — the structure tests confirm all launcher scripts still reference the file correctly.
-3. Manually exercise the launcher: unset `ARCHCORE_BIN`, delete the cached `archcore-v<old>` binary, trigger an MCP call. Confirm the new binary downloads, verifies, caches, and runs.
-
-No other changes required — the cache is version-keyed by filename so old binaries don't need explicit eviction.
 
 ## Verification
 
@@ -166,8 +155,8 @@ No other changes required — the cache is version-keyed by filename so old bina
 - `/help` lists all `/archcore:*` commands
 - `/agents` lists `archcore-assistant` and `archcore-auditor`
 - Writing to `.archcore/*.md` via Write/Edit is blocked with a redirect message
-- A fresh install (no global `archcore`, no cache) resolves a CLI binary on first MCP call
-- For Codex: `codex mcp get archcore` shows `cwd` pointing into the plugin install cache (not a dash); MCP tools work from any project directory
+- `archcore --version` works (CLI is on PATH or installed globally)
+- For all hosts: MCP tools work from any project directory (the CLI resolves via PATH)
 
 ## Common Issues
 
@@ -202,6 +191,7 @@ No other changes required — the cache is version-keyed by filename so old bina
 
 - Run `git submodule update --init` if bats helpers are missing
 - On macOS, the test suite provides a `timeout` shim automatically
+- Ensure `archcore` CLI is installed on PATH (`archcore --version`)
 - See `plugin-testing.guide.md` for detailed troubleshooting
 
 ### MCP server not connecting (Claude Code / Codex CLI)
@@ -209,13 +199,10 @@ No other changes required — the cache is version-keyed by filename so old bina
 The plugin ships `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI. Diagnose in this order:
 
 1. **Plugin loaded?** — `/plugin` (Claude Code) or `codex mcp list --json` (Codex CLI) should show `archcore`. If `.mcp.json`, `.codex.mcp.json`, or the Codex `mcpServers` pointer was modified or removed, the MCP server won't register; restore it from git.
-2. **Codex MCP fails with `os error 2` from a project dir?** — verify `.codex.mcp.json` has `"cwd": "."`. Codex's `normalize_plugin_mcp_server_value` rebases the relative cwd to the plugin install root; without it, the spawn happens from the user's project CWD and `./bin/archcore` doesn't exist there. `codex mcp get archcore` should show an absolute `cwd` path under `~/.codex/plugins/cache/...` — not a dash.
-3. **Launcher resolves?** — run `bin/archcore --version` from the plugin root. Expected: prints a version. Errors indicate:
-   - Missing `bin/CLI_VERSION` → restore from git.
-   - Network failure on first run → re-run with network, or set `ARCHCORE_BIN=/abs/path/to/archcore` to bypass download.
-   - Checksum mismatch → corrupt download; delete the cache dir and retry.
-4. **Duplicate suppression?** — if `/plugin` shows "Errors (1)" with an `archcore` MCP message, a user- or project-registered `archcore` has the same command. This is benign; the resolved binary is the same either way. To silence the warning, remove the redundant user/project registration.
-5. **Using a custom CLI?** — if `ARCHCORE_BIN` is set but points at a non-existent or non-executable path, the launcher falls back to PATH/cache/download. Check the path and permissions.
+2. **CLI available?** — run `archcore --version` from the terminal. Expected: prints a version.
+   - Not found? → Install: `brew install archcore-ai/cli` (macOS) or `go install github.com/archcore-ai/cli@latest` (Linux)
+   - Permission denied? → Check that the CLI binary is executable
+3. **Duplicate suppression?** — if `/plugin` shows "Errors (1)" with an `archcore` MCP message, a user- or project-registered `archcore` has the same command. This is benign; the resolved binary is the same either way. To silence the warning, remove the redundant user/project registration.
 
 ### MCP server not connecting (Cursor)
 
@@ -225,11 +212,12 @@ Cursor does not auto-register the plugin's MCP. Configure it in Cursor's MCP set
 {
   "mcpServers": {
     "archcore": {
-      "command": "/abs/path/to/plugin/bin/archcore",
-      "args": ["mcp"]
+      "command": "archcore",
+      "args": ["mcp"],
+      "cwd": "${workspaceFolder}"
     }
   }
 }
 ```
 
-Alternatively, install the CLI globally and point `command` at `archcore`. In both cases the launcher / resolved binary is the same.
+Alternatively, use the bundled `cursor.mcp.json` template as a reference. The key requirement: `cwd: "${workspaceFolder}"` ensures the MCP operates on the active project, not some other directory.
