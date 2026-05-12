@@ -160,8 +160,13 @@ if [ "${1:-}" = "mcp" ] && [ "$_archcore_allow_any_cwd" != "1" ]; then
     printf '  The archcore MCP server reads .archcore/ relative to its cwd. Wrong cwd = wrong project.\n' >&2
     printf '  Fix one of:\n' >&2
     # shellcheck disable=SC2016  # literal Cursor placeholder ${workspaceFolder}; not a shell var
-    printf '    Cursor:  in .cursor/mcp.json (or ~/.cursor/mcp.json), add  "cwd": "${workspaceFolder}"  to the archcore entry.\n' >&2
-    printf '             See README "Cursor: project-scoped MCP setup" for the full snippet.\n' >&2
+    printf '    Cursor:  Copy the template from the installed plugin into .cursor/mcp.json:\n' >&2
+    if [ -n "${CURSOR_PLUGIN_ROOT:-}" ] && [ -d "$CURSOR_PLUGIN_ROOT" ]; then
+      printf '             %s/cursor.mcp.json\n' "$CURSOR_PLUGIN_ROOT" >&2
+    else
+      printf '             ~/.cursor/plugins/local/archcore/cursor.mcp.json  (or find plugin root and copy its cursor.mcp.json)\n' >&2
+    fi
+    printf '             It contains:  "cwd": "${workspaceFolder}"\n' >&2
     # shellcheck disable=SC2016  # literal backticks around `claude` / `cwd` for user-facing prose
     printf '    Claude:  start `claude` from your project directory — Claude Code ignores the `cwd` mcp field.\n' >&2
     # shellcheck disable=SC2016  # literal shell snippet; do not expand $PWD/$argv here
