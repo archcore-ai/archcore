@@ -51,6 +51,15 @@ if [ -n "${ARCHCORE_CWD:-}" ] && [ -d "$ARCHCORE_CWD" ]; then
   cd "$ARCHCORE_CWD" 2>/dev/null || true
 fi
 
+# Resolve the bypass flag once. ARCHCORE_ALLOW_ANY_CWD is the canonical name
+# covering both legacy Codex cache-cwd guard (0b) and the cross-host sanity
+# guard (0c). ARCHCORE_ALLOW_PLUGIN_CWD is kept as a back-compat alias —
+# anyone already setting it for the old guard keeps working.
+_archcore_allow_any_cwd=0
+if [ "${ARCHCORE_ALLOW_ANY_CWD:-0}" = "1" ] || [ "${ARCHCORE_ALLOW_PLUGIN_CWD:-0}" = "1" ]; then
+  _archcore_allow_any_cwd=1
+fi
+
 # --- 0b. Guard: refuse to start MCP from this plugin's install dir ---
 #
 # Without a shell wrapper that sets ARCHCORE_CWD, Codex spawns the MCP child
@@ -69,10 +78,9 @@ fi
 # Step 0 (above) has already cd'd to $ARCHCORE_CWD when set, so reaching
 # here with cache cwd means the wrapper was not installed.
 #
-# Escape hatch: set ARCHCORE_ALLOW_PLUGIN_CWD=1 to bypass (only for plugin
-# maintainers running MCP against the plugin's own docs intentionally).
+# Escape hatch: ARCHCORE_ALLOW_ANY_CWD=1 (or legacy ARCHCORE_ALLOW_PLUGIN_CWD=1).
 if [ "${1:-}" = "mcp" ] \
-   && [ "${ARCHCORE_ALLOW_PLUGIN_CWD:-0}" != "1" ] \
+   && [ "$_archcore_allow_any_cwd" != "1" ] \
    && [ -f .codex-plugin/plugin.json ] \
    && [ -f .codex.mcp.json ] \
    && [ -f bin/archcore ]
@@ -91,6 +99,91 @@ then
       exit 1
       ;;
   esac
+fi
+
+# --- 0c. Cross-host sanity guard: cwd must look like a user project ---
+#
+# Cursor and Claude Code spawn stdio MCP servers with cwd inherited from the
+# host process. That cwd can be wrong in several real-world ways:
+#   - global ~/.cursor/mcp.json registers archcore without `cwd:
+#     "${workspaceFolder}"` → first workspace folder leaks into every project
+#   - Claude Code's `cwd` field in .mcp.json is silently ignored
+#     (anthropics/claude-code#17565)
+#   - host launched from $HOME or the plugin install dir
+#
+# The archcore CLI uses os.Getwd() to find `.archcore/` (no --root flag, no
+# env override on CLI side). Silent wrong-cwd = silent wrong project — the
+# exact failure mode this guard exists to prevent.
+#
+# Refuse when:
+#   - subcommand is `mcp`
+#   - bypass not set (ARCHCORE_ALLOW_ANY_CWD / ARCHCORE_ALLOW_PLUGIN_CWD)
+#   - cwd matches one of the hard-bad locations, OR has no project marker
+#
+# Project markers checked: .git, .archcore, package.json, go.mod,
+# pyproject.toml, Cargo.toml, pom.xml, build.gradle, build.gradle.kts.
+# Anything else (Makefile, README.md, etc.) is too generic to count.
+if [ "${1:-}" = "mcp" ] && [ "$_archcore_allow_any_cwd" != "1" ]; then
+  _cwd=$(pwd -P)
+  _refuse=0
+  _refuse_reason=""
+
+  if [ "$_cwd" = "/" ]; then
+    _refuse=1; _refuse_reason="cwd is the filesystem root (/)"
+  elif [ -n "${HOME:-}" ] \
+       && [ -d "$HOME" ] \
+       && [ "$_cwd" = "$(cd "$HOME" 2>/dev/null && pwd -P)" ]; then
+    _refuse=1; _refuse_reason="cwd is \$HOME ($HOME) — not a project root"
+  elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] \
+       && [ -d "$CLAUDE_PLUGIN_ROOT" ] \
+       && [ "$_cwd" = "$(cd "$CLAUDE_PLUGIN_ROOT" 2>/dev/null && pwd -P)" ]; then
+    _refuse=1; _refuse_reason="cwd is \$CLAUDE_PLUGIN_ROOT — the plugin install dir, not your project"
+  elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ] \
+       && [ -d "$CURSOR_PLUGIN_ROOT" ] \
+       && [ "$_cwd" = "$(cd "$CURSOR_PLUGIN_ROOT" 2>/dev/null && pwd -P)" ]; then
+    _refuse=1; _refuse_reason="cwd is \$CURSOR_PLUGIN_ROOT — the plugin install dir, not your project"
+  elif [ ! -e .git ] \
+       && [ ! -d .archcore ] \
+       && [ ! -f package.json ] \
+       && [ ! -f go.mod ] \
+       && [ ! -f pyproject.toml ] \
+       && [ ! -f Cargo.toml ] \
+       && [ ! -f pom.xml ] \
+       && [ ! -f build.gradle ] \
+       && [ ! -f build.gradle.kts ]; then
+    _refuse=1; _refuse_reason="cwd has no project markers (.git, .archcore, package.json, go.mod, pyproject.toml, Cargo.toml, pom.xml, build.gradle)"
+  fi
+
+  if [ "$_refuse" = "1" ]; then
+    printf '[archcore launcher] Refusing to start MCP — %s.\n' "$_refuse_reason" >&2
+    printf '  cwd: %s\n' "$_cwd" >&2
+    printf '  The archcore MCP server reads .archcore/ relative to its cwd. Wrong cwd = wrong project.\n' >&2
+    printf '  Fix one of:\n' >&2
+    # shellcheck disable=SC2016  # literal Cursor placeholder ${workspaceFolder}; not a shell var
+    printf '    Cursor:  in .cursor/mcp.json (or ~/.cursor/mcp.json), add  "cwd": "${workspaceFolder}"  to the archcore entry.\n' >&2
+    printf '             See README "Cursor: project-scoped MCP setup" for the full snippet.\n' >&2
+    # shellcheck disable=SC2016  # literal backticks around `claude` / `cwd` for user-facing prose
+    printf '    Claude:  start `claude` from your project directory — Claude Code ignores the `cwd` mcp field.\n' >&2
+    # shellcheck disable=SC2016  # literal shell snippet; do not expand $PWD/$argv here
+    printf '    Codex:   install the shell wrapper:  codex() { ARCHCORE_CWD="$PWD" command codex "$@"; }\n' >&2
+    printf '  Escape hatch (only if you know cwd is correct):  ARCHCORE_ALLOW_ANY_CWD=1\n' >&2
+    exit 1
+  fi
+fi
+
+# --- Diagnostic: one-line stderr log of the resolved cwd for MCP starts ---
+#
+# Surfaces in Cursor's MCP server panel and Claude Code's `/mcp` output, so
+# users can verify at a glance which project the server actually attached to.
+if [ "${1:-}" = "mcp" ]; then
+  _cwd_log=$(pwd -P)
+  if [ -d "$_cwd_log/.archcore" ]; then
+    _archcore_state="exists"
+  else
+    _archcore_state="missing"
+  fi
+  printf '[archcore mcp] cwd=%s archcore_dir=%s/.archcore (%s)\n' \
+    "$_cwd_log" "$_cwd_log" "$_archcore_state" >&2
 fi
 
 # --- 1. $ARCHCORE_BIN override ---

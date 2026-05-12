@@ -6,7 +6,8 @@ ALL_SCRIPTS := $(BIN_SCRIPTS) $(LIB_SCRIPTS)
 JSON_FILES := .claude-plugin/plugin.json .claude-plugin/marketplace.json \
               .cursor-plugin/plugin.json .cursor-plugin/marketplace.json \
               .codex-plugin/plugin.json .codex.mcp.json .agents/plugins/marketplace.json \
-              hooks/hooks.json hooks/cursor.hooks.json hooks/codex.hooks.json .mcp.json
+              hooks/hooks.json hooks/cursor.hooks.json hooks/codex.hooks.json \
+              .mcp.json cursor.mcp.json
 
 .PHONY: test test-codex-smoke lint check-json check-perms verify all
 

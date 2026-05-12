@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "archcore": {
+      "command": "archcore",
+      "args": ["mcp"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "ARCHCORE_CWD": "${workspaceFolder}"
+      }
+    }
+  }
+}
