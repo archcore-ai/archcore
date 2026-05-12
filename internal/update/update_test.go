@@ -2,6 +2,7 @@ package update
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -246,6 +247,8 @@ func TestArchiveName(t *testing.T) {
 	}{
 		{"darwin arm64", "archcore", "darwin", "arm64", "archcore_darwin_arm64.tar.gz"},
 		{"linux amd64", "archcore", "linux", "amd64", "archcore_linux_amd64.tar.gz"},
+		{"windows amd64", "archcore", "windows", "amd64", "archcore_windows_amd64.zip"},
+		{"windows arm64", "archcore", "windows", "arm64", "archcore_windows_arm64.zip"},
 	}
 
 	for _, tt := range tests {
@@ -260,22 +263,23 @@ func TestArchiveName(t *testing.T) {
 
 func TestParseSemver(t *testing.T) {
 	tests := []struct {
+		name    string
 		input   string
 		want    []int
 		wantPre string
 	}{
-		{"1.2.3", []int{1, 2, 3}, ""},
-		{"0.0.1", []int{0, 0, 1}, ""},
-		{"10.20.30", []int{10, 20, 30}, ""},
-		{"1.2.3-alpha.1", []int{1, 2, 3}, "alpha.1"},
-		{"0.0.1-beta.2", []int{0, 0, 1}, "beta.2"},
-		{"invalid", nil, ""},
-		{"1.2", nil, ""},
-		{"1.2.x", nil, ""},
+		{"simple", "1.2.3", []int{1, 2, 3}, ""},
+		{"zeroes", "0.0.1", []int{0, 0, 1}, ""},
+		{"multi-digit", "10.20.30", []int{10, 20, 30}, ""},
+		{"alpha pre-release", "1.2.3-alpha.1", []int{1, 2, 3}, "alpha.1"},
+		{"beta pre-release", "0.0.1-beta.2", []int{0, 0, 1}, "beta.2"},
+		{"non-numeric", "invalid", nil, ""},
+		{"too few parts", "1.2", nil, ""},
+		{"non-integer patch", "1.2.x", nil, ""},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			got, gotPre := parseSemver(tt.input)
 			if tt.want == nil {
 				if got != nil {
@@ -512,7 +516,9 @@ func TestApply_ChecksumMismatch(t *testing.T) {
 
 	dir := t.TempDir()
 	fakeBinary := filepath.Join(dir, "archcore")
-	os.WriteFile(fakeBinary, []byte("old"), 0o755)
+	if err := os.WriteFile(fakeBinary, []byte("old"), 0o755); err != nil {
+		t.Fatalf("creating fake binary: %v", err)
+	}
 
 	u := &Updater{
 		CurrentVersion: "v1.0.0",
@@ -541,7 +547,9 @@ func TestApply_DownloadFailure(t *testing.T) {
 
 	dir := t.TempDir()
 	fakeBinary := filepath.Join(dir, "archcore")
-	os.WriteFile(fakeBinary, []byte("old"), 0o755)
+	if err := os.WriteFile(fakeBinary, []byte("old"), 0o755); err != nil {
+		t.Fatalf("creating fake binary: %v", err)
+	}
 
 	u := &Updater{
 		CurrentVersion: "v1.0.0",
@@ -560,6 +568,268 @@ func TestApply_DownloadFailure(t *testing.T) {
 	if !strings.Contains(err.Error(), "downloading") {
 		t.Errorf("expected downloading error, got: %v", err)
 	}
+}
+
+func TestExtractBinary_Zip(t *testing.T) {
+	binaryContent := []byte("MZ\x90\x00fake-windows-binary")
+
+	tests := []struct {
+		name       string
+		files      map[string][]byte
+		candidates []string
+		wantErr    bool
+		wantData   []byte
+	}{
+		{
+			name:       "extract by primary name",
+			files:      map[string][]byte{"archcore.exe": binaryContent},
+			candidates: []string{"archcore.exe", "cli.exe"},
+			wantData:   binaryContent,
+		},
+		{
+			name:       "fallback to secondary name",
+			files:      map[string][]byte{"cli.exe": binaryContent},
+			candidates: []string{"archcore.exe", "cli.exe"},
+			wantData:   binaryContent,
+		},
+		{
+			name:       "binary in subdirectory",
+			files:      map[string][]byte{"archcore_v1.0.0_windows_amd64/archcore.exe": binaryContent},
+			candidates: []string{"archcore.exe"},
+			wantData:   binaryContent,
+		},
+		{
+			name:       "binary not found",
+			files:      map[string][]byte{"README.md": []byte("readme")},
+			candidates: []string{"archcore.exe", "cli.exe"},
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			archive := createZip(t, tt.files)
+
+			got, err := ExtractBinary(archive, tt.candidates...)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ExtractBinary() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && !bytes.Equal(got, tt.wantData) {
+				t.Errorf("ExtractBinary() data mismatch: got %q, want %q", got, tt.wantData)
+			}
+		})
+	}
+}
+
+func TestExtractBinary_CorruptZip(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		// PK\x03\x04 prefix passes magic-byte detection but the rest is garbage.
+		{"zip magic with no body", []byte{'P', 'K', 0x03, 0x04}},
+		{"zip magic with truncated body", []byte("PK\x03\x04corrupted-payload")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ExtractBinary(tt.data, "archcore.exe")
+			if err == nil {
+				t.Fatal("expected error for corrupt zip, got nil")
+			}
+		})
+	}
+}
+
+func TestIsZipArchive(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+		want bool
+	}{
+		{"zip magic", []byte{'P', 'K', 0x03, 0x04, 0x00}, true},
+		{"zip magic exact 4 bytes", []byte{'P', 'K', 0x03, 0x04}, true},
+		{"gzip magic", []byte{0x1f, 0x8b, 0x08, 0x00}, false},
+		{"tar header letters", []byte("ustar0000"), false},
+		{"too short", []byte{'P', 'K', 0x03}, false},
+		{"empty", []byte{}, false},
+		{"nil", nil, false},
+		{"zip end-of-central-dir signature", []byte{'P', 'K', 0x05, 0x06}, false}, // we only accept local-file-header
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isZipArchive(tt.data); got != tt.want {
+				t.Errorf("isZipArchive(%v) = %v, want %v", tt.data, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBinaryCandidates(t *testing.T) {
+	tests := []struct {
+		name       string
+		binaryName string
+		repo       string
+		goos       string
+		want       []string
+	}{
+		{"linux", "archcore", "archcore-ai/cli", "linux", []string{"archcore", "cli"}},
+		{"darwin", "archcore", "archcore-ai/cli", "darwin", []string{"archcore", "cli"}},
+		{"windows adds .exe to both", "archcore", "archcore-ai/cli", "windows", []string{"archcore.exe", "cli.exe"}},
+		{"repo without slash uses path basename", "archcore", "cli", "linux", []string{"archcore", "cli"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := binaryCandidates(tt.binaryName, tt.repo, tt.goos)
+			if len(got) != len(tt.want) {
+				t.Fatalf("binaryCandidates() = %v, want %v", got, tt.want)
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Errorf("binaryCandidates()[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+// TestAtomicReplace_Windows exercises the rename-aside branch used on Windows
+// where the running .exe cannot be overwritten in place. The branch is reached
+// only when runtime.GOOS == "windows", so this test is skipped elsewhere.
+func TestAtomicReplace_Windows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-specific atomicReplace branch")
+	}
+
+	t.Run("happy path leaves no .old", func(t *testing.T) {
+		dir := t.TempDir()
+		target := filepath.Join(dir, "archcore.exe")
+		if err := os.WriteFile(target, []byte("old"), 0o755); err != nil {
+			t.Fatalf("creating target: %v", err)
+		}
+
+		newData := []byte("new content")
+		if err := atomicReplace(target, newData); err != nil {
+			t.Fatalf("atomicReplace() error: %v", err)
+		}
+
+		got, err := os.ReadFile(target)
+		if err != nil {
+			t.Fatalf("reading target: %v", err)
+		}
+		if !bytes.Equal(got, newData) {
+			t.Errorf("target content = %q, want %q", got, newData)
+		}
+
+		// The test process does not hold a lock on the temp file, so the
+		// best-effort .old cleanup at the end of atomicReplace should succeed.
+		if _, err := os.Stat(target + ".old"); !os.IsNotExist(err) {
+			t.Errorf("expected .old to be cleaned up, got err = %v", err)
+		}
+	})
+
+	t.Run("target does not exist yet", func(t *testing.T) {
+		dir := t.TempDir()
+		target := filepath.Join(dir, "archcore.exe")
+
+		newData := []byte("fresh install")
+		if err := atomicReplace(target, newData); err != nil {
+			t.Fatalf("atomicReplace() error: %v", err)
+		}
+
+		got, err := os.ReadFile(target)
+		if err != nil {
+			t.Fatalf("reading target: %v", err)
+		}
+		if !bytes.Equal(got, newData) {
+			t.Errorf("target content = %q, want %q", got, newData)
+		}
+	})
+}
+
+// TestApply_ZipArchive is the regression test for the Windows 404 bug: prior
+// to the fix, Apply downloaded a .tar.gz on every platform. Forcing the goos
+// argument exercises the zip code path independently of the host runtime.GOOS,
+// so the test runs on all CI platforms.
+func TestApply_ZipArchive(t *testing.T) {
+	binaryContent := []byte("MZ\x90\x00fake-windows-binary")
+	archiveName := ArchiveName("archcore", "windows", "amd64")
+	if !strings.HasSuffix(archiveName, ".zip") {
+		t.Fatalf("expected zip archive name for windows, got %q", archiveName)
+	}
+	archiveData := createZip(t, map[string][]byte{"archcore.exe": binaryContent})
+	checksum := sha256.Sum256(archiveData)
+	checksumLine := fmt.Sprintf("%x  %s\n", checksum, archiveName)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, archiveName):
+			w.Write(archiveData)
+		case strings.HasSuffix(r.URL.Path, "checksums.txt"):
+			w.Write([]byte(checksumLine))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	// Exercise the full download + verify + extract pipeline against a zip
+	// payload by calling the package primitives directly. We avoid Apply()
+	// because it bakes in runtime.GOOS; the regression is in extraction +
+	// archive-name resolution, both of which are covered here.
+	u := &Updater{
+		CurrentVersion: "v1.0.0",
+		GitHubRepo:     "archcore-ai/cli",
+		BinaryName:     "archcore",
+		HTTPClient: &http.Client{
+			Transport: &rewriteTransport{target: srv.URL},
+		},
+	}
+
+	gotArchive, err := u.download(context.Background(), "v2.0.0", archiveName)
+	if err != nil {
+		t.Fatalf("download archive: %v", err)
+	}
+	gotChecksums, err := u.download(context.Background(), "v2.0.0", "checksums.txt")
+	if err != nil {
+		t.Fatalf("download checksums: %v", err)
+	}
+	if err := VerifyChecksum(gotArchive, gotChecksums, archiveName); err != nil {
+		t.Fatalf("VerifyChecksum: %v", err)
+	}
+	got, err := ExtractBinary(gotArchive, binaryCandidates("archcore", "archcore-ai/cli", "windows")...)
+	if err != nil {
+		t.Fatalf("ExtractBinary: %v", err)
+	}
+	if !bytes.Equal(got, binaryContent) {
+		t.Errorf("extracted binary mismatch: got %q, want %q", got, binaryContent)
+	}
+}
+
+// createZip builds a zip archive in memory from a map of filename -> content.
+func createZip(t *testing.T, files map[string][]byte) []byte {
+	t.Helper()
+
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+
+	for name, content := range files {
+		fw, err := zw.Create(name)
+		if err != nil {
+			t.Fatalf("creating zip entry %s: %v", name, err)
+		}
+		if _, err := fw.Write(content); err != nil {
+			t.Fatalf("writing zip content for %s: %v", name, err)
+		}
+	}
+
+	if err := zw.Close(); err != nil {
+		t.Fatalf("closing zip writer: %v", err)
+	}
+
+	return buf.Bytes()
 }
 
 func TestDownload_SizeLimit(t *testing.T) {

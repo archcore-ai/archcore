@@ -38,9 +38,15 @@ func TestUpdateCmd_AlreadyUpToDate(t *testing.T) {
 }
 
 func TestUpdateCmd_UpdateAvailable(t *testing.T) {
+	// This test exercises the tar.gz path; it currently runs only on
+	// Linux/macOS CI. Windows CI builds a zip archive — see the zip-flavored
+	// regression test in internal/update/update_test.go (TestApply_ZipArchive).
+	if runtime.GOOS == "windows" {
+		t.Skip("tar.gz path; see TestApply_ZipArchive for the windows regression test")
+	}
 	binaryContent := []byte("#!/bin/sh\necho archcore v2.0.0")
 	archiveData := buildTestArchive(t, map[string][]byte{"archcore": binaryContent})
-	archiveName := fmt.Sprintf("archcore_%s_%s.tar.gz", runtime.GOOS, runtime.GOARCH)
+	archiveName := update.ArchiveName("archcore", runtime.GOOS, runtime.GOARCH)
 	checksum := sha256.Sum256(archiveData)
 	checksumLine := fmt.Sprintf("%x  %s\n", checksum, archiveName)
 

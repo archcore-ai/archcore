@@ -2,16 +2,20 @@ package update
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -52,9 +56,9 @@ type releaseResponse struct {
 
 // CheckLatest queries the GitHub API for the latest release tag.
 func (u *Updater) CheckLatest(ctx context.Context) (string, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", u.GitHubRepo)
+	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", u.GitHubRepo)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("creating request: %w", err)
 	}
@@ -65,7 +69,7 @@ func (u *Updater) CheckLatest(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("checking latest release: %w", err)
 	}
 	defer func() {
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 
@@ -164,10 +168,7 @@ func comparePreRelease(a, b string) int {
 	aParts := strings.Split(a, ".")
 	bParts := strings.Split(b, ".")
 
-	n := len(aParts)
-	if len(bParts) < n {
-		n = len(bParts)
-	}
+	n := min(len(aParts), len(bParts))
 
 	for i := range n {
 		aNum, aErr := strconv.Atoi(aParts[i])
@@ -209,8 +210,13 @@ func comparePreRelease(a, b string) int {
 }
 
 // ArchiveName returns the expected archive filename for the current platform.
+// Windows releases use .zip; all others use .tar.gz (matches .goreleaser.yaml).
 func ArchiveName(binaryName, goos, goarch string) string {
-	return fmt.Sprintf("%s_%s_%s.tar.gz", binaryName, goos, goarch)
+	ext := "tar.gz"
+	if goos == "windows" {
+		ext = "zip"
+	}
+	return fmt.Sprintf("%s_%s_%s.%s", binaryName, goos, goarch, ext)
 }
 
 // Apply downloads and installs the specified version.
@@ -237,9 +243,8 @@ func (u *Updater) Apply(ctx context.Context, version string) error {
 
 	// 3. Extract binary from the archive.
 	// GoReleaser may name the binary either as the configured binary name
-	// or as the repo basename. Try the binary name first, fall back to repo basename.
-	repoBasename := filepath.Base(u.GitHubRepo)
-	binaryData, err := ExtractBinary(archiveData, u.BinaryName, repoBasename)
+	// or as the repo basename; on Windows both carry an .exe suffix.
+	binaryData, err := ExtractBinary(archiveData, binaryCandidates(u.BinaryName, u.GitHubRepo, goos)...)
 	if err != nil {
 		return fmt.Errorf("extracting binary: %w", err)
 	}
@@ -267,20 +272,20 @@ func (u *Updater) Apply(ctx context.Context, version string) error {
 
 // download fetches a file from a GitHub release.
 func (u *Updater) download(ctx context.Context, version, filename string) ([]byte, error) {
-	url := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s",
+	downloadURL := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s",
 		u.GitHubRepo, version, filename)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating request for %s: %w", filename, err)
 	}
 
 	resp, err := u.HTTPClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("downloading %s: %w", filename, err)
 	}
 	defer func() {
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 
@@ -348,13 +353,56 @@ func sha256sum(data []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
-// ExtractBinary extracts a binary from a tar.gz archive.
-// It tries each candidate name in order, returning the first match.
-func ExtractBinary(archiveData []byte, candidates ...string) ([]byte, error) {
-	candidateSet := make(map[string]bool, len(candidates))
-	for _, c := range candidates {
-		candidateSet[c] = true
+// binaryCandidates returns the binary filenames to look for inside the archive.
+// GoReleaser may use either the configured binary name or the repo basename;
+// Windows builds carry an .exe suffix.
+func binaryCandidates(binaryName, repo, goos string) []string {
+	names := []string{binaryName, filepath.Base(repo)}
+	if goos == "windows" {
+		for i := range names {
+			names[i] += ".exe"
+		}
 	}
+	return names
+}
+
+// ExtractBinary extracts a binary from a release archive. The archive format
+// is auto-detected from the magic bytes: tar.gz on Unix, zip on Windows.
+// Returns the first candidate name that matches.
+func ExtractBinary(archiveData []byte, candidates ...string) ([]byte, error) {
+	if isZipArchive(archiveData) {
+		return extractFromZip(archiveData, candidates...)
+	}
+	return extractFromTarGz(archiveData, candidates...)
+}
+
+// isZipArchive checks for the PK\x03\x04 local-file-header signature.
+func isZipArchive(data []byte) bool {
+	return len(data) >= 4 && data[0] == 'P' && data[1] == 'K' && data[2] == 0x03 && data[3] == 0x04
+}
+
+// makeCandidateSet returns a presence-only set of the candidate names.
+func makeCandidateSet(candidates []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(candidates))
+	for _, c := range candidates {
+		set[c] = struct{}{}
+	}
+	return set
+}
+
+// hasUnsafePath rejects archive entries with directory-traversal segments or
+// absolute paths. Defense in depth — checksum verification runs before
+// extraction, but a tampered archive should still fail closed.
+func hasUnsafePath(name string) bool {
+	return strings.Contains(name, "..") || path.IsAbs(name) || filepath.IsAbs(name)
+}
+
+func errBinaryNotFound(candidates []string) error {
+	return fmt.Errorf("binary not found in archive (tried: %s)", strings.Join(candidates, ", "))
+}
+
+func extractFromTarGz(archiveData []byte, candidates ...string) ([]byte, error) {
+	candidateSet := makeCandidateSet(candidates)
 
 	gr, err := gzip.NewReader(bytes.NewReader(archiveData))
 	if err != nil {
@@ -365,16 +413,20 @@ func ExtractBinary(archiveData []byte, candidates ...string) ([]byte, error) {
 	tr := tar.NewReader(gr)
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
 			return nil, fmt.Errorf("reading tar: %w", err)
 		}
 
+		if hasUnsafePath(hdr.Name) {
+			continue
+		}
+
 		// The binary may be at the root or inside a directory.
-		name := filepath.Base(hdr.Name)
-		if hdr.Typeflag == tar.TypeReg && candidateSet[name] {
+		name := path.Base(filepath.ToSlash(hdr.Name))
+		if _, ok := candidateSet[name]; ok && hdr.Typeflag == tar.TypeReg {
 			data, err := io.ReadAll(io.LimitReader(tr, maxArchiveSize))
 			if err != nil {
 				return nil, fmt.Errorf("reading %s from archive: %w", name, err)
@@ -383,23 +435,85 @@ func ExtractBinary(archiveData []byte, candidates ...string) ([]byte, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("binary not found in archive (tried: %s)", strings.Join(candidates, ", "))
+	return nil, errBinaryNotFound(candidates)
+}
+
+func extractFromZip(archiveData []byte, candidates ...string) ([]byte, error) {
+	candidateSet := makeCandidateSet(candidates)
+
+	zr, err := zip.NewReader(bytes.NewReader(archiveData), int64(len(archiveData)))
+	if err != nil {
+		return nil, fmt.Errorf("opening zip: %w", err)
+	}
+
+	for _, f := range zr.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		if hasUnsafePath(f.Name) {
+			continue
+		}
+		// zip paths always use forward slashes per spec.
+		name := path.Base(f.Name)
+		if _, ok := candidateSet[name]; !ok {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil, fmt.Errorf("opening %s in zip: %w", name, err)
+		}
+		data, err := io.ReadAll(io.LimitReader(rc, maxArchiveSize))
+		rc.Close()
+		if err != nil {
+			return nil, fmt.Errorf("reading %s from zip: %w", name, err)
+		}
+		return data, nil
+	}
+
+	return nil, errBinaryNotFound(candidates)
 }
 
 // atomicReplace writes data to a temporary file next to target, then
 // renames it over target for an atomic update.
+//
+// On Windows the running .exe cannot be overwritten while it executes, but
+// it can be renamed. We move it to "<target>.old" first, then rename the
+// freshly-written temp file into place. The .old file remains locked until
+// this process exits; a best-effort cleanup runs on the next update.
 func atomicReplace(target string, data []byte) error {
 	dir := filepath.Dir(target)
-	tmpPath := filepath.Join(dir, fmt.Sprintf("%s.tmp.%d", filepath.Base(target), os.Getpid()))
+	base := filepath.Base(target)
+	tmpPath := filepath.Join(dir, fmt.Sprintf("%s.tmp.%d", base, os.Getpid()))
 
 	if err := os.WriteFile(tmpPath, data, 0o755); err != nil {
-		return err
+		return fmt.Errorf("writing temp binary: %w", err)
+	}
+
+	if runtime.GOOS == "windows" {
+		oldPath := target + ".old"
+		_ = os.Remove(oldPath) // sweep stale leftover from a prior update
+		if err := os.Rename(target, oldPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			os.Remove(tmpPath)
+			return fmt.Errorf("renaming target aside: %w", err)
+		}
+		if err := os.Rename(tmpPath, target); err != nil {
+			// Roll back so the user is not left without a binary.
+			os.Remove(tmpPath)
+			if rollbackErr := os.Rename(oldPath, target); rollbackErr != nil && !errors.Is(rollbackErr, fs.ErrNotExist) {
+				return errors.Join(
+					fmt.Errorf("renaming temp to target: %w", err),
+					fmt.Errorf("rolling back original binary: %w", rollbackErr),
+				)
+			}
+			return fmt.Errorf("renaming temp to target: %w", err)
+		}
+		_ = os.Remove(oldPath) // best-effort; will fail while .exe is running
+		return nil
 	}
 
 	if err := os.Rename(tmpPath, target); err != nil {
-		// Clean up the temporary file on failure.
 		os.Remove(tmpPath)
-		return err
+		return fmt.Errorf("renaming temp to target: %w", err)
 	}
 
 	return nil

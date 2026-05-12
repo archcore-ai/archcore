@@ -21,9 +21,9 @@ status: accepted
 3. **Download archive**
 
    If a newer version exists, the CLI downloads the platform-specific archive from GitHub Releases:
-   `https://github.com/archcore-ai/cli/releases/download/<version>/archcore_<os>_<arch>.tar.gz`
+   `https://github.com/archcore-ai/cli/releases/download/<version>/archcore_<os>_<arch>.<ext>`
 
-   Platform is detected via `runtime.GOOS` and `runtime.GOARCH`.
+   The extension is `.zip` on Windows and `.tar.gz` on all other platforms — matching the `format_overrides` in `.goreleaser.yaml`. Platform is detected via `runtime.GOOS` and `runtime.GOARCH`.
 
 4. **Download and verify checksum**
 
@@ -31,11 +31,13 @@ status: accepted
 
 5. **Extract binary**
 
-   Extracts the binary from the tar.gz archive. Tries the name `archcore` first, falls back to repo basename `cli` (GoReleaser may use either).
+   Extracts the binary from the archive — `tar.gz` or `zip`, auto-detected from the magic bytes. Tries the name `archcore` first, falls back to repo basename `cli` (GoReleaser may use either). On Windows both candidates carry an `.exe` suffix.
 
 6. **Atomic replace**
 
    Resolves the current binary path via `os.Executable()` + `filepath.EvalSymlinks()`. Writes the new binary to a temp file (`<binary>.tmp.<pid>`), sets permissions (`0755`), and atomically renames it over the current binary. Cleans up the temp file on failure.
+
+   On Windows the running `.exe` cannot be overwritten in place, so the current binary is first renamed to `<binary>.old` and the new file is moved in; the `.old` file is removed on a best-effort basis (the next `archcore update` sweeps it if the running process still holds the lock).
 
 ## Usage
 
