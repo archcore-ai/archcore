@@ -36,7 +36,11 @@ Cursor reads the repo's `marketplace.json`, shows the plugin, and installs it.
 >
 > The Cursor plugin manifest does not register MCP servers (Cursor manages MCP through `~/.cursor/mcp.json` or `.cursor/mcp.json` instead). You configure `archcore` once, in one of those files. **Always pin the working directory** — otherwise a global registration leaks one project's docs into every other project.
 >
-> Use this snippet (also shipped as [`cursor.mcp.json`](./cursor.mcp.json) at the plugin root):
+> **If you've installed the plugin but see `[archcore launcher] Refusing to start MCP` in Cursor's MCP panel:**
+> Copy the template into your Cursor config:
+> 1. Find the installed plugin: **Cursor** → **Extensions** → find **Archcore** → **Copy the path shown** (or use `~/.cursor/plugins/local/archcore`)
+> 2. Open or create `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped)
+> 3. Paste this entire snippet:
 >
 > ```json
 > {
@@ -51,11 +55,18 @@ Cursor reads the repo's `marketplace.json`, shows the plugin, and installs it.
 > }
 > ```
 >
+> **Key fields:**
 > - `cwd: "${workspaceFolder}"` — Cursor expands this to the active project root on every server spawn, so each window's MCP attaches to the right `.archcore/`.
 > - `env.ARCHCORE_CWD` — belt-and-braces. If Cursor or another host ever fails to honor `cwd` (Claude Code's `cwd` field is silently ignored, [#17565](https://github.com/anthropics/claude-code/issues/17565)), the bundled `bin/archcore` launcher `cd`s to `$ARCHCORE_CWD` before exec.
-> - `command: "archcore"` — assumes the CLI is on `PATH` (via `curl install.sh`, `go install`, etc.). To use the launcher bundled with the plugin instead, set `command` to the absolute path of `bin/archcore` inside the installed plugin directory.
+> - `command: "archcore"` — assumes the CLI is on `PATH` (via `curl install.sh`, `go install`, etc.). To use the launcher bundled with the plugin, set `command` to the absolute path: `~/.cursor/plugins/local/archcore/bin/archcore`.
 >
-> The launcher refuses to start the MCP server if cwd looks wrong (`$HOME`, `/`, plugin install dir, or a directory with no project markers) and prints actionable instructions on stderr. If you see `[archcore launcher] Refusing to start MCP …` in Cursor's MCP server panel, the `cwd` field is missing or wrong.
+> **Troubleshooting:**
+> - **"Refusing to start MCP"** error in MCP panel? The error message shows the exact path to `cursor.mcp.json` from your installed plugin. Copy that file's contents.
+> - **Per-project config?** Use `.cursor/mcp.json` (in the repo root) instead of `~/.cursor/mcp.json` to avoid one project leaking into others.
+> - **Cursor ignores the config?** This is a known issue (like Claude Code). Workaround: also set `ARCHCORE_CWD` via a shell alias or function in your `.zshrc`/`.bashrc`:
+>   ```bash
+>   function cursor { env ARCHCORE_CWD="$PWD" command cursor "$@"; }
+>   ```
 
 **Codex CLI** — requires Codex CLI v0.117.0+ (March 2026 plugin system):
 
