@@ -15,6 +15,8 @@ The CLI work itself remains valid and independently shippable — producing `pat
 
 Promotion trigger for the consumer side: the first real-world repo whose `check-code-alignment` hook breaches the host's 1-second timeout, OR a deliberate decision to add perf hardening to a release for non-urgency reasons.
 
+**CLI versioning note (2026-05-12 update).** The plugin no longer pins a CLI version via `bin/CLI_VERSION` — that file was removed when the bundled launcher was rolled back in v0.4.0 (see `remove-bundled-launcher-global-cli.idea`). Users install the CLI via the official installer at https://docs.archcore.ai/cli/install/; CLI lifecycle is decoupled from plugin releases. When the consumer side of this plan ships, the version-compatibility matrix below applies the moment a user upgrades the CLI past 0.1.8, with no plugin-side version pin to bump.
+
 ---
 
 ## Goal
@@ -171,7 +173,7 @@ The CLI indexes against the *same* root list the plugin uses by default — this
 ### Phase CLI-4 — Release coordination (when plugin consumer ships)
 
 - Cut CLI release (target `0.1.8` from current `0.1.7` — minor bump, additive feature, no breaking changes). Confirm by running `archcore doctor` against a plugin repo with the *previous* CLI's `.sync-state.json` — must pass unchanged.
-- Plugin consumer ships in a later release (not v0.4.0); coordination with that release's planning owns the `bin/CLI_VERSION` bump.
+- Plugin consumer ships in a later release (not v0.4.0). With the bundled launcher removed, there is no `bin/CLI_VERSION` to bump in the plugin — the consumer simply detects `path_index.schema == "v1"` at runtime and switches paths. Coordination is therefore version-free: the consumer release notes point users at `archcore update` if they want the fast path.
 - Announce in CLI CHANGELOG; plugin-side changelog entry appears only when the consumer ships.
 
 ## Plugin integration (consumption details — future plugin release)
@@ -256,7 +258,7 @@ Upgrade order therefore does not matter — both directions are safe. The target
 ## Dependencies
 
 - **Plugin repo (future release)** — the eventual consumer reads the index. CLI release precedes or ships in parallel with the consumer release; upgrade order does not matter for correctness (fallback path absorbs any ordering).
-- **`jq` presence** — the plugin-side fast path assumes `jq` is available on the developer machine. If not, the plugin falls back to grep. Consider adding `jq` to the plugin's bundled runtime in a separate plan if fast-path adoption matters; out of scope here.
+- **`jq` presence** — the plugin-side fast path assumes `jq` is available on the developer machine. If not, the plugin falls back to grep. Consider adding `jq` to the plugin's documented prerequisites in a separate plan if fast-path adoption matters; out of scope here.
 - **`.archcore/settings.json` schema** — `codeAlignment.sourceRoots` already exists for the plugin; no schema change needed. The CLI reads the same key when present.
 
 ## Risks
@@ -273,4 +275,4 @@ Upgrade order therefore does not matter — both directions are safe. The target
 - `implements` → `pre-code-context-injection.idea` (Phase 2 referenced in that idea)
 - `related` → `pre-code-hook-implementation.plan` (Phase 1 predecessor whose output this plan optimises)
 - `related` → `jtbd1-phase2-hardening-delegated.plan` (plugin-side plan; consumer deferred, not v0.4.0)
-- `related` → `bundled-cli-launcher.adr` (CLI release coordination context)
+- `related` → `remove-bundled-launcher-global-cli.idea` (rationale for why there's no `bin/CLI_VERSION` to coordinate against)

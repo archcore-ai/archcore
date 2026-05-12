@@ -13,28 +13,13 @@ tags:
 - Codex CLI with plugin support. Check `codex --version`; if the plugin browser or local marketplaces behave differently from this guide, update Codex before debugging plugin packaging.
 - A clean Archcore plugin checkout with `jq`, `bats-core`, and optional `shellcheck` available. Initialize test submodules with `git submodule update --init` if bats helpers are missing.
 - The Codex package surfaces must exist and be valid: `.codex-plugin/plugin.json`, `.agents/plugins/marketplace.json`, `.codex.mcp.json`, `hooks/codex.hooks.json`, and `skills/*/SKILL.md`.
-- **A shell wrapper that sets `ARCHCORE_CWD`** for `codex` invocations. Without it the MCP operates in the plugin cache, not the user's project. Install once:
-  - **fish** (`~/.config/fish/functions/codex.fish`):
-
-    ```fish
-    function codex
-        env ARCHCORE_CWD=$PWD command codex $argv
-    end
-    ```
-
-  - **bash / zsh** (`~/.bashrc` / `~/.zshrc`):
-
-    ```bash
-    codex() { ARCHCORE_CWD="$PWD" command codex "$@"; }
-    ```
-
-  Verify with `codex mcp list --json | jq -e '.[] | select(.name == "archcore") | .transport.env_vars | index("ARCHCORE_CWD")'` after Codex has been re-opened from a project directory.
+- **Archcore CLI installed globally on PATH** via the official installer at https://docs.archcore.ai/cli/install/ — `curl -fsSL https://archcore.ai/install.sh | bash` (macOS/Linux/WSL) or `irm https://archcore.ai/install.ps1 | iex` (Windows PowerShell). Verify with `archcore --version`. The plugin no longer bundles a launcher; if the CLI is missing, MCP startup fails at session start.
 - Official OpenAI Codex plugin docs are the authority for marketplace behavior:
   - CLI plugin directory: start `codex`, run `/plugins`, then browse by marketplace tab and install from the plugin details screen.
   - Local marketplaces: Codex reads repo marketplaces from `$REPO_ROOT/.agents/plugins/marketplace.json` and personal marketplaces from `~/.agents/plugins/marketplace.json`.
   - Installed plugins are loaded from the Codex plugin cache under `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/`; do not edit the cache as the source of truth.
 - When testing plugin-managed MCP, avoid relying only on this repo's project config. A project `.codex/config.toml` may register an `archcore` MCP server directly and hide plugin packaging defects.
-- For end-to-end MCP validation, run Codex from a directory **outside the plugin source repo** (e.g., `cd $(mktemp -d)`). The plugin source dir accidentally contains `bin/archcore` relative to CWD, which can mask `cwd: "."` mistakes in `.codex.mcp.json`. See `plugin/codex-path-resolution.adr.md`.
+- For end-to-end MCP validation, run Codex from a directory **outside the plugin source repo** (e.g., `cd $(mktemp -d)`). With the launcher gone, `command: "archcore"` resolves via PATH from the working directory the CLI is spawned in — neutral CWD avoids accidental project-source confusion.
 
 ## Steps
 
@@ -66,7 +51,7 @@ tags:
    Confirm these invariants:
    - `.codex-plugin/plugin.json` points to `"./skills/"`, `"./hooks/codex.hooks.json"`, and `"./.codex.mcp.json"`.
    - `.agents/plugins/marketplace.json` has one `archcore` entry, `source.source = "local"`, `source.path = "./"`, `policy.installation`, `policy.authentication`, and `category`.
-   - `.codex.mcp.json` points at the plugin-relative launcher `./bin/archcore` with `args: ["mcp"]`, `cwd: "."`, AND `env_vars: ["ARCHCORE_CWD"]`. The `cwd: "."` is required: Codex's `normalize_plugin_mcp_server_value` rebases it to the plugin install root so the relative command resolves. The `env_vars: ["ARCHCORE_CWD"]` declaration is required: Codex's `.env_clear()` strips everything not in its default allowlist or this list, and the launcher uses `ARCHCORE_CWD` to chdir to the user's project before exec'ing the real CLI. We deliberately do NOT use `PWD` here — POSIX shells resync `$PWD` to `getcwd()` at startup, so the value would be erased before the launcher's first line runs.
+   - `.codex.mcp.json` has `command: "archcore"` and `args: ["mcp"]` — nothing else. No `cwd: "."`, no `env_vars: ["ARCHCORE_CWD"]`. With the launcher removed, Codex resolves `archcore` from PATH directly; the user's CLI install is the single source.
    - `hooks/codex.hooks.json` uses `${PLUGIN_ROOT}/bin/...` commands (Codex's canonical, host-neutral env var). Do NOT use `${CLAUDE_PLUGIN_ROOT}` (Codex provides it only as a backward-compat alias for old Claude plugins) or `./bin/...` (would resolve against the user's project CWD).
 
 4. Register this checkout as a local repo marketplace.
@@ -122,9 +107,9 @@ tags:
    find ~/.codex/plugins/cache -maxdepth 5 -type d -path '*archcore*' -print
    ```
 
-   Expected result: `~/.codex/config.toml` contains an enabled `archcore@<marketplace>` entry, and the cache contains a copied plugin bundle with `.codex-plugin/plugin.json`, `commands/`, `skills/`, `.codex.mcp.json`, `hooks/`, and `bin/`.
+   Expected result: `~/.codex/config.toml` contains an enabled `archcore@<marketplace>` entry, and the cache contains a copied plugin bundle with `.codex-plugin/plugin.json`, `commands/`, `skills/`, `.codex.mcp.json`, `hooks/`, and `bin/`. Note that `bin/` only contains hook scripts and `lib/normalize-stdin.sh` — no `archcore`/`archcore.cmd`/`archcore.ps1` launcher.
 
-8. Verify MCP registration AND effective CWD from a neutral directory.
+8. Verify MCP registration from a neutral directory.
 
    ```bash
    tmpdir=$(mktemp -d)
@@ -132,9 +117,9 @@ tags:
    codex mcp list --json | jq '.[] | select(.name == "archcore")'
    ```
 
-   The JSON should show `command: "./bin/archcore"`, `args: ["mcp"]`, `cwd: <absolute path inside ~/.codex/plugins/cache/...>`, and `env_vars: ["ARCHCORE_CWD"]`. If `env_vars` is empty or missing `ARCHCORE_CWD`, the plugin cache is stale — uninstall and reinstall from `/plugins` and start a new thread.
+   The JSON should show `command: "archcore"` and `args: ["mcp"]`. There is no `cwd` field and no `env_vars` allowlist — Codex resolves the binary via PATH from the directory it was launched in.
 
-   Critical end-to-end check — verify the MCP's effective CWD is the user's project, not the plugin cache:
+   Critical end-to-end check — verify the MCP operates on the project the user is in, not somewhere else:
 
    ```bash
    tmpdir=$(mktemp -d)
@@ -146,9 +131,9 @@ tags:
    # confirm the marker is listed.
    ```
 
-   If the marker appears, the shell wrapper + `env_vars: ["ARCHCORE_CWD"]` passthrough are working. If `list_documents` returns the plugin's own docs (`actualize-implementation.plan.md`, etc.) instead of the marker, the wrapper is missing or the cache is stale — see Common Issues.
+   If the marker appears, the MCP picked up the launch CWD correctly. If `list_documents` returns archcore's own docs (`actualize-implementation.plan.md`, etc.) instead of the marker, your Codex CLI version may be silently rebasing CWD — see `codex-path-resolution.adr.md` for the historical context behind that bug class.
 
-   If the MCP fails with `MCP startup failed: No such file or directory (os error 2)`, the `cwd` field is missing or wrong in `.codex.mcp.json`. Inspect the entry with `codex mcp get archcore`: the `cwd` column should show a real absolute path under `~/.codex/plugins/cache/<marketplace>/archcore/<version>/`, not a dash.
+   If the MCP fails to start with `command not found`, `archcore` is not on PATH for the Codex process. Re-run the installer (https://docs.archcore.ai/cli/install/) and start a new Codex session.
 
 9. Verify slash commands and skills from a new Codex thread.
 
@@ -162,7 +147,7 @@ tags:
 
 10. Refresh after local source changes.
 
-    Codex loads the installed copy from its plugin cache, not directly from the source tree in every code path. After changing manifest, skill, MCP, hook, or launcher files, restart Codex. If the cache still contains the old copy, reopen `/plugins` and uninstall/install the local plugin, or run the marketplace upgrade command for the registered marketplace and restart Codex.
+    Codex loads the installed copy from its plugin cache, not directly from the source tree in every code path. After changing manifest, skill, MCP, or hook files, restart Codex. If the cache still contains the old copy, reopen `/plugins` and uninstall/install the local plugin, or run the marketplace upgrade command for the registered marketplace and restart Codex.
 
 ## Verification
 
@@ -171,7 +156,7 @@ tags:
 - `/plugins` shows `Archcore` under the expected marketplace tab and the details screen shows `Installed`.
 - `~/.codex/config.toml` contains `[plugins."archcore@<marketplace>"]` with `enabled = true`.
 - `~/.codex/plugins/cache/<marketplace>/archcore/<version>/` contains the plugin bundle.
-- `codex mcp list --json` includes an enabled `archcore` server with `command: "./bin/archcore"`, `args: ["mcp"]`, and `env_vars: ["ARCHCORE_CWD"]`. From a directory **outside** the plugin source repo, with the shell wrapper installed, calling `mcp__archcore__list_documents` returns docs from THAT directory's `.archcore/`, not from the plugin cache. `codex mcp get archcore` shows a non-dash `cwd` pointing into the plugin cache.
+- `codex mcp list --json` includes an enabled `archcore` server with `command: "archcore"`, `args: ["mcp"]`. From a directory outside the plugin source repo, calling `mcp__archcore__list_documents` returns docs from THAT directory's `.archcore/`.
 - A new Codex thread can discover Archcore slash commands via `/archcore:` and Archcore skills via `@`, without manual `codex mcp add`.
 - Optional hook verification: with `codex features enable plugin_hooks`, `hooks/codex.hooks.json` should load `SessionStart`, `PreToolUse`, and `PostToolUse` guardrails. Keep this as a runtime smoke test because the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0.
 
@@ -195,19 +180,19 @@ Open the plugin details and select `Install plugin`. Pressing `Space` toggles en
 
 ### MCP list shows `archcore`, but not from the plugin
 
-Run `codex mcp list --json` from a neutral temporary directory. Project-level `.codex/config.toml` can register `archcore` directly and shadow a missing plugin-managed MCP entry. For plugin-managed MCP validation, inspect the command and confirm it comes from the installed bundle, not from a manual global server config.
+Run `codex mcp list --json` from a neutral temporary directory. Project-level `.codex/config.toml` can register `archcore` directly and shadow a missing plugin-managed MCP entry. For plugin-managed MCP validation, inspect the command and confirm the entry came from the installed plugin bundle (the marketplace name will match).
 
-### MCP `list_documents` returns plugin docs instead of the user-project marker
+### MCP `list_documents` returns the wrong project's docs
 
-Symptom: from `mktemp -d`, after creating `.archcore/tmpdir-marker.doc.md`, the first `list_documents` call returns archcore's own docs (`actualize-implementation.plan.md`, etc.) and the marker is absent. Cause: `ARCHCORE_CWD` is not reaching the launcher. Check, in order:
+Symptom: from `mktemp -d`, after creating `.archcore/tmpdir-marker.doc.md`, the first `list_documents` call returns archcore's own docs and the marker is absent. Cause: Codex spawned the MCP in a different working directory than expected. Check, in order:
 
-1. Is the shell wrapper installed? Run `type codex` (bash/zsh) or `functions codex` (fish). The output should show the wrapper that exports `ARCHCORE_CWD=$PWD` before exec'ing the real `codex`. If not, install it from the Prerequisites section and open a new shell + new Codex thread.
-2. `codex mcp list --json | jq -e '.[] | select(.name == "archcore") | .transport.env_vars | index("ARCHCORE_CWD")'` — does it exit 0? If `env_vars` is empty, the plugin cache is stale; uninstall and reinstall from `/plugins`.
-3. Did you launch Codex from the project directory? The wrapper captures `$PWD` at the moment `codex` runs. If you started Codex from `~`, `ARCHCORE_CWD=~` and that's where the MCP looks for `.archcore/`. Always `cd` into the project first.
+1. Did you start Codex from the project directory? `archcore mcp` reads `.archcore/` relative to its own CWD; if you started Codex elsewhere, that's where it looks. Always `cd` into the project first.
+2. Is there a project-level `.codex/config.toml` registering `archcore` with an explicit `cwd`? That would override the plugin-managed MCP's CWD. Remove it or align it to your intent.
+3. Restart Codex from the correct directory; MCP servers are spawned at session start.
 
-### MCP tool calls fail with `MCP startup failed: No such file or directory (os error 2)`
+### MCP startup fails with `command not found` or `archcore: not found`
 
-Symptom: `codex mcp list` shows `archcore` enabled, but any `mcp__archcore__*` tool call from a project directory returns ENOENT. Cause: `.codex.mcp.json` has `command: "./bin/archcore"` but is missing `cwd: "."`. Codex spawns the MCP from the project's CWD instead of the plugin install dir, and `./bin/archcore` doesn't exist there. Fix: add `"cwd": "."` to the server entry. Verify by `codex mcp get archcore` — the `cwd` column should show a real absolute path under `~/.codex/plugins/cache/...`, not a dash. See `plugin/codex-path-resolution.adr.md`.
+`archcore` is not on PATH for the Codex process. Install per https://docs.archcore.ai/cli/install/ and confirm with `archcore --version` from a regular terminal. If verify works but Codex still can't find it, the Codex process likely has a stripped PATH — check Codex's environment configuration or invoke `codex` from a shell that has `~/.local/bin` (or the installer's target directory) on PATH.
 
 ### Skill discovery works only after restart
 
@@ -225,16 +210,14 @@ The plugin can package `hooks/codex.hooks.json`, but live hook execution depends
 
 Treat this as a local Codex session-file permission or sandbox problem, not necessarily a plugin packaging failure. Use the `/plugins` details screen and a new interactive thread to validate skill discovery.
 
-### First MCP call tries to download the Archcore CLI
-
-The plugin MCP command uses the bundled launcher. In online development, the launcher downloads the pinned CLI into its cache on first use. For offline tests, set `ARCHCORE_BIN=/absolute/path/to/archcore` to pin a local binary, or set `ARCHCORE_SKIP_DOWNLOAD=1` when you intentionally want a no-network failure path.
-
 ## References
 
 - OpenAI Codex Plugins overview: https://developers.openai.com/codex/plugins
 - OpenAI Build plugins guide: https://developers.openai.com/codex/plugins/build
-- Codex MCP and Hooks Path Resolution ADR: `.archcore/plugin/codex-path-resolution.adr.md` (canonical reference for `cwd` rebase, env_vars passthrough, and the opt-in `ARCHCORE_CWD` design)
-- Codex MCP CWD idea: `.archcore/plugin/codex-mcp-cwd-rebase-to-user-project.idea.md`
+- Archcore CLI install docs: https://docs.archcore.ai/cli/install/
+- Codex MCP and Hooks Path Resolution ADR: `.archcore/plugin/codex-path-resolution.adr.md` (canonical reference for `cwd` rebase and env_vars passthrough — historical context now that the launcher is gone)
+- Codex MCP CWD idea (rejected/historical): `.archcore/plugin/codex-mcp-cwd-rebase-to-user-project.idea.md`
 - Upstream issue tracking `${PLUGIN_ROOT}` MCP substitution: https://github.com/openai/codex/issues/19582
 - Related Archcore guide: `.archcore/plugin/plugin-testing.guide.md`
 - Related Archcore spec: `.archcore/plugin/multi-host-compatibility-layer.spec.md`
+- Bundled launcher removal: `.archcore/plugin/remove-bundled-launcher-global-cli.idea.md`

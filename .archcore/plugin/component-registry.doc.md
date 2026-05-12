@@ -114,32 +114,15 @@ Historical note: a prior revision had a `PostToolUse` entry with matcher `Write|
 
 ### Bin Scripts
 
-The `bin/` tree contains four distinct kinds of files: the CLI launcher, the CLI version pin, hook scripts, and the stdin-normalization library.
-
-#### CLI Launcher (3 files + 1 version pin)
-
-| File                    | Purpose                                                                                                                                                                                                       |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bin/archcore`          | POSIX shell launcher. Resolves and execs the Archcore CLI in order: `$ARCHCORE_BIN` → `archcore` on `PATH` → plugin-managed cache → download from GitHub Releases (checksum-verified). Exit code passes through. |
-| `bin/archcore.cmd`      | Windows cmd shim that delegates to `archcore.ps1` with `-NoProfile -NonInteractive -ExecutionPolicy Bypass`.                                                                                                  |
-| `bin/archcore.ps1`      | PowerShell launcher. Same resolution order as the POSIX launcher; uses `Invoke-WebRequest` + `Get-FileHash` for download/verify; calls `Unblock-File` to strip MOTW so SmartScreen doesn't prompt.            |
-| `bin/CLI_VERSION`       | Single-line file with the pinned semver of the CLI release the plugin is tested against. Launchers read this for cache key (`archcore-v${VERSION}`) and download URL.                                         |
-
-Cache directory (first existing): `$CODEX_PLUGIN_DATA/archcore/cli` → `$CLAUDE_PLUGIN_DATA/archcore/cli` → `$XDG_DATA_HOME/archcore-plugin/cli` → `$HOME/.local/share/archcore-plugin/cli` (POSIX), or `$env:CODEX_PLUGIN_DATA\archcore\cli` → `$env:CLAUDE_PLUGIN_DATA\archcore\cli` → `$env:LOCALAPPDATA\archcore-plugin\cli` (Windows).
-
-Env overrides: `ARCHCORE_BIN` pins an explicit binary; `ARCHCORE_SKIP_DOWNLOAD=1` disables step 4 (used by `bin/session-start` to keep SessionStart non-blocking).
-
-See the Bundled CLI Launcher ADR for rationale.
-
-#### Hook Scripts (7) and Library (1)
+The `bin/` tree contains hook scripts and the shared stdin-normalization library. The plugin **does not bundle the Archcore CLI binary or any launcher wrapper** — it invokes `archcore` directly from PATH. Users install the CLI globally via the official installer at https://docs.archcore.ai/cli/install/. See `remove-bundled-launcher-global-cli.idea.md` for the rationale.
 
 | Script                       | Hook Event                                   | Purpose                                                                                                                                                                                                                                                                                                    |
 | ---------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `bin/lib/normalize-stdin.sh` | (library)                                    | Multi-host stdin normalization. Detects host (Claude Code/Cursor/Copilot/Codex), extracts fields (tool_name, file_path, path), normalizes MCP tool names, provides output helpers (archcore_hook_block, archcore_hook_info, archcore_hook_pretool_info, archcore_hook_allow). Sourced by all hook scripts except check-staleness. |
-| `bin/session-start`          | SessionStart                                 | Sources the normalizer, detects missing `.archcore/` and emits init guidance (instructs the agent to call `mcp__archcore__init_project`), otherwise invokes the local launcher with `ARCHCORE_SKIP_DOWNLOAD=1` to run `archcore hooks <host> session-start`, then calls `bin/check-staleness`. Always exits 0. |
+| `bin/session-start`          | SessionStart                                 | Sources the normalizer; if `archcore` is not on PATH, prints an install message pointing at https://docs.archcore.ai/cli/install/ and exits 0. Otherwise detects missing `.archcore/` and emits init guidance (instructs the agent to call `mcp__archcore__init_project`), or invokes `archcore hooks <host> session-start` directly, then calls `bin/check-staleness`. Always exits 0. |
 | `bin/check-archcore-write`   | PreToolUse                                   | Blocks direct Write/Edit to `.archcore/**/*.md` with exit 2 + stderr message redirecting to MCP tools. Allows `.archcore/settings.json` and `.archcore/.sync-state.json`. Allows all paths outside `.archcore/`.                                                                                         |
 | `bin/check-code-alignment`   | PreToolUse                                   | Injects relevant `.archcore/` context for source-file Write/Edit. Greps `.archcore/**/*.md` for documents referencing the edit path (directory prefixes, longest-first). Ranks by specificity → type priority (rule > cpat > adr > spec > guide). Emits top-3 via `hookSpecificOutput.additionalContext` (Claude Code/Codex/Copilot) or `additional_context` (Cursor). Never blocks; always exits 0. Honors `ARCHCORE_DISABLE_INJECTION=1` escape hatch and `.archcore/settings.json → codeAlignment.sourceRoots` override. |
-| `bin/validate-archcore`      | PostToolUse                                  | Runs `archcore doctor` via the launcher after MCP document operations (by tool_name prefix). The script's subcommand invocation is locked by `test/structure/cli-contract.bats` and a `MOCK_ARCHCORE_LOG`-backed assertion in `test/unit/validate-archcore.bats` against the canonical CLI surface (sourced from `bin/CLI_VERSION`). The legacy Write/Edit branch in the script is retained as defensive code but is never reached from the current hooks config. Outputs JSON `hookSpecificOutput` when issues found, empty otherwise. Silently exits 0 if the launcher/CLI is unavailable. Always exits 0. |
+| `bin/validate-archcore`      | PostToolUse                                  | Runs `archcore doctor` directly (timeout 2s) after MCP document operations (by tool_name prefix). The subcommand invocation is locked by `test/structure/readme-cli-references.bats` against the canonical CLI surface and a `MOCK_ARCHCORE_LOG`-backed assertion in `test/unit/validate-archcore.bats`. The legacy Write/Edit branch in the script is retained as defensive code but is never reached from the current hooks config. Outputs JSON `hookSpecificOutput` when issues found, empty otherwise. Silently exits 0 if the CLI is unavailable. Always exits 0. |
 | `bin/check-staleness`        | SessionStart (called by `bin/session-start`) | Detects code-document drift via git: finds source files changed since the last `.archcore/` commit, cross-references with documents that mention affected directories. Rate-limited to once per 24h via a timestamp file (`$CLAUDE_PLUGIN_DATA/archcore/last-staleness`, with XDG/HOME fallbacks). Emits only when matching documents exist — no generic "N files changed" fallback. Outputs plain text warning (max 2KB) or empty. Always exits 0. |
 | `bin/check-cascade`          | PostToolUse                                  | After `update_document`, queries `.sync-state.json` relation graph for documents connected via `implements`, `depends_on`, or `extends` to the updated document. Outputs JSON `hookSpecificOutput` listing potentially stale dependents, or empty if no cascade. Always exits 0.                          |
 | `bin/check-precision`        | PostToolUse                                  | Phase 1 of the Precision Initiative. After `create_document` and `update_document`, reads the resulting file from disk and runs four checks: forbidden vagueness lexicon (hardcoded list mirroring `skills/_shared/precision-rules.md`), mandatory sections by type (adr/rule/spec/guide/rfc), frontmatter title+status presence, body length ≥200 chars. Emits soft warnings via `additionalContext`. Always exits 0 (never blocks). See `precision-over-coverage.adr.md`. |
@@ -148,8 +131,8 @@ See the Bundled CLI Launcher ADR for rationale.
 
 | Component       | Location                     | Tests    | Description                                                                                             |
 | --------------- | ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------- |
-| Unit tests      | `test/unit/`                 | 94+      | Test each bin script: stdin parsing, host detection, exit codes, output format, edge cases. Includes `launcher.bats` (CLI launcher resolution order), `check-staleness.bats` (24h rate limit, corrupt-stamp recovery), and `check-code-alignment.bats` (source-root filter, specificity ranking, top-3 cap, settings override, Cursor JSON shape, non-blocking safety). |
-| Structure tests | `test/structure/`            | 50+      | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules. `hooks.bats` includes Phase 2.1 anti-regression invariants: no Write/Edit matcher on PostToolUse, no postToolUse event on Cursor, exact event-set invariants per host. `codex-plugin.bats` enforces Codex manifest, marketplace schema, hooks shape, MCP wiring, TOML agents, and parity between `commands/*.md` wrappers and `skills/<name>/SKILL.md`. `cli-contract.bats` locks every `archcore <subcmd>` invocation in `bin/*` and MCP-launcher JSONs against an allowlist sourced from `bin/CLI_VERSION`; `readme-cli-references.bats` does the same for prescriptive README references. |
+| Unit tests      | `test/unit/`                 | 112      | Test each bin script: stdin parsing, host detection, exit codes, output format, edge cases. Includes `check-staleness.bats` (24h rate limit, corrupt-stamp recovery) and `check-code-alignment.bats` (source-root filter, specificity ranking, top-3 cap, settings override, Cursor JSON shape, non-blocking safety). `session-start.bats` covers the missing-CLI fallback path now that the launcher is gone. |
+| Structure tests | `test/structure/`            | 100      | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules. `hooks.bats` includes anti-regression invariants: no Write/Edit matcher on PostToolUse, no postToolUse event on Cursor, exact event-set invariants per host. `codex-plugin.bats` enforces Codex manifest, marketplace schema, hooks shape, MCP wiring (`command: "archcore"` on PATH), TOML agents, and parity between `commands/*.md` wrappers and `skills/<name>/SKILL.md`. `readme-cli-references.bats` validates every `archcore <subcmd>` reference in README against the canonical surface (`config doctor help hooks init mcp status update`). |
 | Fixtures        | `test/fixtures/stdin/`       | 12 files | Mock stdin JSON for Claude Code, Cursor, Copilot, Codex CLI, and malformed inputs                       |
 | Helpers         | `test/helpers/`              | —        | common.bash (setup, mocks, timeout shim), bats-support, bats-assert (git submodules)                    |
 | Makefile        | `Makefile`                   | —        | Targets: `test`, `test-unit`, `test-structure`, `lint`, `check-json`, `check-perms`, `verify`           |
@@ -165,18 +148,20 @@ The plugin **ships MCP registration** for Claude Code via `.mcp.json` at the plu
 {
   "mcpServers": {
     "archcore": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/archcore",
+      "command": "archcore",
       "args": ["mcp"]
     }
   }
 }
 ```
 
-The `command` points at the bundled launcher, which resolves the actual CLI binary at invocation time (`$ARCHCORE_BIN` → `PATH` → cache → download). Users with a global `archcore` on `PATH` hit their existing install; users without one get a one-time auto-download on first MCP call. No manual `claude mcp add` or project-level `.mcp.json` required.
+The `command` resolves through PATH — users must have the Archcore CLI installed globally (see https://docs.archcore.ai/cli/install/). If the CLI is missing at session start, the MCP server fails to register and `bin/session-start` prints the install instructions.
 
-Codex CLI uses `.codex-plugin/plugin.json` to point at plugin-root `.codex.mcp.json`, which registers the same launcher with a plugin-relative command (`./bin/archcore`). Cursor users still register MCP externally (via Cursor's MCP settings or a project `mcp.json`) — the launcher works identically for them, just isn't wired in via a plugin-shipped MCP config.
+Codex CLI uses `.codex-plugin/plugin.json` to point at plugin-root `.codex.mcp.json`, which uses the same shape — `command: "archcore"`, `args: ["mcp"]`. No `cwd` indirection, no `env_vars` allowlist gymnastics: with the launcher gone, Codex's plugin-cache rebase of `cwd: "."` is no longer needed.
 
-Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP" stance (documented in the Multi-Host Plugin Architecture ADR) is superseded for Claude Code and Codex CLI; duplicate-suppression concerns are resolved because the launcher defers to an existing global install when present, making the effective command identical to a user-registered one.
+Cursor users still register MCP externally via Cursor's MCP settings or a project `mcp.json`. The bundled `cursor.mcp.json` template adds `cwd: "${workspaceFolder}"` to scope the MCP to the active project — required because Cursor does not auto-inject a project CWD into plugin-spawned processes.
+
+Rationale: see `remove-bundled-launcher-global-cli.idea.md`. The previous bundled launcher (download-on-first-use, checksum-verified, cached per host) is removed; CLI lifecycle now decouples cleanly from plugin releases.
 
 ### Plugin Configs
 
@@ -188,8 +173,9 @@ Rationale: see the Bundled CLI Launcher ADR. The prior "plugin does not own MCP"
 | `.claude-plugin/marketplace.json` | Claude Code | Marketplace metadata                                                   |
 | `.cursor-plugin/marketplace.json` | Cursor      | Marketplace metadata                                                   |
 | `.agents/plugins/marketplace.json` | Codex CLI  | Marketplace metadata and default-install policy                        |
-| `.mcp.json`                       | Claude Code | Plugin-provided MCP server registration (launcher-backed)              |
-| `.codex.mcp.json`                 | Codex CLI   | Plugin-provided MCP server registration (launcher-backed)              |
+| `.mcp.json`                       | Claude Code | Plugin-provided MCP registration (`command: "archcore"` on PATH)       |
+| `.codex.mcp.json`                 | Codex CLI   | Plugin-provided MCP registration (`command: "archcore"` on PATH)       |
+| `cursor.mcp.json`                 | Cursor      | Reference MCP config for users to copy into `~/.cursor/mcp.json` or `.cursor/mcp.json` (Cursor does not auto-register plugin MCP) |
 | `hooks/hooks.json`                | Claude Code | Hook event config (PascalCase)                                         |
 | `hooks/cursor.hooks.json`         | Cursor      | Hook event config (camelCase + afterMCPExecution)                      |
 | `hooks/codex.hooks.json`          | Codex CLI   | Hook event config (PascalCase + apply_patch matcher)                   |

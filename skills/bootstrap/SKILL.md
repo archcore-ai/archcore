@@ -57,22 +57,32 @@ Each non-empty mode additionally runs hotspot capture-candidate proposal (Step 6
 
 ### Pre-flight: CLI availability check
 
-Before any bootstrap step, verify that the Archcore CLI is available on PATH:
+Before any bootstrap step, verify that the Archcore CLI is available on PATH. The canonical installer is documented at https://docs.archcore.ai/cli/install/ — use it as the single source of truth; do **not** suggest other channels (`brew`, `go install`, etc.) even if the user mentions them.
 
 1. Run: `archcore --version` (via Bash tool)
-2. If it **succeeds** → proceed immediately to Step -1
+2. If it **succeeds** → proceed immediately to Step -1.
 3. If it **fails** (command not found):
-   - Try automated install:
-     - If `brew` exists (macOS): run `brew install archcore-ai/cli`
-     - Else if `go` exists: run `go install github.com/archcore-ai/cli@latest`
-     - Else skip automated install
-   - If install succeeded → print: *"Archcore CLI installed. Proceeding with bootstrap."* → go to Step -1
-   - If install failed OR no installer found:
-     - Print: *"Archcore CLI not found. Install it first:*
-       - *macOS: `brew install archcore-ai/cli`*
-       - *Linux/Go: `go install github.com/archcore-ai/cli@latest`*
-       - *Then re-run `/archcore:bootstrap`."*
-     - Stop.
+   - Detect the platform via `uname -s` (Bash). `Darwin`/`Linux` → POSIX path. Anything else (Windows native) → instruct-only path.
+   - **POSIX path** — ask the user once:
+     > Archcore CLI not found. The official installer runs:
+     >
+     > ```
+     > curl -fsSL https://archcore.ai/install.sh | bash
+     > ```
+     >
+     > Run it now? (y/N)
+   - On `y` → execute the command exactly as shown (Bash tool). After it returns, re-run `archcore --version`.
+     - Success → print: *"Archcore CLI installed (`<version>`). Proceeding with bootstrap."* → go to Step -1.
+     - Still failing → print the install message below and **stop**.
+   - On `N` / silence / **instruct-only path** → print and stop:
+     > Archcore CLI required. Install it, then re-run `/archcore:bootstrap`:
+     >
+     > - macOS / Linux / WSL: `curl -fsSL https://archcore.ai/install.sh | bash`
+     > - Windows (PowerShell 5.1+): `irm https://archcore.ai/install.ps1 | iex`
+     > - Verify: `archcore --version`
+     > - Full docs: https://docs.archcore.ai/cli/install/
+
+Do **not** attempt `brew install`, `go install`, package-manager wrappers, or any other install command — they are not the supported path and will produce a CLI that is not version-compatible with the plugin.
 
 ### Pre-flight: lazy reading
 

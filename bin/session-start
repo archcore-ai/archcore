@@ -9,9 +9,10 @@ SCRIPT_DIR=$(dirname "$0")
 # Check if archcore CLI is available on PATH
 if ! command -v archcore >/dev/null 2>&1; then
   _msg="[Archcore] CLI not found on PATH. Install it first:
-  macOS: brew install archcore-ai/cli
-  Linux/Go: go install github.com/archcore-ai/cli@latest
-  Then re-run this session."
+  macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash
+  Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex
+  Then verify: archcore --version
+  Docs: https://docs.archcore.ai/cli/install/"
   case "$ARCHCORE_HOST" in
     claude-code|copilot)
       _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')

@@ -104,7 +104,7 @@ setup() {
   assert_success
   [ -f "$MOCK_ARCHCORE_LOG" ] || fail "expected archcore to be invoked"
 
-  # Must match cli-contract.bats allowlist.
+  # Must match the canonical CLI surface allowlist guarded by readme-cli-references.bats.
   local allowed=" config doctor help hooks init mcp status update "
   while IFS= read -r sub; do
     [ -z "$sub" ] && continue

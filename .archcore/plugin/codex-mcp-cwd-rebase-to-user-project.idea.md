@@ -7,40 +7,10 @@ tags:
   - "plugin"
 ---
 
-## Status: Rejected (Superseded)
+## Status: Rejected (Superseded by `remove-bundled-launcher-global-cli.idea`)
 
-This idea was based on the bundled CLI launcher with a custom shell-wrapper workaround. The new global CLI architecture eliminates the need for this approach.
+This idea proposed an opt-in `ARCHCORE_CWD` environment variable passed through `.codex.mcp.json`'s `env_vars` allowlist, consumed by the bundled `bin/archcore` launcher (Step 0) to chdir into the user's project before exec'ing the CLI. It required a user-side shell wrapper (`function codex; env ARCHCORE_CWD=$PWD command codex $argv; end`) because Codex spawned plugin MCPs from the plugin cache directory, not the user's project.
 
-**New architecture (as of 2026-05-12):**
-- Users install the Archcore CLI globally
-- Codex MCP config: `{ "command": "archcore", "args": ["mcp"] }` — no `cwd`, no `env_vars`
-- No shell wrapper required
-- No `ARCHCORE_CWD` environment variable
-- Standard Codex MCP resolution handles everything
+With the launcher removed in plugin v0.4.0, none of this applies. `.codex.mcp.json` is now `{ "command": "archcore", "args": ["mcp"] }` — no `cwd`, no `env_vars`, no shell wrapper. Codex resolves `archcore` from PATH like any other CLI-based MCP server.
 
-See: `remove-bundled-launcher-global-cli.idea.md` for the full transition.
-
----
-
-## Original Idea (Historical, Superseded)
-
-[Original content preserved below for reference only]
-
-### Idea
-
-Make Codex-spawned archcore MCP servers operate in the user's project directory by combining three mechanisms — entirely within the existing shell launcher, no new language dependency:
-
-1. **Manifest passthrough.** `.codex.mcp.json` declares `env_vars: ["ARCHCORE_CWD"]`. Codex spawns MCP children with `.env_clear()` plus a fixed allowlist...
-
-[Full original content removed for brevity — see git history if needed]
-
----
-
-## Why Rejected
-
-- **Launcher removed.** The bundled `bin/archcore` shell launcher and all its Step 0 logic for `ARCHCORE_CWD` chdir have been deleted.
-- **Shell wrapper no longer needed.** The global CLI approach works with standard Codex MCP mechanisms; no user-side wrapper (`function codex; env ARCHCORE_CWD=$PWD ...`) is required.
-- **Tests removed.** Tests validating `ARCHCORE_CWD` chdir and guard behavior were part of `test/unit/launcher.bats` (deleted).
-- **Simpler architecture.** Codex now just resolves `archcore` on PATH like any other CLI-based MCP server.
-
-The global CLI approach is more maintainable and eliminates custom environment variables and wrapper logic.
+Original idea body removed — git history holds the Step 0 chdir + env_vars passthrough design if needed.

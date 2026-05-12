@@ -1,6 +1,6 @@
 ---
 name: verify-plugin-integrity
-description: Validate plugin format conformance for Claude Code, Cursor, and Codex CLI — statically audits .claude-plugin/plugin.json, .cursor-plugin/plugin.json, .codex-plugin/plugin.json, marketplace manifests (incl. .agents/plugins/marketplace.json), SKILL.md frontmatter, MD + TOML agent files, hooks JSON for all three hosts, plugin-shipped MCP wiring (.mcp.json + .codex.mcp.json), Cursor rules, and bin/ launcher against the official Claude Code plugin spec, Cursor plugin spec, OpenAI Codex CLI plugin docs, and Agent Skills specification. No test execution. Use after structural changes to manifests, skills, agents, hooks, or rules; before opening a PR touching plugin structure; or when multi-host (Claude + Cursor + Codex) consistency is in doubt. For the bats test suite, use /archcore:verify instead.
+description: Validate plugin format conformance for Claude Code, Cursor, and Codex CLI — statically audits .claude-plugin/plugin.json, .cursor-plugin/plugin.json, .codex-plugin/plugin.json, marketplace manifests (incl. .agents/plugins/marketplace.json), SKILL.md frontmatter, MD + TOML agent files, hooks JSON for all three hosts, plugin-shipped MCP wiring (.mcp.json + .codex.mcp.json), Cursor rules, and bin/ hook scripts against the official Claude Code plugin spec, Cursor plugin spec, OpenAI Codex CLI plugin docs, and Agent Skills specification. No test execution. Use after structural changes to manifests, skills, agents, hooks, or rules; before opening a PR touching plugin structure; or when multi-host (Claude + Cursor + Codex) consistency is in doubt. For the bats test suite, use /archcore:verify instead.
 disable-model-invocation: true
 ---
 
@@ -76,7 +76,7 @@ Per https://code.claude.com/docs/en/plugins-reference.md:
 - `name` present, kebab-case, alphanumeric + hyphens
 - `description`, `version` (semver), `author` (object with `name`), `license`, `repository` present (all optional per spec, but the repo convention requires them)
 - Any directory override fields (`skills`, `agents`, `commands`, `hooks`, `mcpServers`) start with `./` and resolve to existing paths
-- **Forbidden here**: `mcpServers` field inside the manifest itself (per `.archcore/plugin/multi-host-compatibility-layer.spec.md` §6 — MCP lives in `.mcp.json` at repo root, not in the plugin manifest)
+- **Forbidden here**: `mcpServers` field inside the manifest itself — MCP lives in `.mcp.json` at repo root, not in the plugin manifest
 - **Forbidden here**: `rules` field (Cursor-only; not auto-discovered by Claude Code)
 
 ### Section 2 — Cursor plugin manifest
@@ -261,21 +261,26 @@ Expected PostToolUse shape:
 
 ### Section 12 — MCP wiring
 
-Two plugin-shipped MCP configs at the plugin root.
+Two plugin-shipped MCP configs at the plugin root. Both must point at `archcore` resolved via PATH — the plugin does not bundle a launcher (see `remove-bundled-launcher-global-cli.idea.md`). Users install the CLI globally per https://docs.archcore.ai/cli/install/.
 
-**Claude Code — `.mcp.json`** (per `.archcore/plugin/multi-host-compatibility-layer.spec.md` §6):
+**Claude Code — `.mcp.json`**:
 - JSON parses
-- `mcpServers.archcore.command` equals `${CLAUDE_PLUGIN_ROOT}/bin/archcore`
+- `mcpServers.archcore.command` equals `archcore`
 - `mcpServers.archcore.args` equals `["mcp"]`
+- File MUST NOT contain `${CLAUDE_PLUGIN_ROOT}` or any `bin/archcore` reference (grep — either is a hard FAIL: the launcher was removed)
 
-**Codex CLI — `.codex.mcp.json`** (per `multi-host-compatibility-layer.spec.md` §6 Codex subsection and `test/structure/codex-plugin.bats`):
+**Codex CLI — `.codex.mcp.json`**:
 - File exists at the plugin root (NOT inside `.codex-plugin/`)
 - JSON parses
-- `mcpServers.archcore.command` equals `./bin/archcore` (plugin-relative — NOT `${CLAUDE_PLUGIN_ROOT}` or `${CODEX_PLUGIN_ROOT}`)
+- `mcpServers.archcore.command` equals `archcore`
 - `mcpServers.archcore.args` equals `["mcp"]`
-- File MUST NOT contain `${CLAUDE_PLUGIN_ROOT}` or `${CODEX_PLUGIN_ROOT}` (grep — either token is a hard FAIL)
+- File MUST NOT contain `${CLAUDE_PLUGIN_ROOT}`, `${CODEX_PLUGIN_ROOT}`, `./bin/archcore`, `cwd: "."`, or `env_vars` — all are remnants of the deleted launcher architecture and are hard FAILs
 
-**Cursor**: no plugin-shipped MCP file. Cursor users register MCP externally via Cursor's settings UI or a project `mcp.json`. PASS if no Cursor-specific MCP file is present at the plugin root; the launcher itself remains the same binary.
+**Cursor — `cursor.mcp.json`** (reference template; Cursor does not auto-register plugin MCP):
+- File exists at the plugin root
+- `mcpServers.archcore.command` equals `archcore`
+- `mcpServers.archcore.args` equals `["mcp"]`
+- `mcpServers.archcore.cwd` equals `${workspaceFolder}` (required so Cursor scopes the MCP to the active project)
 
 ### Section 13 — Rules (Cursor-only)
 
@@ -287,15 +292,17 @@ Iterate `rules/*.mdc`. Per https://cursor.com/docs/context/rules:
 
 Note: neither Claude Code nor Codex CLI auto-discover `rules/` — this directory is exclusively consumed by Cursor.
 
-### Section 14 — Bin launcher
+### Section 14 — Bin hook scripts
 
-Per `.archcore/plugin/bundled-cli-launcher.adr.md`:
+Per `.archcore/plugin/remove-bundled-launcher-global-cli.idea.md`, the plugin no longer ships a launcher binary, `bin/archcore*` wrappers, or `bin/CLI_VERSION`. Hard FAIL conditions if any of those files exist (they indicate a partial rollback or a regression).
 
-- `bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1` all exist
-- `bin/CLI_VERSION` exists and contains exactly one semver line
-- `bin/archcore` is executable (`[ -x ]`)
+Required `bin/` shape:
+
 - `bin/lib/normalize-stdin.sh` exists (sourced by all hook scripts)
-- All hook scripts referenced by any of the three hooks configs (`session-start`, `check-archcore-write`, `check-code-alignment`, `validate-archcore`, `check-cascade`, `check-precision`) exist under `bin/` and are executable
+- All hook scripts referenced by any of the three hooks configs exist under `bin/` and are executable: `session-start`, `check-archcore-write`, `check-code-alignment`, `validate-archcore`, `check-cascade`, `check-precision`, `check-staleness`
+- All scripts start with `#!/bin/sh` (POSIX) and pass `shellcheck -s sh -x` when available
+- `bin/session-start` falls back to an install-instructions message pointing at https://docs.archcore.ai/cli/install/ when `archcore` is not on PATH
+- The Makefile's `BIN_SCRIPTS` glob (`bin/check-* bin/validate-* bin/session-start`) covers every executable hook script and does NOT reference `bin/archcore`
 
 ### Section 15 — Archcore registry spot-check
 
@@ -331,7 +338,7 @@ This is a spot-check, not a full audit — for full staleness detection use `/ar
 | 11 | Hooks (Codex)                    | ✓ / ✗    | PascalCase + apply_patch + relative cmds |
 | 12 | MCP wiring (.mcp + .codex.mcp)   | ✓ / ✗    | launcher commands, no host-root tokens   |
 | 13 | Rules                            | ✓ / ✗    | mdc frontmatter                          |
-| 14 | Bin launcher                     | ✓ / ✗    | launchers + CLI_VERSION + executable     |
+| 14 | Bin hook scripts                 | ✓ / ✗    | hook scripts + normalizer + no launcher  |
 | 15 | Registry spot-check              | ✓ / ✗    | counts match                             |
 
 Result: X / 15 sections passed.

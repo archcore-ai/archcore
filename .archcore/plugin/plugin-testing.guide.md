@@ -37,20 +37,20 @@ Runs all checks in order: JSON validation → permission check → ShellCheck �
 make test
 ```
 
-Runs both unit and structure tests via bats-core (136 tests total as of CLI v0.1.7).
+Runs both unit and structure tests via bats-core (212 tests total as of the global-CLI cutover).
 
 To run a subset:
 
 ```bash
-make test-unit       # 81 unit tests (incl. launcher.bats)
-make test-structure  # 55 structure tests
+make test-unit       # unit tests for bin/ script logic
+make test-structure  # structure tests for configs and frontmatter
 ```
 
 To run a single test file:
 
 ```bash
 PLUGIN_ROOT=$(pwd) bats test/unit/normalize-stdin.bats
-PLUGIN_ROOT=$(pwd) bats test/unit/launcher.bats      # CLI launcher tests
+PLUGIN_ROOT=$(pwd) bats test/unit/validate-archcore.bats
 ```
 
 ### 3. Run ShellCheck lint
@@ -94,21 +94,12 @@ This skill runs automated tests, then performs manual cross-reference checks tha
    - `run_with_fixture <script> <fixture-path>` — run script with fixture file as stdin
    - `run_with_stdin <script> <inline-json>` — run script with inline stdin
    - `mock_archcore <output> [exit-code]` — create a mock `archcore` CLI on `PATH` that returns canned output for *any* subcommand. Use only when the test does not care which subcommand was called.
-   - `mock_archcore_logging <output> [exit-code]` — same as `mock_archcore`, but every invocation appends the subcommand argument (`$1`) to `$MOCK_ARCHCORE_LOG` if that env var is set. Use whenever the test needs to assert which subcommand the script invoked (recommended for any hook that shells out to the launcher).
+   - `mock_archcore_logging <output> [exit-code]` — same as `mock_archcore`, but every invocation appends the subcommand argument (`$1`) to `$MOCK_ARCHCORE_LOG` if that env var is set. Use whenever the test needs to assert which subcommand the script invoked (recommended for any hook that shells out to the CLI).
    - `mock_archcore_multi` — multi-subcommand mock (responds with `$MOCK_DOCTOR_OUTPUT` for `doctor`, `$MOCK_HOOKS_OUTPUT` for `hooks`); also logs to `$MOCK_ARCHCORE_LOG` when set.
    - `run_normalizer <json>` — source normalize-stdin.sh and print exported vars
 4. Use bats-assert for assertions: `assert_success`, `assert_failure <code>`, `assert_output --partial <text>`
 
-**Testing the CLI launcher** — `test/unit/launcher.bats` exercises `bin/archcore` directly:
-
-- `ARCHCORE_BIN` override wins over all other resolution
-- `archcore` on `PATH` is preferred over the cache
-- Cache hit: `<cache>/archcore-v${VERSION}` is used when present
-- Cache miss + `ARCHCORE_SKIP_DOWNLOAD=1` → exit 1 with diagnostic
-- Checksum mismatch → abort, no install
-- Loop guard: `PATH` containing the launcher itself is skipped
-
-When writing launcher tests, override the cache directory via `CLAUDE_PLUGIN_DATA=$BATS_TEST_TMPDIR` so the test doesn't touch the user's real cache.
+**Testing CLI fallback paths** — `test/unit/session-start.bats` covers the missing-CLI fallback: with a restricted PATH where `archcore` is not resolvable, `bin/session-start` must still exit 0 and emit the install message pointing at https://docs.archcore.ai/cli/install/. Other hook scripts that shell out to `archcore` (e.g., `validate-archcore`) use `mock_archcore_logging` to assert which subcommand was invoked.
 
 **Structure test** — for config/file validation:
 
@@ -116,7 +107,7 @@ When writing launcher tests, override the cache directory via `CLAUDE_PLUGIN_DAT
 2. Same setup as unit tests
 3. Use `$PLUGIN_ROOT` to reference project files
 4. Use `jq` for JSON validation, `grep` for frontmatter checks
-5. For scripts that invoke the CLI through the launcher, the `scripts.bats` structure tests verify the `"$SCRIPT_DIR/archcore"` invocation pattern; `cli-contract.bats` verifies that every subcommand passed to the launcher is in the allowlisted CLI surface (see step 7).
+5. For scripts that invoke the CLI, the `scripts.bats` structure tests verify the direct `archcore` invocation pattern (no launcher indirection). README references to `archcore <subcmd>` are guarded by `readme-cli-references.bats` against the canonical surface allowlist.
 
 **Fixture** — mock stdin JSON for hook scripts:
 
@@ -126,11 +117,11 @@ When writing launcher tests, override the cache directory via `CLAUDE_PLUGIN_DAT
 
 ### 7. Assert CLI subcommand invocations
 
-Per `cli-integration-tests.rule.md`, any change that touches a script invoking the bundled `archcore` CLI MUST be covered by tests that pin the exact subcommand. The plugin enforces this contract at two layers:
+Per `cli-integration-tests.rule.md`, any change that touches a script invoking `archcore` MUST be covered by tests that pin the exact subcommand. The plugin enforces this contract at two layers:
 
-**Structure layer** — `test/structure/cli-contract.bats` extracts every token following `"$LAUNCHER"` in `bin/*` scripts and every `args[0]` in MCP-launcher JSONs (`.mcp.json`, `.codex.mcp.json`), and asserts each is a member of the allowlist `config | doctor | help | hooks | init | mcp | status | update`. The allowlist is hardcoded in the test file and pinned to `bin/CLI_VERSION`; a separate live cross-check test verifies the hardcoded list still matches `archcore --help` whenever the launcher can resolve the binary. README references are guarded the same way by `test/structure/readme-cli-references.bats`.
+**Structure layer** — `test/structure/readme-cli-references.bats` extracts every backtick-quoted `archcore <subcmd>` reference in `README.md` and asserts each is a member of the canonical surface allowlist: `config doctor help hooks init mcp status update`. The allowlist is hardcoded in the test file. Internal `.archcore/` design docs are intentionally excluded — they hold historical spec text that may legitimately reference renamed commands.
 
-**Unit layer** — for any hook script that calls the launcher, write a test that uses `mock_archcore_logging` plus `MOCK_ARCHCORE_LOG`:
+**Unit layer** — for any hook script that calls `archcore`, write a test that uses `mock_archcore_logging` plus `MOCK_ARCHCORE_LOG`:
 
 ```bash
 @test "<script> calls only the expected subcommand" {
@@ -146,15 +137,15 @@ Per `cli-integration-tests.rule.md`, any change that touches a script invoking t
 
 A test that asserts only `assert_success` after a CLI invocation is insufficient — hooks swallow non-zero exits, so a phantom subcommand fails silently and the test still passes. Always assert what was invoked.
 
-When `bin/CLI_VERSION` bumps, update the hardcoded allowlist in `cli-contract.bats` and rerun the suite to confirm the live cross-check still matches.
+When the canonical CLI surface changes upstream (new subcommand added/removed), update the `ARCHCORE_SUBCOMMANDS` constant in `readme-cli-references.bats` and add an invocation-log assertion for any new subcommand the plugin starts using.
 
 ## Verification
 
 - `make verify` exits 0 with "All checks passed"
-- All 136 tests show `ok` in the TAP output
+- All 212 tests show `ok` in the TAP output
 - ShellCheck reports "all clean"
 - No `not ok` lines in test output
-- After breaking something intentionally (e.g., remove execute permission from a bin script, or clear `bin/CLI_VERSION`), the relevant test fails
+- After breaking something intentionally (e.g., remove execute permission from a bin script, or rename a bin script the Makefile references), the relevant test fails
 
 ## Common Issues
 
@@ -188,25 +179,21 @@ The test suite provides a `timeout` shim automatically for macOS. If you see tim
 - Ensure the CI runner has `jq` installed (it's not always pre-installed)
 - On Linux, `/bin/sh` is `dash` (strict POSIX). On macOS, `/bin/sh` is bash in POSIX mode. If a test reveals a bashism in a bin script, fix the script — the bin scripts must be POSIX-compatible.
 
-### Launcher tests try to download during CI
-
-Launcher tests must pass `ARCHCORE_SKIP_DOWNLOAD=1` or pre-populate a mock binary in the overridden cache. If you see network timeouts in CI, a test is letting the download path execute. Audit the test for missing `ARCHCORE_SKIP_DOWNLOAD=1` or `ARCHCORE_BIN=<mock>`.
-
 ### ShellCheck SC2034 in normalize-stdin.sh
 
 This is suppressed by a directive at the top of the file. The variables (ARCHCORE_HOST, ARCHCORE_TOOL_NAME, etc.) are exported for use by sourcing scripts.
 
-### CLI-contract test fails after CLI version bump
+### README CLI-reference test fails after a subcommand rename
 
-When `bin/CLI_VERSION` changes, the live cross-check in `test/structure/cli-contract.bats` may report drift between the hardcoded allowlist and `archcore --help`. Update the `ARCHCORE_SUBCOMMANDS` constant in that file to match the new live surface, then rerun the suite. Per `cli-integration-tests.rule.md`, any new subcommand the plugin starts invoking also needs a unit-level invocation-log assertion.
+When the upstream CLI adds, removes, or renames a subcommand, `test/structure/readme-cli-references.bats` may flag a `archcore <subcmd>` reference in the README as phantom. Update `ARCHCORE_SUBCOMMANDS` in that file to match the new surface, then rerun the suite. Per `cli-integration-tests.rule.md`, any new subcommand the plugin starts invoking also needs a unit-level invocation-log assertion in the corresponding hook test.
 
 ### Adding a new bin script
 
 When adding a new bin/ script:
-1. Add `#!/bin/sh` shebang (POSIX launcher) or appropriate PowerShell header for Windows-only scripts
+1. Add `#!/bin/sh` shebang (POSIX) or appropriate PowerShell header for Windows-only scripts
 2. Make it executable: `chmod +x bin/<name>`
 3. If it reads hook stdin, source the normalizer: `. "$SCRIPT_DIR/lib/normalize-stdin.sh"`
 4. Add `# shellcheck source=lib/normalize-stdin.sh` before the source line
-5. If the script invokes the Archcore CLI, call it as `"$SCRIPT_DIR/archcore"` (the launcher) so resolution order (ARCHCORE_BIN → PATH → cache → download) applies uniformly
-6. Write tests in `test/unit/<name>.bats`. If the script invokes the launcher, include the invocation-log assertion described in step 7 above (mandated by `cli-integration-tests.rule.md`).
-7. The structure tests will automatically verify permissions, shebang, and that any subcommand passed to the launcher is allowlisted.
+5. If the script invokes the Archcore CLI, call `archcore <subcmd>` directly (resolved via PATH). The plugin no longer bundles a launcher — assume the user has installed the CLI per https://docs.archcore.ai/cli/install/. Wrap the call with `timeout` and `|| true` if the hook must remain non-blocking.
+6. Write tests in `test/unit/<name>.bats`. If the script invokes the CLI, include the invocation-log assertion described in step 7 above (mandated by `cli-integration-tests.rule.md`).
+7. The structure tests will automatically verify permissions and shebang. README references to new subcommands are guarded by `readme-cli-references.bats`.

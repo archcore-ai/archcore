@@ -10,17 +10,17 @@ It works across sessions, across agents, and across host tools. When your team m
 
 Install the Archcore CLI first:
 
-**macOS:**
+**macOS / Linux / WSL:**
 ```bash
-brew install archcore-ai/cli
+curl -fsSL https://archcore.ai/install.sh | bash
 ```
 
-**Linux / Go:**
-```bash
-go install github.com/archcore-ai/cli@latest
+**Windows (PowerShell 5.1+):**
+```powershell
+irm https://archcore.ai/install.ps1 | iex
 ```
 
-Verify: `archcore --version`
+Verify: `archcore --version` · Update later: `archcore update` · Full docs: [docs.archcore.ai/cli/install](https://docs.archcore.ai/cli/install/)
 
 Then install the plugin (next section).
 
@@ -67,7 +67,7 @@ Cursor reads the repo's `marketplace.json`, shows the plugin, and installs it.
 > }
 > ```
 >
-> - `command: "archcore"` — uses the CLI installed on your PATH (e.g., via `brew install archcore-ai/cli`)
+> - `command: "archcore"` — uses the CLI installed on your PATH (see [install docs](https://docs.archcore.ai/cli/install/))
 > - `cwd: "${workspaceFolder}"` — attaches MCP to the active project root on every spawn
 
 **Codex CLI** — requires Codex CLI v0.117.0+ (March 2026 plugin system):
@@ -179,7 +179,7 @@ Two pieces work together:
 - **2 Agents** — a universal assistant and a read-only auditor
 - **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 
-The plugin ships a launcher that resolves the [Archcore CLI](https://archcore.ai) (`archcore mcp`) and registers the MCP server automatically through host-specific bundled MCP configs: `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI. If the CLI isn't on `PATH`, the launcher downloads it on first use and caches it under `$CODEX_PLUGIN_DATA/archcore/cli/`, `$CLAUDE_PLUGIN_DATA/archcore/cli/`, or the local XDG cache. An existing global `archcore` install on `PATH` always wins — no duplicate-server conflicts.
+The plugin assumes the [Archcore CLI](https://docs.archcore.ai/cli/install/) is installed globally on `PATH`. It registers `archcore mcp` as the MCP server automatically through host-specific configs: `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI. Cursor users add a one-time entry to `~/.cursor/mcp.json` or `.cursor/mcp.json` (see the Install section). If `archcore --version` works, the plugin works — no bundled binary, no caches, no auto-download.
 
 ## What you ask Archcore to do
 

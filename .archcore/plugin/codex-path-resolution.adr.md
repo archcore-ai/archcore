@@ -7,46 +7,12 @@ tags:
   - "plugin"
 ---
 
-## Status: Rejected (Superseded)
+## Status: Rejected (Superseded by `remove-bundled-launcher-global-cli.idea`)
 
-This decision described a complex workaround for the bundled launcher architecture. With the global CLI approach, path resolution is trivial.
+This ADR documented Codex 0.130.0's three path-resolution quirks affecting plugin-shipped MCP/hooks under the bundled-launcher architecture: (1) no `${CODEX_PLUGIN_ROOT}` substitution in MCP `command`/`args`; (2) `.env_clear()` stripping inherited env vars at MCP spawn; (3) plugin-cache CWD instead of user-project CWD. The shipped workaround was `.codex.mcp.json` with `command: "./bin/archcore"`, `cwd: "."`, and `env_vars: ["ARCHCORE_CWD"]` — relying on Codex's `normalize_plugin_mcp_server_value` rebasing `"."` to the plugin install root.
 
-**New architecture (as of 2026-05-12):**
-- `.codex.mcp.json`: `{ "command": "archcore", "args": ["mcp"] }` — no relative paths, no `cwd`, no `env_vars`
-- Codex resolves `archcore` on PATH like any standard CLI tool
-- No Step 0 launcher logic, no ARCHCORE_CWD shell wrapper, no guard
+With the bundled launcher removed in plugin v0.4.0, the relative-path workaround disappears. `.codex.mcp.json` is now `{ "command": "archcore", "args": ["mcp"] }` — Codex resolves `archcore` from PATH using the host process's PATH, with no plugin-relative resolution needed.
 
-See: `remove-bundled-launcher-global-cli.idea.md` for context.
+The three Codex quirks themselves may still exist upstream, but they no longer matter for this plugin because it no longer ships anything Codex needs to resolve relative to the plugin install root.
 
----
-
-## Original Decision (Historical, Superseded)
-
-[Original content preserved below for reference only]
-
-### Context
-
-Codex 0.130.0 resolves paths in plugin MCP and hooks configs differently from Claude Code. We hit three ENOENT-or-equivalent failures porting the plugin to Codex:
-
-1. **MCP command resolution** — Codex does **not** substitute `${CODEX_PLUGIN_ROOT}` or `${CLAUDE_PLUGIN_ROOT}` in `command`/`args`. The only plugin-aware rewrite is in `core-plugins/src/loader.rs::normalize_plugin_mcp_server_value`...
-
-[Full original content removed for brevity — see git history if needed]
-
----
-
-## Why Rejected
-
-- **Launcher removed.** The bundled `bin/archcore` and all its resolution logic have been deleted.
-- **No more relative-path workarounds.** The global CLI on PATH works with standard MCP mechanisms.
-- **Simplified hook resolution.** Hooks directly call `archcore` on PATH (via `bin/session-start`, `bin/validate-archcore`, etc.).
-- **Tests removed.** Tests for Step 0 chdir, Step 0b guard, `ARCHCORE_CWD` passthrough were deleted with `test/unit/launcher.bats`.
-
-The global CLI approach completely eliminates the path resolution complexity that required this decision. Codex now treats archcore like any other CLI-based MCP server.
-
-## Legacy Context: Why This Was Complex
-
-Codex's MCP spawn pipeline called `.env_clear()` and didn't substitute plugin-root env vars, making it hard to:
-- Point MCP to a relative `./bin/archcore` in the plugin directory
-- Pass through a custom `ARCHCORE_CWD` variable to override cwd inside the launcher
-
-This decision provided a workaround using a shell launcher Step 0 that checked for `ARCHCORE_CWD` and a Step 0b guard that refused to operate from the plugin cache without a shell wrapper. The complexity was necessary _given the launcher architecture_. With the launcher removed, all of this is moot.
+Original ADR body removed — git history holds the `normalize_plugin_mcp_server_value` analysis, the `.env_clear()` trace, and the chdir Step 0 design if needed.

@@ -9,53 +9,41 @@ tags:
 
 ## Context
 
-The Archcore plugin currently works only in Claude Code. Research (April 2026) shows that 9+ major AI coding tools have adopted the same open standards the plugin already uses:
+The Archcore plugin must work across multiple AI coding hosts that have converged on common open standards (April 2026 research):
 
 - **Agent Skills standard** (agentskills.io) — adopted by Cursor, GitHub Copilot, Codex CLI, Roo Code, Cline, Gemini CLI, Windsurf, JetBrains Junie, OpenHands
 - **MCP (Model Context Protocol)** — adopted by all of the above plus Amazon Q, Continue.dev, Zed AI
 - **Markdown agent definitions** — adopted by Cursor, GitHub Copilot, Codex CLI, Gemini CLI
 
-Analysis of the current plugin shows that **~95% of code is already host-agnostic**:
-
-| Component         | Count | Host-specific?                                             |
-| ----------------- | ----- | ---------------------------------------------------------- |
-| Skills (SKILL.md) | 33    | No — use only `mcp__archcore__*`, `Read`, `Grep`, `Glob`   |
-| Agents (.md)      | 2     | No — same frontmatter format, same MCP tools               |
-| Bin scripts       | 5     | **Partially** — stdin JSON format varies by host           |
-| hooks.json        | 1     | **Yes** — event names and matcher syntax differ            |
-| Plugin manifest   | 1     | **Yes** — `.claude-plugin/plugin.json` is Claude Code only |
-
-The only host-specific parts are: plugin manifests (~10 lines JSON each), hooks config files (~30 lines JSON each), and stdin parsing in bin scripts. The MCP server is a separate concern — it is installed via the Archcore CLI and registered by the user, not shipped with the plugin.
+Analysis showed that ~95% of plugin code is host-agnostic: skills, agents, hook scripts, and the stdin-normalization library. Only manifest files and hooks configs are host-specific.
 
 ### Drivers
 
-- Users of Cursor, Copilot, Codex CLI ask for Archcore integration — Codex CLI v0.117.0+ (March 2026) added a plugin system with near-1:1 surface to Claude Code, validating the third-host bet.
-- Industry convergence on Agent Skills + MCP makes cross-host support low-effort
-- Maintaining separate repos per host would mean duplicating 33 skills, 2 agents, and 5 bin scripts
+- Users of Cursor, Copilot, and Codex CLI need Archcore integration — Codex CLI v0.117.0+ (March 2026) added a plugin system with near-1:1 surface to Claude Code, validating the third-host bet.
+- Industry convergence on Agent Skills + MCP makes cross-host support low-effort.
+- Maintaining separate repos per host would mean duplicating 16 skills, 2 agents, and 6 hook scripts.
 
 ## Decision
 
 **Support multiple AI coding hosts from a single repository** with a shared core and thin per-host adapter layer.
 
-At the time of this decision, the plugin did not ship an MCP server configuration — MCP tools came from the separately-installed Archcore CLI, registered by the user via project `.mcp.json` or `claude mcp add`. **This stance has since been superseded for Claude Code and Codex CLI** (see the Bundled CLI Launcher ADR): the plugin now ships a launcher (`bin/archcore{,.cmd,.ps1}` + `bin/CLI_VERSION`) that resolves the CLI on demand, plus host-specific MCP configs that register `archcore` against that launcher. The shared-core / per-host-adapter split described below remains the governing architecture; the CLI-install / MCP-registration sub-decision evolved.
+The plugin ships:
 
-Architecture (as originally decided, with an addendum below for the current MCP wiring):
+- **Shared core** (host-agnostic): `skills/`, `agents/` (both `.md` and `.toml` variants), `bin/` (hook scripts + stdin normalizer), `commands/` (Codex slash command wrappers).
+- **Per-host adapter files** (configuration only, no logic): plugin manifest, hooks config, and an MCP config per host.
+- **No bundled CLI**: the Archcore CLI is installed globally by the user per https://docs.archcore.ai/cli/install/. All three MCP configs name `archcore` as the command, resolved via PATH. The plugin does not bundle, download, cache, or pin a CLI binary.
 
 ```
 plugin/
-├── commands/                    # Codex CLI slash command wrappers
+├── commands/                    # Codex CLI slash command wrappers (16, host-adapter shims)
 ├── skills/                      # Shared — Agent Skills standard (16 skills)
-├── agents/                      # Shared — markdown agent definitions (2 agents) + Codex TOML variants
+├── agents/                      # Shared — markdown agent definitions + Codex TOML variants
 │   ├── archcore-assistant.md    # Claude Code / Cursor
-│   ├── archcore-assistant.toml  # Codex CLI
+│   ├── archcore-assistant.toml  # Codex CLI (sandbox_mode = "workspace-write")
 │   ├── archcore-auditor.md      # Claude Code / Cursor
 │   └── archcore-auditor.toml    # Codex CLI (sandbox_mode = "read-only" + disabled_tools)
-├── bin/                         # Shared — hook scripts with stdin normalization
-│   ├── lib/normalize-stdin.sh   # Detects host format (claude-code/cursor/copilot/codex), outputs normalized JSON
-│   ├── archcore                 # Cross-platform CLI launcher (POSIX)
-│   ├── archcore.cmd             # Windows shim
-│   ├── archcore.ps1             # Windows launcher (PowerShell)
-│   ├── CLI_VERSION              # Pinned CLI semver
+├── bin/                         # Shared — hook scripts + stdin normalizer (no CLI binary)
+│   ├── lib/normalize-stdin.sh
 │   ├── session-start
 │   ├── check-archcore-write
 │   ├── check-code-alignment
@@ -64,112 +52,72 @@ plugin/
 │   ├── check-precision
 │   └── check-staleness
 │
-├── .claude-plugin/              # Claude Code manifest
-│   ├── plugin.json
-│   └── marketplace.json
-├── .cursor-plugin/              # Cursor manifest
-│   ├── plugin.json
-│   └── marketplace.json
-├── .codex-plugin/               # Codex CLI manifest
-│   └── plugin.json
+├── .claude-plugin/              # Claude Code manifest + marketplace
+├── .cursor-plugin/              # Cursor manifest + marketplace
+├── .codex-plugin/               # Codex CLI manifest (single file)
 ├── .agents/plugins/             # Codex marketplace descriptor
-│   └── marketplace.json
 │
 ├── hooks/
-│   ├── hooks.json               # Claude Code hook events (PascalCase)
-│   ├── cursor.hooks.json        # Cursor hook events (camelCase)
-│   ├── codex.hooks.json         # Codex CLI hook events (PascalCase, mirrors Claude Code)
-│   └── copilot.hooks.json       # GitHub Copilot hook events (future)
+│   ├── hooks.json               # Claude Code (PascalCase events)
+│   ├── cursor.hooks.json        # Cursor (camelCase events)
+│   └── codex.hooks.json         # Codex CLI (PascalCase events + apply_patch matcher)
 │
-├── .mcp.json                    # Plugin-shipped MCP for Claude Code
-├── .codex.mcp.json              # Plugin-shipped MCP for Codex CLI
-└── rules/                       # Cursor-specific rules (.mdc files, optional)
+├── .mcp.json                    # Claude Code — { "archcore": { "command": "archcore", "args": ["mcp"] } }
+├── .codex.mcp.json              # Codex CLI — same shape
+├── cursor.mcp.json              # Reference template users copy into ~/.cursor/mcp.json
+└── rules/                       # Cursor-only context rules (.mdc)
 ```
-
-**Current addendum (see Bundled CLI Launcher ADR)**: `bin/` additionally ships `archcore`, `archcore.cmd`, `archcore.ps1`, and `CLI_VERSION` — a cross-platform launcher that resolves the Archcore CLI binary. The plugin root ships `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI, with `.codex-plugin/plugin.json` pointing at the Codex-specific file through `mcpServers`. Both MCP configs register the same launcher. Cursor users still register MCP externally.
 
 ### Shared core principle
 
-Skills, agents, bin scripts, and the CLI launcher are maintained once. All host-specific adapters are pure configuration — no logic duplication.
+Skills, agents, and hook scripts are maintained once. All host-specific adapters are pure configuration — no logic duplication.
 
-### MCP ownership boundary (original rationale — now partially superseded)
+### MCP wiring
 
-At the time of this ADR, MCP configuration lived outside the plugin deliberately:
+MCP is wired via plugin-shipped configs for Claude Code (`.mcp.json`) and Codex CLI (`.codex.mcp.json` pointed at by `.codex-plugin/plugin.json`'s `mcpServers` field). Both name `archcore` directly; the host runtime resolves it from PATH. Cursor users register MCP externally by copying `cursor.mcp.json` into `~/.cursor/mcp.json` or `.cursor/mcp.json` — Cursor does not auto-register plugin-shipped MCP. The plugin does not bundle the CLI, does not download it, and does not cache it; users install it once via the official installer at https://docs.archcore.ai/cli/install/.
 
-- **Plugin** — shipped skills, agents, hooks, and normalization logic. Host-agnostic.
-- **Archcore CLI** — provided `archcore mcp` (the MCP server binary). Installed independently.
-- **User / repo** — registered the MCP server in `.mcp.json` (team-shared, project-scoped) or via `claude mcp add` (user-scoped).
+### Stdin normalization
 
-The rationale was to avoid Claude Code's duplicate-MCP suppression when a repo already declared `archcore` in `.mcp.json` or the user had registered it globally. Shipping MCP in the plugin would have produced a persistent "Errors (1)" in `/plugin` UI with no functional benefit.
-
-**Current state (per Bundled CLI Launcher ADR)**: the plugin ships MCP registration for Claude Code and Codex CLI via host-specific config files. Claude Code consumes plugin-root `.mcp.json` pointing at `${CLAUDE_PLUGIN_ROOT}/bin/archcore mcp`; Codex consumes plugin-root `.codex.mcp.json` via the manifest pointer and points at plugin-relative `./bin/archcore mcp`. Duplicate suppression is no longer a blocker because the launcher defers to an existing global `archcore` on `PATH` — the effective command resolved is identical to what a user-registered server would resolve to, so deduping is benign. Cursor users still register MCP externally.
-
-### Stdin normalization approach
-
-Bin scripts source a shared `lib/normalize-stdin.sh` that detects the host from stdin JSON structure and normalizes it to a canonical format. This avoids separate entry-point scripts per host.
-
-Detection heuristic: each host includes distinct fields in its hook stdin JSON (e.g., Claude Code sends `tool_name` at top level; Cursor sends `conversation_id`; Copilot sends `hookEventName`; Codex sends `turn_id` in turn-scoped events). The normalizer maps all variants to a common schema. Codex shares Claude Code's snake_case stdin schema, so the field-extraction logic for the `codex` branch mirrors `claude-code`.
+Hook scripts source a shared `bin/lib/normalize-stdin.sh` that detects the host from stdin JSON structure and exposes a canonical schema (`ARCHCORE_HOST`, `ARCHCORE_TOOL_NAME`, `ARCHCORE_FILE_PATH`, etc.). Detection uses each host's distinct stdin fields (Claude Code → `tool_name`; Cursor → `conversation_id`; Copilot → `hookEventName`; Codex → `turn_id`). Codex shares Claude Code's snake_case schema, so the field-extraction logic for `codex` mirrors `claude-code`.
 
 ## Alternatives Considered
 
 ### 1. Separate repository per host
 
-One repo for Claude Code, one for Cursor, one for Copilot. Each contains full copies of skills, agents, and bin scripts.
+One repo for Claude Code, one for Cursor, one for Codex CLI. Each contains full copies of skills, agents, and bin scripts.
 
-**Rejected because:**
-
-- 33 skills × N hosts = massive duplication
-- Any skill update must be synced across all repos
-- Agents and bin scripts also duplicated
-- Only ~5% of code is actually host-specific
+**Rejected because:** 16 skills × N hosts = massive duplication; any skill update must be synced across all repos; only ~5% of code is actually host-specific.
 
 ### 2. Build system that generates per-host packages
 
 A mono-repo with a build step (e.g., Node.js script) that reads a canonical source and generates separate plugin directories per host.
 
-**Rejected because:**
-
-- Introduces build tooling to a project that is currently pure Markdown + Shell
-- Complexity not warranted — the per-host differences are purely configuration (JSON files)
-- Agent Skills standard already ensures skills work across hosts without transformation
-- Would complicate local development and testing
+**Rejected because:** introduces build tooling to a project that is currently pure Markdown + Shell; complexity not warranted — the per-host differences are purely configuration (JSON files); Agent Skills standard already ensures skills work across hosts without transformation.
 
 ### 3. Symlinks from host-specific directories to shared source
 
-Each host's expected directory (`.cursor/skills/`, `.github/skills/`) symlinks to the shared `skills/` directory.
+**Rejected because:** symlinks don't work reliably on Windows; plugin marketplace systems distribute files, not symlinks; fragile when cloned or copied.
 
-**Rejected because:**
+### 4. Bundle the CLI inside the plugin (download-on-first-use launcher)
 
-- Symlinks don't work reliably on Windows
-- Plugin marketplace systems distribute files, not symlinks
-- Fragile when cloned or copied
+Ship a `bin/archcore` launcher that resolves the Archcore CLI on demand from `$ARCHCORE_BIN`, PATH, a plugin-managed cache, or a GitHub Releases download.
 
-### 4. Ship MCP config inside the plugin
-
-Ship `.mcp.json` (Claude Code) and `mcp.json` (Cursor) at the plugin root so MCP "just works" after install.
-
-**Originally rejected because:**
-
-- Claude Code dedupes plugin MCP servers when their `command`/URL match a user- or project-registered server (v2.1.71+). If a repo had `.mcp.json` with `archcore`, or if the user ran `claude mcp add archcore archcore mcp`, the plugin's copy would be silently suppressed and "Errors (1)" would appear in `/plugin` UI.
-- Shared repos tend to have a canonical `.mcp.json` used by multiple AI tools (Cursor, Windsurf, Codex CLI, Gemini CLI); duplicating it inside the plugin added noise with zero benefit.
-- MCP lifecycle belonged to the CLI install — if the CLI was missing, the MCP server couldn't run regardless of where it was declared.
-
-**Status: reversed for Claude Code and Codex CLI** (see Bundled CLI Launcher ADR). The dedup concern was resolved by introducing the bundled launcher. Claude Code's `.mcp.json` points at `${CLAUDE_PLUGIN_ROOT}/bin/archcore`; Codex's `.codex.mcp.json` points at `./bin/archcore`. Both resolve through the same launcher, which defers to a global `archcore` on `PATH` when one exists. Deduping still happens but becomes benign. The friction of requiring an explicit `claude mcp add` / `codex mcp add` step proved worse than the duplicate-registration concern.
+**Tried and reverted.** Shipped briefly under `bundled-cli-launcher.adr` (now rejected), then removed in plugin v0.4.0 (2026-05-12) per `remove-bundled-launcher-global-cli.idea`. Eight bug classes — offline CI failures, security patch lag, uneven host support (Cursor still required manual setup), cache pollution, first-run latency, enterprise friction, version coupling to plugin releases, and 2000+ lines of launcher/test code — made the "zero-setup install" framing a net loss. The official installer at https://docs.archcore.ai/cli/install/ is the supported path; one-time user install replaces the bundled-launcher complexity.
 
 ## Consequences
 
 ### Positive
 
-- **Zero skill/agent duplication**: skills and agents maintained in one place
-- **Low per-host cost**: Adding a new host requires only a manifest (~10 lines) and hooks config (~30 lines). Codex was the first real test — port took ~1 dev-day for scaffolding plus tests, validating the architecture's "low per-host cost" claim.
-- **Standard compliance**: Uses Agent Skills, MCP, and markdown agents — all open standards
-- **Single source of truth**: Bug fixes in skills/agents/bin/launcher propagate to all hosts automatically
+- **Zero skill/agent duplication**: skills and agents maintained in one place.
+- **Low per-host cost**: adding a new host requires only a manifest (~10 lines), a hooks config (~30 lines), and an MCP config (~5 lines). Codex was the first real test — port took ~1 dev-day for scaffolding plus tests.
+- **Decoupled CLI lifecycle**: the Archcore CLI ships and patches on its own cadence; plugin releases never gate CLI security fixes (and vice versa). `archcore update` is the user-facing upgrade path.
+- **Standard compliance**: uses Agent Skills, MCP, and markdown agents — all open standards.
+- **Single source of truth**: bug fixes in skills/agents/bin propagate to all hosts automatically.
 
 ### Negative
 
-- **Stdin normalization complexity**: Bin scripts must handle multiple JSON formats. Mitigation: centralized normalizer (`lib/normalize-stdin.sh`) with clear format detection (claude-code, cursor, copilot, codex).
-- **Testing matrix**: Must verify plugin works in each supported host. Mitigation: started with 2 hosts (Claude Code + Cursor), expanded to Codex CLI; expand incrementally for the rest.
-- **Hook event mapping is imperfect**: Not all hosts have equivalent hook events (e.g., Cursor has no direct `SessionStart` equivalent). Codex shares Claude Code's PascalCase event names (`SessionStart`, `PreToolUse`, `PostToolUse`) so its hooks config is a near-copy. Mitigation: use closest available event per host; document gaps per host.
-- **MCP wiring is host-specific**: Claude Code and Codex CLI use plugin-shipped `.mcp.json`; Cursor users still register externally. Cross-host MCP parity for Cursor awaits Cursor-side plugin MCP support with path substitution. Mitigation: the launcher is host-agnostic — only the "who points at the launcher" differs per host.
-- **Subagent format divergence**: Claude Code and Cursor read MD agents with YAML frontmatter; Codex requires TOML. Mitigation: ship both formats side-by-side in `agents/` (`archcore-{assistant,auditor}.md` and `.toml`); shared `developer_instructions` body kept in sync via tests.
-- **Repository naming**: ~~`archcore-claude-plugin` implies Claude Code only.~~ ~~Renamed to `archcore-plugin`.~~ Resolved: now `archcore-ai/plugin` — the org name carries the brand and the repo name is host-agnostic.
+- **CLI install is the user's responsibility**: an unsupported user expectation (e.g., "the plugin should just work") surfaces when `archcore` is missing from PATH. Mitigation: `bin/session-start` prints the install command and a docs link on every fresh session where the CLI is absent; `plugin-development.guide` documents the MCP session-start lifecycle gotcha (installing the CLI mid-session does not reconnect a Claude Code MCP that failed to register at session start — restart required).
+- **Stdin normalization complexity**: hook scripts must handle multiple JSON formats. Mitigated by the centralized normalizer.
+- **Hook event mapping is imperfect**: not all hosts have equivalent hook events (e.g., Cursor has no direct `SessionStart` equivalent; its PreToolUse matcher is `Write` only, not `Write|Edit`). Mitigation: use the closest available event per host; document gaps.
+- **MCP wiring is host-specific**: Claude Code and Codex CLI use plugin-shipped MCP configs; Cursor users still register externally. Cross-host MCP parity for Cursor awaits Cursor-side plugin MCP support.
+- **Subagent format divergence**: Claude Code and Cursor read MD agents with YAML frontmatter; Codex requires TOML. Mitigated by shipping both formats side-by-side; `test/structure/agents.bats` enforces parity between MD and TOML `developer_instructions` bodies.

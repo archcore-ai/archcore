@@ -10,12 +10,12 @@ tags:
 
 ## Rule
 
-1. **Executable code in the plugin repository MUST be POSIX shell.** All scripts under `bin/` and `bin/lib/` (launcher, hooks, validators, helpers) are `#!/bin/sh` and pass `shellcheck` when available. Do not introduce `#!/usr/bin/env python3`, `#!/usr/bin/env node`, `#!/usr/bin/env bash` shebangs, or other runtimes for executable plugin code.
-2. **The archcore CLI is Go**, but it lives in a separate repo (`archcore-ai/cli`) and is consumed as a single binary by the plugin's bundled launcher. The plugin repository itself contains **no Go source**; do not add a `go.mod` or any `.go` files here.
-3. **Plugin-facing configuration MUST be declarative JSON/TOML/Markdown.** Host manifests (`.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.cursor-plugin/plugin.json`), MCP configs (`.mcp.json`, `.codex.mcp.json`), hook configs (`hooks/*.json`), marketplace entries (`.agents/plugins/marketplace.json`), skills (`skills/*/SKILL.md`), and agent definitions (`agents/*.md`, `agents/*.toml`) are the only allowed shapes for declarative state. No YAML at runtime, no programmatic config generators.
+1. **Executable code in the plugin repository MUST be POSIX shell.** All scripts under `bin/` and `bin/lib/` (hooks, validators, helpers) are `#!/bin/sh` and pass `shellcheck` when available. Do not introduce `#!/usr/bin/env python3`, `#!/usr/bin/env node`, `#!/usr/bin/env bash` shebangs, or other runtimes for executable plugin code.
+2. **The archcore CLI is Go**, but it lives in a separate repo (`archcore-ai/cli`) and is consumed as a globally-installed binary on PATH. Users install it via the official installer at https://docs.archcore.ai/cli/install/ (`curl -fsSL https://archcore.ai/install.sh | bash` on POSIX, `irm https://archcore.ai/install.ps1 | iex` on Windows). The plugin repository contains **no Go source**, no bundled binary, no launcher wrapper, and no auto-download path; do not add a `go.mod`, any `.go` files, or any code that fetches/caches the CLI on first use.
+3. **Plugin-facing configuration MUST be declarative JSON/TOML/Markdown.** Host manifests (`.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.cursor-plugin/plugin.json`), MCP configs (`.mcp.json`, `.codex.mcp.json`, `cursor.mcp.json`), hook configs (`hooks/*.json`), marketplace entries (`.agents/plugins/marketplace.json`), skills (`skills/*/SKILL.md`), and agent definitions (`agents/*.md`, `agents/*.toml`) are the only allowed shapes for declarative state. No YAML at runtime, no programmatic config generators.
 4. **Tests MUST be Bats.** Add new tests under `test/structure/`, `test/unit/`, or `test/integration/` as `.bats` files. Use `bats-support` and `bats-assert` helpers already vendored under `test/helpers/`. Do not add a separate test runner (no jest, pytest, go test, hurl, etc.) inside this repo.
 5. **Document operations on `.archcore/` MUST go through MCP tools** — see `mcp-only-operations.rule`. The stack rule does not relax that requirement; it strengthens it (no direct file writes from new tooling either).
-6. **IMPORTANT — no new languages, runtimes, build tools, package managers, or distribution mechanisms without a written ADR.** Before any change introduces Python, Node.js, Ruby, Rust, an additional Go module, a compiled trampoline binary, a Make/CMake/Bazel layer, a container runtime requirement, a curl-piped install step, or any other novel tooling, an ADR MUST be recorded in `.archcore/plugin/<slug>.adr.md` and accepted by the maintainer. "Just adding one Python script" is exactly the kind of incremental drift this rule blocks. If a problem looks unsolvable within the current stack, the answer is an ADR proposal, not silent expansion.
+6. **IMPORTANT — no new languages, runtimes, build tools, package managers, or distribution mechanisms without a written ADR.** Before any change introduces Python, Node.js, Ruby, Rust, an additional Go module, a compiled trampoline binary, a Make/CMake/Bazel layer, a container runtime requirement, a plugin-side download-on-first-use mechanism, or any other novel tooling, an ADR MUST be recorded in `.archcore/plugin/<slug>.adr.md` and accepted by the maintainer. "Just adding one Python script" is exactly the kind of incremental drift this rule blocks. If a problem looks unsolvable within the current stack, the answer is an ADR proposal, not silent expansion.
 
 ## Rationale
 
@@ -23,8 +23,8 @@ The plugin's value proposition is **portability**: one repo loads cleanly into C
 
 Concrete past lessons:
 
-- **Codex MCP cwd**: the obvious fix was a Python trampoline that reads `$PWD` and `chdir`s. Worked end-to-end, but added a third language to a two-language plugin. We rejected it in favor of an opt-in `ARCHCORE_CWD` env var the existing sh launcher honors — two lines of shell + a user-side wrapper. See `codex-mcp-cwd-rebase-to-user-project.idea` and `codex-path-resolution.adr` for the full debate. The Python implementation is preserved in git history as a reminder of what we did NOT ship.
-- **Bundled launcher**: a download-on-first-use sh script that fetches a single Go binary from `archcore-ai/cli` releases. We deliberately did not adopt a package manager (homebrew/apt/winget) or a vendored binary blob in the plugin repo. See `bundled-cli-launcher.adr`.
+- **Codex MCP cwd**: the obvious fix was a Python trampoline that reads `$PWD` and `chdir`s. Worked end-to-end, but added a third language to a two-language plugin. We rejected it in favor of an opt-in `ARCHCORE_CWD` env var that the bundled launcher honored — two lines of shell + a user-side wrapper. See `codex-mcp-cwd-rebase-to-user-project.idea` (rejected) and `codex-path-resolution.adr` (rejected) for the full historical debate. The Python implementation is preserved in git history as a reminder of what we did NOT ship. Both decisions were then superseded entirely when the launcher was removed (see next bullet).
+- **Bundled launcher (rejected and removed)**: a download-on-first-use sh script that fetched a single Go binary from `archcore-ai/cli` releases. We shipped it, then removed it as of plugin v0.4.0 — it caused eight categories of bugs (offline failures, version coupling, cache pollution, security patch lag, etc.) for a one-time install savings that the official installer (`curl | bash`) handles cleanly without coupling CLI lifecycle to plugin releases. See `bundled-cli-launcher.adr` (rejected/superseded) and `remove-bundled-launcher-global-cli.idea` (accepted) for the decision and rollback rationale. The plugin now assumes `archcore` is on PATH; if not, `bin/session-start` prints the install command and exits.
 
 This rule exists to make those decisions stick. When future work runs into an awkward limitation of POSIX shell, the impulse is "let me just add Python here". This rule says: stop, write an ADR, get a decision, then proceed.
 
@@ -38,7 +38,7 @@ This rule exists to make those decisions stick. When future work runs into an aw
 #!/bin/sh
 set -eu
 . "$(dirname "$0")/lib/normalize-stdin.sh"
-# ... shell logic ...
+# ... shell logic; if it calls the CLI, it calls `archcore <subcmd>` directly via PATH ...
 
 # A new test
 # test/unit/check-something.bats
@@ -72,12 +72,15 @@ import { describe, it } from "vitest"
   "command": "./bin/archcore-mcp",   ← invokes Python without an ADR
   "args": []
 }
+
+# bin/auto-install-cli       ← reintroduces a plugin-side CLI fetcher, no ADR
+curl -fsSL https://... -o /tmp/archcore && /tmp/archcore "$@"
 ```
 
 ## Enforcement
 
 - Code review: any PR that adds an executable file with a non-`#!/bin/sh` shebang, a new manifest format, a new test runner, or a new top-level config file MUST link to an accepted ADR under `.archcore/plugin/`. PRs without such a link block merge.
-- Structure tests: `test/structure/*.bats` should pin the contract. Add an assertion that `bin/*` files start with `#!/bin/sh` (already present per `test/structure/bin-shape.bats`) and that no `.py`, `.go`, `.js`, `.ts`, `.rb`, etc. files exist under `bin/` or the repo root outside `reference-materials/` and `test_project/`.
+- Structure tests: `test/structure/*.bats` should pin the contract. Add an assertion that `bin/*` files start with `#!/bin/sh` (already present per `test/structure/scripts.bats`) and that no `.py`, `.go`, `.js`, `.ts`, `.rb`, etc. files exist under `bin/` or the repo root outside `reference-materials/` and `test_project/`. The Makefile's `BIN_SCRIPTS` glob is the authoritative list of executable files in `bin/`; do not extend it to cover a binary.
 - Skill writing: skills MUST NOT instruct the agent to invoke non-shell tooling in plugin scripts. If a skill needs Python/node/etc., the dependency lives in the user's project, not in the plugin.
 - New contributors: the `plugin-development.guide` calls out this rule prominently in its onboarding section.
 - When a contributor genuinely needs a new tool, the path is: open an issue, draft an ADR following the template (`Context / Decision / Alternatives Considered / Consequences`), get review, get acceptance, only then implement. Default answer to "can we add X" is "write the ADR first".

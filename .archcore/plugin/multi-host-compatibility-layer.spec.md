@@ -8,47 +8,16 @@ tags:
   - "plugin"
 ---
 
-## Status: Rejected (Superseded)
+## Status: Rejected (Superseded by `remove-bundled-launcher-global-cli.idea`)
 
-This specification describes the bundled CLI launcher architecture, which has been superseded. See `remove-bundled-launcher-global-cli.idea.md` for the new global CLI approach.
+This specification described the bundled CLI launcher architecture — POSIX, Windows CMD, and PowerShell launchers; resolution order `$ARCHCORE_BIN` → PATH → plugin cache → GitHub download; checksum verification; `bin/CLI_VERSION` pin; host-specific MCP wiring via `.mcp.json` and `.codex.mcp.json` pointing at the launcher; CWD rebase for Codex; `ARCHCORE_BIN` / `ARCHCORE_SKIP_DOWNLOAD` / `ARCHCORE_HIDE_EMPTY_NUDGE` environment contract.
 
-The bundled launcher (`bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`, `bin/CLI_VERSION`), launcher resolution logic, and related environment variables (`ARCHCORE_SKIP_DOWNLOAD`, `ARCHCORE_BIN` cache management) have been removed.
+All launcher mechanics were removed in plugin v0.4.0. The current shape is described in:
 
-A new global CLI-based architecture is now in place:
-- Users install the Archcore CLI globally: `brew install archcore-ai/cli` or `go install github.com/archcore-ai/cli@latest`
-- MCP configs point directly to `archcore` on PATH (no launcher indirection)
-- Plugin remains thin: skills, agents, hooks only
-- bin/session-start checks CLI availability and warns if missing
-- bin/validate-archcore calls `archcore doctor` directly
+- `multi-host-plugin-architecture.adr` — shared-core / per-host-adapter split (still governing architecture).
+- `remove-bundled-launcher-global-cli.idea` — the global-CLI-on-PATH decision that superseded this spec.
+- `component-registry.doc` — current `bin/`, hooks, MCP, and manifest layout.
+- `plugin-development.guide` — current prerequisites (`curl -fsSL https://archcore.ai/install.sh | bash` or `irm https://archcore.ai/install.ps1 | iex` per https://docs.archcore.ai/cli/install/) and MCP wiring (`command: "archcore"` everywhere).
+- `codex-local-plugin-testing.guide` — current Codex packaging contract.
 
----
-
-## Original Specification (Historical, Superseded)
-
-[Historical content below for reference]
-
-The original specification detailed:
-- Bundled POSIX, Windows CMD, and PowerShell launchers
-- Launcher resolution order: ARCHCORE_BIN → PATH → plugin cache → GitHub download
-- Plugin-managed cache with version pinning via `bin/CLI_VERSION`
-- Checksum verification on downloads
-- Host-specific MCP wiring via `.mcp.json` and `.codex.mcp.json` pointing at the launcher
-- CWD rebase mechanism for Codex
-- Stdout/stderr passthrough
-- Environment variable contract (ARCHCORE_BIN, ARCHCORE_SKIP_DOWNLOAD, ARCHCORE_HIDE_EMPTY_NUDGE)
-
-[Full original content removed for brevity — see git history if needed]
-
----
-
-## Migration to Global CLI
-
-Teams should:
-1. Update `.mcp.json` from `"${CLAUDE_PLUGIN_ROOT}/bin/archcore"` to `"archcore"`
-2. Update `.codex.mcp.json` from `"./bin/archcore"` + `cwd: "."` to `"archcore"` only
-3. Keep `cursor.mcp.json` with `"command": "archcore"` and `"cwd": "${workspaceFolder}"`
-4. Remove all launcher files (bin/archcore*, bin/CLI_VERSION)
-5. Ensure `archcore` CLI is installed globally in CI/CD base images and developer machines
-6. Update README with prerequisites
-
-See: `.archcore/plugin/remove-bundled-launcher-global-cli.idea.md` for full rationale and benefits.
+Original spec body removed to keep the knowledge base clean — git history is the source of truth for the launcher-era contract.

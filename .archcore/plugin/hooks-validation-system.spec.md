@@ -13,15 +13,15 @@ Define the contract for the hook-based validation, freshness detection, and cont
 
 ## Scope
 
-This specification covers all hook entries in `hooks/hooks.json`: the SessionStart hook (via `bin/session-start` wrapper with staleness check), two PreToolUse hooks on `Write|Edit` (blocking direct writes to `.archcore/*.md` and injecting context for source edits), the PostToolUse hook for validation after MCP document operations, and the PostToolUse hook for cascade detection after document updates. It does not cover the MCP server itself, the CLI launcher (see Bundled CLI Launcher ADR and Multi-Host Compatibility Layer Specification), or the agent's tool restrictions.
+This specification covers all hook entries in `hooks/hooks.json`: the SessionStart hook (via `bin/session-start` wrapper with staleness check), two PreToolUse hooks on `Write|Edit` (blocking direct writes to `.archcore/*.md` and injecting context for source edits), the PostToolUse hook for validation after MCP document operations, the PostToolUse hook for cascade detection after document updates, and the PostToolUse hook for precision checks. It does not cover the MCP server itself, the Archcore CLI lifecycle (the CLI is installed by the user per https://docs.archcore.ai/cli/install/ and resolved via PATH), or the agent's tool restrictions.
 
 ## Authority
 
-This specification is the authoritative reference for the plugin's hook configuration. The Always Use MCP Tools ADR provides the architectural rationale for the blocking behavior. The Actualize System ADR and Specification provide the rationale and contract for staleness detection (Layers 1 and 2). The Bundled CLI Launcher ADR and Multi-Host Compatibility Layer Specification are authoritative for how hook scripts invoke the CLI binary (through `bin/archcore`). The Pre-Code Context Injection idea and its implementation plan provide the rationale for the source-edit context-injection hook.
+This specification is the authoritative reference for the plugin's hook configuration. The Always Use MCP Tools ADR provides the architectural rationale for the blocking behavior. The Actualize System ADR and Specification provide the rationale and contract for staleness detection (Layers 1 and 2). The Pre-Code Context Injection idea and its implementation plan provide the rationale for the source-edit context-injection hook.
 
 ## Subject
 
-The hooks system consists of event handlers registered in `hooks/hooks.json` that respond to Claude Code lifecycle events. Three event types with five hook entries enforce quality, the MCP-only principle, documentation freshness, and source-edit context alignment.
+The hooks system consists of event handlers registered in `hooks/hooks.json` that respond to Claude Code lifecycle events. Three event types with six hook entries enforce quality, the MCP-only principle, documentation freshness, source-edit context alignment, and precision after document mutations.
 
 ## Contract Surface
 
@@ -34,10 +34,7 @@ The hooks system consists of event handlers registered in `hooks/hooks.json` tha
       {
         "matcher": "",
         "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/session-start"
-          }
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/bin/session-start" }
         ]
       }
     ],
@@ -45,16 +42,8 @@ The hooks system consists of event handlers registered in `hooks/hooks.json` tha
       {
         "matcher": "Write|Edit",
         "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-archcore-write",
-            "timeout": 1
-          },
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-code-alignment",
-            "timeout": 1
-          }
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-archcore-write", "timeout": 1 },
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-code-alignment", "timeout": 1 }
         ]
       }
     ],
@@ -62,21 +51,19 @@ The hooks system consists of event handlers registered in `hooks/hooks.json` tha
       {
         "matcher": "mcp__archcore__create_document|mcp__archcore__update_document|mcp__archcore__remove_document|mcp__archcore__add_relation|mcp__archcore__remove_relation",
         "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/validate-archcore",
-            "timeout": 3
-          }
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/bin/validate-archcore", "timeout": 3 }
         ]
       },
       {
         "matcher": "mcp__archcore__update_document",
         "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-cascade",
-            "timeout": 3
-          }
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-cascade", "timeout": 3 }
+        ]
+      },
+      {
+        "matcher": "mcp__archcore__create_document|mcp__archcore__update_document",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/bin/check-precision", "timeout": 3 }
         ]
       }
     ]
@@ -93,15 +80,13 @@ The two PreToolUse entries on `Write|Edit` are deliberately coupled: `check-arch
 **Event**: SessionStart (fires when a session begins or resumes)
 **Matcher**: empty (matches all session sources: startup, resume, clear, compact)
 **Handler**: `${CLAUDE_PLUGIN_ROOT}/bin/session-start`
-**Behavior**: Three-phase pipeline:
+**Behavior**: three-phase pipeline:
 
-1. **Project check**: if `.archcore/` does not exist, emit `additionalContext` instructing the agent to call `mcp__archcore__init_project` on first Archcore operation, then exit 0. No manual install/init required.
-2. **Context loading**: if `.archcore/` exists, pipe stdin into `${SCRIPT_DIR}/archcore hooks <host> session-start` with `ARCHCORE_SKIP_DOWNLOAD=1` set. The local launcher resolves the CLI (from `$ARCHCORE_BIN`, `PATH`, or the plugin-managed cache); any failure (CLI missing, cache miss, launcher exit non-zero) is swallowed so session start remains non-blocking.
-3. **Staleness check**: call `bin/check-staleness` to detect code-doc drift via git. Append findings to session context via the emit-info helper. Rate-limited to once per 24h (see `bin/check-staleness` requirements).
+1. **CLI availability check.** If `archcore` is not on PATH, emit an `additionalContext` install message pointing at https://docs.archcore.ai/cli/install/ and exit 0. No further phases run. Installing the CLI mid-session does NOT reconnect a Claude Code MCP server that failed to register at session start — users must restart the host after a fresh install.
+2. **Project check.** If `.archcore/` does not exist, emit `additionalContext` instructing the agent to call `mcp__archcore__init_project` on first Archcore operation, then exit 0.
+3. **Context loading + staleness.** If `.archcore/` exists, pipe stdin into `archcore hooks <host> session-start`; swallow any non-zero exit so SessionStart remains non-blocking. Then call `bin/check-staleness` to detect code-doc drift via git, emit findings via the info helper, and exit 0.
 
-`ARCHCORE_SKIP_DOWNLOAD=1` prevents the launcher from downloading the CLI during SessionStart — the first MCP tool call triggers the download instead, keeping SessionStart fast and quiet on first use.
-
-Phase 3 is additive — if it fails or produces no output, phases 1-2 are unaffected.
+Staleness is additive — if it fails or produces no output, the preceding phases are unaffected.
 
 **Input**: JSON on stdin with `session_id`, `cwd`, `hook_event_name`
 **Output**: Structured `hookSpecificOutput.additionalContext` (Claude Code / Copilot) or plain text (other hosts)
@@ -180,18 +165,7 @@ Scope clarifications:
 
 - **Archcore's own sub-agents** (`archcore-assistant`, `archcore-auditor`) do NOT have `Write` or `Edit` in their tools allowlist (see `agent-system.spec.md` Tool Access Matrix). They cannot trigger Hooks 2 or 3 by definition. The sub-agent coverage discussion concerns general-purpose and third-party Task agents dispatched by the user for code work.
 - **Claude Code**: hook coverage for Task-dispatched Write/Edit holds by the host's PreToolUse contract. An empirical probe is recommended on major host releases but not required for the specification to stand.
-- **Cursor**: the PreToolUse matcher in `cursor.hooks.json` is `Write` only, not `Write|Edit` — a pre-existing multi-host asymmetry documented in `multi-host-compatibility-layer.spec.md`, independent of the sub-agent question. Sub-agent-originated Edit calls on Cursor go unhooked for the same reason main-session Edit calls do.
-
-Empirical-probe protocol for fresh-session verification (not a shipped artifact):
-
-1. Load this repo as the plugin source (Claude Code: `claude --plugin-dir <repo>`; Cursor: symlink into plugins directory).
-2. Add a transient probe line at the top of `bin/check-code-alignment` (after the shebang): `[ -n "${ARCHCORE_PROBE_LOG:-}" ] && printf '%s hook-fired\n' "$(date -u +%FT%TZ)" >> "$ARCHCORE_PROBE_LOG" || :`.
-3. Open a fresh session with `ARCHCORE_PROBE_LOG=/tmp/archcore-probe.log`.
-4. Probe A (control): main-session `Write test/probe-src.ts` — expect one log line.
-5. Probe B (delegated Write): `Task(general-purpose)` dispatched to write `test/probe-delegated.ts` — expect one log line if the contract holds; absence indicates a host divergence requiring escalation to snapshot-injection (Option B of `subagent-knowledge-tree-preload.idea`).
-6. Probe C (delegated Edit): `Task(general-purpose)` dispatched to edit an existing source file — same expectation.
-7. If stdin shape needs pinning, also capture stdin via a transient `cat >> "$ARCHCORE_PROBE_STDIN"` at the same site and diff Probe A vs Probe B.
-8. Revert the probe line. Evidence lives in the commit message for the corresponding spec update and in `/tmp/archcore-probe.log`; the probe must never ship in committed code.
+- **Cursor**: the PreToolUse matcher in `cursor.hooks.json` is `Write` only, not `Write|Edit` — a pre-existing multi-host asymmetry, independent of the sub-agent question. Sub-agent-originated Edit calls on Cursor go unhooked for the same reason main-session Edit calls do.
 
 ### Hook 4: PostToolUse — Validate After MCP Document Operations
 
@@ -204,7 +178,7 @@ Empirical-probe protocol for fresh-session verification (not a shipped artifact)
 **Behavior**:
 
 1. Extract `tool_name` from stdin JSON
-2. Detect `mcp__archcore__*` prefix — run `archcore doctor` via the launcher unconditionally
+2. Detect `mcp__archcore__*` prefix — run `archcore doctor` directly (resolved via PATH, wrapped in `timeout 2` and `|| true`)
 3. If validation passes: exit 0 with empty output
 4. If validation fails: exit 0 with JSON output containing validation context
 
@@ -231,6 +205,15 @@ This hook fires **in addition to** Hook 4 (validation). Both hooks fire independ
 
 **Excludes `related` relations**: Only `implements`, `depends_on`, and `extends` indicate directional dependency where cascade staleness is meaningful.
 
+### Hook 6: PostToolUse — Precision Check
+
+**Event**: PostToolUse
+**Matcher**: `mcp__archcore__create_document|mcp__archcore__update_document`
+**Handler**: `${CLAUDE_PLUGIN_ROOT}/bin/check-precision`
+**Timeout**: 3 seconds
+
+Phase 1 of the Precision Initiative (see `precision-over-coverage.adr`). Reads the resulting file from disk and runs four checks: forbidden vagueness lexicon, mandatory sections by type (adr/rule/spec/guide/rfc), frontmatter title+status presence, body length ≥ 200 chars. Emits soft warnings via `additionalContext`. Always exits 0; never blocks.
+
 ### PostToolUse Output Formats
 
 **Validation (Hook 4)** — when issues found:
@@ -250,7 +233,7 @@ This hook fires **in addition to** Hook 4 (validation). Both hooks fire independ
 {
   "hookSpecificOutput": {
     "hookEventName": "PostToolUse",
-    "additionalContext": "[Archcore Cascade] Updated \"<document-title>\".\nDocuments that may need review:\n  → <path> (<relation-type> this document)\n  → <path> (<relation-type> this document)\nRun /archcore:actualize for detailed analysis."
+    "additionalContext": "[Archcore Cascade] Updated \"<document-title>\".\nDocuments that may need review:\n  → <path> (<relation-type> this document)\nRun /archcore:actualize for detailed analysis."
   }
 }
 ```
@@ -270,47 +253,39 @@ Cursor host uses the flat `{"additional_context": "..."}` shape.
 
 ### Exit Code Semantics
 
-| Hook | Exit 0 | Exit 2 | Other |
-|------|--------|--------|-------|
-| SessionStart | Always (output = context + staleness) | N/A | N/A |
-| PreToolUse block (Hook 2, allow) | Empty output, operation proceeds | N/A | N/A |
-| PreToolUse block (Hook 2, block) | N/A | stderr → model feedback, operation blocked | N/A |
-| PreToolUse inject (Hook 3, no match) | Empty output, operation proceeds | N/A | N/A |
-| PreToolUse inject (Hook 3, match) | JSON `additionalContext`, operation proceeds | N/A | N/A |
-| PostToolUse validation (clean) | Empty output | N/A | N/A |
-| PostToolUse validation (issues) | JSON with additionalContext | N/A | N/A |
-| PostToolUse cascade (none) | Empty output | N/A | N/A |
-| PostToolUse cascade (found) | JSON with additionalContext | N/A | N/A |
+| Hook | Exit 0 | Exit 2 |
+|------|--------|--------|
+| SessionStart | Always (output = install msg / init msg / context + staleness) | N/A |
+| PreToolUse block (Hook 2, allow) | Empty output, operation proceeds | N/A |
+| PreToolUse block (Hook 2, block) | N/A | stderr → model feedback, operation blocked |
+| PreToolUse inject (Hook 3) | Always (no match → empty; match → `additionalContext`) | N/A |
+| PostToolUse validation (Hook 4) | Always (clean → empty; issues → `additionalContext`) | N/A |
+| PostToolUse cascade (Hook 5) | Always (no cascade → empty; cascade → `additionalContext`) | N/A |
+| PostToolUse precision (Hook 6) | Always (clean → empty; warnings → `additionalContext`) | N/A |
 
 ### bin/ Scripts
 
-Five executable hook scripts in `bin/`, plus the normalizer library and the CLI launcher (launcher covered in the Bundled CLI Launcher ADR).
+Six executable hook scripts in `bin/`, plus the stdin normalization library. The plugin does **not** bundle the Archcore CLI binary or any launcher wrapper — every script that invokes the CLI calls `archcore <subcmd>` directly, resolved via PATH. If `archcore` is missing, hooks degrade silently (timeout + `|| true`).
 
 #### `bin/session-start`
 
-Shell script that routes through the CLI launcher for context loading and runs the staleness check.
+Shell script that handles SessionStart pipeline (CLI check + project check + context loading + staleness).
 
 Requirements:
 
-- Must be executable (`chmod +x`)
-- Must source `bin/lib/normalize-stdin.sh`
-- Must exit 0 in all cases
-- Must emit `additionalContext` pointing at `mcp__archcore__init_project` when `.archcore/` is absent
-- Must invoke the CLI via the local launcher with `ARCHCORE_SKIP_DOWNLOAD=1`, discarding non-zero exits
-- Must call `bin/check-staleness` after the launcher call
-- Must degrade gracefully — never error, just warn
+- Executable (`chmod +x`); `#!/bin/sh`
+- Sources `bin/lib/normalize-stdin.sh`
+- Exits 0 in all cases
+- When `archcore` is not on PATH: emits an install message pointing at https://docs.archcore.ai/cli/install/ and exits 0
+- When `.archcore/` is absent: emits `additionalContext` pointing at `mcp__archcore__init_project`
+- Otherwise: invokes `archcore hooks <host> session-start` and discards any non-zero exit, then calls `bin/check-staleness`
+- Degrades gracefully — never errors, just warns
 
 #### `bin/check-archcore-write`
 
 Shell script that reads stdin JSON, extracts `tool_input.file_path`, and decides whether to block.
 
-Requirements:
-
-- Must be executable (`chmod +x`)
-- Must read JSON from stdin
-- Must exit 0 when allowing, exit 2 when blocking
-- Must write blocking reason to stderr (not stdout) when blocking
-- Must complete within 1 second
+Requirements: executable; `#!/bin/sh`; reads JSON from stdin; exit 0 when allowing, exit 2 when blocking; writes blocking reason to stderr; completes within 1 second.
 
 #### `bin/check-code-alignment`
 
@@ -318,78 +293,54 @@ PreToolUse handler that injects applicable `.archcore/` context for source-file 
 
 Requirements:
 
-- Must be executable (`chmod +x`)
-- Must source `bin/lib/normalize-stdin.sh`
-- Must read JSON from stdin
-- Must exit 0 in all cases — MUST NEVER return non-zero (injection is additive)
-- Must short-circuit silently on `.archcore/*` paths (Hook 2 handles those)
-- Must short-circuit silently on non-source-root paths
-- Must honor `.archcore/settings.json` → `codeAlignment.sourceRoots` when configured; otherwise use the default root set
-- Must honor the `ARCHCORE_DISABLE_INJECTION=1` escape hatch
-- Must rank by specificity (longest directory prefix match) first, type priority (`rule > cpat > adr > spec > guide`) second
-- Must consider only `rule`, `cpat`, `adr`, `spec`, `guide` document types
-- Must emit at most 3 matches, capped at 2 KB total output
-- Must complete within 1 second on a corpus of ≤50 `.archcore/*.md` documents (Phase 1 baseline; Phase 2 adds a path index for larger corpora)
-- Must output host-normalized JSON — `hookSpecificOutput` for Claude Code / Copilot, flat `additional_context` for Cursor
-- POSIX shell compatible
+- Executable; `#!/bin/sh`; sources `bin/lib/normalize-stdin.sh`; reads JSON from stdin
+- Exits 0 in all cases — MUST NEVER return non-zero (injection is additive)
+- Short-circuits silently on `.archcore/*` paths (Hook 2 handles those) and on non-source-root paths
+- Honors `.archcore/settings.json` → `codeAlignment.sourceRoots` when configured; otherwise uses the default root set
+- Honors `ARCHCORE_DISABLE_INJECTION=1` escape hatch
+- Ranks by specificity first, type priority (`rule > cpat > adr > spec > guide`) second
+- Considers only `rule`, `cpat`, `adr`, `spec`, `guide` document types
+- Emits at most 3 matches, capped at 2 KB total output
+- Completes within 1 second on a corpus of ≤ 50 `.archcore/*.md` documents
+- Outputs host-normalized JSON — `hookSpecificOutput` for Claude Code / Copilot, flat `additional_context` for Cursor
 
 #### `bin/validate-archcore`
 
-Shell script that reads stdin JSON, determines if validation is needed (by tool_name prefix), and runs `archcore doctor` through the launcher.
+Shell script that reads stdin JSON, determines if validation is needed (by tool_name prefix), and runs `archcore doctor` directly via PATH.
 
 Requirements:
 
-- Must be executable (`chmod +x`)
-- Must read JSON from stdin
-- Must fire unconditionally for `mcp__archcore__*` tools; the legacy Write/Edit branch in the script is retained as defensive code but is never reached from the current hooks config
-- Must invoke the CLI via `"$SCRIPT_DIR/archcore"` (launcher) rather than a bare `archcore` on `PATH`
-- Must exit 0 in all cases, even if the launcher returns non-zero (silent skip on missing CLI)
-- Must output valid JSON with `hookSpecificOutput` object when reporting issues, empty output when clean
-- Must complete within 3 seconds
+- Executable; `#!/bin/sh`; reads JSON from stdin
+- Fires unconditionally for `mcp__archcore__*` tools; the legacy Write/Edit branch is retained as defensive code but is never reached from the current hooks config
+- Invokes `archcore doctor` directly (`timeout 2 archcore doctor 2>&1`), no wrapper script
+- Exits 0 in all cases — silent skip when `archcore` is unavailable
+- Outputs valid JSON with `hookSpecificOutput` when reporting issues, empty output when clean
+- Completes within 3 seconds
 
 ##### Test Contract
 
-The script's CLI subcommand invocation is locked by tests at two layers, so a phantom subcommand (e.g. an accidental return to the historical `archcore validate`) cannot reach production:
+The script's CLI subcommand invocation is locked at two test layers, so a phantom subcommand (e.g. an accidental return to the historical `archcore validate`) cannot reach production:
 
-- **Allowlist guard (structure)** — `test/structure/cli-contract.bats` extracts every token following `"$LAUNCHER"` in `bin/validate-archcore` and asserts each is a member of the canonical CLI surface (sourced from `bin/CLI_VERSION`: `config|doctor|help|hooks|init|mcp|status|update`). The same allowlist guards every other `bin/*` script that shells out to the launcher and the `args[0]` of `.mcp.json` / `.codex.mcp.json`.
-- **Invocation assertion (unit)** — `test/unit/validate-archcore.bats` runs the script under a logging mock (`mock_archcore_logging` + `MOCK_ARCHCORE_LOG`) and asserts that `doctor` was invoked and no non-allowlisted subcommand was. Mocks that print canned output for any input are insufficient and forbidden in this hook's tests.
-- **Sentinel** — a regex-based regression guard in `cli-contract.bats` fails if any executable file or hook config reintroduces `archcore validate` or `archcore sync`.
-- **CLI-version drift** — when `bin/CLI_VERSION` bumps, the live cross-check in `cli-contract.bats` (gated on the launcher resolving the binary) verifies the hardcoded allowlist still matches `archcore --help` and fails with a clear migration message otherwise.
+- **Allowlist guard (README references)** — `test/structure/readme-cli-references.bats` extracts every backtick-quoted `archcore <subcmd>` reference in `README.md` and asserts each is a member of the canonical CLI surface: `config doctor help hooks init mcp status update`.
+- **Invocation assertion (unit)** — `test/unit/validate-archcore.bats` runs the script under a logging mock (`mock_archcore_logging` + `MOCK_ARCHCORE_LOG`) and asserts `doctor` was invoked. Two tests cover this: `validate-archcore calls archcore doctor (not validate)` (positive + negative assertion) and `validate-archcore invokes only allowlisted subcommands` (allowlist-guard mirror).
 
-Adding a new hook script that shells out to the launcher requires both the allowlist guard (automatic — the structure test scans every `bin/*` script) and a script-specific invocation-log assertion in its unit test.
-
-The `cli-integration-tests.rule.md` rule mandates this contract for every change to plugin scripts, hook configs, MCP launcher configs, or skill/agent prose that prescribes CLI usage.
+When the upstream CLI surface changes (subcommand added/renamed/removed), update `ARCHCORE_SUBCOMMANDS` in `readme-cli-references.bats` and add an invocation-log assertion for any new subcommand a bin/ script starts using. The `cli-integration-tests.rule.md` rule mandates this contract for every change that touches plugin scripts, hook configs, MCP configs, or skill/agent prose that prescribes CLI usage.
 
 #### `bin/check-staleness`
 
 Shell script called from `bin/session-start` after context loading. Detects code-document drift via git history comparison.
 
-Requirements:
-
-- Must be executable (`chmod +x`)
-- Must exit 0 in all cases
-- Must output plain text warning when drift detected, empty output when clean
-- Output must not exceed 2KB
-- Must complete within 3 seconds
-- Must skip gracefully if git is unavailable, `.archcore/` has no commits, or project is not a git repo
-- Must be rate-limited to emit at most once per 24h per project via a timestamp file at `$CLAUDE_PLUGIN_DATA/archcore/last-staleness` (falling back to `$XDG_DATA_HOME/archcore-plugin/last-staleness`, then `$HOME/.local/share/archcore-plugin/last-staleness`). Stamp is written only when a warning is actually emitted; corrupt or missing stamps are treated as "never emitted"
-- Must emit a warning ONLY when matching documents are found — no generic "N files changed" fallback
-- POSIX shell compatible
+Requirements: executable; `#!/bin/sh`; exit 0 in all cases; output ≤ 2 KB plain text or empty; completes within 3 seconds; skips gracefully if git unavailable / `.archcore/` has no commits / not a git repo; rate-limited to one emission per 24 h per project via a timestamp file (`$CLAUDE_PLUGIN_DATA/archcore/last-staleness` → `$XDG_DATA_HOME/...` → `$HOME/.local/share/...`); emits ONLY when matching documents are found (no generic "N files changed" fallback).
 
 #### `bin/check-cascade`
 
-PostToolUse handler for cascade detection after `update_document`. Queries relation graph for directional dependencies on the updated document.
+PostToolUse handler for cascade detection after `update_document`.
 
-Requirements:
+Requirements: executable; `#!/bin/sh`; reads JSON from stdin; exit 0 in all cases; outputs JSON `hookSpecificOutput` when cascade detected, empty otherwise; invokes `archcore` directly via PATH; completes within 3 seconds; skips gracefully if `archcore` is unavailable.
 
-- Must be executable (`chmod +x`)
-- Must read JSON from stdin
-- Must exit 0 in all cases
-- Must output JSON with `hookSpecificOutput` when cascade detected, empty output otherwise
-- Must invoke the CLI via `"$SCRIPT_DIR/archcore"` (launcher)
-- Must complete within 3 seconds
-- Must skip gracefully if the launcher / CLI is unavailable
-- POSIX shell compatible
+#### `bin/check-precision`
+
+PostToolUse handler running the precision lexicon, mandatory-sections, frontmatter, and length checks. Always exits 0; reads files from disk (no CLI shell-out); ≤ 3 seconds.
 
 ## Normative Behavior
 
@@ -404,26 +355,25 @@ Requirements:
 - The PreToolUse hooks MUST treat Task-dispatched Write/Edit tool calls identically to main-session calls — no special-casing, no skipping.
 - The PostToolUse validation hook reports validation issues via `hookSpecificOutput.additionalContext` but does not block or revert operations.
 - The PostToolUse MCP validation matcher MUST fire after all document mutation MCP tools.
-- The hooks config MUST NOT register a Write/Edit matcher on PostToolUse. PreToolUse guarantees no Write/Edit reaches `.archcore/*.md` content, and revalidating on every non-archcore Write/Edit in the repo is wasted shell forks.
+- The hooks config MUST NOT register a Write/Edit matcher on PostToolUse.
 - The PostToolUse cascade hook MUST fire only after `update_document`, not after `create_document` or `remove_document`.
 - The PostToolUse cascade hook MUST only flag documents connected via `implements`, `depends_on`, or `extends` (not `related`).
+- The SessionStart hook MUST emit the install message when `archcore` is not on PATH and MUST NOT block the session in that case.
 - The SessionStart staleness check MUST run after context loading, not before.
-- The SessionStart staleness check output MUST NOT exceed 2KB.
+- The SessionStart staleness check output MUST NOT exceed 2 KB.
 - The SessionStart staleness check MUST rate-limit itself to once per 24h via a persistent timestamp file.
-- Hook scripts that invoke the CLI MUST do so via the local launcher (`"$SCRIPT_DIR/archcore"`) so resolution order (`ARCHCORE_BIN` → `PATH` → cache → download) applies uniformly.
-- Hook scripts that invoke the CLI MUST only pass subcommands present in the canonical surface (`config|doctor|help|hooks|init|mcp|status|update`); the contract is enforced by `test/structure/cli-contract.bats` and a per-script invocation-log assertion.
-- `bin/session-start` MUST set `ARCHCORE_SKIP_DOWNLOAD=1` when invoking the launcher.
-- All hooks MUST be idempotent — running them multiple times produces the same result.
-- No shipped script in `bin/` may contain a probe line used for hook-firing verification (the empirical-probe protocol in Hook 3's Sub-agent subsection applies only to transient, local, never-committed experiments).
+- Hook scripts that invoke the CLI MUST call `archcore <subcmd>` directly (resolved via PATH); the plugin does NOT ship any launcher wrapper, version pin, or cache directory. Reintroducing a `bin/archcore*` launcher or `bin/CLI_VERSION` requires a fresh ADR per `stack-and-tooling.rule`.
+- Hook scripts that invoke the CLI MUST only pass subcommands in the canonical surface (`config|doctor|help|hooks|init|mcp|status|update`); the contract is enforced by `test/structure/readme-cli-references.bats` and per-script invocation-log assertions.
+- All hooks MUST be idempotent.
 
 ## Constraints
 
-- PreToolUse hooks (Hook 2 and Hook 3) must each complete within 1 second (enforced by `timeout: 1`).
-- PostToolUse hooks must complete within 3 seconds (enforced by `timeout: 3`).
+- PreToolUse hooks (Hook 2 and Hook 3) must each complete within 1 second.
+- PostToolUse hooks must complete within 3 seconds.
 - SessionStart staleness check must complete within 3 seconds.
-- Hooks must work without network access in the steady state (downloads are gated to first-ever CLI resolution and never occur inside a hook timeout budget because SessionStart sets `ARCHCORE_SKIP_DOWNLOAD=1`).
-- Hooks must degrade gracefully if the launcher cannot resolve a CLI (skip validation/cascade, don't error).
-- The injection hook (Hook 3) MUST degrade gracefully for corpora larger than the Phase 1 baseline — either by completing in time at lower fidelity or by short-circuiting cleanly; it MUST NOT time out in a way that blocks Write/Edit.
+- Hooks must work without network access in steady state. The plugin never downloads anything — CLI lifecycle is the user's responsibility via the official installer.
+- Hooks must degrade gracefully if the Archcore CLI is missing (skip validation/cascade silently; SessionStart prints install guidance and exits 0).
+- The injection hook MUST degrade gracefully for corpora larger than the Phase 1 baseline — either by completing in time at lower fidelity or by short-circuiting cleanly; it MUST NOT time out in a way that blocks Write/Edit.
 - Bin scripts must be POSIX-compatible shell (no bash-specific features).
 
 ## Invariants
@@ -438,14 +388,14 @@ Requirements:
 - SessionStart and PostToolUse hooks exit 0 regardless of outcome.
 - The PreToolUse block hook exits 0 (allow) or 2 (block) — never other codes.
 - The PreToolUse injection hook exits 0 — never other codes.
-- SessionStart context loading never initiates a network download.
+- SessionStart never initiates a network download (the plugin no longer has download logic; CLI is the user's responsibility).
 - SessionStart emits the staleness warning at most once per 24h per project.
 
 ## Error Handling
 
-- If the launcher cannot resolve a CLI binary: PostToolUse hooks skip validation/cascade silently. PreToolUse hooks do not depend on the CLI — Hook 2 only inspects file paths; Hook 3 scans `.archcore/` via shell grep. SessionStart emits init guidance only when `.archcore/` is absent; it otherwise swallows launcher failures.
+- If `archcore` is not on PATH: SessionStart emits the install message and exits 0; PostToolUse hooks skip validation/cascade silently. PreToolUse hooks (Hooks 2 and 3) do not depend on the CLI — Hook 2 only inspects file paths; Hook 3 scans `.archcore/` via shell grep.
 - If stdin JSON is malformed: exit 0 with empty output (fail open, don't break the session).
-- If `archcore doctor` hangs: enforced by `timeout` field in hooks.json (3 seconds).
+- If `archcore doctor` hangs: enforced by `timeout 2` inside the script plus the hook's `timeout: 3` envelope.
 - If git is unavailable for staleness check: skip silently, context loading continues.
 - If relation graph is empty for cascade check: produce no output (no cascade possible).
 - If the staleness timestamp file is missing, empty, or contains non-numeric data: treat as "never emitted" and run the check normally.
@@ -455,16 +405,18 @@ Requirements:
 
 The hooks system conforms to this specification if:
 
-1. `hooks/hooks.json` contains all five hook entries (SessionStart, two PreToolUse on `Write|Edit`, two PostToolUse on MCP matchers).
-2. `bin/session-start` emits init guidance when `.archcore/` is missing, otherwise delegates context loading through the launcher with `ARCHCORE_SKIP_DOWNLOAD=1` and then calls `bin/check-staleness`.
+1. `hooks/hooks.json` contains all six hook entries (SessionStart, two PreToolUse on `Write|Edit`, three PostToolUse on MCP matchers).
+2. `bin/session-start` emits an install message when `archcore` is missing, emits init guidance when `.archcore/` is missing, otherwise delegates to `archcore hooks` and then calls `bin/check-staleness`.
 3. `bin/check-archcore-write` blocks `.archcore/**/*.md` writes via exit 2 + stderr and allows everything else.
 4. `bin/check-code-alignment` injects top-ranked `.archcore/` context for source-file edits inside configured source roots, exits 0 on every code path, and honors the `ARCHCORE_DISABLE_INJECTION=1` escape hatch.
-5. `bin/validate-archcore` runs validation via the launcher for `mcp__archcore__*` tool calls and is covered by the Test Contract above.
-6. `bin/check-staleness` detects code-doc drift via git, emits only when matching documents are found, and is rate-limited to once per 24h via a persistent timestamp file.
-7. `bin/check-cascade` detects relation cascade after `update_document` via the launcher and outputs warnings.
-8. Both PreToolUse hooks complete within 1 second.
-9. PostToolUse completes within 3 seconds.
-10. SessionStart never initiates a network download (launcher called with `ARCHCORE_SKIP_DOWNLOAD=1`).
-11. Output formats follow Claude Code hooks documentation (exit codes, hookSpecificOutput object) with host-normalized Cursor shape where applicable.
-12. Sub-agent tool invocations (Task-dispatched Write/Edit) are covered by Hooks 2 and 3 identically to main-session calls, per Claude Code's tool-boundary PreToolUse contract; no committed code contains a probe line.
-13. Every script that invokes the launcher passes only allowlisted CLI subcommands; the contract is enforced by `test/structure/cli-contract.bats` and per-script invocation-log assertions.
+5. `bin/validate-archcore` runs `archcore doctor` directly (no launcher wrapper) for `mcp__archcore__*` tool calls and is covered by the Test Contract above.
+6. `bin/check-staleness` detects code-doc drift via git, emits only when matching documents are found, and is rate-limited to once per 24h.
+7. `bin/check-cascade` detects relation cascade after `update_document` and outputs warnings.
+8. `bin/check-precision` runs the precision checks after `create_document` and `update_document`.
+9. Both PreToolUse hooks complete within 1 second.
+10. PostToolUse hooks complete within 3 seconds.
+11. SessionStart never initiates a network download — the plugin contains no fetcher.
+12. Output formats follow Claude Code hooks documentation (exit codes, hookSpecificOutput object) with host-normalized Cursor shape where applicable.
+13. Sub-agent tool invocations (Task-dispatched Write/Edit) are covered by Hooks 2 and 3 identically to main-session calls; no committed code contains a probe line.
+14. Every script that invokes `archcore` passes only allowlisted subcommands; the contract is enforced by `test/structure/readme-cli-references.bats` and per-script invocation-log assertions.
+15. No `bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`, `bin/CLI_VERSION`, or any download/cache logic exists in the repo.

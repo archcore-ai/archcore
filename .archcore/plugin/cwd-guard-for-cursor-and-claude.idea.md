@@ -8,37 +8,10 @@ tags:
   - "plugin"
 ---
 
-## Status: Rejected (Superseded)
+## Status: Rejected (Superseded by `remove-bundled-launcher-global-cli.idea`)
 
-This idea was based on the bundled CLI launcher architecture. With the transition to a global CLI on PATH, CWD guards in the launcher are no longer needed.
+This idea proposed extending the bundled `bin/archcore` launcher with a cross-host sanity check (Step 0c) that refused to start the MCP server when CWD did not look like a user project root, plus shipping a `cursor.mcp.json` template requiring `cwd: "${workspaceFolder}"`.
 
-**New architecture (as of 2026-05-12):**
-- Users install the Archcore CLI globally: `brew install archcore-ai/cli` or `go install github.com/archcore-ai/cli@latest`
-- All MCP configs point directly to `archcore` on PATH (no launcher indirection)
-- The `cwd` field in MCP configs is standard MCP practice (Cursor uses `${workspaceFolder}`, etc.)
-- No custom `ARCHCORE_CWD`, `ARCHCORE_ALLOW_ANY_CWD`, or Step 0b/0c guards needed
+With the launcher removed in plugin v0.4.0, there is no shell entry point to host a guard. CWD handling now relies entirely on each host's native `cwd` field (Cursor: `${workspaceFolder}`; Claude Code and Codex CLI: spawn cwd of the host process). The `cursor.mcp.json` template at the plugin root still uses `cwd: "${workspaceFolder}"`, but as a standard MCP convention rather than as defensive armor against a CWD-rebase bug.
 
-See: `remove-bundled-launcher-global-cli.idea.md` for the rationale and benefits of removing the launcher entirely.
-
----
-
-## Original Idea (Historical, Superseded)
-
-[Original content preserved below for reference only]
-
-### Idea
-
-Extend the existing Codex cache-cwd guard in `bin/archcore` (Step 0b) with a cross-host sanity check (Step 0c) that refuses to start the archcore MCP server when cwd does not look like a user project root, plus ship a `cursor.mcp.json` template and README guidance so users register the server with `cwd: "${workspaceFolder}"` from the start.
-
-[Full original content removed for brevity — see git history if needed]
-
----
-
-## Why Rejected
-
-- **Launcher removed.** The bundled shell launcher (`bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`) and all its resolution logic have been deleted.
-- **CWD handling simplified.** The host's native `cwd` field (e.g., Cursor's `${workspaceFolder}`) is sufficient and more standard.
-- **No custom env vars.** `ARCHCORE_CWD`, `ARCHCORE_ALLOW_ANY_CWD`, `ARCHCORE_ALLOW_PLUGIN_CWD` are no longer needed.
-- **Tests removed.** `test/unit/launcher.bats` and the associated Step 0b/0c guard tests were deleted.
-
-The global CLI approach is simpler, more maintainable, and solves the CWD problem through standard MCP mechanisms rather than custom launcher logic.
+Original idea body removed — git history holds the Step 0/0b/0c design discussion if needed.

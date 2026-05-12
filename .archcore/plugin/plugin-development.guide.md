@@ -13,9 +13,9 @@ tags:
 - bats-core for tests (`brew install bats-core` on macOS)
 - jq for JSON validation (`brew install jq`)
 - ShellCheck (optional, `brew install shellcheck`)
-- **Archcore CLI** installed globally: `brew install archcore-ai/cli` (macOS) or `go install github.com/archcore-ai/cli@latest` (Linux/Go)
+- **Archcore CLI** installed globally via the official installer at https://docs.archcore.ai/cli/install/ — `curl -fsSL https://archcore.ai/install.sh | bash` (macOS/Linux/WSL) or `irm https://archcore.ai/install.ps1 | iex` (Windows PowerShell 5.1+). Verify with `archcore --version`.
 
-That's it. The plugin no longer bundles a launcher — it assumes users have the Archcore CLI installed globally on PATH. MCP is registered automatically for Claude Code via plugin-root `.mcp.json`, and for Codex CLI via `.codex-plugin/plugin.json` pointing at plugin-root `.codex.mcp.json`.
+That's it. The plugin does not bundle a launcher — it assumes users have the Archcore CLI installed globally on PATH. MCP is registered automatically for Claude Code via plugin-root `.mcp.json`, and for Codex CLI via `.codex-plugin/plugin.json` pointing at plugin-root `.codex.mcp.json`. Both `.mcp.json` and `.codex.mcp.json` simply name `archcore` as the command — host runtimes resolve it via PATH.
 
 For Cursor development, you still register MCP externally (via Cursor's MCP settings or a project `mcp.json`). Point Cursor's MCP config at `archcore` (resolved via PATH) with args `["mcp"]`, or use the bundled `cursor.mcp.json` template.
 
@@ -96,7 +96,7 @@ Hook scripts go in `bin/` and must:
 - Be executable (`chmod +x`)
 - Source `bin/lib/normalize-stdin.sh` if they read hook stdin
 - Add `# shellcheck source=lib/normalize-stdin.sh` before the source line
-- Invoke the CLI directly as `archcore` (resolved via PATH), not via a launcher wrapper
+- Invoke the CLI directly as `archcore` (resolved via PATH); the plugin no longer ships a launcher wrapper
 
 Each host's hook config uses its host's canonical plugin-root env var:
 
@@ -200,9 +200,10 @@ The plugin ships `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI
 
 1. **Plugin loaded?** — `/plugin` (Claude Code) or `codex mcp list --json` (Codex CLI) should show `archcore`. If `.mcp.json`, `.codex.mcp.json`, or the Codex `mcpServers` pointer was modified or removed, the MCP server won't register; restore it from git.
 2. **CLI available?** — run `archcore --version` from the terminal. Expected: prints a version.
-   - Not found? → Install: `brew install archcore-ai/cli` (macOS) or `go install github.com/archcore-ai/cli@latest` (Linux)
+   - Not found? → Install via the official installer: `curl -fsSL https://archcore.ai/install.sh | bash` (macOS/Linux/WSL) or `irm https://archcore.ai/install.ps1 | iex` (Windows). Full docs: https://docs.archcore.ai/cli/install/
    - Permission denied? → Check that the CLI binary is executable
-3. **Duplicate suppression?** — if `/plugin` shows "Errors (1)" with an `archcore` MCP message, a user- or project-registered `archcore` has the same command. This is benign; the resolved binary is the same either way. To silence the warning, remove the redundant user/project registration.
+3. **Session lifecycle** — Claude Code registers MCP servers at session start. If the CLI was missing at that moment, installing it mid-session will NOT reconnect the server. Restart the host (Claude Code / Codex CLI) after a fresh install.
+4. **Duplicate suppression?** — if `/plugin` shows "Errors (1)" with an `archcore` MCP message, a user- or project-registered `archcore` has the same command. This is benign; the resolved binary is the same either way. To silence the warning, remove the redundant user/project registration.
 
 ### MCP server not connecting (Cursor)
 
