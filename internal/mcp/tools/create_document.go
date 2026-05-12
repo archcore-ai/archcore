@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
+
+// maxNearbyDocuments caps the nearby_documents hint returned by create_document.
+// Capping bounds response size in directories with many sibling documents.
+const maxNearbyDocuments = 5
 
 // NewCreateDocumentTool returns the tool definition for create_document.
 func NewCreateDocumentTool() mcp.Tool {
@@ -22,45 +27,32 @@ BEFORE calling this tool: call list_documents to confirm no equivalent document 
 
 Use this tool to permanently capture distilled, high-value knowledge — not temporary notes, chat logs, or speculative content.
 
-Document types and when to use each:
-  adr       — A decision that has been made, with context and consequences
-                § required sections: Context, Decision, Alternatives Considered, Consequences
-  rfc       — A proposal open for team review before a decision is made
-                § required sections: Summary, Motivation, Detailed Design, Drawbacks, Alternatives
-  rule      — A mandatory team standard or required behavior
-                § required sections: Rule (imperative statements), Rationale, Examples (Good/Bad), Enforcement
-  guide     — Step-by-step instructions for completing a task
-                § required sections: Prerequisites, Steps (numbered), Verification, Common Issues
-  doc       — Non-behavioral reference material: registries, glossaries, lookup tables, component lists
-                § required sections: Overview, Content (sections/tables), Examples
-  spec      — Canonical normative contract for a concrete system, component, interface, schema, or protocol
-                § required sections: Purpose, Scope, Authority, Subject, Contract Surface, Normative Behavior, Constraints, Invariants, Error Handling, Conformance
-  prd       — Product requirements with goals, scope, and acceptance criteria
-                § required sections: Vision, Problem Statement, Goals and Success Metrics, Requirements
-  idea      — A product or technical concept worth exploring
-                § required sections: Idea, Value, Possible Implementation, Risks and Constraints
-  plan      — A concrete implementation plan with defined tasks
-                § required sections: Goal, Tasks (phased), Acceptance Criteria, Dependencies
-  task-type — A proven pattern for a typical recurring implementation task
-                § required sections: What, When to Use, Steps, Example, Things to Watch Out For
-  cpat      — A code pattern change: documents how and why a convention or approach changed
-                § required sections: What Changed, Why, Before, After, Scope
-  mrd       — Market analysis with TAM/SAM/SOM, competitive landscape, and market needs
-                § required sections: Market Landscape, TAM/SAM/SOM, Competitive Analysis, Market Needs, Opportunity and Timing
-  brd       — Business justification with objectives, ROI, stakeholders, and budget
-                § required sections: Business Objectives, Stakeholders, Business Rules and Constraints, Success Metrics and ROI, Dependencies
-  urd       — User needs with personas, journeys, and usability requirements
-                § required sections: User Personas, User Journeys, User Requirements, Usability Requirements, Acceptance Criteria
-  brs       — Business requirements specification (ISO 29148 §9.3): formalized business-level requirements
-                § required sections: Business Purpose and Scope, Business Overview (incl. Information Environment), Mission/Goals/Objectives, Business Operations, Business Constraints, High-Level Operational Concept (incl. Operational Quality), Project Constraints, Success Criteria, Assumptions/Dependencies, Traceability
-  strs      — Stakeholder requirements specification (ISO 29148 §9.4): formalized stakeholder-level requirements
-                § required sections: Purpose and Scope, System Overview, Business Context, Stakeholder Classes, Operational Concept (ConOps), Stakeholder Requirements, System Processes, Operational Policies/Rules, Operational Constraints, Compliance/Regulatory, Project Constraints, Traceability
-  syrs      — System requirements specification (ISO 29148 §9.5): formalized system-level requirements
-                § required sections: System Purpose and Scope, System Overview, System Requirements (incl. Information Management), System Interfaces, System Operations, Policy/Regulation, Life Cycle Sustainment, Assumptions/Dependencies, Verification Approach, Traceability
-  srs       — Software requirements specification (ISO 29148 §9.6): formalized software component requirements
-                § required sections: Purpose and Scope, Product Perspective (incl. Assumptions/Dependencies), Software Requirements, External Interfaces, Data Requirements, Usability Requirements, Performance, Design Constraints, Software Quality Attributes, Verification Matrix, Traceability
+Document types (sections shown are core — full templates auto-generated when content is omitted):
+  adr       — Decision record · sections: Context, Decision, Alternatives, Consequences
+  rfc       — Open proposal · sections: Summary, Motivation, Detailed Design, Drawbacks, Alternatives
+  rule      — Team standard · sections: Rule, Rationale, Examples (Good/Bad), Enforcement
+  guide     — Step-by-step howto · sections: Prerequisites, Steps, Verification, Common Issues
+  doc       — Reference material (tables/glossaries) · sections: Overview, Content, Examples
+  spec      — Normative contract for a system, component, interface, or schema
+                · core sections: Purpose, Scope, Normative Behavior, Constraints, Invariants, Error Handling, Conformance
+  prd       — Product requirements · sections: Vision, Problem, Goals & Metrics, Requirements
+  idea      — Concept worth exploring · sections: Idea, Value, Possible Implementation, Risks
+  plan      — Implementation plan · sections: Goal, Tasks, Acceptance Criteria, Dependencies
+  task-type — Recurring task pattern · sections: What, When, Steps, Example, Pitfalls
+  cpat      — Code pattern change · sections: What Changed, Why, Before, After, Scope
+  mrd       — Market analysis · sections: Market, TAM/SAM/SOM, Competitive, Needs, Opportunity
+  brd       — Business justification · sections: Objectives, Stakeholders, Constraints, ROI
+  urd       — User needs · sections: Personas, Journeys, User Reqs, Usability, Acceptance
+  brs       — ISO 29148 §9.3 business req spec
+                · sections: Mission/Goals, Operational Concept, Business Constraints, Traceability
+  strs      — ISO 29148 §9.4 stakeholder req spec
+                · sections: Stakeholder Classes, ConOps, Stakeholder Reqs, Traceability
+  syrs      — ISO 29148 §9.5 system req spec
+                · sections: System Boundary, System Reqs, Interfaces, Verification Approach
+  srs       — ISO 29148 §9.6 software req spec
+                · sections: Scope, Software Reqs, External Interfaces, Verification Matrix
 
-Returns: JSON with path, type, category, title, status, tags (when present), and optionally nearby_documents — paths of other documents in the same directory. Treat nearby_documents as a hint only: review each candidate and call add_relation explicitly when a semantic link exists. Do not link every neighbor by default.`),
+Returns: JSON with path, type, category, title, status, tags (when present), and optionally nearby_documents — paths of other documents in the same directory (capped at 5, sorted alphabetically). Treat nearby_documents as a hint only: review each candidate and call add_relation explicitly when a semantic link exists. Do not link every neighbor by default.`),
 		mcp.WithString("type",
 			mcp.Description("Document type. Choose based on the nature of the content, not the topic. If uncertain between adr and rfc: use adr only if the decision is already final."),
 			mcp.Required(),
@@ -78,15 +70,13 @@ Returns: JSON with path, type, category, title, status, tags (when present), and
 			mcp.Enum(templates.ValidStatusStrings()...),
 		),
 		mcp.WithString("content",
-			mcp.Description(`Markdown body of the document. RECOMMENDED: omit this parameter to get the standard template for the document type — it contains all required sections with guidance placeholders.
-
-If you provide content, you MUST include the required sections for the chosen type (see § required sections above). Do not invent a structure — follow the template's section layout. Do not include a top-level heading — the title is stored in frontmatter separately.`),
+			mcp.Description(`Markdown body of the document. RECOMMENDED: omit this parameter to use the auto-generated template for the chosen type (it contains all required sections with guidance placeholders). If providing content manually, omit the top-level heading and follow the template section order for the chosen type.`),
 		),
 		mcp.WithString("directory",
 			mcp.Description(`Optional subdirectory inside .archcore/ where the file should be created. Use to organize documents by domain, feature, or team (e.g. "auth", "payments", "infrastructure/k8s"). If omitted, the file is created in the .archcore/ root. Must not contain ".." or start with "/".`),
 		),
 		mcp.WithArray("tags",
-			mcp.Description(`Optional. Add tags when the document is relevant to multiple teams or domains. Lowercase alphanumeric with hyphens, underscores, colons, or pipes (e.g. "frontend", "team-platform", "team:payments", "some|flag").`),
+			mcp.Description(`Optional. Tags for cross-cutting concerns when a document is relevant to multiple teams or domains. Format per server instructions (TAGS section), e.g. "frontend", "team:payments".`),
 			mcp.WithStringItems(),
 		),
 		mcp.WithTitleAnnotation("Create Document"),
@@ -209,6 +199,8 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 // populateNearbyDocuments scans for other documents in the same directory as
 // relPath and exposes them as a hint in result["nearby_documents"]. The agent
 // decides whether any of them warrants an explicit relation via add_relation.
+// Results are sorted lexicographically and capped at maxNearbyDocuments to
+// bound response size in large directories.
 func populateNearbyDocuments(baseDir, relPath string, result map[string]any) {
 	allDocs, scanErr := ScanDocuments(baseDir)
 	if scanErr != nil {
@@ -222,9 +214,14 @@ func populateNearbyDocuments(baseDir, relPath string, result map[string]any) {
 			nearby = append(nearby, d.Path)
 		}
 	}
-	if len(nearby) > 0 {
-		result["nearby_documents"] = nearby
+	if len(nearby) == 0 {
+		return
 	}
+	slices.Sort(nearby)
+	if len(nearby) > maxNearbyDocuments {
+		nearby = nearby[:maxNearbyDocuments]
+	}
+	result["nearby_documents"] = nearby
 }
 
 // filenameToTitle converts a slug like "oauth-tokens" to "Oauth Tokens".

@@ -10,6 +10,11 @@ import (
 	"archcore-cli/templates"
 )
 
+// maxSessionTags caps the number of tags emitted in SessionStart context.
+// Capped at 20 (top-N by frequency) to limit static token overhead per session
+// while preserving enough coverage for projects with rich tag namespaces.
+const maxSessionTags = 20
+
 // buildSessionContext generates the session-start context string
 // that is injected into agents at session start.
 func buildSessionContext(baseDir string) (string, int) {
@@ -69,7 +74,7 @@ func buildSessionContext(baseDir string) (string, int) {
 			}
 			return sorted[i].tag < sorted[j].tag
 		})
-		limit := min(30, len(sorted))
+		limit := min(maxSessionTags, len(sorted))
 		tags := make([]string, limit)
 		for i := range limit {
 			tags[i] = sorted[i].tag

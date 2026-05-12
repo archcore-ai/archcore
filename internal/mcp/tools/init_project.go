@@ -17,15 +17,9 @@ func NewInitProjectTool() mcp.Tool {
 	return mcp.NewTool("init_project",
 		mcp.WithDescription(`Initialize the .archcore/ knowledge base for the current project.
 
-Call this tool ONCE per project, before creating any documents, if list_documents reports the project is not yet initialized (empty result with no .archcore/ directory). It is safe to call on an already-initialized project — in that case the existing configuration is preserved and returned.
+Call this tool ONCE per project, before creating any documents, if list_documents reports the project is not yet initialized (empty result with no .archcore/ directory). Idempotent — safe to call on an already-initialized project (existing settings preserved and returned).
 
-What it does:
-- Creates the .archcore/ directory
-- Writes .archcore/settings.json with the chosen sync mode and language
-
-What it does NOT do:
-- Does not install hooks or MCP configs for other agents (use 'archcore hooks install' or 'archcore mcp install' from the shell for that)
-- Does not register the MCP server — that is handled by the host plugin or by 'archcore mcp install'
+Creates the .archcore/ directory and settings.json. Does not install agent hooks (use 'archcore hooks install') or register the MCP server (use 'archcore mcp install').
 
 Returns: JSON with { initialized: true, settings: {...}, already_initialized: bool }.`),
 		mcp.WithString("language",

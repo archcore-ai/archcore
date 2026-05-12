@@ -42,7 +42,7 @@ Returns: JSON with the path of the updated file, its type, category, title, stat
 			mcp.Description("New markdown body for the document. Replaces everything after the frontmatter. If omitted, the existing body is preserved."),
 		),
 		mcp.WithArray("tags",
-			mcp.Description(`New tags for the document. Tags must be lowercase alphanumeric with hyphens, underscores, colons, or pipes (e.g. "frontend", "team-platform", "team:payments", "some|flag"). Pass an empty array to clear all tags. If omitted, existing tags are preserved.`),
+			mcp.Description(`New tags for the document. Format per server instructions (TAGS section), e.g. "frontend", "team:payments". Pass an empty array to clear all tags; omit to preserve existing.`),
 			mcp.WithStringItems(),
 		),
 		mcp.WithTitleAnnotation("Update Document"),

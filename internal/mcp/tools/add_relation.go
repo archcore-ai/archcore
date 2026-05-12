@@ -27,11 +27,7 @@ Relation types:
   extends     — source builds upon target (e.g., rfc extends an existing adr)
   depends_on  — source requires target to proceed (e.g., plan depends_on adr)
 
-REQUIREMENTS LAYER HINTS (soft guidance — not enforced):
-  Specifications formalizing Sources: use "implements" with spec as source (e.g., brs implements brd, strs implements urd)
-  Within ISO cascade: use "implements" (e.g., strs implements brs, syrs implements strs, srs implements syrs)
-  Same-layer peers: use "related" (e.g., mrd related brd, brd related urd)
-  PRD to ISO types: use "related" (PRD is an alternative path)
+For requirements-layer guidance (Sources vs Specifications, ISO cascade), see server instructions REQUIREMENTS LAYERS section.
 
 Both source and target must be existing documents. Paths can be given with or without the ".archcore/" prefix.`),
 		mcp.WithString("source",

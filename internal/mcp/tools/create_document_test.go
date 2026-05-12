@@ -493,6 +493,62 @@ func TestHandleCreateDocument_NearbyDocuments(t *testing.T) {
 	}
 }
 
+func TestHandleCreateDocument_NearbyDocuments_Capped(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+
+	// Create 7 sibling docs in "crowded" — names chosen so lexicographic
+	// order matches creation order and the first 5 are unambiguous.
+	for _, slug := range []string{
+		"a-one", "b-two", "c-three", "d-four",
+		"e-five", "f-six", "g-seven",
+	} {
+		writeDoc(t, base, "crowded", slug+".adr.md",
+			"---\ntitle: "+slug+"\nstatus: draft\n---\n\nbody")
+	}
+
+	result, err := callTool(HandleCreateDocument(base), map[string]any{
+		"type":      "rule",
+		"filename":  "new-rule",
+		"directory": "crowded",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error: %s", result.Content[0].(mcp.TextContent).Text)
+	}
+
+	var info map[string]any
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &info); err != nil {
+		t.Fatal(err)
+	}
+	nearby, ok := info["nearby_documents"]
+	if !ok {
+		t.Fatal("expected nearby_documents in response")
+	}
+	arr, ok := nearby.([]any)
+	if !ok {
+		t.Fatalf("nearby_documents not an array: %T", nearby)
+	}
+	if got, want := len(arr), 5; got != want {
+		t.Fatalf("len(nearby_documents) = %d, want %d", got, want)
+	}
+
+	want := []string{
+		".archcore/crowded/a-one.adr.md",
+		".archcore/crowded/b-two.adr.md",
+		".archcore/crowded/c-three.adr.md",
+		".archcore/crowded/d-four.adr.md",
+		".archcore/crowded/e-five.adr.md",
+	}
+	for i, w := range want {
+		if got := arr[i]; got != w {
+			t.Errorf("nearby_documents[%d] = %v, want %s", i, got, w)
+		}
+	}
+}
+
 func TestHandleCreateDocument_NearbyDocuments_Empty(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
