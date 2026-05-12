@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -211,13 +212,20 @@ func stripFrontmatter(content string) string {
 
 // validateArchcorePath normalises and validates a document path.
 // It returns the cleaned path or an error if the path is invalid.
+//
+// Uses path.Clean (POSIX, forward-slash) rather than filepath.Clean because on
+// Windows filepath.Clean would re-introduce backslashes after ToSlash, breaking
+// the subsequent ".archcore/" prefix check.
 func validateArchcorePath(relPath string) (string, error) {
+	if filepath.IsAbs(relPath) {
+		return "", fmt.Errorf("invalid path: must be relative and within .archcore/")
+	}
 	relPath = filepath.ToSlash(relPath)
 	if !strings.HasPrefix(relPath, ".archcore/") {
 		return "", fmt.Errorf("invalid path: must start with \".archcore/\"")
 	}
-	cleaned := filepath.Clean(relPath)
-	if strings.HasPrefix(cleaned, "..") || filepath.IsAbs(cleaned) || !strings.HasPrefix(cleaned, ".archcore/") {
+	cleaned := path.Clean(relPath)
+	if strings.HasPrefix(cleaned, "..") || !strings.HasPrefix(cleaned, ".archcore/") {
 		return "", fmt.Errorf("invalid path: must be relative and within .archcore/")
 	}
 	return cleaned, nil

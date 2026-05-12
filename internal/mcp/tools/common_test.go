@@ -508,3 +508,45 @@ func TestReadDocumentContent_WithTags(t *testing.T) {
 		t.Errorf("tags = %v, want [frontend]", doc.Tags)
 	}
 }
+
+func TestValidateArchcorePath(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		input    string
+		want     string
+		wantErr  bool
+		errMatch string
+	}{
+		{name: "forward slashes", input: ".archcore/features/lfrom/x.doc.md", want: ".archcore/features/lfrom/x.doc.md"},
+		{name: "redundant segments cleaned", input: ".archcore/a/./b/../c.md", want: ".archcore/a/c.md"},
+		// Regression: filepath.Clean on Windows re-introduces backslashes, which
+		// broke the second prefix check. The cleaned output must always use
+		// forward slashes, regardless of platform.
+		{name: "output uses forward slashes", input: ".archcore/a/b.md", want: ".archcore/a/b.md"},
+		{name: "missing prefix", input: "features/lfrom/x.doc.md", wantErr: true, errMatch: "must start with"},
+		{name: "traversal escape", input: ".archcore/../etc/passwd", wantErr: true, errMatch: "must be relative"},
+		{name: "absolute unix", input: "/etc/passwd", wantErr: true, errMatch: "must be relative"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := validateArchcorePath(tc.input)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil (result=%q)", got)
+				}
+				if tc.errMatch != "" && !strings.Contains(err.Error(), tc.errMatch) {
+					t.Errorf("error = %q, want substring %q", err.Error(), tc.errMatch)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
