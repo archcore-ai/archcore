@@ -52,14 +52,16 @@ setup() {
 
 @test "cursor plugin.json has skills, agents, hooks paths" {
   # NOTE: Cursor plugin manifests intentionally do NOT carry an `mcpServers`
-  # field, and we ship no `.cursor.mcp.json`. This is by design: at the time
-  # of writing, Cursor manages MCP servers via the user's `~/.cursor/mcp.json`
-  # (host-level), not via plugin manifests, so the archcore MCP server must
-  # be configured by the user in their host config separately. As a result,
-  # `mcp__archcore__init_project` is reachable in Cursor only when the user
-  # has wired it themselves — there is no plugin-level guarantee, and no
-  # structural test enforces one. Before adding an `.cursor.mcp.json`, verify
-  # current Cursor actually supports plugin-level MCP injection.
+  # field, and we do not ship an `mcp.json` (or `cursor.mcp.json`) at the
+  # plugin root. Cursor 2.5+ auto-detects `mcp.json` at the plugin root and
+  # registers it under "Plugin MCP Servers", but it spawns that MCP from
+  # the plugin install directory (not the workspace), and its MCP stdio
+  # schema has no `cwd` field — so a plugin-shipped MCP would serve the
+  # plugin install dir's `.archcore/` instead of the user's. To avoid this,
+  # we publish `docs/cursor.mcp.example.json` as a copy-into-user-config
+  # template that passes `--project ${workspaceFolder}` in `args`, and
+  # never expose Cursor's plugin-MCP surface. See
+  # cursor-mcp-architecture.adr.md for the full rationale.
   run jq -e '.skills and .agents and .hooks' "$PLUGIN_ROOT/.cursor-plugin/plugin.json"
   assert_success
 }

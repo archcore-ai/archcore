@@ -17,7 +17,7 @@ tags:
 
 That's it. The plugin does not bundle a launcher — it assumes users have the Archcore CLI installed globally on PATH. MCP is registered automatically for Claude Code via plugin-root `.mcp.json`, and for Codex CLI via `.codex-plugin/plugin.json` pointing at plugin-root `.codex.mcp.json`. Both `.mcp.json` and `.codex.mcp.json` simply name `archcore` as the command — host runtimes resolve it via PATH.
 
-For Cursor development, you still register MCP externally (via Cursor's MCP settings or a project `mcp.json`). Point Cursor's MCP config at `archcore` (resolved via PATH) with args `["mcp"]`, or use the bundled `cursor.mcp.json` template.
+For Cursor development, you register MCP externally by copying `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped). The plugin deliberately does **not** ship a Cursor plugin-MCP — see `cursor-mcp-architecture.adr.md` for the three-layer rationale (Cursor 2.5+ spawns plugin-MCPs from the plugin install dir rather than the workspace, and its MCP stdio schema has no `cwd` field). The template passes `--project ${workspaceFolder}` in `args` so the server always resolves the workspace, regardless of how Cursor invokes it.
 
 For Codex development, `codex plugin marketplace add /path/to/plugin` registers the marketplace. The current CLI loads enabled plugins from its installed plugin cache; run `make test-codex-smoke` for the local installed-cache smoke that verifies skill discovery and plugin-managed MCP.
 
@@ -30,8 +30,11 @@ Initialize a project for testing with `mcp__archcore__init_project` (via a Claud
 ```bash
 git clone https://github.com/archcore-ai/plugin.git
 cd plugin
-git submodule update --init   # pulls bats-support and bats-assert
+git checkout dev               # development happens on dev, main is synthesized
+git submodule update --init    # pulls bats-support and bats-assert
 ```
+
+The plugin uses a `dev → main` split: all PRs land on `dev`. The `main` branch is synthesized by `.github/workflows/release.yml` from a tagged commit on `dev`, with dev-only artifacts stripped (`.archcore/`, `reference-materials/`, `test/`, `Makefile`, `.github/`, etc.). See `docs/release.md` for the full blocklist and release procedure.
 
 ### 2. Run the host with the plugin loaded locally
 
@@ -97,6 +100,7 @@ Hook scripts go in `bin/` and must:
 - Source `bin/lib/normalize-stdin.sh` if they read hook stdin
 - Add `# shellcheck source=lib/normalize-stdin.sh` before the source line
 - Invoke the CLI directly as `archcore` (resolved via PATH); the plugin no longer ships a launcher wrapper
+- If the script reads `.archcore/` or emits user-visible context, guard against being launched from a plugin install directory by exiting silently when cwd contains a sibling `.cursor-plugin/`, `.claude-plugin/`, or `.codex-plugin/` manifest (see `bin/session-start` for the canonical pattern, and `cursor-mcp-architecture.adr.md` for the rationale)
 
 Each host's hook config uses its host's canonical plugin-root env var:
 
@@ -146,6 +150,7 @@ See `plugin-testing.guide.md` for detailed testing instructions.
 - Hooks: trigger Write/Edit on `.archcore/` and verify PreToolUse blocks it
 - MCP availability: ensure `archcore` is on PATH and `archcore --version` works
 - For Codex: from a directory **outside** the plugin source repo (e.g., `cd $(mktemp -d)`), call any `mcp__archcore__*` tool and verify the MCP starts.
+- For Cursor: after copying `docs/cursor.mcp.example.json` into `.cursor/mcp.json`, open an empty project. `list_documents` should return empty (not the plugin's own dev docs). If it returns dev docs, the plugin-install-dir guards regressed — file an issue against this repo and `archcore-ai/cli`.
 - Verify: `/archcore:verify`
 
 ## Verification
@@ -207,18 +212,38 @@ The plugin ships `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI
 
 ### MCP server not connecting (Cursor)
 
-Cursor does not auto-register the plugin's MCP. Configure it in Cursor's MCP settings or a project `mcp.json`:
+Cursor uses a user-installed MCP, not a plugin-shipped one (deliberate — see `cursor-mcp-architecture.adr.md`). Copy `docs/cursor.mcp.example.json` into one of:
+
+- `~/.cursor/mcp.json` — user-scoped, available in every workspace
+- `.cursor/mcp.json` — project-scoped, only this project
+
+The file ships with the right shape:
 
 ```json
 {
   "mcpServers": {
     "archcore": {
+      "type": "stdio",
       "command": "archcore",
-      "args": ["mcp"],
-      "cwd": "${workspaceFolder}"
+      "args": ["mcp", "--project", "${workspaceFolder}"]
     }
   }
 }
 ```
 
-Alternatively, use the bundled `cursor.mcp.json` template as a reference. The key requirement: `cwd: "${workspaceFolder}"` ensures the MCP operates on the active project, not some other directory.
+Key points:
+
+- **`--project ${workspaceFolder}` is mandatory.** Cursor's MCP stdio schema has no `cwd` field; without `--project`, the server falls back to `os.Getwd()` which is unreliable for plugin-launched processes.
+- **Do not add a `cwd` field.** Cursor silently ignores it; doing so is just confusing.
+- **Do not copy the template to the plugin root.** A `cursor.mcp.json` at the plugin root would let Cursor's plugin-MCP auto-detection register the server with cwd = plugin install dir, leaking any bundled `.archcore/` (or other unintended state) instead of the user's workspace.
+
+### "Plugin MCP Servers → archcore" appears in Cursor settings with stale documents
+
+The plugin deliberately ships no Cursor plugin-MCP. If Cursor's "Plugin MCP Servers" section shows `archcore`, then either (a) an older plugin version with a plugin-root `cursor.mcp.json` is still cached, or (b) a regression introduced a plugin-root MCP file. Steps:
+
+1. Uninstall the plugin from Cursor.
+2. Remove `~/.cursor/plugins/cache/archcore-plugins/` (or the relevant cache subtree).
+3. Reinstall the plugin from `main` (which is synthesized by the release workflow and has no plugin-root `cursor.mcp.json`).
+4. Verify `test/structure/cursor-plugin.bats` passes — it asserts no legacy `cursor.mcp.json` at the plugin root.
+
+If the symptom persists after a fresh `main` install, file an issue: the `cursor-mcp-architecture.adr.md` layered defense has a gap.

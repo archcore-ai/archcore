@@ -91,6 +91,45 @@ MOCK
     || fail "expected only 'hooks' subcommand, got: '$invoked'"
 }
 
+@test "refuses to run from a plugin install dir (cursor-plugin sibling)" {
+  # If session-start is launched with cwd inside the plugin install cache,
+  # it must NOT emit context — otherwise it would surface the plugin's own
+  # bundled .archcore/ as the user's knowledge base.
+  mock_archcore ""
+  local fake_plugin="$BATS_TEST_TMPDIR/fake-plugin"
+  mkdir -p "$fake_plugin/.cursor-plugin" "$fake_plugin/.archcore"
+  echo '{"name":"fake"}' > "$fake_plugin/.cursor-plugin/plugin.json"
+  cd "$fake_plugin"
+
+  run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  [ -z "$output" ] || fail "expected silent exit, got: '$output'"
+}
+
+@test "refuses to run from a plugin install dir (claude-plugin sibling)" {
+  mock_archcore ""
+  local fake_plugin="$BATS_TEST_TMPDIR/fake-plugin"
+  mkdir -p "$fake_plugin/.claude-plugin" "$fake_plugin/.archcore"
+  echo '{"name":"fake"}' > "$fake_plugin/.claude-plugin/plugin.json"
+  cd "$fake_plugin"
+
+  run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  [ -z "$output" ] || fail "expected silent exit, got: '$output'"
+}
+
+@test "refuses to run from a plugin install dir (codex-plugin sibling)" {
+  mock_archcore ""
+  local fake_plugin="$BATS_TEST_TMPDIR/fake-plugin"
+  mkdir -p "$fake_plugin/.codex-plugin" "$fake_plugin/.archcore"
+  echo '{"name":"fake"}' > "$fake_plugin/.codex-plugin/plugin.json"
+  cd "$fake_plugin"
+
+  run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  [ -z "$output" ] || fail "expected silent exit, got: '$output'"
+}
+
 @test "staleness check failure is non-fatal" {
   cat > "$MOCK_BIN/archcore" <<'MOCK'
 #!/bin/sh

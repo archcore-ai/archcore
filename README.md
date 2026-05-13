@@ -48,7 +48,7 @@ claude plugin install archcore@archcore-plugins
 
 Cursor reads the repo's `marketplace.json`, shows the plugin, and installs it.
 
-> **Cursor MCP setup (one-time).** The Cursor plugin manifest can't register MCP servers, so copy [`cursor.mcp.json`](cursor.mcp.json) into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped). The template pins `cwd: "${workspaceFolder}"` — keep it, otherwise a global registration leaks one project's docs into every other project.
+> **Cursor MCP setup (one-time).** Copy [`docs/cursor.mcp.example.json`](docs/cursor.mcp.example.json) into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped). The template passes `--project "${workspaceFolder}"` in `args` so the MCP server always sees the current workspace, regardless of where Cursor spawns it. Cursor's MCP schema has no `cwd` field ([forum #74861](https://forum.cursor.com/t/allow-workspacefolder-in-mcp-project-configration/74861)), and stdio servers can launch with the wrong working directory ([forum #99215](https://forum.cursor.com/t/how-get-the-correct-current-work-directory-in-mcp-server/99215)) — `--project` sidesteps both.
 
 **Codex CLI** — requires Codex CLI v0.117.0+ (March 2026 plugin system):
 

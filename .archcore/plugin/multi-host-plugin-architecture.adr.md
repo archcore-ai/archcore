@@ -53,7 +53,7 @@ plugin/
 │   └── check-staleness
 │
 ├── .claude-plugin/              # Claude Code manifest + marketplace
-├── .cursor-plugin/              # Cursor manifest + marketplace
+├── .cursor-plugin/              # Cursor manifest + marketplace (no `mcpServers` field — deliberate)
 ├── .codex-plugin/               # Codex CLI manifest (single file)
 ├── .agents/plugins/             # Codex marketplace descriptor
 │
@@ -64,7 +64,7 @@ plugin/
 │
 ├── .mcp.json                    # Claude Code — { "archcore": { "command": "archcore", "args": ["mcp"] } }
 ├── .codex.mcp.json              # Codex CLI — same shape
-├── cursor.mcp.json              # Reference template users copy into ~/.cursor/mcp.json
+├── docs/cursor.mcp.example.json # Reference template users copy into ~/.cursor/mcp.json
 └── rules/                       # Cursor-only context rules (.mdc)
 ```
 
@@ -74,7 +74,11 @@ Skills, agents, and hook scripts are maintained once. All host-specific adapters
 
 ### MCP wiring
 
-MCP is wired via plugin-shipped configs for Claude Code (`.mcp.json`) and Codex CLI (`.codex.mcp.json` pointed at by `.codex-plugin/plugin.json`'s `mcpServers` field). Both name `archcore` directly; the host runtime resolves it from PATH. Cursor users register MCP externally by copying `cursor.mcp.json` into `~/.cursor/mcp.json` or `.cursor/mcp.json` — Cursor does not auto-register plugin-shipped MCP. The plugin does not bundle the CLI, does not download it, and does not cache it; users install it once via the official installer at https://docs.archcore.ai/cli/install/.
+MCP is wired via plugin-shipped configs for Claude Code (`.mcp.json`) and Codex CLI (`.codex.mcp.json` pointed at by `.codex-plugin/plugin.json`'s `mcpServers` field). Both name `archcore` directly; the host runtime resolves it from PATH. Both hosts launch the MCP with cwd inherited from the user's project process, which is the correct workspace.
+
+Cursor is the exception. Cursor 2.5+ does auto-detect plugin-shipped MCP configs (per the [official plugins reference](https://cursor.com/docs/reference/plugins.md), an `mcp.json` at the plugin root registers under "Plugin MCP Servers"), but it spawns the plugin-MCP from the plugin install directory rather than the workspace, and its MCP stdio schema has no `cwd` field ([forum #74861](https://forum.cursor.com/t/allow-workspacefolder-in-mcp-project-configration/74861), [forum #99215](https://forum.cursor.com/t/how-get-the-correct-current-work-directory-in-mcp-server/99215)). Until those gaps close upstream, shipping a plugin-MCP for Cursor would cause the server to read from the plugin install dir instead of the user's project. We therefore deliberately do **not** ship a plugin-MCP for Cursor: no `mcpServers` field in `.cursor-plugin/plugin.json`, no `mcp.json` at the plugin root, and the reference template lives under `docs/` so it cannot trigger auto-detection. Cursor users copy `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` or `.cursor/mcp.json`; the template passes `--project ${workspaceFolder}` in `args` so the server resolves the workspace regardless of cwd. See `cursor-mcp-architecture.adr.md` for the full rationale and three-layer defense (release-strip, docs-only template, runtime guards).
+
+The plugin does not bundle the CLI, does not download it, and does not cache it; users install it once via the official installer at https://docs.archcore.ai/cli/install/.
 
 ### Stdin normalization
 
@@ -104,6 +108,10 @@ Ship a `bin/archcore` launcher that resolves the Archcore CLI on demand from `$A
 
 **Tried and reverted.** Shipped briefly under `bundled-cli-launcher.adr` (now rejected), then removed in plugin v0.4.0 (2026-05-12) per `remove-bundled-launcher-global-cli.idea`. Eight bug classes — offline CI failures, security patch lag, uneven host support (Cursor still required manual setup), cache pollution, first-run latency, enterprise friction, version coupling to plugin releases, and 2000+ lines of launcher/test code — made the "zero-setup install" framing a net loss. The official installer at https://docs.archcore.ai/cli/install/ is the supported path; one-time user install replaces the bundled-launcher complexity.
 
+### 5. Ship `mcp.json` at the plugin root with `--project ${workspaceFolder}` in args
+
+This is the canonical Cursor 2.5+ way to register a plugin MCP. Rejected because Cursor's `${workspaceFolder}` interpolation inside plugin-MCP `args` is undocumented and the open feature request ([forum #74861](https://forum.cursor.com/t/allow-workspacefolder-in-mcp-project-configration/74861)) implies plugin-MCPs do not get the interpolation that user-config MCPs do. Until Cursor confirms support, we cannot rely on it; see `cursor-mcp-architecture.adr.md` for the layered defense we adopted instead.
+
 ## Consequences
 
 ### Positive
@@ -119,5 +127,5 @@ Ship a `bin/archcore` launcher that resolves the Archcore CLI on demand from `$A
 - **CLI install is the user's responsibility**: an unsupported user expectation (e.g., "the plugin should just work") surfaces when `archcore` is missing from PATH. Mitigation: `bin/session-start` prints the install command and a docs link on every fresh session where the CLI is absent; `plugin-development.guide` documents the MCP session-start lifecycle gotcha (installing the CLI mid-session does not reconnect a Claude Code MCP that failed to register at session start — restart required).
 - **Stdin normalization complexity**: hook scripts must handle multiple JSON formats. Mitigated by the centralized normalizer.
 - **Hook event mapping is imperfect**: not all hosts have equivalent hook events (e.g., Cursor has no direct `SessionStart` equivalent; its PreToolUse matcher is `Write` only, not `Write|Edit`). Mitigation: use the closest available event per host; document gaps.
-- **MCP wiring is host-specific**: Claude Code and Codex CLI use plugin-shipped MCP configs; Cursor users still register externally. Cross-host MCP parity for Cursor awaits Cursor-side plugin MCP support.
+- **Cursor MCP is user-installed only**: Cursor users have a one-time copy step from `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json`. This is a deliberate trade-off (see `cursor-mcp-architecture.adr.md`) — shipping a plugin-MCP would leak the plugin's bundled `.archcore/` into every Cursor install. Revisit when Cursor's plugin-MCP cwd handling improves.
 - **Subagent format divergence**: Claude Code and Cursor read MD agents with YAML frontmatter; Codex requires TOML. Mitigated by shipping both formats side-by-side; `test/structure/agents.bats` enforces parity between MD and TOML `developer_instructions` bodies.
