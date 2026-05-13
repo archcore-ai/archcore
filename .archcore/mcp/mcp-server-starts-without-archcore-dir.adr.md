@@ -16,7 +16,7 @@ Two user flows were affected:
 
 ## Decision
 
-1. **`archcore mcp` starts unconditionally.** The `.archcore/` existence check in `cmd/mcp.go` is removed. The server always boots on stdio and prints a hint in the startup banner when the directory is missing.
+1. **`archcore mcp` starts unconditionally for the default (cwd) project root.** The `.archcore/` existence check in `cmd/mcp.go` is removed. The server always boots on stdio and prints a hint in the startup banner when the directory is missing.
 2. **Add an `init_project` MCP tool** (`internal/mcp/tools/init_project.go`). It creates `.archcore/` and writes `settings.json` from within the MCP server itself. It accepts `language`, `sync_mode`, and `archcore_url` and is idempotent — calling it on an already-initialized project returns the existing settings without overwriting them.
 3. **Server instructions document the bootstrap flow.** The system prompt embedded in `internal/mcp/server.go` (`mcpServerInstructions`) explicitly tells the agent: "if `list_documents` returns empty AND the user wants to create documents, call `init_project` once, then proceed."
 4. **Other tools continue to assume `.archcore/` exists.** `create_document`, `list_documents`, `update_document`, etc. are not changed to auto-init. The only tool safe to call on an uninitialized project is `init_project`.
@@ -40,3 +40,12 @@ Negative / constraints:
 - The MCP server now has a "degraded" mode (running, but most tools will fail). The startup banner's hint compensates, but agents that ignore system prompts may attempt `create_document` before `init_project` and see confusing errors. Mitigated by the explicit instruction block in `mcpServerInstructions`.
 - `init_project` must stay idempotent. A regression that clobbers existing `settings.json` on the second call would destroy user configuration. Covered by `TestHandleInitProject_Idempotent`.
 - Any future MCP tool that *also* safely works on an uninitialized project must be documented in the server instructions alongside `init_project`. Today that list is just `init_project`.
+
+### Scope of the "unconditional start" property
+
+The unconditional-start guarantee applies to the **default project root** (cwd) and to the case where `.archcore/` is missing inside an existing project directory. It does **not** override the project-root resolution layer:
+
+- When `--project <path>` is passed to `archcore mcp`, or `ARCHCORE_PROJECT_ROOT` is set, the resolver (`cmd/mcp_root.go`) requires the path to exist and to be a directory. A missing or non-directory path causes the command to exit before the server starts.
+- This is intentional: if the user explicitly names a project root, silently falling back to cwd would be more surprising than failing fast. `.archcore/` *inside* the resolved root may still be absent — the server still starts in that case and exposes `init_project`.
+
+In short: the server tolerates a missing `.archcore/`, but does not tolerate a missing project directory the user explicitly named.

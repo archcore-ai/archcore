@@ -14,55 +14,65 @@ import (
 )
 
 func newMCPCmd() *cobra.Command {
+	var projectFlag string
+
 	cmd := &cobra.Command{
 		Use:   "mcp",
 		Short: "MCP stdio server for archcore documents",
 		Long:  "Starts an MCP (Model Context Protocol) stdio server that exposes archcore document tools.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
+			baseDir, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
 			if err != nil {
 				return err
 			}
 
 			fmt.Fprintln(os.Stderr, display.WelcomeBanner())
 			fmt.Fprintln(os.Stderr)
-			if !config.DirExists(cwd) {
+			if !config.DirExists(baseDir) {
 				fmt.Fprintln(os.Stderr, display.Dim.Render("  MCP server running on stdio (uninitialized project — only init_project tool is useful until the agent initializes .archcore/)..."))
 			} else {
 				fmt.Fprintln(os.Stderr, display.Dim.Render("  MCP server running on stdio..."))
 			}
 
-			return mcpserver.RunStdio(cwd)
+			return mcpserver.RunStdio(baseDir)
 		},
 	}
+
+	cmd.Flags().StringVar(&projectFlag, "project", "",
+		"project root containing .archcore/ (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
 
 	cmd.AddCommand(newMCPInstallCmd())
 	return cmd
 }
 
 func newMCPInstallCmd() *cobra.Command {
-	var agentFlag string
+	var (
+		agentFlag   string
+		projectFlag string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install MCP server config for coding agents",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
+			baseDir, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
 			if err != nil {
 				return err
 			}
-			if !config.DirExists(cwd) {
+			if !config.DirExists(baseDir) {
 				return errors.New(".archcore/ not found — run 'archcore init' first")
 			}
 
 			if agentFlag != "" {
-				return runMCPInstallForAgent(cwd, agents.AgentID(agentFlag))
+				return runMCPInstallForAgent(baseDir, agents.AgentID(agentFlag))
 			}
-			return runMCPInstallAutoDetect(cwd)
+			return runMCPInstallAutoDetect(baseDir)
 		},
 	}
 
 	cmd.Flags().StringVar(&agentFlag, "agent", "", "install for a specific agent (e.g. cursor, gemini-cli)")
+	cmd.Flags().StringVar(&projectFlag, "project", "",
+		"project root containing .archcore/ (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
 	return cmd
 }
 

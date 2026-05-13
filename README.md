@@ -301,6 +301,8 @@ Archcore does not require a hosted service. The CLI runs a local stdio MCP serve
 archcore mcp
 ```
 
+By default `archcore mcp` serves documents from the current directory. Pass `--project /path/to/repo` (or set `ARCHCORE_PROJECT_ROOT`) to point it elsewhere — useful when the server is launched from a directory that isn't your workspace (for example, by an editor integration).
+
 Wire it into Claude Code:
 
 ```bash

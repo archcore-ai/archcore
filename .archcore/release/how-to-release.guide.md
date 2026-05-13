@@ -35,7 +35,7 @@ status: accepted
 
    The GitHub Actions workflow (`.github/workflows/release.yml`) triggers automatically. It will:
    - Run `go test ./...`
-   - Build binaries for darwin/linux × amd64/arm64
+   - Build binaries for darwin/linux/windows × amd64/arm64 (6 platforms)
    - Create a GitHub Release with archives and `checksums.txt`
 
    Watch progress at: `https://github.com/archcore-ai/cli/actions`
@@ -43,11 +43,14 @@ status: accepted
 5. **Verify the release**
 
    ```bash
-   # Check the GitHub Release page has all 5 assets (4 archives + checksums.txt)
+   # Check the GitHub Release page has all 7 assets (6 archives + checksums.txt)
    gh release view v1.0.0
 
-   # Test the install script
+   # Test the install script (macOS/Linux)
    ARCHCORE_VERSION=v1.0.0 curl -fsSL https://raw.githubusercontent.com/archcore-ai/cli/main/install.sh | bash
+
+   # Test the install script (Windows PowerShell)
+   $env:ARCHCORE_VERSION="v1.0.0"; irm https://raw.githubusercontent.com/archcore-ai/cli/main/install.ps1 | iex
 
    # Verify the installed binary
    archcore --version
@@ -56,13 +59,17 @@ status: accepted
 
 ## Verification
 
-- GitHub Release page shows 4 `.tar.gz` archives + `checksums.txt`
+- GitHub Release page shows 6 archives (4 `.tar.gz` for darwin/linux amd64+arm64, 2 `.zip` for windows amd64+arm64) plus `checksums.txt`
 - `archcore --version` on installed binary shows correct version and commit
-- Install script succeeds on a clean machine
+- Install script succeeds on a clean macOS/Linux machine
+- `install.ps1` succeeds on a clean Windows machine
+
+See [Release Infrastructure Overview](release-infrastructure.doc.md) for the full build matrix, artifact naming, and update paths.
 
 ## Common Issues
 
 - **Workflow fails at test step** — Fix the tests on `main`, delete the tag (`git push origin :v1.0.0 && git tag -d v1.0.0`), then re-tag after fixing.
 - **GoReleaser fails** — Check `.goreleaser.yaml` syntax. Run `goreleaser check` locally if available.
 - **Wrong commit tagged** — Delete the remote tag, re-tag the correct commit, and push again.
-- **install.sh can't find the release** — Ensure the tag follows the `v*` pattern (e.g. `v1.0.0`, not `1.0.0`).
+- **install.sh / install.ps1 can't find the release** — Ensure the tag follows the `v*` pattern (e.g. `v1.0.0`, not `1.0.0`).
+- **Windows zips missing from release** — Confirm `.goreleaser.yaml` `format_overrides` still maps `windows` to `zip`; otherwise GoReleaser will fall back to `.tar.gz` and `install.ps1` won't find the expected archives.

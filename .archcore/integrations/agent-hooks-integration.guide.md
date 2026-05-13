@@ -218,6 +218,29 @@ Cline stores MCP config in VS Code `globalStorage`, not in project files. To add
 1. Open Cline MCP settings in VS Code
 2. Add an MCP server with command `archcore` and args `["mcp"]`
 
+## Pointing the MCP Server at a Specific Project Root
+
+By default `archcore mcp` serves documents from the current working directory. Some editor integrations launch the binary from a directory that isn't the workspace root (e.g. a desktop app's install dir, or a Cline globalStorage profile). In those cases the server may see an empty/wrong project.
+
+Two overrides are available:
+
+- **Flag**: `archcore mcp --project /absolute/path/to/repo`
+- **Environment**: `ARCHCORE_PROJECT_ROOT=/absolute/path/to/repo archcore mcp`
+
+Precedence: `--project` > `ARCHCORE_PROJECT_ROOT` > current working directory.
+
+The path must point at an existing directory (it does not need to contain `.archcore/` yet — the server still starts and exposes `init_project`).
+
+Example for an agent that needs an absolute workspace path:
+
+```json
+{
+  "mcpServers": {
+    "archcore": { "command": "archcore", "args": ["mcp", "--project", "/Users/me/code/my-repo"] }
+  }
+}
+```
+
 ## Invalid Config Recovery
 
 When archcore reads a config file that contains invalid JSON, it creates a `.bak` backup before proceeding with a fresh config. This prevents data loss while keeping the installation non-blocking.
@@ -232,6 +255,14 @@ See [Backup Invalid Configs](backup-invalid-configs.adr.md) for the full decisio
 
 - The **MCP server** (`archcore mcp`) starts fine without `.archcore/` — it exposes `init_project` so the agent can bootstrap the directory in-session. If the agent sees an empty `list_documents` result and wants to create documents, it should call `init_project` first.
 - **Hooks** and the `archcore hooks/mcp install` commands still require an initialized project. Run `archcore init` first, or ask the agent to call `init_project`.
+
+### MCP server is serving the wrong directory
+
+Symptoms: `list_documents` returns an empty array even though the workspace clearly has `.archcore/` documents, or `init_project` would create the directory in an unexpected location.
+
+Cause: the agent launched `archcore mcp` from a working directory that isn't your workspace.
+
+Fix: pass `--project` explicitly in the agent's MCP config, or set `ARCHCORE_PROJECT_ROOT` in the agent's environment. See **Pointing the MCP Server at a Specific Project Root** above.
 
 ### Agent not detected
 
