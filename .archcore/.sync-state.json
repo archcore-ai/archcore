@@ -3251,6 +3251,66 @@
       "source": "plugin/stack-and-tooling.rule.md",
       "target": "plugin/multi-host-plugin-architecture.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/cursor-mcp-architecture.adr.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/cursor-mcp-architecture.adr.md",
+      "target": "plugin/cwd-guard-for-cursor-and-claude.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/cursor-mcp-architecture.adr.md",
+      "target": "plugin/codex-path-resolution.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/cursor-mcp-architecture.adr.md",
+      "target": "plugin/remove-bundled-launcher-global-cli.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/cursor-mcp-architecture.adr.md",
+      "target": "plugin/multi-host-compatibility-layer.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-as-mcp-enforcement-boundary.idea.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/plugin-as-mcp-enforcement-boundary.idea.md",
+      "target": "plugin/mcp-only-operations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-as-mcp-enforcement-boundary.idea.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/plugin-as-mcp-enforcement-boundary.idea.md",
+      "target": "plugin/remove-bundled-launcher-global-cli.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-as-mcp-enforcement-boundary.idea.md",
+      "target": "plugin/cursor-mcp-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-as-mcp-enforcement-boundary.idea.md",
+      "target": "plugin/multi-host-compatibility-layer.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-as-mcp-enforcement-boundary.idea.md",
+      "target": "plugin/cli-integration-tests.rule.md",
+      "type": "related"
     }
   ]
 }

@@ -16,7 +16,7 @@ Any change to plugin code that invokes the `archcore` CLI MUST be accompanied by
 In particular:
 
 1. Every shell-out from a `bin/*` script to the CLI (`archcore <subcmd> [args...]`) MUST be covered by a unit test that asserts the invoked subcommand via the `MOCK_ARCHCORE_LOG` mechanism (see `mock_archcore_logging` in `test/helpers/common.bash`).
-2. Every `args` array in `.mcp.json`, `.codex.mcp.json`, and `cursor.mcp.json`, and every subcommand in any new `hooks/*.json`-referenced script, MUST name only canonical subcommands. The canonical surface as of plugin v0.4.0 is `config | doctor | help | hooks | init | mcp | status | update`.
+2. Every `args` array in `.mcp.json`, `.codex.mcp.json`, and `docs/cursor.mcp.example.json`, and every subcommand in any new `hooks/*.json`-referenced script, MUST name only canonical subcommands. The canonical surface as of plugin v0.4.0 is `config | doctor | help | hooks | init | mcp | status | update`. Note that `docs/cursor.mcp.example.json` may also include `--project <path>` after `mcp` — this is a flag, not a subcommand, and is locked by `test/structure/cursor-plugin.bats`.
 3. Every prescriptive `` `archcore <subcmd>` `` reference in `README.md` MUST be guarded by `test/structure/readme-cli-references.bats`. Internal `.archcore/` design docs are intentionally excluded from this guard — they hold historical spec text that may legitimately reference renamed commands.
 4. Skill or agent prose that instructs the agent to run `archcore <subcmd>` as a shell command MUST be reviewed against the canonical CLI surface; prefer routing CLI work through MCP tools (`mcp__archcore__*`) rather than shell-outs, so the agent stays inside the validated path.
 
@@ -104,15 +104,16 @@ assert_output ""
 The rule is enforced by these tests, which ship in the plugin:
 
 - **`test/structure/readme-cli-references.bats`** — every code-quoted `` `archcore <subcmd>` `` in `README.md` must name a canonical subcommand. The allowlist is hardcoded in the test file and tracks the CLI's `archcore --help` surface.
+- **`test/structure/cursor-plugin.bats`** — locks the contents of `docs/cursor.mcp.example.json`: command is `archcore`, args contain `mcp` followed by `--project ${workspaceFolder}`, no `cwd` field, and no legacy `cursor.mcp.json` at the plugin root.
 - **`test/unit/validate-archcore.bats`** — invocation-log assertions using `MOCK_ARCHCORE_LOG` for `validate-archcore`. The two relevant tests are `validate-archcore calls archcore doctor (not validate)` and `validate-archcore invokes only allowlisted subcommands`.
-- **`test/unit/session-start.bats`** — covers the missing-CLI fallback (the hook must exit 0 and emit install guidance, not block the session) and verifies `session-start invokes only the 'hooks' subcommand`.
+- **`test/unit/session-start.bats`** — covers the missing-CLI fallback (the hook must exit 0 and emit install guidance, not block the session), verifies `session-start invokes only the 'hooks' subcommand`, and asserts the plugin-install-dir guard (silent exit when sibling `.cursor-plugin/`, `.claude-plugin/`, or `.codex-plugin/` manifests are present).
 
 When the canonical CLI surface changes upstream (new subcommand added, renamed, or removed), update `ARCHCORE_SUBCOMMANDS` in `readme-cli-references.bats` and the equivalent constant in any unit test that asserts on it. Any new subcommand the plugin starts invoking from a bin/ script gets its own invocation-log assertion before merge.
 
 A change that does not satisfy this rule is rejected in code review. The rule applies to:
 
 - Any script under `bin/` that calls `archcore`
-- `args` arrays in `.mcp.json`, `.codex.mcp.json`, `cursor.mcp.json`
+- `args` arrays in `.mcp.json`, `.codex.mcp.json`, `docs/cursor.mcp.example.json`
 - Any new hook config (`hooks/*.json`) referencing a CLI-invoking script
 - README and other user-facing prescriptive docs naming `` `archcore <subcmd>` `` invocations
 - Skill or agent prompt text that instructs the agent to run an `archcore` shell command

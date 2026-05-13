@@ -276,11 +276,13 @@ Two plugin-shipped MCP configs at the plugin root. Both must point at `archcore`
 - `mcpServers.archcore.args` equals `["mcp"]`
 - File MUST NOT contain `${CLAUDE_PLUGIN_ROOT}`, `${CODEX_PLUGIN_ROOT}`, `./bin/archcore`, `cwd: "."`, or `env_vars` — all are remnants of the deleted launcher architecture and are hard FAILs
 
-**Cursor — `cursor.mcp.json`** (reference template; Cursor does not auto-register plugin MCP):
-- File exists at the plugin root
+**Cursor — `docs/cursor.mcp.example.json`** (reference template users copy into `~/.cursor/mcp.json` or `.cursor/mcp.json`; we deliberately do NOT ship a plugin-root `mcp.json` to avoid Cursor's plugin-MCP spawn-from-install-dir bug):
+- File exists at `docs/cursor.mcp.example.json` (NOT at plugin root)
 - `mcpServers.archcore.command` equals `archcore`
-- `mcpServers.archcore.args` equals `["mcp"]`
-- `mcpServers.archcore.cwd` equals `${workspaceFolder}` (required so Cursor scopes the MCP to the active project)
+- `mcpServers.archcore.args[0]` equals `"mcp"`
+- `mcpServers.archcore.args` contains `"--project"` followed by `"${workspaceFolder}"` (this passes the workspace path explicitly because Cursor's MCP stdio schema has no `cwd` field)
+- `mcpServers.archcore.cwd` MUST be absent (Cursor ignores it; `cwd` here is a hard FAIL — a leftover from the pre-`--project` design)
+- File MUST NOT exist at the plugin root as `cursor.mcp.json` (legacy path) — grep for `cursor.mcp.json` outside `docs/` and `test/` and the bats suite is a hard FAIL
 
 ### Section 13 — Rules (Cursor-only)
 

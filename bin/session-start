@@ -25,6 +25,18 @@ if ! command -v archcore >/dev/null 2>&1; then
   exit 0
 fi
 
+# Refuse to run when cwd looks like a plugin install directory. Hosts can
+# misroute cwd (notably Cursor stdio hooks — see forum #99215) and launch us
+# inside ~/.cursor/plugins/cache/.../<sha>/ instead of the user workspace.
+# Without this guard, session-start would read the plugin's own bundled
+# .archcore/ and surface it as "the user's knowledge base."
+if [ -f ".cursor-plugin/plugin.json" ] \
+  || [ -f ".claude-plugin/plugin.json" ] \
+  || [ -f ".codex-plugin/plugin.json" ]; then
+  # Silent exit — host shouldn't see noise during normal session-start.
+  exit 0
+fi
+
 # Emit informational context to the agent (structured for Claude Code/Copilot, plain for others).
 _archcore_emit_info() {
   _msg="$1"
