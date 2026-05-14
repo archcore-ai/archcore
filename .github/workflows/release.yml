@@ -31,7 +31,9 @@ jobs:
   test-before-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
 
       - name: Install bats-core
         run: sudo apt-get update -qq && sudo apt-get install -y -qq bats shellcheck
@@ -44,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # Tag push: GITHUB_REF points at the tag commit.
           # Manual dispatch: use the supplied source_ref.
