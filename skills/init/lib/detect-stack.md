@@ -1,6 +1,6 @@
 # Stack detection catalog
 
-Reference data for `/archcore:bootstrap` Step 1. Edit this file to extend detection; the skill reads it at runtime.
+Reference data for `/archcore:init` Step 1. Edit this file to extend detection; the skill reads it at runtime.
 
 ## Manifests to probe
 

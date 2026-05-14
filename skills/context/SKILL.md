@@ -1,7 +1,7 @@
 ---
 name: context
 argument-hint: "[file, directory, or topic; leave empty for current-focus pickup]"
-description: "Load the rules, ADRs, specs, and patterns that apply to a code area before changing it — or summarize current project focus when picking up work. Activate when user says 'what rules apply to X', 'what should I know before touching Y', 'before I refactor Z', 'pick up where we left off', 'where is the payments work right now', 'what was I working on in X', 'load project context', 'show me the decisions/rules/specs for X'. Not for: creating docs (use /archcore:capture, /archcore:decide, /archcore:standard), feature planning (use /archcore:plan), staleness (use /archcore:actualize), health audits (use /archcore:review)."
+description: "Surface the rules, ADRs, specs, and patterns that apply to a code area before changing it — or recap project focus when picking up work. Use for 'what rules apply to X', 'before I touch Y', 'pick up where we left off', 'load project context'. Not for creating docs, planning, or audits."
 ---
 
 # /archcore:context
@@ -21,10 +21,10 @@ _Not related to the AI context window or session state — this is about the `.a
 - "Load project context"
 
 **Not context:**
-- Creating documentation → `/archcore:capture`, `/archcore:decide`, `/archcore:standard`
+- Creating documentation → `/archcore:capture`, `/archcore:decide`
 - Planning a feature → `/archcore:plan`
-- Detecting stale docs → `/archcore:actualize`
-- Health audit, counts, or status breakdown → `/archcore:review` (`--deep` for the full audit)
+- Detecting stale docs → `/archcore:audit --drift`
+- Health audit, counts, or status breakdown → `/archcore:audit` (`--deep` for the full audit)
 
 ## Routing table
 

@@ -1,24 +1,31 @@
 ---
 name: plan
-argument-hint: "[feature or initiative]"
-description: "Plan a feature or initiative — creates a requirements chain (idea → PRD → plan) for large scope, or a single plan document for focused work. Use when someone says 'let's plan', 'create a roadmap for', or 'I need to plan X'. Not for recording a decision — use /archcore:decide."
+argument-hint: "[feature or initiative] [--track product|feature|sources|iso]"
+description: "Plan a feature or initiative: default product flow (idea → PRD → plan), feature flow with formal spec + task-type, sources flow (MRD → BRD → URD), or ISO 29148 cascade (BRS → StRS → SyRS → SRS). Use for 'plan the X redesign', 'create a roadmap', 'plan a new feature'. Pick a flow with --track. Not for recording a decision — use /archcore:decide."
 ---
 
 # /archcore:plan
 
-Plan a feature or initiative. Creates the full requirements chain (idea → PRD → plan) or a single plan document, depending on scope.
+Plan a feature or initiative. Default is the product flow (idea → PRD → plan); switch with `--track`:
+
+- `--track product` *(default)* — idea → PRD → plan (lightweight)
+- `--track feature` — PRD → spec → plan → task-type (formal feature lifecycle)
+- `--track sources` — MRD → BRD → URD (discovery research)
+- `--track iso` — BRS → StRS → SyRS → SRS (ISO 29148 cascade for regulated work)
 
 ## When to use
 
-- "Plan the auth redesign"
-- "I need to plan a new notification system"
-- "Create a feature plan for the API migration"
-- "Let's plan this out"
+- "Plan the auth redesign" → default product flow
+- "Create a feature plan for the API migration" → default
+- "I need market research before we plan" → `--track sources`
+- "We need a formal feature spec with a repeatable task-type" → `--track feature`
+- "We're regulated — start the ISO requirements cascade" → `--track iso`
+- "Just a plan, skip the idea/PRD" → see Step 3 (single-plan shortcut)
 
 **Not plan:**
 - Recording a decision → `/archcore:decide`
 - Documenting existing code → `/archcore:capture`
-- Establishing a standard → `/archcore:standard`
+- Codifying a team standard → `/archcore:decide` (offers rule + guide continuation)
 - Reading applicable rules/ADRs/specs before coding → `/archcore:context`
 - Picking up where work left off → `/archcore:context`
 
@@ -26,55 +33,49 @@ Plan a feature or initiative. Creates the full requirements chain (idea → PRD 
 
 | Signal | Route | Documents |
 |---|---|---|
-| User describes a **feature or initiative** (default) | → product-track flow | idea → prd → plan |
+| Default — feature or initiative | → product flow | idea → prd → plan |
+| `--track product` | → product flow | idea → prd → plan |
+| `--track feature` | → feature flow | prd → spec → plan → task-type |
+| `--track sources` | → sources flow | mrd → brd → urd |
+| `--track iso` | → ISO 29148 flow | brs → strs → syrs → srs |
 | User says "just a plan" or "only the plan document" | → single plan | plan only |
-| User says "need research first" or "market analysis" | → sources-track then product-track | mrd → brd → urd, then idea → prd → plan |
-| Ambiguous | → ask one question | "Full feature plan (idea + PRD + plan) or just a plan document?" |
+| Ambiguous arguments | → ask one question | "Full feature plan (idea + PRD + plan) or just a plan document?" |
 
-Default: product-track flow (idea → prd → plan). This is the smallest complete planning unit.
+For `--track sources` and `--track iso`, the chain may continue into a product or feature flow afterwards — the reference for each track documents the natural follow-ups.
 
 ## Execution
 
-### Step 1: Check existing
+### Step 1: Resolve track
 
-`mcp__archcore__list_documents(types=["idea", "prd", "plan"])` — check what exists on this topic. If partial chain exists, pick up where it left off.
+Parse `$ARGUMENTS`:
 
-### Step 2: Scope
+1. If `--track <name>` is present and valid (`product|feature|sources|iso`), record the chosen track.
+2. Otherwise, default to `product`.
+3. Drop `--track <name>` from `$ARGUMENTS` so the remainder is treated as the topic.
 
-If `$ARGUMENTS` is clear, proceed with default (product-track). If ambiguous, ask: "Full feature plan (idea + PRD + plan) or just a plan document?"
+### Step 2: Read the matching flow reference
 
-### Step 3: Create documents
+Open exactly one reference file based on track:
 
-**If product-track flow (default):**
+- `product` → `skills/plan/references/product-flow.md`
+- `feature` → `skills/plan/references/feature-flow.md`
+- `sources` → `skills/plan/references/sources-flow.md`
+- `iso` → `skills/plan/references/iso-flow.md`
 
-Skip any documents that already exist on this topic.
+Follow the steps in that reference verbatim — they own check-existing, scope determination, per-document elicitation, content composition, and relation wiring.
 
-**Idea** (if missing):
-- Ask: "What's the core concept? Who would benefit?"
-- Compose content covering Idea, Value, Possible Implementation, Risks and Constraints.
-- `mcp__archcore__create_document(type="idea")`
+### Step 3: Single-plan shortcut
 
-**PRD** (if missing):
-- Ask: "What problem does this solve? What are the success metrics?"
-- Compose content covering Vision, Problem Statement, Goals and Success Metrics, Requirements.
-- `mcp__archcore__create_document(type="prd")`
-- `mcp__archcore__add_relation` — prd `implements` idea
+If the user explicitly said "just a plan" or "only the plan document":
 
-**Plan** (if missing):
-- Ask: "What are the key phases? What are the dependencies?"
-- Compose content covering Goal, Tasks (phased), Acceptance Criteria, Dependencies.
-- `mcp__archcore__create_document(type="plan")`
-- `mcp__archcore__add_relation` — plan `implements` prd
+- Skip the reference. Ask: "What is the goal? What are the key phases and dependencies?"
+- Compose content covering **Goal**, **Tasks** (phased), **Acceptance Criteria**, **Dependencies**.
+- `mcp__archcore__create_document(type="plan")`.
 
-**If single plan only:**
-- Ask: "What is the goal? What are the key phases and dependencies?"
-- Compose content covering Goal, Tasks (phased), Acceptance Criteria, Dependencies.
-- `mcp__archcore__create_document(type="plan")`
+### Step 4: Cross-link
 
-### Step 4: Relate
-
-Suggest `mcp__archcore__add_relation` calls to link with existing ADRs, specs, or other relevant documents.
+After the chosen flow completes, suggest `mcp__archcore__add_relation` calls to link the chain into existing ADRs, specs, or related plans.
 
 ## Result
 
-Product-track: three linked documents — idea → prd → plan (each `implements` previous). Single plan: one plan document. Report: paths, relations, recommended next actions (e.g., "consider creating a spec for the technical contract").
+The matching chain of documents per the chosen track. Single-plan: one plan document. Report: paths, relations, recommended next actions (e.g., *"consider creating a spec for the technical contract — run `/archcore:decide` with 'and formalize the contract' for an ADR-spec-plan cascade"*).

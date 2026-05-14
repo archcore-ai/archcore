@@ -17,7 +17,7 @@ MOCK
   chmod +x "$MOCK_BIN/archcore"
 }
 
-@test "missing .archcore/ — nudge mentions /archcore:bootstrap" {
+@test "missing .archcore/ — nudge mentions /archcore:init" {
   mock_archcore ""
   cd "$BATS_TEST_TMPDIR"
 
@@ -25,20 +25,20 @@ MOCK
   assert_success
   assert_output --partial "no .archcore/ directory"
   assert_output --partial "mcp__archcore__init_project"
-  assert_output --partial "/archcore:bootstrap"
+  assert_output --partial "/archcore:init"
 }
 
-@test "missing .archcore/ with ARCHCORE_HIDE_EMPTY_NUDGE=1 — init nudge stays, bootstrap hint suppressed" {
+@test "missing .archcore/ with ARCHCORE_HIDE_EMPTY_NUDGE=1 — init nudge stays, /archcore:init hint suppressed" {
   mock_archcore ""
   cd "$BATS_TEST_TMPDIR"
 
   run sh -c "printf '%s' '{}' | ARCHCORE_HIDE_EMPTY_NUDGE=1 '${PLUGIN_ROOT}/bin/session-start'"
   assert_success
   assert_output --partial "mcp__archcore__init_project"
-  refute_output --partial "/archcore:bootstrap"
+  refute_output --partial "/archcore:init"
 }
 
-@test ".archcore/ with only sub-200-byte stubs — bootstrap nudge fires" {
+@test ".archcore/ with only sub-200-byte stubs — init nudge fires" {
   _silent_hooks_mock
 
   local workdir="$BATS_TEST_TMPDIR/project"
@@ -49,11 +49,11 @@ MOCK
 
   run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
   assert_success
-  assert_output --partial "/archcore:bootstrap"
+  assert_output --partial "/archcore:init"
   assert_output --partial "ARCHCORE_HIDE_EMPTY_NUDGE"
 }
 
-@test ".archcore/ with a substantial (>200B) document — bootstrap nudge absent" {
+@test ".archcore/ with a substantial (>200B) document — init nudge absent" {
   _silent_hooks_mock
 
   local workdir="$BATS_TEST_TMPDIR/project"
@@ -66,7 +66,7 @@ MOCK
 
   run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
   assert_success
-  refute_output --partial "/archcore:bootstrap"
+  refute_output --partial "/archcore:init"
 }
 
 @test "ARCHCORE_HIDE_EMPTY_NUDGE=1 suppresses the nudge on exists-but-empty .archcore/" {
@@ -78,5 +78,5 @@ MOCK
 
   run sh -c "printf '%s' '{}' | ARCHCORE_HIDE_EMPTY_NUDGE=1 '${PLUGIN_ROOT}/bin/session-start'"
   assert_success
-  refute_output --partial "/archcore:bootstrap"
+  refute_output --partial "/archcore:init"
 }

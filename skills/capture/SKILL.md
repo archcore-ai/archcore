@@ -18,7 +18,7 @@ Document a module, component, or topic. You describe what needs documenting — 
 **Not capture:**
 - Recording a specific decision → `/archcore:decide`
 - Planning a feature → `/archcore:plan`
-- Making something a standard → `/archcore:standard`
+- Making something a standard → `/archcore:decide`
 - Reading applicable rules/ADRs/specs before coding → `/archcore:context`
 - Picking up where work left off → `/archcore:context`
 
@@ -28,7 +28,6 @@ Given `$ARGUMENTS` and conversation context, classify what the user needs:
 
 | Signal | Route | Documents |
 |---|---|---|
-| User describes a **decision** already made | → `adr` | Single ADR |
 | User describes a **component contract** or interface | → `spec` | Single spec |
 | User describes **reference material** (registry, glossary, lookup) | → `doc` | Single doc |
 | User describes **how-to instructions** or procedures | → `guide` | Single guide |

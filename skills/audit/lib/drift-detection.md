@@ -1,41 +1,8 @@
----
-name: actualize
-argument-hint: "[scope: tag, category, or 'all']"
-description: "Detect stale docs and suggest updates — cross-references code changes with documentation, checks the relation graph for cascade staleness. Use when docs may be out of date after a refactor, merge, or when a session-start staleness warning appeared. For coverage gaps use /archcore:review."
----
+# Drift detection — code/cascade/temporal staleness
 
-# /archcore:actualize
+Detection protocol for `/archcore:audit --drift`. Cross-references code changes, the relation graph, and document statuses. Produces an actionable report and offers assisted fixes.
 
-Detect stale `.archcore/` documentation by cross-referencing code changes, the relation graph, and document statuses. Produces an actionable report and offers assisted fixes.
-
-## When to use
-
-- "Are any docs out of date?"
-- "Check if documentation matches the code"
-- "What needs updating after the refactor?"
-- Session start showed a staleness warning
-
-**Not actualize:**
-- Coverage gaps, missing relations → `/archcore:review`
-- Quick counts and stats → `/archcore:review` (default short mode)
-- Creating new documentation → `/archcore:capture`, `/archcore:plan`
-- Reading applicable rules/ADRs/specs before coding → `/archcore:context`
-- Picking up where work left off → `/archcore:context`
-
-## Routing table
-
-| Signal | Route | Scope |
-|---|---|---|
-| No arguments | → full analysis | All documents |
-| Tag name ("auth", "payments") | → tag-scoped | Filter by tag |
-| Category ("knowledge", "vision") | → category-scoped | Filter by category |
-| Specific type ("adr", "spec") | → type-scoped | Filter by type |
-
-Default: full analysis of all documents.
-
-## Execution
-
-### Step 1: Gather data
+## Step 1: Gather data
 
 Call in parallel:
 - `mcp__archcore__list_documents` (apply filter from `$ARGUMENTS` if provided: tag, category, or type)
@@ -48,7 +15,7 @@ Then use `Bash` to gather git context:
 
 If git is unavailable, skip code-drift analysis and proceed with cascade + temporal only.
 
-### Step 2: Analyze — Code→Doc Drift
+## Step 2: Analyze — Code→Doc Drift
 
 For each document in scope:
 
@@ -59,7 +26,7 @@ For each document in scope:
 
 Score: **Critical** — code changed but document still describes the old behavior.
 
-### Step 3: Analyze — Doc→Doc Cascade
+## Step 3: Analyze — Doc→Doc Cascade
 
 For each document in scope:
 
@@ -70,7 +37,7 @@ For each document in scope:
 
 Score: **Cascade** — relation graph indicates the document's upstream changed.
 
-### Step 4: Analyze — Temporal Staleness
+## Step 4: Analyze — Temporal Staleness
 
 Check for:
 - Documents in `draft` status where `git log` shows last modification > 30 days ago
@@ -80,18 +47,18 @@ Check for:
 
 Score: **Temporal** — age or status anomaly.
 
-### Step 5: Report
+## Step 5: Report
 
 Present findings grouped by severity:
 
 ```
-## Actualize Report
+## Drift Report
 
 ### Critical (code drift with evidence)
 - {doc-path}: references {src/path} — {N} files changed since doc was last updated
   Changed: {file1}, {file2}, ...
 
-### Cascade (relation graph indicates staleness)  
+### Cascade (relation graph indicates staleness)
 - {doc-path}: implements "{target-title}" which was updated on {date}
   Last modified: {date} — {N} days before upstream changed
 
@@ -105,7 +72,7 @@ Present findings grouped by severity:
 
 If no findings: "All documents appear current. No staleness detected."
 
-### Step 6: Assisted fix (interactive)
+## Step 6: Assisted fix (interactive)
 
 After presenting the report, offer to fix findings one at a time:
 
@@ -122,7 +89,3 @@ For **temporal**:
 - Use `mcp__archcore__update_document` for status or content changes
 
 Always confirm each fix with the user before applying. One document at a time.
-
-## Result
-
-Actionable staleness report with severity-grouped findings. Interactive fix mode for applying updates via MCP tools. No modifications without user confirmation.

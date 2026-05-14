@@ -81,22 +81,13 @@ setup() {
   [ -d "$commands_dir" ]
 
   local expected=(
-    actualize
-    architecture-track
-    bootstrap
+    audit
     capture
     context
     decide
-    feature-track
     help
-    iso-track
+    init
     plan
-    product-track
-    review
-    sources-track
-    standard
-    standard-track
-    verify
   )
 
   local name

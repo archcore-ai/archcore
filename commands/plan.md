@@ -1,6 +1,6 @@
 ---
-description: Plan a feature or initiative end-to-end.
-argument-hint: "[topic]"
+description: Plan a feature or initiative; --track product|feature|sources|iso for cascade variants.
+argument-hint: "[topic] [--track product|feature|sources|iso]"
 ---
 
 # /archcore:plan

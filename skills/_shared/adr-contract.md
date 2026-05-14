@@ -1,7 +1,7 @@
 # ADR Content Contract
 
-Plugin runtime asset. Loaded by skills creating ADRs (`decide`, `standard`,
-`capture` in ADR mode). Companion to `skills/_shared/precision-rules.md`.
+Plugin runtime asset. Loaded by skills creating ADRs: `decide` (Step 3),
+`capture` (Step 3, ADR path). Companion to `skills/_shared/precision-rules.md`.
 
 ## Mandatory sections
 

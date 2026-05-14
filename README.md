@@ -86,7 +86,7 @@ Both manifests (`.claude-plugin/plugin.json` and `.cursor-plugin/plugin.json`) l
 
 Install, open your project, and try these three prompts. Each shows a different side of what your agent can now do.
 
-_Empty repo? Run `/archcore:bootstrap` first to seed a stack rule, a run-the-app guide, and (optionally) imports from your existing CLAUDE.md / AGENTS.md / .cursorrules._
+_Empty repo? Run `/archcore:init` first to seed a stack rule, a run-the-app guide, and (optionally) imports from your existing CLAUDE.md / AGENTS.md / .cursorrules._
 
 **1. "Before I change anything in `src/auth/`, what rules and prior decisions apply here?"**
 Archcore loads the rules, ADRs, specs, and patterns tied to that path — grouped by type, ranked by specificity — before the agent edits code. Works the same way for a file, a directory, or a topic.
@@ -154,8 +154,8 @@ Two pieces work together:
 
 ## What ships in the box
 
-- **16 Skills** — 9 intent workflows, 6 multi-step tracks, 1 utility
-- **16 Codex slash commands** — thin command wrappers over the same skill workflows
+- **7 Skills** — 6 intent workflows (init, context, capture, decide, plan, audit) and help
+- **7 Codex slash commands** — thin command wrappers over the same skill workflows
 - **2 Agents** — a universal assistant and a read-only auditor
 - **Hooks** — session-start context loading, MCP-only write enforcement, post-mutation validation, cascade staleness detection
 
@@ -165,14 +165,12 @@ The plugin assumes the [Archcore CLI](https://docs.archcore.ai/cli/install/) is 
 
 Describe what you want in plain English — Archcore routes it to the right skill and document flow. The command is a shortcut, not the interface.
 
+- **First-time onboarding** — `/archcore:init`
 - **Understand what applies before a change** — `/archcore:context`
 - **Document a module, component, or API** — `/archcore:capture`
-- **Record a finalized decision** — `/archcore:decide`
-- **Establish a team standard** — `/archcore:standard`
-- **Plan a feature end-to-end** — `/archcore:plan`
-- **Review documentation health (dashboard or `--deep` audit)** — `/archcore:review`
-- **Detect stale docs after code drift** — `/archcore:actualize`
-- **First-time onboarding** — `/archcore:bootstrap`
+- **Record a finalized decision** — `/archcore:decide` (optionally codified as rule + guide or formalized as spec + plan)
+- **Plan a feature end-to-end** — `/archcore:plan` (switch flows with `--track product|feature|sources|iso`)
+- **Documentation health** — `/archcore:audit` (dashboard, `--deep` audit, or `--drift` for staleness detection)
 - **Navigate the system** — `/archcore:help`
 
 ### Document types (18)
@@ -200,22 +198,27 @@ Archcore supports 18 document types. There are no standalone per-type skills; in
 | `task-type` | experience | Recurring task patterns with proven workflows        |
 | `cpat`      | experience | Before/after code pattern changes with scope         |
 
-Create documents through intent commands such as `/archcore:decide`, `/archcore:capture`, and `/archcore:plan`; use `/archcore:sources-track` or `/archcore:iso-track` for niche requirements cascades. For exact type-level control, call `mcp__archcore__create_document` directly with the matching `type` parameter.
+Create documents through intent commands such as `/archcore:decide`, `/archcore:capture`, and `/archcore:plan`; for niche requirements cascades use `/archcore:plan --track sources` or `--track iso`. For exact type-level control, call `mcp__archcore__create_document` directly with the matching `type` parameter.
 
-### Tracks (6)
+### Multi-document flows
 
-Tracks orchestrate multi-document flows. Each step builds on the previous one, with proper relations created automatically.
+Two intent commands chain documents automatically — `/archcore:plan` for requirements cascades and `/archcore:decide` for decision continuations.
 
-| Track                | Flow                                         | Use when                                               |
-| -------------------- | -------------------------------------------- | ------------------------------------------------------ |
-| `product-track`      | idea &rarr; prd &rarr; plan                  | Lightweight product flow — simple and fast             |
-| `sources-track`      | mrd &rarr; brd &rarr; urd                    | Discovery-focused — market, business, then user inputs |
-| `iso-track`          | brs &rarr; strs &rarr; syrs &rarr; srs       | Formal ISO 29148 cascade with traceability             |
-| `architecture-track` | adr &rarr; spec &rarr; plan                  | Design decisions flowing into implementation           |
-| `standard-track`     | adr &rarr; rule &rarr; guide                 | Decision &rarr; codified standard &rarr; instructions  |
-| `feature-track`      | prd &rarr; spec &rarr; plan &rarr; task-type | Full feature lifecycle                                 |
+**`/archcore:plan` tracks** — switch flow with `--track`:
 
-Invoke: `/archcore:product-track`, `/archcore:architecture-track`, etc.
+| Track                  | Flow                                         | Use when                                               |
+| ---------------------- | -------------------------------------------- | ------------------------------------------------------ |
+| `product` *(default)*  | idea &rarr; prd &rarr; plan                  | Lightweight product flow — simple and fast             |
+| `feature`              | prd &rarr; spec &rarr; plan &rarr; task-type | Full feature lifecycle with formal contract            |
+| `sources`              | mrd &rarr; brd &rarr; urd                    | Discovery-focused — market, business, user inputs      |
+| `iso`                  | brs &rarr; strs &rarr; syrs &rarr; srs       | Formal ISO 29148 cascade with traceability             |
+
+**`/archcore:decide` continuations** — offered after an ADR:
+
+| Continuation       | Chain                       | Use when                                          |
+| ------------------ | --------------------------- | ------------------------------------------------- |
+| Standard cascade   | adr &rarr; rule &rarr; guide | Decision &rarr; codified standard &rarr; instructions |
+| Architecture cascade | adr &rarr; spec &rarr; plan | Design decisions flowing into implementation       |
 
 ## Agents
 

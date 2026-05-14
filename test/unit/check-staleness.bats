@@ -72,7 +72,7 @@ setup_git_repo() {
   assert_output --partial "src"
 }
 
-@test "output contains actualize suggestion" {
+@test "output contains audit --drift suggestion" {
   local repo
   repo=$(setup_git_repo)
   cd "$repo"
@@ -82,7 +82,7 @@ setup_git_repo() {
 
   run "$PLUGIN_ROOT/bin/check-staleness"
   assert_success
-  assert_output --partial "/archcore:actualize"
+  assert_output --partial "/archcore:audit --drift"
 }
 
 @test "source changes without doc references exit silently" {

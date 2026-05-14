@@ -81,7 +81,7 @@ One candidate shown to user:
 >
 > Codify as a rule? (y/n)
 
-On `y`, direct user to `/archcore:standard` (passes a draft rule as context). Do NOT auto-invoke — the user should confirm the exact phrasing through the standard flow. On `n` or no trigger, skip silently.
+On `y`, direct user to `/archcore:decide` (passes a draft rule as context). Do NOT auto-invoke — the user should confirm the exact phrasing through the standard flow. On `n` or no trigger, skip silently.
 
 ## Deliberately excluded in MVP
 

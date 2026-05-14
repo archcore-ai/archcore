@@ -50,7 +50,7 @@ Pick the most likely archcore type per candidate. This is a hint for the user; t
 
 The `task-type` suggestion also flags a potential sibling pattern — when ≥ 3 siblings share the suffix, add a separate line to the closing message:
 
-> Detected N sibling files matching `<pattern>`. Run `/archcore:standard` to codify the shape as a `task-type` doc for future additions.
+> Detected N sibling files matching `<pattern>`. Run `/archcore:decide` to codify the shape as a `task-type` doc for future additions.
 
 ## One-line rationale template per candidate
 
@@ -69,7 +69,7 @@ Where "short reason" is:
 
 Show candidates as a numbered list. At the end, a single hint:
 
-> To capture any of these, run `/archcore:capture <path>` for modules, `/archcore:decide` for decisions, `/archcore:standard` for rules.
+> To capture any of these, run `/archcore:capture <path>` for modules, `/archcore:decide` for decisions, `/archcore:decide` for rules.
 
 Do NOT auto-invoke those skills — let the user walk through on their own pace.
 

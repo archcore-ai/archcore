@@ -50,7 +50,7 @@ If `git` is unavailable (shallow clone, git missing) or the repo has no commit h
 
 Show the top 5 ranked domains to the user. The rest are listed in the closing message under:
 
-> Also detected: <domain-a>, <domain-b>, … — run `/archcore:bootstrap --domain=<name>` later to drill into these.
+> Also detected: <domain-a>, <domain-b>, … — run `/archcore:init --domain=<name>` later to drill into these.
 
 ## Domain tags
 

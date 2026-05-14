@@ -9,7 +9,7 @@ setup() {
 @test "every skill directory has a SKILL.md" {
   local count
   count=$(find "$PLUGIN_ROOT/skills" -name "SKILL.md" | wc -l | tr -d ' ')
-  [ "$count" -ge 16 ]
+  [ "$count" -ge 7 ]
 }
 
 @test "every skill has name: in frontmatter" {
@@ -54,9 +54,9 @@ setup() {
   [ -z "$dupes" ] || fail "Duplicate skill names: $dupes"
 }
 
-@test "bootstrap skill calls init_project before operating on uninitialized projects" {
-  grep -q "mcp__archcore__init_project" "$PLUGIN_ROOT/skills/bootstrap/SKILL.md" \
-    || fail "bootstrap/SKILL.md must instruct the agent to call mcp__archcore__init_project for uninitialized projects"
+@test "init skill calls init_project before operating on uninitialized projects" {
+  grep -q "mcp__archcore__init_project" "$PLUGIN_ROOT/skills/init/SKILL.md" \
+    || fail "init/SKILL.md must instruct the agent to call mcp__archcore__init_project for uninitialized projects"
 }
 
 @test "help skill documents the archcore init CLI recovery path" {

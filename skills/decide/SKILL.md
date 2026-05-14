@@ -1,14 +1,14 @@
 ---
 name: decide
 argument-hint: "[decision topic]"
-description: "Record a decision — finalized (creates ADR, optionally rule + guide) or open proposal for team review (creates RFC). Activate when user says 'we decided', 'record this decision', 'draft an RFC', 'proposing X', 'should we switch to Y'. Not for: feature planning (use /archcore:plan), documenting existing code (use /archcore:capture), full standard cascade (use /archcore:standard)."
+description: "Record a decision: finalized → ADR (optionally rule + guide or spec + plan); open proposal → RFC. Use for 'we decided', 'record this decision', 'make it a standard', 'draft an RFC', 'should we switch to Y'. Not for feature planning or documenting existing code."
 ---
 
 # /archcore:decide
 
 Record a decision or a proposal for one. Routes between:
 
-- **Finalized decision** → ADR (optionally followed by rule + guide as a standard)
+- **Finalized decision** → ADR (optionally followed by rule + guide as a standard, or spec + plan as an architecture cascade)
 - **Open proposal** → RFC (for team review before a decision is made)
 
 ## When to use
@@ -16,6 +16,7 @@ Record a decision or a proposal for one. Routes between:
 - "Record the decision to use PostgreSQL"
 - "We decided to go with microservices"
 - "Document why we chose JWT over sessions"
+- "Make this our team standard for error handling"
 - "Draft an RFC for switching from REST to gRPC"
 - "Proposing we adopt feature flags"
 - "Should we move to Kubernetes?" (open → RFC)
@@ -23,7 +24,6 @@ Record a decision or a proposal for one. Routes between:
 **Not decide:**
 
 - Planning a feature → `/archcore:plan`
-- Making a full standard cascade (ADR → rule → guide) → `/archcore:standard`
 - Documenting a component → `/archcore:capture`
 - Reading applicable rules/ADRs/specs before coding → `/archcore:context`
 - Picking up where work left off → `/archcore:context`
@@ -34,9 +34,10 @@ Record a decision or a proposal for one. Routes between:
 |---|---|---|
 | User describes a **finalized decision** (default) | → adr | Single ADR |
 | User describes an **open proposal** ("thinking about", "should we", "proposing") | → rfc | Single RFC |
-| User says "and make it a standard" or implies enforcement | → adr + standard-track continuation | ADR, then offer rule + guide |
+| User says "and make it a standard" or implies enforcement | → adr + standard cascade | ADR, then offer rule + guide |
+| User says "and formalize the contract" or implies a spec is needed | → adr + architecture cascade | ADR, then offer spec + plan |
 
-Default for finalized decisions: create a single ADR. After creation, offer: "Want to codify this into a team standard? (rule + guide)".
+Default for finalized decisions: create a single ADR. After creation, evaluate the decision and offer the matching continuation per `skills/decide/references/continuations.md`.
 
 ## Execution
 
@@ -72,23 +73,15 @@ RFC flow ends here — no rule + guide continuation (those belong to finalized d
 
 ### Step 5: Offer continuation (ADR path only)
 
-Ask: "Want to codify this into a team standard? I can create a rule (mandatory behavior) and guide (how-to) based on this decision."
+Read `skills/decide/references/continuations.md`. Evaluate the decision content for the signal phrases listed there and offer the matching cascade:
 
-**If yes:**
+- **Standard cascade** — rule + guide (decision describes enforceable behavior).
+- **Architecture cascade** — spec + plan (decision describes a technical contract).
+- **Both signals present** — ask the user which fits better, or neither for now.
+- **Neither signal** — do not offer; the ADR alone is a valid endpoint.
 
-**Rule:**
-- Read `skills/_shared/precision-rules.md` if not already loaded.
-- Ask: "What are the mandatory behaviors (MUST / MUST NOT statements)? How will each be verified — test, lint, CI signal, or manual review?"
-- Compose rule content with imperative directives; provide Rationale, Good/Bad Examples grounded in actual code paths or scenarios, and Enforcement that names the verifier per directive. Avoid forbidden lexicon.
-- `mcp__archcore__create_document(type="rule")`
-- `mcp__archcore__add_relation` — rule `implements` adr
-
-**Guide:**
-- Ask: "What steps should developers follow?"
-- Compose content covering Prerequisites, Steps (numbered), Verification, Common Issues.
-- `mcp__archcore__create_document(type="guide")`
-- `mcp__archcore__add_relation` — guide `related` rule
+Always confirm with the user before creating additional documents. Follow the per-cascade composition and relation rules in `continuations.md` exactly.
 
 ## Result
 
-Minimum: one ADR or one RFC. Maximum: ADR + rule + guide (the standard chain). Report: paths, relations, recommended next actions.
+Minimum: one ADR or one RFC. Maximum: ADR + rule + guide (standard cascade) or ADR + spec + plan (architecture cascade). Report: paths, relations, recommended next actions.

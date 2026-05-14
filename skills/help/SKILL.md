@@ -23,44 +23,49 @@ Present the following guide:
 
 ---
 
-## Quick Start
+## Commands
 
-Most users start here. Describe what you need — the system picks the right document types automatically.
+Describe what you need — the agent picks the right skill. Slash commands are shortcuts.
 
 | Command | What it does |
 |---|---|
-| `/archcore:capture [topic]` | Document a module, component, or topic |
-| `/archcore:plan [feature]` | Plan a feature end-to-end (idea → PRD → plan) |
-| `/archcore:decide [topic]` | Record a technical decision |
-| `/archcore:standard [topic]` | Establish a team standard (decision → rule → guide) |
-| `/archcore:review` | Dashboard of document counts and stats; `--deep` for a full health audit |
-| `/archcore:actualize` | Detect stale docs and suggest updates |
-| `/archcore:bootstrap` | Seed an empty repo with initial Archcore docs |
-| `/archcore:context [path or topic]` | Surface rules and decisions for a code area |
+| `/archcore:init` | First-time setup — seed stack rule, run guide, optional imports from CLAUDE.md / AGENTS.md / .cursorrules |
+| `/archcore:context [path or topic]` | Surface rules, ADRs, specs, and patterns that apply to a code area, or pick up where work left off |
+| `/archcore:capture [topic]` | Document a module, component, or topic (picks ADR / spec / doc / guide automatically) |
+| `/archcore:decide [topic]` | Record a finalized decision (ADR, optionally codified as rule + guide or formalized as spec + plan) or open proposal (RFC) |
+| `/archcore:plan [feature]` | Plan a feature end-to-end. Default flow: idea → PRD → plan. Switch with `--track product\|feature\|sources\|iso` |
+| `/archcore:audit` | Documentation dashboard. `--deep` for full audit, `--drift` for code/cascade/temporal staleness |
 | `/archcore:help` | Show this guide |
 
 **Tip:** You can also just describe what you need in natural language. The agent will pick the right command automatically.
 
-## Advanced — Multi-Document Flows
+## Plan tracks (`--track`)
 
-For users who know which documentation flow they need:
+| Track | Flow | Use when |
+|---|---|---|
+| `product` *(default)* | idea → PRD → plan | Lightweight individual feature or rapid prototyping |
+| `feature` | PRD → spec → plan → task-type | Well-scoped feature with formal contract + repeatable pattern |
+| `sources` | MRD → BRD → URD | Discovery research: market, business, user inputs |
+| `iso` | BRS → StRS → SyRS → SRS | Formal ISO 29148 cascade for regulated systems |
 
-| Command | Flow |
-|---|---|
-| `/archcore:product-track [topic]` | idea → PRD → plan |
-| `/archcore:sources-track [topic]` | MRD → BRD → URD |
-| `/archcore:iso-track [topic]` | BRS → StRS → SyRS → SRS |
-| `/archcore:architecture-track [topic]` | ADR → spec → plan |
-| `/archcore:standard-track [topic]` | ADR → rule → guide |
-| `/archcore:feature-track [topic]` | PRD → spec → plan → task-type |
+Invoke: `/archcore:plan "<topic>" --track <name>`.
 
-## Direct Document Creation
+## Decide continuations
 
-There are no per-type slash commands. Create documents through the intent and track commands above, or call `mcp__archcore__create_document` directly when you need exact type-level control.
+After `/archcore:decide` creates an ADR, it can extend the chain:
 
-- **Market / business / user requirements (`mrd` / `brd` / `urd`):** use `/archcore:sources-track [topic]`
-- **ISO 29148 cascade (`brs` → `strs` → `syrs` → `srs`):** use `/archcore:iso-track [topic]`
-- **Direct creation for any type:** call the `mcp__archcore__create_document` tool with `type=<slug>`.
+- **Standard cascade** (rule + guide) when the decision is enforceable.
+- **Architecture cascade** (spec + plan) when the decision needs a formal technical contract.
+
+You can also explicitly request: *"and make it a standard"* or *"and formalize the contract"*.
+
+## Direct document creation
+
+There are no per-type slash commands. Create documents through the commands above, or call `mcp__archcore__create_document` directly when you need exact type-level control:
+
+- Market / business / user requirements (`mrd` / `brd` / `urd`) → `/archcore:plan --track sources`
+- ISO 29148 cascade (`brs` → `strs` → `syrs` → `srs`) → `/archcore:plan --track iso`
+- Any type directly → `mcp__archcore__create_document(type=<slug>)`
 
 ## Setup
 

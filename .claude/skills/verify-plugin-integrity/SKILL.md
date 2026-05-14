@@ -56,7 +56,7 @@ If a local spec conflicts with an external official doc, the external doc is gro
 - Before opening a PR that touches plugin structure
 - When cross-host (Claude + Cursor + Codex) manifest consistency is in doubt
 - **Not** for test runs — use `/archcore:verify`
-- **Not** for Archcore document freshness vs code — use `/archcore:actualize`
+- **Not** for Archcore document freshness vs code — use `/archcore:audit --drift`
 
 ---
 
@@ -316,7 +316,7 @@ Light staleness check against `.archcore/plugin/component-registry.doc.md`:
 - Hook scripts in `bin/` match the registry's Hook Scripts table
 - Per-host config table (`.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.mcp.json`, `.codex.mcp.json`, `hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`, `.agents/plugins/marketplace.json`) all exist
 
-This is a spot-check, not a full audit — for full staleness detection use `/archcore:actualize`.
+This is a spot-check, not a full audit — for full staleness detection use `/archcore:audit --drift`.
 
 ---
 

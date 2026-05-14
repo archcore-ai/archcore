@@ -1,10 +1,10 @@
 ---
-name: bootstrap
+name: init
 argument-hint: "[--mode=small|medium|large]"
-description: "First-time onboarding: detect repo scale (small / medium / large) and seed scale-appropriate `.archcore/` documents — stack rule, run guide, entry-point inventory (medium+), top-level domain map (large), hotspot capture candidates, and optional imports from existing agent-instruction files (CLAUDE.md, AGENTS.md, .cursorrules, etc.). Activate when user says 'bootstrap archcore', 'initialize archcore', 'set up archcore', 'seed archcore', 'first-time setup', 'what should I do first', or asks how to start after a fresh install. Not for: individual docs (use /archcore:capture), decisions (use /archcore:decide), standards (use /archcore:standard), feature planning (use /archcore:plan), audits (use /archcore:review), loading context (use /archcore:context)."
+description: "First-time Archcore setup. Detects repo scale and seeds a stack rule, run guide, entry-point inventory, optional top-level map, hotspot candidates, and imports from CLAUDE.md/AGENTS.md/.cursorrules. Use on a fresh clone, empty `.archcore/`, or 'set up archcore'. Not for individual docs or planning."
 ---
 
-# /archcore:bootstrap
+# /archcore:init
 
 First-time onboarding. Detects repo scale (small / medium / large) and seeds scale-appropriate `.archcore/` documents so push-mode (`check-code-alignment` hook) and pull-mode (`/archcore:context`) have substance to inject. Agent-file import (CLAUDE.md, AGENTS.md, .cursorrules) is the opt-in final step in every mode. Exact per-mode output is in the Routing Table below.
 
@@ -16,16 +16,16 @@ First-time onboarding. Detects repo scale (small / medium / large) and seeds sca
 
 - Empty `.archcore/` — the SessionStart nudge points here.
 - First session on a fresh clone / fresh install.
-- User says: "bootstrap archcore", "initialize archcore", "set up archcore", "seed archcore", "first-time setup", "what should I do first".
+- User says: "initialize archcore", "set up archcore", "seed archcore", "first-time setup", "what should I do first".
 
-**Not bootstrap** (route elsewhere):
+**Not init** (route elsewhere):
 
 - Recording a specific decision → `/archcore:decide`.
 - Planning a feature → `/archcore:plan`.
 - Documenting one module → `/archcore:capture`.
-- Codifying a team standard → `/archcore:standard`.
+- Codifying a team standard → `/archcore:decide` (offers rule + guide continuation).
 - Reading applicable context before coding → `/archcore:context`.
-- Docs health audit → `/archcore:review`.
+- Docs health audit → `/archcore:audit`.
 
 ## Routing table
 
@@ -41,23 +41,23 @@ First-time onboarding. Detects repo scale (small / medium / large) and seeds sca
 
 Each non-empty mode additionally runs hotspot capture-candidate proposal (Step 6) and optional agent-file import (Step 8). Medium additionally runs cross-cutting rule candidate (Step 7). The empty route exits after Step 0.
 
-**Follow-up routing** — closing-message hand-offs. Bootstrap surfaces these as todos; MUST NOT auto-invoke.
+**Follow-up routing** — closing-message hand-offs. Init surfaces these as todos; MUST NOT auto-invoke.
 
 | User wants to... | → Invoke |
 |---|---|
 | Capture a hotspot module | `/archcore:capture <path>` |
 | Record a decision | `/archcore:decide` |
-| Codify a convention as a rule | `/archcore:standard` |
+| Codify a convention as a rule | `/archcore:decide` |
 | Plan a feature | `/archcore:plan` |
-| Drill into another domain (large) | `/archcore:bootstrap --domain=<name>` |
+| Drill into another domain (large) | `/archcore:init --domain=<name>` |
 | Scope queries to a domain (large) | `/archcore:context domain:<slug>` |
-| See what's loaded | `/archcore:review` (short mode) |
+| See what's loaded | `/archcore:audit` (short mode) |
 
 ## Execution
 
 ### Pre-flight: CLI availability check
 
-Before any bootstrap step, verify that the Archcore CLI is available on PATH. The canonical installer is documented at https://docs.archcore.ai/cli/install/ — use it as the single source of truth; do **not** suggest other channels (`brew`, `go install`, etc.) even if the user mentions them.
+Before any init step, verify that the Archcore CLI is available on PATH. The canonical installer is documented at https://docs.archcore.ai/cli/install/ — use it as the single source of truth; do **not** suggest other channels (`brew`, `go install`, etc.) even if the user mentions them.
 
 1. Run: `archcore --version` (via Bash tool)
 2. If it **succeeds** → proceed immediately to Step -1.
@@ -72,10 +72,10 @@ Before any bootstrap step, verify that the Archcore CLI is available on PATH. Th
      >
      > Run it now? (y/N)
    - On `y` → execute the command exactly as shown (Bash tool). After it returns, re-run `archcore --version`.
-     - Success → print: *"Archcore CLI installed (`<version>`). Proceeding with bootstrap."* → go to Step -1.
+     - Success → print: *"Archcore CLI installed (`<version>`). Proceeding with init."* → go to Step -1.
      - Still failing → print the install message below and **stop**.
    - On `N` / silence / **instruct-only path** → print and stop:
-     > Archcore CLI required. Install it, then re-run `/archcore:bootstrap`:
+     > Archcore CLI required. Install it, then re-run `/archcore:init`:
      >
      > - macOS / Linux / WSL: `curl -fsSL https://archcore.ai/install.sh | bash`
      > - Windows (PowerShell 5.1+): `irm https://archcore.ai/install.ps1 | iex`
@@ -86,7 +86,7 @@ Do **not** attempt `brew install`, `go install`, package-manager wrappers, or an
 
 ### Pre-flight: lazy reading
 
-Bootstrap MUST give the user fast feedback. The detection catalogs under `skills/bootstrap/lib/` are heavy (≥ 350 lines for scale alone) and they are read **lazily**: do NOT open any `lib/*.md` file until you reach the step that explicitly tells you to read it. Step 0 finishes before any `lib/` file is opened.
+Init MUST give the user fast feedback. The detection catalogs under `skills/init/lib/` are heavy (≥ 350 lines for scale alone) and they are read **lazily**: do NOT open any `lib/*.md` file until you reach the step that explicitly tells you to read it. Step 0 finishes before any `lib/` file is opened.
 
 ### Step -1: Initialize and acknowledge (fast)
 
@@ -115,7 +115,7 @@ Call `mcp__archcore__list_documents()` once. Derive:
 
 If `has_stack_rule` AND `has_run_guide` are both true, reply:
 
-> Bootstrap already seeded stack rule and run guide. Use `/archcore:context` to see what's loaded, or re-run a specific step (say "regenerate the stack rule", "refresh the entry-point inventory", etc.).
+> Init already seeded stack rule and run guide. Use `/archcore:context` to see what's loaded, or re-run a specific step (say "regenerate the stack rule", "refresh the entry-point inventory", etc.).
 
 Then stop. Per-step idempotency checks (below) handle mode-specific artifacts when the user asks for a selective refresh.
 
@@ -128,17 +128,17 @@ Single filesystem probe — one shell call, no catalog reads. Detect whether the
 
 If BOTH are false, take the **empty** route. Reply with exactly:
 
-> Archcore is ready at `.archcore/`. No source code detected yet — nothing to bootstrap.
+> Archcore is ready at `.archcore/`. No source code detected yet — nothing to set up.
 >
-> Re-run `/archcore:bootstrap` after the first manifest or source file lands. The SessionStart empty-state nudge will keep pointing here until then.
+> Re-run `/archcore:init` after the first manifest or source file lands. The SessionStart empty-state nudge will keep pointing here until then.
 
-Then stop. **Do NOT** create placeholder documents (no "no stack selected yet" rule, no "no run command yet" guide). They have no practical value, they cost MCP roundtrips and tokens, and they suppress the SessionStart empty-state nudge — which is the user's primary breadcrumb back to bootstrap once code actually exists.
+Then stop. **Do NOT** create placeholder documents (no "no stack selected yet" rule, no "no run command yet" guide). They have no practical value, they cost MCP roundtrips and tokens, and they suppress the SessionStart empty-state nudge — which is the user's primary breadcrumb back to /archcore:init once code actually exists.
 
 Otherwise (`has_manifest` OR `has_top_level_source`), proceed to Step 0.5.
 
 ### Step 0.5: Detect scale
 
-Read `skills/bootstrap/lib/detect-scale.md`, `detect-domains.md`, and `detect-modules.md`.
+Read `skills/init/lib/detect-scale.md`, `detect-domains.md`, and `detect-modules.md`.
 
 1. **Parse `--mode=X`.** If provided and valid (`small|medium|large`), record the forced mode.
 2. **Compute signals:**
@@ -147,7 +147,7 @@ Read `skills/bootstrap/lib/detect-scale.md`, `detect-domains.md`, and `detect-mo
    - `entry_point_count` — per `detect-entry-points.md` (informational only).
 3. **Classify** per `detect-scale.md`. If `--mode` was forced, use the forced value but remember the auto-detected one for the announcement.
 4. **Announce:**
-   - Auto-detected: *"Mode: `<mode>` (detected from `<domain_count>` domains, `<module_count>` modules). Override with `/archcore:bootstrap --mode=X`."*
+   - Auto-detected: *"Mode: `<mode>` (detected from `<domain_count>` domains, `<module_count>` modules). Override with `/archcore:init --mode=X`."*
    - Forced: *"Mode: `<forced>` (forced; auto-detected was `<detected>`)."*
 5. **Outline the flow:**
    - Small: Steps 1, 2, 6, 8.
@@ -157,7 +157,7 @@ Read `skills/bootstrap/lib/detect-scale.md`, `detect-domains.md`, and `detect-mo
 ### Step 1: Stack rule (all modes)
 
 1. **Idempotency.** If `has_stack_rule`, show existing rule's title + path. Ask: *"Stack rule exists. Regenerate (overwrite), skip this step, or keep and continue?"* On regenerate, warn manual edits will be lost.
-2. **Detect the stack.** Read `skills/bootstrap/lib/detect-stack.md` for manifests, allowlist, exclusions, template.
+2. **Detect the stack.** Read `skills/init/lib/detect-stack.md` for manifests, allowlist, exclusions, template.
 
     Read in order, stopping at the first match per language: `package.json`, `pyproject.toml`, `Pipfile`, `requirements.txt`, `Cargo.toml`, `go.mod`, `Gemfile`, `composer.json`, `*.csproj`, `pom.xml`, `build.gradle*`. Polyglot repos: collect from each manifest.
 
@@ -172,7 +172,7 @@ Read `skills/bootstrap/lib/detect-scale.md`, `detect-domains.md`, and `detect-mo
 ### Step 2: Run-the-app guide (all modes)
 
 1. **Idempotency.** If `has_run_guide`, show existing guide's title + path. Ask same regenerate/skip/keep prompt as Step 1.
-2. **Detect shape.** Read `skills/bootstrap/lib/extract-run-instructions.md`. Monorepo markers: `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `lerna.json`, OR ≥ 2 `package.json` under `apps/` or `packages/`. Monorepo path is default in large mode; in small/medium, only when detected.
+2. **Detect shape.** Read `skills/init/lib/extract-run-instructions.md`. Monorepo markers: `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `lerna.json`, OR ≥ 2 `package.json` under `apps/` or `packages/`. Monorepo path is default in large mode; in small/medium, only when detected.
 3. **Extract commands** — two paths, first-match wins:
    - **README** — read `README.md` (or `README.{en,ru,*}.md` if absent). First section matching the regex in `extract-run-instructions.md`. Pull fenced ```bash/sh/shell/zsh``` blocks. Filter to install/run/test commands per `extract-run-instructions.md`.
    - **Scripts** — if README yields nothing: `scripts:` in `package.json` (or language equivalents: `[tool.poetry.scripts]`, `Cargo.toml [[bin]]`, `Rakefile` tasks, `composer.json scripts`). Pick `dev`, `start`, `build`, `test`, `lint` if present.
@@ -204,7 +204,7 @@ Skip unless mode is `large`.
 
     ## How to drill in
 
-    Run `/archcore:bootstrap --domain=<name>` for a focused per-domain pass later. Scope queries with `/archcore:context domain:<slug>`.
+    Run `/archcore:init --domain=<name>` for a focused per-domain pass later. Scope queries with `/archcore:context domain:<slug>`.
     ```
 
     If ranked domains > 10, include top 10 in the table; list the rest on an "Also detected" line.
@@ -254,7 +254,7 @@ Skip unless mode is `large`.
 2. **Ask:** *"Which domains are you working on right now? (pick 1–3 by name or number, or `skip` to defer.)"* Accept single name, comma-separated list, or `skip`.
 3. **Tag the top-level map.** Call `mcp__archcore__update_document` on the map. Add `domain:<slug>` tags for each selected domain (slugs per `detect-domains.md` "Domain tags"). Preserve existing tags — do not remove them.
 4. **Announce:** *"Focused on: <domain-a>, <domain-b>. Step 6 proposes hotspot captures within these."*
-5. **Other domains.** Remember for the closing message: *"Other domains: <list>. Run `/archcore:bootstrap --domain=<name>` later to drill into any of them."*
+5. **Other domains.** Remember for the closing message: *"Other domains: <list>. Run `/archcore:init --domain=<name>` later to drill into any of them."*
 
 ### Step 6: Hotspot capture-candidate proposal (all modes)
 
@@ -271,11 +271,11 @@ Skip unless mode is `large`.
     2. src/token-rotation.ts — 235 LOC source, 968 LOC tests. Suggested: spec. heavily tested (4.1:1).
     3. src/auth-client.ts — 52 LOC source, 0 LOC tests. Suggested: spec. concentrated public surface.
 
-    To capture any: run /archcore:capture <path>. For decisions: /archcore:decide. For rules: /archcore:standard.
+    To capture any: run /archcore:capture <path>. For decisions: /archcore:decide. For rules: /archcore:decide.
     ```
 4. **Empty pool.** No modules meet the threshold → use the exact closing text from `detect-hotspots.md`.
-5. **Sibling patterns.** If `detect-hotspots.md` flagged ≥ 3 siblings, append its "Run `/archcore:standard` to codify..." line verbatim.
-6. **Do NOT auto-invoke** `/archcore:capture`, `/archcore:decide`, or `/archcore:standard`. The output is a todo list; the user walks through at their own pace.
+5. **Sibling patterns.** If `detect-hotspots.md` flagged ≥ 3 siblings, append its "Run `/archcore:decide` to codify..." line verbatim.
+6. **Do NOT auto-invoke** `/archcore:capture`, `/archcore:decide`, or `/archcore:decide`. The output is a todo list; the user walks through at their own pace.
 
 ### Step 7: Cross-cutting rule candidate (medium mode only)
 
@@ -286,14 +286,14 @@ Skip in small and large modes.
 3. **One candidate** — show to user:
 
     > Detected cross-cutting pattern: <description>. Seen in: <path-1>, <path-2>, <path-3> (+ N more). Codify as a rule? (y/n)
-4. **On `y`** — instruct the user: *"Run `/archcore:standard` and paste this draft as the starting rule."* Do NOT auto-invoke.
+4. **On `y`** — instruct the user: *"Run `/archcore:decide` and paste this draft as the starting rule."* Do NOT auto-invoke.
 5. **On `n`** — skip silently.
 
 ### Step 8: Import agent-instruction files (opt-in, all modes)
 
 Opt-in. Slowest, most token-intensive step — always confirm before starting.
 
-1. **Detect candidates** per `skills/bootstrap/lib/agent-files.md`. For each probe path/glob: check existence, measure byte size. Empty set → announce *"No agent-instruction files found."* and finish.
+1. **Detect candidates** per `skills/init/lib/agent-files.md`. For each probe path/glob: check existence, measure byte size. Empty set → announce *"No agent-instruction files found."* and finish.
 2. **Estimate cost.** Sum bytes + count. Document yield estimate = `ceil(combined_bytes / 800)` (assumes ~800 bytes per extracted document block on average), capped at 25. Token estimate: `combined_bytes * 2` for extract, `~200 * file_count` for link.
 3. **Cost tier — HIGH** if any: combined size > **50 KB** OR file count > **5** OR yield > **8**.
 4. **Prompt:**
@@ -335,23 +335,23 @@ Summarize what was created and what remains in the tracked-context outlook. Per-
 
 > Done. Seeded: stack rule, run guide. Proposed: N hotspot captures.
 >
-> Over time: ADRs for non-trivial dependency choices (`/archcore:decide`), specs for hotspot modules (`/archcore:capture <path>`), a task-type for any repeating extension pattern (`/archcore:standard`). Edit a file matching the stack rule — relevant context auto-injects via `check-code-alignment`. Use `/archcore:context` to query what applies to a code area.
+> Over time: ADRs for non-trivial dependency choices (`/archcore:decide`), specs for hotspot modules (`/archcore:capture <path>`), a task-type for any repeating extension pattern (`/archcore:decide`). Edit a file matching the stack rule — relevant context auto-injects via `check-code-alignment`. Use `/archcore:context` to query what applies to a code area.
 
 **Medium:**
 
 > Done. Seeded: stack rule, run guide, entry-point inventory. Proposed: N hotspot captures[, 1 cross-cutting rule candidate].
 >
-> Over time: ADRs for architectural decisions (persistence, auth, observability), specs for hotspot modules, rules per cross-cutting concern (logging, error-handling, request-context), task-types for common change patterns. Run `/archcore:decide`, `/archcore:capture`, `/archcore:standard`, `/archcore:plan` as the work takes you there.
+> Over time: ADRs for architectural decisions (persistence, auth, observability), specs for hotspot modules, rules per cross-cutting concern (logging, error-handling, request-context), task-types for common change patterns. Run `/archcore:decide`, `/archcore:capture`, `/archcore:decide`, `/archcore:plan` as the work takes you there.
 
 **Large:**
 
 > Done. Seeded: workspace stack rule, monorepo run guide, top-level map (N domains), entry-point inventory. Focused on: <selected-domains>. Proposed: M hotspot captures in selected domains.
 >
-> Over time, each domain needs its own ADRs, specs, and task-types. Repo-wide: cross-cutting rules (logging, errors, auth, transactions, telemetry). Run `/archcore:bootstrap --domain=<name>` later for other domains. Use `/archcore:context domain:<slug>` to scope queries.
+> Over time, each domain needs its own ADRs, specs, and task-types. Repo-wide: cross-cutting rules (logging, errors, auth, transactions, telemetry). Run `/archcore:init --domain=<name>` later for other domains. Use `/archcore:context domain:<slug>` to scope queries.
 
 Always end with:
 
-> Use `/archcore:review` for a dashboard, `/archcore:review --deep` for a health audit.
+> Use `/archcore:audit` for a dashboard, `/archcore:audit --deep` for a health audit.
 
 ## Result
 

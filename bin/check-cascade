@@ -59,6 +59,6 @@ rm -f /tmp/archcore_cascade_$$ 2>/dev/null
 DOC_SHORT=$(printf '%s' "$DOC_REL" | sed 's|.*/||; s|\..*\.md$||; s|-| |g')
 AFFECTED_LINES=$(printf '%s' "$AFFECTED" | tr '\n' ' ')
 
-archcore_hook_info "[Archcore Cascade] Updated \"${DOC_SHORT}\". Documents that may need review: ${AFFECTED_LINES}Run /archcore:actualize for detailed analysis."
+archcore_hook_info "[Archcore Cascade] Updated \"${DOC_SHORT}\". Documents that may need review: ${AFFECTED_LINES}Run /archcore:audit --drift for detailed analysis."
 
 exit 0

@@ -60,7 +60,7 @@ Focus your expertise on what MCP instructions do NOT provide:
 - **Elicitation**: what questions to ask before creating each document type
 - **Content composition**: how to structure rich content from user answers
 - **Disambiguation**: when to use ADR vs RFC, PRD vs MRD, rule vs guide
-- **Orchestration**: how to chain documents in tracks (product-track, sources-track, ISO cascade, etc.)
+- **Orchestration**: how to chain documents in plan tracks (product/feature/sources/iso flows under `/archcore:plan --track …`) and decide continuations (rule + guide, or spec + plan after an ADR)
 - **Relation patterns**: which relation types are typical for each document type
 
 # Working Guidelines

@@ -1,6 +1,6 @@
 # Run-instructions extraction catalog
 
-Reference data for `/archcore:bootstrap` Step 2. Edit this file to tune extraction.
+Reference data for `/archcore:init` Step 2. Edit this file to tune extraction.
 
 ## Monorepo detection
 

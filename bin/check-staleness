@@ -71,7 +71,7 @@ if [ "$AFFECTED_COUNT" -gt 0 ]; then
   printf '[Archcore Staleness] %s source files changed since last documentation update.\n' "$CHANGED_COUNT"
   printf 'Potentially affected documents:\n'
   printf '%s' "$AFFECTED" | head -10
-  printf 'Run /archcore:actualize for detailed analysis.\n'
+  printf 'Run /archcore:audit --drift for detailed analysis.\n'
 
   # Touch the stamp so we don't re-warn for 24h.
   mkdir -p "$STAMP_DIR" 2>/dev/null || true

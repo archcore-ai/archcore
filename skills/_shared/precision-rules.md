@@ -1,6 +1,6 @@
 # Precision Rules — Forbidden Lexicon and Authoring Conventions
 
-Plugin runtime asset. Loaded by skills (`decide`, `standard`, `capture`) before
+Plugin runtime asset. Loaded by skills (`decide`, `capture`) before
 composing documents of type `adr`, `spec`, `rule`, `guide`. See also
 `skills/_shared/adr-contract.md`.
 
@@ -85,6 +85,3 @@ composing documents of type `adr`, `spec`, `rule`, `guide`. See also
   `update_document`. Findings are emitted as `additionalContext`. The hook never
   blocks (always exits 0).
 - Skills load this asset and the relevant contract before composition.
-- `/archcore:verify` scans existing documents for forbidden words and missing
-  `[assumption]` markers in vision-stage documents; reports findings as
-  recommendations rather than failures for pre-existing documents.

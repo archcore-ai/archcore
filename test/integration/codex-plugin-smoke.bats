@@ -42,10 +42,10 @@ setup() {
     printf 'enabled = true\n'
   } >> "$TEST_HOME/.codex/config.toml"
 
-  run env HOME="$TEST_HOME" codex debug prompt-input "use archcore review"
+  run env HOME="$TEST_HOME" codex debug prompt-input "use archcore audit"
   assert_success
-  assert_output --partial 'archcore:review'
-  assert_output --partial 'skills/review/SKILL.md'
+  assert_output --partial 'archcore:audit'
+  assert_output --partial 'skills/audit/SKILL.md'
 }
 
 @test "codex mcp list includes plugin-managed Archcore MCP when plugin is enabled" {

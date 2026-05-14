@@ -111,11 +111,11 @@ run_cascade_stdin() {
   assert_output --partial "impl.plan.md"
 }
 
-@test "output contains actualize suggestion" {
+@test "output contains audit --drift suggestion" {
   create_sync_state '{"source":"impl.plan.md","target":"my.adr.md","type":"implements"}'
   run_cascade_stdin '{"tool_name":"mcp__archcore__update_document","tool_input":{"path":"my.adr.md"}}'
   assert_success
-  assert_output --partial "/archcore:actualize"
+  assert_output --partial "/archcore:audit --drift"
 }
 
 # --- Multi-host ---
