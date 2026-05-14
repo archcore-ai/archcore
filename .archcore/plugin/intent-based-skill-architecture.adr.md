@@ -95,6 +95,8 @@ Tried to fix discoverability through description quality alone. Rejected: 27 ent
 
 Would lose the domain knowledge layer that `keep-document-type-skills.adr.md` established. Type skills serve model-invocation (Claude auto-activates `adr` when user says "record this decision") — this is valuable and would be lost. Track skills serve expert users who know exactly which flow they need.
 
+*Note: this alternative was later partially adopted by `remove-document-type-skills.adr.md` (type skills removed) and fully adopted by `skill-surface-collapse.adr.md` (track skills also removed). See addendum.*
+
 ### Add layer-level skills (/archcore:vision, /archcore:knowledge)
 
 Layers are internal classification, not user mental models. Nobody thinks "I need a knowledge document." Still requires type selection within the layer (knowledge has 6 types), offering minimal friction reduction.
@@ -134,17 +136,31 @@ Type suggestion is classification over natural language — belongs in the promp
 
 ### Inverted invocation policy (superseded principle 4)
 
-Principle 4 above — "User-only invocation" for intent skills — was reversed by `inverted-invocation-policy.adr.md`. Intent and track skills are now auto-invocable (no `disable-model-invocation`). The 4-layer structural decomposition stands; only the invocation wiring flipped.
+Principle 4 above — "User-only invocation" for intent skills — was reversed by `inverted-invocation-policy.adr.md`. Intent and track skills became auto-invocable (no `disable-model-invocation`). The 4-layer structural decomposition stood; only the invocation wiring flipped.
 
 ### Layer 3 collapse (superseded by `remove-document-type-skills.adr.md`)
 
-The type-skill layer (Layer 3) has been removed. Per-type elicitation (questions + sections + create + relate) that previously lived in type skills is now inlined inside Layer 1 (intent) and Layer 2 (track) skills. The effective runtime layering is:
+The type-skill layer (Layer 3) was removed. Per-type elicitation that previously lived in type skills was inlined inside Layer 1 (intent) and Layer 2 (track) skills. The runtime layering became:
 
-- Layer 1: Intent skills (11)
+- Layer 1: Intent skills (11 at the time)
 - Layer 2: Track skills (6)
 - Utility: verify (1)
 - Layer 4 (formerly): MCP primitives — unchanged, now acting as the universal document-creation primitive for all 17 Archcore document types without any type-skill mediation
 
-The original rationale for keeping type skills (domain knowledge layer) was superseded by the finding that intent/track skills had already duplicated all type-skill content inline. See `remove-document-type-skills.adr.md` for the full reasoning.
+### Inspection consolidation (superseded by `merge-review-status-remove-graph.adr.md`)
 
-Naming decisions, design principles (1, 2, 3, 5), and progressive disclosure mechanism from the original Decision all remain valid and are in force.
+`/archcore:status` was merged into the default short mode of `/archcore:review`. `/archcore:graph` was removed entirely. The intent count dropped from 11 to 9; total visible commands dropped from 18 to 16.
+
+### Final collapse to a single tier (superseded by `skill-surface-collapse.adr.md`)
+
+The remaining hierarchy was flattened further:
+
+- **Layer 2 (track skills) removed.** All 6 track skills were deleted; their flow content moved to `skills/plan/references/<flow>.md` (for the four product/sources/iso/feature cascades) and `skills/decide/references/continuations.md` (for the ADR-driven standard and architecture chains).
+- **`actualize` merged into `audit`.** The freshness-detection intent became a mode of the inspection skill: `/archcore:audit --drift`.
+- **`bootstrap` renamed to `init`.** Same skill, clearer name.
+- **`standard` removed.** The ADR + rule + guide cascade is now reachable through `/archcore:decide` with its continuation chain.
+- **`verify` removed.** No replacement skill — `make verify` is the canonical way to run plugin integrity checks.
+
+The current surface is **7 skills**: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. The "intent-based" framing from this ADR's Layer 1 principles is fully in force; the tiered structure (Layer 2 / Layer 3 / Utility) is gone.
+
+Naming decisions (`/archcore:capture` over `/archcore:document`, `/archcore:plan` absorbing the plan type skill), design principles 1–3 and 5, and the progressive-disclosure mechanism (inside commands via conversation) all remain valid and are in force in the final form. Only the layered packaging was retired in favor of a single-tier, intent-only surface.

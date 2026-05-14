@@ -7,6 +7,8 @@ tags:
   - "skills"
 ---
 
+> **Outcome (2026-05-15):** Idea implemented and then **superseded** by `skill-surface-collapse.adr.md`. The 3 proposed scenario tracks shipped (architecture-track, standard-track, feature-track), bringing the track tier to 6 skills. The entire track tier was subsequently removed — the flow logic moved into `skills/plan/references/*-flow.md` (for the four cascades that still made sense as `plan` modes) and `skills/decide/references/continuations.md` (for the ADR-driven standard and architecture cascades). The "scenario tracks" framing is preserved as the routing model inside `plan` and `decide`, just without a dedicated skill per scenario.
+
 ## Idea
 
 Expand the track skills system beyond the existing 3 requirements tracks (product-track, sources-track, iso-track) with new **scenario-based tracks** that orchestrate multi-document creation for common engineering workflows.
@@ -38,17 +40,32 @@ Instead of adding layer-level commands (`/archcore:vision`, `/archcore:knowledge
 
 Each track follows the same pattern as existing tracks: sequential creation, focused questions at each step, automatic `add_relation` calls between documents.
 
+### Where the flows live now
+
+After `skill-surface-collapse.adr.md`:
+
+| Original track | Current home |
+|---|---|
+| `product-track` | `skills/plan/references/product-flow.md` |
+| `sources-track` | `skills/plan/references/sources-flow.md` |
+| `iso-track` | `skills/plan/references/iso-flow.md` |
+| `feature-track` | `skills/plan/references/feature-flow.md` |
+| `architecture-track` (adr → spec → plan) | `skills/decide/references/continuations.md` (spec + plan continuations) — also reachable by starting in `plan` against an existing ADR |
+| `standard-track` (adr → optional cpat → rule → guide) | `skills/decide/references/continuations.md` (rule + guide + cpat continuations) |
+
 ## Possible Implementation
 
 1. Create `skills/architecture-track/SKILL.md`, `skills/standard-track/SKILL.md`, `skills/feature-track/SKILL.md`
-2. Each follows the existing track skill structure (Step 0: Verify MCP → Step 1: Check existing → Step 2: Determine scope → Steps 3-N: Create documents → Final: Cross-relate)
+2. Each follows the existing track skill structure
 3. All tracks use `disable-model-invocation: true` — user initiates explicitly
 4. Track skills do NOT duplicate document-type skill content — they define the flow and relation chain only
 5. Update skills-system.spec.md to register the new tracks
 
+(All five steps were executed; then the entire tier was retired per the Outcome note at the top.)
+
 ## Risks and Constraints
 
-- **Track proliferation**: Too many tracks can overwhelm users. Start with 3 new tracks (6 total) and evaluate before adding more.
-- **Overlap with existing tracks**: architecture-track's `plan` step overlaps with product-track's `plan`. Tracks should have clear entry points and distinct use cases.
-- **Maintenance cost**: Each track is another file to maintain. Keep tracks lean — flow definition only, no type-level guidance duplication.
-- **Scope creep per track**: Resist adding optional steps or conditional branches. Each track should have a fixed, predictable flow of 3-4 documents.
+- **Track proliferation**: Too many tracks can overwhelm users. Start with 3 new tracks (6 total) and evaluate before adding more. — *Eventually validated: 6 tracks were too many, and the entire tier was collapsed.*
+- **Overlap with existing tracks**: architecture-track's `plan` step overlaps with product-track's `plan`. — *This overlap was the core observation that drove the later collapse.*
+- **Maintenance cost**: Each track is another file to maintain. — *Reduced by moving content into references that live under one skill instead of N skills.*
+- **Scope creep per track**: Resist adding optional steps or conditional branches. — *Constraint inverted in the final form: the references can be richer because there's only one entry point.*

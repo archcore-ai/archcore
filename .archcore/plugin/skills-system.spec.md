@@ -1,5 +1,5 @@
 ---
-title: "Skills System Specification — Intent, Track, Type, and Workflow Skills"
+title: "Skills System Specification — Seven Auto-Invocable Intent Skills"
 status: accepted
 tags:
   - "plugin"
@@ -8,211 +8,163 @@ tags:
 
 ## Purpose
 
-Define the contract for how skills are structured, discovered, and used within the Archcore Claude Plugin. Skills are organized into a 3-group hierarchy: intent skills (Layer 1), track skills (Layer 2), and utility skills. Each group has distinct structure, invocation behavior, and audience. Per-type elicitation lives inline in intent and track skills — there are no per-document-type skills.
+Define the contract for how skills are structured, discovered, and used within the Archcore Plugin (Claude Code, Cursor, Codex CLI). Skills are organized as a single tier of auto-invocable intent skills. Per-type elicitation and per-flow orchestration live inline within these intents — there are no per-document-type skills and no separate track tier.
 
-Per-class invocation flags follow the Inverted Invocation Policy ADR (`inverted-invocation-policy.adr.md`) for the intent/track/utility portion of the policy; the type-skill portion of that ADR is superseded by `remove-document-type-skills.adr.md`.
+The current surface is governed by `skill-surface-collapse.adr.md`, which supersedes the track tier from `intent-based-skill-architecture.adr.md`, the standalone `actualize`/`review` split from `merge-review-status-remove-graph.adr.md`, and the mainstream/niche type-skill stratification from `inverted-invocation-policy.adr.md`.
 
 ## Scope
 
-This specification covers all skill files in the `skills/` directory: 9 intent skills, 6 track skills, and 1 utility skill — 16 in total. It defines naming convention, content structure, invocation triggers, relationship to MCP tools, and tier classification. It does not cover agents (subagents).
+This specification covers all skill files in the `skills/` directory: **7 intent skills** plus the shared runtime asset directory `skills/_shared/`. It defines naming convention, content structure, invocation triggers, relationship to MCP tools, and the per-flow reference asset structure used by `plan` and `audit`. It does not cover agents (subagents).
 
 ## Authority
 
-This specification is the authoritative reference for all skill files in the plugin. The Skill File Structure Standard (rule) derives from this specification. The Plugin Architecture spec defines how skills interact with other components. The Inverted Invocation Policy ADR defines per-class invocation flag requirements for the remaining classes.
+This specification is the authoritative reference for skill files in the plugin. The Skill File Structure Standard (rule) derives from this specification. The Plugin Architecture spec defines how skills interact with other components. The current invocation policy is "every skill auto-invocable; no `disable-model-invocation` flags" per `skill-surface-collapse.adr.md`.
 
 ## Subject
 
-The skills system consists of directories under `skills/`, each containing a `SKILL.md` file. Skills fall into three groups organized into a hierarchy.
+### Skills (7) — Auto-Invocable Intent Skills
 
-### Intent Skills (9) — Layer 1: Primary User Entry
+The visible `/` palette is exactly 7 commands. Each skill maps to a clearly distinct user intent — no two skills anti-trigger each other. All 7 are auto-invocable; the model picks them up from user phrasing.
 
-Intent skills are the main user-facing entry points. They translate user intent into the correct document types, tracks, or analysis modes. They use explicit routing tables to classify input and operate via MCP tools. Creation-oriented intents inline per-type elicitation (questions + sections + MCP calls + relation suggestions).
-
-| Directory | Skill | User intent | Routes to |
+| Directory | Skill | User intent | Modes / continuations |
 |---|---|---|---|
-| `skills/bootstrap/` | bootstrap | Seed an empty `.archcore/` on first install | stack rule + run guide + optional imports (opt-in) |
-| `skills/capture/` | capture | Document a module/component | adr, spec, doc, guide by context |
-| `skills/plan/` | plan | Plan a feature/initiative | product-track flow or single plan |
-| `skills/decide/` | decide | Record a decision or draft a proposal | adr (finalized) or rfc (open); offers rule+guide after ADR |
-| `skills/standard/` | standard | Establish a team standard | standard-track flow (adr → optional cpat → rule → guide) |
-| `skills/review/` | review | Documentation health (dashboard or `--deep` audit) | counts/relations/issues (default), or full coverage-gap and recommendation report |
-| `skills/actualize/` | actualize | Detect stale docs, suggest updates | code drift, cascade, temporal analysis |
-| `skills/help/` | help | Navigate the system | layer guide, onboarding |
+| `skills/init/` | init | Seed an empty `.archcore/` on first install — scale-detect (small/medium/large), seed stack rule + run guide + scale-appropriate extras | three-step accept/edit/skip flow; idempotent |
+| `skills/capture/` | capture | Document a module/component/system | routes to adr / spec / doc / guide |
+| `skills/decide/` | decide | Record a decision (ADR) or draft a proposal (RFC); optional standard cascade | ADR → optional CPAT (for code-pattern changes) → optional rule → optional guide |
+| `skills/plan/` | plan | Plan a feature or initiative end-to-end | routes to single plan, or one of the multi-doc flows via references: product (idea→prd→plan), sources (mrd→brd→urd), iso (brs→strs→syrs→srs), feature (prd→spec→plan→task-type) |
+| `skills/audit/` | audit | Documentation health and drift | three modes: default short dashboard, `--deep` coverage audit, `--drift` code/cascade/temporal staleness |
 | `skills/context/` | context | Surface rules/decisions for a code area or pickup | search_documents-backed grouped markdown |
+| `skills/help/` | help | Navigate the system | command catalogue, onboarding cues |
 
-Intent skills are auto-invocable (no invocation-restricting flag) per the Inverted Invocation Policy. The model picks them up from user phrasing, which is the routing entry point for natural-language requests. Their descriptions enumerate explicit triggers and anti-triggers ("Activate when X. Do NOT activate for Y (use /archcore:other).") so routing is deterministic.
+### Shared Runtime Assets (`skills/_shared/`)
 
-### Track Skills (6) — Layer 2: Advanced Domain Flows
+Plain-markdown assets loaded at runtime by skills before composing documents. They ship with the plugin; skill instructions reference plugin-internal paths only (never the consumer's `.archcore/`).
 
-Each orchestrates a complete multi-document flow, creating documents in sequence with proper relations. For users (or the model) who know which flow they need. Each track step inlines the per-type elicitation (questions + sections + create + relate).
+| Asset | Path | Loaded by | Purpose |
+|---|---|---|---|
+| `precision-rules.md` | `skills/_shared/precision-rules.md` | `decide`, `capture` | Forbidden vagueness lexicon, imperative phrasing, `[assumption]` marker conventions |
+| `adr-contract.md` | `skills/_shared/adr-contract.md` | `decide`, `capture` (ADR) | Mandatory sections + bad/good examples for ADR content per MADR 4.0 |
 
-| Directory | Track | Flow |
-|---|---|---|
-| `skills/product-track/` | Product Track | idea → prd → plan |
-| `skills/sources-track/` | Sources Track | mrd → brd → urd |
-| `skills/iso-track/` | ISO 29148 Track | brs → strs → syrs → srs |
-| `skills/architecture-track/` | Architecture Track | adr → spec → plan |
-| `skills/standard-track/` | Standard Track | adr → (optional cpat) → rule → guide |
-| `skills/feature-track/` | Feature Track | prd → spec → plan → task-type |
+Companion ADR: `precision-over-coverage.adr.md` documents the design rationale.
 
-Track skills are auto-invocable so the model can route rich natural-language descriptions of full cascades through them. Their descriptions are prefixed with "Advanced —".
+### Per-Flow References (`skills/plan/references/` and `skills/audit/lib/`)
 
-### Utility Skills (1)
+Where a skill needs to support multiple multi-document flows, the per-flow content lives in markdown references that the SKILL.md loads on demand:
 
-| Directory | Skill | Purpose |
-|---|---|---|
-| `skills/verify/` | verify | Plugin integrity checks (tests, lint, config audit, cross-reference validation) |
+| Reference | Path | Used by | Content |
+|---|---|---|---|
+| `product-flow.md` | `skills/plan/references/product-flow.md` | `plan` | idea → prd → plan cascade |
+| `sources-flow.md` | `skills/plan/references/sources-flow.md` | `plan` | mrd → brd → urd cascade |
+| `iso-flow.md` | `skills/plan/references/iso-flow.md` | `plan` | brs → strs → syrs → srs cascade |
+| `feature-flow.md` | `skills/plan/references/feature-flow.md` | `plan` | prd → spec → plan → task-type cascade |
+| `continuations.md` | `skills/decide/references/continuations.md` | `decide` | ADR → CPAT → rule → guide continuation logic |
+| `drift-detection.md` | `skills/audit/lib/drift-detection.md` | `audit` (drift mode) | code-drift, cascade, temporal staleness protocols |
 
-Utility skills carry `disable-model-invocation: true`. They are maintenance tools for plugin developers, not end users.
+This pattern keeps each SKILL.md under the 200-line budget while preserving rich per-flow elicitation behind a single intent entry point.
 
-### Document-type coverage without type skills
+### Document-type coverage
 
-Every Archcore document type is reachable through an intent or track skill. Direct creation via `mcp__archcore__create_document(type=<any>)` also remains available without any skill mediating.
+Every Archcore document type is reachable through an intent skill or directly via MCP. There are no per-type skills.
 
 | Type | Reached via |
 |---|---|
-| adr | `/archcore:decide`, `/archcore:capture`, `/archcore:standard`, `/archcore:architecture-track`, `/archcore:standard-track` |
+| adr | `/archcore:decide`, `/archcore:capture` |
 | rfc | `/archcore:decide` (open-proposal branch) |
-| rule | `/archcore:standard`, `/archcore:standard-track` |
-| guide | `/archcore:capture`, `/archcore:standard`, `/archcore:standard-track` |
+| rule | `/archcore:decide` (continuation), `/archcore:capture` (when codifying observed practice) |
+| guide | `/archcore:capture`, `/archcore:decide` (continuation) |
 | doc | `/archcore:capture` |
-| spec | `/archcore:capture`, `/archcore:architecture-track`, `/archcore:feature-track` |
-| prd | `/archcore:plan`, `/archcore:product-track`, `/archcore:feature-track` |
-| idea | `/archcore:plan`, `/archcore:product-track` |
-| plan | `/archcore:plan`, `/archcore:product-track`, `/archcore:architecture-track`, `/archcore:feature-track` |
-| task-type | `/archcore:feature-track` |
-| cpat | `/archcore:standard-track` (optional step between ADR and rule) |
-| mrd, brd, urd | `/archcore:sources-track` |
-| brs, strs, syrs, srs | `/archcore:iso-track` |
+| spec | `/archcore:capture` |
+| prd | `/archcore:plan` (product or feature flow) |
+| idea | `/archcore:plan` (product flow) |
+| plan | `/archcore:plan` (any flow) |
+| task-type | `/archcore:plan` (feature flow) |
+| cpat | `/archcore:decide` (continuation, optional) |
+| mrd, brd, urd | `/archcore:plan` (sources flow) |
+| brs, strs, syrs, srs | `/archcore:plan` (iso flow) |
+
+For any type, `mcp__archcore__create_document(type=<any>)` remains a direct path that bypasses skill mediation entirely.
 
 ## Contract Surface
 
 ### File Location
 
-Each skill resides at `skills/<name>/SKILL.md` where `<name>` is:
-- The intent name (for intent skills): `bootstrap`, `capture`, `plan`, `decide`, `standard`, `review`, `actualize`, `help`, `context`
-- The track name (for track skills): `product-track`, `sources-track`, `iso-track`, `architecture-track`, `standard-track`, `feature-track`
-- The utility name: `verify`
+Each skill resides at `skills/<name>/SKILL.md` where `<name>` is one of: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`.
 
 ### SKILL.md Frontmatter
 
-**Intent skills (Layer 1) — auto-invocable:**
+Every skill is auto-invocable. No `disable-model-invocation` flag.
+
 ```yaml
 ---
-name: <intent-name>
-argument-hint: "[topic or description]"
-description: <What this intent does. Activate when X. Do NOT activate for Y (use /archcore:other).>
+name: <skill-name>
+argument-hint: "[topic, mode, or description]"
+description: <What this skill does. Activate when X. Do NOT activate for Y (use /archcore:other).>
 ---
 ```
 
-**Track skills (Layer 2) — auto-invocable:**
-```yaml
----
-name: <track-name>
-argument-hint: "[topic]"
-description: "Advanced — <what this track orchestrates>. Activate when X. Do NOT activate for Y."
----
-```
+### Skill Content Structure
 
-**Utility skills:**
-```yaml
----
-name: <utility-name>
-argument-hint: "[options]"
-description: <What this utility does>
-disable-model-invocation: true
----
-```
+Every skill file MUST contain these sections in order:
 
-### Intent Skill Content Structure (Layer 1)
-
-Every intent skill file MUST contain these sections in order:
-
-1. **Title and one-liner** — What this intent does, in user terms.
-
-2. **When to Use** — Natural language signals that lead to this intent. Contrast with adjacent intents (e.g., "Not /archcore:decide — that's for single decisions. /archcore:capture is for documenting a component comprehensively.").
-
-3. **Routing Table** — Explicit decision tree mapping user input to document types, tracks, or analysis modes. Each branch terminates in a named type list, named track, or analysis scope. Maximum one clarifying question when input is ambiguous between two paths. (Flow-style intents such as `bootstrap` may replace the routing table with a numbered step sequence, as long as each step has a deterministic set of branches.)
-
+1. **Title and one-liner** — What this skill does, in user terms.
+2. **When to Use** — Natural-language signals that lead to this skill. Contrast with adjacent skills.
+3. **Routing Table** — Explicit decision tree mapping user input or arguments to document types, flows, or analysis modes. Each branch terminates in a named outcome. Maximum one clarifying question when input is ambiguous between two paths. Flow-style skills (`init`) may replace the routing table with a numbered step sequence as long as each step has a deterministic set of branches.
 4. **Execution** — Step-by-step flow:
    - Step 1: Gather data (list_documents, list_relations, git log as needed)
    - Step 2: Scope confirmation (one `AskUserQuestion` if `$ARGUMENTS` is ambiguous)
-   - Steps 3–N: Core execution (document creation, analysis, or reporting). Creation steps include per-type elicitation inline: question → compose sections → create_document → add_relation.
+   - Steps 3–N: Core execution (document creation, analysis, or reporting). Creation steps include per-type elicitation inline: question → compose sections → create_document → add_relation. Flow-style execution may load a reference under `skills/<name>/references/` (or `skills/audit/lib/`) for the chosen flow.
    - Final step: Summary and suggested next actions
-
 5. **Result** — Summary of what was created or found, and recommended next actions.
 
-Note: Creation-oriented intents (bootstrap, capture, plan, decide, standard) include inline creation recipes covering every document type they can produce. Analysis-oriented intents (review, actualize) include analysis logic. The `review` intent has two output modes (short dashboard and `--deep` full audit) inside one skill. The help intent includes the layer navigation guide.
-
-### Track Skill Content Structure (Layer 2)
-
-Every track skill file MUST contain:
-
-1. **Title and summary** — Track name, flow diagram, when to use.
-2. **Step 1: Check existing** — `list_documents` to detect existing documents and prevent duplicates.
-3. **Step 2: Determine scope** — Logic for picking up where existing documents left off.
-4. **Steps 3–N: One step per document** — Focused questions, content sections to compose, `create_document` call, `add_relation` calls. Optional steps (like CPAT in standard-track) include a gating question before proceeding.
-5. **Final step: Relate to existing** — Suggest links to documents outside the track.
-6. **Result** — Summary of what was created and the relation chain.
+Note: creation-oriented skills (`init`, `capture`, `decide`, `plan`) include inline creation recipes for the document types they can produce. Analysis-oriented skills (`audit`, `context`) include analysis logic. The `audit` skill has three output modes (short dashboard / `--deep` / `--drift`) inside one skill. The `help` skill includes the command catalogue.
 
 ## Normative Behavior
 
-- Intent skills MUST NOT carry `disable-model-invocation` — they are the auto-invocation entry point.
-- Intent skills MUST contain explicit routing tables with bounded decision branches (flow-style intents may substitute a numbered step sequence with deterministic branches per step).
-- Intent and track skill descriptions MUST enumerate triggers and anti-triggers using the "Activate when X. Do NOT activate for Y." format.
-- Intent skills MUST default to minimum viable path. Expansion requires a binary scope question.
-- Creation-oriented intent skills MUST be self-contained with inline creation recipes (question + sections + create + relate per document type produced).
-- Analysis-oriented intent skills (review, actualize) MUST use MCP read tools (list_documents, get_document, list_relations) and may use git/Grep/Glob for cross-referencing.
-- Track skills MUST NOT carry `disable-model-invocation` — they are auto-invocable to support model-initiated cascades.
-- Track skills MUST create documents sequentially, asking focused questions before each creation step.
-- Track skills MUST inline per-type elicitation for each step (they are the authoritative home for that content within the plugin).
-- Utility skills MUST carry `disable-model-invocation: true`.
-- All skills MUST use MCP tools for document operations. MUST NOT instruct direct file writes.
+- All skills MUST be auto-invocable. No skill carries `disable-model-invocation`.
+- Skills MUST contain explicit routing tables with bounded decision branches (flow-style skills like `init` may substitute a numbered step sequence with deterministic branches per step).
+- Skill descriptions MUST enumerate triggers and anti-triggers using the "Activate when X. Do NOT activate for Y." format.
+- Skills MUST default to minimum viable path. Expansion requires a binary scope question.
+- Creation-oriented skills MUST be self-contained with inline creation recipes (question + sections + create + relate per document type produced). Where a flow has multiple steps, per-flow content MAY live in `skills/<name>/references/<flow>.md` and be loaded on demand.
+- Analysis skills (`audit`, `context`) MUST use MCP read tools (`list_documents`, `get_document`, `list_relations`) and MAY use git/Grep/Glob for cross-referencing.
+- All skills MUST use MCP tools for document operations. MUST NOT instruct direct Write/Edit to `.archcore/*.md`.
 - Skills MUST reference MCP tools by exact name.
 - Skills provide guidance around the template, not the template itself.
-- Track skill descriptions MUST be prefixed with "Advanced —".
 
 ## Constraints
 
-- Intent skill files must not exceed 300 lines.
-- Track skill files must not exceed 200 lines.
+- Skill files must not exceed 300 lines.
 - Skill files must not include code blocks longer than 20 lines.
+- Per-flow reference files (under `skills/<name>/references/` or `skills/audit/lib/`) must not exceed 200 lines each.
 - Skills must not reference internal CLI implementation details — only the MCP tool interface.
 - Skills must not embed full document templates.
-- Intent skills and track skills may duplicate elicitation for the same document type when each is the self-contained entry point for a different user intent; per-type content is not maintained in a separate home.
 
 ## Invariants
 
-- There are exactly 9 intent skills (Layer 1).
-- There are exactly 6 track skills (Layer 2).
-- There is exactly 1 utility skill (`verify`).
-- Total skills on disk: 16. All are visible in `/` menu (no hidden skills).
-- Every intent skill has a routing table section or a numbered step sequence with deterministic branches.
-- Every track skill follows the sequential step structure.
+- There are exactly 7 skills on disk: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`.
+- Total skills visible in `/`: 7. No hidden skills.
+- No skill has `disable-model-invocation: true`.
+- Every skill has a routing table section or a numbered step sequence with deterministic branches.
 - Every creation skill references `create_document` in its workflow.
 - Every analysis skill references `list_documents` and `list_relations` in its workflow.
 - No skill instructs direct Write/Edit to `.archcore/` files.
-- Auto-invocable surface: intent (9) + track (6) = 15. User-only surface: utility (1).
-- Every Archcore document type has at least one intent or track skill path.
+- Every Archcore document type has at least one intent path that creates it.
 
 ## Error Handling
 
 - If MCP tools are unavailable, skills inform the user with install/init instructions.
-- If `create_document` fails (duplicate filename), skills suggest alternative filename.
+- If `create_document` fails (duplicate filename), skills suggest an alternative filename.
 - If intent routing is ambiguous after one scope question, default to the most general path.
-- If a track skill detects existing documents mid-flow, skip already-created documents and resume.
-- If git is unavailable for actualize, skip code-drift analysis and perform cascade + temporal only.
+- If a multi-step flow detects existing documents mid-flow, skip already-created documents and resume.
+- If git is unavailable for `audit --drift`, skip code-drift analysis and perform cascade + temporal only.
 
 ## Conformance
 
 A skill file conforms to this specification if:
 
-1. It resides at the correct path (`skills/<name>/SKILL.md`).
-2. It has valid frontmatter with `name` and `description` fields.
-3. Its invocation flag matches its class per the Inverted Invocation Policy ADR (utility: `disable-model-invocation: true`; intent/track: no restricting flag).
-4. Intent skills contain all 5 required sections (title, when-to-use, routing-table-or-step-sequence, execution, result).
-5. Track skills contain the sequential step structure.
-6. It references appropriate MCP tools in its workflow.
-7. It stays within its line limit (300/200).
-8. It does not embed full template content.
-9. Track skill descriptions carry the "Advanced —" prefix.
+1. It resides at the correct path (`skills/<name>/SKILL.md`) and `<name>` is one of the 7 canonical skill names.
+2. It has valid frontmatter with `name` and `description` fields and no `disable-model-invocation` flag.
+3. It contains all 5 required sections (title, when-to-use, routing-table-or-step-sequence, execution, result).
+4. It references appropriate MCP tools in its workflow.
+5. It stays within its line limit (300 SKILL.md, 200 references).
+6. It does not embed full template content.
+7. Its description follows the "Activate when X. Do NOT activate for Y." format.

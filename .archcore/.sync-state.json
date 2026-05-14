@@ -3311,6 +3311,46 @@
       "source": "plugin/plugin-as-mcp-enforcement-boundary.idea.md",
       "target": "plugin/cli-integration-tests.rule.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/skill-surface-collapse.adr.md",
+      "target": "plugin/intent-based-skill-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/skill-surface-collapse.adr.md",
+      "target": "plugin/remove-document-type-skills.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/skill-surface-collapse.adr.md",
+      "target": "plugin/merge-review-status-remove-graph.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/skill-surface-collapse.adr.md",
+      "target": "plugin/inverted-invocation-policy.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/skill-surface-collapse.adr.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-surface-collapse.adr.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-surface-collapse.adr.md",
+      "target": "plugin/plugin-architecture.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-surface-collapse.adr.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
     }
   ]
 }

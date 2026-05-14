@@ -115,7 +115,7 @@ The README hero reel immediately becomes compelling: user asks for a feature, ag
 
 ### Phase 4 — Measurement (deferred)
 
-- CLI telemetry (opt-in): count of injections per session, top-cited documents. Feeds back into `/archcore:review` as "most-applied rules".
+- CLI telemetry (opt-in): count of injections per session, top-cited documents. Feeds back into `/archcore:audit --deep` as "most-applied rules".
 
 ## Risks and Constraints
 

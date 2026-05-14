@@ -68,15 +68,9 @@ make check-json    # validates all JSON configs via jq
 make check-perms   # verifies bin/ scripts are executable
 ```
 
-### 5. Run the AI-assisted verification skill
+### 5. Plugin integrity check
 
-Inside Claude Code or Cursor:
-
-```
-/archcore:verify
-```
-
-This skill runs automated tests, then performs manual cross-reference checks that only an AI agent can do (README accuracy, archcore docs consistency, live MCP tool smoke tests).
+`make verify` is the canonical way to run plugin integrity checks. The previous `/archcore:verify` skill was retired by `skill-surface-collapse.adr.md` — use the Makefile target instead. Inside a host session, ask the model to "run make verify and report the results" if you want AI-assisted verification.
 
 ### 6. Write a new test
 

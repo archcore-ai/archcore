@@ -137,7 +137,7 @@ tags:
 
 9. Verify slash commands and skills from a new Codex thread.
 
-   Start a fresh Codex session after installation. Type `/archcore:` and confirm slash commands appear, for example `/archcore:review`, `/archcore:plan`, `/archcore:context`, and `/archcore:verify`. Type `@` and confirm the matching Archcore skills also appear. Then run a small prompt such as:
+   Start a fresh Codex session after installation. Type `/archcore:` and confirm slash commands appear, for example `/archcore:audit`, `/archcore:plan`, `/archcore:context`, and `/archcore:capture`. Type `@` and confirm the matching Archcore skills also appear. Then run a small prompt such as:
 
    ```text
    /archcore:context

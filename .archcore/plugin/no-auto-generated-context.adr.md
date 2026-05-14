@@ -15,7 +15,7 @@ A naive product instinct for a documentation-oriented plugin is to "scan the rep
 
 ## Decision
 
-Archcore does not produce auto-generated repository summaries, AGENTS.md-style blobs, or any document generated wholesale by an LLM scan of the codebase. Every `.archcore/` document is created intentionally, in response to a specific authoring intent (decide, capture, plan, standard, etc.), through a skill that elicits context from the user or harvests evidence for that one document.
+Archcore does not produce auto-generated repository summaries, AGENTS.md-style blobs, or any document generated wholesale by an LLM scan of the codebase. Every `.archcore/` document is created intentionally, in response to a specific authoring intent (decide, capture, plan, etc.), through a skill that elicits context from the user or harvests evidence for that one document.
 
 ## Alternatives Considered
 
@@ -25,7 +25,7 @@ Archcore does not produce auto-generated repository summaries, AGENTS.md-style b
 
 ## Consequences
 
-- Bootstrap output remains minimal; users do not get a "free" knowledge tree from running `/archcore:bootstrap` on an existing repo. The first useful state of `.archcore/` requires deliberate authoring.
+- Init output remains minimal; users do not get a "free" knowledge tree from running `/archcore:init` on an existing repo. The first useful state of `.archcore/` requires deliberate authoring.
 - All documents in `.archcore/` carry intentional authorship; readers (human and agent) can trust them as deliberate artifacts rather than machine fill.
 - Skills that need codebase context fall back to grep/read at composition time, not pre-generated artifacts. This costs a few seconds per skill invocation but keeps context fresh.
 

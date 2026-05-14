@@ -122,11 +122,11 @@ Create all Cursor-specific adapter files.
 
 #### 3.2 Test core flows
 
-- Create a document via `/archcore:adr` — skill activates, MCP tool works
+- Create a document via `/archcore:decide` — skill activates, MCP tool works
 - Try direct Write to `.archcore/` — hook blocks it
 - Update a document — validation and cascade hooks fire
-- Run `/archcore:review` — lists documents correctly
-- Run `/archcore:actualize` — staleness detection works
+- Run `/archcore:audit` — lists documents correctly (default dashboard mode)
+- Run `/archcore:audit --drift` — staleness detection works
 - Invoke archcore-assistant agent — complex task works
 
 #### 3.3 Document findings and fix issues

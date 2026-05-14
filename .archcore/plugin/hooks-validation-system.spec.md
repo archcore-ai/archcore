@@ -233,7 +233,7 @@ Phase 1 of the Precision Initiative (see `precision-over-coverage.adr`). Reads t
 {
   "hookSpecificOutput": {
     "hookEventName": "PostToolUse",
-    "additionalContext": "[Archcore Cascade] Updated \"<document-title>\".\nDocuments that may need review:\n  → <path> (<relation-type> this document)\nRun /archcore:actualize for detailed analysis."
+    "additionalContext": "[Archcore Cascade] Updated \"<document-title>\".\nDocuments that may need review:\n  → <path> (<relation-type> this document)\nRun /archcore:audit --drift for detailed analysis."
   }
 }
 ```

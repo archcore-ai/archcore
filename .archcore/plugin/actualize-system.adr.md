@@ -8,17 +8,19 @@ tags:
   - "skills"
 ---
 
+> **Outcome (2026-05-15):** Decision accepted as-is, but Layer 3 shipped as the `--drift` mode of `/archcore:audit` rather than as a standalone `/archcore:actualize` intent skill (see `skill-surface-collapse.adr.md`). The 3-layer architecture, detection dimensions, and naming rationale below remain authoritative; substitute `/archcore:audit --drift` for `/archcore:actualize` throughout.
+
 ## Context
 
-The Archcore Claude Plugin has a comprehensive validation system (PreToolUse blocking, PostToolUse validation via `archcore doctor`) that ensures **structural integrity** of `.archcore/` documents. The `/archcore:review` skill provides on-demand health checks for coverage gaps, relation health, and status issues.
+The Archcore Plugin has a comprehensive validation system (PreToolUse blocking, PostToolUse validation via `archcore doctor`) that ensures **structural integrity** of `.archcore/` documents. The `/archcore:audit` skill (formerly `/archcore:review`) provides on-demand health checks for coverage gaps, relation health, and status issues.
 
-However, no mechanism detects when documentation **content becomes stale**. Three types of staleness go undetected:
+However, no mechanism detected when documentation **content becomes stale**. Three types of staleness went undetected:
 
 1. **Document cascade**: Updating document A while documents that `implements`, `depends_on`, or `extends` A remain unchanged. Example: PRD is rewritten but the plan that `implements` it still describes the old scope.
 2. **Code-document drift**: Source code changes that invalidate assumptions, APIs, or patterns described in archcore documents. Example: auth module is refactored but the ADR still describes the old JWT strategy.
 3. **Temporal staleness**: Documents stuck in inappropriate statuses — long-lived drafts, plans with passed deadlines, rejected documents still referenced in active chains.
 
-Currently, staleness is only discovered during manual `/archcore:review` invocations or when someone happens to read an outdated document. There is no proactive or reactive detection.
+At the time this ADR was drafted, staleness was only discovered during manual audit invocations or when someone happened to read an outdated document. There was no proactive or reactive detection.
 
 ## Decision
 
@@ -36,13 +38,13 @@ Extend `bin/session-start` to run a lightweight git-based staleness check at eve
 
 Add cascade detection logic to the PostToolUse hook pipeline. After `mcp__archcore__update_document`, query the relation graph for documents connected to the updated document via `implements`, `depends_on`, or `extends` relations (where the updated document is the target). Inject a cascade warning naming potentially affected documents.
 
-**Mechanism**: Parse updated document path from tool input, query `archcore` CLI for relations, filter by directional relation types.
+**Mechanism**: Parse updated document path from tool input, query the `.sync-state.json` relation graph, filter by directional relation types.
 
 **Character**: Informational only. Injected as `additionalContext` after the update succeeds. Never blocks operations.
 
-### Layer 3 — Deep Analysis (/archcore:actualize intent skill)
+### Layer 3 — Deep Analysis (drift mode of /archcore:audit)
 
-Add an 8th Layer 1 intent skill that performs comprehensive staleness analysis on demand. Three detection dimensions:
+Add comprehensive staleness analysis on demand. Three detection dimensions:
 
 - **Code→Doc drift**: For each document, find referenced code paths in content, check `git log` for changes since document was last modified.
 - **Doc→Doc cascade**: For recently updated documents, traverse the relation graph to find stale dependents.
@@ -50,9 +52,11 @@ Add an 8th Layer 1 intent skill that performs comprehensive staleness analysis o
 
 Offers interactive assisted fixes via MCP `update_document`.
 
+> When this ADR was originally drafted, Layer 3 was to ship as a standalone `/archcore:actualize` intent skill (8th primary command). It later shipped as the `--drift` mode of the unified `/archcore:audit` skill per `skill-surface-collapse.adr.md`.
+
 ### Naming
 
-The skill is named `actualize` because:
+The system is called Actualize because:
 - `refresh` implies reloading data, not content analysis
 - `sync` implies bidirectional synchronization (misleading)
 - `update` conflicts with `update_document` MCP tool name
@@ -78,9 +82,9 @@ When document A is updated, which documents may be stale?
 
 ## Alternatives Considered
 
-### Only enhance /archcore:review
+### Only enhance /archcore:audit (dashboard/deep modes)
 
-Add staleness checks to the existing review skill. **Rejected**: review is on-demand only — no passive or reactive detection. Users must remember to run it. The actualize system catches staleness automatically.
+Add staleness checks to the existing audit skill's dashboard or `--deep` mode. **Initially rejected** because review/audit was on-demand only — no passive or reactive detection. The actualize system catches staleness automatically via hooks. **Later partially reconsidered**: Layer 3 of this decision was folded into `/archcore:audit --drift` per `skill-surface-collapse.adr.md`, but Layer 1 and Layer 2 (the hook-driven detection) remained separate as designed.
 
 ### Background polling via /loop
 
@@ -88,7 +92,7 @@ Use Claude Code's `/loop` command to periodically check for staleness. **Rejecte
 
 ### MCP-side staleness check
 
-Add `check_staleness` command to the archcore CLI itself. **Deferred, not rejected**: good for cross-tool portability (works in any IDE plugin, not just Claude Code). The plugin-side implementation delivers value now without CLI changes. If the CLI adds this later, the hook can delegate to it.
+Add `check_staleness` command to the archcore CLI itself. **Deferred, not rejected**: good for cross-tool portability. The plugin-side implementation delivers value now without CLI changes. If the CLI adds this later, the hook can delegate to it.
 
 ### Git pre-commit hook (outside Claude Code)
 
@@ -110,4 +114,12 @@ Check staleness before git commits. **Rejected**: wrong timing — by the time t
 - **Heuristic false positives**: File-path matching in Layer 1 may flag documents that reference a directory where unrelated files changed. Acceptable tradeoff — false positives are informational nudges, not errors.
 - **SessionStart latency**: Layer 1 adds ~1-2 seconds to session startup for git operations. Acceptable — already within the 3-second budget and user expects startup to load context.
 - **PostToolUse overhead**: Layer 2 adds relation graph query after every `update_document`. Must complete within existing 3-second timeout.
-- **Skill count increase**: Layer 1 intent skills go from 7 to 8. Requires updating plugin-architecture.spec, skills-system.spec, and commands-system.spec constraints.
+- **Skill surface**: When this ADR was drafted, the cost was "Layer 1 intent skills go from 7 to 8." That cost was later eliminated by folding Layer 3 into the existing `audit` skill as `--drift`.
+
+### Supersedes
+
+- (none — this is a net addition to the plugin)
+
+### Superseded by (partially)
+
+- The standalone `/archcore:actualize` skill described in this ADR was superseded by `skill-surface-collapse.adr.md`. Layer 3 ships as `/archcore:audit --drift`; Layers 1 and 2 remain as designed.

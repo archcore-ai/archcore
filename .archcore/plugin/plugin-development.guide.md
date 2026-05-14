@@ -45,31 +45,17 @@ cursor --plugin-dir .    # Cursor
 
 This loads the plugin from the current directory without requiring marketplace installation. Changes to plugin files are picked up after running `/reload-plugins` inside the session.
 
-### 3. Add a new skill
+### 3. Modify an existing skill
 
-Create a directory for the skill under `skills/`:
+The plugin ships **7 skills** (per `skill-surface-collapse.adr.md`): `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. Each lives at `skills/<name>/SKILL.md`. Adding an eighth top-level skill requires a new ADR — prefer adding flow logic under `skills/plan/references/` or `skills/decide/references/` instead.
 
-```bash
-mkdir -p skills/my-skill
-```
+Edit `skills/<name>/SKILL.md`. Required frontmatter fields: `name` (must match directory name), `description`. Optional: `argument-hint`. No skill carries `disable-model-invocation` — all 7 are auto-invocable.
 
-Create `skills/my-skill/SKILL.md` with YAML frontmatter:
-
-```yaml
----
-name: my-skill
-argument-hint: "[topic]"
-description: What this skill does and when to activate it.
----
-```
-
-Required frontmatter fields: `name` (must match directory name), `description`. Optional: `argument-hint`, `disable-model-invocation: true` (for user-only skills).
-
-Reload and test: `/reload-plugins`, then try `/archcore:my-skill`.
+Reload and test: `/reload-plugins`, then try `/archcore:<name>`.
 
 #### 3a. Add a Codex slash command wrapper (required for user-facing skills)
 
-Claude Code and Cursor surface skills directly in the `/` menu. Codex CLI does not — it discovers slash commands from root-level `commands/<name>.md` files. For every user-facing skill (intent, track, or utility), add a thin wrapper at `commands/my-skill.md`:
+Claude Code and Cursor surface skills directly in the `/` menu. Codex CLI does not — it discovers slash commands from root-level `commands/<name>.md` files. The plugin ships 7 wrappers, one per skill. If you ever add a new top-level skill (requires a new ADR), add the matching wrapper:
 
 ```markdown
 ---
@@ -87,7 +73,7 @@ The user invoked this command with: $ARGUMENTS
 Use the Archcore skill at `skills/my-skill/SKILL.md`.
 ```
 
-Wrappers carry no workflow logic — behavior lives in the skill, the single source of truth. `test/structure/codex-plugin.bats` enforces parity: every wrapper must exist, carry `description:`, and reference its matching `skills/<name>/SKILL.md`. Skills with `disable-model-invocation: true` (user-only utilities like `verify`) still get wrappers because they are user-invocable in the `/` menu.
+Wrappers carry no workflow logic — behavior lives in the skill, the single source of truth. `test/structure/codex-plugin.bats` enforces parity: every wrapper must exist, carry `description:`, and reference its matching `skills/<name>/SKILL.md`.
 
 ### 4. Add or modify hooks
 
@@ -108,7 +94,7 @@ Each host's hook config uses its host's canonical plugin-root env var:
 - `${CURSOR_PLUGIN_ROOT}` — Cursor's native injection (`hooks/cursor.hooks.json`).
 - `${PLUGIN_ROOT}` — Codex CLI's canonical, host-neutral env var (`hooks/codex.hooks.json`). Codex's hooks engine (`codex-rs/hooks/src/engine/discovery.rs`) injects `PLUGIN_ROOT` as the canonical name; `CLAUDE_PLUGIN_ROOT` is also injected but only as a backward-compat alias for porting old Claude plugins — do NOT use it in a Codex-native hook config. `CODEX_PLUGIN_ROOT` does not exist in Codex.
 
-Plugin-shipped Codex hooks require `codex features enable plugin_hooks` to actually fire (the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0). See `codex-path-resolution.adr.md` for the full mechanism (Codex MCP and hook resolution).
+Plugin-shipped Codex hooks require `codex features enable plugin_hooks` to actually fire (the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0). See `codex-path-resolution.adr.md` for the full mechanism.
 
 ### 5. Modify agents
 
@@ -138,7 +124,7 @@ make check-json     # JSON validity
 make check-perms    # executable permissions
 ```
 
-Run `/archcore:verify` inside a Claude Code session for AI-assisted verification including live MCP tool checks.
+`make verify` is the canonical way to run plugin integrity checks; there is no `/archcore:verify` skill (removed by `skill-surface-collapse.adr.md`).
 
 See `plugin-testing.guide.md` for detailed testing instructions.
 
@@ -151,13 +137,13 @@ See `plugin-testing.guide.md` for detailed testing instructions.
 - MCP availability: ensure `archcore` is on PATH and `archcore --version` works
 - For Codex: from a directory **outside** the plugin source repo (e.g., `cd $(mktemp -d)`), call any `mcp__archcore__*` tool and verify the MCP starts.
 - For Cursor: after copying `docs/cursor.mcp.example.json` into `.cursor/mcp.json`, open an empty project. `list_documents` should return empty (not the plugin's own dev docs). If it returns dev docs, the plugin-install-dir guards regressed — file an issue against this repo and `archcore-ai/cli`.
-- Verify: `/archcore:verify`
+- Integrity check: `make verify`
 
 ## Verification
 
 - `make verify` exits 0 with "All checks passed"
-- `/reload-plugins` shows correct count of skills, agents, hooks
-- `/help` lists all `/archcore:*` commands
+- `/reload-plugins` shows correct count of skills (7), agents (2), hooks (6 entries)
+- `/help` lists all `/archcore:*` commands (7)
 - `/agents` lists `archcore-assistant` and `archcore-auditor`
 - Writing to `.archcore/*.md` via Write/Edit is blocked with a redirect message
 - `archcore --version` works (CLI is on PATH or installed globally)
