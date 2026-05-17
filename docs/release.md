@@ -54,9 +54,16 @@ Any addition or removal MUST update the workflow at
 | `cursor.mcp.json`     | Legacy path; must already be gone but stripped defensively. |
 
 Everything else ships: `skills/`, `agents/`, `commands/`, `rules/`,
-`hooks/`, `bin/`, `docs/cursor.mcp.example.json`, manifests
-(`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`), MCP configs
+`hooks/`, `bin/`, `assets/` (icon + logo for marketplace surfaces),
+`docs/cursor.mcp.example.json`, `docs/TERMS.md`, manifests
+(`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`), marketplace
+registries (`.agents/plugins/marketplace.json`), MCP configs
 (`.mcp.json`, `.codex.mcp.json`), `README.md`, `LICENSE`, `NOTICE`.
+
+> **Note on `assets/`.** Required by `.codex-plugin/plugin.json`
+> (`interface.composerIcon`, `interface.logo`). The plugin.json paths are
+> relative to plugin root, so the directory must exist alongside the
+> manifests in the published `main` tree. Don't strip.
 
 ## Cutting a release
 
