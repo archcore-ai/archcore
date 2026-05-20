@@ -33,6 +33,8 @@ Deferred (non-blocking, tracked here for follow-up):
 
 > **Note (skill-surface-collapse cleanup, 2026-05-15):** `/archcore:review` was subsequently merged into `/archcore:audit` and `/archcore:actualize` was folded into `/archcore:audit --drift` (see `skill-surface-collapse.adr.md`). References below to `/archcore:review`, `/archcore:review --deep`, `/archcore:actualize`, `/archcore:standard`, and `/archcore:bootstrap` should be read as their successors: `audit` (default), `audit --deep`, `audit --drift`, `decide`, and `init` respectively.
 
+> **Note (Reference section, 2026-05-20):** Step 3 grouping in `skills/context/SKILL.md` extended with a **Reference** section that surfaces `doc`, `rfc`, and orphan `guide` (any guide present in search results but not inlined under a rule/ADR/spec via Step 4's `implements`/`related` routing). This closes a gap where the most relevant content match could be silently dropped because its type wasn't in the original allow-list — observed when a `doc` topped relevance for a topic query but never reached the rendered output. Acceptance criterion below ("rule+adr+spec+cpat groups") should be read as including a Reference group in addition; post-merge smoke tests gained a `doc`/`rfc`/orphan-guide repro.
+
 ## Goal
 
 Ship `/archcore:context` as the user-facing pull-mode entry point for JTBD #1 ("repo-alignment at coding time"), backed by the CLI's `search_documents` MCP tool. Close the JTBD-implementation gap for on-demand code-area lookup and session pickup, without touching PreToolUse hooks (deferred to Phase 2).
@@ -60,10 +62,10 @@ Frontmatter:
 
 Body sections:
 - **Classify scope** — empty/whitespace → pickup; contains `/` OR is an existing repo directory → path; otherwise → topic.
-- **Path mode** — `search_documents(path_ref, limit=50, sort="relevance")`, group by type (rule/adr/spec/cpat/plan-draft/idea-draft), truncate each section to top-5, render.
+- **Path mode** — `search_documents(path_ref, limit=50, sort="relevance")`, group by type (rule/adr/spec/cpat/plan-draft/idea-draft), truncate each section to top-5, render. _(2026-05-20: Reference section added — see top-of-doc note.)_
 - **Topic mode** — same but `content="<scope>"`.
 - **Pickup mode** — two primitive calls: drafts + recent-accepted (30d → fallback 90d). Render as In Progress / Recent Decisions / Recent Rules.
-- **Guide routing** — for each rule/adr/spec top-5, check `incoming_relations` for a `guide` linked via `implements`/`related`; inline as indented bullet.
+- **Guide routing** — for each rule/adr/spec top-5, check `incoming_relations` for a `guide` linked via `implements`/`related`; inline as indented bullet. _(2026-05-20: track the inlined set so non-inlined guides land in Reference rather than being dropped.)_
 - **Empty-header suppression** — do NOT emit a section header if its array is empty.
 - **Classification footer** — `_Classified as: <mode>._` for observability.
 - **Disambiguation note** — "Not related to the AI context window or session state" in body, so the skill does not get mis-invoked for chat memory topics.
@@ -101,10 +103,10 @@ Two or three fixture `.archcore/` repos under `tests/fixtures/context/`. Run the
 
 **SKILL.md**
 - `skills/context/SKILL.md` exists, picked up by plugin auto-discovery.
-- `/archcore:context src/payments/` returns rule+adr+spec+cpat groups sorted by specificity→type→mtime, top-5 per section.
-- `/archcore:context "money rounding"` returns content-match groups with title/body excerpts.
+- `/archcore:context src/payments/` returns rule+adr+spec+cpat groups (and a Reference group for `doc`/`rfc`/orphan `guide`) sorted by specificity→type→mtime, top-5 per section.
+- `/archcore:context "money rounding"` returns content-match groups with title/body excerpts; `doc`/`rfc` matches surface in Reference rather than being dropped.
 - `/archcore:context` (no argument) returns In Progress + Recent Decisions + Recent Rules, with 30d→90d fallback when first pass is empty.
-- Guide routing: when a rule/adr/spec has an incoming `guide` via `implements` or `related`, guide appears as an indented bullet below the parent.
+- Guide routing: when a rule/adr/spec has an incoming `guide` via `implements` or `related`, guide appears as an indented bullet below the parent; an orphan `guide` (no such relation) appears in the Reference section instead of being dropped.
 - No section header is rendered when its group is empty.
 - Classification footer is always present.
 
@@ -156,3 +158,4 @@ Run in Claude Code against this plugin repo:
 - `/archcore:context rules/` — should surface mcp-only-operations.rule, skill-file-structure.rule.
 - `/archcore:context "intent-based skill"` — should find intent-based-skill-architecture.adr.
 - `/archcore:context` with no argument — should show draft plans + recent accepted rules/ADRs.
+- _(2026-05-20)_ In a repo with a top-relevance `doc` for the queried topic, confirm it now appears in a **Reference** section rather than being filtered out. Same for a `rfc` covering the topic and a `guide` not linked via `implements`/`related` to any rule/ADR/spec.

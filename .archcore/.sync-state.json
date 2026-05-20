@@ -3351,6 +3351,21 @@
       "source": "plugin/skill-surface-collapse.adr.md",
       "target": "plugin/component-registry.doc.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/context-filtering-pipeline.doc.md",
+      "target": "plugin/context-skill-implementation.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/context-filtering-pipeline.doc.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/context-filtering-pipeline.doc.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
     }
   ]
 }

@@ -1,7 +1,7 @@
 ---
 name: context
 argument-hint: "[file, directory, or topic; leave empty for current-focus pickup]"
-description: "Surface the rules, ADRs, specs, and patterns that apply to a code area before changing it — or recap project focus when picking up work. Use for 'what rules apply to X', 'before I touch Y', 'pick up where we left off', 'load project context'. Not for creating docs, planning, or audits."
+description: "Surface the rules, ADRs, specs, patterns, and reference docs that apply to a code area before changing it — or recap project focus when picking up work. Use for 'what rules apply to X', 'before I touch Y', 'pick up where we left off', 'load project context'. Not for creating docs, planning, or audits."
 ---
 
 # /archcore:context
@@ -74,9 +74,10 @@ If the recent-accepted call returns empty, retry once with `mtime_after="90d"`.
 | Decisions | `adr` |
 | Specs | `spec` |
 | Patterns | `cpat` |
+| Reference | `doc`, `rfc`, orphan `guide` (any `guide` not inlined by Step 4) |
 | In Progress | `plan` or `idea` with status `draft` |
 
-Drop other types. Results are already sorted by `search_documents` (specificity → type priority → mtime); keep the top 5 per section.
+Drop remaining types — accepted `plan`/`idea`, `task-type`, and vision/requirements (`prd`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`). Results are already sorted by `search_documents` (specificity → type priority → mtime); keep the top 5 per section. Inside Reference the same sort applies, so `rfc` (typeRank 3) outranks `guide` (6) and `doc` (17) when specificity ties.
 
 **Pickup mode** — three fixed sections:
 - **In Progress** — results from the drafts call
@@ -85,7 +86,7 @@ Drop other types. Results are already sorted by `search_documents` (specificity 
 
 ### Step 4: Guide routing
 
-For each item in the Rules, Decisions, or Specs sections, inspect its `incoming_relations`. If a relation of type `implements` or `related` points from a `guide`, inline that guide as an indented bullet under the parent. Skip a guide that is already inlined under a sibling in the same section.
+For each item in the Rules, Decisions, or Specs sections, inspect its `incoming_relations`. If a relation of type `implements` or `related` points from a `guide`, inline that guide as an indented bullet under the parent. Skip a guide that is already inlined under a sibling in the same section. Track the set of guide paths inlined this way — any `guide` present in the search results but **not** in this set is an "orphan guide" and is routed to the Reference section in Step 3 instead of being dropped.
 
 ### Step 5: Render
 
@@ -107,6 +108,11 @@ For each item in the Rules, Decisions, or Specs sections, inspect its `incoming_
 ## Patterns (N)
 ...
 
+## Reference (N)
+- **<title>** [<type> · <status> · <match.kind>]
+  `<path>`
+  > <excerpt>
+
 ## In Progress (N)
 ⚠️  **<title>** [plan · draft]
   `<path>`
@@ -126,4 +132,4 @@ If all sections are empty, fall through to Step 6.
 
 ## Result
 
-A grouped markdown surface of the rules, ADRs, specs, patterns, and in-progress work that applies to the requested scope — or a pickup summary of draft work + recent accepted decisions and rules when called with no argument. A classification footer identifies which mode was chosen.
+A grouped markdown surface of the rules, ADRs, specs, patterns, reference docs (`doc`, `rfc`, orphan `guide`), and in-progress work that applies to the requested scope — or a pickup summary of draft work + recent accepted decisions and rules when called with no argument. A classification footer identifies which mode was chosen.
