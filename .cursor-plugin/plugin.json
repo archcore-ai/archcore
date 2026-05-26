@@ -2,7 +2,7 @@
   "name": "archcore",
   "displayName": "Archcore",
   "description": "Make your AI agent code with your project's architecture, rules, and decisions.",
-  "version": "0.4.4",
+  "version": "0.4.6",
   "author": {
     "name": "Archcore"
   },

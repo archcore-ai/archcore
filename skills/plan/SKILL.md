@@ -45,6 +45,10 @@ For `--track sources` and `--track iso`, the chain may continue into a product o
 
 ## Execution
 
+Content voice: default to architectural prose — decisions, rationale, intent.
+See `skills/_shared/precision-rules.md` Rule 6. Code blocks only where the
+document type requires it (`rule`, `guide`, `cpat`) or the user asks.
+
 ### Step 1: Resolve track
 
 Parse `$ARGUMENTS`:

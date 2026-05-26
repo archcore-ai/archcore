@@ -78,6 +78,33 @@ composing documents of type `adr`, `spec`, `rule`, `guide`. See also
   belong in the relation graph (`mcp__archcore__add_relation`), not in the
   body.
 
+6. **Architect voice: expert, concise, precise, argued.** Documents are
+   decision records and context maps — not implementation walkthroughs. The
+   target quality is: a senior engineer reads it in 30 seconds and knows
+   *why* this exists, *what* was decided, and *what it costs*. Verbose
+   AI-padded prose that restates the obvious is a defect.
+
+   **Use freely:**
+   - `@path/to/file` references, commit hashes, PR links, issue numbers
+   - Inline code for identifiers, function names, type names, version strings,
+     CLI flags — anything that names a concrete artifact
+   - Measurements, thresholds, SLOs, dates — exact values beat adjectives
+
+   **Avoid:**
+   - Pasting function bodies or multi-line code blocks where a `@reference`
+     would suffice — the source file is readable; the document is not its copy
+   - Filler phrases ("This document describes...", "In summary, we can see...")
+   - Generic implementation detail that adds no architectural signal
+
+   **Code blocks belong** in types where the exact textual format IS the
+   artifact: `rule` (Good/Bad examples), `guide` (terminal steps), `cpat`
+   (Before/After). Also appropriate in any type when the user explicitly
+   requests them or when the format itself is normative (wire protocol,
+   config schema, CLI interface).
+
+   This default applies to: `adr`, `rfc`, `doc`, `prd`, `idea`, `plan`, `mrd`,
+   `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`.
+
 ## Enforcement
 
 - The plugin's `bin/check-precision` PostToolUse hook detects forbidden lexicon

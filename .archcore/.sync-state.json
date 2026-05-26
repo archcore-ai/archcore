@@ -3366,6 +3366,11 @@
       "source": "plugin/context-filtering-pipeline.doc.md",
       "target": "plugin/commands-system.spec.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/architect-voice-default.adr.md",
+      "target": "plugin/precision-over-coverage.adr.md",
+      "type": "extends"
     }
   ]
 }

@@ -55,6 +55,10 @@ Each non-empty mode additionally runs hotspot capture-candidate proposal (Step 6
 
 ## Execution
 
+Content voice: default to architectural prose — decisions, rationale, intent.
+See `skills/_shared/precision-rules.md` Rule 6. Code blocks only where the
+document type requires it (`rule`, `guide`, `cpat`) or the user asks.
+
 ### Pre-flight: CLI availability check
 
 Before any init step, verify that the Archcore CLI is available on PATH. The canonical installer is documented at https://docs.archcore.ai/cli/install/ — use it as the single source of truth; do **not** suggest other channels (`brew`, `go install`, etc.) even if the user mentions them.

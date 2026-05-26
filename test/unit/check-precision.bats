@@ -247,3 +247,226 @@ robust approach
   assert_output --partial "title"
   assert_output --partial "; "
 }
+
+# ---------------------------------------------------------------------------
+# Check 6: multi-line code blocks in architect-voice types
+# ---------------------------------------------------------------------------
+
+@test "check6: long code block (>=5 lines) in ADR produces finding" {
+  local doc='---
+title: Cache Strategy
+status: accepted
+---
+
+## Context
+
+Cache invalidation was causing stale reads under high write throughput, measured at p99 > 400 ms.
+
+## Decision
+
+Adopt write-through caching on the user profile service with a 60 s TTL.
+
+## Alternatives Considered
+
+Read-through with lazy invalidation was ruled out because it amplified cache stampede risk during deploys.
+
+## Consequences
+
+All writes to user profile now incur a synchronous cache update; the trade-off is bounded latency at the cost of slightly higher write latency (~5 ms measured on staging).
+
+## Implementation
+
+```go
+func writeThrough(ctx context.Context, key string, val []byte) error {
+    if err := db.Set(ctx, key, val); err != nil {
+        return err
+    }
+    return cache.Set(ctx, key, val, 60*time.Second)
+}
+```
+'
+  make_doc "cache-strategy.adr.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"cache-strategy.adr.md"}}'
+  assert_success
+  assert_output --partial "code block >=5 lines"
+  assert_output --partial "@path/to/file"
+}
+
+@test "check6: short inline code in ADR does not trigger finding" {
+  local doc='---
+title: Use Postgres
+status: accepted
+---
+
+## Context
+
+Latency spikes in `pkg/scheduler/dispatcher.go` forced a database review. p99 was 420 ms.
+
+## Decision
+
+Adopt PostgreSQL 16.2 on RDS `db.r7g.xlarge` with explicit ownership and runbook coverage.
+
+## Alternatives Considered
+
+MySQL 8 ruled out: `pg_advisory_lock` semantics are not portable across engines.
+
+## Consequences
+
+Teams owning `pkg/scheduler/` inherit migration responsibility per the runbook hand-off pattern.
+'
+  make_doc "use-postgres.adr.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"use-postgres.adr.md"}}'
+  assert_success
+  refute_output --partial "code block >=5 lines"
+}
+
+@test "check6: short code block (4 lines) in ADR does not trigger finding" {
+  # Threshold is 5 content lines; 4 should be silent.
+  local doc='---
+title: Error Codes
+status: accepted
+---
+
+## Context
+
+Inconsistent error shapes across services caused integration overhead measured across three teams last quarter.
+
+## Decision
+
+Standardise on a two-field envelope: `code`, `message`.
+
+## Alternatives Considered
+
+Using HTTP status only was ruled out as insufficient for machine-readable retry logic.
+
+## Consequences
+
+All service boundaries must validate against the shared schema; client libraries updated in v2.4.
+
+## Shape
+
+```json
+{
+  "code": "ERR_NOT_FOUND",
+  "message": "resource not found"
+}
+```
+'
+  make_doc "error-codes.adr.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"error-codes.adr.md"}}'
+  assert_success
+  refute_output --partial "code block >=5 lines"
+}
+
+@test "check6: long code block in rule type does not trigger finding" {
+  # rule is explicitly exempt from Check 6 (Good/Bad examples are normative).
+  local doc='---
+title: Error Envelope Standard
+status: accepted
+---
+
+## Rule
+
+All service boundaries MUST return a three-field error envelope.
+
+## Rationale
+
+Consistent shapes reduce client-side branching and enable shared retry middleware.
+
+## Enforcement
+
+PostToolUse hook validates envelope shape in generated code.
+
+## Good
+
+```go
+return &Error{
+    Code:    "ERR_AUTH",
+    Message: "token expired",
+    Details: map[string]any{"exp": exp},
+}
+```
+
+## Bad
+
+```go
+return fmt.Errorf("token expired at %v", exp)
+```
+'
+  make_doc "error-envelope.rule.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"error-envelope.rule.md"}}'
+  assert_success
+  refute_output --partial "code block >=5 lines"
+}
+
+@test "check6: long code block in guide type does not trigger finding" {
+  # guide is exempt: terminal steps require verbatim commands.
+  local doc='---
+title: Bootstrap Local DB
+status: draft
+---
+
+## Steps
+
+Run the initialisation sequence:
+
+```sh
+createdb myapp_dev
+psql myapp_dev < schema/migrations/001_initial.sql
+psql myapp_dev < schema/migrations/002_seed.sql
+psql myapp_dev -c "\dt"
+\q
+```
+
+## Verification
+
+Connect with `psql myapp_dev` and confirm tables are listed.
+'
+  make_doc "bootstrap-db.guide.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"bootstrap-db.guide.md"}}'
+  assert_success
+  refute_output --partial "code block >=5 lines"
+}
+
+@test "check6: long code block in rfc type produces finding" {
+  # rfc is in the architect-voice set; check must fire.
+  local doc='---
+title: Streaming Ingest RFC
+status: draft
+---
+
+## Summary
+
+Replace batch ingestion with a streaming pipeline to cut P99 ingest latency from 8 s to under 500 ms.
+
+## Motivation
+
+Batch jobs miss SLO on peak days (measured 14 % breach rate last quarter).
+
+## Detailed Design
+
+Event schema defined inline:
+
+```protobuf
+message IngestEvent {
+  string  event_id   = 1;
+  string  source     = 2;
+  bytes   payload    = 3;
+  int64   timestamp  = 4;
+  string  tenant_id  = 5;
+}
+```
+'
+  make_doc "streaming-ingest.rfc.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"streaming-ingest.rfc.md"}}'
+  assert_success
+  assert_output --partial "code block >=5 lines"
+}
+
+@test "check6: clean ADR (CLEAN_ADR fixture) still produces no findings" {
+  # Regression: the canonical clean fixture must remain silent after adding Check 6.
+  make_doc "regression-clean.adr.md" "$CLEAN_ADR"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"regression-clean.adr.md"}}'
+  assert_success
+  assert_output ""
+}

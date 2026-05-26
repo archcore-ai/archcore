@@ -14,6 +14,8 @@
 #   4. Body length above placeholder threshold
 #   5. No cross-document body references to other .archcore/ documents
 #      (precision-rules.rule.md Rule 5 — relations belong in the graph)
+#   6. No multi-line code blocks (>=5 content lines) in architect-voice types
+#      (precision-rules.rule.md Rule 6 — use @references instead)
 
 SCRIPT_DIR=$(dirname "$0")
 # shellcheck source=lib/normalize-stdin.sh
@@ -135,6 +137,35 @@ CROSS_HITS=$(printf '%s' "$BODY" | grep -oE '\.archcore/[A-Za-z0-9_./-]+\.md' 2>
 if [ -n "$CROSS_HITS" ]; then
   add_finding "body references other .archcore/ documents ($CROSS_HITS) — move these links to the relation graph via mcp__archcore__add_relation"
 fi
+
+# --- Check 6: Multi-line code blocks in architect-voice types ---
+# Source of truth: skills/_shared/precision-rules.md Rule 6.
+# Code blocks with >=5 content lines signal pasted implementation detail;
+# types where architect voice applies must prefer @path/to/file references.
+# Exempted types (code blocks are the artifact): rule, guide, cpat.
+case "$DOC_TYPE" in
+  adr|rfc|doc|prd|idea|plan|mrd|brd|urd|brs|strs|syrs|srs)
+    LONG_BLOCK=$(printf '%s' "$BODY" | awk '
+      /^[[:space:]]*```/ {
+        if (in_block) {
+          # closing fence: check accumulated line count
+          if (block_lines >= 5) { found = 1; exit }
+          in_block = 0
+          block_lines = 0
+        } else {
+          in_block = 1
+          block_lines = 0
+        }
+        next
+      }
+      in_block { block_lines++ }
+      END { if (found) print "yes" }
+    ')
+    if [ "$LONG_BLOCK" = "yes" ]; then
+      add_finding "code block >=5 lines in $DOC_TYPE — architect voice prefers @path/to/file references over pasted implementation detail (Rule 6)"
+    fi
+    ;;
+esac
 
 # --- Emit soft warnings if any ---
 if [ -n "$FINDINGS" ]; then

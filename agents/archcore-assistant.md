@@ -92,3 +92,10 @@ When reviewing or creating documents, ensure:
 - Tags are relevant and consistent with existing tags
 - Relations capture real semantic links, not just proximity
 - Status reflects reality (draft work is `draft`, decided work is `accepted`)
+- **Architect voice**: Expert, concise, precise, argued. A senior engineer
+  reads the document in 30 seconds and knows *why*, *what*, and *what it
+  costs*. Use `@path/to/file`, identifiers, measurements, and `@`-references
+  freely. Avoid pasting code bodies — reference the source instead. Avoid
+  filler and implementation walkthroughs that add no architectural signal.
+  Code blocks belong in `rule`/`guide`/`cpat` or when explicitly requested.
+  See `skills/_shared/precision-rules.md` Rule 6.
