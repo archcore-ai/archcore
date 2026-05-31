@@ -31,7 +31,7 @@ go test ./cmd/ -run TestX  # Run a specific test
 ./archcore update     # Self-update to the latest release
 ```
 
-`init` creates `.archcore/` with a free-form directory structure — documents are organized by domain/feature/team, and category is derived from the filename suffix (`slug.type.md`). Settings go in `.archcore/settings.json`. It also auto-detects AI agents and installs hooks + MCP config for all found agents.
+`init` creates `.archcore/` with a free-form directory structure — documents are organized by domain/feature/team, and category is derived from the filename suffix (`slug.type.md`). Settings go in `.archcore/settings.json`. It also auto-detects AI agents and installs hooks + MCP config for all found agents, then offers (opt-in) to write a usage-nudge instruction file per agent.
 
 ## Settings and Configuration
 
@@ -151,10 +151,11 @@ To add support for a new AI coding agent:
    - `WriteMCPConfig` — write the archcore MCP entry (use `WriteStandardMCPJSON` if the agent uses standard `mcpServers` format)
    - `WriteHooksConfig` — set to `nil` if hooks not supported
    - `ManualMCPInstallHint` — set if MCP must be installed manually (e.g., Cline)
+   - `InstructionsPath`, `WriteInstructions`, `RemoveInstructions` — the usage-nudge target. Point them at a shared helper in `internal/agents/instructions.go` (`agentsMDInstructions*` for `AGENTS.md`, `geminiInstructions*` for `GEMINI.md`, or an owned target like Claude's). `TestAllAgents_RequiredFields` fails if any are nil.
 
 3. **Register the agent** — Add the constructor call to the `all` slice in `internal/agents/agents.go`
 
-4. **Add tests** — Create `internal/agents/<name>_test.go` covering detection, MCP config writing, and idempotency
+4. **Add tests** — Create `internal/agents/<name>_test.go` covering detection, MCP config writing, idempotency, and the instruction target
 
 5. **If hooks are supported:**
    - Create `cmd/hooks_<name>.go` with a `newHooksXxxCmd()` subcommand using `newSessionStartHookCmd`
@@ -164,7 +165,7 @@ To add support for a new AI coding agent:
    - Add the agent case to `installHooksForAgent()` in `cmd/hooks.go`
 
 6. **Update documentation:**
-   - Add the agent to [Supported AI Agents Registry](../integrations/supported-ai-agents.doc.md)
+   - Add the agent to [Supported AI Agents Registry](../integrations/supported-ai-agents.doc.md) (registry table + Instruction Nudge Files table)
    - Add config examples to [Agent Integration Guide](../integrations/agent-hooks-integration.guide.md)
 
 ## Key Design Patterns
@@ -175,15 +176,5 @@ To add support for a new AI coding agent:
 - **Interactive forms** — `charmbracelet/huh` for interactive input, with flag-based fallbacks.
 - **Co-located tests** — every command and package has adjacent `_test.go` files using `t.TempDir()` and table-driven subtests.
 - **Shared session-start handler** — all hook-supporting agents use the same `handleSessionStart` and `buildSessionContext` via the `newSessionStartHookCmd` factory, differing only in event name and config format.
+- **Usage-nudge instruction files** — `archcore init` (opt-in) and `archcore instructions install`/`remove` write a discovery hint per agent into `AGENTS.md` / `GEMINI.md` / `.claude/rules/archcore.md`. Shared files use an idempotent fenced upsert that preserves user content; helpers live in `internal/agents/instructions.go`, the command in `cmd/instructions.go`. See [Usage-Nudge Instruction File per Agent](../integrations/instruction-nudge-on-init.adr.md).
 - **Invalid config backup** — corrupted config files are backed up as `.bak` before being overwritten. See [Backup Invalid Configs](../integrations/backup-invalid-configs.adr.md).
-
-## Key Dependencies
-
-| Package | Purpose |
-|---------|---------|
-| `github.com/spf13/cobra` | CLI framework |
-| `github.com/charmbracelet/huh` | Interactive terminal forms |
-| `github.com/charmbracelet/lipgloss` | Terminal styling |
-| `github.com/mark3labs/mcp-go` | MCP stdio server |
-| `gopkg.in/yaml.v3` | YAML frontmatter parsing |
-| `github.com/wk8/go-ordered-map/v2` | Deterministic JSON key ordering (hooks config) |

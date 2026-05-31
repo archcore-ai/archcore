@@ -17,5 +17,8 @@ func claudeCodeAgent() *Agent {
 		DetectFn: func(baseDir string) bool {
 			return dirExists(filepath.Join(baseDir, ".claude"))
 		},
+		InstructionsPath:   claudeInstructionsPath,
+		WriteInstructions:  writeClaudeInstructions,
+		RemoveInstructions: removeClaudeInstructions,
 	}
 }

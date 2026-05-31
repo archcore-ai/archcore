@@ -17,5 +17,8 @@ func cursorAgent() *Agent {
 		DetectFn: func(baseDir string) bool {
 			return dirExists(filepath.Join(baseDir, ".cursor"))
 		},
+		InstructionsPath:   agentsMDInstructionsPath,
+		WriteInstructions:  writeAgentsMDInstructions,
+		RemoveInstructions: removeAgentsMDInstructions,
 	}
 }

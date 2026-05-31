@@ -17,5 +17,8 @@ func geminiCLIAgent() *Agent {
 		DetectFn: func(baseDir string) bool {
 			return dirExists(filepath.Join(baseDir, ".gemini"))
 		},
+		InstructionsPath:   geminiInstructionsPath,
+		WriteInstructions:  writeGeminiInstructions,
+		RemoveInstructions: removeGeminiInstructions,
 	}
 }

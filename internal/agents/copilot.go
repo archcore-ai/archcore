@@ -17,5 +17,8 @@ func copilotAgent() *Agent {
 		DetectFn: func(baseDir string) bool {
 			return fileExists(filepath.Join(baseDir, ".github", "copilot-instructions.md"))
 		},
+		InstructionsPath:   agentsMDInstructionsPath,
+		WriteInstructions:  writeAgentsMDInstructions,
+		RemoveInstructions: removeAgentsMDInstructions,
 	}
 }

@@ -619,3 +619,60 @@ func TestRunInit_SkipShowsRecoveryHint(t *testing.T) {
 		t.Errorf("settings.json missing: %v", err)
 	}
 }
+
+// withConfirmInstructions swaps the package-level confirmInstructions seam for
+// tests. Like withInteractive, it mutates a global and is not safe under
+// t.Parallel().
+func withConfirmInstructions(t *testing.T, fn instructionsConfirmer) {
+	t.Helper()
+	orig := confirmInstructions
+	confirmInstructions = fn
+	t.Cleanup(func() { confirmInstructions = orig })
+}
+
+func TestMaybeInstallInstructions_OptInWrites(t *testing.T) {
+	base := t.TempDir()
+	withInteractive(t, true)
+	withConfirmInstructions(t, func([]string) (bool, error) { return true, nil })
+
+	captureStdout(t, func() {
+		maybeInstallInstructions(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)})
+	})
+
+	if _, err := os.Stat(filepath.Join(base, ".claude", "rules", "archcore.md")); err != nil {
+		t.Errorf("opt-in should write the instruction file: %v", err)
+	}
+}
+
+func TestMaybeInstallInstructions_DeclineSkips(t *testing.T) {
+	base := t.TempDir()
+	withInteractive(t, true)
+	withConfirmInstructions(t, func([]string) (bool, error) { return false, nil })
+
+	out := captureStdout(t, func() {
+		maybeInstallInstructions(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)})
+	})
+
+	if _, err := os.Stat(filepath.Join(base, ".claude", "rules", "archcore.md")); !os.IsNotExist(err) {
+		t.Errorf("declined hint should not write file, stat err = %v", err)
+	}
+	if !strings.Contains(out, "Skipped") {
+		t.Errorf("output should mention 'Skipped':\n%s", out)
+	}
+}
+
+func TestMaybeInstallInstructions_NonInteractiveSkips(t *testing.T) {
+	base := t.TempDir()
+	withInteractive(t, false)
+
+	out := captureStdout(t, func() {
+		maybeInstallInstructions(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)})
+	})
+
+	if _, err := os.Stat(filepath.Join(base, ".claude", "rules", "archcore.md")); !os.IsNotExist(err) {
+		t.Errorf("non-interactive should not write file, stat err = %v", err)
+	}
+	if !strings.Contains(out, "non-interactive") {
+		t.Errorf("output should mention 'non-interactive':\n%s", out)
+	}
+}

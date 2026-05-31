@@ -31,6 +31,15 @@ func TestAllAgents_RequiredFields(t *testing.T) {
 			if a.WriteMCPConfig == nil {
 				t.Error("missing WriteMCPConfig")
 			}
+			if a.InstructionsPath == nil {
+				t.Error("missing InstructionsPath")
+			}
+			if a.WriteInstructions == nil {
+				t.Error("missing WriteInstructions")
+			}
+			if a.RemoveInstructions == nil {
+				t.Error("missing RemoveInstructions")
+			}
 		})
 	}
 }

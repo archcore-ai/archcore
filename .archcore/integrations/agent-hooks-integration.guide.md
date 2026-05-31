@@ -5,10 +5,11 @@ status: accepted
 
 ## Overview
 
-Archcore integrates with AI coding agents via two mechanisms:
+Archcore integrates with AI coding agents via three mechanisms:
 
 - **Hooks** — Lifecycle event interception (session start) to inject context. Supported by Claude Code, Cursor, Gemini CLI, and GitHub Copilot. Only the `SessionStart` event is active — see [Disable Stop and Prompt Hooks ADR](disable-stop-and-prompt-hooks.adr.md).
 - **MCP** — Model Context Protocol server providing document management tools (`init_project`, `list_documents`, `get_document`, `create_document`, `update_document`, `remove_document`, `add_relation`, `remove_relation`, `list_relations`). Supported by all agents except Cline (manual setup).
+- **Instruction nudge** — A short, always-on "use Archcore" hint written into each agent's instruction file (`AGENTS.md`, `GEMINI.md`, or `.claude/rules/archcore.md`) so agents discover the MCP tools without the Archcore plugin. See [Usage Nudge](#usage-nudge-instruction-files) below.
 
 See [Supported AI Agents Registry](supported-ai-agents.doc.md) for the full agent list and capabilities.
 
@@ -29,8 +30,9 @@ archcore init
 3. If no agents are detected, prompts the user to pick one (or skips in non-interactive mode)
 4. Installs hooks for agents that support them (Claude Code, Cursor, Gemini CLI, GitHub Copilot)
 5. Installs MCP config for all detected agents
+6. Offers (opt-in) to write a usage-nudge instruction file per agent — see [Usage Nudge](#usage-nudge-instruction-files)
 
-Source: `cmd/init.go` (`installHooksForAgent` + `installMCPForAgent` loop).
+Source: `cmd/init.go` (`installHooksForAgent` + `installMCPForAgent` loop, then `maybeInstallInstructions`).
 
 ### Path B — Agent-first (MCP `init_project`)
 
@@ -59,6 +61,16 @@ Note: `archcore hooks install` also triggers MCP installation automatically.
 archcore mcp install                # auto-detect and install for all found agents
 archcore mcp install --agent codex-cli  # install for a specific agent
 ```
+
+### Usage Nudge (instruction files)
+
+```bash
+archcore instructions install              # auto-detect; write the hint for all found agents
+archcore instructions install --agent cursor  # write for a specific agent
+archcore instructions remove               # strip the hint from every known target
+```
+
+The hint points agents at `.archcore/` through the MCP tools so they discover and use it even without the Archcore plugin. `archcore init` offers this as an opt-in step (interactive only; non-interactive runs skip it). Targets: `.claude/rules/archcore.md` (Claude Code, owned file), `GEMINI.md` (Gemini CLI), `AGENTS.md` (all others). Shared files use a `<!-- archcore:start -->` / `<!-- archcore:end -->` fenced block — only that span is touched, so user content is preserved and re-running is idempotent. See [Supported AI Agents Registry](supported-ai-agents.doc.md) and the [instruction-nudge ADR](instruction-nudge-on-init.adr.md).
 
 ## Auto-Detection
 
@@ -101,6 +113,16 @@ Source: `internal/agents/agents.go` (`Detect` function), individual agent `Detec
 | OpenCode       | `opencode.json`         | Custom `mcp` section with `type` + `command` array |
 | Codex CLI      | `.codex/config.toml`    | TOML `[mcp_servers.archcore]` block                |
 | Roo Code       | `.roo/mcp.json`         | Standard `mcpServers` JSON                         |
+
+### Instruction Nudge (8 agents → 3 files, opt-in)
+
+| Agent                                                        | Instruction File            | Write Mode         |
+| ------------------------------------------------------------ | --------------------------- | ------------------ |
+| Claude Code                                                  | `.claude/rules/archcore.md` | owned (whole file) |
+| Gemini CLI                                                   | `GEMINI.md`                 | fenced upsert      |
+| Cursor, OpenCode, Codex CLI, Roo Code, Cline, GitHub Copilot | `AGENTS.md`                 | fenced upsert      |
+
+Written by the opt-in step in `archcore init` or by `archcore instructions install`. The six `AGENTS.md` agents share one file (written once).
 
 ## Per-Agent Config Examples
 

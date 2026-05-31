@@ -23,6 +23,9 @@ func openCodeAgent() *Agent {
 			return fileExists(filepath.Join(baseDir, "opencode.json")) ||
 				dirExists(filepath.Join(baseDir, ".opencode"))
 		},
+		InstructionsPath:   agentsMDInstructionsPath,
+		WriteInstructions:  writeAgentsMDInstructions,
+		RemoveInstructions: removeAgentsMDInstructions,
 	}
 }
 

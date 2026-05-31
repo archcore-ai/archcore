@@ -702,6 +702,26 @@
       "source": "mcp/adding-mcp-track-prompts.guide.md",
       "target": "code-quality/in-process-mcp-integration-tests.adr.md",
       "type": "depends_on"
+    },
+    {
+      "source": "integrations/instruction-nudge-on-init.adr.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/instruction-nudge-on-init.adr.md",
+      "target": "integrations/agent-hooks-integration.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/instruction-nudge-on-init.adr.md",
+      "target": "marketing/product-positioning.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/instruction-nudge-on-init.adr.md",
+      "target": "cli-ui/building-the-cli.guide.md",
+      "type": "related"
     }
   ]
 }

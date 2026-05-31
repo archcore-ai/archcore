@@ -22,6 +22,9 @@ func codexCLIAgent() *Agent {
 		DetectFn: func(baseDir string) bool {
 			return dirExists(filepath.Join(baseDir, ".codex"))
 		},
+		InstructionsPath:   agentsMDInstructionsPath,
+		WriteInstructions:  writeAgentsMDInstructions,
+		RemoveInstructions: removeAgentsMDInstructions,
 	}
 }
 

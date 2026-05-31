@@ -24,6 +24,14 @@ type Agent struct {
 	WriteMCPConfig       func(baseDir string) error
 	DetectFn             func(baseDir string) bool
 	ManualMCPInstallHint string // non-empty if MCP must be installed manually
+
+	// InstructionsPath returns the file archcore writes its usage nudge into for
+	// this agent. WriteInstructions installs the nudge; RemoveInstructions strips
+	// it. Several agents share one path (six map to AGENTS.md), so callers dedupe
+	// by InstructionsPath before writing.
+	InstructionsPath   func(baseDir string) string
+	WriteInstructions  func(baseDir string) error
+	RemoveInstructions func(baseDir string) error
 }
 
 // all is the ordered registry of agents. Order matters for display/iteration.

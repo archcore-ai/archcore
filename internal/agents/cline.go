@@ -16,5 +16,8 @@ func clineAgent() *Agent {
 		DetectFn: func(baseDir string) bool {
 			return dirExists(filepath.Join(baseDir, ".clinerules"))
 		},
+		InstructionsPath:   agentsMDInstructionsPath,
+		WriteInstructions:  writeAgentsMDInstructions,
+		RemoveInstructions: removeAgentsMDInstructions,
 	}
 }

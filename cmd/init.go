@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/api"
@@ -66,9 +67,14 @@ type agentSelection struct {
 // uses defaultPickAgents; tests swap it with a stub.
 type agentPicker func() (agentSelection, error)
 
+// instructionsConfirmer asks the user whether to write the Archcore usage hint
+// into the listed (relative) instruction-file paths.
+type instructionsConfirmer func(paths []string) (bool, error)
+
 var (
-	isInteractive             = defaultIsInteractive
-	pickAgents    agentPicker = defaultPickAgents
+	isInteractive                             = defaultIsInteractive
+	pickAgents          agentPicker           = defaultPickAgents
+	confirmInstructions instructionsConfirmer = defaultConfirmInstructions
 )
 
 // runInit performs the init logic after prompts have been resolved.
@@ -160,6 +166,7 @@ func newInitCmd() *cobra.Command {
 				printAgentSelectionStatus(sel)
 			} else {
 				installAgents(cwd, sel.agents)
+				maybeInstallInstructions(cwd, sel.agents)
 			}
 
 			fmt.Println()
@@ -262,6 +269,55 @@ func agentsFromPicked(picked []agents.AgentID) agentSelection {
 		return agentSelection{outcome: outcomeSkipped}
 	}
 	return agentSelection{outcome: outcomePicked, agents: result}
+}
+
+// maybeInstallInstructions offers to write the Archcore usage hint after agent
+// setup. It is opt-in: interactive users get a single confirm (default yes);
+// non-interactive runs skip with a hint, since the hint lands in user-curated
+// files (AGENTS.md, GEMINI.md) that should not be touched without consent. The
+// dedicated 'archcore instructions install' command covers automation.
+func maybeInstallInstructions(baseDir string, list []*agents.Agent) {
+	targets := dedupeByInstructionsPath(baseDir, list)
+	if len(targets) == 0 {
+		return
+	}
+
+	if !isInteractive() {
+		fmt.Println(display.Dim.Render(
+			"  Skipped Archcore usage hint (non-interactive). Run 'archcore instructions install' later."))
+		return
+	}
+
+	paths := make([]string, len(targets))
+	for i, agent := range targets {
+		paths[i] = displayPath(baseDir, agent.InstructionsPath(baseDir))
+	}
+
+	ok, err := confirmInstructions(paths)
+	if err != nil || !ok {
+		fmt.Println(display.Dim.Render(
+			"  Skipped Archcore usage hint. Run 'archcore instructions install' later."))
+		return
+	}
+	installInstructionsForAgents(baseDir, targets)
+}
+
+// defaultConfirmInstructions shows the opt-in confirm for writing the usage
+// hint. Returns (false, nil) on user abort (Ctrl+C) so init still completes.
+func defaultConfirmInstructions(paths []string) (bool, error) {
+	add := true
+	err := huh.NewConfirm().
+		Title("Add an Archcore usage hint so agents auto-discover .archcore/?").
+		Description("Writes a managed block to: " + strings.Join(paths, ", ")).
+		Value(&add).
+		Run()
+	if err != nil {
+		if errors.Is(err, huh.ErrUserAborted) {
+			return false, nil
+		}
+		return false, err
+	}
+	return add, nil
 }
 
 // defaultIsInteractive reports whether prompts can be shown. Used to skip
