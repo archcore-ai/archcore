@@ -553,6 +553,10 @@ func TestHandleSearchDocuments_LimitClampedToMax(t *testing.T) {
 	if result.IsError {
 		t.Error("unexpected error on over-max limit (should clamp)")
 	}
+	got := unmarshalSearch(t, result)
+	if len(got) > searchMaxLimit {
+		t.Errorf("snippets mode clamped to %d, got %d", searchMaxLimit, len(got))
+	}
 }
 
 func TestHandleSearchDocuments_NegativeLimitRejected(t *testing.T) {
@@ -736,5 +740,205 @@ func TestHandleSearchDocuments_MtimeAfterZeroDays(t *testing.T) {
 	got := unmarshalSearch(t, result)
 	if len(got) != 0 {
 		t.Errorf("expected 0 matches for mtime_after=0d, got %d", len(got))
+	}
+}
+
+// --- mode=full tests ---
+
+func TestHandleSearchDocuments_FullModeBodyPresentPureMetadata(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "a.rule.md",
+		"---\ntitle: Payments Rule\nstatus: accepted\n---\n\nuse Decimal for all monetary amounts")
+
+	result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		"types": []any{"rule"},
+		"mode":  "full",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) != 1 {
+		t.Fatalf("expected 1, got %d", len(got))
+	}
+	if got[0].Body == "" {
+		t.Error("mode=full with types-only filter must populate Body")
+	}
+	if !strings.Contains(got[0].Body, "Decimal") {
+		t.Errorf("Body should contain document content, got: %q", got[0].Body)
+	}
+	// Frontmatter must be stripped.
+	if strings.Contains(got[0].Body, "---") {
+		t.Errorf("Body should not contain frontmatter delimiters, got: %q", got[0].Body)
+	}
+}
+
+func TestHandleSearchDocuments_FullModeBodyPresentWithContent(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "a.rule.md",
+		"---\ntitle: Decimal Rule\nstatus: accepted\n---\n\nuse Decimal for monetary amounts")
+
+	result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		"content": "Decimal",
+		"mode":    "full",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) != 1 {
+		t.Fatalf("expected 1, got %d", len(got))
+	}
+	if got[0].Body == "" {
+		t.Error("mode=full with content filter must populate Body")
+	}
+}
+
+func TestHandleSearchDocuments_SnippetsModeNoBody(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "a.rule.md",
+		"---\ntitle: A\nstatus: accepted\n---\n\nbody text here")
+
+	result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		"types": []any{"rule"},
+		"mode":  "snippets",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) != 1 {
+		t.Fatalf("expected 1, got %d", len(got))
+	}
+	if got[0].Body != "" {
+		t.Errorf("mode=snippets must not populate Body, got: %q", got[0].Body)
+	}
+	// Verify Body is absent from JSON output (omitempty).
+	tc, _ := result.Content[0].(interface{ GetText() string })
+	_ = tc
+	if len(result.Content) > 0 {
+		if textContent, ok := result.Content[0].(interface{ GetText() string }); ok {
+			if strings.Contains(textContent.GetText(), `"body"`) {
+				t.Error("Body field must be absent from JSON in snippets mode")
+			}
+		}
+	}
+}
+
+func TestHandleSearchDocuments_FullModeDefaultLimitIsThree(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	for _, slug := range []string{"a", "b", "c", "d", "e"} {
+		writeDoc(t, base, "knowledge", slug+".rule.md",
+			"---\ntitle: T"+slug+"\nstatus: accepted\n---\n\nbody")
+	}
+
+	result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		"types": []any{"rule"},
+		"mode":  "full",
+		// limit omitted — must default to searchFullDefaultLimit=3
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) != searchFullDefaultLimit {
+		t.Errorf("full mode default limit = %d, got %d", searchFullDefaultLimit, len(got))
+	}
+}
+
+func TestHandleSearchDocuments_FullModeDefaultLimitOverridable(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	for _, slug := range []string{"a", "b", "c", "d", "e"} {
+		writeDoc(t, base, "knowledge", slug+".rule.md",
+			"---\ntitle: T"+slug+"\nstatus: accepted\n---\n\nbody")
+	}
+
+	result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		"types": []any{"rule"},
+		"mode":  "full",
+		"limit": float64(5),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) != 5 {
+		t.Errorf("expected 5 (explicit limit), got %d", len(got))
+	}
+}
+
+func TestHandleSearchDocuments_FullModeLimitClampedTo20(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "a.rule.md",
+		"---\ntitle: A\nstatus: accepted\n---\n\nbody")
+
+	result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		"types": []any{"rule"},
+		"mode":  "full",
+		"limit": float64(999),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsError {
+		t.Error("unexpected error on over-max limit in full mode (should clamp)")
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) > searchFullMaxLimit {
+		t.Errorf("full mode clamped to %d, got %d", searchFullMaxLimit, len(got))
+	}
+}
+
+func TestHandleSearchDocuments_FullModeFrontmatterOnlyDocEmptyBody(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	// Document has frontmatter but no body content.
+	writeDoc(t, base, "knowledge", "a.rule.md",
+		"---\ntitle: Empty Body\nstatus: accepted\n---\n")
+
+	result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		"types": []any{"rule"},
+		"mode":  "full",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) != 1 {
+		t.Fatalf("expected 1, got %d", len(got))
+	}
+	if strings.Contains(got[0].Body, "---") {
+		t.Errorf("Body must not contain raw frontmatter, got: %q", got[0].Body)
+	}
+}
+
+func TestHandleSearchDocuments_UnknownModeFallsBackToSnippets(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "a.rule.md",
+		"---\ntitle: A\nstatus: accepted\n---\n\nbody text")
+
+	result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		"types": []any{"rule"},
+		"mode":  "unknown_value",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsError {
+		t.Error("unknown mode must not return an error (fallback to snippets)")
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) != 1 {
+		t.Fatalf("expected 1, got %d", len(got))
+	}
+	if got[0].Body != "" {
+		t.Errorf("unknown mode must behave as snippets (no Body), got: %q", got[0].Body)
 	}
 }

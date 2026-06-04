@@ -103,14 +103,23 @@ Split at an even finer grain: the first tool does search, the second tool takes 
 
 ## Implementation Notes
 
-- Delivered in Sprint 1 per `.archcore/mcp/search-documents-implementation.plan.md`.
+- Delivered in the initial `search_documents` implementation sprint.
 - Ranking is computed in Go via the `sort="relevance"` / `sort="mtime"` parameter. Callers MUST NOT re-sort; the tool's order is authoritative.
 - Relations enrichment (`incoming_relations` / `outgoing_relations`) is in-tool so callers avoid N extra `list_relations` calls when traversing relation graphs.
 - UTF-8 safety and lazy body loading were added post-review based on code-review feedback; both have regression tests.
 
+### Addendum (2026-06): `mode=full` does not cross the matching/presentation line
+
+A later change added a `mode` parameter (`snippets` default / `full`). In `full` mode each result inlines the matched document's body (frontmatter stripped) so a caller can read the doc without a follow-up `get_document`; full mode carries smaller limit bounds (default 3, max 20) to keep one response token-bounded. This decision is unchanged by that addition, and the boundary is worth restating explicitly:
+
+- **`mode=full` returns raw data, not opinionated layout.** It does none of the things this ADR forbids — no category grouping, no top-N-per-category, no type-to-section mapping, no markdown rendering, no empty-state copy, no guide routing. It simply attaches the unmodified body. "Presentation" here means *opinionated, product-evolving layout decisions*; inlining a raw body is neither opinionated nor likely to churn.
+- **It does overlap `get_document` — deliberately.** The "Current State" framing above treated matching (`search_documents`) and single-doc fetch (`get_document`) as cleanly separate. `mode=full` softens that line: discover-and-read can now happen in one call, and the tool description steers callers toward `search_documents(mode=full)` over `search + get_document` when the goal is to read the matches. This was accepted as a token-efficiency convenience (one round-trip instead of N+1), not a re-architecture — `get_document` remains the right tool when the caller already knows the exact path and needs the relation graph for a single doc.
+- **Bounds protect the primitive's character.** The small full-mode limits keep the tool from becoming a bulk-export surface; it stays a *matching* tool that can optionally hand back the matched bodies, not a documents dump.
+
+If full mode ever grows opinionated formatting (sectioning, rendering, summarization), that WOULD cross this ADR's line and should be revisited as a new decision.
+
 ## References
 
 - Tool contract: `.archcore/mcp/search-documents.spec.md`
-- Implementation plan: `.archcore/mcp/search-documents-implementation.plan.md`
 - Implementation: @internal/mcp/tools/search_documents.go
 - Related MCP decisions: `.archcore/mcp/no-list-tags-tool.adr.md`, `.archcore/mcp/mcp-server-starts-without-archcore-dir.adr.md`

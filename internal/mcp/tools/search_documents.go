@@ -50,7 +50,17 @@ var typePriority = map[string]int{
 const (
 	searchDefaultLimit = 50
 	searchMaxLimit     = 200
-	excerptWindow      = 120
+	// In full mode each result carries the document body, so the default and
+	// max result counts are smaller to keep a single response token-bounded.
+	searchFullDefaultLimit = 3
+	searchFullMaxLimit     = 20
+	excerptWindow          = 120
+)
+
+// search_documents output modes.
+const (
+	searchModeSnippets = "snippets" // excerpt windows only (default)
+	searchModeFull     = "full"     // also include each matched doc's body inline
 )
 
 const searchDocumentsDescription = `Search .archcore/ documents by content or filters.
@@ -61,7 +71,9 @@ Returns: JSON array of matched documents with title, type, status, mtime, tags, 
 
 Filters combine as AND. At least one filter must be provided. Use path_ref for path references (matches both @-notation and qualified bare paths). Use content for free-text substring search across title+body. Topic search is strict substring — singular/plural forms do not match.
 
-Prefer this tool over list_documents + get_document loops when you need "which docs match X".`
+Set ` + "`mode=full`" + ` when your goal is to read the matched document(s): each result then carries the full document body inline (frontmatter stripped), so you get answer-ready content in a single call and do NOT need a follow-up get_document. Full mode defaults to a small limit (3); raise ` + "`limit`" + ` if you need more candidates. Leave mode at the default "snippets" (excerpt windows only) when you just need to discover which docs match.
+
+Prefer this tool over list_documents + get_document loops when you need "which docs match X" — and prefer search_documents(mode=full) over search + get_document when you then need to read those docs.`
 
 // searchMatch is one piece of evidence tying a document to the query.
 type searchMatch struct {
@@ -73,15 +85,18 @@ type searchMatch struct {
 
 // searchResult is the per-document row returned by search_documents.
 type searchResult struct {
-	Path              string              `json:"path"`
-	Title             string              `json:"title"`
-	Type              string              `json:"type"`
-	Status            templates.DocStatus `json:"status,omitempty"`
-	ModTime           time.Time           `json:"mtime"`
-	Tags              []string            `json:"tags,omitempty"`
-	Matches           []searchMatch       `json:"matches"`
-	IncomingRelations []DocumentRelation  `json:"incoming_relations"`
-	OutgoingRelations []DocumentRelation  `json:"outgoing_relations"`
+	Path    string              `json:"path"`
+	Title   string              `json:"title"`
+	Type    string              `json:"type"`
+	Status  templates.DocStatus `json:"status,omitempty"`
+	ModTime time.Time           `json:"mtime"`
+	Tags    []string            `json:"tags,omitempty"`
+	Matches []searchMatch       `json:"matches"`
+	// Body is the full document body (frontmatter stripped), populated only in
+	// mode=full so callers can read the matched doc without a get_document call.
+	Body              string             `json:"body,omitempty"`
+	IncomingRelations []DocumentRelation `json:"incoming_relations"`
+	OutgoingRelations []DocumentRelation `json:"outgoing_relations"`
 
 	// Private ranking keys, not serialized.
 	maxSpecificity int
@@ -127,8 +142,12 @@ func NewSearchDocumentsTool() mcp.Tool {
 			mcp.Description("Result ordering. \"relevance\" (default) = max specificity DESC → type priority → mtime DESC. \"mtime\" = pure mtime DESC."),
 			mcp.Enum("relevance", "mtime"),
 		),
+		mcp.WithString("mode",
+			mcp.Description("Output detail. \"snippets\" (default) returns only excerpt windows around matches. \"full\" additionally returns each matched document's full body inline (frontmatter stripped), so you can read the doc without a follow-up get_document. Full mode defaults to limit=3 (max 20)."),
+			mcp.Enum(searchModeSnippets, searchModeFull),
+		),
 		mcp.WithNumber("limit",
-			mcp.Description("Maximum number of results to return. Default 50, max 200. Values above 200 are clamped; 0 or omitted both map to the default."),
+			mcp.Description("Maximum number of results to return. Defaults and caps are mode-dependent: snippets=50 default/200 max, full=3 default/20 max. Values above the cap are clamped; 0 or omitted maps to the mode default."),
 		),
 		mcp.WithTitleAnnotation("Search Documents"),
 		mcp.WithReadOnlyHintAnnotation(true),
@@ -144,23 +163,35 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 		status := templates.DocStatus(request.GetString("status", ""))
 		mtimeAfterRaw := strings.TrimSpace(request.GetString("mtime_after", ""))
 		sortMode := request.GetString("sort", "relevance")
-		limitFloat := request.GetFloat("limit", float64(searchDefaultLimit))
+		mode := request.GetString("mode", searchModeSnippets)
+		// Normalize defensively (the framework enforces the enum, but any value
+		// other than "full" maps to the cheaper snippets output).
+		if mode != searchModeFull {
+			mode = searchModeSnippets
+		}
+		// 0 / omitted => mode-dependent default (full mode is smaller because each
+		// result carries a body).
+		limitFloat := request.GetFloat("limit", 0)
 
 		// Validate at least one filter.
 		if pathRefFilter == "" && contentFilter == "" && len(types) == 0 && status == "" {
 			return errorResult("specify at least one filter (path_ref, content, types, or status)"), nil
 		}
 
-		// Validate and clamp limit.
+		// Validate and clamp limit (mode-aware bounds).
 		if limitFloat < 0 {
 			return errorResult("limit must be non-negative"), nil
 		}
+		defaultLimit, maxLimit := searchDefaultLimit, searchMaxLimit
+		if mode == searchModeFull {
+			defaultLimit, maxLimit = searchFullDefaultLimit, searchFullMaxLimit
+		}
 		limit := int(limitFloat)
 		if limit == 0 {
-			limit = searchDefaultLimit
+			limit = defaultLimit
 		}
-		if limit > searchMaxLimit {
-			limit = searchMaxLimit
+		if limit > maxLimit {
+			limit = maxLimit
 		}
 
 		// Parse mtime_after.
@@ -177,7 +208,7 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 		// Only load bodies when we actually need them. Pure metadata queries
 		// (types / status / mtime_after) never inspect body content, so we
 		// avoid holding up to N×body_size on the heap for the request.
-		needsBody := pathRefFilter != "" || contentFilter != ""
+		needsBody := pathRefFilter != "" || contentFilter != "" || mode == searchModeFull
 		var docs []LocalDocument
 		if needsBody {
 			docs, err = ScanDocumentsFull(baseDir)
@@ -286,6 +317,13 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 				OutgoingRelations: []DocumentRelation{},
 				maxSpecificity:    maxSpec,
 				typeRank:          rank,
+			}
+
+			// In full mode, attach the body so the caller can read the doc
+			// without a separate get_document round-trip. Content is present
+			// because needsBody forced ScanDocumentsFull above.
+			if mode == searchModeFull {
+				result.Body = stripFrontmatter(doc.Content)
 			}
 
 			if manifest != nil {

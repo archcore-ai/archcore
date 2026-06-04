@@ -564,36 +564,6 @@
       "type": "related"
     },
     {
-      "source": "mcp/search-documents-implementation.plan.md",
-      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/search-documents-implementation.plan.md",
-      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/search-documents-implementation.plan.md",
-      "target": "mcp/no-list-tags-tool.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/search-documents-implementation.plan.md",
-      "target": "mcp/search-documents.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/search-documents-implementation.plan.md",
-      "target": "mcp/tag-update-semantics.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/search-documents-implementation.plan.md",
-      "target": "mcp/tags-implementation.plan.md",
-      "type": "related"
-    },
-    {
       "source": "mcp/search-documents-matching-not-presentation.adr.md",
       "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
       "type": "related"
@@ -610,11 +580,6 @@
     },
     {
       "source": "mcp/search-documents-matching-not-presentation.adr.md",
-      "target": "mcp/search-documents-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/search-documents-matching-not-presentation.adr.md",
       "target": "mcp/search-documents.spec.md",
       "type": "related"
     },
@@ -627,11 +592,6 @@
       "source": "mcp/search-documents-matching-not-presentation.adr.md",
       "target": "mcp/tags-implementation.plan.md",
       "type": "related"
-    },
-    {
-      "source": "mcp/search-documents.spec.md",
-      "target": "mcp/search-documents-implementation.plan.md",
-      "type": "implements"
     },
     {
       "source": "code-quality/in-process-mcp-integration-tests.adr.md",

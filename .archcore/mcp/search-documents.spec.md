@@ -22,6 +22,7 @@ It is normative for:
 - Content (topic) matching algorithm.
 - Specificity computation.
 - Ranking modes (`relevance`, `mtime`).
+- Output modes (`snippets` excerpt windows vs. `full` inline document body).
 - Excerpt construction (including UTF-8 safety).
 - Relations enrichment from the manifest.
 - Lazy body loading behavior.
@@ -30,7 +31,7 @@ It is normative for:
 
 ### Does Not Cover
 
-- Persistent path index in `.sync-state.json` — deferred (see plan §Out of Scope).
+- Persistent path index in `.sync-state.json` — deferred (out of scope for the current contract).
 - Hook-time invocation semantics — deferred to a future hook spec.
 - Semantic / embedding search — out of scope.
 
@@ -48,7 +49,6 @@ If the implementation, tests, or downstream consumers diverge from this specific
 - Shared scan helpers: @internal/mcp/tools/common.go (`ScanDocuments`, `ScanDocumentsFull`)
 - Manifest loading: @internal/sync/manifest.go
 - Source-extension list: @templates/source_extensions.go
-- Implementation plan: `.archcore/mcp/search-documents-implementation.plan.md`
 
 ## Subject
 
@@ -68,6 +68,7 @@ If the implementation, tests, or downstream consumers diverge from this specific
 | Specificity        | A non-negative integer measure of how precisely a candidate match relates to the filter.                                                                        |
 | Manifest           | The JSON file at `.archcore/.sync-state.json` that stores document relations, loaded via `sync.LoadManifest`.                                                   |
 | Source extension   | An extension listed in `templates.IsSourceExtension` (e.g., `.go`, `.ts`, `.py`, `.md`).                                                                        |
+| Output mode        | The `mode` parameter selecting payload detail: `snippets` (excerpt windows only) or `full` (also inline the matched document's body).                            |
 
 ## Contract Surface
 
@@ -85,7 +86,8 @@ Exposed over MCP using `github.com/mark3labs/mcp-go`. Registered from `NewServer
 | `status`      | string   | conditional | Filter by frontmatter status. Enum: `draft`, `accepted`, `rejected`.                                                                          |
 | `mtime_after` | string   | no          | Inclusive lower bound on document mtime. Accepts RFC3339 (ISO-8601) or a positive relative duration: `<N>h`, `<N>d`, `<N>w`, `<N>mo`, `<N>y`. |
 | `sort`        | string   | no          | Ordering mode. Enum: `relevance` (default), `mtime`.                                                                                          |
-| `limit`       | number   | no          | Maximum number of results. Default 50, maximum 200. Values above 200 are clamped; `0` or omitted both map to the default.                     |
+| `mode`        | string   | no          | Output detail. Enum: `snippets` (default), `full`. `snippets` returns only excerpt windows around matches. `full` additionally returns each matched document's full body inline (frontmatter stripped), so the caller can read the doc without a follow-up `get_document`. Any value other than `full` maps to `snippets`. |
+| `limit`       | number   | no          | Maximum number of results. Mode-dependent: `snippets` = default 50 / max 200; `full` = default 3 / max 20. Values above the cap are clamped; `0` or omitted maps to the mode default. |
 
 At least one of `path_ref`, `content`, `types`, or `status` MUST be provided.
 
@@ -102,6 +104,7 @@ A JSON array of `searchResult` objects. Each object has the following fields:
 | `mtime`              | string (RFC3339) | always                  | File modification time.                                          |
 | `tags`               | string[]         | omit if empty           | Frontmatter tags.                                                |
 | `matches`            | Match[]          | always                  | Evidence array. Always present; empty for pure metadata queries. |
+| `body`               | string           | omit unless `mode=full` | Full document body with frontmatter stripped. Populated only in `full` mode; omitted (never empty string) in `snippets` mode. |
 | `incoming_relations` | Relation[]       | always (possibly empty) | Manifest edges where this doc is the target.                     |
 | `outgoing_relations` | Relation[]       | always (possibly empty) | Manifest edges where this doc is the source.                     |
 
@@ -118,18 +121,19 @@ A JSON array of `searchResult` objects. Each object has the following fields:
 
 ## Normative Behavior
 
-### §1 Filter validation
+### §1 Filter and parameter validation
 
 1. The handler MUST reject calls where all of `path_ref`, `content`, `types`, and `status` are empty or absent, returning the MCP error `specify at least one filter (path_ref, content, types, or status)`.
 2. The handler MUST reject `limit < 0` with the error `limit must be non-negative`.
-3. The handler MUST treat `limit == 0` as equivalent to omitted — both produce the default of 50.
-4. The handler MUST clamp `limit > 200` to 200 without emitting an error.
+3. The handler MUST treat `limit == 0` as equivalent to omitted — both produce the mode default (snippets: 50, full: 3).
+4. The handler MUST clamp `limit` above the mode cap (snippets: 200, full: 20) to that cap without emitting an error.
 5. `mtime_after` MUST accept both RFC3339 timestamps and positive relative durations of the form `<N>h`, `<N>d`, `<N>w`, `<N>mo`, `<N>y`. Invalid input MUST return the error `invalid mtime_after: <reason>`.
+6. The handler MUST normalize `mode` defensively: any value other than `full` (including omitted) maps to `snippets`. The framework enforces the enum, but the handler MUST NOT rely on that alone.
 
 ### §2 Document loading
 
-1. When `path_ref` and `content` are both empty, the handler MUST call `ScanDocuments(baseDir)`, which does not retain document bodies in memory beyond the frontmatter parse.
-2. When either `path_ref` or `content` is non-empty, the handler MUST call `ScanDocumentsFull(baseDir)`, which retains bodies on each `LocalDocument`.
+1. When `path_ref` and `content` are both empty AND `mode` is `snippets`, the handler MUST call `ScanDocuments(baseDir)`, which does not retain document bodies in memory beyond the frontmatter parse.
+2. When either `path_ref` or `content` is non-empty, OR `mode` is `full`, the handler MUST call `ScanDocumentsFull(baseDir)`, which retains bodies on each `LocalDocument`. (Full mode needs bodies to populate the `body` field even for pure-metadata filters.)
 3. Scanner I/O cost MUST be identical in both cases; only heap retention differs.
 
 ### §3 Manifest loading
@@ -180,7 +184,7 @@ When `content` is non-empty, for each document:
 
 ### §8 Truncation
 
-After sorting, the handler MUST truncate the result slice to `limit` entries.
+After sorting, the handler MUST truncate the result slice to `limit` entries (the mode-resolved limit from §1.3–§1.4).
 
 ### §9 Excerpt construction
 
@@ -201,16 +205,24 @@ For every emitted result, the handler MUST populate `incoming_relations` and `ou
 2. `matches` MUST be an empty array, never `null`, when a document passed metadata filters but has no per-match evidence (pure metadata query).
 3. `mtime` MUST always be present in RFC3339 format. The `omitzero` JSON tag applies at the `LocalDocument` layer but the result-level struct serializes `mtime` unconditionally.
 
+### §12 Full-mode body
+
+1. When `mode="full"`, each emitted result MUST carry a `body` field containing the matched document's full body with the YAML frontmatter block stripped (`stripFrontmatter(doc.Content)`).
+2. When `mode="snippets"` (default), the `body` field MUST be omitted from the JSON entirely (`omitempty`), never emitted as an empty string.
+3. Full mode does NOT change matching, ranking, or excerpt behavior; `matches` excerpts are still emitted alongside the body. It only adds the inline body and applies the smaller mode-specific limit bounds (§1.3–§1.4).
+
 ## Constraints
 
 | Constraint                          | Value                     | Rationale                                                                                |
 | ----------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------- |
-| Default limit                       | 50                        | Balances coverage and payload size for typical LLM invocations.                          |
-| Maximum limit                       | 200                       | Caps payload to bounded size even when caller requests more.                             |
+| Default limit (snippets)            | 50                        | Balances coverage and payload size for typical LLM invocations.                          |
+| Maximum limit (snippets)            | 200                       | Caps payload to bounded size even when caller requests more.                             |
+| Default limit (full)                | 3                         | Each result carries a full body; a small default keeps a single response token-bounded.  |
+| Maximum limit (full)                | 20                        | Hard cap on how many full bodies one response may inline.                                |
 | Excerpt window                      | 120 chars                 | Keeps per-match payload small while carrying enough context for user/LLM disambiguation. |
-| Cold-scan target                    | ≤ 500 ms P95 for 200 docs | Informal target from plan; not enforced by test harness yet.                             |
-| Heap growth for pure-metadata query | O(N × frontmatter_size)   | Bodies are not retained when `path_ref` and `content` are both empty.                    |
-| Heap growth for content query       | O(N × body_size)          | Bodies are retained; bounded by the `.archcore/` directory size.                         |
+| Cold-scan target                    | ≤ 500 ms P95 for 200 docs | Informal target; not enforced by test harness yet.                                       |
+| Heap growth for pure-metadata query | O(N × frontmatter_size)   | Bodies are not retained when `path_ref` and `content` are both empty AND `mode=snippets`. |
+| Heap growth for content / full query | O(N × body_size)         | Bodies are retained; bounded by the `.archcore/` directory size.                         |
 
 ## Invariants
 
@@ -241,7 +253,7 @@ For every emitted result, the handler MUST populate `incoming_relations` and `ou
 
 An implementation conforms to this specification if it satisfies:
 
-- All MUST and MUST NOT statements in §§1–11.
+- All MUST and MUST NOT statements in §§1–12.
 - All stated invariants.
 - All applicable error-handling rows.
 - The recorded unit tests in @internal/mcp/tools/search_documents_test.go (these tests are the executable acceptance harness for this spec).
@@ -308,6 +320,36 @@ search_documents({
 // ScanDocuments is used (not ScanDocumentsFull) — bodies are not loaded.
 ```
 
+### Full mode (read matched docs in one call)
+
+```txt
+// Input
+search_documents({
+  content: "sync manifest",
+  mode: "full"
+})
+
+// Output (abbreviated; default limit is 3 in full mode)
+[
+  {
+    "path": ".archcore/sync/sync-source-of-truth.rule.md",
+    "type": "rule",
+    "status": "accepted",
+    "mtime": "2026-04-03T11:24:04Z",
+    "matches": [
+      { "kind": "content", "ref": "sync manifest", "specificity": 1, "excerpt": "...the sync manifest is..." }
+    ],
+    "body": "## Rule\n\nLocal .archcore/ is the only source of truth...\n",
+    "incoming_relations": [],
+    "outgoing_relations": []
+  }
+]
+
+// Notes
+// `body` is the frontmatter-stripped document content; no follow-up get_document needed.
+// Full mode forces ScanDocumentsFull and defaults to limit=3 (max 20).
+```
+
 ### Invalid filter
 
 ```txt
@@ -326,6 +368,6 @@ search_documents({})
 
 ## Compatibility
 
-- The response shape is additive: new fields MAY be added to `searchResult` or `Match` without breaking existing consumers that ignore unknown fields.
+- The response shape is additive: new fields MAY be added to `searchResult` or `Match` without breaking existing consumers that ignore unknown fields. The `body` field (added with `mode=full`) is one such additive field — absent in `snippets` mode.
 - Existing field names, types, and enum values MUST NOT be removed or repurposed in a minor CLI release. A breaking change requires a new major version.
-- The `sort` enum MAY grow additional values (e.g., `created_at`) in a minor release; existing `relevance` and `mtime` semantics MUST remain stable.
+- The `sort` and `mode` enums MAY grow additional values in a minor release; existing `relevance`, `mtime`, `snippets`, and `full` semantics MUST remain stable.
