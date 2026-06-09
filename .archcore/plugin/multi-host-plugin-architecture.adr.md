@@ -63,7 +63,7 @@ plugin/
 │   └── codex.hooks.json         # Codex CLI (PascalCase events + apply_patch matcher)
 │
 ├── .mcp.json                    # Claude Code — { "archcore": { "command": "archcore", "args": ["mcp"] } }
-├── .codex.mcp.json              # Codex CLI — same shape
+├── .codex.mcp.json              # Codex CLI — direct server map
 ├── docs/cursor.mcp.example.json # Reference template users copy into ~/.cursor/mcp.json
 └── rules/                       # Cursor-only context rules (.mdc)
 ```
@@ -74,7 +74,7 @@ Skills, agents, and hook scripts are maintained once. All host-specific adapters
 
 ### MCP wiring
 
-MCP is wired via plugin-shipped configs for Claude Code (`.mcp.json`) and Codex CLI (`.codex.mcp.json` pointed at by `.codex-plugin/plugin.json`'s `mcpServers` field). Both name `archcore` directly; the host runtime resolves it from PATH. Both hosts launch the MCP with cwd inherited from the user's project process, which is the correct workspace.
+MCP is wired via plugin-shipped configs for Claude Code (`.mcp.json`) and Codex CLI (`.codex.mcp.json` pointed at by `.codex-plugin/plugin.json`'s `mcpServers` field). Both name `archcore` directly; Codex uses a direct server map in `.codex.mcp.json`, while Claude Code uses its `mcpServers` wrapper. The host runtime resolves `archcore` from PATH. Both hosts launch the MCP with cwd inherited from the user's project process, which is the correct workspace.
 
 Cursor is the exception. Cursor 2.5+ does auto-detect plugin-shipped MCP configs (per the [official plugins reference](https://cursor.com/docs/reference/plugins.md), an `mcp.json` at the plugin root registers under "Plugin MCP Servers"), but it spawns the plugin-MCP from the plugin install directory rather than the workspace, and its MCP stdio schema has no `cwd` field ([forum #74861](https://forum.cursor.com/t/allow-workspacefolder-in-mcp-project-configration/74861), [forum #99215](https://forum.cursor.com/t/how-get-the-correct-current-work-directory-in-mcp-server/99215)). Until those gaps close upstream, shipping a plugin-MCP for Cursor would cause the server to read from the plugin install dir instead of the user's project. We therefore deliberately do **not** ship a plugin-MCP for Cursor: no `mcpServers` field in `.cursor-plugin/plugin.json`, no `mcp.json` at the plugin root, and the reference template lives under `docs/` so it cannot trigger auto-detection. Cursor users copy `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` or `.cursor/mcp.json`; the template passes `--project ${workspaceFolder}` in `args` so the server resolves the workspace regardless of cwd. See `cursor-mcp-architecture.adr.md` for the full rationale and three-layer defense (release-strip, docs-only template, runtime guards).
 

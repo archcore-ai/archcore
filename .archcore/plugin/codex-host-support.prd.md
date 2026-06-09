@@ -9,7 +9,7 @@ tags:
 
 ## Vision
 
-Archcore plugin runs natively in OpenAI Codex CLI as a third first-class host alongside Claude Code (production) and Cursor (implemented), installable via the plugin marketplace, with Codex-native packaging for slash commands, skills, plugin-managed MCP, hooks config, and a read-only auditor subagent TOML. Hook execution depends on Codex's `codex_hooks` feature/runtime support — the plugin ships the documented hook surface and treats live hook execution as a runtime smoke-test item. Zero regression for existing Claude Code and Cursor users.
+Archcore plugin runs natively in OpenAI Codex CLI as a third first-class host alongside Claude Code (production) and Cursor (implemented), installable via the plugin marketplace, with Codex-native packaging for slash commands, skills, plugin-managed MCP, hooks config, and a read-only auditor subagent TOML. Hook execution uses Codex's current hooks runtime (`[features].hooks`; `codex_hooks` is a deprecated alias) and still requires user trust for plugin-bundled hooks. Zero regression for existing Claude Code and Cursor users.
 
 ## Problem Statement
 
@@ -23,7 +23,7 @@ Users of OpenAI Codex CLI need the same Archcore surfaces Claude Code users get:
 | Skill parity | All 16 skills discoverable and invokable in Codex without modifications to existing SKILL.md files |
 | Slash command parity | All 16 user-facing Archcore workflows available in Codex as `/archcore:*` via `commands/*.md` wrappers |
 | MCP parity with Claude Code | Plugin-shipped MCP works in Codex (no external `codex mcp add` needed) |
-| Hook packaging | `hooks/codex.hooks.json` ships the same guardrails as Claude Code with Codex matchers (incl. `apply_patch`); live execution gated by `codex_hooks` feature |
+| Hook packaging | `hooks/codex.hooks.json` ships the same guardrails as Claude Code with Codex matchers (incl. `apply_patch`); live execution uses the current Codex hooks runtime and plugin-hook trust flow |
 | Auditor subagent | `archcore-auditor` runs in `sandbox_mode = "read-only"` with no file-write and (where supported) `disabled_tools[]` blocking mutating MCP tools |
 | Zero regression | All existing tests pass unchanged; Claude Code and Cursor flows verified manually |
 | Shared bin/ invariant | No host-specific logic added to bin scripts beyond an explicit `codex` branch in `normalize-stdin.sh` |
@@ -46,9 +46,9 @@ Users of OpenAI Codex CLI need the same Archcore surfaces Claude Code users get:
 - PostToolUse (`mcp__archcore__update_document`) → `./bin/check-cascade` (3s)
 - PostToolUse (`mcp__archcore__create_document|update_document`) → `./bin/check-precision` (3s)
 
-Plugin-relative `./bin/...` (Codex does not expose `${CODEX_PLUGIN_ROOT}`). PascalCase event names. Runtime execution requires `[features].codex_hooks = true`.
+Commands use `${PLUGIN_ROOT}/bin/...`, the Codex plugin-hook environment variable for the installed plugin root. PascalCase event names. Runtime execution uses `[features].hooks`; `codex_hooks` is only a deprecated alias.
 
-**F4 — MCP Wiring.** Plugin-shipped MCP registration through `.codex-plugin/plugin.json` `mcpServers: "./.codex.mcp.json"`. The `.codex.mcp.json` file at the plugin root uses the canonical shape `{ "mcpServers": { "archcore": { "command": "archcore", "args": ["mcp"] } } }` — `command: "archcore"` resolved via PATH from the host process. No `cwd`, no `env_vars`, no plugin-relative paths.
+**F4 — MCP Wiring.** Plugin-shipped MCP registration through `.codex-plugin/plugin.json` `mcpServers: "./.codex.mcp.json"`. The `.codex.mcp.json` file at the plugin root uses Codex's documented direct server map shape `{ "archcore": { "command": "archcore", "args": ["mcp"] } }` — `command: "archcore"` resolved via PATH from the host process. No wrapper object, no `cwd`, no `env_vars`, no plugin-relative paths.
 
 **F5 — Stdin Normalization.** Add an explicit `codex` branch to `bin/lib/normalize-stdin.sh` host detection (heuristic: `turn_id` without `conversation_id`/`hookEventName`). Codex uses snake_case stdin identical to Claude Code, so field extraction mirrors the `claude-code` branch. Output helpers emit `hookSpecificOutput.additionalContext` for `codex` (same shape as Claude Code).
 

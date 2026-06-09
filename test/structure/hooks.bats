@@ -12,7 +12,7 @@ setup() {
   local missing=""
   while IFS= read -r cmd; do
     local resolved
-    resolved=$(echo "$cmd" | sed "s|\${CLAUDE_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
+    resolved=$(echo "$cmd" | sed "s|\"||g; s|\${CLAUDE_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
     if [ ! -f "$resolved" ]; then
       missing="$missing $cmd"
     fi
@@ -24,7 +24,7 @@ setup() {
   local not_exec=""
   while IFS= read -r cmd; do
     local resolved
-    resolved=$(echo "$cmd" | sed "s|\${CLAUDE_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
+    resolved=$(echo "$cmd" | sed "s|\"||g; s|\${CLAUDE_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
     if [ -f "$resolved" ] && [ ! -x "$resolved" ]; then
       not_exec="$not_exec $cmd"
     fi
@@ -38,7 +38,7 @@ setup() {
   local missing=""
   while IFS= read -r cmd; do
     local resolved
-    resolved=$(echo "$cmd" | sed "s|\${CURSOR_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
+    resolved=$(echo "$cmd" | sed "s|\"||g; s|\${CURSOR_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
     if [ ! -f "$resolved" ]; then
       missing="$missing $cmd"
     fi
@@ -76,7 +76,7 @@ setup() {
   local not_exec=""
   while IFS= read -r cmd; do
     local resolved
-    resolved=$(echo "$cmd" | sed "s|\${CURSOR_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
+    resolved=$(echo "$cmd" | sed "s|\"||g; s|\${CURSOR_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
     if [ -f "$resolved" ] && [ ! -x "$resolved" ]; then
       not_exec="$not_exec $cmd"
     fi
@@ -157,8 +157,8 @@ setup() {
 
 @test "both hook configs reference the same set of scripts" {
   local cc_scripts cursor_scripts
-  cc_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/hooks.json" | sed 's|${CLAUDE_PLUGIN_ROOT}||' | sort -u)
-  cursor_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/cursor.hooks.json" | sed 's|${CURSOR_PLUGIN_ROOT}||' | sort -u)
+  cc_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/hooks.json" | sed 's|"||g; s|${CLAUDE_PLUGIN_ROOT}||' | sort -u)
+  cursor_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/cursor.hooks.json" | sed 's|"||g; s|${CURSOR_PLUGIN_ROOT}||' | sort -u)
   [ "$cc_scripts" = "$cursor_scripts" ] || {
     echo "Claude Code scripts: $cc_scripts"
     echo "Cursor scripts: $cursor_scripts"
@@ -168,8 +168,8 @@ setup() {
 
 @test "codex hook config references the same script set as Claude Code" {
   local cc_scripts codex_scripts
-  cc_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/hooks.json" | sed 's|${CLAUDE_PLUGIN_ROOT}/||' | sort -u)
-  codex_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/codex.hooks.json" | sed 's|${PLUGIN_ROOT}/||' | sort -u)
+  cc_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/hooks.json" | sed 's|"||g; s|${CLAUDE_PLUGIN_ROOT}/||' | sort -u)
+  codex_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/codex.hooks.json" | sed 's|"||g; s|${PLUGIN_ROOT}/||' | sort -u)
   [ "$cc_scripts" = "$codex_scripts" ] || {
     echo "Claude Code scripts: $cc_scripts"
     echo "Codex scripts: $codex_scripts"

@@ -65,10 +65,12 @@ setup() {
 @test ".codex.mcp.json invokes the global CLI" {
   local file="$PLUGIN_ROOT/.codex.mcp.json"
   jq . < "$file" > /dev/null
-  [ "$(jq -r '.mcpServers.archcore.command' < "$file")" = "archcore" ] \
+  [ "$(jq -r '.archcore.command' < "$file")" = "archcore" ] \
     || fail "command must be 'archcore' (resolved via PATH)"
-  [ "$(jq -r '.mcpServers.archcore.args[0]' < "$file")" = "mcp" ] \
+  [ "$(jq -r '.archcore.args[0]' < "$file")" = "mcp" ] \
     || fail "args[0] must be 'mcp'"
+  [ "$(jq -r 'has("mcpServers") or has("mcp_servers")' < "$file")" = "false" ] \
+    || fail ".codex.mcp.json should use the Codex-documented direct server map"
 }
 
 @test "codex plugin metadata matches Claude Code plugin metadata" {

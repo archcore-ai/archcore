@@ -34,7 +34,7 @@ Static format-conformance audit for the archcore multi-host plugin. Validates th
 ### OpenAI Codex CLI (openai/codex)
 - Codex CLI repo — https://github.com/openai/codex
 - Codex plugins overview — https://github.com/openai/codex/blob/main/docs/plugins.md (when not reachable, treat the internal Archcore spec as ground truth)
-- Codex hooks docs — https://github.com/openai/codex/blob/main/docs/hooks.md (gated by `[features].codex_hooks = true` in `~/.codex/config.toml`)
+- Codex hooks docs — https://developers.openai.com/codex/hooks (`[features].hooks` is the canonical feature key; `codex_hooks` is only a deprecated alias)
 
 ### Archcore internal conformance (normative for this repo)
 - `.archcore/plugin/plugin-architecture.spec.md` — layer counts, tier prefixes, invocation flags
@@ -257,7 +257,7 @@ Expected PostToolUse shape:
 - One entry matching `mcp__archcore__update_document` → `./bin/check-cascade` (timeout 3)
 - One entry matching `mcp__archcore__create_document|mcp__archcore__update_document` → `./bin/check-precision` (timeout 3)
 
-**Runtime caveat** (informational, not a FAIL): Codex hook execution requires `[features].codex_hooks = true` in `~/.codex/config.toml`. This skill validates static packaging only — live execution is verified by the bats integration suite.
+**Runtime caveat** (informational, not a FAIL): Codex hooks are enabled by default and use `[features].hooks` as the canonical feature key; `codex_hooks` is only a deprecated alias. Plugin hooks still require user trust before live execution. This skill validates static packaging only — live execution is verified by the bats integration suite.
 
 ### Section 12 — MCP wiring
 
@@ -272,8 +272,9 @@ Two plugin-shipped MCP configs at the plugin root. Both must point at `archcore`
 **Codex CLI — `.codex.mcp.json`**:
 - File exists at the plugin root (NOT inside `.codex-plugin/`)
 - JSON parses
-- `mcpServers.archcore.command` equals `archcore`
-- `mcpServers.archcore.args` equals `["mcp"]`
+- Uses the Codex-documented direct server map shape, not a `mcpServers`/`mcp_servers` wrapper
+- `archcore.command` equals `archcore`
+- `archcore.args` equals `["mcp"]`
 - File MUST NOT contain `${CLAUDE_PLUGIN_ROOT}`, `${CODEX_PLUGIN_ROOT}`, `./bin/archcore`, `cwd: "."`, or `env_vars` — all are remnants of the deleted launcher architecture and are hard FAILs
 
 **Cursor — `docs/cursor.mcp.example.json`** (reference template users copy into `~/.cursor/mcp.json` or `.cursor/mcp.json`; we deliberately do NOT ship a plugin-root `mcp.json` to avoid Cursor's plugin-MCP spawn-from-install-dir bug):

@@ -154,7 +154,7 @@ The plugin **ships MCP registration** for Claude Code via `.mcp.json` at the plu
 
 The `command` resolves through PATH — users must have the Archcore CLI installed globally (see https://docs.archcore.ai/cli/install/). If the CLI is missing at session start, the MCP server fails to register and `bin/session-start` prints the install instructions.
 
-Codex CLI uses `.codex-plugin/plugin.json` to point at plugin-root `.codex.mcp.json`, which uses the same shape — `command: "archcore"`, `args: ["mcp"]`.
+Codex CLI uses `.codex-plugin/plugin.json` to point at plugin-root `.codex.mcp.json`, which uses Codex's direct server map shape: `archcore.command: "archcore"`, `archcore.args: ["mcp"]`.
 
 Cursor is the exception. The plugin **does not** ship a plugin-MCP for Cursor — no `mcp.json` at the plugin root. Cursor users instead copy `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped); the template passes `--project ${workspaceFolder}` in `args` to make the workspace explicit. Full rationale and three-layer defense in `cursor-mcp-architecture.adr.md`.
 

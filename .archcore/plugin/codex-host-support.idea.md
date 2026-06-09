@@ -15,7 +15,7 @@ Promote OpenAI Codex CLI from "P2 / Future / TBD" to a first-class implemented h
 Codex CLI v0.117.0+ (March 2026) introduced a plugin system with near 1:1 surface to Claude Code:
 
 - `.codex-plugin/plugin.json` manifest with component pointers (`skills`, `mcpServers`, `hooks`)
-- 6 hook events (SessionStart, PreToolUse, PermissionRequest, PostToolUse, UserPromptSubmit, Stop) — runtime execution gated by `[features].codex_hooks = true`
+- 6 hook events (SessionStart, PreToolUse, PermissionRequest, PostToolUse, UserPromptSubmit, Stop) — runtime execution uses `[features].hooks` (the old `codex_hooks` key is only a deprecated alias) and plugin hooks require user trust
 - MCP servers via plugin-shipped `.codex.mcp.json` referenced from the manifest (`mcpServers: "./.codex.mcp.json"`)
 - Skills as `skills/<name>/SKILL.md` directories — **already compatible with our SKILL.md files**
 - Subagents in TOML format with `sandbox_mode`, `developer_instructions`, `disabled_tools[]`

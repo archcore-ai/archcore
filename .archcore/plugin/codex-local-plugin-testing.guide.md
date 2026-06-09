@@ -51,7 +51,7 @@ tags:
    Confirm these invariants:
    - `.codex-plugin/plugin.json` points to `"./skills/"`, `"./hooks/codex.hooks.json"`, and `"./.codex.mcp.json"`.
    - `.agents/plugins/marketplace.json` has one `archcore` entry, `source.source = "local"`, `source.path = "./"`, `policy.installation`, `policy.authentication`, and `category`.
-   - `.codex.mcp.json` has `command: "archcore"` and `args: ["mcp"]` — nothing else. No `cwd: "."`, no `env_vars: ["ARCHCORE_CWD"]`. With the launcher removed, Codex resolves `archcore` from PATH directly; the user's CLI install is the single source.
+   - `.codex.mcp.json` uses the Codex-documented direct server map: top-level `archcore.command = "archcore"` and `archcore.args = ["mcp"]` — nothing else. No `mcpServers` wrapper, no `cwd: "."`, no `env_vars: ["ARCHCORE_CWD"]`. With the launcher removed, Codex resolves `archcore` from PATH directly; the user's CLI install is the single source.
    - `hooks/codex.hooks.json` uses `${PLUGIN_ROOT}/bin/...` commands (Codex's canonical, host-neutral env var). Do NOT use `${CLAUDE_PLUGIN_ROOT}` (Codex provides it only as a backward-compat alias for old Claude plugins) or `./bin/...` (would resolve against the user's project CWD).
 
 4. Register this checkout as a local repo marketplace.

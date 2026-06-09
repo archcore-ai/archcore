@@ -69,3 +69,11 @@ setup() {
   [ "$(jq -r '.mcpServers.archcore.args[0]' < "$file")" = "mcp" ]
   [ "$(jq -r '.mcpServers.archcore.args | length' < "$file")" = "1" ]
 }
+
+@test ".codex.mcp.json command and args use direct server map" {
+  local file="$PLUGIN_ROOT/.codex.mcp.json"
+  [ "$(jq -r '.archcore.command' < "$file")" = "archcore" ]
+  [ "$(jq -r '.archcore.args[0]' < "$file")" = "mcp" ]
+  [ "$(jq -r '.archcore.args | length' < "$file")" = "1" ]
+  [ "$(jq -r 'has("mcpServers") or has("mcp_servers")' < "$file")" = "false" ]
+}
