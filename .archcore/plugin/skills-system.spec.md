@@ -33,7 +33,7 @@ The visible `/` palette is exactly 7 commands. Each skill maps to a clearly dist
 | `skills/decide/` | decide | Record a decision (ADR) or draft a proposal (RFC); optional standard cascade | ADR → optional CPAT (for code-pattern changes) → optional rule → optional guide |
 | `skills/plan/` | plan | Plan a feature or initiative end-to-end | routes to single plan, or one of the multi-doc flows via references: product (idea→prd→plan), sources (mrd→brd→urd), iso (brs→strs→syrs→srs), feature (prd→spec→plan→task-type) |
 | `skills/audit/` | audit | Documentation health and drift | three modes: default short dashboard, `--deep` coverage audit, `--drift` code/cascade/temporal staleness |
-| `skills/context/` | context | Surface rules/decisions for a code area or pickup | search_documents-backed grouped markdown |
+| `skills/context/` | context | Surface rules/decisions for a code area or pickup | search_documents-backed grouped markdown; `--git-changes` derives the path set from the working tree |
 | `skills/help/` | help | Navigate the system | command catalogue, onboarding cues |
 
 ### Shared Runtime Assets (`skills/_shared/`)

@@ -1,0 +1,23 @@
+#!/bin/sh
+# git-scope: resolve a capped, ranked directory set from the working tree for
+# /archcore:context --git-changes. Invoked by the context skill via Bash.
+# Usage: git-scope --git-changes
+# stdout (always exit 0): one sentinel (__USAGE__|__NO_GIT__|__NOT_REPO__|__CLEAN__)
+#   OR <=20 dir lines + __TOTAL__ <raw-dir-count>.
+
+case "$1" in --git-changes) ;; *) echo __USAGE__; exit 0 ;; esac
+
+command -v git >/dev/null 2>&1 || { echo __NO_GIT__; exit 0; }
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo __NOT_REPO__; exit 0; }
+
+EXCLUDE=':(exclude).archcore/'
+files=$( { git diff --name-only HEAD -- "$EXCLUDE"
+           git ls-files --others --exclude-standard -- "$EXCLUDE"
+         } 2>/dev/null | sort -u )
+[ -z "$files" ] && { echo __CLEAN__; exit 0; }
+
+dirs=$(printf '%s\n' "$files" | while IFS= read -r f; do dirname "$f"; done)
+[ -z "$dirs" ] && { echo __CLEAN__; exit 0; }
+total=$(printf '%s\n' "$dirs" | sort -u | wc -l | tr -d ' ')
+printf '%s\n' "$dirs" | sort | uniq -c | sort -rn | head -20 | sed 's/^[[:space:]]*[0-9][0-9]*[[:space:]]//'
+echo "__TOTAL__ $total"

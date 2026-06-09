@@ -51,7 +51,7 @@ All commands are auto-invocable. The user describes intent in natural language a
 | `/archcore:decide` | Record a decision (ADR) or draft a proposal (RFC); optional standard cascade | `[topic]` | Creates adr or rfc; offers optional CPAT → rule → guide continuation |
 | `/archcore:plan` | Plan a feature or initiative end-to-end | `[topic] [--product\|--sources\|--iso\|--feature]` | Routes to single plan, or one of four flows: product (idea→prd→plan), sources (mrd→brd→urd), iso (brs→strs→syrs→srs), feature (prd→spec→plan→task-type) |
 | `/archcore:audit` | Documentation health — dashboard (default), `--deep` audit, or `--drift` detection | `[--deep\|--drift] [category, tag, or scope]` | Default: compact dashboard. `--deep`: coverage gaps + recommendations. `--drift`: code/cascade/temporal staleness with assisted fix |
-| `/archcore:context` | Surface rules / decisions for a code area or pickup | `[path or topic]` | search_documents-backed grouped markdown |
+| `/archcore:context` | Surface rules / decisions for a code area or pickup | `[path, topic, --git-changes]` | search_documents-backed grouped markdown; `--git-changes` derives scope from the working tree |
 | `/archcore:help` | Guide to Archcore commands and capabilities | — | Command catalogue, onboarding cues |
 
 ### Document-type access
@@ -83,11 +83,13 @@ All commands accept arguments documented in their `argument-hint:` frontmatter.
 - **With argument**: `/archcore:plan auth-redesign` — the topic is passed as `$ARGUMENTS`, skill uses it to scope work and check for duplicates.
 - **Without argument**: `/archcore:plan` — skill asks an initial question to establish topic/scope.
 
-Mode flags (`--deep`, `--drift`, `--product`, `--sources`, `--iso`, `--feature`) select between modes within a single skill.
+Mode flags (`--deep`, `--drift`, `--product`, `--sources`, `--iso`, `--feature`, `--git-changes`) select between modes within a single skill.
 
 The `/archcore:audit` command treats a non-flag argument as a **scope filter** (tag, category, type) for `--deep` and `--drift` modes. The default short mode is project-wide and ignores filters by design.
 
 The `/archcore:plan` command treats a flag argument (`--product`, `--sources`, `--iso`, `--feature`) as a flow selector and uses the topic argument to scope the documents.
+
+The `/archcore:context` command additionally accepts `--git-changes` (working-tree scope: staged + unstaged + untracked vs HEAD, minus `.archcore/`) as a scope flag that replaces path/topic classification with a git-derived path set (one `search_documents` call per changed directory, deduped and capped). It short-circuits to an empty state when git is unavailable. The agent MAY also invoke `--git-changes` proactively, but only once per task over a dirty working tree (not after every edit).
 
 The `/archcore:init` command takes no argument; its flow is deterministic (three sequential steps).
 

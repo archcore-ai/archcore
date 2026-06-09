@@ -8,7 +8,7 @@ setup() {
 
 @test "all bin scripts are executable" {
   local not_exec=""
-  for f in "$PLUGIN_ROOT"/bin/check-* "$PLUGIN_ROOT"/bin/validate-* "$PLUGIN_ROOT"/bin/session-start; do
+  for f in "$PLUGIN_ROOT"/bin/check-* "$PLUGIN_ROOT"/bin/validate-* "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/git-scope; do
     [ -f "$f" ] || continue
     if [ ! -x "$f" ]; then
       not_exec="$not_exec $(basename "$f")"
@@ -19,7 +19,7 @@ setup() {
 
 @test "all bin scripts have #!/bin/sh shebang" {
   local bad_shebang=""
-  for f in "$PLUGIN_ROOT"/bin/check-* "$PLUGIN_ROOT"/bin/validate-* "$PLUGIN_ROOT"/bin/session-start; do
+  for f in "$PLUGIN_ROOT"/bin/check-* "$PLUGIN_ROOT"/bin/validate-* "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/git-scope; do
     [ -f "$f" ] || continue
     local first_line
     first_line=$(head -1 "$f")

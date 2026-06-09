@@ -1,6 +1,6 @@
 ---
 description: Surface rules, decisions, specs, and patterns for a code area or topic.
-argument-hint: "[file, directory, or topic]"
+argument-hint: "[file, directory, topic, or --git-changes]"
 ---
 
 # /archcore:context
