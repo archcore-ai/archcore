@@ -115,14 +115,14 @@ setup() {
 }
 
 @test ".agents/plugins/marketplace.json exists and uses Codex marketplace schema" {
-  local file="$PLUGIN_ROOT/.agents/plugins/marketplace.json"
+  local file="$REPO_ROOT/.agents/plugins/marketplace.json"
   [ -f "$file" ]
   jq . < "$file" > /dev/null
   jq -e '.name == "archcore-plugins"' < "$file" > /dev/null
   jq -e '.interface.displayName == "Archcore"' < "$file" > /dev/null
   jq -e '.plugins[0].name == "archcore"' < "$file" > /dev/null
   jq -e '.plugins[0].source.source == "local"' < "$file" > /dev/null
-  jq -e '.plugins[0].source.path == "./"' < "$file" > /dev/null
+  jq -e '.plugins[0].source.path == "./plugins/archcore"' < "$file" > /dev/null
   jq -e '.plugins[0].policy.installation == "INSTALLED_BY_DEFAULT"' < "$file" > /dev/null
   jq -e '.plugins[0].policy.authentication == "ON_INSTALL"' < "$file" > /dev/null
   jq -e '.plugins[0].category == "Productivity"' < "$file" > /dev/null
@@ -291,7 +291,7 @@ png_magic_ok() {
 @test "docs/TERMS.md exists (referenced by interface.termsOfServiceURL)" {
   # termsOfServiceURL points to the raw GitHub blob of this file; if the
   # file is deleted, the marketplace card link 404s.
-  [ -f "$PLUGIN_ROOT/docs/TERMS.md" ] || fail "docs/TERMS.md missing — termsOfServiceURL will 404"
+  [ -f "$REPO_ROOT/docs/TERMS.md" ] || fail "docs/TERMS.md missing — termsOfServiceURL will 404"
 }
 
 @test "category in .codex-plugin/plugin.json matches .agents/plugins/marketplace.json" {
@@ -299,7 +299,7 @@ png_magic_ok() {
   # presentation (composer says one category, registry says another).
   local plugin_cat market_cat
   plugin_cat=$(jq -r '.interface.category' < "$PLUGIN_ROOT/.codex-plugin/plugin.json")
-  market_cat=$(jq -r '.plugins[0].category' < "$PLUGIN_ROOT/.agents/plugins/marketplace.json")
+  market_cat=$(jq -r '.plugins[0].category' < "$REPO_ROOT/.agents/plugins/marketplace.json")
   [ "$plugin_cat" = "$market_cat" ] \
     || fail "category drift: plugin.json='$plugin_cat' but marketplace='$market_cat'"
 }

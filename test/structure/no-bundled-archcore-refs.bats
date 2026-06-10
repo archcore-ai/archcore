@@ -26,7 +26,7 @@ DIST_FILES="README.md"
 @test "no distributable file references bundled .archcore/<category>/<slug>.<type>.md paths" {
   local pattern='\.archcore/(plugin|knowledge|vision|experience)/[a-zA-Z0-9_-]+\.(adr|spec|prd|plan|idea|rule|guide|doc|task-type|cpat|rfc|mrd|brd|urd|brs|strs|syrs|srs)\.md'
   local hits
-  hits=$(cd "$PLUGIN_ROOT" && grep -rEn "$pattern" $DIST_DIRS $DIST_FILES 2>/dev/null \
+  hits=$({ cd "$PLUGIN_ROOT" && grep -rEn "$pattern" $DIST_DIRS 2>/dev/null; cd "$REPO_ROOT" && grep -rEn "$pattern" $DIST_FILES 2>/dev/null; } \
     | grep -v -E '\.archcore/<' \
     | grep -v -E '\.archcore/auth/jwt-strategy\.adr\.md' \
     | grep -v -E '\.archcore/<path>/<slug>' || true)
@@ -49,7 +49,7 @@ Forbidden: paths to specific plugin-team docs (those leak into user installs)."
   # path or referring to plugin internals.
   local pattern='/\.archcore/\.sync-state\.json|plugin-root.*\.sync-state'
   local hits
-  hits=$(cd "$PLUGIN_ROOT" && grep -rEn "$pattern" $DIST_DIRS $DIST_FILES 2>/dev/null || true)
+  hits=$({ cd "$PLUGIN_ROOT" && grep -rEn "$pattern" $DIST_DIRS 2>/dev/null; cd "$REPO_ROOT" && grep -rEn "$pattern" $DIST_FILES 2>/dev/null; } || true)
   if [ -n "$hits" ]; then
     fail "distributable file looks like it references plugin's own sync-state:
 $hits"
@@ -60,7 +60,7 @@ $hits"
   # Catches accidental refs to plugin-internal settings.
   local pattern='plugin/\.archcore/settings\.json|bundled.*settings\.json'
   local hits
-  hits=$(cd "$PLUGIN_ROOT" && grep -rEn "$pattern" $DIST_DIRS $DIST_FILES 2>/dev/null || true)
+  hits=$({ cd "$PLUGIN_ROOT" && grep -rEn "$pattern" $DIST_DIRS 2>/dev/null; cd "$REPO_ROOT" && grep -rEn "$pattern" $DIST_FILES 2>/dev/null; } || true)
   if [ -n "$hits" ]; then
     fail "distributable file references plugin-bundled settings.json:
 $hits"

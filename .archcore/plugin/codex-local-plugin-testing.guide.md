@@ -12,7 +12,7 @@ tags:
 
 - Codex CLI with plugin support. Check `codex --version`; if the plugin browser or local marketplaces behave differently from this guide, update Codex before debugging plugin packaging.
 - A clean Archcore plugin checkout with `jq`, `bats-core`, and optional `shellcheck` available. Initialize test submodules with `git submodule update --init` if bats helpers are missing.
-- The Codex package surfaces must exist and be valid: `.codex-plugin/plugin.json`, `.agents/plugins/marketplace.json`, `.codex.mcp.json`, `hooks/codex.hooks.json`, and `skills/*/SKILL.md`.
+- The Codex package surfaces must exist and be valid. The marketplace catalog stays at the **repo root** (`.agents/plugins/marketplace.json`); the plugin itself lives under **`plugins/archcore/`** (`plugins/archcore/.codex-plugin/plugin.json`, `plugins/archcore/.codex.mcp.json`, `plugins/archcore/hooks/codex.hooks.json`, and `plugins/archcore/skills/*/SKILL.md`). The catalog points `source.path` at `./plugins/archcore` — see `subdirectory-plugin-layout.adr` and issue #2.
 - **Archcore CLI installed globally on PATH** via the official installer at https://docs.archcore.ai/cli/install/ — `curl -fsSL https://archcore.ai/install.sh | bash` (macOS/Linux/WSL) or `irm https://archcore.ai/install.ps1 | iex` (Windows PowerShell). Verify with `archcore --version`. The plugin no longer bundles a launcher; if the CLI is missing, MCP startup fails at session start.
 - Official OpenAI Codex plugin docs are the authority for marketplace behavior:
   - CLI plugin directory: start `codex`, run `/plugins`, then browse by marketplace tab and install from the plugin details screen.
@@ -37,22 +37,22 @@ tags:
    make test-codex-smoke
    ```
 
-   These tests use an isolated temporary `HOME` and verify that `codex plugin marketplace add "$PLUGIN_ROOT"` accepts the repo marketplace. They also simulate an installed plugin cache to check skill loading and plugin-managed MCP registration. This is a fast regression check, not a replacement for an actual `/plugins` install.
+   These tests use an isolated temporary `HOME` and run the real discovery cycle: `codex plugin marketplace add "$REPO_ROOT"` accepts the repo marketplace (the catalog lives at the repo root and points `source.path` at `./plugins/archcore`), `codex plugin list` discovers `archcore@archcore-plugins` from that subdirectory, and `codex plugin add archcore@archcore-plugins` succeeds (the issue #2 regression). They also simulate an installed plugin cache to check skill loading and plugin-managed MCP registration. This is a fast regression check, not a replacement for an actual `/plugins` install.
 
 3. Inspect the Codex package contract directly when a smoke test fails.
 
    ```bash
-   jq . .codex-plugin/plugin.json
+   jq . plugins/archcore/.codex-plugin/plugin.json
    jq . .agents/plugins/marketplace.json
-   jq . .codex.mcp.json
-   jq . hooks/codex.hooks.json
+   jq . plugins/archcore/.codex.mcp.json
+   jq . plugins/archcore/hooks/codex.hooks.json
    ```
 
    Confirm these invariants:
-   - `.codex-plugin/plugin.json` points to `"./skills/"`, `"./hooks/codex.hooks.json"`, and `"./.codex.mcp.json"`.
-   - `.agents/plugins/marketplace.json` has one `archcore` entry, `source.source = "local"`, `source.path = "./"`, `policy.installation`, `policy.authentication`, and `category`.
-   - `.codex.mcp.json` uses the Codex-documented direct server map: top-level `archcore.command = "archcore"` and `archcore.args = ["mcp"]` — nothing else. No `mcpServers` wrapper, no `cwd: "."`, no `env_vars: ["ARCHCORE_CWD"]`. With the launcher removed, Codex resolves `archcore` from PATH directly; the user's CLI install is the single source.
-   - `hooks/codex.hooks.json` uses `${PLUGIN_ROOT}/bin/...` commands (Codex's canonical, host-neutral env var). Do NOT use `${CLAUDE_PLUGIN_ROOT}` (Codex provides it only as a backward-compat alias for old Claude plugins) or `./bin/...` (would resolve against the user's project CWD).
+   - `plugins/archcore/.codex-plugin/plugin.json` points to `"./skills/"`, `"./hooks/codex.hooks.json"`, and `"./.codex.mcp.json"` (paths are plugin-root-relative, i.e. relative to `plugins/archcore/`).
+   - `.agents/plugins/marketplace.json` (at the repo root) has one `archcore` entry, `source.source = "local"`, `source.path = "./plugins/archcore"` (a dedicated subdirectory — Codex does NOT discover a plugin whose manifest sits at the marketplace root, even if `.codex-plugin/plugin.json` physically exists there; see issue #2 and `subdirectory-plugin-layout.adr`), `policy.installation`, `policy.authentication`, and `category`.
+   - `plugins/archcore/.codex.mcp.json` uses the Codex-documented direct server map: top-level `archcore.command = "archcore"` and `archcore.args = ["mcp"]` — nothing else. No `mcpServers` wrapper, no `cwd: "."`, no `env_vars: ["ARCHCORE_CWD"]`. With the launcher removed, Codex resolves `archcore` from PATH directly; the user's CLI install is the single source.
+   - `plugins/archcore/hooks/codex.hooks.json` uses `${PLUGIN_ROOT}/bin/...` commands (Codex's canonical, host-neutral env var). Do NOT use `${CLAUDE_PLUGIN_ROOT}` (Codex provides it only as a backward-compat alias for old Claude plugins) or `./bin/...` (would resolve against the user's project CWD).
 
 4. Register this checkout as a local repo marketplace.
 
@@ -77,7 +77,7 @@ tags:
          "name": "archcore",
          "source": {
            "source": "local",
-           "path": "./Documents/archcore/plugin"
+           "path": "./Documents/archcore/plugin/plugins/archcore"
          },
          "policy": {
            "installation": "AVAILABLE",
@@ -89,7 +89,7 @@ tags:
    }
    ```
 
-   Adjust `source.path` for the checkout path being tested. For a personal marketplace, keep it `./`-prefixed and relative to the home-directory marketplace root when possible.
+   Adjust `source.path` for the checkout path being tested. For a personal marketplace, keep it `./`-prefixed and relative to the home-directory marketplace root when possible, and make it point at the `plugins/archcore` subdirectory (which holds `.codex-plugin/plugin.json`), never the repo root — Codex will silently skip a plugin whose `source.path` resolves to the marketplace root (issue #2).
 
 6. Install the plugin through the Codex CLI plugin browser.
 
@@ -107,7 +107,7 @@ tags:
    find ~/.codex/plugins/cache -maxdepth 5 -type d -path '*archcore*' -print
    ```
 
-   Expected result: `~/.codex/config.toml` contains an enabled `archcore@<marketplace>` entry, and the cache contains a copied plugin bundle with `.codex-plugin/plugin.json`, `commands/`, `skills/`, `.codex.mcp.json`, `hooks/`, and `bin/`. Note that `bin/` only contains hook scripts and `lib/normalize-stdin.sh` — no `archcore`/`archcore.cmd`/`archcore.ps1` launcher.
+   Expected result: `~/.codex/config.toml` contains an enabled `archcore@<marketplace>` entry, and the cache contains a copied plugin bundle. Codex copies the resolved `source.path` directory (the `plugins/archcore/` subtree), so the cache root holds `.codex-plugin/plugin.json`, `commands/`, `skills/`, `.codex.mcp.json`, `hooks/`, and `bin/` directly. Note that `bin/` only contains hook scripts and `lib/normalize-stdin.sh` — no `archcore`/`archcore.cmd`/`archcore.ps1` launcher.
 
 8. Verify MCP registration from a neutral directory.
 
@@ -158,13 +158,13 @@ tags:
 - `~/.codex/plugins/cache/<marketplace>/archcore/<version>/` contains the plugin bundle.
 - `codex mcp list --json` includes an enabled `archcore` server with `command: "archcore"`, `args: ["mcp"]`. From a directory outside the plugin source repo, calling `mcp__archcore__list_documents` returns docs from THAT directory's `.archcore/`.
 - A new Codex thread can discover Archcore slash commands via `/archcore:` and Archcore skills via `@`, without manual `codex mcp add`.
-- Optional hook verification: with `codex features enable plugin_hooks`, `hooks/codex.hooks.json` should load `SessionStart`, `PreToolUse`, and `PostToolUse` guardrails. Keep this as a runtime smoke test because the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0.
+- Optional hook verification: with `codex features enable plugin_hooks`, `plugins/archcore/hooks/codex.hooks.json` should load `SessionStart`, `PreToolUse`, and `PostToolUse` guardrails. Keep this as a runtime smoke test because the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0.
 
 ## Common Issues
 
 ### Marketplace added but plugin is not visible
 
-Close the current Codex TUI and start a new session. The plugin browser groups entries by marketplace and stale sessions may not show newly added marketplace files. Also clear the plugin search box and switch away from `OpenAI Curated` to the local marketplace tab.
+First, confirm the catalog's `source.path` resolves to the `plugins/archcore` subdirectory, not the repo root — a root `source.path` (`./`) is the issue #2 failure mode and Codex silently omits the plugin from `/plugins`. Then close the current Codex TUI and start a new session. The plugin browser groups entries by marketplace and stale sessions may not show newly added marketplace files. Also clear the plugin search box and switch away from `OpenAI Curated` to the local marketplace tab.
 
 ### `codex plugin marketplace add` succeeded, but plugin is not installed
 
@@ -172,7 +172,7 @@ Marketplace registration exposes a catalog; installation is a separate `/plugins
 
 ### Local personal marketplace does not show `Archcore Local`
 
-Validate `~/.agents/plugins/marketplace.json` with `jq`. Confirm `source.path` starts with `./`, points to a directory that contains `.codex-plugin/plugin.json`, and has `policy.installation`, `policy.authentication`, and `category`. Codex skips an unresolvable plugin entry instead of failing the whole marketplace.
+Validate `~/.agents/plugins/marketplace.json` with `jq`. Confirm `source.path` starts with `./`, points to the `plugins/archcore` subdirectory that contains `.codex-plugin/plugin.json` (never the repo root — see issue #2), and has `policy.installation`, `policy.authentication`, and `category`. Codex skips an unresolvable plugin entry instead of failing the whole marketplace.
 
 ### Plugin appears under Available but not Installed
 
@@ -204,7 +204,7 @@ Codex installs a copy into `~/.codex/plugins/cache/...`. Restart Codex after sou
 
 ### Hook guardrails do not fire
 
-The plugin can package `hooks/codex.hooks.json`, but live hook execution depends on Codex's `plugin_hooks` feature flag. Run `codex features enable plugin_hooks` and retest with a fresh session. If the feature is unavailable in your Codex version (it's `under development, false` by default in Codex 0.130.0), upgrade Codex or treat plugin hooks as best-effort until it stabilizes.
+The plugin can package `plugins/archcore/hooks/codex.hooks.json`, but live hook execution depends on Codex's `plugin_hooks` feature flag. Run `codex features enable plugin_hooks` and retest with a fresh session. If the feature is unavailable in your Codex version (it's `under development, false` by default in Codex 0.130.0), upgrade Codex or treat plugin hooks as best-effort until it stabilizes.
 
 ### `codex debug prompt-input` fails with session permission errors
 
@@ -215,6 +215,7 @@ Treat this as a local Codex session-file permission or sandbox problem, not nece
 - OpenAI Codex Plugins overview: https://developers.openai.com/codex/plugins
 - OpenAI Build plugins guide: https://developers.openai.com/codex/plugins/build
 - Archcore CLI install docs: https://docs.archcore.ai/cli/install/
+- Subdirectory plugin layout (issue #2 fix): `.archcore/plugin/subdirectory-plugin-layout.adr.md`
 - Codex MCP and Hooks Path Resolution ADR: `.archcore/plugin/codex-path-resolution.adr.md` (canonical reference for `cwd` rebase and env_vars passthrough — historical context now that the launcher is gone)
 - Codex MCP CWD idea (rejected/historical): `.archcore/plugin/codex-mcp-cwd-rebase-to-user-project.idea.md`
 - Upstream issue tracking `${PLUGIN_ROOT}` MCP substitution: https://github.com/openai/codex/issues/19582

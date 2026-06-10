@@ -34,7 +34,7 @@ Users of OpenAI Codex CLI need the same Archcore surfaces Claude Code users get:
 
 **F1 — Plugin Manifest.** Create `.codex-plugin/plugin.json` with `name`, `version`, `description` synchronized to `.claude-plugin/plugin.json` and `.cursor-plugin/plugin.json`. Component pointers (Codex relative paths, `./...`): `skills`, `hooks`, `mcpServers`. `interface{}` block for marketplace UI metadata.
 
-**F2 — Marketplace Listing.** Create `.agents/plugins/marketplace.json` with the Codex marketplace schema. Entry uses `INSTALLED_BY_DEFAULT` and points the `archcore` plugin at the repo root. Do not create legacy `.codex-plugin/marketplace.json`.
+**F2 — Marketplace Listing.** Create `.agents/plugins/marketplace.json` (at the repo root) with the Codex marketplace schema. Entry uses `INSTALLED_BY_DEFAULT` and points the `archcore` plugin `source.path` at the `./plugins/archcore` subdirectory — Codex does not discover a plugin whose manifest sits at the marketplace root (see `subdirectory-plugin-layout.adr` and issue #2). Do not create legacy `.codex-plugin/marketplace.json`.
 
 **F2a — Slash Commands.** Create root-level Codex command wrappers under `commands/*.md` for every user-facing Archcore workflow. Wrappers are host-adapter shims: `description:` frontmatter plus a one-line delegate instruction pointing at `skills/<name>/SKILL.md`. No workflow logic.
 

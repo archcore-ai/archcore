@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # Shared setup for all bats tests
 
-PLUGIN_ROOT="${PLUGIN_ROOT:-$(cd "$(dirname "$BATS_TEST_DIRNAME")/.." && pwd)}"
+# REPO_ROOT = repository root (marketplace catalogs, test/, Makefile, .github, docs/ live here).
+# PLUGIN_ROOT = the plugin itself, relocated under plugins/archcore/ so Codex can discover it
+# (Codex requires source.path to be a subdirectory, not the marketplace root — see issue #2).
+REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "$BATS_TEST_DIRNAME")/.." && pwd)}"
+export REPO_ROOT
+PLUGIN_ROOT="${PLUGIN_ROOT:-$REPO_ROOT/plugins/archcore}"
 export PLUGIN_ROOT
-FIXTURES="$PLUGIN_ROOT/test/fixtures"
+FIXTURES="$REPO_ROOT/test/fixtures"
 export FIXTURES
 
 HELPERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

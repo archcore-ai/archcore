@@ -1,5 +1,13 @@
 #!/usr/bin/env bats
-# Integration smoke checks for Codex plugin packaging.
+# Integration smoke checks for Codex plugin packaging + discovery.
+#
+# Regression coverage for issue #2 ("Codex marketplace install does not
+# discover Archcore"). The marketplace catalog lives at the repo root and
+# points `source.path` at `./plugins/archcore`. The first three tests exercise
+# the REAL discovery path — marketplace add -> plugin list -> plugin add —
+# rather than a symlinked fake. The symlink shortcut (used by the last two
+# tests, which probe skill/MCP loading) is exactly what let issue #2 ship
+# green: it bypasses marketplace resolution entirely.
 
 setup() {
   load '../helpers/common'
@@ -12,14 +20,37 @@ setup() {
   export TEST_HOME
 }
 
-@test "codex marketplace add accepts repo root marketplace" {
-  run env HOME="$TEST_HOME" codex plugin marketplace add "$PLUGIN_ROOT"
+@test "codex marketplace add accepts the repo-root marketplace" {
+  run env HOME="$TEST_HOME" codex plugin marketplace add "$REPO_ROOT"
   assert_success
   assert_output --partial 'Added marketplace `archcore-plugins`'
 
   [ -f "$TEST_HOME/.codex/config.toml" ]
   grep -q '^\[marketplaces.archcore-plugins\]' "$TEST_HOME/.codex/config.toml"
-  grep -q "source = \"$PLUGIN_ROOT\"" "$TEST_HOME/.codex/config.toml"
+}
+
+@test "codex plugin list discovers archcore from the subdirectory (issue #2 regression)" {
+  run env HOME="$TEST_HOME" codex plugin marketplace add "$REPO_ROOT"
+  assert_success
+
+  run env HOME="$TEST_HOME" codex plugin list
+  assert_success
+  # Pre-fix: archcore was absent from `plugin list` because source.path was
+  # the marketplace root ("./"), which Codex does not scan for plugins.
+  assert_output --partial 'archcore@archcore-plugins'
+  # And it must resolve to the dedicated subdirectory, never the repo root.
+  assert_output --partial 'plugins/archcore'
+}
+
+@test "codex plugin add archcore succeeds (issue #2 regression)" {
+  run env HOME="$TEST_HOME" codex plugin marketplace add "$REPO_ROOT"
+  assert_success
+
+  run env HOME="$TEST_HOME" codex plugin add archcore@archcore-plugins
+  # Pre-fix this failed with: plugin `archcore` was not found in marketplace.
+  assert_success
+  refute_output --partial 'was not found'
+  assert_output --partial 'Added plugin `archcore`'
 }
 
 @test "codex debug prompt-input loads Archcore skills when plugin is enabled" {
@@ -37,7 +68,7 @@ setup() {
     printf '[marketplaces.archcore-plugins]\n'
     printf 'last_updated = "2026-05-04T00:00:00Z"\n'
     printf 'source_type = "local"\n'
-    printf 'source = "%s"\n' "$PLUGIN_ROOT"
+    printf 'source = "%s"\n' "$REPO_ROOT"
     printf '\n[plugins."archcore@archcore-plugins"]\n'
     printf 'enabled = true\n'
   } >> "$TEST_HOME/.codex/config.toml"
@@ -59,7 +90,7 @@ setup() {
     printf '[marketplaces.archcore-plugins]\n'
     printf 'last_updated = "2026-05-04T00:00:00Z"\n'
     printf 'source_type = "local"\n'
-    printf 'source = "%s"\n' "$PLUGIN_ROOT"
+    printf 'source = "%s"\n' "$REPO_ROOT"
     printf '\n[plugins."archcore@archcore-plugins"]\n'
     printf 'enabled = true\n'
   } >> "$TEST_HOME/.codex/config.toml"

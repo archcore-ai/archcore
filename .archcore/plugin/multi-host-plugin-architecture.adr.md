@@ -33,40 +33,48 @@ The plugin ships:
 - **Per-host adapter files** (configuration only, no logic): plugin manifest, hooks config, and an MCP config per host.
 - **No bundled CLI**: the Archcore CLI is installed globally by the user per https://docs.archcore.ai/cli/install/. All three MCP configs name `archcore` as the command, resolved via PATH. The plugin does not bundle, download, cache, or pin a CLI binary.
 
+The plugin itself lives in a dedicated `plugins/archcore/` subdirectory; the marketplace catalogs stay at the repo root and point each host's plugin `source`/`path` at that subdirectory.
+
 ```
-plugin/
-├── commands/                    # Codex CLI slash command wrappers (16, host-adapter shims)
-├── skills/                      # Shared — Agent Skills standard (16 skills)
-├── agents/                      # Shared — markdown agent definitions + Codex TOML variants
-│   ├── archcore-assistant.md    # Claude Code / Cursor
-│   ├── archcore-assistant.toml  # Codex CLI (sandbox_mode = "workspace-write")
-│   ├── archcore-auditor.md      # Claude Code / Cursor
-│   └── archcore-auditor.toml    # Codex CLI (sandbox_mode = "read-only" + disabled_tools)
-├── bin/                         # Shared — hook scripts + stdin normalizer (no CLI binary)
-│   ├── lib/normalize-stdin.sh
-│   ├── session-start
-│   ├── check-archcore-write
-│   ├── check-code-alignment
-│   ├── validate-archcore
-│   ├── check-cascade
-│   ├── check-precision
-│   └── check-staleness
+repo-root/                               # marketplace CATALOGS + dev tooling
+├── .claude-plugin/marketplace.json      # Claude catalog  → source: ./plugins/archcore
+├── .cursor-plugin/marketplace.json      # Cursor catalog  → source: ./plugins/archcore
+├── .agents/plugins/marketplace.json     # Codex catalog   → path:   ./plugins/archcore
+├── docs/cursor.mcp.example.json         # Reference template users copy into ~/.cursor/mcp.json
 │
-├── .claude-plugin/              # Claude Code manifest + marketplace
-├── .cursor-plugin/              # Cursor manifest + marketplace (no `mcpServers` field — deliberate)
-├── .codex-plugin/               # Codex CLI manifest (single file)
-├── .agents/plugins/             # Codex marketplace descriptor
-│
-├── hooks/
-│   ├── hooks.json               # Claude Code (PascalCase events)
-│   ├── cursor.hooks.json        # Cursor (camelCase events)
-│   └── codex.hooks.json         # Codex CLI (PascalCase events + apply_patch matcher)
-│
-├── .mcp.json                    # Claude Code — { "archcore": { "command": "archcore", "args": ["mcp"] } }
-├── .codex.mcp.json              # Codex CLI — direct server map
-├── docs/cursor.mcp.example.json # Reference template users copy into ~/.cursor/mcp.json
-└── rules/                       # Cursor-only context rules (.mdc)
+└── plugins/archcore/                    # ← the plugin (single source of truth; what each host installs)
+    ├── commands/                        # Codex CLI slash command wrappers (7, host-adapter shims)
+    ├── skills/                          # Shared — Agent Skills standard (7 skills)
+    ├── agents/                          # Shared — markdown agent definitions + Codex TOML variants
+    │   ├── archcore-assistant.md        # Claude Code / Cursor
+    │   ├── archcore-assistant.toml      # Codex CLI (sandbox_mode = "workspace-write")
+    │   ├── archcore-auditor.md          # Claude Code / Cursor
+    │   └── archcore-auditor.toml        # Codex CLI (sandbox_mode = "read-only" + disabled_tools)
+    ├── bin/                             # Shared — hook scripts + stdin normalizer (no CLI binary)
+    │   ├── lib/normalize-stdin.sh
+    │   ├── session-start
+    │   ├── check-archcore-write
+    │   ├── check-code-alignment
+    │   ├── validate-archcore
+    │   ├── check-cascade
+    │   ├── check-precision
+    │   └── check-staleness
+    │
+    ├── .claude-plugin/plugin.json       # Claude Code manifest
+    ├── .cursor-plugin/plugin.json       # Cursor manifest (no `mcpServers` field — deliberate)
+    ├── .codex-plugin/plugin.json        # Codex CLI manifest (single file)
+    │
+    ├── hooks/
+    │   ├── hooks.json                   # Claude Code (PascalCase events)
+    │   ├── cursor.hooks.json            # Cursor (camelCase events)
+    │   └── codex.hooks.json             # Codex CLI (PascalCase events + apply_patch matcher)
+    │
+    ├── .mcp.json                        # Claude Code — { "archcore": { "command": "archcore", "args": ["mcp"] } }
+    ├── .codex.mcp.json                  # Codex CLI — direct server map
+    └── rules/                           # Cursor-only context rules (.mdc)
 ```
+
+**Catalog vs. plugin location.** The three marketplace catalogs stay at the repo root; each points its plugin `source`/`path` at the `plugins/archcore/` subdirectory, which holds the per-host manifests and all shared content. This subdirectory layout is *required* for Codex marketplace discovery — a catalog `source.path` of `./` (the marketplace root) is not scanned, so the plugin is never discovered there — and it is the canonical layout for Claude Code and Cursor as well. The reporter that surfaced this is issue #2; the full rationale, the cross-host docs matrix, and the rejected alternatives (generated copy, Windows-breaking symlinks) live in `subdirectory-plugin-layout.adr`, which extends this ADR.
 
 ### Shared core principle
 
@@ -120,7 +128,7 @@ This is the canonical Cursor 2.5+ way to register a plugin MCP. Rejected because
 - **Low per-host cost**: adding a new host requires only a manifest (~10 lines), a hooks config (~30 lines), and an MCP config (~5 lines). Codex was the first real test — port took ~1 dev-day for scaffolding plus tests.
 - **Decoupled CLI lifecycle**: the Archcore CLI ships and patches on its own cadence; plugin releases never gate CLI security fixes (and vice versa). `archcore update` is the user-facing upgrade path.
 - **Standard compliance**: uses Agent Skills, MCP, and markdown agents — all open standards.
-- **Single source of truth**: bug fixes in skills/agents/bin propagate to all hosts automatically.
+- **Single source of truth**: bug fixes in skills/agents/bin propagate to all hosts automatically; the plugin lives in exactly one place (`plugins/archcore/`), with no per-host copy or symlink to keep in sync.
 
 ### Negative
 

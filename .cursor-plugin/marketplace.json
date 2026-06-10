@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "archcore",
-      "source": ".",
+      "source": "./plugins/archcore",
       "description": "Make your AI agent code with your project's architecture, rules, and decisions."
     }
   ]

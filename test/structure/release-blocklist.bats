@@ -13,7 +13,7 @@ setup() {
 }
 
 YML() {
-  echo "$PLUGIN_ROOT/.github/workflows/release.yml"
+  echo "$REPO_ROOT/.github/workflows/release.yml"
 }
 
 is_stripped() {
@@ -98,11 +98,11 @@ is_stripped() {
 @test "docs/release.md mentions assets/ in the ships list" {
   # If assets/ is in the workflow but not documented as shipping, future
   # readers may not realise it's required by the manifests.
-  grep -q 'assets/' "$PLUGIN_ROOT/docs/release.md" \
+  grep -q 'assets/' "$REPO_ROOT/docs/release.md" \
     || fail "docs/release.md must mention assets/ in the 'Everything else ships' section"
 }
 
 @test "docs/release.md mentions docs/TERMS.md in the ships list" {
-  grep -q 'docs/TERMS\.md' "$PLUGIN_ROOT/docs/release.md" \
+  grep -q 'docs/TERMS\.md' "$REPO_ROOT/docs/release.md" \
     || fail "docs/release.md must mention docs/TERMS.md in the 'Everything else ships' section"
 }

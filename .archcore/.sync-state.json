@@ -3086,6 +3086,26 @@
       "source": "plugin/architect-voice-default.adr.md",
       "target": "plugin/precision-over-coverage.adr.md",
       "type": "extends"
+    },
+    {
+      "source": "plugin/subdirectory-plugin-layout.adr.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/subdirectory-plugin-layout.adr.md",
+      "target": "plugin/codex-path-resolution.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/subdirectory-plugin-layout.adr.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/subdirectory-plugin-layout.adr.md",
+      "target": "plugin/cli-integration-tests.rule.md",
+      "type": "related"
     }
   ]
 }

@@ -14,7 +14,7 @@ setup() {
 ARCHCORE_SUBCOMMANDS="config doctor help hooks init mcp status update"
 
 @test "every \`archcore <subcmd>\` reference in README.md names a real subcommand" {
-  local file="$PLUGIN_ROOT/README.md"
+  local file="$REPO_ROOT/README.md"
   [ -f "$file" ] || skip "README.md not found"
 
   # Match only the first token after backtick-archcore-space, e.g. `archcore doctor`.

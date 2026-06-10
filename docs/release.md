@@ -53,22 +53,36 @@ Any addition or removal MUST update the workflow at
 | `docs/release.md`     | This file. Lives on `dev` only.                        |
 | `cursor.mcp.json`     | Legacy path; must already be gone but stripped defensively. |
 
-Everything else ships: `skills/`, `agents/`, `commands/`, `rules/`,
-`hooks/`, `bin/`, `assets/` (icon + logo for marketplace surfaces),
-`docs/cursor.mcp.example.json`, `docs/TERMS.md`, manifests
-(`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`), marketplace
-registries (`.agents/plugins/marketplace.json`), MCP configs
-(`.mcp.json`, `.codex.mcp.json`), `README.md`, `LICENSE`, `NOTICE`.
+Everything else ships. The plugin itself lives under **`plugins/archcore/`**
+— a dedicated subdirectory required so Codex can discover it (Codex
+marketplace `source.path` must point at a subdir, not the repo root; see the
+multi-host layout ADR and issue #2). That directory carries `skills/`,
+`agents/`, `commands/`, `rules/`, `hooks/`, `bin/`, `assets/` (icon + logo
+for marketplace surfaces), the per-host manifests
+(`plugins/archcore/.claude-plugin/plugin.json`,
+`plugins/archcore/.cursor-plugin/plugin.json`,
+`plugins/archcore/.codex-plugin/plugin.json`), and the MCP configs
+(`plugins/archcore/.mcp.json`, `plugins/archcore/.codex.mcp.json`).
 
-> **Note on `assets/`.** Required by `.codex-plugin/plugin.json`
+At the **repo root** the marketplace catalogs ship and point at the
+subdirectory: `.agents/plugins/marketplace.json` (Codex),
+`.claude-plugin/marketplace.json` (Claude), and
+`.cursor-plugin/marketplace.json` (Cursor) — each with
+`source`/`path` = `./plugins/archcore`. Also at the root:
+`docs/cursor.mcp.example.json`, `docs/TERMS.md`, `README.md`, `LICENSE`,
+`NOTICE`.
+
+> **Note on `assets/`.** Required by `plugins/archcore/.codex-plugin/plugin.json`
 > (`interface.composerIcon`, `interface.logo`). The plugin.json paths are
-> relative to plugin root, so the directory must exist alongside the
-> manifests in the published `main` tree. Don't strip.
+> relative to plugin root (`plugins/archcore/`), so `plugins/archcore/assets/`
+> must exist alongside the manifests in the published `main` tree. Don't strip.
 
 ## Cutting a release
 
-1. Bump `version` in all three manifests (`.claude-plugin/plugin.json`,
-   `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`).
+1. Bump `version` in all three manifests
+   (`plugins/archcore/.claude-plugin/plugin.json`,
+   `plugins/archcore/.cursor-plugin/plugin.json`,
+   `plugins/archcore/.codex-plugin/plugin.json`).
 2. Merge the bump PR to `dev`.
 3. Tag the merge commit: `git tag v0.4.1 && git push origin v0.4.1`.
 4. The `release.yml` workflow runs:

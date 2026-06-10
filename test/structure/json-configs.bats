@@ -14,7 +14,7 @@ setup() {
 }
 
 @test "claude-plugin/marketplace.json is valid JSON" {
-  run jq . "$PLUGIN_ROOT/.claude-plugin/marketplace.json"
+  run jq . "$REPO_ROOT/.claude-plugin/marketplace.json"
   assert_success
 }
 
@@ -24,7 +24,7 @@ setup() {
 }
 
 @test "cursor-plugin/marketplace.json is valid JSON" {
-  run jq . "$PLUGIN_ROOT/.cursor-plugin/marketplace.json"
+  run jq . "$REPO_ROOT/.cursor-plugin/marketplace.json"
   assert_success
 }
 
@@ -67,7 +67,7 @@ setup() {
 }
 
 @test "marketplace.json has plugins array" {
-  run jq -e '.plugins | length > 0' "$PLUGIN_ROOT/.claude-plugin/marketplace.json"
+  run jq -e '.plugins | length > 0' "$REPO_ROOT/.claude-plugin/marketplace.json"
   assert_success
 }
 
@@ -98,8 +98,8 @@ setup() {
 }
 
 @test "marketplace.json plugin metadata matches across Claude and Cursor" {
-  local cc="$PLUGIN_ROOT/.claude-plugin/marketplace.json"
-  local cursor="$PLUGIN_ROOT/.cursor-plugin/marketplace.json"
+  local cc="$REPO_ROOT/.claude-plugin/marketplace.json"
+  local cursor="$REPO_ROOT/.cursor-plugin/marketplace.json"
   for field in name version description; do
     local cc_val cursor_val
     cc_val=$(jq -r ".plugins[0].$field" "$cc")

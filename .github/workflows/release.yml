@@ -77,7 +77,7 @@ jobs:
           rm -rf .github
           rm -f Makefile
           rm -f docs/release.md
-          rm -f cursor.mcp.json  # belt-and-suspenders: must already be gone
+          rm -f plugins/archcore/cursor.mcp.json  # belt-and-suspenders: must already be gone
           # Sanity: bundled .archcore must be gone, and no distributable
           # file may reference our internal docs.
           if [ -d .archcore ]; then
@@ -87,7 +87,7 @@ jobs:
           # Any leftover reference to the plugin's own .archcore docs is
           # a hard failure (mirrors test/structure/no-bundled-archcore-refs.bats)
           pattern='\.archcore/(plugin|knowledge|vision|experience)/[a-zA-Z0-9_-]+\.(adr|spec|prd|plan|idea|rule|guide|doc|task-type|cpat|rfc|mrd|brd|urd|brs|strs|syrs|srs)\.md'
-          if grep -rEn "$pattern" skills agents commands rules hooks bin README.md 2>/dev/null | \
+          if grep -rEn "$pattern" plugins/archcore/skills plugins/archcore/agents plugins/archcore/commands plugins/archcore/rules plugins/archcore/hooks plugins/archcore/bin README.md 2>/dev/null | \
               grep -v -E '\.archcore/<' | \
               grep -v -E '\.archcore/auth/jwt-strategy\.adr\.md' | \
               grep -v -E '\.archcore/<path>/<slug>' | \

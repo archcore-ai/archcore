@@ -8,7 +8,7 @@
       "name": "archcore",
       "source": {
         "source": "local",
-        "path": "./"
+        "path": "./plugins/archcore"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",

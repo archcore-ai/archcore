@@ -20,20 +20,20 @@ setup() {
 TEMPLATE_PATH="docs/cursor.mcp.example.json"
 
 @test "docs/cursor.mcp.example.json exists" {
-  [ -f "$PLUGIN_ROOT/$TEMPLATE_PATH" ]
+  [ -f "$REPO_ROOT/$TEMPLATE_PATH" ]
 }
 
 @test "docs/cursor.mcp.example.json is valid JSON" {
-  jq . < "$PLUGIN_ROOT/$TEMPLATE_PATH" > /dev/null
+  jq . < "$REPO_ROOT/$TEMPLATE_PATH" > /dev/null
 }
 
 @test "template declares an archcore server under mcpServers" {
-  local file="$PLUGIN_ROOT/$TEMPLATE_PATH"
+  local file="$REPO_ROOT/$TEMPLATE_PATH"
   jq -e '.mcpServers.archcore' < "$file" > /dev/null
 }
 
 @test "template invokes 'archcore mcp'" {
-  local file="$PLUGIN_ROOT/$TEMPLATE_PATH"
+  local file="$REPO_ROOT/$TEMPLATE_PATH"
   [ "$(jq -r '.mcpServers.archcore.command' < "$file")" = "archcore" ] \
     || fail "command must be 'archcore' (resolved via PATH)"
   [ "$(jq -r '.mcpServers.archcore.args[0]' < "$file")" = "mcp" ] \
@@ -45,7 +45,7 @@ TEMPLATE_PATH="docs/cursor.mcp.example.json"
   # the server at the workspace is via interpolation in `args`. Without
   # this, the server inherits whatever cwd Cursor spawns it with — which
   # for plugin-shipped MCPs is the plugin install dir, not the workspace.
-  local file="$PLUGIN_ROOT/$TEMPLATE_PATH"
+  local file="$REPO_ROOT/$TEMPLATE_PATH"
   local project_arg
   project_arg=$(jq -r '.mcpServers.archcore.args[1] + " " + .mcpServers.archcore.args[2]' < "$file")
   [ "$project_arg" = "--project \${workspaceFolder}" ] \
@@ -53,7 +53,7 @@ TEMPLATE_PATH="docs/cursor.mcp.example.json"
 }
 
 @test "template does NOT set a cwd field (Cursor schema does not support it)" {
-  local file="$PLUGIN_ROOT/$TEMPLATE_PATH"
+  local file="$REPO_ROOT/$TEMPLATE_PATH"
   local cwd
   cwd=$(jq -r '.mcpServers.archcore.cwd // empty' < "$file")
   [ -z "$cwd" ] \
@@ -61,14 +61,14 @@ TEMPLATE_PATH="docs/cursor.mcp.example.json"
 }
 
 @test "template has only one server defined" {
-  local file="$PLUGIN_ROOT/$TEMPLATE_PATH"
+  local file="$REPO_ROOT/$TEMPLATE_PATH"
   local count
   count=$(jq -r '.mcpServers | keys | length' < "$file")
   [ "$count" = "1" ] || fail "expected exactly 1 server (archcore), found $count"
 }
 
 @test "README references docs/cursor.mcp.example.json so users find the template" {
-  grep -q "docs/cursor.mcp.example.json" "$PLUGIN_ROOT/README.md" \
+  grep -q "docs/cursor.mcp.example.json" "$REPO_ROOT/README.md" \
     || fail "README.md must reference docs/cursor.mcp.example.json so users discover the template"
 }
 

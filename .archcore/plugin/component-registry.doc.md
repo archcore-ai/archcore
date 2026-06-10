@@ -14,6 +14,8 @@ Note: Claude Code and Cursor surface user-invoked workflows directly from skills
 
 Per `skill-surface-collapse.adr.md`, the visible `/` palette is exactly **7 auto-invocable intent skills**. There are no per-document-type skills, no track skills, and no utility skills. Track flows live as references under `skills/plan/references/`; drift detection lives at `skills/audit/lib/drift-detection.md`.
 
+**Layout (post-relocation).** All component paths in this document are **plugin-root-relative** — the plugin root is the `plugins/archcore/` subdirectory (e.g. `skills/audit/` means `plugins/archcore/skills/audit/`, `bin/session-start` means `plugins/archcore/bin/session-start`). The three marketplace catalogs are the exception: they live at the **repo root** and point their `source`/`path` at `./plugins/archcore`. This root-catalog / subdirectory-manifest split is required for Codex marketplace discovery (a catalog `source.path` of `./` is never scanned); see `subdirectory-plugin-layout.adr.md` and issue #2. The reference template `docs/cursor.mcp.example.json` also stays at the repo root.
+
 ## Content
 
 ### Skills (7, auto-invocable by model + user)
@@ -98,7 +100,7 @@ For Codex CLI, both subagents also ship as TOML variants (`agents/archcore-assis
 | 5 | PostToolUse | `mcp__archcore__update_document` | `bin/check-cascade` | 3s |
 | 6 | PostToolUse | `mcp__archcore__create_document\|mcp__archcore__update_document` | `bin/check-precision` | 3s |
 
-Hook configs: `hooks/hooks.json` (Claude Code, PascalCase events), `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`), `hooks/codex.hooks.json` (Codex CLI, PascalCase events with `apply_patch` matcher addition for Codex's native edit primitive).
+Hook configs: `hooks/hooks.json` (Claude Code, PascalCase events), `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`; its `preToolUse` matcher is `Write` only — Cursor exposes no Edit tool), `hooks/codex.hooks.json` (Codex CLI, PascalCase events with `apply_patch` matcher addition for Codex's native edit primitive; commands use Codex's canonical `${PLUGIN_ROOT}` substitution).
 
 Hook 2 and Hook 3 share the `Write|Edit` matcher. Hook 2 (`check-archcore-write`) blocks direct writes to `.archcore/*.md`. Hook 3 (`check-code-alignment`) injects relevant `.archcore/` context for source-file edits via `hookSpecificOutput.additionalContext`. They act on disjoint path sets by construction — no conflict.
 
@@ -110,11 +112,12 @@ Historical note: a prior revision had a `PostToolUse` entry with matcher `Write|
 
 ### Bin Scripts
 
-The `bin/` tree contains hook scripts and the shared stdin-normalization library. The plugin **does not bundle the Archcore CLI binary or any launcher wrapper** — it invokes `archcore` directly from PATH. Users install the CLI globally via the official installer at https://docs.archcore.ai/cli/install/. See `remove-bundled-launcher-global-cli.idea.md` for the rationale.
+The `bin/` tree contains hook scripts, shared shell libraries under `bin/lib/`, and the `git-scope` skill helper. The plugin **does not bundle the Archcore CLI binary or any launcher wrapper** — it invokes `archcore` directly from PATH. Users install the CLI globally via the official installer at https://docs.archcore.ai/cli/install/. See `remove-bundled-launcher-global-cli.idea.md` for the rationale.
 
 | Script | Hook Event | Purpose |
 | --- | --- | --- |
 | `bin/lib/normalize-stdin.sh` | (library) | Multi-host stdin normalization. Detects host (Claude Code/Cursor/Copilot/Codex), extracts fields (tool_name, file_path, path), normalizes MCP tool names, provides output helpers (archcore_hook_block, archcore_hook_info, archcore_hook_pretool_info, archcore_hook_allow). Sourced by all hook scripts except check-staleness. |
+| `bin/lib/empty-state.sh` | (library) | Defines `archcore_is_functionally_empty [dir]`: `.archcore/` counts as functionally empty when it contains no `.md` file larger than 200 bytes (filters stubs, `.gitkeep` placeholders, scaffolds). Pure POSIX, no jq/awk. Sourced by `bin/session-start` to decide the empty-state nudge. |
 | `bin/session-start` | SessionStart | Sources the normalizer; if `archcore` is not on PATH, prints an install message pointing at https://docs.archcore.ai/cli/install/ and exits 0. Refuses to run when cwd contains a sibling plugin manifest. Otherwise detects missing `.archcore/` and emits init guidance (instructs the agent to call `mcp__archcore__init_project`), or invokes `archcore hooks <host> session-start` directly, then calls `bin/check-staleness`. Always exits 0. |
 | `bin/check-archcore-write` | PreToolUse | Blocks direct Write/Edit to `.archcore/**/*.md` with exit 2 + stderr message redirecting to MCP tools. Allows `.archcore/settings.json` and `.archcore/.sync-state.json`. Allows all paths outside `.archcore/`. |
 | `bin/check-code-alignment` | PreToolUse | Injects relevant `.archcore/` context for source-file Write/Edit. Greps `.archcore/**/*.md` for documents referencing the edit path (directory prefixes, longest-first). Ranks by specificity → type priority (rule > cpat > adr > spec > guide). Emits top-3 via `hookSpecificOutput.additionalContext` (Claude Code/Codex/Copilot) or `additional_context` (Cursor). Never blocks; always exits 0. Honors `ARCHCORE_DISABLE_INJECTION=1` escape hatch and `.archcore/settings.json → codeAlignment.sourceRoots` override. |
@@ -122,15 +125,16 @@ The `bin/` tree contains hook scripts and the shared stdin-normalization library
 | `bin/check-staleness` | SessionStart (called by `bin/session-start`) | Detects code-document drift via git: finds source files changed since the last `.archcore/` commit, cross-references with documents that mention affected directories. Rate-limited to once per 24h via a timestamp file. Emits only when matching documents exist. Outputs plain text warning (max 2KB) or empty. Always exits 0. |
 | `bin/check-cascade` | PostToolUse | After `update_document`, queries `.sync-state.json` relation graph for documents connected via `implements`, `depends_on`, or `extends` to the updated document. Outputs JSON `hookSpecificOutput` listing potentially stale dependents, or empty if no cascade. Always exits 0. |
 | `bin/check-precision` | PostToolUse | Phase 1 of the Precision Initiative. After `create_document` and `update_document`, reads the resulting file from disk and runs four checks: forbidden vagueness lexicon, mandatory sections by type, frontmatter title+status presence, body length ≥200 chars. Emits soft warnings via `additionalContext`. Always exits 0 (never blocks). See `precision-over-coverage.adr.md`. |
+| `bin/git-scope` | (skill helper — not wired to any hooks config) | Resolves a capped, ranked directory set from uncommitted working-tree changes (tracked diff vs HEAD + untracked files, `.archcore/` excluded) for `/archcore:context --git-changes`. Invoked by the context skill via Bash. Emits ≤20 directories ranked by changed-file count plus a `__TOTAL__ <raw-dir-count>` trailer, or a single sentinel (`__USAGE__`, `__NO_GIT__`, `__NOT_REPO__`, `__CLEAN__`). Always exits 0. Covered by the Makefile `BIN_SCRIPTS` lint/permissions set. |
 
 ### Test Suite
 
 | Component | Location | Tests | Description |
 | --- | --- | --- | --- |
 | Unit tests | `test/unit/` | — | Test each bin script: stdin parsing, host detection, exit codes, output format, edge cases. |
-| Structure tests | `test/structure/` | — | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules. `hooks.bats` includes anti-regression invariants. `cursor-plugin.bats` locks `docs/cursor.mcp.example.json` shape. `codex-plugin.bats` enforces Codex manifest, marketplace schema, hooks shape, MCP wiring, TOML agents, and parity between `commands/*.md` wrappers (7) and `skills/<name>/SKILL.md`. |
+| Structure tests | `test/structure/` | — | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules. `hooks.bats` includes anti-regression invariants. `cursor-plugin.bats` locks `docs/cursor.mcp.example.json` shape. `codex-plugin.bats` enforces Codex manifest, marketplace schema, hooks shape, MCP wiring, TOML agents, and parity between `commands/*.md` wrappers (7) and `skills/<name>/SKILL.md`. `marketplace-discovery.bats` pins all three catalogs' `source`/`path` to the `plugins/archcore` subdirectory (issue #2 regression). |
 | Fixtures | `test/fixtures/stdin/` | — | Mock stdin JSON for Claude Code, Cursor, Copilot, Codex CLI, and malformed inputs |
-| Helpers | `test/helpers/` | — | common.bash (setup, mocks, timeout shim), bats-support, bats-assert (git submodules) |
+| Helpers | `test/helpers/` | — | common.bash (setup, mocks, timeout shim, exports `REPO_ROOT` + `PLUGIN_ROOT`), bats-support, bats-assert (git submodules) |
 | Makefile | `Makefile` | — | Targets: `test`, `test-unit`, `test-structure`, `lint`, `check-json`, `check-perms`, `verify`. Dev-only — stripped from `main` distribution. |
 | CI | `.github/workflows/test.yml` | — | GitHub Actions on push/PR to `dev`: macOS + Linux matrix, bats + shellcheck |
 | Release | `.github/workflows/release.yml` | — | GitHub Actions on tag push: strips dev-only artifacts, force-pushes the clean tree to `main`. See `docs/release.md` for the blocklist. |
@@ -139,7 +143,7 @@ Run `make verify` for full check. Run `make test` for tests only. See `plugin-te
 
 ### MCP Server
 
-The plugin **ships MCP registration** for Claude Code via `.mcp.json` at the plugin root:
+The plugin **ships MCP registration** for Claude Code via `.mcp.json` at the plugin root (`plugins/archcore/.mcp.json`):
 
 ```json
 {
@@ -162,17 +166,19 @@ Rationale: see `remove-bundled-launcher-global-cli.idea.md`. The previous bundle
 
 ### Plugin Configs
 
+Component manifests, hooks, and MCP configs are plugin-root-relative (under `plugins/archcore/`). The marketplace catalogs and the Cursor reference template live at the **repo root**.
+
 | File | Host | Purpose |
 | --- | --- | --- |
-| `.claude-plugin/plugin.json` | Claude Code | Plugin manifest |
-| `.cursor-plugin/plugin.json` | Cursor | Plugin manifest (with explicit component paths; **no `mcpServers` field** — deliberately disabled, see `cursor-mcp-architecture.adr.md`) |
-| `.codex-plugin/plugin.json` | Codex CLI | Plugin manifest with `skills`, `hooks`, and `mcpServers` pointers |
-| `.claude-plugin/marketplace.json` | Claude Code | Marketplace metadata |
-| `.cursor-plugin/marketplace.json` | Cursor | Marketplace metadata |
-| `.agents/plugins/marketplace.json` | Codex CLI | Marketplace metadata and default-install policy |
-| `.mcp.json` | Claude Code | Plugin-provided MCP registration (`command: "archcore"` on PATH) |
-| `.codex.mcp.json` | Codex CLI | Plugin-provided MCP registration (`command: "archcore"` on PATH) |
-| `docs/cursor.mcp.example.json` | Cursor | Reference MCP config for users to copy into `~/.cursor/mcp.json` or `.cursor/mcp.json`. |
+| `.claude-plugin/plugin.json` | Claude Code | Plugin manifest (plugin root) |
+| `.cursor-plugin/plugin.json` | Cursor | Plugin manifest (plugin root; with explicit component paths; **no `mcpServers` field** — deliberately disabled, see `cursor-mcp-architecture.adr.md`) |
+| `.codex-plugin/plugin.json` | Codex CLI | Plugin manifest (plugin root) with `skills`, `hooks`, and `mcpServers` pointers |
+| `.claude-plugin/marketplace.json` | Claude Code | Marketplace catalog — **repo root**, `source: ./plugins/archcore` |
+| `.cursor-plugin/marketplace.json` | Cursor | Marketplace catalog — **repo root**, `source: ./plugins/archcore` |
+| `.agents/plugins/marketplace.json` | Codex CLI | Marketplace catalog + default-install policy — **repo root**, `source.path: ./plugins/archcore` |
+| `.mcp.json` | Claude Code | Plugin-provided MCP registration (plugin root; `command: "archcore"` on PATH) |
+| `.codex.mcp.json` | Codex CLI | Plugin-provided MCP registration (plugin root; `command: "archcore"` on PATH) |
+| `docs/cursor.mcp.example.json` | Cursor | Reference MCP config for users to copy into `~/.cursor/mcp.json` or `.cursor/mcp.json` (**repo root**). |
 | `hooks/hooks.json` | Claude Code | Hook event config (PascalCase) |
 | `hooks/cursor.hooks.json` | Cursor | Hook event config (camelCase + afterMCPExecution) |
 | `hooks/codex.hooks.json` | Codex CLI | Hook event config (PascalCase + apply_patch matcher) |
