@@ -53,8 +53,10 @@ for DIR in $CHANGED_DIRS; do
   DIR_COUNT=$(printf '%s\n' "$CHANGED" | grep -c "^${DIR}/" 2>/dev/null || echo 0)
   [ "$DIR_COUNT" = "0" ] && continue
 
-  # Find .archcore/ documents that mention this directory
-  MATCHING_DOCS=$(grep -rl "${DIR}/" .archcore/ 2>/dev/null | grep '\.md$' | head -5)
+  # Find .archcore/ documents that mention this directory.
+  # Skip .archcore/global/ — the reserved read-only mount for global sources;
+  # those docs cannot be edited here, so flagging them as stale is pure noise.
+  MATCHING_DOCS=$(grep -rl --exclude-dir=global "${DIR}/" .archcore/ 2>/dev/null | grep '\.md$' | head -5)
   for DOC in $MATCHING_DOCS; do
     # Strip .archcore/ prefix for cleaner output
     DOC_SHORT=$(echo "$DOC" | sed 's|^\./||; s|^\.archcore/||')

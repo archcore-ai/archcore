@@ -165,3 +165,27 @@ setup_git_repo() {
   assert_success
   assert_output --partial "Archcore Staleness"
 }
+
+@test "ignores docs under .archcore/global/ (read-only mount)" {
+  local repo="$BATS_TEST_TMPDIR/repo-global"
+  mkdir -p "$repo/src/auth" "$repo/.archcore" "$repo/.archcore/global/company"
+  cd "$repo"
+  git init -q
+  git config user.email "test@test.com"
+  git config user.name "Test"
+
+  echo "auth handler" > src/auth/handler.py
+  # Local doc that references src/auth/ — SHOULD be flagged.
+  echo "References src/auth/ for authentication" > .archcore/auth.adr.md
+  # Global (read-only) doc that also references src/auth/ — must NOT be flagged.
+  echo "References src/auth/ in the company base" > .archcore/global/company/auth.rule.md
+  git add -A && git commit -q -m "initial"
+
+  echo "updated handler" > src/auth/handler.py
+  git add -A && git commit -q -m "update source"
+
+  run "$PLUGIN_ROOT/bin/check-staleness"
+  assert_success
+  assert_output --partial "auth.adr.md"
+  refute_output --partial "global/company"
+}

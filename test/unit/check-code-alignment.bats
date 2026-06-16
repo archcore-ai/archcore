@@ -200,3 +200,28 @@ EOF
   run sh -c "printf '%s' 'not json' | '${PLUGIN_ROOT}/bin/check-code-alignment'"
   assert_success
 }
+
+# --- Read-only global mount ---
+
+@test "global rules ARE surfaced before edits (read-only docs are still constraints)" {
+  # A source edit must follow org-wide rules even when they live in the
+  # read-only .archcore/global/ mount. Unlike check-staleness (which nudges you
+  # to update the doc), this hook surfaces the doc as a constraint on the edit —
+  # so globals must be included, not pruned.
+  local repo="$BATS_TEST_TMPDIR/repo-global"
+  mkdir -p "$repo/src/api" "$repo/.archcore/global/company"
+  cd "$repo"
+  # The ONLY rule mentioning src/api/ lives in the read-only global mount.
+  cat > "$repo/.archcore/global/company/api.rule.md" <<'EOF'
+---
+title: "Company API rule"
+status: accepted
+---
+
+Applies to src/api/ handlers.
+EOF
+  run_with_stdin check-code-alignment '{"tool_name":"Write","tool_input":{"file_path":"src/api/users.ts"}}'
+  assert_success
+  assert_output --partial 'additionalContext'
+  assert_output --partial 'Company API rule'
+}

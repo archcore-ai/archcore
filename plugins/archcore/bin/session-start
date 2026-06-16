@@ -51,6 +51,62 @@ _archcore_emit_info() {
   esac
 }
 
+# --- Old-CLI compatibility advisory ----------------------------------------
+# A pre-globals ("old") archcore CLI uses a strict config parser that rejects
+# unknown fields. A project that carries `globals` in .archcore/settings.json
+# makes every config-loading command (mcp, hooks, doctor) fail with
+#   field "globals" is not allowed for sync type "none"
+# and a non-zero exit. The host launches `archcore mcp` directly from .mcp.json,
+# so the plugin cannot wrap that crash — this SessionStart hook is the one place
+# we can turn the otherwise-cryptic failure into a clear "update your CLI" nudge.
+
+# Stamp directory, same precedence order as bin/check-staleness.
+_archcore_stamp_dir() {
+  if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
+    printf '%s' "$CLAUDE_PLUGIN_DATA/archcore"
+  elif [ -n "${XDG_DATA_HOME:-}" ]; then
+    printf '%s' "$XDG_DATA_HOME/archcore-plugin"
+  else
+    printf '%s' "${HOME:-/tmp}/.local/share/archcore-plugin"
+  fi
+}
+
+# True when the advisory has NOT been shown within the last 24h. A separate
+# stamp from check-staleness so the two rate-limit windows never clobber each
+# other. Global (per-binary) suppression is correct — the broken CLI is one
+# global binary, not a per-project condition.
+_archcore_advisory_due() {
+  _stamp="$(_archcore_stamp_dir)/last-cli-advisory"
+  [ -f "$_stamp" ] || return 0
+  _now=$(date +%s 2>/dev/null) || return 1
+  _last=$(cat "$_stamp" 2>/dev/null)
+  case "$_last" in
+    ''|*[!0-9]*) _last=0 ;;
+  esac
+  [ "$((_now - _last))" -ge 86400 ]
+}
+
+# Record that the advisory was shown (rate-limit window starts now).
+_archcore_advisory_stamp() {
+  _dir="$(_archcore_stamp_dir)"
+  mkdir -p "$_dir" 2>/dev/null || true
+  date +%s > "$_dir/last-cli-advisory" 2>/dev/null || true
+}
+
+# True when the captured stderr ($1) carries the strict parser's field-rejection
+# signature. The CLI emits  field "<name>" is not allowed for sync type "<type>"
+# (internal/config/config.go) for ANY setting an older binary cannot parse —
+# globals included. Anchoring on that exact wording is deliberate: bare
+# "not allowed" also matches unrelated errors like "operation not allowed", and
+# the mere presence of `globals` in settings.json is NOT proof of an old CLI —
+# a current CLI that understands globals can still fail for other reasons. Gating
+# strictly on the parser signature keeps those failures from firing a false
+# "update CLI" nudge, even in projects that declare globals.
+_archcore_config_rejected() {
+  [ -s "$1" ] || return 1
+  grep -qiE 'not allowed for sync type|unknown field' "$1" 2>/dev/null
+}
+
 # shellcheck source=lib/empty-state.sh
 . "$SCRIPT_DIR/lib/empty-state.sh"
 
@@ -67,7 +123,26 @@ if [ ! -d ".archcore" ]; then
 fi
 
 # Initialized project — run the host-specific session-start hook via CLI.
-printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_HOST" session-start 2>/dev/null || true
+# Capture stderr and exit status (stdout still streams straight to the host,
+# unchanged). No '|| true' — we inspect $? explicitly and never block. When a
+# strict old CLI rejects a new config field, surface a clear nudge instead of
+# silent emptiness; on any other failure, stay silent and fall through as before.
+_ac_err="${TMPDIR:-/tmp}/archcore_ss_err_$$"
+printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_HOST" session-start 2>"$_ac_err"
+_ac_rc=$?
+
+if [ "$_ac_rc" -ne 0 ] && _archcore_config_rejected "$_ac_err" && _archcore_advisory_due; then
+  _archcore_emit_info "[Archcore] This project's .archcore/settings.json uses a newer setting (e.g. global sources) that the installed archcore CLI is too old to understand — so its MCP server and context are unavailable here until you update. Update the CLI:
+  macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash
+  Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex
+  Then verify: archcore --version
+  Docs: https://docs.archcore.ai/cli/install/
+  Archcore context will work again once the CLI is updated."
+  _archcore_advisory_stamp
+  rm -f "$_ac_err"
+  exit 0
+fi
+rm -f "$_ac_err"
 
 # Empty-state nudge: .archcore/ exists but carries no substantive documents.
 # Emitted as plain text (follows the staleness-output pattern below) so it

@@ -88,6 +88,11 @@ trap 'rm -f "$SEEN" "$RANKED"' EXIT INT TERM
 for _tok in $TOKENS; do
   _tok_len=${#_tok}
   # grep -rlF: recursive, list-matches-only, fixed-string. --include filters files.
+  # NB: .archcore/global/ (the read-only global mount) is deliberately NOT
+  # excluded here. Org-wide rules there are constraints the source edit must
+  # follow, so they are exactly the context this hook should surface. (Contrast
+  # check-staleness, which DOES exclude global/: its nudge asks you to update the
+  # doc, which is impossible for a read-only global.)
   grep -rlF "$_tok" .archcore --include='*.md' 2>/dev/null | while IFS= read -r _doc; do
     [ -z "$_doc" ] && continue
     if grep -qxF "$_doc" "$SEEN" 2>/dev/null; then
