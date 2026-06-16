@@ -7,7 +7,7 @@ tags:
 
 ## Overview
 
-Archcore organizes documents into three virtual categories — **vision**, **knowledge**, and **experience**. The category is derived from the document type in the filename (`slug.type.md`), not from the directory path.
+The high-level conceptual model — the three virtual categories (**vision**, **knowledge**, **experience**), the `slug.type.md` naming, and the document tracks — lives in the `archcore` global source (`concepts/core-concepts`, `concepts/document-tracks`). This document is the CLI's **detailed type reference and selection guide**: the per-type tables, the requirements layers, and the "choosing the right type" matrix the engine's templates depend on. The category is derived from the document type in the filename, not from the directory path.
 
 ## Vision
 

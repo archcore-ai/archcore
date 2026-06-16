@@ -46,31 +46,9 @@ Do NOT lead with the mechanism phrase, replace the primary phrase with it, or us
 | Author bio | What you are building — "Building Archcore — git-native context for AI coding agents." |
 | Articles | Vocabulary: context engineering, repo context, context quality |
 
-### Preferred vocabulary
+### Vocabulary
 
-Use these terms freely in any content:
-
-- git-native context
-- repo context
-- project context
-- structured context
-- context engineering
-- context quality
-- context control
-- local MCP server
-- local stdio MCP server
-- MCP-compatible agent
-
-### Vocabulary to avoid as primary framing
-
-Do NOT use these as the leading description of Archcore:
-
-- shared architectural memory
-- system context platform
-- context engineering platform
-- "an MCP server" as standalone primary identity (Archcore is a context layer that ships as an MCP server, not "an MCP server")
-
-These phrases may appear in supporting or historical context but must not be the primary descriptor.
+The ecosystem-wide preferred vocabulary and the avoid-list (e.g. "shared architectural memory", "system context platform", "context engineering platform") live in the `archcore` global source (`product/messaging-and-voice`); they are not restated here. This document covers only the **CLI-surface** specifics: the benefit-first hierarchy, the mechanism phrasing ("CLI and local MCP server"), channel framing, and the standard copy blocks. CLI-surface additions to the preferred set: "local MCP server", "local stdio MCP server", "MCP-compatible agent".
 
 ### Standard copy blocks
 
