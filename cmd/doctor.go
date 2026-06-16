@@ -60,6 +60,8 @@ func newDoctorCmd() *cobra.Command {
 				fmt.Println(display.HintLine("Run 'archcore init' to reconfigure"))
 			} else {
 				fmt.Println(display.CheckLine(fmt.Sprintf("Settings valid (sync: %s)", settings.Sync)))
+				// To stderr so structured doctor output on stdout is unaffected.
+				warnUnknownConfigFields(os.Stderr, settings)
 			}
 
 			// Server reachable (only when a server URL is configured).

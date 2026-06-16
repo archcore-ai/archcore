@@ -682,6 +682,221 @@
       "source": "integrations/instruction-nudge-on-init.adr.md",
       "target": "cli-ui/building-the-cli.guide.md",
       "type": "related"
+    },
+    {
+      "source": "globals/global-sources.spec.md",
+      "target": "globals/global-sources-via-settings.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/declaring-global-sources.rule.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "globals/local-overrides-global.rule.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "globals/vendoring-a-global.guide.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "globals/vendoring-a-global.guide.md",
+      "target": "globals/declaring-global-sources.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "features/globals-prototype-fixes.plan.md",
+      "target": "globals/global-sources-via-settings.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-sources-via-settings.adr.md",
+      "target": "cli/multi-project-mcp-access.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-mandatory.adr.md",
+      "target": "globals/global-sources-via-settings.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/global-sources.spec.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/declaring-global-sources.rule.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/vendoring-a-global.guide.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "features/globals-prototype-fixes.plan.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/mcp-prompts-implementation.plan.md",
+      "target": "mcp/mcp-prompts-for-tracks-only.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/mcp-prompts-implementation.plan.md",
+      "target": "code-quality/in-process-mcp-integration-tests.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/mcp-prompts-implementation.plan.md",
+      "target": "mcp/adding-mcp-track-prompts.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/mcp-prompts-implementation.plan.md",
+      "target": "mcp/mcp-prompts-orchestration-only.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/sync-command-implementation.plan.md",
+      "target": "sync/sync-design.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "sync/sync-command-implementation.plan.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "sync/sync-command-implementation.plan.md",
+      "target": "sync/auto-detect-repo-url-on-sync.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/sync-source-of-truth.rule.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "sync/sync-manifest-update-on-success-only.rule.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/sync-path-security.rule.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/sync-how-it-works.guide.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/temporarily-disable-sync.adr.md",
+      "target": "sync/sync-command-implementation.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/feature-gating-at-command-layer.rule.md",
+      "target": "sync/temporarily-disable-sync.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/update-version-check-strategy.rfc.md",
+      "target": "update/version-check-proxy.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "update/self-update-command.guide.md",
+      "target": "update/update-version-check-strategy.rfc.md",
+      "type": "related"
+    },
+    {
+      "source": "update/self-update-command.guide.md",
+      "target": "release/version-injection-via-ldflags.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/backup-invalid-configs.adr.md",
+      "target": "integrations/instruction-nudge-on-init.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-read-only-everywhere.rule.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "globals/globals-are-read-only-everywhere.rule.md",
+      "target": "globals/local-overrides-global.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-read-only-everywhere.rule.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/declaring-global-sources.rule.md",
+      "target": "globals/globals-are-read-only-everywhere.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "cli/mcp-token-optimization.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "globals/local-overrides-global.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "features/globals-prototype-fixes.plan.md",
+      "target": "features/globals-cli-forward-compat.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "features/globals-prototype-fixes.plan.md",
+      "target": "features/globals-plugin-compat.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "features/globals-cli-forward-compat.plan.md",
+      "target": "globals/global-sources-via-settings.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "features/globals-cli-forward-compat.plan.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "features/globals-plugin-compat.plan.md",
+      "target": "globals/global-sources-via-settings.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "features/globals-plugin-compat.plan.md",
+      "target": "features/globals-cli-forward-compat.plan.md",
+      "type": "depends_on"
     }
   ]
 }

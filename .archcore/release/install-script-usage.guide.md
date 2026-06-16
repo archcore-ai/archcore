@@ -1,6 +1,8 @@
 ---
 title: "Installing Archcore CLI via install.sh and install.ps1"
 status: accepted
+tags:
+  - "release"
 ---
 
 ## Prerequisites

@@ -1,6 +1,8 @@
 ---
 title: "Categories and Document Types"
 status: accepted
+tags:
+  - "directory-structure"
 ---
 
 ## Overview

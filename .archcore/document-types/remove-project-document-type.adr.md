@@ -1,6 +1,8 @@
 ---
 title: "Remove project Document Type"
 status: accepted
+tags:
+  - "document-types"
 ---
 
 ## Context

@@ -1,6 +1,8 @@
 ---
 title: "Remove Stop and UserPromptSubmit Hooks Due to False Positives"
 status: accepted
+tags:
+  - "integrations"
 ---
 
 ## Context

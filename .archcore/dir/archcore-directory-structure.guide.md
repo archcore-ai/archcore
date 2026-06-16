@@ -1,6 +1,8 @@
 ---
 title: "Organizing Your .archcore/ Directory"
 status: accepted
+tags:
+  - "directory-structure"
 ---
 
 ## Overview

@@ -1,6 +1,8 @@
 ---
 title: "Implementation Plan: Tags in Document Frontmatter"
 status: accepted
+tags:
+  - "mcp"
 ---
 
 ## Goal

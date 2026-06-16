@@ -1,6 +1,8 @@
 ---
-title: Local .archcore/ is the Only Source of Truth for Sync
+title: "Local .archcore/ is the Only Source of Truth for Sync"
 status: accepted
+tags:
+  - "sync"
 ---
 
 ## Rule

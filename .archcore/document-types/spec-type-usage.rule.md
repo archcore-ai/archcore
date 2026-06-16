@@ -1,6 +1,8 @@
 ---
 title: "When to Use the spec Document Type"
 status: accepted
+tags:
+  - "document-types"
 ---
 
 ## Description

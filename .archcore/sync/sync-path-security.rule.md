@@ -1,6 +1,8 @@
 ---
-title: Sync Paths Must Be Validated Against Traversal Attacks
+title: "Sync Paths Must Be Validated Against Traversal Attacks"
 status: accepted
+tags:
+  - "sync"
 ---
 
 ## Rule

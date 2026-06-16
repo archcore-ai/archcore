@@ -1,6 +1,8 @@
 ---
 title: "Optimize MCP Tool Definitions and System Prompt for Token Efficiency"
 status: draft
+tags:
+  - "cli"
 ---
 
 ## Idea

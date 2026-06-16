@@ -1,6 +1,8 @@
 ---
 title: "Display Version in CLI Banners"
 status: draft
+tags:
+  - "cli-ui"
 ---
 
 ## Idea

@@ -32,6 +32,8 @@ func runConfig(cmd *cobra.Command, args []string) error {
 		fmt.Println(display.HintLine("Run 'archcore init' to set up"))
 		return fmt.Errorf("settings not found: %w", err)
 	}
+	// To stderr so `config get` stdout stays machine-readable.
+	warnUnknownConfigFields(os.Stderr, settings)
 
 	if len(args) == 0 {
 		fmt.Println(display.KeyValue("sync", string(settings.Sync)))

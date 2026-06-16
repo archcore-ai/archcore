@@ -1,6 +1,8 @@
 ---
 title: "Add rnd Research Document Type"
 status: draft
+tags:
+  - "document-types"
 ---
 
 ## Idea

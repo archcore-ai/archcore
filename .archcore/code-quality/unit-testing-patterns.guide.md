@@ -2,9 +2,10 @@
 title: "Unit Testing Patterns for Archcore CLI"
 status: accepted
 tags:
-  - code-review
-  - golang
-  - testing
+  - "code-quality"
+  - "code-review"
+  - "golang"
+  - "testing"
 ---
 
 ## Prerequisites

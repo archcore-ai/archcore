@@ -1,6 +1,8 @@
 ---
 title: "Archcore Product Positioning and Messaging"
 status: accepted
+tags:
+  - "marketing"
 ---
 
 ## Rule

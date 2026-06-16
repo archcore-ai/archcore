@@ -1,6 +1,8 @@
 ---
 title: "Always Search .archcore/ Documents Before Codebase or External Sources"
 status: accepted
+tags:
+  - "cli"
 ---
 
 ## Rule

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"archcore-cli/internal/agents"
@@ -237,5 +238,102 @@ func TestMCPInstall_MultipleAgents(t *testing.T) {
 	// Codex CLI .codex/config.toml.
 	if _, err := os.Stat(filepath.Join(base, ".codex", "config.toml")); err != nil {
 		t.Error("expected .codex/config.toml")
+	}
+}
+
+// writeMCPSettings writes baseDir/.archcore/settings.json with the given JSON
+// body, creating the .archcore directory if needed.
+func writeMCPSettings(t *testing.T, baseDir, body string) {
+	t.Helper()
+	dir := filepath.Join(baseDir, ".archcore")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestCheckGlobals_MissingSourceFails covers the startup fail-fast (spec §6.2):
+// a declared global whose directory is absent must abort MCP startup with a
+// message naming the source and how to fix it. Without this guard the server
+// would serve a silently-incomplete context.
+func TestCheckGlobals_MissingSourceFails(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	writeMCPSettings(t, base,
+		`{"sync":"none","globals":[{"id":"company","path":"../company/.archcore"}]}`)
+
+	err := checkGlobals(base)
+	if err == nil {
+		t.Fatal("checkGlobals should fail when a declared global is absent")
+	}
+	if !strings.Contains(err.Error(), "company") {
+		t.Errorf("error %q should name the missing global id", err)
+	}
+	if !strings.Contains(err.Error(), "clone it") {
+		t.Errorf("error %q should hint how to fix it (per spec §6.2)", err)
+	}
+}
+
+// TestCheckGlobals_PresentSourcePasses verifies the happy path: a declared
+// global resolved via a "../"-relative path that exists on disk passes startup.
+func TestCheckGlobals_PresentSourcePasses(t *testing.T) {
+	t.Parallel()
+	parent := t.TempDir()
+	base := filepath.Join(parent, "primary")
+	// The sibling global the settings point at must exist on disk.
+	if err := os.MkdirAll(filepath.Join(parent, "company", ".archcore"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeMCPSettings(t, base,
+		`{"sync":"none","globals":[{"id":"company","path":"../company/.archcore"}]}`)
+
+	if err := checkGlobals(base); err != nil {
+		t.Errorf("checkGlobals should pass when the global exists, got %v", err)
+	}
+}
+
+// TestCheckGlobals_NoGlobalsPasses verifies that a project declaring no globals
+// is never blocked at startup.
+func TestCheckGlobals_NoGlobalsPasses(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	writeMCPSettings(t, base, `{"sync":"none"}`)
+
+	if err := checkGlobals(base); err != nil {
+		t.Errorf("checkGlobals with no globals should be nil, got %v", err)
+	}
+}
+
+// TestCheckGlobals_ToleratesUnknownField is the forward-compatibility guard at
+// MCP startup: a settings.json carrying a field this binary does not recognize
+// (as a newer archcore would add) must NOT abort startup — it is tolerated.
+// (Distinct from TestCheckGlobals_InvalidSettingsFails, where the JSON itself is
+// malformed and still fails.)
+func TestCheckGlobals_ToleratesUnknownField(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	writeMCPSettings(t, base, `{"sync":"none","futurefield":1}`)
+
+	if err := checkGlobals(base); err != nil {
+		t.Errorf("checkGlobals must tolerate an unknown field, got %v", err)
+	}
+}
+
+// TestCheckGlobals_InvalidSettingsFails covers Fix 1: a present-but-invalid
+// settings.json must abort MCP startup rather than start with globals silently
+// dropped from the read path.
+func TestCheckGlobals_InvalidSettingsFails(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	writeMCPSettings(t, base, `{not valid json`)
+
+	err := checkGlobals(base)
+	if err == nil {
+		t.Fatal("checkGlobals should fail on an invalid settings.json")
+	}
+	if !strings.Contains(err.Error(), "settings.json") {
+		t.Errorf("error %q should mention settings.json", err)
 	}
 }

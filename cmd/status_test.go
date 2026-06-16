@@ -400,3 +400,64 @@ func TestStatus_ManifestWithDuplicateRelation(t *testing.T) {
 		t.Errorf("expected 'duplicate' in output, got: %s", out)
 	}
 }
+
+// TestStatus_ExcludesGlobalTagsFromHygiene verifies tag hygiene ignores mounted
+// read-only globals: a tag that exists only upstream must not be flagged in the
+// consumer's status, which cannot fix it.
+func TestStatus_ExcludesGlobalTagsFromHygiene(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "local.rule.md",
+		"---\ntitle: Local\nstatus: accepted\ntags:\n  - shared\n---\n\nbody\n")
+	// In-tree global carrying a tag that exists ONLY in the global.
+	writeDoc(t, dir, "global/company/knowledge", "company.rule.md",
+		"---\ntitle: Company\nstatus: accepted\ntags:\n  - globalonly\n---\n\nbody\n")
+	settings := filepath.Join(dir, ".archcore", "settings.json")
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":".archcore/global/company"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("status error: %v\noutput: %s", err, out)
+	}
+	if strings.Contains(out, "globalonly") {
+		t.Errorf("global-only tag must be excluded from tag hygiene, got:\n%s", out)
+	}
+}
+
+// TestStatus_MissingGlobalFailsStatus guards the "mandatory globals are loud, not
+// silent" invariant on the status surface: a declared-but-absent global must make
+// `archcore status` report a visible failure and exit non-zero, while local structural
+// checks still run. The status path uses the global-aware tools.ScanDocuments (not
+// ScanLocalDocuments) precisely so this failure surfaces; a refactor swapping it would
+// drop the invariant silently and fail this test. No absolute path may leak.
+func TestStatus_MissingGlobalFailsStatus(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "local.rule.md",
+		"---\ntitle: Local\nstatus: accepted\n---\n\nbody\n")
+	// Declare a global whose directory does not exist on disk.
+	settings := filepath.Join(dir, ".archcore", "settings.json")
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":"../missing/.archcore"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatalf("status must exit non-zero when a declared global is missing; output:\n%s", out)
+	}
+	for _, want := range []string{
+		"error scanning documents for tag check:", // the surfacing FailLine
+		"company",              // the missing global's id
+		"../missing/.archcore", // the relative declared path, verbatim
+		"1 issue(s) found",     // exactly one issue counted + summary printed
+		".archcore/ exists",    // local structural checks ran first (degrade-but-loud)
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("status output missing %q; got:\n%s", want, out)
+		}
+	}
+	// No absolute-path leak: the temp dir's absolute root must never appear.
+	if strings.Contains(out, dir) {
+		t.Errorf("status output leaked an absolute path (%q); got:\n%s", dir, out)
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"archcore-cli/internal/config"
 	"archcore-cli/internal/sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -57,6 +58,13 @@ func HandleRemoveDocument(baseDir string) func(ctx context.Context, request mcp.
 		relPath, err = validateArchcorePath(relPath)
 		if err != nil {
 			return errorResult(err.Error()), nil
+		}
+		globals, gErr := config.LoadGlobals(baseDir)
+		if gErr != nil {
+			return errorResult("cannot verify global sources: settings.json is unreadable"), nil
+		}
+		if isReadOnlyGlobalPath(baseDir, relPath, globals) {
+			return errorResult("cannot remove a read-only global source document"), nil
 		}
 
 		// Read file metadata before deletion.

@@ -1,6 +1,8 @@
 ---
-title: How Sync Works in Archcore
+title: "How Sync Works in Archcore"
 status: accepted
+tags:
+  - "sync"
 ---
 
 ---

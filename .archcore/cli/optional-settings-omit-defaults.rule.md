@@ -1,6 +1,8 @@
 ---
 title: "Optional Settings Fields Use omitempty and Code-Level Defaults"
 status: accepted
+tags:
+  - "cli"
 ---
 
 ## Rule

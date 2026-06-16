@@ -1,6 +1,8 @@
 ---
-title: Auto-Detect repo_url from Git Origin During First Sync
+title: "Auto-Detect repo_url from Git Origin During First Sync"
 status: accepted
+tags:
+  - "sync"
 ---
 
 ## Context

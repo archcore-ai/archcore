@@ -129,3 +129,74 @@ func TestBuildSessionContext_NoTags(t *testing.T) {
 		t.Error("should not show EXISTING TAGS when no tags exist")
 	}
 }
+
+// TestBuildSessionContext_ExcludesGlobals verifies mounted read-only globals do
+// not leak into the session-start context — they are surfaced only through the
+// MCP read tools, never in CLI-injected context.
+func TestBuildSessionContext_ExcludesGlobals(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+
+	localDoc := filepath.Join(base, ".archcore", "knowledge", "local-rule.rule.md")
+	if err := os.WriteFile(localDoc, []byte("---\ntitle: Local Rule\nstatus: accepted\ntags:\n  - localtag\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	globalDoc := filepath.Join(base, ".archcore", "global", "company", "knowledge", "company-rule.rule.md")
+	if err := os.MkdirAll(filepath.Dir(globalDoc), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(globalDoc, []byte("---\ntitle: Company Rule\nstatus: accepted\ntags:\n  - globaltag\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	settings := filepath.Join(base, ".archcore", "settings.json")
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":".archcore/global/company"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, _ := buildSessionContext(base)
+
+	if !strings.Contains(ctx, "local-rule.rule.md") {
+		t.Error("local doc should appear in session context")
+	}
+	if strings.Contains(ctx, "company-rule.rule.md") {
+		t.Error("global doc must NOT appear in session context")
+	}
+	if strings.Contains(ctx, "globaltag") {
+		t.Error("global-only tag must NOT appear in session context")
+	}
+}
+
+// TestBuildSessionContext_MissingGlobalDegradesToLocal guards the regression where a
+// declared-but-absent global made ScanDocuments error and the hook blanked the whole
+// context — dropping every LOCAL doc too, silently. The hook must instead keep the
+// local docs and surface a visible warning (a missing mandatory global is loud, not
+// silent), without leaking an absolute path.
+func TestBuildSessionContext_MissingGlobalDegradesToLocal(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+
+	localDoc := filepath.Join(base, ".archcore", "knowledge", "local-rule.rule.md")
+	if err := os.WriteFile(localDoc, []byte("---\ntitle: Local Rule\nstatus: accepted\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Declare a global that is not on disk.
+	settings := filepath.Join(base, ".archcore", "settings.json")
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":"../missing/.archcore"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, n := buildSessionContext(base)
+
+	if !strings.Contains(ctx, "local-rule.rule.md") {
+		t.Error("local doc must survive a missing global, not be blanked")
+	}
+	if n != 1 {
+		t.Errorf("doc count = %d, want 1 surviving local doc", n)
+	}
+	if !strings.Contains(ctx, "⚠") || !strings.Contains(ctx, `"company"`) {
+		t.Errorf("expected a visible warning naming the missing global; ctx=%q", ctx)
+	}
+	if !strings.Contains(ctx, "../missing/.archcore") {
+		t.Error("warning should cite the declared relative path, not an absolute one")
+	}
+}

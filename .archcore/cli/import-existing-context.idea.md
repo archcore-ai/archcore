@@ -1,6 +1,8 @@
 ---
 title: "Import Existing Context from CLAUDE.md, .cursorrules, and Other Agent Configs"
 status: draft
+tags:
+  - "cli"
 ---
 
 ## Idea

@@ -1,6 +1,8 @@
 ---
 title: "Three Requirements Tracks: PRD, Sources, and ISO 29148"
 status: accepted
+tags:
+  - "document-types"
 ---
 
 ## Idea

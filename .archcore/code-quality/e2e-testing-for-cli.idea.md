@@ -1,7 +1,8 @@
 ---
 title: "E2E Testing Strategy for Archcore CLI"
-status: draft
+status: accepted
 tags:
+  - "code-quality"
   - "testing"
 ---
 

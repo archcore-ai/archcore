@@ -1,6 +1,8 @@
 ---
 title: "Building the Archcore CLI"
 status: accepted
+tags:
+  - "cli-ui"
 ---
 
 ## Overview

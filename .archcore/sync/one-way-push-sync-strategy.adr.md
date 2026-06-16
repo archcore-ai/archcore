@@ -1,6 +1,8 @@
 ---
-title: Use One-Way Push Sync from Local .archcore/ to Server
+title: "Use One-Way Push Sync from Local .archcore/ to Server"
 status: accepted
+tags:
+  - "sync"
 ---
 
 ## Context

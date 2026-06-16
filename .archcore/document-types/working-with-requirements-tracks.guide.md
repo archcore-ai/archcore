@@ -1,6 +1,8 @@
 ---
 title: "Working with Requirements Tracks in Archcore"
 status: accepted
+tags:
+  - "document-types"
 ---
 
 ## Overview

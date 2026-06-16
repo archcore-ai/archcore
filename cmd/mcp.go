@@ -3,7 +3,9 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -32,6 +34,15 @@ func newMCPCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, display.Dim.Render("  MCP server running on stdio (uninitialized project — only init_project tool is useful until the agent initializes .archcore/)..."))
 			} else {
 				fmt.Fprintln(os.Stderr, display.Dim.Render("  MCP server running on stdio..."))
+				if err := checkGlobals(baseDir); err != nil {
+					return err
+				}
+				// Warn (to stderr — stdout is the JSON-RPC stream) if the config
+				// carries fields this binary does not recognize. checkGlobals has
+				// already confirmed settings.json is present and valid here.
+				if s, lErr := config.Load(baseDir); lErr == nil {
+					warnUnknownConfigFields(os.Stderr, s)
+				}
 			}
 
 			return mcpserver.RunStdio(baseDir)
@@ -43,6 +54,35 @@ func newMCPCmd() *cobra.Command {
 
 	cmd.AddCommand(newMCPInstallCmd())
 	return cmd
+}
+
+// checkGlobals returns an error if any declared global source is absent from
+// disk. Every global declared in the project's own settings.json globals array
+// is mandatory. Called at MCP startup so the agent never runs against a broken
+// configuration.
+func checkGlobals(baseDir string) error {
+	settings, err := config.Load(baseDir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil // no settings.json → no globals to check
+		}
+		// A present-but-invalid settings.json must not start silently: the read
+		// path degrades to "no globals" without signal, the exact failure the
+		// mandatory-globals decision exists to prevent.
+		return fmt.Errorf("invalid .archcore/settings.json: %w", err)
+	}
+	for _, gs := range settings.Globals {
+		// gs.Path points at the global's .archcore directory; it may be relative
+		// (including "../") or absolute. Resolve relative paths against baseDir.
+		p := gs.Path
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(baseDir, p)
+		}
+		if _, statErr := os.Stat(p); errors.Is(statErr, fs.ErrNotExist) {
+			return fmt.Errorf("global source %q not found at %q — clone it before starting the MCP server", gs.ID, gs.Path)
+		}
+	}
+	return nil
 }
 
 func newMCPInstallCmd() *cobra.Command {

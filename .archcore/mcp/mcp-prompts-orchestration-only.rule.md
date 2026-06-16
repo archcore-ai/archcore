@@ -1,6 +1,8 @@
 ---
 title: "MCP Prompts Are Reserved for Multi-Document Track Orchestration"
 status: accepted
+tags:
+  - "mcp"
 ---
 
 ## Rule

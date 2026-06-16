@@ -1,6 +1,8 @@
 ---
 title: "Never Expose Absolute Filesystem Paths in MCP Tool Error Messages"
 status: accepted
+tags:
+  - "mcp"
 ---
 
 ## Rule

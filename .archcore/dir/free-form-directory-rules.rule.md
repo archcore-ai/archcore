@@ -1,6 +1,8 @@
 ---
 title: "Directory Structure and Document Naming Rules"
 status: accepted
+tags:
+  - "directory-structure"
 ---
 
 ## Description

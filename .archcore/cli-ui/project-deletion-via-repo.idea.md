@@ -1,6 +1,8 @@
 ---
-title: Project Deletion Only Via Removing .archcore Directory
+title: "Project Deletion Only Via Removing .archcore Directory"
 status: draft
+tags:
+  - "cli-ui"
 ---
 
 ## Problem

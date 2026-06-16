@@ -1,6 +1,8 @@
 ---
 title: "How to Create a New Release"
 status: accepted
+tags:
+  - "release"
 ---
 
 ## Prerequisites

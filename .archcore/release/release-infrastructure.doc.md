@@ -1,6 +1,8 @@
 ---
 title: "Release Infrastructure Overview"
 status: accepted
+tags:
+  - "release"
 ---
 
 ## Overview

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"archcore-cli/internal/config"
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -132,6 +133,13 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 				return errorResult(fmt.Sprintf("invalid directory %q: must be relative and within .archcore/", directory)), nil
 			}
 			directory = filepath.ToSlash(cleaned)
+			globals, gErr := config.LoadGlobals(baseDir)
+			if gErr != nil {
+				return errorResult("cannot verify global sources: settings.json is unreadable"), nil
+			}
+			if isReadOnlyGlobalPath(baseDir, ".archcore/"+directory, globals) {
+				return errorResult("cannot create document in a read-only global source"), nil
+			}
 		}
 
 		tags, tagErr := parseTags(request.GetStringSlice("tags", nil))

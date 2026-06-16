@@ -1,6 +1,8 @@
 ---
 title: "Three-Way Tag Update Semantics in MCP Tools"
 status: accepted
+tags:
+  - "mcp"
 ---
 
 ## Rule

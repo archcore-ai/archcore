@@ -3,6 +3,7 @@ title: "MCP Server Starts Without .archcore/ and Exposes init_project Tool"
 status: accepted
 tags:
   - "golang"
+  - "mcp"
 ---
 
 ## Context

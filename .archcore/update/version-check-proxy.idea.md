@@ -1,6 +1,8 @@
 ---
 title: "Proxy GitHub Release Check Through archcore.ai to Avoid Rate Limits"
 status: draft
+tags:
+  - "update"
 ---
 
 ## Idea

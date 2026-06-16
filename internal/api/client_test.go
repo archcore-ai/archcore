@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	archsync "archcore-cli/internal/sync"
@@ -241,6 +242,44 @@ func TestGetProject(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGetProject_ErrorBodyDetail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("db down"))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL)
+	_, err := c.GetProject(context.Background(), 42)
+	if err == nil {
+		t.Fatal("expected error for 500 response")
+	}
+	if !strings.Contains(err.Error(), "db down") {
+		t.Errorf("error = %q, want it to contain body detail %q", err.Error(), "db down")
+	}
+}
+
+func TestGet_RequestCreationFails(t *testing.T) {
+	// A control character in the URL makes http.NewRequestWithContext fail
+	// before any network call.
+	c := &Client{BaseURL: "http://\x7f/api/v1", HTTPClient: http.DefaultClient}
+	if _, err := c.ListProjects(context.Background()); err == nil {
+		t.Fatal("expected error for invalid request URL")
+	}
+}
+
+func TestSync_RequestCreationFails(t *testing.T) {
+	c := &Client{BaseURL: "http://\x7f/api/v1", HTTPClient: http.DefaultClient}
+	_, _, err := c.Sync(context.Background(), &archsync.Payload{
+		Created:  []archsync.FileEntry{},
+		Modified: []archsync.FileEntry{},
+		Deleted:  []string{},
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid request URL")
 	}
 }
 

@@ -1,6 +1,8 @@
 ---
 title: "CLI Hooks Reference"
 status: accepted
+tags:
+  - "integrations"
 ---
 
 ## Overview

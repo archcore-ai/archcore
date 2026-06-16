@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -236,6 +237,12 @@ func SplitDocument(data []byte) (Frontmatter, string) {
 // document file found. It skips hidden directories, non-.md files, and known
 // meta files (settings.json, .sync-state.json).
 func WalkArchcoreFiles(archcoreDir string, fn func(path string, d fs.DirEntry) error) error {
+	return WalkArchcoreFilesSkipping(archcoreDir, nil, fn)
+}
+
+// WalkArchcoreFilesSkipping is like WalkArchcoreFiles but also skips any
+// subdirectory whose name matches an entry in skipDirs.
+func WalkArchcoreFilesSkipping(archcoreDir string, skipDirs []string, fn func(path string, d fs.DirEntry) error) error {
 	return filepath.WalkDir(archcoreDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -246,12 +253,15 @@ func WalkArchcoreFiles(archcoreDir string, fn func(path string, d fs.DirEntry) e
 
 		name := d.Name()
 
-		// Skip hidden directories (but not .archcore itself).
-		if d.IsDir() && strings.HasPrefix(name, ".") && path != archcoreDir {
-			return filepath.SkipDir
-		}
-
 		if d.IsDir() {
+			// Skip hidden directories (but not .archcore itself).
+			if strings.HasPrefix(name, ".") && path != archcoreDir {
+				return filepath.SkipDir
+			}
+			// Skip explicitly excluded directory names.
+			if slices.Contains(skipDirs, name) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 

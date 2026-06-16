@@ -1,6 +1,8 @@
 ---
 title: "search_documents Is a Matching Primitive, Not a Presentation Tool"
 status: accepted
+tags:
+  - "mcp"
 ---
 
 ## Context

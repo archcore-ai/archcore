@@ -1,6 +1,8 @@
 ---
 title: "MRD/BRD/URD as Requirement Sources Track Alongside PRD and ISO 29148"
 status: accepted
+tags:
+  - "document-types"
 ---
 
 ## Idea

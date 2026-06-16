@@ -1,6 +1,8 @@
 ---
-title: Manifest Must Only Update After Confirmed Server Response
+title: "Manifest Must Only Update After Confirmed Server Response"
 status: accepted
+tags:
+  - "sync"
 ---
 
 ## Rule

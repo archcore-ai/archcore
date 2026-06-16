@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"archcore-cli/internal/config"
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -63,6 +64,13 @@ func HandleUpdateDocument(baseDir string) func(ctx context.Context, request mcp.
 		relPath, err = validateArchcorePath(relPath)
 		if err != nil {
 			return errorResult(err.Error()), nil
+		}
+		globals, gErr := config.LoadGlobals(baseDir)
+		if gErr != nil {
+			return errorResult("cannot verify global sources: settings.json is unreadable"), nil
+		}
+		if isReadOnlyGlobalPath(baseDir, relPath, globals) {
+			return errorResult("cannot update a read-only global source document"), nil
 		}
 
 		// Require at least one update field.

@@ -1,6 +1,8 @@
 ---
 title: "search_documents MCP Tool Contract"
 status: accepted
+tags:
+  - "mcp"
 ---
 
 ## Purpose

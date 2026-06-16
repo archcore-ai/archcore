@@ -2,6 +2,7 @@
 title: "In-Process MCP Integration Tests as Layer A of the E2E Strategy"
 status: accepted
 tags:
+  - "code-quality"
   - "golang"
   - "testing"
 ---

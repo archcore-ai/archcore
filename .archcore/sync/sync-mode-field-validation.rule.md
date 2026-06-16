@@ -1,6 +1,9 @@
 ---
 title: "Sync Mode Strictly Controls Allowed Settings Fields"
 status: accepted
+tags:
+  - "config"
+  - "sync"
 ---
 
 ## Rule

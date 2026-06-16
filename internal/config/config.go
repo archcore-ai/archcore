@@ -2,9 +2,14 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -12,6 +17,22 @@ const (
 	dirName  = ".archcore"
 	fileName = "settings.json"
 )
+
+// globalIDRe validates a global source id: lowercase alphanumeric with hyphens.
+var globalIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+
+// GlobalSource declares a read-only external knowledge base mounted into the
+// local project for read operations.
+type GlobalSource struct {
+	ID string `json:"id"`
+	// Path points at the global source's .archcore directory, e.g.
+	// "../company-global/.archcore". It may be relative (including "../" for
+	// sibling or parent directories) or absolute.
+	//
+	// Every declared global source is mandatory: if its directory is absent the
+	// MCP server fails fast rather than running against an incomplete context.
+	Path string `json:"path"`
+}
 
 // SyncType identifies the sync mode of a project.
 type SyncType string
@@ -37,10 +58,20 @@ func ValidSyncTypeStrings() []string {
 var CloudServerURL = "https://app.archcore.ai"
 
 type Settings struct {
-	Sync        SyncType `json:"sync"`
-	ProjectID   *int     `json:"project_id,omitempty"`
-	ArchcoreURL string   `json:"archcore_url,omitempty"`
-	Language    string   `json:"language,omitempty"`
+	Sync        SyncType       `json:"sync"`
+	ProjectID   *int           `json:"project_id,omitempty"`
+	ArchcoreURL string         `json:"archcore_url,omitempty"`
+	Language    string         `json:"language,omitempty"`
+	Globals     []GlobalSource `json:"globals,omitempty"`
+
+	// Extra holds fields present in settings.json that this binary does not
+	// recognize — typically a field added by a newer archcore version. They are
+	// tolerated on read (forward compatibility) and preserved verbatim on write
+	// so an older binary never silently drops a newer config field. The custom
+	// (Un)MarshalJSON methods own serialization; the json:"-" tag only documents
+	// that Extra is not a normal field and guards against accidental exposure if
+	// those methods are ever removed.
+	Extra map[string]json.RawMessage `json:"-"`
 }
 
 // NewNoneSettings creates settings with sync disabled.
@@ -82,6 +113,25 @@ func (s *Settings) Validate() error {
 	if s.Language != "" && strings.Contains(s.Language, " ") {
 		return fmt.Errorf("language must not contain spaces")
 	}
+	seen := make(map[string]int, len(s.Globals))
+	for i, g := range s.Globals {
+		if g.ID == "" {
+			return fmt.Errorf("globals[%d]: \"id\" must not be empty", i)
+		}
+		if !globalIDRe.MatchString(g.ID) {
+			return fmt.Errorf("globals[%d]: \"id\" %q must be lowercase alphanumeric with hyphens (e.g. \"company\")", i, g.ID)
+		}
+		if g.ID == "local" {
+			return fmt.Errorf("globals[%d]: \"id\" %q is reserved", i, g.ID)
+		}
+		if g.Path == "" {
+			return fmt.Errorf("globals[%d]: \"path\" must not be empty", i)
+		}
+		if j, dup := seen[g.ID]; dup {
+			return fmt.Errorf("globals[%d] and globals[%d]: duplicate id %q", j, i, g.ID)
+		}
+		seen[g.ID] = i
+	}
 	return nil
 }
 
@@ -98,10 +148,11 @@ func (s *Settings) ServerURL() string {
 }
 
 // allowedFields defines which JSON fields are valid per sync type (besides "sync" itself).
+// "globals" is always allowed regardless of sync mode.
 var allowedFields = map[SyncType]map[string]bool{
-	SyncTypeNone:   {"language": true},
-	SyncTypeCloud:  {"project_id": true, "language": true},
-	SyncTypeOnPrem: {"project_id": true, "archcore_url": true, "language": true},
+	SyncTypeNone:   {"language": true, "globals": true},
+	SyncTypeCloud:  {"project_id": true, "language": true, "globals": true},
+	SyncTypeOnPrem: {"project_id": true, "archcore_url": true, "language": true, "globals": true},
 }
 
 // requiredFields defines which JSON fields must be present per sync type.
@@ -111,32 +162,72 @@ var requiredFields = map[SyncType][]string{
 	SyncTypeOnPrem: {"archcore_url"},
 }
 
+// knownFields is every JSON field this binary recognizes: "sync" plus the union
+// of allowedFields across all sync types. A field outside this set is unknown to
+// this binary (e.g. added by a newer archcore version) and is tolerated and
+// preserved rather than rejected. Derived from allowedFields so it extends
+// automatically when a new field is added there.
+var knownFields = func() map[string]bool {
+	known := map[string]bool{"sync": true}
+	for _, fields := range allowedFields {
+		for f := range fields {
+			known[f] = true
+		}
+	}
+	return known
+}()
+
 func (s Settings) MarshalJSON() ([]byte, error) {
+	var known []byte
+	var err error
 	switch s.Sync {
 	case SyncTypeNone:
-		return json.Marshal(struct {
-			Sync     SyncType `json:"sync"`
-			Language string   `json:"language,omitempty"`
-		}{Sync: s.Sync, Language: s.Language})
+		known, err = json.Marshal(struct {
+			Sync     SyncType       `json:"sync"`
+			Language string         `json:"language,omitempty"`
+			Globals  []GlobalSource `json:"globals,omitempty"`
+		}{Sync: s.Sync, Language: s.Language, Globals: s.Globals})
 
 	case SyncTypeCloud:
-		return json.Marshal(struct {
-			Sync      SyncType `json:"sync"`
-			ProjectID *int     `json:"project_id,omitempty"`
-			Language  string   `json:"language,omitempty"`
-		}{Sync: s.Sync, ProjectID: s.ProjectID, Language: s.Language})
+		known, err = json.Marshal(struct {
+			Sync      SyncType       `json:"sync"`
+			ProjectID *int           `json:"project_id,omitempty"`
+			Language  string         `json:"language,omitempty"`
+			Globals   []GlobalSource `json:"globals,omitempty"`
+		}{Sync: s.Sync, ProjectID: s.ProjectID, Language: s.Language, Globals: s.Globals})
 
 	case SyncTypeOnPrem:
-		return json.Marshal(struct {
-			Sync        SyncType `json:"sync"`
-			ProjectID   *int     `json:"project_id,omitempty"`
-			ArchcoreURL string   `json:"archcore_url"`
-			Language    string   `json:"language,omitempty"`
-		}{Sync: s.Sync, ProjectID: s.ProjectID, ArchcoreURL: s.ArchcoreURL, Language: s.Language})
+		known, err = json.Marshal(struct {
+			Sync        SyncType       `json:"sync"`
+			ProjectID   *int           `json:"project_id,omitempty"`
+			ArchcoreURL string         `json:"archcore_url"`
+			Language    string         `json:"language,omitempty"`
+			Globals     []GlobalSource `json:"globals,omitempty"`
+		}{Sync: s.Sync, ProjectID: s.ProjectID, ArchcoreURL: s.ArchcoreURL, Language: s.Language, Globals: s.Globals})
 
 	default:
 		return nil, fmt.Errorf("unknown sync type %q", s.Sync)
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	// No unknown fields → emit the known fields verbatim (byte-identical to the
+	// pre-forward-compat output, so existing settings.json files don't churn).
+	if len(s.Extra) == 0 {
+		return known, nil
+	}
+
+	// Merge captured unknown fields back in. Extra keys are disjoint from the
+	// known fields by construction (a field lands in Extra only if it is not in
+	// knownFields), so there is never a collision. The result re-sorts object
+	// keys alphabetically, which only affects configs that carry unknown fields.
+	var merged map[string]json.RawMessage
+	if err := json.Unmarshal(known, &merged); err != nil {
+		return nil, err
+	}
+	maps.Copy(merged, s.Extra)
+	return json.Marshal(merged)
 }
 
 func (s *Settings) UnmarshalJSON(data []byte) error {
@@ -162,14 +253,25 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("unknown sync type %q", syncType)
 	}
 
-	// Check for unknown fields.
+	// Classify every non-sync field:
+	//   - allowed for this sync mode      → decoded below.
+	//   - known to this binary, wrong mode → hard error (misconfiguration).
+	//   - unknown to this binary           → tolerated and captured into Extra so
+	//     an older binary does not crash on, or silently drop, a newer field.
 	for key := range raw {
 		if key == "sync" {
 			continue
 		}
-		if !allowed[key] {
+		if allowed[key] {
+			continue
+		}
+		if knownFields[key] {
 			return fmt.Errorf("field %q is not allowed for sync type %q", key, syncType)
 		}
+		if s.Extra == nil {
+			s.Extra = make(map[string]json.RawMessage)
+		}
+		s.Extra[key] = raw[key]
 	}
 
 	// Check for required fields.
@@ -222,7 +324,32 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 		s.Language = lang
 	}
 
+	// Decode globals if present — always allowed regardless of sync mode.
+	if globalsRaw, ok := raw["globals"]; ok {
+		var globals []GlobalSource
+		if err := json.Unmarshal(globalsRaw, &globals); err != nil {
+			return fmt.Errorf("field \"globals\" must be an array of global source objects")
+		}
+		s.Globals = globals
+	}
+
 	return nil
+}
+
+// UnknownFieldNames returns the sorted names of settings.json fields this binary
+// does not recognize (captured into Extra on load). Empty when the config is
+// fully understood. Entry-point commands use it to warn the user that their
+// archcore may be older than the project's config.
+func (s *Settings) UnknownFieldNames() []string {
+	if len(s.Extra) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(s.Extra))
+	for k := range s.Extra {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func settingsPath(baseDir string) string {
@@ -267,4 +394,29 @@ func InitDir(baseDir string) error {
 func DirExists(baseDir string) bool {
 	info, err := os.Stat(filepath.Join(baseDir, dirName))
 	return err == nil && info.IsDir()
+}
+
+// ReadGlobals returns the declared global sources for baseDir.
+// Returns nil if settings cannot be loaded (missing file, parse error, etc.).
+// Use this on read paths where a degraded "no globals" view is acceptable; write
+// guards that must fail closed should use LoadGlobals instead.
+func ReadGlobals(baseDir string) []GlobalSource {
+	globals, _ := LoadGlobals(baseDir)
+	return globals
+}
+
+// LoadGlobals returns the declared global sources for baseDir. A missing
+// settings.json is not an error — it yields no globals. A present-but-invalid
+// settings.json returns the parse/validation error so callers that must fail
+// closed (e.g. write guards protecting read-only sources) can reject the
+// operation rather than silently treating it as "no globals".
+func LoadGlobals(baseDir string) ([]GlobalSource, error) {
+	s, err := Load(baseDir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return s.Globals, nil
 }

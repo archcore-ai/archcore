@@ -1,6 +1,8 @@
 ---
-title: Temporarily Disable Features at the Command Layer Only
+title: "Temporarily Disable Features at the Command Layer Only"
 status: accepted
+tags:
+  - "cli"
 ---
 
 ## Rule

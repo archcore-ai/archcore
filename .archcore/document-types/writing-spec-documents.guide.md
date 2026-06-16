@@ -1,6 +1,8 @@
 ---
 title: "How to Write a spec Document"
 status: accepted
+tags:
+  - "document-types"
 ---
 
 ## Overview

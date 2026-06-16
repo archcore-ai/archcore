@@ -1,6 +1,8 @@
 ---
 title: "Cross-Project MCP Access from a Single Session"
-status: draft
+status: accepted
+tags:
+  - "cli"
 ---
 
 ## Idea

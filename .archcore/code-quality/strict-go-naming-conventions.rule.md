@@ -2,6 +2,7 @@
 title: "Strict Go Naming Conventions"
 status: accepted
 tags:
+  - "code-quality"
   - "code-review"
   - "golang"
 ---

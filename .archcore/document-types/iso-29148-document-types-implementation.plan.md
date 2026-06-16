@@ -1,6 +1,8 @@
 ---
 title: "Implementation Plan: Add ISO 29148 Document Types (BRS, StRS, SyRS, SRS)"
 status: accepted
+tags:
+  - "document-types"
 ---
 
 ## Goal

@@ -1,6 +1,8 @@
 ---
 title: "MCP prompts capability scoped to the five document tracks"
 status: accepted
+tags:
+  - "mcp"
 ---
 
 ## Context

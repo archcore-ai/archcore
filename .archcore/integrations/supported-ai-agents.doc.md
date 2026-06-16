@@ -1,6 +1,8 @@
 ---
 title: "Supported AI Agents Registry"
 status: accepted
+tags:
+  - "integrations"
 ---
 
 ## Summary

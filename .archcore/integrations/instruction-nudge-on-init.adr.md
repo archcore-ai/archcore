@@ -1,6 +1,8 @@
 ---
 title: "Write a Usage-Nudge Instruction File per Agent on init"
 status: accepted
+tags:
+  - "integrations"
 ---
 
 ## Context

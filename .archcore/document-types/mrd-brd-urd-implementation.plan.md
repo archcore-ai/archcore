@@ -1,6 +1,8 @@
 ---
 title: "Implementation Plan: Add MRD, BRD, URD Document Types as Requirement Sources Track"
 status: accepted
+tags:
+  - "document-types"
 ---
 
 ## Goal

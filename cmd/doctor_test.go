@@ -47,8 +47,9 @@ func TestDoctor_InvalidSettings(t *testing.T) {
 	if err := config.InitDir(dir); err != nil {
 		t.Fatal(err)
 	}
-	// Write invalid settings (unknown field triggers validation error).
-	if err := os.WriteFile(filepath.Join(dir, ".archcore", "settings.json"), []byte(`{"sync":"none","extra":true}`), 0o644); err != nil {
+	// Write invalid settings: a KNOWN field in the wrong sync mode still errors
+	// (a genuinely-unknown field would now be tolerated, not rejected).
+	if err := os.WriteFile(filepath.Join(dir, ".archcore", "settings.json"), []byte(`{"sync":"none","project_id":1}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

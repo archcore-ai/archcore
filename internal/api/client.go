@@ -111,45 +111,6 @@ func (c *Client) get(ctx context.Context, path string, dest any) error {
 	return nil
 }
 
-func (c *Client) post(ctx context.Context, path string, body any, dest any) error {
-	jsonData, err := json.Marshal(body)
-	if err != nil {
-		return fmt.Errorf("marshaling request body: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(jsonData))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	c.applyAuth(req)
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		detail := readErrorBody(resp.Body)
-		if detail != "" {
-			return fmt.Errorf("server returned status %d: %s", resp.StatusCode, detail)
-		}
-		return fmt.Errorf("server returned status %d", resp.StatusCode)
-	}
-
-	if dest != nil {
-		limited := io.LimitReader(resp.Body, maxResponseSize)
-		if err := json.NewDecoder(limited).Decode(dest); err != nil {
-			return fmt.Errorf("invalid response: %w", err)
-		}
-	}
-	return nil
-}
-
 func (c *Client) CheckHealth(ctx context.Context) error {
 	var result struct {
 		Ready bool `json:"ready"`

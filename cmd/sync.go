@@ -39,6 +39,7 @@ func checkSyncPreconditions(baseDir string) (*syncPreconditions, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid settings: %w", err)
 	}
+	warnUnknownConfigFields(os.Stderr, settings)
 
 	if settings.Sync == config.SyncTypeNone {
 		return nil, fmt.Errorf("sync is disabled — run 'archcore config set sync cloud' or 'archcore init' to configure")

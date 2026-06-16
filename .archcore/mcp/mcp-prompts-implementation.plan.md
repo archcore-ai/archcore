@@ -1,6 +1,8 @@
 ---
 title: "Implementation Plan: MCP Track Prompts"
 status: accepted
+tags:
+  - "mcp"
 ---
 
 ## Goal

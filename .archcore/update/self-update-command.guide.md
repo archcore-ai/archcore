@@ -1,6 +1,8 @@
 ---
 title: "How archcore update Works"
 status: accepted
+tags:
+  - "update"
 ---
 
 ## Prerequisites

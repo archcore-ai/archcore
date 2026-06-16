@@ -1,6 +1,8 @@
 ---
 title: "Version Must Be Injected via ldflags at Build Time"
 status: accepted
+tags:
+  - "release"
 ---
 
 ## Rule

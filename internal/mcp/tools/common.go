@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"archcore-cli/internal/config"
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -31,19 +32,24 @@ type EnrichedDocument struct {
 
 // LocalDocument represents a document discovered in .archcore/.
 type LocalDocument struct {
-	Path     string              `json:"path"`              // relative: ".archcore/auth/jwt-strategy.adr.md"
-	Category templates.Category  `json:"category"`          // virtual: vision, knowledge, experience (derived from type)
-	Type     string              `json:"type"`              // adr, rfc, rule...
-	Filename string              `json:"filename"`          // "jwt-strategy.adr.md"
-	Slug     string              `json:"slug"`              // "jwt-strategy"
-	Title    string              `json:"title,omitempty"`   // from frontmatter
-	Status   templates.DocStatus `json:"status,omitempty"`  // from frontmatter
-	Tags     []string            `json:"tags,omitempty"`    // from frontmatter
-	ModTime  time.Time           `json:"mtime,omitzero"`    // file modification time
-	Content  string              `json:"content,omitempty"` // full markdown (optional)
+	Path       string              `json:"path"`                // relative: ".archcore/auth/jwt-strategy.adr.md"
+	Category   templates.Category  `json:"category"`            // virtual: vision, knowledge, experience (derived from type)
+	Type       string              `json:"type"`                // adr, rfc, rule...
+	Filename   string              `json:"filename"`            // "jwt-strategy.adr.md"
+	Slug       string              `json:"slug"`                // "jwt-strategy"
+	Title      string              `json:"title,omitempty"`     // from frontmatter
+	Status     templates.DocStatus `json:"status,omitempty"`    // from frontmatter
+	Tags       []string            `json:"tags,omitempty"`      // from frontmatter
+	ModTime    time.Time           `json:"mtime,omitzero"`      // file modification time
+	Content    string              `json:"content,omitempty"`   // full markdown (optional)
+	SourceID   string              `json:"source_id"`           // "local" or global source id
+	SourceKind string              `json:"source_kind"`         // "local" or "global"
+	Global     bool                `json:"global,omitempty"`    // true for mounted global sources
+	ReadOnly   bool                `json:"read_only,omitempty"` // true for mounted global sources
 }
 
 // ScanDocuments discovers all .md files recursively inside .archcore/.
+// Global sources declared in settings.json are scanned read-only.
 func ScanDocuments(baseDir string) ([]LocalDocument, error) {
 	return scanDocuments(baseDir, false)
 }
@@ -55,56 +61,181 @@ func ScanDocumentsFull(baseDir string) ([]LocalDocument, error) {
 	return scanDocuments(baseDir, true)
 }
 
-// scanDocuments walks .archcore/ once. When includeContent is false the
-// frontmatter parse is still fed from the full-file read (same as the previous
-// behavior), but the body is discarded.
-func scanDocuments(baseDir string, includeContent bool) ([]LocalDocument, error) {
+// resolveGlobalPath returns the absolute path for a global source.
+// If gsPath is already absolute it is returned as-is; otherwise it is resolved
+// relative to baseDir.
+func resolveGlobalPath(baseDir, gsPath string) string {
+	if filepath.IsAbs(gsPath) {
+		return gsPath
+	}
+	return filepath.Clean(filepath.Join(baseDir, gsPath))
+}
+
+// ScanLocalDocuments discovers only the primary project's own documents, never
+// touching declared global sources. Unlike ScanDocuments it cannot fail because a
+// global is missing — it never reads one. CLI surfaces that operate on local
+// documents only (status, SessionStart context) use this so an unreachable global
+// degrades to local-only instead of blanking the whole result.
+func ScanLocalDocuments(baseDir string) ([]LocalDocument, error) {
+	return scanLocalDocuments(baseDir, false)
+}
+
+// scanLocalDocuments performs phase 1 of the scan: the primary's own documents.
+// It skips the reserved global/ mount directory and any document that falls under
+// a declared global source (surfaced read-only in phase 2 instead), so a document
+// is never scanned as both local and global. A missing .archcore/ yields (nil, nil).
+func scanLocalDocuments(baseDir string, includeContent bool) ([]LocalDocument, error) {
 	archcoreDir := filepath.Join(baseDir, ".archcore")
+	allGlobals := config.ReadGlobals(baseDir)
 	var docs []LocalDocument
 
-	err := templates.WalkArchcoreFiles(archcoreDir, func(path string, d fs.DirEntry) error {
-		name := d.Name()
-
-		docType := templates.ExtractDocType(name)
-		category := templates.CategoryForType(templates.DocumentType(docType))
-		slug := templates.ExtractSlug(name)
-
-		data, readErr := os.ReadFile(path)
-		var fm templates.Frontmatter
-		if readErr == nil {
-			fm, _ = templates.SplitDocument(data)
-		}
-
-		var modTime time.Time
-		if info, infoErr := d.Info(); infoErr == nil {
-			modTime = info.ModTime()
-		}
-
-		relPath, _ := filepath.Rel(baseDir, path)
+	err := templates.WalkArchcoreFilesSkipping(archcoreDir, []string{"global"}, func(p string, d fs.DirEntry) error {
+		relPath, _ := filepath.Rel(baseDir, p)
 		relPath = filepath.ToSlash(relPath)
-
-		doc := LocalDocument{
-			Path:     relPath,
-			Category: category,
-			Type:     docType,
-			Filename: name,
-			Slug:     slug,
-			Title:    fm.Title,
-			Status:   fm.Status,
-			Tags:     fm.Tags,
-			ModTime:  modTime,
+		if isGlobalPath(baseDir, relPath, allGlobals) {
+			return nil
 		}
-		if includeContent && readErr == nil {
-			doc.Content = string(data)
-		}
+		doc := buildDoc(baseDir, p, d, includeContent)
+		doc.SourceID = "local"
+		doc.SourceKind = "local"
 		docs = append(docs, doc)
 		return nil
 	})
-
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
-	return docs, err
+	if err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
+// scanDocuments walks .archcore/ in two phases:
+//  1. Local documents — skips the global/ subdirectory entirely (scanLocalDocuments).
+//  2. Global sources declared in settings.json — each source is walked
+//     independently and documents are tagged read-only.
+func scanDocuments(baseDir string, includeContent bool) ([]LocalDocument, error) {
+	docs, err := scanLocalDocuments(baseDir, includeContent)
+	if err != nil {
+		return nil, err
+	}
+
+	// Phase 2: mounted global sources declared in settings.json.
+	allGlobals := config.ReadGlobals(baseDir)
+	for _, gs := range allGlobals {
+		globalDir := resolveGlobalPath(baseDir, gs.Path)
+		if _, statErr := os.Stat(globalDir); errors.Is(statErr, fs.ErrNotExist) {
+			return nil, fmt.Errorf("global source %q not found at %q", gs.ID, gs.Path)
+		}
+		walkErr := templates.WalkArchcoreFilesSkipping(globalDir, nil, func(p string, d fs.DirEntry) error {
+			doc := buildDoc(baseDir, p, d, includeContent)
+			doc.SourceID = gs.ID
+			doc.SourceKind = "global"
+			doc.Global = true
+			doc.ReadOnly = true
+			docs = append(docs, doc)
+			return nil
+		})
+		if walkErr != nil {
+			return nil, walkErr
+		}
+	}
+
+	return docs, nil
+}
+
+// buildDoc constructs a LocalDocument from a filesystem path during a walk.
+// absPath is the absolute path to the file; baseDir is the project root used
+// to compute the relative path stored in LocalDocument.Path. An unreadable file
+// still yields a document populated from its filename-derived fields.
+func buildDoc(baseDir, absPath string, d fs.DirEntry, includeContent bool) LocalDocument {
+	name := d.Name()
+
+	docType := templates.ExtractDocType(name)
+	category := templates.CategoryForType(templates.DocumentType(docType))
+	slug := templates.ExtractSlug(name)
+
+	data, readErr := os.ReadFile(absPath)
+	var fm templates.Frontmatter
+	if readErr == nil {
+		fm, _ = templates.SplitDocument(data)
+	}
+
+	var modTime time.Time
+	if info, infoErr := d.Info(); infoErr == nil {
+		modTime = info.ModTime()
+	}
+
+	relPath, _ := filepath.Rel(baseDir, absPath)
+	relPath = filepath.ToSlash(relPath)
+
+	doc := LocalDocument{
+		Path:     relPath,
+		Category: category,
+		Type:     docType,
+		Filename: name,
+		Slug:     slug,
+		Title:    fm.Title,
+		Status:   fm.Status,
+		Tags:     fm.Tags,
+		ModTime:  modTime,
+	}
+	if includeContent && readErr == nil {
+		doc.Content = string(data)
+	}
+	return doc
+}
+
+// matchGlobal returns the id of the declared global source that contains relPath
+// (relative to baseDir), and whether a match was found. Both relPath and each
+// gs.Path are anchored to baseDir before comparison, so embedded, "../"-relative,
+// and absolute global paths are all handled in the same coordinate space.
+func matchGlobal(baseDir, relPath string, globals []config.GlobalSource) (string, bool) {
+	target := filepath.ToSlash(filepath.Join(baseDir, relPath))
+	for _, gs := range globals {
+		prefix := filepath.ToSlash(resolveGlobalPath(baseDir, gs.Path))
+		if target == prefix || strings.HasPrefix(target, prefix+"/") {
+			return gs.ID, true
+		}
+	}
+	return "", false
+}
+
+// isGlobalPath reports whether relPath (relative to baseDir) falls under any
+// declared global source. Used by the write handlers to reject mutations of
+// read-only global documents.
+func isGlobalPath(baseDir, relPath string, globals []config.GlobalSource) bool {
+	_, ok := matchGlobal(baseDir, relPath, globals)
+	return ok
+}
+
+// isReservedGlobalDir reports whether relPath is the reserved .archcore/global/
+// mount directory or anything inside it — read-only global space regardless of
+// whether it is declared in settings.json.
+func isReservedGlobalDir(relPath string) bool {
+	rp := filepath.ToSlash(relPath)
+	return rp == ".archcore/global" || strings.HasPrefix(rp, ".archcore/global/")
+}
+
+// isReadOnlyGlobalPath reports whether relPath is read-only global space: either a
+// declared global source or the reserved .archcore/global/ tree. Every write and
+// relation guard uses this single predicate so "is this global?" has one answer.
+func isReadOnlyGlobalPath(baseDir, relPath string, globals []config.GlobalSource) bool {
+	return isReservedGlobalDir(relPath) || isGlobalPath(baseDir, relPath, globals)
+}
+
+// annotateSource fills SourceID, SourceKind, Global, and ReadOnly on doc
+// by matching doc.Path against declared global sources in settings.json.
+func annotateSource(doc *LocalDocument, baseDir string) {
+	if id, ok := matchGlobal(baseDir, doc.Path, config.ReadGlobals(baseDir)); ok {
+		doc.SourceID = id
+		doc.SourceKind = "global"
+		doc.Global = true
+		doc.ReadOnly = true
+		return
+	}
+	doc.SourceID = "local"
+	doc.SourceKind = "local"
 }
 
 // ReadDocumentContent reads a single document fully from a relative path.
@@ -229,4 +360,67 @@ func validateArchcorePath(relPath string) (string, error) {
 		return "", fmt.Errorf("invalid path: must be relative and within .archcore/")
 	}
 	return cleaned, nil
+}
+
+// validateReadPath validates the path argument of the read tools (get_document).
+//
+// It accepts everything validateArchcorePath accepts — local documents and in-tree
+// globals, all under the primary's .archcore/ — with identical behavior. It
+// ADDITIONALLY accepts a document that resolves strictly inside a declared external
+// global source (one whose path is "../…" or absolute, so its documents render with
+// a leading ".." that validateArchcorePath rejects). Only reads of read-only globals
+// take this branch; the write tools keep the strict validateArchcorePath and never
+// reach it, so a "../" global stays unwritable and non-linkable.
+//
+// The external-global branch is hardened, defense in depth:
+//  1. the path must be relative — list_documents only ever returns relative paths;
+//  2. only ".md" document files are readable (exactly what the scan surfaces);
+//  3. it must resolve, lexically (".." collapsed by filepath.Join), strictly within a
+//     declared global root — blocking "../"-traversal escapes;
+//  4. after evaluating symlinks, the real file must STILL sit inside the real global
+//     root — blocking symlink escapes out of the read-only mount.
+//
+// A path under a declared global that points at a missing file returns fs.ErrNotExist
+// so the caller reports an ordinary "document not found". Errors never embed an
+// absolute path (see no-absolute-paths-in-mcp-errors.rule).
+func validateReadPath(baseDir, relPath string, globals []config.GlobalSource) (string, error) {
+	// Local documents and in-tree globals: unchanged, strict validation.
+	if cleaned, err := validateArchcorePath(relPath); err == nil {
+		return cleaned, nil
+	}
+
+	// External-global read candidate. Tighten every axis before allowing it.
+	if filepath.IsAbs(relPath) {
+		return "", errors.New("invalid path: must be relative and within .archcore/")
+	}
+	rel := path.Clean(filepath.ToSlash(relPath))
+	if !strings.HasSuffix(rel, ".md") {
+		return "", errors.New("invalid path: only .md global documents are readable")
+	}
+
+	target := filepath.ToSlash(filepath.Join(baseDir, rel))
+	for _, gs := range globals {
+		root := filepath.ToSlash(filepath.Clean(resolveGlobalPath(baseDir, gs.Path)))
+		if target != root && !strings.HasPrefix(target, root+"/") {
+			continue // not under this global
+		}
+		// Lexically inside a declared global. Harden against symlink escape: the
+		// real file must remain inside the real global root.
+		realRoot, err := filepath.EvalSymlinks(filepath.FromSlash(root))
+		if err != nil {
+			return "", errors.New("invalid path: global source is not accessible")
+		}
+		realFile, err := filepath.EvalSymlinks(filepath.FromSlash(target))
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return "", fs.ErrNotExist // missing document → ordinary not-found
+			}
+			return "", errors.New("invalid path: cannot resolve global document")
+		}
+		if realFile != realRoot && !strings.HasPrefix(realFile, realRoot+string(filepath.Separator)) {
+			return "", errors.New("invalid path: resolves outside the global source")
+		}
+		return rel, nil
+	}
+	return "", errors.New("invalid path: must start with \".archcore/\"")
 }

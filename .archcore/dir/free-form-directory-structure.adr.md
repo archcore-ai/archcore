@@ -1,6 +1,8 @@
 ---
-title: Use Free-Form Directory Structure in .archcore/
+title: "Use Free-Form Directory Structure in .archcore/"
 status: accepted
+tags:
+  - "directory-structure"
 ---
 
 ## Context

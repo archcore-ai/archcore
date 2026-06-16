@@ -59,7 +59,9 @@ func runStatusChecks(baseDir string) int {
 	fmt.Println(display.CheckLine(".archcore/ exists"))
 	issues += checkFiles(baseDir)
 	docs, scanErr := tools.ScanDocuments(baseDir)
-	issues += checkTagHygiene(docs, scanErr)
+	// Tag hygiene checks only local documents: mounted read-only globals belong to
+	// their own repo and the consumer cannot fix their tags.
+	issues += checkTagHygiene(localDocuments(docs), scanErr)
 	issues += checkManifest(baseDir)
 	return issues
 }
@@ -68,7 +70,7 @@ func checkFiles(baseDir string) int {
 	issues := 0
 	archcoreDir := filepath.Join(baseDir, ".archcore")
 
-	walkErr := templates.WalkArchcoreFiles(archcoreDir, func(path string, d fs.DirEntry) error {
+	walkErr := templates.WalkArchcoreFilesSkipping(archcoreDir, []string{"global"}, func(path string, d fs.DirEntry) error {
 		name := d.Name()
 
 		relPath, err := filepath.Rel(baseDir, path)

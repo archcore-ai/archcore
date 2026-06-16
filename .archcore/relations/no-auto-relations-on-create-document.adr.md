@@ -1,6 +1,8 @@
 ---
 title: "Do Not Auto-Link Nearby Documents on create_document"
 status: accepted
+tags:
+  - "relations"
 ---
 
 ## Context

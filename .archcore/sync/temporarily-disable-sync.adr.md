@@ -1,6 +1,8 @@
 ---
-title: Temporarily Disable Sync in CLI
+title: "Temporarily Disable Sync in CLI"
 status: accepted
+tags:
+  - "sync"
 ---
 
 ## Context

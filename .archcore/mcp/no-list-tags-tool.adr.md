@@ -1,6 +1,8 @@
 ---
 title: "No Dedicated list_tags MCP Tool"
 status: accepted
+tags:
+  - "mcp"
 ---
 
 ## Context

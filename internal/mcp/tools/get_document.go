@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 
+	"archcore-cli/internal/config"
 	"archcore-cli/internal/sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -37,29 +38,37 @@ Use this tool when you need to:
 // HandleGetDocument handles the get_document tool call.
 func HandleGetDocument(baseDir string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		path, err := request.RequireString("path")
+		reqPath, err := request.RequireString("path")
 		if err != nil {
 			return errorResult(err.Error()), nil
 		}
 
-		// Validate path safety.
-		path, err = validateArchcorePath(path)
-		if err != nil {
-			return errorResult(err.Error()), nil
-		}
-
-		doc, err := ReadDocumentContent(baseDir, path)
+		// Validate path safety. Reads additionally allow a document that resolves
+		// inside a declared read-only external global source; the write tools keep
+		// the strict validateArchcorePath and never reach this relaxation.
+		cleanPath, err := validateReadPath(baseDir, reqPath, config.ReadGlobals(baseDir))
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
-				return errorResult("document not found: " + path), nil
+				return errorResult("document not found: " + reqPath), nil
 			}
-			return nil, fmt.Errorf("reading %s: %w", path, err)
+			return errorResult(err.Error()), nil
 		}
+
+		doc, err := ReadDocumentContent(baseDir, cleanPath)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return errorResult("document not found: " + cleanPath), nil
+			}
+			return nil, fmt.Errorf("reading %s: %w", cleanPath, err)
+		}
+
+		// Annotate source metadata based on path and declared globals.
+		annotateSource(&doc, baseDir)
 
 		enriched := EnrichedDocument{LocalDocument: doc}
 
 		// Try to load relations from manifest.
-		relPath := normalizeRelPath(path)
+		relPath := normalizeRelPath(cleanPath)
 		if m, mErr := sync.LoadManifest(baseDir); mErr == nil {
 			outgoing, incoming := m.RelationsFor(relPath)
 			for _, r := range outgoing {

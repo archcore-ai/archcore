@@ -1,13 +1,15 @@
 ---
 title: "Implementation Plan: archcore sync Command"
-status: draft
+status: accepted
+tags:
+  - "sync"
 ---
 
 ## Overview
 
 Implement the `archcore sync` command for one-way push of local `.archcore/` documents to a cloud or on-prem server, with incremental diff via SHA-256 manifest.
 
-Related: [ADR: One-Way Push Sync Strategy](../knowledge/one-way-push-sync-strategy.adr.md) | [Idea: Sync Design](./sync-design.idea.md)
+Related: [ADR: One-Way Push Sync Strategy](./one-way-push-sync-strategy.adr.md) | [Idea: Sync Design](./sync-design.idea.md)
 
 ## Settings Validation (Pre-sync Checks)
 

@@ -1,6 +1,8 @@
 ---
 title: "Integrating Archcore with AI Coding Agents"
 status: accepted
+tags:
+  - "integrations"
 ---
 
 ## Overview

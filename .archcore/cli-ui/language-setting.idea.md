@@ -1,6 +1,8 @@
 ---
 title: "'\"Add Language Configuration to Settings\"'"
 status: accepted
+tags:
+  - "cli-ui"
 ---
 
 ## Idea

@@ -1,6 +1,8 @@
 ---
-title: Store Local Document Relations in .sync-state.json
+title: "Store Local Document Relations in .sync-state.json"
 status: accepted
+tags:
+  - "relations"
 ---
 
 ## Context

@@ -1,6 +1,8 @@
 ---
 title: "Telemetry Provider and Approach for CLI"
 status: draft
+tags:
+  - "telemetry"
 ---
 
 ## Summary

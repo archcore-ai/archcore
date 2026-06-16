@@ -2,8 +2,9 @@
 title: "Go Code Quality Conventions for Archcore CLI"
 status: accepted
 tags:
-  - code-review
-  - golang
+  - "code-quality"
+  - "code-review"
+  - "golang"
 ---
 
 ## Rule

@@ -1,0 +1,6 @@
+{
+  "sync": "none",
+  "globals": [
+    { "id": "company", "path": ".archcore/global/company" }
+  ]
+}

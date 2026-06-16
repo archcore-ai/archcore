@@ -1,6 +1,8 @@
 ---
 title: "How to Add a New MCP Track Prompt"
 status: accepted
+tags:
+  - "mcp"
 ---
 
 ## Prerequisites

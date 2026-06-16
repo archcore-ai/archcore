@@ -1,6 +1,8 @@
 ---
 title: "Relation Conventions Between Requirement Sources and Specifications"
 status: accepted
+tags:
+  - "document-types"
 ---
 
 ## Description

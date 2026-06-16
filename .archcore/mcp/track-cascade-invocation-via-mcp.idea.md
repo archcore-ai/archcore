@@ -1,6 +1,8 @@
 ---
 title: "Track/Cascade Invocation for Grouped Documents via MCP (Plugin-Free)"
-status: draft
+status: accepted
+tags:
+  - "mcp"
 ---
 
 ## Idea

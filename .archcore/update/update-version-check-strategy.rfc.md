@@ -1,6 +1,8 @@
 ---
 title: "Version Check Strategy for archcore update"
 status: draft
+tags:
+  - "update"
 ---
 
 ## Summary

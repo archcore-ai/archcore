@@ -19,14 +19,24 @@ const maxSessionTags = 20
 // that is injected into agents at session start.
 func buildSessionContext(baseDir string) (string, int) {
 	docs, err := tools.ScanDocuments(baseDir)
+	var scanWarning string
 	if err != nil {
-		docs = nil // proceed with empty list on error
+		// A declared global source is missing or unreadable. Don't blank the whole
+		// session context — that would also drop every LOCAL document. Degrade to a
+		// local-only scan (which never fails on a missing global) and surface the
+		// problem, honoring "a missing mandatory global is loud, not silent".
+		scanWarning = err.Error()
+		docs, _ = tools.ScanLocalDocuments(baseDir)
 	}
+	docs = localDocuments(docs) // globals are MCP-read-only; not surfaced in session context
 
 	var b strings.Builder
 	b.WriteString("[Archcore — Git-native context for AI coding agents]\n")
 	b.WriteString("Git-native context for AI coding agents.\n")
 	b.WriteString("You have MCP tools available: list_documents, get_document, create_document, update_document, add_relation, remove_relation, list_relations.\n")
+	if scanWarning != "" {
+		fmt.Fprintf(&b, "\n⚠ %s — context limited to local documents; clone the source or fix .archcore/settings.json.\n", scanWarning)
+	}
 
 	// Pre-group documents by category.
 	docsByCategory := make(map[templates.Category][]tools.LocalDocument, 3)
@@ -91,4 +101,17 @@ func buildSessionContext(baseDir string) (string, int) {
 	b.WriteString("\nRefer to MCP server instructions for document types, workflow rules, and usage guidance.\n")
 
 	return b.String(), len(docs)
+}
+
+// localDocuments returns only documents owned by the primary project, dropping
+// mounted read-only global sources. Globals are surfaced exclusively through the
+// MCP read tools (list/get/search), never in CLI status or session-start context.
+func localDocuments(docs []tools.LocalDocument) []tools.LocalDocument {
+	out := make([]tools.LocalDocument, 0, len(docs))
+	for _, d := range docs {
+		if d.SourceKind == "local" {
+			out = append(out, d)
+		}
+	}
+	return out
 }

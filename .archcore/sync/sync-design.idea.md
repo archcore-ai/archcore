@@ -1,6 +1,8 @@
 ---
 title: "Sync Design: One-Way Push to Cloud/On-Prem Server with GraphRAG Indexing"
 status: accepted
+tags:
+  - "sync"
 ---
 
 ## Context
