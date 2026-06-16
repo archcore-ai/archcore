@@ -21,14 +21,29 @@ func buildSessionContext(baseDir string) (string, int) {
 	docs, err := tools.ScanDocuments(baseDir)
 	var scanWarning string
 	if err != nil {
-		// A declared global source is missing or unreadable. Don't blank the whole
-		// session context — that would also drop every LOCAL document. Degrade to a
-		// local-only scan (which never fails on a missing global) and surface the
-		// problem, honoring "a missing mandatory global is loud, not silent".
+		// A declared global source is broken (missing, not a directory, unreadable,
+		// self-overlapping, or a duplicate path). Don't blank the whole session
+		// context — that would also drop every LOCAL document. Degrade to a
+		// local-only scan (which never fails on a global) and surface the problem,
+		// honoring "a broken mandatory global is loud, not silent".
 		scanWarning = err.Error()
 		docs, _ = tools.ScanLocalDocuments(baseDir)
 	}
 	docs = localDocuments(docs) // globals are MCP-read-only; not surfaced in session context
+
+	// Some global problems are invisible to ScanDocuments: an empty source (0 docs)
+	// scans cleanly, and an invalid settings.json makes the read path silently see
+	// no globals. Surface both here so a broken mount is never silent in a session.
+	var globalNotices []string
+	if inspections, iErr := tools.InspectGlobals(baseDir); iErr != nil {
+		globalNotices = append(globalNotices, fmt.Sprintf("invalid .archcore/settings.json: %v — global sources not loaded", iErr))
+	} else {
+		for _, in := range inspections {
+			if in.State == tools.GlobalEmpty {
+				globalNotices = append(globalNotices, in.Message())
+			}
+		}
+	}
 
 	var b strings.Builder
 	b.WriteString("[Archcore — Git-native context for AI coding agents]\n")
@@ -36,6 +51,9 @@ func buildSessionContext(baseDir string) (string, int) {
 	b.WriteString("You have MCP tools available: list_documents, get_document, create_document, update_document, add_relation, remove_relation, list_relations.\n")
 	if scanWarning != "" {
 		fmt.Fprintf(&b, "\n⚠ %s — context limited to local documents; clone the source or fix .archcore/settings.json.\n", scanWarning)
+	}
+	for _, n := range globalNotices {
+		fmt.Fprintf(&b, "\n⚠ %s\n", n)
 	}
 
 	// Pre-group documents by category.

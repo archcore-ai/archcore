@@ -61,14 +61,11 @@ func ScanDocumentsFull(baseDir string) ([]LocalDocument, error) {
 	return scanDocuments(baseDir, true)
 }
 
-// resolveGlobalPath returns the absolute path for a global source.
-// If gsPath is already absolute it is returned as-is; otherwise it is resolved
-// relative to baseDir.
+// resolveGlobalPath resolves a global source path to an absolute directory.
+// It delegates to config.ResolveGlobalPath so the scan, the read-path validation,
+// and the MCP startup check all resolve paths identically.
 func resolveGlobalPath(baseDir, gsPath string) string {
-	if filepath.IsAbs(gsPath) {
-		return gsPath
-	}
-	return filepath.Clean(filepath.Join(baseDir, gsPath))
+	return config.ResolveGlobalPath(baseDir, gsPath)
 }
 
 // ScanLocalDocuments discovers only the primary project's own documents, never
@@ -122,12 +119,22 @@ func scanDocuments(baseDir string, includeContent bool) ([]LocalDocument, error)
 
 	// Phase 2: mounted global sources declared in settings.json.
 	allGlobals := config.ReadGlobals(baseDir)
+	seen := make(map[string]string, len(allGlobals)) // resolved dir -> first source id
 	for _, gs := range allGlobals {
 		globalDir := resolveGlobalPath(baseDir, gs.Path)
-		if _, statErr := os.Stat(globalDir); errors.Is(statErr, fs.ErrNotExist) {
-			return nil, fmt.Errorf("global source %q not found at %q", gs.ID, gs.Path)
+		if firstID, dup := seen[globalDir]; dup {
+			return nil, fmt.Errorf("global sources %q and %q resolve to the same path %q", firstID, gs.ID, gs.Path)
+		}
+		seen[globalDir] = gs.ID
+		if dirErr := config.CheckGlobalDir(baseDir, globalDir); dirErr != nil {
+			return nil, errors.New(config.DescribeGlobalDirError(gs, dirErr))
 		}
 		walkErr := templates.WalkArchcoreFilesSkipping(globalDir, nil, func(p string, d fs.DirEntry) error {
+			// Mount only recognized document types: a misconfigured path (e.g. a
+			// parent directory) must not surface stray .md files as malformed docs.
+			if !templates.IsValidType(templates.ExtractDocType(d.Name())) {
+				return nil
+			}
 			doc := buildDoc(baseDir, p, d, includeContent)
 			doc.SourceID = gs.ID
 			doc.SourceKind = "global"
@@ -137,7 +144,9 @@ func scanDocuments(baseDir string, includeContent bool) ([]LocalDocument, error)
 			return nil
 		})
 		if walkErr != nil {
-			return nil, walkErr
+			// Never surface the raw walk error — it embeds an absolute path
+			// (no-absolute-paths-in-mcp-errors.rule).
+			return nil, fmt.Errorf("global source %q at %q is not readable", gs.ID, gs.Path)
 		}
 	}
 

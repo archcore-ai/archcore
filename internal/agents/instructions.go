@@ -41,6 +41,9 @@ const (
 // skip only turns the repo would have no opinion on. The skip is keyed on the
 // nature of the turn — a prior the agent can form up front — not on whether a
 // rule exists, which it cannot know without the very lookup it is told to skip.
+// It also flags that a project MAY mount read-only global sources (phrased
+// conditionally — most projects have none) that the session-start context omits,
+// so the agent learns to surface them via the MCP read tools when present.
 // Built via concatenation because a raw string literal cannot contain the
 // backticks that wrap `.archcore/`.
 const instructionsBody = "## Archcore — project context for this repo\n" +
@@ -53,6 +56,11 @@ const instructionsBody = "## Archcore — project context for this repo\n" +
 	"- A decision was made (\"we'll use X\", \"from now on Y\") → record it.\n" +
 	"- A module / API / system has no doc — or a search comes back empty → capture it.\n" +
 	"- Planning a feature or refactor → scope it against what's already decided.\n" +
+	"\n" +
+	"A `.archcore/` may also mount read-only **global sources** — shared, org-wide\n" +
+	"context not shown in the session-start list. `list_documents` / `search_documents`\n" +
+	"surface them alongside local docs, tagged `source_kind: \"global\"`. When present,\n" +
+	"treat them as defaults a local doc can override — never edit or relate to one.\n" +
 	"\n" +
 	"The search is cheap — lean on it. Skip it only for turns this repo would have no\n" +
 	"opinion on: syntax trivia, throwaway snippets, pure mechanics."

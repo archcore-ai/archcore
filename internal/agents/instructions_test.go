@@ -288,6 +288,31 @@ func TestWriteInstructions_AgentsMDHasMarkers(t *testing.T) {
 	}
 }
 
+// TestInstructionsBody_FlagsGlobalSources guards the global-sources nudge: it must
+// be present, phrased conditionally (most projects mount none), name the source_kind
+// tag agents look for, and carry the read-only / local-overrides constraint. A
+// regression that drops the paragraph — or hard-codes it as "this repo mounts …",
+// which would be wrong for the many projects with no global source — fails here.
+func TestInstructionsBody_FlagsGlobalSources(t *testing.T) {
+	t.Parallel()
+	for _, want := range []string{
+		"global sources",              // the feature is named
+		"may also mount",              // conditional framing: not every project has one
+		"source_kind: \"global\"",     // the tag agents must look for to spot a global
+		"never edit or relate to one", // read-only + relation constraint
+	} {
+		if !strings.Contains(instructionsBody, want) {
+			t.Errorf("instructionsBody missing %q", want)
+		}
+	}
+	// The nudge must stay conditional — it must not assert every repo mounts a global.
+	for _, bad := range []string{"This repo mounts", "This repo also mounts"} {
+		if strings.Contains(instructionsBody, bad) {
+			t.Errorf("globals nudge must be conditional, found unconditional phrasing %q", bad)
+		}
+	}
+}
+
 func TestFindManagedSpans(t *testing.T) {
 	t.Parallel()
 	blk := instructionsFencedBlock
@@ -435,8 +460,14 @@ func TestAgentInstructions_WriteThenRemove(t *testing.T) {
 				t.Fatalf("WriteInstructions: %v", err)
 			}
 			path := a.InstructionsPath(base)
-			if got := readFile(t, path); !strings.Contains(got, "## Archcore — project context for this repo") {
+			got := readFile(t, path)
+			if !strings.Contains(got, "## Archcore — project context for this repo") {
 				t.Error("nudge body missing")
+			}
+			// Every host must ship the global-sources nudge, so it lands for all
+			// agents at `archcore init` / `instructions install`.
+			if !strings.Contains(got, "global sources") {
+				t.Error("global-sources nudge missing from this host's instruction file")
 			}
 			if err := a.RemoveInstructions(base); err != nil {
 				t.Fatalf("RemoveInstructions: %v", err)

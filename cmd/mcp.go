@@ -3,9 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -13,6 +11,7 @@ import (
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
 	mcpserver "archcore-cli/internal/mcp"
+	"archcore-cli/internal/mcp/tools"
 )
 
 func newMCPCmd() *cobra.Command {
@@ -56,30 +55,31 @@ func newMCPCmd() *cobra.Command {
 	return cmd
 }
 
-// checkGlobals returns an error if any declared global source is absent from
-// disk. Every global declared in the project's own settings.json globals array
-// is mandatory. Called at MCP startup so the agent never runs against a broken
-// configuration.
+// checkGlobals validates the project's declared global sources before the MCP
+// server starts. Every declared global is mandatory: a source that is missing,
+// not a directory, unreadable, self-overlapping (resolves to the project's own
+// .archcore), or a duplicate path aborts startup so the agent never runs against
+// a broken mount. An existing source that holds no documents is surfaced as a
+// warning but does not block startup. A present-but-invalid settings.json also
+// aborts, rather than starting with globals silently dropped from the read path.
 func checkGlobals(baseDir string) error {
-	settings, err := config.Load(baseDir)
+	inspections, err := tools.InspectGlobals(baseDir)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil // no settings.json → no globals to check
-		}
 		// A present-but-invalid settings.json must not start silently: the read
 		// path degrades to "no globals" without signal, the exact failure the
 		// mandatory-globals decision exists to prevent.
 		return fmt.Errorf("invalid .archcore/settings.json: %w", err)
 	}
-	for _, gs := range settings.Globals {
-		// gs.Path points at the global's .archcore directory; it may be relative
-		// (including "../") or absolute. Resolve relative paths against baseDir.
-		p := gs.Path
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(baseDir, p)
-		}
-		if _, statErr := os.Stat(p); errors.Is(statErr, fs.ErrNotExist) {
-			return fmt.Errorf("global source %q not found at %q — clone it before starting the MCP server", gs.ID, gs.Path)
+	for _, in := range inspections {
+		switch {
+		case in.State == tools.GlobalEmpty:
+			fmt.Fprintln(os.Stderr, display.WarnLine(in.Message()+" — starting anyway"))
+		case in.State.Fatal():
+			suffix := " — fix .archcore/settings.json before starting the MCP server"
+			if in.State == tools.GlobalMissing {
+				suffix = " — clone it before starting the MCP server"
+			}
+			return errors.New(in.Message() + suffix)
 		}
 	}
 	return nil

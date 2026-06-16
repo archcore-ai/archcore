@@ -428,9 +428,11 @@ func TestStatus_ExcludesGlobalTagsFromHygiene(t *testing.T) {
 // TestStatus_MissingGlobalFailsStatus guards the "mandatory globals are loud, not
 // silent" invariant on the status surface: a declared-but-absent global must make
 // `archcore status` report a visible failure and exit non-zero, while local structural
-// checks still run. The status path uses the global-aware tools.ScanDocuments (not
-// ScanLocalDocuments) precisely so this failure surfaces; a refactor swapping it would
-// drop the invariant silently and fail this test. No absolute path may leak.
+// checks still run. The status path inspects globals via checkGlobalSources (a
+// dedicated per-source report) while tag hygiene scans local documents only, so the
+// global failure surfaces precisely and the local checks never depend on it. A refactor
+// dropping checkGlobalSources would lose the invariant and fail this test. No absolute
+// path may leak.
 func TestStatus_MissingGlobalFailsStatus(t *testing.T) {
 	dir := initValidDir(t)
 	writeDoc(t, dir, "knowledge", "local.rule.md",
@@ -446,7 +448,8 @@ func TestStatus_MissingGlobalFailsStatus(t *testing.T) {
 		t.Fatalf("status must exit non-zero when a declared global is missing; output:\n%s", out)
 	}
 	for _, want := range []string{
-		"error scanning documents for tag check:", // the surfacing FailLine
+		"global source",        // the surfacing FailLine names the source
+		"not found at",         // ...and why it failed
 		"company",              // the missing global's id
 		"../missing/.archcore", // the relative declared path, verbatim
 		"1 issue(s) found",     // exactly one issue counted + summary printed
@@ -459,5 +462,28 @@ func TestStatus_MissingGlobalFailsStatus(t *testing.T) {
 	// No absolute-path leak: the temp dir's absolute root must never appear.
 	if strings.Contains(out, dir) {
 		t.Errorf("status output leaked an absolute path (%q); got:\n%s", dir, out)
+	}
+}
+
+// TestStatus_EmptyGlobalWarnsNotIssue: a declared global that exists but holds no
+// documents is a warning on status, NOT an issue — status still exits zero (the
+// agreed "warn, allow" policy).
+func TestStatus_EmptyGlobalWarnsNotIssue(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "local.rule.md", validFrontmatter)
+	settings := filepath.Join(dir, ".archcore", "settings.json")
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":".archcore/global/empty"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, ".archcore", "global", "empty"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("an empty global must warn, not fail status; got err %v, output:\n%s", err, out)
+	}
+	if !strings.Contains(out, "company") {
+		t.Errorf("status output should name the empty source; got:\n%s", out)
 	}
 }

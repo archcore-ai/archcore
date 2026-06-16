@@ -58,11 +58,39 @@ func runStatusChecks(baseDir string) int {
 	issues := 0
 	fmt.Println(display.CheckLine(".archcore/ exists"))
 	issues += checkFiles(baseDir)
-	docs, scanErr := tools.ScanDocuments(baseDir)
+	issues += checkGlobalSources(baseDir)
 	// Tag hygiene checks only local documents: mounted read-only globals belong to
-	// their own repo and the consumer cannot fix their tags.
+	// their own repo and the consumer cannot fix their tags. Scanning local documents
+	// only also keeps these checks running even when a declared global is broken —
+	// that is reported by checkGlobalSources above.
+	docs, scanErr := tools.ScanLocalDocuments(baseDir)
 	issues += checkTagHygiene(localDocuments(docs), scanErr)
 	issues += checkManifest(baseDir)
+	return issues
+}
+
+// checkGlobalSources reports the health of declared global sources. Fatal states
+// (missing, not a directory, unreadable, self-overlap, duplicate path) and a
+// present-but-invalid settings.json are counted as issues; an empty source is a
+// warning only. Returns the issue count.
+func checkGlobalSources(baseDir string) int {
+	inspections, err := tools.InspectGlobals(baseDir)
+	if err != nil {
+		fmt.Println(display.FailLine(fmt.Sprintf("invalid .archcore/settings.json: %v", err)))
+		return 1
+	}
+	issues := 0
+	for _, in := range inspections {
+		switch {
+		case in.State == tools.GlobalEmpty:
+			fmt.Println(display.WarnLine(in.Message()))
+		case in.State.Fatal():
+			issues++
+			fmt.Println(display.FailLine(in.Message()))
+		default: // GlobalOK
+			fmt.Println(display.CheckLine(fmt.Sprintf("global source %q (%d document(s))", in.ID, in.Docs)))
+		}
+	}
 	return issues
 }
 

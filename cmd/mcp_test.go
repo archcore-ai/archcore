@@ -337,3 +337,73 @@ func TestCheckGlobals_InvalidSettingsFails(t *testing.T) {
 		t.Errorf("error %q should mention settings.json", err)
 	}
 }
+
+// TestCheckGlobals_EmptySourceWarnsNotFatal: an existing-but-empty global is a
+// warning (printed to stderr), not a startup failure — the agreed "warn, allow"
+// policy. Startup must proceed.
+func TestCheckGlobals_EmptySourceWarnsNotFatal(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	writeMCPSettings(t, base, `{"sync":"none","globals":[{"id":"empty","path":".archcore/global/empty"}]}`)
+	if err := os.MkdirAll(filepath.Join(base, ".archcore", "global", "empty"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := checkGlobals(base); err != nil {
+		t.Errorf("an empty global must warn, not block startup; got %v", err)
+	}
+}
+
+// TestCheckGlobals_FileAsPathFails: a global path pointing at a file (not a
+// directory) must abort startup — the startup gate now agrees with the scan.
+func TestCheckGlobals_FileAsPathFails(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	writeMCPSettings(t, base, `{"sync":"none","globals":[{"id":"x","path":"notadir.txt"}]}`)
+	if err := os.WriteFile(filepath.Join(base, "notadir.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := checkGlobals(base)
+	if err == nil {
+		t.Fatal("a file-as-path global must abort startup")
+	}
+	if !strings.Contains(err.Error(), "not a directory") {
+		t.Errorf("error %q should say 'not a directory'", err)
+	}
+}
+
+// TestCheckGlobals_SelfOverlapFails: a global resolving to the project's own
+// .archcore must abort startup.
+func TestCheckGlobals_SelfOverlapFails(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	writeMCPSettings(t, base, `{"sync":"none","globals":[{"id":"self","path":".archcore"}]}`)
+
+	err := checkGlobals(base)
+	if err == nil {
+		t.Fatal("a self-overlapping global must abort startup")
+	}
+	if !strings.Contains(err.Error(), "own .archcore") {
+		t.Errorf("error %q should mention self-overlap", err)
+	}
+}
+
+// TestCheckGlobals_DuplicatePathFails: two globals with the same resolved path
+// must abort startup.
+func TestCheckGlobals_DuplicatePathFails(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	writeMCPSettings(t, base, `{"sync":"none","globals":[{"id":"a","path":".archcore/global/d"},{"id":"b","path":".archcore/global/d"}]}`)
+	if err := os.MkdirAll(filepath.Join(base, ".archcore", "global", "d"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := checkGlobals(base)
+	if err == nil {
+		t.Fatal("duplicate global paths must abort startup")
+	}
+	if !strings.Contains(err.Error(), "duplicate") {
+		t.Errorf("error %q should mention the duplicate path", err)
+	}
+}

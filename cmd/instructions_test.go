@@ -107,6 +107,9 @@ func TestRunInstructionsInstallForAgent_Claude(t *testing.T) {
 	if !strings.Contains(got, "## Archcore — project context for this repo") {
 		t.Error("Claude file missing nudge body")
 	}
+	if !strings.Contains(got, "global sources") {
+		t.Error("Claude file missing global-sources nudge")
+	}
 }
 
 func TestRemoveInstructionsForAgents_RoundTrip(t *testing.T) {

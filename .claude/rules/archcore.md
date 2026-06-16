@@ -9,5 +9,10 @@ know — a decision or rule may already constrain it.
 - A module / API / system has no doc — or a search comes back empty → capture it.
 - Planning a feature or refactor → scope it against what's already decided.
 
+A `.archcore/` may also mount read-only **global sources** — shared, org-wide
+context not shown in the session-start list. `list_documents` / `search_documents`
+surface them alongside local docs, tagged `source_kind: "global"`. When present,
+treat them as defaults a local doc can override — never edit or relate to one.
+
 The search is cheap — lean on it. Skip it only for turns this repo would have no
 opinion on: syntax trivia, throwaway snippets, pure mechanics.
