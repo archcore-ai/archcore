@@ -42,6 +42,8 @@ Default: if still unclear after one question, create an `adr` (the most common d
 
 `mcp__archcore__list_documents` — scan for existing documents on this topic. Prevent duplicates.
 
+If a match is a global document (`global: true` / `read_only: true` / `source_kind: "global"`), load `skills/_shared/globals.md`: it is read-only org-wide context, not editable here. Create the local document (a refinement/override) and do not modify it or call `add_relation` referencing the global. Absent any global match, proceed as usual.
+
 ### Step 2: Route
 
 Apply the routing table above. If `$ARGUMENTS` clearly signals a type, proceed. If ambiguous, use `AskUserQuestion` to ask: "Is this primarily a decision, a technical contract, reference material, or instructions?"

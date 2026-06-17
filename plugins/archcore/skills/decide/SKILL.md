@@ -45,6 +45,8 @@ Default for finalized decisions: create a single ADR. After creation, evaluate t
 
 `mcp__archcore__list_documents(types=["adr", "rfc"])` — check for existing decisions or proposals on this topic.
 
+If a match is a global document (`global: true` / `read_only: true` / `source_kind: "global"`), load `skills/_shared/globals.md`: globals are read-only org-wide defaults. Record the decision as a local ADR/RFC (which refines or overrides the global); never modify it or call `add_relation` referencing the global (this applies to Step 4 relation-wiring as well). Absent any global match, proceed as usual.
+
 ### Step 2: Route
 
 If user language suggests the decision is still open ("thinking about", "should we", "proposing", "design proposal"), confirm with the user: "This sounds like an open proposal — draft an RFC for team review?" If yes, proceed to Step 3b. Otherwise continue with Step 3 (ADR).
