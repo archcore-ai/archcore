@@ -2,6 +2,9 @@ package tools
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"archcore-cli/internal/sync"
@@ -50,6 +53,35 @@ func TestHandleGetDocument_PathTraversal(t *testing.T) {
 	if !result.IsError {
 		t.Error("expected error for path traversal")
 	}
+	// Must be rejected BY THE GUARD, not because the file happens to be absent
+	// (a filesystem miss returns "document not found", which would still set
+	// IsError and hide a removed guard). See test-oracle health check.
+	if got := resultText(t, result); !strings.Contains(got, "invalid path") {
+		t.Errorf("error = %q, want a path-guard rejection (\"invalid path: ...\")", got)
+	}
+}
+
+func TestHandleGetDocument_PathTraversalNoLeak(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	// A real document that lives OUTSIDE .archcore/. Traversal must never reach it.
+	secret := filepath.Join(base, "secret.adr.md")
+	if err := os.WriteFile(secret, []byte("---\ntitle: Secret\nstatus: draft\n---\n\ntop-secret-body"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := callTool(HandleGetDocument(base), map[string]any{
+		"path": ".archcore/../secret.adr.md",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsError {
+		t.Fatal("traversal to an existing out-of-tree file must be rejected, not read")
+	}
+	if strings.Contains(resultText(t, result), "top-secret-body") {
+		t.Error("out-of-tree file content leaked through path traversal")
+	}
 }
 
 func TestHandleGetDocument_InvalidPrefix(t *testing.T) {
@@ -64,6 +96,10 @@ func TestHandleGetDocument_InvalidPrefix(t *testing.T) {
 	}
 	if !result.IsError {
 		t.Error("expected error for invalid prefix")
+	}
+	// Rejected by the prefix guard, not by an incidental filesystem miss.
+	if got := resultText(t, result); !strings.Contains(got, "invalid path") {
+		t.Errorf("error = %q, want a path-guard rejection (\"invalid path: ...\")", got)
 	}
 }
 

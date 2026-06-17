@@ -4,8 +4,38 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+// TestWriteStandardMCPJSON_PreservesExistingArchcore pins the actual contract of
+// the "already configured" guard: a second write must NOT overwrite an existing
+// (possibly user-customized) archcore entry. The idempotency tests only assert
+// len(servers)==1, which a guard-less re-marshal of the same key also satisfies —
+// so they cannot detect the guard being removed. This can.
+func TestWriteStandardMCPJSON_PreservesExistingArchcore(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	filePath := filepath.Join(base, ".mcp.json")
+
+	const sentinel = "SENTINEL-DO-NOT-OVERWRITE"
+	seed := `{"mcpServers":{"archcore":{"command":"` + sentinel + `"}}}`
+	if err := os.WriteFile(filePath, []byte(seed), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := WriteStandardMCPJSON(filePath); err != nil {
+		t.Fatalf("WriteStandardMCPJSON: %v", err)
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), sentinel) {
+		t.Errorf("existing archcore entry was overwritten; file = %s", data)
+	}
+}
 
 func TestWriteStandardMCPJSON_NewFile(t *testing.T) {
 	t.Parallel()

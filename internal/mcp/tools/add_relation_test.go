@@ -156,6 +156,10 @@ func TestHandleAddRelation_PathTraversal(t *testing.T) {
 	if !result.IsError {
 		t.Error("expected error for path traversal")
 	}
+	// Rejected by the ".." guard specifically — not because the doc is missing.
+	if got := resultText(t, result); !strings.Contains(got, "must not contain") {
+		t.Errorf("error = %q, want the \"..\" path guard rejection", got)
+	}
 }
 
 func TestHandleAddRelation_NormalizesPrefix(t *testing.T) {

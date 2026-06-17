@@ -225,6 +225,10 @@ func TestHandleCreateDocument_PathSeparator(t *testing.T) {
 	if !result.IsError {
 		t.Error("expected error for path separator in filename")
 	}
+	// Rejected by the separator guard specifically.
+	if got := resultText(t, result); !strings.Contains(got, "must not contain path separators") {
+		t.Errorf("error = %q, want the path-separator guard rejection", got)
+	}
 }
 
 func TestHandleCreateDocument_InvalidStatus(t *testing.T) {

@@ -98,6 +98,11 @@ func TestCheckLatestError(t *testing.T) {
 		{"rate limited", http.StatusForbidden, "rate limit exceeded"},
 		{"empty tag_name", http.StatusOK, `{"tag_name": ""}`},
 		{"malformed JSON", http.StatusOK, "not json at all"},
+		// Non-200 with a body that WOULD decode cleanly: isolates the HTTP
+		// status guard. Without it, this valid JSON decodes and the error
+		// vanishes — the other 500/404 cases hide that because their bodies
+		// fail to decode anyway.
+		{"non-200 with valid body", http.StatusInternalServerError, `{"tag_name": "v9.9.9"}`},
 	}
 
 	for _, tt := range tests {

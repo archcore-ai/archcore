@@ -105,6 +105,10 @@ A JSON array of `searchResult` objects. Each object has the following fields:
 | `status`             | string           | omit if empty           | Frontmatter status.                                              |
 | `mtime`              | string (RFC3339) | always                  | File modification time.                                          |
 | `tags`               | string[]         | omit if empty           | Frontmatter tags.                                                |
+| `source_id`          | string           | always                  | `local` for primary docs, the source id for a declared global, or `__global__` for undeclared reserved-tree content. |
+| `source_kind`        | string           | always                  | `local` or `global`.                                            |
+| `global`             | boolean          | omit if false           | `true` for mounted global sources.                              |
+| `read_only`          | boolean          | omit if false           | `true` for mounted global sources.                              |
 | `matches`            | Match[]          | always                  | Evidence array. Always present; empty for pure metadata queries. |
 | `body`               | string           | omit unless `mode=full` | Full document body with frontmatter stripped. Populated only in `full` mode; omitted (never empty string) in `snippets` mode. |
 | `incoming_relations` | Relation[]       | always (possibly empty) | Manifest edges where this doc is the target.                     |
@@ -206,6 +210,7 @@ For every emitted result, the handler MUST populate `incoming_relations` and `ou
 1. The response is a JSON array. An empty array MUST be returned when no documents match (not `null`).
 2. `matches` MUST be an empty array, never `null`, when a document passed metadata filters but has no per-match evidence (pure metadata query).
 3. `mtime` MUST always be present in RFC3339 format. The `omitzero` JSON tag applies at the `LocalDocument` layer but the result-level struct serializes `mtime` unconditionally.
+4. Source annotation MUST always be present: `source_id` and `source_kind` on every result; `global` and `read_only` omitted when false.
 
 ### §12 Full-mode body
 
@@ -233,6 +238,7 @@ For every emitted result, the handler MUST populate `incoming_relations` and `ou
 - All emitted `excerpt` strings MUST satisfy `utf8.ValidString(excerpt)`.
 - Every returned result's `path` MUST begin with `.archcore/` and be a valid clean relative path.
 - Results MUST NOT contain duplicate documents. One document yields at most one result row; multiple match candidates for the same doc collapse into the `matches` array.
+- Each result MUST carry source annotation (`source_id`, `source_kind`, `global`, `read_only`) identical to `list_documents` / `get_document`; consumers MUST use these fields to tell local from global rather than inferring authority from the path (see @.archcore/globals/local-overrides-global.rule.md).
 
 ## Error Handling
 
@@ -278,6 +284,8 @@ search_documents({
     "type": "rule",
     "status": "accepted",
     "mtime": "2026-03-12T09:14:00Z",
+    "source_id": "local",
+    "source_kind": "local",
     "matches": [
       {
         "kind": "path_ref_explicit",
@@ -312,6 +320,8 @@ search_documents({
     "type": "plan",
     "status": "draft",
     "mtime": "2026-04-20T16:00:00Z",
+    "source_id": "local",
+    "source_kind": "local",
     "matches": [],
     "incoming_relations": [],
     "outgoing_relations": []
@@ -338,6 +348,8 @@ search_documents({
     "type": "rule",
     "status": "accepted",
     "mtime": "2026-04-03T11:24:04Z",
+    "source_id": "local",
+    "source_kind": "local",
     "matches": [
       { "kind": "content", "ref": "sync manifest", "specificity": 1, "excerpt": "...the sync manifest is..." }
     ],

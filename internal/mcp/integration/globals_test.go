@@ -156,6 +156,11 @@ func TestGlobals_WriteToGlobalRejected(t *testing.T) {
 	if errText == "" {
 		t.Error("expected a non-empty error message rejecting the global write")
 	}
+	// Rejected by the write-path guard (validateArchcorePath), not by some later
+	// incidental failure — otherwise removing the guard would go unnoticed.
+	if !strings.Contains(errText, "must start with") {
+		t.Errorf("error = %q, want the \".archcore/\" path-guard rejection", errText)
+	}
 }
 
 // TestGlobals_GetExternalGlobalReadable verifies the read-path relaxation end to

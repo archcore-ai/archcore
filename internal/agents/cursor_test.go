@@ -25,8 +25,15 @@ func TestCursor_WriteMCPConfig_NewFile(t *testing.T) {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	if _, ok := raw["mcpServers"]; !ok {
-		t.Error("missing mcpServers key")
+	// Assert the archcore entry itself was written — not merely that the
+	// mcpServers key exists. A no-op assignment would leave the key present
+	// but the map empty, which a bare key check cannot detect.
+	var servers map[string]json.RawMessage
+	if err := json.Unmarshal(raw["mcpServers"], &servers); err != nil {
+		t.Fatalf("Unmarshal mcpServers: %v", err)
+	}
+	if _, ok := servers["archcore"]; !ok {
+		t.Error("missing archcore entry in mcpServers")
 	}
 }
 

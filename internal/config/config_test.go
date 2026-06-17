@@ -205,6 +205,16 @@ func TestValidate_Globals(t *testing.T) {
 			wantErr: true, errMsg: "reserved",
 		},
 		{
+			name:    "reserved-tree sentinel __global__ is not declarable (underscores)",
+			globals: []GlobalSource{{ID: "__global__", Path: ".archcore/global/foo"}},
+			wantErr: true, errMsg: "lowercase alphanumeric with hyphens",
+		},
+		{
+			name:    "id global is allowed (not reserved)",
+			globals: []GlobalSource{{ID: "global", Path: ".archcore/global/company"}},
+			wantErr: false,
+		},
+		{
 			name:    "empty path",
 			globals: []GlobalSource{{ID: "company", Path: ""}},
 			wantErr: true, errMsg: `"path" must not be empty`,

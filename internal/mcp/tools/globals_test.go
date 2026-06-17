@@ -607,8 +607,12 @@ func TestValidateReadPath(t *testing.T) {
 	})
 
 	t.Run("traversal escape outside the global is rejected", func(t *testing.T) {
-		if _, err := validateReadPath(base, "vendor/platform/knowledge/../../../escape.rule.md", globals); err == nil {
-			t.Fatal("expected rejection of traversal escape")
+		// Must be rejected by the containment guard — NOT merely because the
+		// escaped path is absent on disk (fs.ErrNotExist would also satisfy
+		// err != nil and would hide a removed containment check).
+		_, err := validateReadPath(base, "vendor/platform/knowledge/../../../escape.rule.md", globals)
+		if err == nil || errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("want a containment-guard rejection, got %v", err)
 		}
 	})
 
@@ -625,8 +629,10 @@ func TestValidateReadPath(t *testing.T) {
 	})
 
 	t.Run("path under no declared global is rejected", func(t *testing.T) {
-		if _, err := validateReadPath(base, "vendor/other/api.rule.md", globals); err == nil {
-			t.Fatal("expected rejection of path outside any global")
+		// Guard rejection, not an incidental filesystem miss.
+		_, err := validateReadPath(base, "vendor/other/api.rule.md", globals)
+		if err == nil || errors.Is(err, fs.ErrNotExist) {
+			t.Fatalf("want a guard rejection, got %v", err)
 		}
 	})
 

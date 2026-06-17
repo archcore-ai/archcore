@@ -47,5 +47,5 @@ Agent tries update_document on the global doc to "align" it → rejected
 ## Enforcement
 
 - Read-only guards in `create_document` / `update_document` / `remove_document` (@internal/mcp/tools/) prevent writing to globals.
-- `source_kind` / `read_only` are always present on scanned documents (@internal/mcp/tools/common.go `LocalDocument`) so the distinction is machine-checkable.
+- `source_kind` / `read_only` are always present on scanned documents (@internal/mcp/tools/common.go `LocalDocument`) so the distinction is machine-checkable — and on `search_documents` results, which now carry the same four source fields (`source_id`, `source_kind`, `global`, `read_only`), so the distinction holds across all three read tools.
 - Reviewer / agent behavior: when answering from globals, state whether a local override exists. The fixture @examples/07-local-overrides-global/ exercises this precedence: a local @examples/07-local-overrides-global/.archcore/error-handling.rule.md overrides the same-slug rule from @examples/_global_/company-standards/.

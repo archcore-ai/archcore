@@ -91,7 +91,15 @@ type searchResult struct {
 	Status  templates.DocStatus `json:"status,omitempty"`
 	ModTime time.Time           `json:"mtime"`
 	Tags    []string            `json:"tags,omitempty"`
-	Matches []searchMatch       `json:"matches"`
+	// Source annotation, mirroring LocalDocument so all three read tools
+	// (list_documents, get_document, search_documents) carry the same machine-
+	// checkable local/global distinction. local-overrides-global.rule requires
+	// agents to read these rather than guess authority from the path.
+	SourceID   string        `json:"source_id"`
+	SourceKind string        `json:"source_kind"`
+	Global     bool          `json:"global,omitempty"`
+	ReadOnly   bool          `json:"read_only,omitempty"`
+	Matches    []searchMatch `json:"matches"`
 	// Body is the full document body (frontmatter stripped), populated only in
 	// mode=full so callers can read the matched doc without a get_document call.
 	Body              string             `json:"body,omitempty"`
@@ -312,6 +320,10 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 				Status:            doc.Status,
 				ModTime:           doc.ModTime,
 				Tags:              doc.Tags,
+				SourceID:          doc.SourceID,
+				SourceKind:        doc.SourceKind,
+				Global:            doc.Global,
+				ReadOnly:          doc.ReadOnly,
 				Matches:           matches,
 				IncomingRelations: []DocumentRelation{},
 				OutgoingRelations: []DocumentRelation{},

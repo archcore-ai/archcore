@@ -218,12 +218,20 @@ func isGlobalPath(baseDir, relPath string, globals []config.GlobalSource) bool {
 	return ok
 }
 
-// isReservedGlobalDir reports whether relPath is the reserved .archcore/global/
-// mount directory or anything inside it — read-only global space regardless of
-// whether it is declared in settings.json.
+// isReservedGlobalDir reports whether relPath sits in reserved global mount space:
+// any directory named "global" under .archcore/, at any depth, or anything inside
+// one. This matches the any-depth skip the local scan applies in
+// WalkArchcoreFilesSkipping (skipDirs=["global"]) so the read scan and the write
+// guard agree on what is reserved — a "global" segment hides a document from the
+// scan AND makes it read-only, never one without the other. Read-only regardless of
+// whether the directory is declared in settings.json. The match is on whole path
+// segments, so a sibling like ".archcore/global-ish/" is not reserved.
 func isReservedGlobalDir(relPath string) bool {
 	rp := filepath.ToSlash(relPath)
-	return rp == ".archcore/global" || strings.HasPrefix(rp, ".archcore/global/")
+	if !strings.HasPrefix(rp, ".archcore/") {
+		return false
+	}
+	return slices.Contains(strings.Split(rp, "/"), "global")
 }
 
 // isReadOnlyGlobalPath reports whether relPath is read-only global space: either a
@@ -233,11 +241,27 @@ func isReadOnlyGlobalPath(baseDir, relPath string, globals []config.GlobalSource
 	return isReservedGlobalDir(relPath) || isGlobalPath(baseDir, relPath, globals)
 }
 
-// annotateSource fills SourceID, SourceKind, Global, and ReadOnly on doc
-// by matching doc.Path against declared global sources in settings.json.
+// annotateSource fills SourceID, SourceKind, Global, and ReadOnly on doc by
+// matching doc.Path against declared global sources in settings.json.
+//
+// A declared source is matched first so it keeps its own id (a global vendored
+// in-tree under .archcore/global/<id> is both reserved AND declared, and must
+// report <id>, not the sentinel). Content in the reserved global/ tree that is NOT
+// declared (isReservedGlobalDir) is still read-only global space — the write guards
+// treat it as read-only (isReadOnlyGlobalPath) — so it is annotated global with the
+// reserved "__global__" source id, keeping the read label consistent with the write
+// reality. The sentinel carries underscores, which globalIDRe forbids in a declared
+// id, so it can never collide with a real source id. Everything else is local.
 func annotateSource(doc *LocalDocument, baseDir string) {
 	if id, ok := matchGlobal(baseDir, doc.Path, config.ReadGlobals(baseDir)); ok {
 		doc.SourceID = id
+		doc.SourceKind = "global"
+		doc.Global = true
+		doc.ReadOnly = true
+		return
+	}
+	if isReservedGlobalDir(doc.Path) {
+		doc.SourceID = "__global__"
 		doc.SourceKind = "global"
 		doc.Global = true
 		doc.ReadOnly = true

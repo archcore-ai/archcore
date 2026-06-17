@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -179,5 +180,32 @@ func TestOpenCode_Detect_False(t *testing.T) {
 	base := t.TempDir()
 	if ByID(OpenCode).DetectFn(base) {
 		t.Error("expected no detection")
+	}
+}
+
+// TestOpenCode_WriteMCPConfig_PreservesExistingArchcore pins the "already
+// configured" guard: a second write must not overwrite an existing, possibly
+// user-customized archcore entry. The idempotency test (len==1) cannot detect
+// the guard's removal because a guard-less re-marshal keeps the count at one.
+func TestOpenCode_WriteMCPConfig_PreservesExistingArchcore(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+
+	const sentinel = "SENTINEL-DO-NOT-OVERWRITE"
+	seed := `{"mcp":{"archcore":{"type":"` + sentinel + `"}}}`
+	if err := os.WriteFile(filepath.Join(base, "opencode.json"), []byte(seed), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ByID(OpenCode).WriteMCPConfig(base); err != nil {
+		t.Fatalf("WriteMCPConfig: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(base, "opencode.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), sentinel) {
+		t.Errorf("existing archcore entry was overwritten; file = %s", data)
 	}
 }
