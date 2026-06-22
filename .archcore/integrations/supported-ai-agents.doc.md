@@ -7,7 +7,7 @@ tags:
 
 ## Summary
 
-Archcore integrates with 8 AI coding agents. Each agent has a unique combination of hooks support (lifecycle event interception), MCP support (document tool access), and an instruction-nudge file (discovery hint). This document is the authoritative registry.
+Archcore integrates with 8 AI coding agents. Each agent has a unique combination of hooks support (lifecycle event interception), MCP support (document tool access), and an instruction-nudge file (discovery hint). The canonical, tool-agnostic host roster lives in the `archcore` global source (`architecture/supported-ai-hosts`); this document is the CLI's per-host integration reference (config paths, hook formats, detection, and the add-an-agent recipe).
 
 ## Agent Registry
 

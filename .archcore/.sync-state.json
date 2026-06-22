@@ -409,56 +409,6 @@
       "type": "related"
     },
     {
-      "source": "document-types/add-rnd-research-document-type.idea.md",
-      "target": "document-types/iso-29148-document-types-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/add-rnd-research-document-type.idea.md",
-      "target": "document-types/mrd-brd-urd-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/add-rnd-research-document-type.idea.md",
-      "target": "document-types/mrd-brd-urd-requirement-sources.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/add-rnd-research-document-type.idea.md",
-      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/add-rnd-research-document-type.idea.md",
-      "target": "document-types/remove-project-document-type.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/add-rnd-research-document-type.idea.md",
-      "target": "document-types/source-to-specification-relations.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/add-rnd-research-document-type.idea.md",
-      "target": "document-types/sources-are-not-specifications.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/add-rnd-research-document-type.idea.md",
-      "target": "document-types/spec-type-usage.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/add-rnd-research-document-type.idea.md",
-      "target": "document-types/working-with-requirements-tracks.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/add-rnd-research-document-type.idea.md",
-      "target": "document-types/writing-spec-documents.guide.md",
-      "type": "related"
-    },
-    {
       "source": "mcp/no-list-tags-tool.adr.md",
       "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
       "type": "related"
@@ -671,11 +621,6 @@
     {
       "source": "integrations/instruction-nudge-on-init.adr.md",
       "target": "integrations/agent-hooks-integration.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "integrations/instruction-nudge-on-init.adr.md",
-      "target": "marketing/product-positioning.rule.md",
       "type": "related"
     },
     {
