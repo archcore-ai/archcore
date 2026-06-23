@@ -14,7 +14,7 @@ Rules governing directory structure and document naming inside `.archcore/`. The
 1. Any directory structure is allowed inside `.archcore/` — directories can be nested to any depth
 2. Document files must follow the `slug.type.md` naming convention:
    - **slug**: lowercase alphanumeric characters and hyphens only (e.g., `use-postgres`, `login-flow`)
-   - **type**: one of the 18 valid document types: `adr`, `rfc`, `rule`, `guide`, `doc`, `spec`, `task-type`, `cpat`, `prd`, `idea`, `plan`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`
+   - **type**: one of the 19 valid document types: `adr`, `rfc`, `rule`, `guide`, `doc`, `spec`, `task-type`, `cpat`, `prd`, `idea`, `plan`, `rnd`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`
    - **extension**: always `.md`
 3. Category (vision / knowledge / experience) is always derived from the document type, never from the directory path
 4. Hidden directories (`.`-prefixed, e.g., `.git/`) are ignored during scanning

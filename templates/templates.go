@@ -24,6 +24,7 @@ const (
 	TypePRD      DocumentType = "prd"
 	TypeIdea     DocumentType = "idea"
 	TypePlan     DocumentType = "plan"
+	TypeRnD      DocumentType = "rnd"
 	TypeSpec     DocumentType = "spec"
 	TypeMRD      DocumentType = "mrd"
 	TypeBRD      DocumentType = "brd"
@@ -116,6 +117,7 @@ var categoryMap = map[DocumentType]Category{
 	TypePRD:  CategoryVision,
 	TypeIdea: CategoryVision,
 	TypePlan: CategoryVision,
+	TypeRnD:  CategoryVision,
 	TypeMRD:  CategoryVision,
 	TypeBRD:  CategoryVision,
 	TypeURD:  CategoryVision,
@@ -157,6 +159,7 @@ func ValidTypes() []string {
 		string(TypePRD),
 		string(TypeIdea),
 		string(TypePlan),
+		string(TypeRnD),
 		string(TypeMRD),
 		string(TypeBRD),
 		string(TypeURD),
@@ -298,6 +301,8 @@ func GenerateTemplate(documentType DocumentType) string {
 		return generateIdeaTemplate()
 	case TypePlan:
 		return generatePlanTemplate()
+	case TypeRnD:
+		return generateRnDTemplate()
 	case TypeMRD:
 		return generateMRDTemplate()
 	case TypeBRD:
@@ -1081,6 +1086,81 @@ Describe the desired outcome in one sentence.
 |------------|------|--------|
 
 ## Notes
+`
+}
+
+func generateRnDTemplate() string {
+	return `## Research Goal
+
+State the single question this investigation must answer, in one sentence.
+
+### Scope
+
+- In scope: what this research will and will not cover
+- Time box: how long this investigation should take
+
+## Context & Trigger
+
+- What prompted this research now?
+- What decision or work is blocked until it concludes?
+
+## Questions / Hypotheses
+
+- Question 1: what we need to know
+- Hypothesis 1: what we expect to be true, and how we'd disprove it
+
+## Approach
+
+### Inputs
+
+- Source 1: docs, data, prior art, or people consulted
+
+### Options
+
+- Option 1: brief description
+- Option 2: brief description
+
+### Experiments
+
+- Experiment 1: what to try and what outcome would confirm or refute a hypothesis
+
+## Findings
+
+What the investigation actually showed. Stick to evidence, not opinion.
+
+- Finding 1: observation and supporting evidence
+- Finding 2: observation and supporting evidence
+
+## Implications
+
+What the findings mean for the decision or work that triggered this research.
+
+- Implication 1: consequence of the findings
+- Implication 2: consequence of the findings
+
+## Recommendation
+
+State exactly one and justify it in 1-2 sentences:
+
+- **proceed** — adopt the option / move forward as investigated
+- **refine** — promising, but needs another iteration before deciding
+- **defer** — park this; revisit when a stated condition changes
+- **stop** — do not pursue; the question is answered negatively
+
+## Next Action
+
+The single concrete step that follows from the recommendation.
+
+- [ ] Owner does [action] by [when]
+
+## Risks & Unknowns
+
+- Risk 1: what could invalidate this recommendation
+- Unknown 1: what remains unanswered and why it's acceptable for now
+
+## Related Materials
+
+- External references, data sets, or prior art (links or @-paths)
 `
 }
 

@@ -68,6 +68,11 @@ func TestGenerateTemplate(t *testing.T) {
 			wantContains: []string{"## Goal", "## Tasks", "## Acceptance Criteria", "## Dependencies", "## Notes"},
 		},
 		{
+			name:         "RnD template",
+			documentType: TypeRnD,
+			wantContains: []string{"## Research Goal", "## Context & Trigger", "## Questions / Hypotheses", "## Approach", "## Findings", "## Implications", "## Recommendation", "## Next Action", "## Risks & Unknowns", "## Related Materials"},
+		},
+		{
 			name:         "Spec template",
 			documentType: TypeSpec,
 			wantContains: []string{"## Purpose", "## Scope", "## Authority", "## Subject", "## Contract Surface", "## Normative Behavior", "## Constraints", "## Invariants", "## Error Handling", "## Conformance"},
@@ -433,6 +438,7 @@ func TestTemplateStructure(t *testing.T) {
 		{TypePRD, 1925},
 		{TypeIdea, 175},
 		{TypePlan, 175},
+		{TypeRnD, 1300},
 		{TypeMRD, 1151},
 		{TypeBRD, 1279},
 		{TypeURD, 1289},
@@ -877,6 +883,7 @@ func TestCategoryForType(t *testing.T) {
 		{TypePRD, CategoryVision},
 		{TypeIdea, CategoryVision},
 		{TypePlan, CategoryVision},
+		{TypeRnD, CategoryVision},
 		{TypeMRD, CategoryVision},
 		{TypeBRD, CategoryVision},
 		{TypeURD, CategoryVision},

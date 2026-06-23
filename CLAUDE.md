@@ -66,15 +66,15 @@ The layout under `.archcore/` is **free-form** — organize by domain/feature/te
 
 ### Templates (`templates/`)
 
-`templates.go` defines 18 document types mapped to virtual categories:
+`templates.go` defines 19 document types mapped to virtual categories:
 
 | Category | Types |
 |----------|-------|
 | `knowledge` | adr, rfc, rule, guide, doc, spec |
-| `vision` | prd, idea, plan, mrd, brd, urd, brs, strs, syrs, srs |
+| `vision` | prd, idea, plan, rnd, mrd, brd, urd, brs, strs, syrs, srs |
 | `experience` | task-type, cpat |
 
-Vision types beyond prd/idea/plan form requirement tracks (MRD/BRD/URD sources; ISO 29148 BRS/StRS/SyRS/SRS). See `.archcore/document-types/`.
+Vision types beyond prd/idea/plan include the requirement tracks (MRD/BRD/URD sources; ISO 29148 BRS/StRS/SyRS/SRS) plus `rnd`, a standalone research gate (not a track). See `.archcore/document-types/`.
 
 ### Key Design Patterns
 

@@ -26,7 +26,7 @@ Example structures:
 
 Document types and their virtual categories:
   knowledge: adr (decisions), rfc (proposals), rule (standards), guide (how-tos), doc (reference), spec (contracts)
-  vision:    prd (requirements), idea (concepts), plan (action plans), mrd (market requirements), brd (business requirements), urd (user requirements), brs (business req spec), strs (stakeholder req spec), syrs (system req spec), srs (software req spec)
+  vision:    prd (requirements), idea (concepts), plan (action plans), rnd (research), mrd (market requirements), brd (business requirements), urd (user requirements), brs (business req spec), strs (stakeholder req spec), syrs (system req spec), srs (software req spec)
   experience: task-type (typical task patterns), cpat (code pattern changes)
 
 DOCUMENT RELATIONS:
@@ -72,6 +72,7 @@ WHEN TO CREATE:
 - A coding pattern, convention, or approach has deliberately changed → cpat
 - A product concept or technical idea needs capturing → idea
 - An implementation plan with tasks is formed → plan
+- A bounded investigation is needed to answer a question before deciding or building → rnd
 - Product requirements with goals, scope, and acceptance criteria → prd
 - Market analysis with TAM/SAM/SOM, competitive landscape, and market needs → mrd
 - Business justification with objectives, ROI, stakeholders, and budget → brd
@@ -96,6 +97,9 @@ WHEN TO DELETE (use remove_document):
 TYPE SELECTION RULES (use these to disambiguate):
 - rule vs doc: A rule contains imperative statements ("Always do X", "Never do Y") with good/bad code examples and enforcement info. A doc is non-behavioral reference material (tables, registries, glossaries). If the content describes what exists rather than prescribing behavior, use doc.
 - adr vs rfc: An adr records a decision already made. An rfc proposes a change open for review. If the decision is final, use adr; if still open for feedback, use rfc.
+- rnd vs idea: An rnd INVESTIGATES an open question and must end in a recommendation (proceed/refine/defer/stop) plus a next action. An idea PROPOSES a concept worth exploring. Use rnd for "should we / which way"; use idea for "we could".
+- rnd vs adr: An rnd INVESTIGATES to inform a decision that is still pending. An adr COMMITS to a decision already made. Gather evidence in an rnd, then record the resulting decision as an adr (adr depends_on rnd).
+- rnd vs rfc: An rnd explores an open QUESTION with no position yet. An rfc puts a concrete PROPOSAL up for review. If there is nothing to propose yet, use rnd.
 - guide vs doc: A guide has numbered steps the reader follows sequentially. A doc is non-sequential, non-behavioral reference material. If the reader is meant to do something step-by-step, use guide; if they look things up, use doc.
 - spec vs doc: A spec documents the canonical normative contract of a concrete technical boundary — externally observable behavior, constraints, invariants, and conformance requirements. A doc describes what already exists (tables, registries, glossaries) without normative requirements. If the document defines a normative contract for a specific artifact, use spec.
 - spec vs rule: A spec is a technical contract for a component or interface — it specifies what correct behavior is. A rule is a team standard for how engineers must act ("Always do X"). If the content is about a system's required behavior rather than a human practice, use spec.
@@ -133,6 +137,11 @@ REQUIREMENTS LAYERS — Sources and Specifications are SEPARATE layers:
     strs implements brs → syrs implements strs → srs implements syrs
   PRD can substitute for the entire ISO cascade (use "related" relation to link PRD to ISO types).
   Do NOT confuse source documents (mrd/brd/urd) with specification documents (brs/strs/syrs/srs). Sources are informal, discovery-oriented. Specifications are formal, ISO-structured.
+
+RESEARCH GATE (rnd) — optional investigation before committing:
+  Use rnd to resolve an open question before the first committing document of any track (rnd → idea, rnd → adr → spec → plan, rnd → adr → rule). Every rnd ends with a mandatory Recommendation (proceed/refine/defer/stop) and a Next Action.
+  Status maps the verdict: draft = investigating; accepted = proceed/refine; rejected = defer/stop. A "rejected" rnd ("we investigated and decided not to") is a first-class, valuable outcome — keep it, do not delete it; it preserves the dead end.
+  Relation conventions (advisory): idea related rnd; prd/plan/adr depends_on rnd; rfc extends rnd; rnd related rnd. Do not use "implements" for research.
 
 VALID STATUS VALUES:
   draft     — default for new documents; work in progress

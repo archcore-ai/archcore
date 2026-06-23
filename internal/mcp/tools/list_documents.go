@@ -26,7 +26,7 @@ Returns: a JSON array of documents, each with path, title, type, category, statu
 
 Use the returned paths directly as input to get_document. Do not construct paths manually.`),
 		mcp.WithArray("types",
-			mcp.Description("Filter by one or more document types. Valid values: adr, rfc, rule, guide, doc, spec, prd, idea, plan, task-type, cpat, mrd, brd, urd, brs, strs, syrs, srs. Example: [\"adr\", \"rule\"] returns only decision records and standards."),
+			mcp.Description("Filter by one or more document types. Valid values: adr, rfc, rule, guide, doc, spec, prd, idea, plan, rnd, task-type, cpat, mrd, brd, urd, brs, strs, syrs, srs. Example: [\"adr\", \"rule\"] returns only decision records and standards."),
 			mcp.WithStringItems(),
 		),
 		mcp.WithString("category",

@@ -92,7 +92,7 @@ Document types map to virtual categories:
 | Category | Types |
 |----------|-------|
 | `knowledge` | adr, rfc, rule, guide, doc, spec |
-| `vision` | prd, idea, plan, mrd, brd, urd, brs, strs, syrs, srs |
+| `vision` | prd, idea, plan, rnd, mrd, brd, urd, brs, strs, syrs, srs |
 | `experience` | task-type, cpat |
 
 Files follow the naming convention: `<slug>.<type>.md` (e.g., `use-postgres.adr.md`). The directory structure under `.archcore/` is free-form — see [Free-Form Directory Structure ADR](../dir/free-form-directory-structure.adr.md).

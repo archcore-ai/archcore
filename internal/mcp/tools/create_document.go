@@ -39,6 +39,7 @@ Document types (sections shown are core — full templates auto-generated when c
   prd       — Product requirements · sections: Vision, Problem, Goals & Metrics, Requirements
   idea      — Concept worth exploring · sections: Idea, Value, Possible Implementation, Risks
   plan      — Implementation plan · sections: Goal, Tasks, Acceptance Criteria, Dependencies
+  rnd       — Bounded research · sections: Goal, Questions, Approach, Findings, Recommendation, Next Action
   task-type — Recurring task pattern · sections: What, When, Steps, Example, Pitfalls
   cpat      — Code pattern change · sections: What Changed, Why, Before, After, Scope
   mrd       — Market analysis · sections: Market, TAM/SAM/SOM, Competitive, Needs, Opportunity

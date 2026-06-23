@@ -271,6 +271,7 @@ func TestHandleCreateDocument_AllTypes(t *testing.T) {
 		{"prd", "vision", "### Product Vision Statement"},
 		{"idea", "vision", "### Problem / Opportunity"},
 		{"plan", "vision", "## Tasks"},
+		{"rnd", "vision", "## Recommendation"},
 		{"mrd", "vision", "## Market Landscape"},
 		{"brd", "vision", "## Business Objectives"},
 		{"urd", "vision", "## User Personas"},
