@@ -67,7 +67,7 @@ WHEN TO CREATE:
 - A team standard or required behavior is established → rule
 - Step-by-step instructions for completing a task → guide
 - Non-behavioral reference material — registries, lookup tables, glossaries, or component lists → doc
-- The canonical normative contract for a concrete system, component, interface, schema, or protocol is being formalized → spec
+- A component, interface, schema, or protocol has externally-observable behavior that other code or teams depend on → spec (capture the contract of what exists, or specify the contract to build)
 - A proven workflow for a recurring implementation task is documented → task-type
 - A coding pattern, convention, or approach has deliberately changed → cpat
 - A product concept or technical idea needs capturing → idea
@@ -101,9 +101,9 @@ TYPE SELECTION RULES (use these to disambiguate):
 - rnd vs adr: An rnd INVESTIGATES to inform a decision that is still pending. An adr COMMITS to a decision already made. Gather evidence in an rnd, then record the resulting decision as an adr (adr depends_on rnd).
 - rnd vs rfc: An rnd explores an open QUESTION with no position yet. An rfc puts a concrete PROPOSAL up for review. If there is nothing to propose yet, use rnd.
 - guide vs doc: A guide has numbered steps the reader follows sequentially. A doc is non-sequential, non-behavioral reference material. If the reader is meant to do something step-by-step, use guide; if they look things up, use doc.
-- spec vs doc: A spec documents the canonical normative contract of a concrete technical boundary — externally observable behavior, constraints, invariants, and conformance requirements. A doc describes what already exists (tables, registries, glossaries) without normative requirements. If the document defines a normative contract for a specific artifact, use spec.
+- spec vs doc: A spec documents the canonical normative contract of a concrete technical boundary — externally observable behavior, constraints, invariants, and conformance requirements. A doc describes what already exists (tables, registries, glossaries) without normative requirements. When the subject is a boundary other code depends on (observable behavior, external consumers), prefer spec even if doc also fits — the doc links to the spec. If the document defines a normative contract for a specific artifact, use spec.
 - spec vs rule: A spec is a technical contract for a component or interface — it specifies what correct behavior is. A rule is a team standard for how engineers must act ("Always do X"). If the content is about a system's required behavior rather than a human practice, use spec.
-- spec vs adr: A spec is the living canonical truth of how something works. An adr is the decision record explaining why a choice was made. A single decision may produce both: the adr captures the "why", the spec captures the "what". If the content is prescriptive and meant to be kept current, use spec; if it records a past decision, use adr.
+- spec vs adr: A spec is the living canonical truth of how something works. An adr is the decision record explaining why a choice was made. A single decision may produce both: the adr captures the "why", the spec captures the "what". A spec may be written after code (capture the existing contract) or before it (specify the contract to build). If the content is prescriptive and meant to be kept current, use spec; if it records a past decision, use adr.
 - mrd vs prd: MRD analyzes the MARKET (TAM/SAM/SOM, competitors, timing) without proposing a solution. PRD proposes a PRODUCT with requirements and solution overview.
 - brd vs prd: BRD focuses on BUSINESS JUSTIFICATION (ROI, budget, organizational impact). PRD focuses on PRODUCT DEFINITION (features, user stories, solution).
 - urd vs prd: URD captures user needs via PERSONAS and JOURNEYS (discovery-oriented). PRD defines product requirements with acceptance criteria (specification-oriented).
