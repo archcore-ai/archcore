@@ -35,7 +35,7 @@ Record a decision or a proposal for one. Routes between:
 | User describes a **finalized decision** (default) | → adr | Single ADR |
 | User describes an **open proposal** ("thinking about", "should we", "proposing") | → rfc | Single RFC |
 | User says "and make it a standard" or implies enforcement | → adr + standard cascade | ADR, then offer rule + guide |
-| User says "and formalize the contract" or implies a spec is needed | → adr + architecture cascade | ADR, then offer spec + plan |
+| User says "and formalize the contract", or the decision establishes or changes a boundary contract (API, interface, schema, protocol) | → adr + architecture cascade | ADR, then offer spec + plan |
 
 Default for finalized decisions: create a single ADR. After creation, evaluate the decision and offer the matching continuation per `skills/decide/references/continuations.md`.
 
@@ -78,7 +78,7 @@ RFC flow ends here — no rule + guide continuation (those belong to finalized d
 Read `skills/decide/references/continuations.md`. Evaluate the decision content for the signal phrases listed there and offer the matching cascade:
 
 - **Standard cascade** — rule + guide (decision describes enforceable behavior).
-- **Architecture cascade** — spec + plan (decision describes a technical contract).
+- **Architecture cascade** — spec + plan (decision establishes or changes a boundary contract — API, interface, schema, protocol — that other code depends on).
 - **Both signals present** — ask the user which fits better, or neither for now.
 - **Neither signal** — do not offer; the ADR alone is a valid endpoint.
 
