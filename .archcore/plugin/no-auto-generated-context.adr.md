@@ -1,10 +1,16 @@
 ---
 title: "No Auto-Generated Context Blobs"
-status: accepted
+status: rejected
 tags:
   - "architecture"
   - "plugin"
   - "precision"
+---
+
+## Status: Rejected (Superseded by `magic-first-day-init.adr`)
+
+Superseded 2026-06-26. The absolute ban on init-time auto-generated documents is replaced by a **bounded** model — extractive facts plus human-confirmed synthesis, gated behind a single preview/confirm step. The guardrails this ADR established are **retained** in the successor (no unconfirmed prose blobs, no documents over 200 lines, precision over coverage, the overview is an index not a summary); only the empty-state minimalism — which produced the "init does nothing / creates very little content" feedback — is reversed. See `magic-first-day-init.adr` for the new boundary, and `magic-first-day-init.plan` for the implementation.
+
 ---
 
 ## Context
@@ -33,3 +39,5 @@ Archcore does not produce auto-generated repository summaries, AGENTS.md-style b
 
 - A future benchmark on comparable scale (>400 OSS repos) demonstrates that auto-generated context files improve agent task success rate by ≥5 percentage points net of cost.
 - Anthropic, Cursor, or comparable host vendors document a different official position based on newer evidence and revise their own context-engineering guidance.
+
+> **Superseded (2026-06-26):** met by product decision rather than a new benchmark — first-day onboarding impact was judged to outweigh strict minimalism, with the research's actual failure mode (unconfirmed wholesale prose blobs, >200-line files) fenced off by the successor's preview/confirm gate and retained guardrails. See `magic-first-day-init.adr`.

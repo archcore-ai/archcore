@@ -3106,6 +3106,46 @@
       "source": "plugin/subdirectory-plugin-layout.adr.md",
       "target": "plugin/cli-integration-tests.rule.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/magic-first-day-init.adr.md",
+      "target": "plugin/no-auto-generated-context.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/magic-first-day-init.adr.md",
+      "target": "plugin/precision-over-coverage.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/magic-first-day-init.adr.md",
+      "target": "plugin/zero-content-onboarding.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/magic-first-day-init.adr.md",
+      "target": "plugin/bootstrap-scale-modes.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/magic-first-day-init.plan.md",
+      "target": "plugin/magic-first-day-init.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/magic-first-day-init.plan.md",
+      "target": "plugin/bootstrap-scale-modes.plan.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/magic-first-day-init.plan.md",
+      "target": "plugin/zero-content-onboarding-implementation.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/magic-first-day-init.plan.md",
+      "target": "plugin/precision-over-coverage.adr.md",
+      "type": "related"
     }
   ]
 }

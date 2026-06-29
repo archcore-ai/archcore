@@ -46,7 +46,7 @@ All commands are auto-invocable. The user describes intent in natural language a
 
 | Command | Description (in skill picker) | Argument | Behavior |
 |---|---|---|---|
-| `/archcore:init` | First-time onboarding — seed `.archcore/` with stack rule + run guide + scale-appropriate extras | — | Three-step flow, each step accept/edit/skip. Idempotent. |
+| `/archcore:init` | First-time onboarding — detect scale + shape, compose a full first-day seed (stack rule, run guide, data-model, integrations, config, entry points, architecture overview, hotspot specs) and import agent files | `[--mode=small\|medium\|large] [--domain=<slug>] [--refresh]` | Detect → compose → one preview → single `confirm` → create + wire relations. Nothing written before confirm. Idempotent (skip-on-exists). See `magic-first-day-init.adr.md`. |
 | `/archcore:capture` | Document a module / component / system | `[topic]` | Routes to adr / spec / doc / guide based on context |
 | `/archcore:decide` | Record a decision (ADR) or draft a proposal (RFC); optional standard cascade | `[topic]` | Creates adr or rfc; offers optional CPAT → rule → guide continuation |
 | `/archcore:plan` | Plan a feature or initiative end-to-end | `[topic] [--product\|--sources\|--iso\|--feature]` | Routes to single plan, or one of four flows: product (idea→prd→plan), sources (mrd→brd→urd), iso (brs→strs→syrs→srs), feature (prd→spec→plan→task-type) |
@@ -64,6 +64,7 @@ Every Archcore document type is reachable via:
    - `idea`, `prd`, `plan`, `task-type` → `/archcore:plan` (product/feature flows)
    - `mrd`, `brd`, `urd` → `/archcore:plan --sources`
    - `brs`, `strs`, `syrs`, `srs` → `/archcore:plan --iso`
+   - `rule`, `spec`, `doc` → `/archcore:init` also composes these as part of the first-day seed (the only skill that seeds documents in bulk, behind a single preview/confirm)
 2. A direct MCP call — `mcp__archcore__create_document(type=<any>)`.
 
 The full mapping is in `skills-system.spec.md` → "Document-type coverage".
@@ -83,7 +84,7 @@ All commands accept arguments documented in their `argument-hint:` frontmatter.
 - **With argument**: `/archcore:plan auth-redesign` — the topic is passed as `$ARGUMENTS`, skill uses it to scope work and check for duplicates.
 - **Without argument**: `/archcore:plan` — skill asks an initial question to establish topic/scope.
 
-Mode flags (`--deep`, `--drift`, `--product`, `--sources`, `--iso`, `--feature`, `--git-changes`) select between modes within a single skill.
+Mode flags (`--deep`, `--drift`, `--product`, `--sources`, `--iso`, `--feature`, `--git-changes`, `--mode`, `--domain`, `--refresh`) select between modes within a single skill.
 
 The `/archcore:audit` command treats a non-flag argument as a **scope filter** (tag, category, type) for `--deep` and `--drift` modes. The default short mode is project-wide and ignores filters by design.
 
@@ -91,7 +92,7 @@ The `/archcore:plan` command treats a flag argument (`--product`, `--sources`, `
 
 The `/archcore:context` command additionally accepts `--git-changes` (working-tree scope: staged + unstaged + untracked vs HEAD, minus `.archcore/`) as a scope flag that replaces path/topic classification with a git-derived path set (one `search_documents` call per changed directory, deduped and capped). It short-circuits to an empty state when git is unavailable. The agent MAY also invoke `--git-changes` proactively, but only once per task over a dirty working tree (not after every edit).
 
-The `/archcore:init` command takes no argument; its flow is deterministic (three sequential steps).
+The `/archcore:init` command accepts `--mode=small|medium|large` (force the detected scale), `--domain=<slug>` (large-repo re-run scoped to one domain), and `--refresh` (top up an already-seeded repo with facts that appeared since). Its flow is deterministic: detect → compose → one preview → single `confirm` → create + wire relations.
 
 ### Discoverability
 
@@ -105,7 +106,7 @@ The `/archcore:help` output structure:
 
 ```
 ## Quick Start (most users start here)
-/archcore:init       — seed a new repo (stack rule, run guide, optional extras)
+/archcore:init       — seed a new repo (facts + hotspot specs + linked overview, one preview/confirm)
 /archcore:capture    — document a module or component
 /archcore:plan       — plan a feature end-to-end (single plan or full flow)
 /archcore:decide     — record a decision (ADR) or draft a proposal (RFC)
@@ -130,13 +131,13 @@ The right skill auto-invokes from the phrasing.
 - All creation commands MUST suggest `add_relation` calls after document creation.
 - Analysis commands (`audit`, `context`) MUST use MCP read tools for data gathering.
 - `/archcore:audit` MUST default to the short dashboard when invoked without arguments and switch modes when `--deep` or `--drift` is present.
-- `/archcore:init` MUST be idempotent: each step detects existing artifacts and asks before regenerating; re-runs on a partially-initialized repo only offer the missing steps.
+- `/archcore:init` MUST write no document before the user confirms the preview, and MUST be idempotent: every already-present artifact is skipped (skip-on-exists shown in the preview), and a fully-seeded repo early-exits unless `--refresh` or `--domain` is passed.
 
 ## Constraints
 
 - No sub-namespaces. All commands are `archcore:<name>`.
 - The visible palette MUST be exactly 7 commands. Adding an eighth skill requires a new ADR.
-- Commands ask at most one scope-confirmation question before starting execution (`/archcore:init` is the exception: it runs its three-step flow with per-step accept/edit/skip).
+- Commands ask at most one scope-confirmation question before starting execution (`/archcore:init` is the exception: it presents one preview manifest and proceeds on a single `confirm` / `edit` / `cancel`).
 - Flow steps within `plan` ask at most 1–2 content questions per document step.
 
 ## Invariants

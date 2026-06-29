@@ -28,7 +28,7 @@ The visible `/` palette is exactly 7 commands. Each skill maps to a clearly dist
 
 | Directory | Skill | User intent | Modes / continuations |
 |---|---|---|---|
-| `skills/init/` | init | Seed an empty `.archcore/` on first install — scale-detect (small/medium/large), seed stack rule + run guide + scale-appropriate extras | three-step accept/edit/skip flow; idempotent |
+| `skills/init/` | init | Seed an empty `.archcore/` on first install — scale-detect (small/medium/large), compose a full first-day seed (stack rule, run guide, data-model, integrations, config, entry points, hotspot specs, linked architecture overview) and import agent files | detect → compose → one preview → single `confirm` → create + wire relations; idempotent (skip-on-exists); `--mode` / `--domain` / `--refresh`; see `magic-first-day-init.adr.md` |
 | `skills/capture/` | capture | Document a module/component/system | routes to adr / spec / doc / guide |
 | `skills/decide/` | decide | Record a decision (ADR) or draft a proposal (RFC); optional standard cascade | ADR → optional CPAT (for code-pattern changes) → optional rule → optional guide |
 | `skills/plan/` | plan | Plan a feature or initiative end-to-end | routes to single plan, or one of the multi-doc flows via references: product (idea→prd→plan), sources (mrd→brd→urd), iso (brs→strs→syrs→srs), feature (prd→spec→plan→task-type) |
@@ -42,14 +42,16 @@ Plain-markdown assets loaded at runtime by skills before composing documents. Th
 
 | Asset | Path | Loaded by | Purpose |
 |---|---|---|---|
-| `precision-rules.md` | `skills/_shared/precision-rules.md` | `decide`, `capture` | Forbidden vagueness lexicon, imperative phrasing, `[assumption]` marker conventions |
+| `precision-rules.md` | `skills/_shared/precision-rules.md` | `decide`, `capture`, `init`, `plan` | Forbidden vagueness lexicon, imperative phrasing, no-cross-document-section rule, `[assumption]` marker conventions |
 | `adr-contract.md` | `skills/_shared/adr-contract.md` | `decide`, `capture` (ADR) | Mandatory sections + bad/good examples for ADR content per MADR 4.0 |
+| `spec-contract.md` | `skills/_shared/spec-contract.md` | `capture` (spec), `init` (hotspot specs) | Mandatory sections + "when NOT to write a spec" for spec content |
+| `rule-contract.md` | `skills/_shared/rule-contract.md` | `decide` (rule), `init` (cross-cutting rules) | Mandatory rule body: RFC 2119 statement, applies-to scope, rationale, Good/Bad examples, enforcement |
 
 Companion ADR: `precision-over-coverage.adr.md` documents the design rationale.
 
-### Per-Flow References (`skills/plan/references/` and `skills/audit/lib/`)
+### Per-Flow References (`skills/plan/references/`, `skills/audit/lib/`, and `skills/init/lib/`)
 
-Where a skill needs to support multiple multi-document flows, the per-flow content lives in markdown references that the SKILL.md loads on demand:
+Where a skill needs to support multiple multi-document flows or heavy detection logic, the per-flow content lives in markdown references that the SKILL.md loads on demand:
 
 | Reference | Path | Used by | Content |
 |---|---|---|---|
@@ -59,8 +61,9 @@ Where a skill needs to support multiple multi-document flows, the per-flow conte
 | `feature-flow.md` | `skills/plan/references/feature-flow.md` | `plan` | prd → spec → plan → task-type cascade |
 | `continuations.md` | `skills/decide/references/continuations.md` | `decide` | ADR → CPAT → rule → guide continuation logic |
 | `drift-detection.md` | `skills/audit/lib/drift-detection.md` | `audit` (drift mode) | code-drift, cascade, temporal staleness protocols |
+| `detect-*.md`, `extract-*.md`, `compose-overview.md` | `skills/init/lib/*.md` | `init` | scale/stack/domain/module/entry-point/hotspot/data-model/integration/config detection catalogs + capstone composer, read lazily in the Detect/Compose sub-phases |
 
-This pattern keeps each SKILL.md under the 200-line budget while preserving rich per-flow elicitation behind a single intent entry point.
+This pattern keeps each SKILL.md under the line budget while preserving rich per-flow elicitation and detection behind a single intent entry point.
 
 ### Document-type coverage
 
@@ -70,10 +73,10 @@ Every Archcore document type is reachable through an intent skill or directly vi
 |---|---|
 | adr | `/archcore:decide`, `/archcore:capture` |
 | rfc | `/archcore:decide` (open-proposal branch) |
-| rule | `/archcore:decide` (continuation), `/archcore:capture` (when codifying observed practice) |
-| guide | `/archcore:capture`, `/archcore:decide` (continuation) |
-| doc | `/archcore:capture` |
-| spec | `/archcore:capture` |
+| rule | `/archcore:decide` (continuation), `/archcore:capture` (when codifying observed practice), `/archcore:init` (stack + cross-cutting rules in the first-day seed) |
+| guide | `/archcore:capture`, `/archcore:decide` (continuation), `/archcore:init` (run guide) |
+| doc | `/archcore:capture`, `/archcore:init` (data-model, integrations, config, entry points, top-level map, architecture overview) |
+| spec | `/archcore:capture`, `/archcore:init` (hotspot specs) |
 | prd | `/archcore:plan` (product or feature flow) |
 | idea | `/archcore:plan` (product flow) |
 | plan | `/archcore:plan` (any flow) |
@@ -108,23 +111,23 @@ Every skill file MUST contain these sections in order:
 
 1. **Title and one-liner** — What this skill does, in user terms.
 2. **When to Use** — Natural-language signals that lead to this skill. Contrast with adjacent skills.
-3. **Routing Table** — Explicit decision tree mapping user input or arguments to document types, flows, or analysis modes. Each branch terminates in a named outcome. Maximum one clarifying question when input is ambiguous between two paths. Flow-style skills (`init`) may replace the routing table with a numbered step sequence as long as each step has a deterministic set of branches.
+3. **Routing Table** — Explicit decision tree mapping user input or arguments to document types, flows, or analysis modes. Each branch terminates in a named outcome. Maximum one clarifying question when input is ambiguous between two paths. Flow-style skills (`init`) may replace the routing table with a numbered step/phase sequence as long as each step has a deterministic set of branches.
 4. **Execution** — Step-by-step flow:
    - Step 1: Gather data (list_documents, list_relations, git log as needed)
    - Step 2: Scope confirmation (one `AskUserQuestion` if `$ARGUMENTS` is ambiguous)
-   - Steps 3–N: Core execution (document creation, analysis, or reporting). Creation steps include per-type elicitation inline: question → compose sections → create_document → add_relation. Flow-style execution may load a reference under `skills/<name>/references/` (or `skills/audit/lib/`) for the chosen flow.
+   - Steps 3–N: Core execution (document creation, analysis, or reporting). Creation steps include per-type elicitation inline: question → compose sections → create_document → add_relation. Flow-style execution may load a reference under `skills/<name>/references/` or `skills/<name>/lib/` for the chosen flow.
    - Final step: Summary and suggested next actions
 5. **Result** — Summary of what was created or found, and recommended next actions.
 
-Note: creation-oriented skills (`init`, `capture`, `decide`, `plan`) include inline creation recipes for the document types they can produce. Analysis-oriented skills (`audit`, `context`) include analysis logic. The `audit` skill has three output modes (short dashboard / `--deep` / `--drift`) inside one skill. The `help` skill includes the command catalogue.
+Note: creation-oriented skills (`init`, `capture`, `decide`, `plan`) include inline creation recipes for the document types they can produce. Analysis-oriented skills (`audit`, `context`) include analysis logic. The `audit` skill has three output modes (short dashboard / `--deep` / `--drift`) inside one skill. The `init` skill composes a multi-document seed behind a single preview/confirm (per `magic-first-day-init.adr.md`). The `help` skill includes the command catalogue.
 
 ## Normative Behavior
 
 - All skills MUST be auto-invocable. No skill carries `disable-model-invocation`.
-- Skills MUST contain explicit routing tables with bounded decision branches (flow-style skills like `init` may substitute a numbered step sequence with deterministic branches per step).
+- Skills MUST contain explicit routing tables with bounded decision branches (flow-style skills like `init` may substitute a numbered step/phase sequence with deterministic branches per step).
 - Skill descriptions MUST enumerate triggers and anti-triggers using the "Activate when X. Do NOT activate for Y." format.
-- Skills MUST default to minimum viable path. Expansion requires a binary scope question.
-- Creation-oriented skills MUST be self-contained with inline creation recipes (question + sections + create + relate per document type produced). Where a flow has multiple steps, per-flow content MAY live in `skills/<name>/references/<flow>.md` and be loaded on demand.
+- Skills MUST default to minimum viable path. Expansion requires a binary scope question. (`init` is the exception: it composes the full scale-appropriate seed and gates it behind one preview/confirm rather than asking per document.)
+- Creation-oriented skills MUST be self-contained with inline creation recipes (question + sections + create + relate per document type produced). Where a flow has multiple steps, per-flow content MAY live in `skills/<name>/references/<flow>.md` (or `skills/<name>/lib/*.md`) and be loaded on demand.
 - Analysis skills (`audit`, `context`) MUST use MCP read tools (`list_documents`, `get_document`, `list_relations`) and MAY use git/Grep/Glob for cross-referencing.
 - All skills MUST use MCP tools for document operations. MUST NOT instruct direct Write/Edit to `.archcore/*.md`.
 - Skills MUST reference MCP tools by exact name.
@@ -134,7 +137,7 @@ Note: creation-oriented skills (`init`, `capture`, `decide`, `plan`) include inl
 
 - Skill files must not exceed 300 lines.
 - Skill files must not include code blocks longer than 20 lines.
-- Per-flow reference files (under `skills/<name>/references/` or `skills/audit/lib/`) must not exceed 200 lines each.
+- Per-flow reference files (under `skills/<name>/references/`, `skills/audit/lib/`, or `skills/init/lib/`) must not exceed 200 lines each.
 - Skills must not reference internal CLI implementation details — only the MCP tool interface.
 - Skills must not embed full document templates.
 
@@ -143,7 +146,7 @@ Note: creation-oriented skills (`init`, `capture`, `decide`, `plan`) include inl
 - There are exactly 7 skills on disk: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`.
 - Total skills visible in `/`: 7. No hidden skills.
 - No skill has `disable-model-invocation: true`.
-- Every skill has a routing table section or a numbered step sequence with deterministic branches.
+- Every skill has a routing table section or a numbered step/phase sequence with deterministic branches.
 - Every creation skill references `create_document` in its workflow.
 - Every analysis skill references `list_documents` and `list_relations` in its workflow.
 - No skill instructs direct Write/Edit to `.archcore/` files.
@@ -154,7 +157,7 @@ Note: creation-oriented skills (`init`, `capture`, `decide`, `plan`) include inl
 - If MCP tools are unavailable, skills inform the user with install/init instructions.
 - If `create_document` fails (duplicate filename), skills suggest an alternative filename.
 - If intent routing is ambiguous after one scope question, default to the most general path.
-- If a multi-step flow detects existing documents mid-flow, skip already-created documents and resume.
+- If a multi-step flow detects existing documents mid-flow, skip already-created documents and resume. (`init` applies this as skip-on-exists across its whole seed in one pass.)
 - If git is unavailable for `audit --drift`, skip code-drift analysis and perform cascade + temporal only.
 
 ## Conformance
