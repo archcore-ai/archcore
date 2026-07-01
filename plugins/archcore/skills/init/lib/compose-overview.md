@@ -67,6 +67,23 @@ Emit only rows whose artifact is in the seed. Order: facts (stack, run guide),
 structure (entry points, domains), data (data-model, integrations, config), then
 hotspots, then imports.
 
+## Part 3 — hotspot register (ranked but not specced)
+
+The hotspot ranking (`detect-hotspots.md`) surfaces more load-bearing modules than
+the per-mode spec cap synthesizes. List the remainder here — a compact register so
+the full map of where logic concentrates is visible on day one at ~0 token cost, and
+the user knows exactly what to `/archcore:capture` next.
+
+- One line per ranked hotspot **beyond** the spec cap, **capped at 12 rows**
+  (highest-ranked first): source module (area + short name) + its qualifying signal +
+  `→ /archcore:capture <path>`. If the remainder exceeds 12, list the top 12 and close
+  with one summary line — `+<N> more ranked candidates — /archcore:capture on demand or
+  re-run at a higher --depth.` Never enumerate an unbounded remainder: Part 1 + 2 + 3
+  combined MUST stay inside the ≤ 150-line OUTPUT cap regardless of repo size.
+- Names **source** modules and paths, not `.archcore/` documents — pointing at code
+  the user can act on, never enumerating other seeded docs.
+- Omit the section entirely when every ranked hotspot got a full spec.
+
 ## Rule-5 compliance (precision-rules.md Rule 5)
 
 - The body MUST NOT enumerate `.archcore/` file paths and MUST NOT contain a
@@ -74,6 +91,9 @@ hotspots, then imports.
   ONLY in the relation graph (Relation wiring below).
 - The index therefore names **areas/types/topics**, not paths; `Covers` is a
   topic phrase, not a link.
+- Part 3's hotspot register points at **source** modules/paths and
+  `/archcore:capture` targets — it lists code to act on, not `.archcore/` docs, so
+  it stays within Rule 5.
 
 ## Output
 
@@ -99,6 +119,9 @@ hotspots, then imports.
 | Integrations | doc | external services |
 | Configuration | doc | env-var names & purpose |
 | Hotspot: <module> | spec | <module> contract |
+
+Ranked hotspots not yet specced (run /archcore:capture to document):
+- <area>: <module> — <signal> → /archcore:capture <path>
 ```
 
 ## Relation wiring
@@ -117,6 +140,7 @@ SKILL wires elsewhere).
 | each hotspot spec | related | entry-points doc | entry-points present (medium / large) |
 | each hotspot spec | related | public-surface doc | public-surface present |
 | imported rule doc | related | project-stack rule | import yielded a `rule` |
+| each hotspot spec | related | the convention rule(s) it must honor + sibling specs in its tree | **`deep` depth only** (enriched relations) |
 
 Skip any row whose endpoints were not both created. Roll forward on individual
 `add_relation` failure — surface the error, keep the successful edges.

@@ -94,13 +94,32 @@ all), skip the hotspot step and surface in the closing message:
 
 ## Top-N by mode
 
-| Mode | N candidates |
-|---|---|
-| small | 3 |
-| medium | 5 |
-| large (per selected domain) | 3 |
+Day-one init caps the number of **full specs repo-wide** — decoupled from the
+domain count (the old "3 per selected domain" made 4 domains cost 12 specs). The cap
+= the scale baseline modulated by the `--depth` axis (`SKILL.md` → Depth axis):
 
-If the combined pool (primary + fallback) has fewer than N modules, list all.
+| Scale (baseline = `standard`) | `light` (default) | `standard` | `deep` |
+|---|---|---|---|
+| small | 3 | 3 | 6 |
+| medium | 3 | 5 | 10 |
+| large | 3 | 8 | 16 |
+| `--domain=<slug>` re-run | 3 | 3 | 6 |
+
+`light` takes the top 3 at any scale (the cheap floor); `standard` is the scale
+baseline; `deep` is up to 2× baseline. Rank the whole candidate pool once; the top-N
+become `spec` documents. **The cap is a ceiling, never a quota** — if the combined
+pool (primary + fallback) has fewer than the cap, list all and stop; never pad to hit
+the number (so a sparse repo at `deep` yields the same as `light`). The remaining
+ranked hotspots are NOT dropped — they are recorded in the architecture-overview
+register (`compose-overview.md` Part 3) as `→ /archcore:capture` rows, so the full map
+of load-bearing modules is visible at ~0 token cost while only the top-N pay for
+synthesis.
+
+`/archcore:init`'s Detect phase (`SKILL.md` Step A.3) always collects signal data up
+to the **`deep`-depth ceiling** — the rightmost column above — regardless of the
+active depth, so a later `depth:` toggle in the preview (Phase C/D) can select any
+column without re-reading source. Only *synthesis* (which of the collected
+candidates get a full spec body) is gated by the active depth.
 
 ## Suggested doc type (heuristic)
 
@@ -152,11 +171,17 @@ Show candidates as a numbered list. At the end, a single hint:
 
 Do NOT auto-invoke those skills — let the user walk through on their own pace.
 
-## Per-domain scoping (large mode)
+## Per-domain scoping (`--domain` re-run only)
 
-When invoked from large mode's per-domain pass, the candidate pool (both tiers) is
-restricted to files under the selected domain's path. The top-N is 3 per domain.
-The rationale lines prefix the candidate path with the domain tag:
+Large-mode **day-one** ranks repo-wide (top 8) and does NOT scope hotspots to the
+selected domains — spec count stays fixed no matter how many domains the user picks
+in the Step A.0 dialog (that dialog scopes the data-model fact, not hotspots).
+
+Per-domain scoping applies only to a later `/archcore:init --domain=<slug>` re-run:
+the candidate pool (both tiers) is restricted to files under the selected domain's
+path, and the top-N is the **same depth-modulated cap as the table above** (`light`/
+`standard` 3, `deep` 6) applied to that domain — not a separate fixed number. The
+rationale lines prefix the candidate path with the domain tag:
 
 ```
 [domain:billing] apps/billing/src/invoice-calculator.ts — 312 LOC source, 540 LOC tests. Suggested: spec. heavily tested (1.7:1).
