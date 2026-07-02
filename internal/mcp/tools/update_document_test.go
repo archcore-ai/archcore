@@ -77,6 +77,36 @@ func TestHandleUpdateDocument_StatusOnly(t *testing.T) {
 	}
 }
 
+func TestHandleUpdateDocument_BrokenFrontmatterFails(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	brokenDoc := "---\ntitle: [broken\nstatus: draft\ntags:\n  - keep-me\n---\n\nBody must survive."
+	writeDoc(t, base, "knowledge", "broken.adr.md", brokenDoc)
+
+	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+		"path":   ".archcore/knowledge/broken.adr.md",
+		"status": "accepted",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error for document with invalid frontmatter YAML")
+	}
+	msg := result.Content[0].(mcp.TextContent).Text
+	if !strings.Contains(msg, "not valid YAML") {
+		t.Errorf("error %q should mention invalid YAML", msg)
+	}
+
+	data, err := os.ReadFile(filepath.Join(base, ".archcore", "knowledge", "broken.adr.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != brokenDoc {
+		t.Error("file must be byte-identical after a rejected update")
+	}
+}
+
 func TestHandleUpdateDocument_ContentOnly(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)

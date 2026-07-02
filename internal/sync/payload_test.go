@@ -310,6 +310,34 @@ func TestBuildPayload_InvalidStatus(t *testing.T) {
 	}
 }
 
+func TestBuildPayload_InvalidFrontmatterYAML(t *testing.T) {
+	t.Parallel()
+	baseDir := t.TempDir()
+	archDir := filepath.Join(baseDir, ".archcore", "knowledge")
+	if err := os.MkdirAll(archDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := "---\ntitle: [broken\nstatus: draft\n---\n\n# Body"
+	if err := os.WriteFile(filepath.Join(archDir, "test.md"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := []DiffEntry{
+		{RelPath: "knowledge/test.md", Action: ActionCreated, Hash: "abc123"},
+	}
+
+	_, err := BuildPayload(baseDir, entries)
+	if err == nil {
+		t.Fatal("expected error for invalid frontmatter YAML, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid frontmatter YAML") {
+		t.Errorf("error = %q, want it to mention invalid frontmatter YAML", err.Error())
+	}
+	if !strings.Contains(err.Error(), "knowledge/test.md") {
+		t.Errorf("error = %q, want it to contain the relative file path", err.Error())
+	}
+}
+
 func TestBuildPayload_PathTraversal(t *testing.T) {
 	t.Parallel()
 	baseDir := t.TempDir()

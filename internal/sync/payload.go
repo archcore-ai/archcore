@@ -31,7 +31,7 @@ type Payload struct {
 
 // ParseFrontmatter extracts title, status, and tags from raw document content.
 func ParseFrontmatter(content string) (title string, status templates.DocStatus, tags []string) {
-	fm, _ := templates.SplitDocument([]byte(content))
+	fm, _, _ := templates.SplitDocument([]byte(content))
 	return fm.Title, fm.Status, fm.Tags
 }
 
@@ -71,7 +71,10 @@ func BuildPayload(baseDir string, entries []DiffEntry) (*Payload, error) {
 				return nil, fmt.Errorf("reading %s for sync payload: %w", e.RelPath, err)
 			}
 
-			fm, _ := templates.SplitDocument(content)
+			fm, _, fmErr := templates.SplitDocument(content)
+			if fmErr != nil {
+				return nil, fmt.Errorf("file %s: %v", e.RelPath, fmErr)
+			}
 
 			if fm.Status != "" && !templates.IsValidStatus(fm.Status) {
 				return nil, fmt.Errorf("file %s has invalid status %q (valid values: %s)",

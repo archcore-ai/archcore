@@ -619,6 +619,7 @@ func TestSplitDocument(t *testing.T) {
 		input    string
 		wantFM   Frontmatter
 		wantBody string
+		wantErr  bool
 	}{
 		{
 			name:  "standard frontmatter",
@@ -751,12 +752,51 @@ func TestSplitDocument(t *testing.T) {
 			},
 			wantBody: "Body with\n---\nmore content",
 		},
+		{
+			name:  "utf-8 bom before frontmatter",
+			input: "\ufeff---\ntitle: BOM Doc\nstatus: draft\n---\n\nBody",
+			wantFM: Frontmatter{
+				Title:  "BOM Doc",
+				Status: "draft",
+			},
+			wantBody: "Body",
+		},
+		{
+			name:     "utf-8 bom without frontmatter",
+			input:    "\ufeff## Just Markdown",
+			wantFM:   Frontmatter{},
+			wantBody: "## Just Markdown",
+		},
+		{
+			name:     "invalid yaml preserves body",
+			input:    "---\ntitle: [broken\nstatus: draft\n---\n\nBody survives",
+			wantFM:   Frontmatter{},
+			wantBody: "Body survives",
+			wantErr:  true,
+		},
+		{
+			name:     "invalid yaml closed at EOF",
+			input:    "---\ntitle: [broken\n---",
+			wantFM:   Frontmatter{},
+			wantBody: "",
+			wantErr:  true,
+		},
+		{
+			name:     "tab-indented yaml is an error",
+			input:    "---\n\ttitle: Tab Doc\n---\n\nBody",
+			wantFM:   Frontmatter{},
+			wantBody: "Body",
+			wantErr:  true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			fm, body := SplitDocument([]byte(tt.input))
+			fm, body, err := SplitDocument([]byte(tt.input))
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
+			}
 			if fm.Title != tt.wantFM.Title {
 				t.Errorf("title = %q, want %q", fm.Title, tt.wantFM.Title)
 			}

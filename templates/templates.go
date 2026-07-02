@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -207,33 +208,45 @@ func ExtractSlug(filename string) string {
 
 // SplitDocument splits raw document bytes into frontmatter fields and body.
 // It returns a Frontmatter struct and the markdown body after the closing "---".
-func SplitDocument(data []byte) (Frontmatter, string) {
+// The error is non-nil only when a delimited frontmatter block is present but
+// its YAML fails to parse; the body is still returned correctly in that case,
+// so callers that tolerate broken metadata can ignore the error. A missing or
+// unterminated frontmatter block is not an error — the whole input is returned
+// as body with empty frontmatter.
+func SplitDocument(data []byte) (Frontmatter, string, error) {
 	s := strings.ReplaceAll(string(data), "\r\n", "\n")
+	// Strip a UTF-8 BOM so BOM'd files keep their frontmatter.
+	s = strings.TrimPrefix(s, "\ufeff")
 	if !strings.HasPrefix(s, "---\n") {
-		return Frontmatter{}, s
+		return Frontmatter{}, s, nil
 	}
 
 	end := strings.Index(s[4:], "\n---\n")
 	if end == -1 {
 		// Handle frontmatter closed by "\n---" at EOF (no trailing newline).
 		if idx := strings.Index(s[4:], "\n---"); idx != -1 && idx+4+len("\n---") == len(s) {
-			fmContent := s[4 : 4+idx]
 			var fm Frontmatter
-			_ = yaml.Unmarshal([]byte(fmContent), &fm)
-			return fm, ""
+			err := parseFrontmatterYAML(s[4:4+idx], &fm)
+			return fm, "", err
 		}
-		return Frontmatter{}, s
+		return Frontmatter{}, s, nil
 	}
 	end += 4 // adjust for the offset
 
-	fmContent := s[4:end]
 	var fm Frontmatter
-	_ = yaml.Unmarshal([]byte(fmContent), &fm)
+	err := parseFrontmatterYAML(s[4:end], &fm)
 
 	body := s[end+5:] // skip past "\n---\n"
 	body = strings.TrimPrefix(body, "\n")
 
-	return fm, body
+	return fm, body, err
+}
+
+func parseFrontmatterYAML(content string, fm *Frontmatter) error {
+	if err := yaml.Unmarshal([]byte(content), fm); err != nil {
+		return fmt.Errorf("invalid frontmatter YAML: %w", err)
+	}
+	return nil
 }
 
 // WalkArchcoreFiles walks archcoreDir recursively, calling fn for each .md

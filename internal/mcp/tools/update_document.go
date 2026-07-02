@@ -107,8 +107,13 @@ func HandleUpdateDocument(baseDir string) func(ctx context.Context, request mcp.
 			return nil, fmt.Errorf("reading %s: %w", relPath, err)
 		}
 
-		// Parse existing document.
-		existingFM, existingBody := templates.SplitDocument(data)
+		// Parse existing document. A broken frontmatter block must fail the
+		// update: rebuilding the file from a zero Frontmatter would silently
+		// erase the document's title, status, and tags.
+		existingFM, existingBody, fmErr := templates.SplitDocument(data)
+		if fmErr != nil {
+			return errorResult(fmt.Sprintf("cannot update %s: existing frontmatter is not valid YAML — fix the file manually before updating", relPath)), nil
+		}
 
 		// Apply updates.
 		title := existingFM.Title

@@ -167,7 +167,9 @@ func buildDoc(baseDir, absPath string, d fs.DirEntry, includeContent bool) Local
 	data, readErr := os.ReadFile(absPath)
 	var fm templates.Frontmatter
 	if readErr == nil {
-		fm, _ = templates.SplitDocument(data)
+		// A YAML parse error is deliberately ignored: a malformed document is
+		// still indexed with empty metadata (search-documents.spec contract).
+		fm, _, _ = templates.SplitDocument(data)
 	}
 
 	var modTime time.Time
@@ -282,7 +284,7 @@ func ReadDocumentContent(baseDir, relPath string) (LocalDocument, error) {
 	filename := filepath.Base(relPath)
 	docType := templates.ExtractDocType(filename)
 	category := templates.CategoryForType(templates.DocumentType(docType))
-	fm, _ := templates.SplitDocument(data)
+	fm, _, _ := templates.SplitDocument(data)
 	slug := templates.ExtractSlug(filename)
 
 	var modTime time.Time
@@ -370,7 +372,7 @@ func stripFrontmatter(content string) string {
 	if !strings.HasPrefix(strings.ReplaceAll(content, "\r\n", "\n"), "---\n") {
 		return content
 	}
-	_, body := templates.SplitDocument([]byte(content))
+	_, body, _ := templates.SplitDocument([]byte(content))
 	return body
 }
 
