@@ -9,9 +9,9 @@ import (
 )
 
 // resolveProjectRoot picks the project root from (in order):
-//   1. flagValue if non-empty
-//   2. envValue if non-empty
-//   3. os.Getwd()
+//  1. flagValue if non-empty
+//  2. envValue if non-empty
+//  3. os.Getwd()
 //
 // The returned path is absolute. Errors if the source cannot be made absolute,
 // does not exist, or is not a directory.
