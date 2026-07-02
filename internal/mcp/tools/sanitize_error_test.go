@@ -178,8 +178,9 @@ func TestHandleUpdateDocument_UnwritableFile_NoPathLeak(t *testing.T) {
 	skipIfNoPermissionErrors(t)
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "a.adr.md", sanitizeTestDoc)
-	docFile := filepath.Join(base, ".archcore", "knowledge", "a.adr.md")
-	chmodWithRestore(t, docFile, 0o444)
+	// The write is atomic (tmp + rename), so a read-only FILE is still
+	// replaceable; a read-only DIRECTORY blocks creating the temp file.
+	chmodWithRestore(t, filepath.Join(base, ".archcore", "knowledge"), 0o555)
 
 	result, err := callTool(HandleUpdateDocument(base), map[string]any{
 		"path":  ".archcore/knowledge/a.adr.md",

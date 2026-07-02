@@ -3,10 +3,10 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
-	"archcore-cli/internal/config"
 	"archcore-cli/internal/sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -85,13 +85,21 @@ func HandleAddRelation(baseDir string) func(ctx context.Context, request mcp.Cal
 		// declared source or anything in the reserved .archcore/global/ tree —
 		// must never be a relation endpoint, in either direction. Fail closed if
 		// settings.json cannot be read so a corrupt config can't slip an edge in.
-		globals, gErr := config.LoadGlobals(baseDir)
-		if gErr != nil {
-			return errorResult("cannot verify global sources: settings.json is unreadable"), nil
+		globals, guardFail := loadGlobalsFailClosed(baseDir)
+		if guardFail != nil {
+			return guardFail, nil
 		}
-		if isReadOnlyGlobalPath(baseDir, ".archcore/"+source, globals) ||
-			isReadOnlyGlobalPath(baseDir, ".archcore/"+target, globals) {
-			return errorResult("cannot add a relation involving a read-only global source document — relations connect local documents only"), nil
+		for _, endpoint := range []string{source, target} {
+			if _, err := guardWritablePath(baseDir, ".archcore/"+endpoint, globals); err != nil {
+				switch {
+				case errors.Is(err, errPathReadOnlyGlobal):
+					return errorResult("cannot add a relation involving a read-only global source document — relations connect local documents only"), nil
+				case errors.Is(err, errPathNotDocument):
+					return errorResult("relation endpoints must be .md document files"), nil
+				default:
+					return errorResult(err.Error()), nil
+				}
+			}
 		}
 
 		// Verify both documents exist.

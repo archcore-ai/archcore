@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"archcore-cli/internal/config"
 	"archcore-cli/internal/sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -55,16 +54,20 @@ func HandleRemoveDocument(baseDir string) func(ctx context.Context, request mcp.
 		}
 
 		// Validate path.
-		relPath, err = validateArchcorePath(relPath)
+		globals, guardFail := loadGlobalsFailClosed(baseDir)
+		if guardFail != nil {
+			return guardFail, nil
+		}
+		relPath, err = guardWritablePath(baseDir, relPath, globals)
 		if err != nil {
-			return errorResult(err.Error()), nil
-		}
-		globals, gErr := config.LoadGlobals(baseDir)
-		if gErr != nil {
-			return errorResult("cannot verify global sources: settings.json is unreadable"), nil
-		}
-		if isReadOnlyGlobalPath(baseDir, relPath, globals) {
-			return errorResult("cannot remove a read-only global source document"), nil
+			switch {
+			case errors.Is(err, errPathReadOnlyGlobal):
+				return errorResult("cannot remove a read-only global source document"), nil
+			case errors.Is(err, errPathNotDocument):
+				return errorResult("invalid path: not a document — only .md document files can be removed"), nil
+			default:
+				return errorResult(err.Error()), nil
+			}
 		}
 
 		// Read file metadata before deletion.

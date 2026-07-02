@@ -3,13 +3,14 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
-	"archcore-cli/internal/config"
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -134,13 +135,6 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 				return errorResult(fmt.Sprintf("invalid directory %q: must be relative and within .archcore/", directory)), nil
 			}
 			directory = filepath.ToSlash(cleaned)
-			globals, gErr := config.LoadGlobals(baseDir)
-			if gErr != nil {
-				return errorResult("cannot verify global sources: settings.json is unreadable"), nil
-			}
-			if isReadOnlyGlobalPath(baseDir, ".archcore/"+directory, globals) {
-				return errorResult("cannot create document in a read-only global source"), nil
-			}
 		}
 
 		tags, tagErr := parseTags(request.GetStringSlice("tags", nil))
@@ -157,17 +151,30 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 		} else {
 			dir = filepath.Join(baseDir, ".archcore")
 		}
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return errorResult(sanitizeError(fmt.Sprintf("creating directory %q", directory), err)), nil
-		}
-
 		outputFile := filepath.Join(dir, filename+"."+docType+".md")
 
 		relPath, _ := filepath.Rel(baseDir, outputFile)
 		relPath = filepath.ToSlash(relPath)
 
-		if _, err := os.Stat(outputFile); err == nil {
-			return errorResult(fmt.Sprintf("file already exists: %s", relPath)), nil
+		// Guard the full target path BEFORE MkdirAll: a symlinked ancestor or a
+		// (case-variant) global directory must be rejected before any side effect.
+		globals, guardFail := loadGlobalsFailClosed(baseDir)
+		if guardFail != nil {
+			return guardFail, nil
+		}
+		if _, err := guardWritablePath(baseDir, relPath, globals); err != nil {
+			switch {
+			case errors.Is(err, errPathReadOnlyGlobal):
+				return errorResult("cannot create document in a read-only global source"), nil
+			case errors.Is(err, errPathNotDocument):
+				return errorResult("invalid path: not a document — only .md document files can be created"), nil
+			default:
+				return errorResult(err.Error()), nil
+			}
+		}
+
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return errorResult(sanitizeError(fmt.Sprintf("creating directory %q", directory), err)), nil
 		}
 
 		body := content
@@ -179,7 +186,20 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 
 		fileContent := buildDocumentFile(title, status, tags, body)
 
-		if err := os.WriteFile(outputFile, []byte(fileContent), 0o644); err != nil {
+		// O_EXCL closes the stat-then-write race: with concurrent creates of the
+		// same path exactly one call succeeds, the other reports the existing file.
+		f, err := os.OpenFile(outputFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if err != nil {
+			if errors.Is(err, fs.ErrExist) {
+				return errorResult(fmt.Sprintf("file already exists: %s", relPath)), nil
+			}
+			return errorResult(sanitizeError("writing "+relPath, err)), nil
+		}
+		if _, err := f.WriteString(fileContent); err != nil {
+			f.Close()
+			return errorResult(sanitizeError("writing "+relPath, err)), nil
+		}
+		if err := f.Close(); err != nil {
 			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
 

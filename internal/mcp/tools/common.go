@@ -243,6 +243,138 @@ func isReadOnlyGlobalPath(baseDir, relPath string, globals []config.GlobalSource
 	return isReservedGlobalDir(relPath) || isGlobalPath(baseDir, relPath, globals)
 }
 
+// isReservedGlobalDirFold is isReservedGlobalDir with case-insensitive segment
+// matching. On case-insensitive filesystems (APFS, NTFS) ".archcore/Global/x"
+// resolves to the reserved global/ tree on disk, so the write guard must fold
+// case or the read-only invariant is bypassable. The read path keeps exact
+// matching — folding there would reclassify scan results on case-sensitive
+// filesystems.
+func isReservedGlobalDirFold(relPath string) bool {
+	rp := filepath.ToSlash(relPath)
+	if !strings.HasPrefix(rp, ".archcore/") {
+		return false
+	}
+	return slices.ContainsFunc(strings.Split(rp, "/"), func(seg string) bool {
+		return strings.EqualFold(seg, "global")
+	})
+}
+
+// isGlobalPathFold mirrors isGlobalPath with case-insensitive comparison, for
+// the same case-insensitive-filesystem bypass. Fail-closed: on a case-sensitive
+// filesystem this may reject a local directory differing from a declared global
+// only by case — acceptable for a write guard.
+func isGlobalPathFold(baseDir, relPath string, globals []config.GlobalSource) bool {
+	target := strings.ToLower(filepath.ToSlash(filepath.Join(baseDir, relPath)))
+	for _, gs := range globals {
+		prefix := strings.ToLower(filepath.ToSlash(resolveGlobalPath(baseDir, gs.Path)))
+		if target == prefix || strings.HasPrefix(target, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// Classified write-path failures. Handlers map them to their spec-pinned
+// per-tool messages via errors.Is; lexical failures keep validateArchcorePath's
+// own text. None of these embed filesystem paths.
+var (
+	errPathReadOnlyGlobal = errors.New("path is in read-only global space")
+	errPathNotDocument    = errors.New("path is not a document file")
+	errPathEscapes        = errors.New("invalid path: resolves outside .archcore/")
+)
+
+// guardWritablePath validates relPath (".archcore/…"-prefixed) as a mutable
+// local document target. Validation layers, in order:
+//  1. lexical: validateArchcorePath (unchanged semantics).
+//  2. document-only: the basename must end in ".md" and must not be a meta
+//     file (templates.SkipFiles) — settings.json and .sync-state.json are not
+//     documents and must never be rewritten or removed through MCP tools.
+//  3. reserved global tree, case-folded (isReservedGlobalDirFold).
+//  4. declared global sources, exact and case-folded (fail-closed).
+//  5. symlink containment: the deepest existing ancestor of the target must
+//     resolve inside the real .archcore/ root — the write-side mirror of the
+//     validateReadPath hardening, run BEFORE any MkdirAll so a symlinked
+//     directory can never route writes outside the tree.
+//
+// Returns the cleaned path or a classified error.
+func guardWritablePath(baseDir, relPath string, globals []config.GlobalSource) (string, error) {
+	cleaned, err := validateArchcorePath(relPath)
+	if err != nil {
+		return "", err
+	}
+	base := path.Base(cleaned)
+	if !strings.HasSuffix(base, ".md") || templates.SkipFiles[base] {
+		return "", errPathNotDocument
+	}
+	if isReservedGlobalDirFold(cleaned) || isGlobalPath(baseDir, cleaned, globals) || isGlobalPathFold(baseDir, cleaned, globals) {
+		return "", errPathReadOnlyGlobal
+	}
+	if err := checkWriteSymlinkContainment(baseDir, cleaned); err != nil {
+		return "", err
+	}
+	return cleaned, nil
+}
+
+// checkWriteSymlinkContainment verifies that the deepest existing ancestor of
+// relPath resolves inside the real .archcore/ root after evaluating symlinks.
+// For update/remove that ancestor is the file itself; for create it is the
+// closest existing parent directory, which catches a repo-shipped symlink
+// (.archcore/x -> /elsewhere) before MkdirAll would follow it. Errors never
+// embed absolute paths (no-absolute-paths-in-mcp-errors.rule).
+func checkWriteSymlinkContainment(baseDir, relPath string) error {
+	root := filepath.Join(baseDir, ".archcore")
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil // no .archcore/ yet — nothing to escape from
+		}
+		return errors.New("invalid path: cannot resolve .archcore/")
+	}
+	probe := filepath.Join(baseDir, filepath.FromSlash(relPath))
+	for {
+		real, err := filepath.EvalSymlinks(probe)
+		if err == nil {
+			if real != realRoot && !strings.HasPrefix(real, realRoot+string(filepath.Separator)) {
+				return errPathEscapes
+			}
+			return nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return errors.New("invalid path: cannot resolve path")
+		}
+		parent := filepath.Dir(probe)
+		if parent == probe {
+			return nil // walked to filesystem root without finding anything
+		}
+		probe = parent
+	}
+}
+
+// loadGlobalsFailClosed loads declared global sources for a write guard. On
+// failure it returns a non-nil tool result: a corrupt settings.json must fail
+// closed so a mutation can never slip past an unverifiable global list.
+func loadGlobalsFailClosed(baseDir string) ([]config.GlobalSource, *mcp.CallToolResult) {
+	globals, err := config.LoadGlobals(baseDir)
+	if err != nil {
+		return nil, errorResult("cannot verify global sources: settings.json is unreadable")
+	}
+	return globals, nil
+}
+
+// writeFileAtomic writes data to absPath via a temp file + rename so a crash
+// mid-write can never leave a truncated document (mirrors sync.SaveManifest).
+func writeFileAtomic(absPath string, data []byte) error {
+	tmp := absPath + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, absPath); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
 // annotateSource fills SourceID, SourceKind, Global, and ReadOnly on doc by
 // matching doc.Path against declared global sources in settings.json.
 //

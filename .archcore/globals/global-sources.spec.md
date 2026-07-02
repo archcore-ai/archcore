@@ -49,8 +49,8 @@ This document is the normative specification for global-source behavior. If the 
 - Scan & annotation: @internal/mcp/tools/common.go (`scanDocuments`, `resolveGlobalPath`, `matchGlobal`, `isGlobalPath`, `isReservedGlobalDir`, `isReadOnlyGlobalPath`, `annotateSource`, `LocalDocument`)
 - Source-health reporter: @internal/mcp/tools/globals_inspect.go (`InspectGlobals`, `GlobalInspection`, `GlobalState`) — single source of truth for the startup, status, and session-start surfaces
 - Directory walk: @templates/templates.go (`WalkArchcoreFilesSkipping`, `IsValidType`, `ExtractDocType`)
-- Read-only guards: @internal/mcp/tools/create_document.go, @internal/mcp/tools/update_document.go, @internal/mcp/tools/remove_document.go
-- Relation guard: @internal/mcp/tools/add_relation.go (`isReadOnlyGlobalPath` on both endpoints)
+- Write-path guard: @internal/mcp/tools/common.go (`guardWritablePath`, `loadGlobalsFailClosed`, `isReservedGlobalDirFold`, `isGlobalPathFold`, `checkWriteSymlinkContainment`) — consumed by @internal/mcp/tools/create_document.go, @internal/mcp/tools/update_document.go, @internal/mcp/tools/remove_document.go
+- Relation guard: @internal/mcp/tools/add_relation.go (`guardWritablePath` on both endpoints)
 - Local-only scan: @internal/mcp/tools/common.go (`ScanLocalDocuments`, `scanLocalDocuments`) — phase 1 only; never fails on a broken global
 - Read-path validation: @internal/mcp/tools/common.go (`validateReadPath`) — `get_document` only; admits declared external globals, hardened (§4.4)
 - Source annotation on read: @internal/mcp/tools/get_document.go
@@ -65,7 +65,7 @@ This document is the normative specification for global-source behavior. If the 
 | Primary | The project the MCP server runs against: cwd, the single `--project` value, or `ARCHCORE_PROJECT_ROOT`. Always writable. |
 | Global source | A read-only knowledge base declared by the primary in its `settings.json` `globals` array. |
 | `source_id` | The explicit `id` of a global source, the literal `"local"` for primary documents, or `"__global__"` for undeclared reserved-tree content. |
-| Reserved directory | Any directory named `global` under `.archcore/`, **at any depth**, and anything inside it — read-only global mount space: skipped in the local scan, and never a write target or relation endpoint (`isReservedGlobalDir`), even for undeclared content under it. The match is on whole path segments, so a sibling like `.archcore/global-ish/` is not reserved. |
+| Reserved directory | Any directory named `global` under `.archcore/`, **at any depth**, and anything inside it — read-only global mount space: skipped in the local scan, and never a write target or relation endpoint, even for undeclared content under it. The match is on whole path segments, so a sibling like `.archcore/global-ish/` is not reserved. The read scan matches the name exactly; the write guard additionally matches it **case-insensitively** (§5.4). |
 | Document root | The `.archcore` directory a `path` resolves to; documents live under it (`<root>/knowledge/x.rule.md`). |
 | Fatal state | A declared source that is unusable — missing, not-a-directory, unreadable, self-overlapping, or a duplicate path. Aborts the MCP server and the scan; a visible issue on `status`. |
 | Empty state | A declared source whose directory exists and is readable but holds no recognized-type documents. A warning, never fatal. |
@@ -103,25 +103,31 @@ Documents from both phases are returned in a single flat list, in walk order (lo
 ### §3 Reserved directory
 
 1. `.archcore/global/` MUST be excluded from the local phase (§2.1), so content vendored there is invisible unless explicitly declared in `globals`.
-2. The skip matches **any** directory whose base name is `global`, at any depth of the walk. Local document directories MUST NOT be named `global`. The write/relation guard (`isReservedGlobalDir`, §5.4) matches the same any-depth segment, so the skip and the guard agree: a nested `global/` directory is both invisible to reads and read-only — there is no invisible-but-writable gap.
+2. The skip matches **any** directory whose base name is `global`, at any depth of the walk. Local document directories MUST NOT be named `global` — in any case variant. The write/relation guard (§5.4) matches the same any-depth segment case-insensitively, so the skip and the guard agree: a nested `global/` directory is both invisible to reads and read-only — there is no invisible-but-writable gap.
 3. Beyond the `global/`-name skip, the local phase MUST also skip any document whose resolved path falls under a declared global source (`isGlobalPath`). A global vendored in-tree **outside** `.archcore/global/` (e.g. `.archcore/globals/<id>`) is therefore scanned once — as global in phase 2 — never also as a writable local, so "exactly one `source_id` per document" holds by construction.
 
 ### §4 Source annotation
 
 1. `LocalDocument` MUST carry `source_id` (always), `source_kind` (always), `global` (omit when false), and `read_only` (omit when false). The same four fields MUST also appear on `search_documents` result rows, so all three read tools (`list_documents`, `get_document`, `search_documents`) expose the local/global distinction identically.
-2. `get_document` MUST call `annotateSource(&doc, baseDir)`, which matches the document's resolved absolute path against each declared global's resolved directory **first**; on a prefix match it sets the global tags with that source's `id`. A path in the reserved `global/` tree (§3) that is NOT declared is still annotated `source_id="__global__"`, `source_kind="global"`, `global=true`, `read_only=true`, so the read label matches the write guard (`isReadOnlyGlobalPath`). The `__global__` sentinel carries underscores, which the `id` pattern (§7.2) forbids, so it can never collide with a declared source id. Otherwise `source_id="local"`, `source_kind="local"`.
-3. `annotateSource` and `scanDocuments` MUST agree: a document listed as global by one MUST be annotated global by the other.
-4. `get_document` MUST validate its `path` with `validateReadPath(baseDir, path, ReadGlobals(baseDir))`, which accepts every path `validateArchcorePath` accepts **and additionally** a document that resolves strictly inside a declared external global (rendered with a leading `..` because its `path` is `../…` or absolute). The external-global branch MUST be hardened: relative-only input, `.md`-only, lexical containment under a declared global root (blocks `../` traversal), and symlink-evaluated containment (blocks a symlink inside the mount from escaping it). A path under a declared global pointing at a missing file MUST yield an ordinary `document not found`. The write tools MUST NOT use this relaxation — they keep `validateArchcorePath`, so an external global stays unwritable and non-linkable (§5.5).
+2. `get_document` MUST call `annotateSource(&doc, baseDir)`, which matches the document's resolved absolute path against each declared global's resolved directory **first**; on a prefix match it sets the global tags with that source's `id`. A path in the reserved `global/` tree (§3) that is NOT declared is still annotated `source_id="__global__"`, `source_kind="global"`, `global=true`, `read_only=true`, so the read label matches the write guard. The `__global__` sentinel carries underscores, which the `id` pattern (§7.2) forbids, so it can never collide with a declared source id. Otherwise `source_id="local"`, `source_kind="local"`.
+3. `annotateSource` and `scanDocuments` MUST agree: a document listed as global by one MUST be annotated global by the other. Annotation keeps **exact-case** matching (`isReservedGlobalDir`, `matchGlobal`) — case-folding on the read path would reclassify scan results on case-sensitive filesystems; only the write guard folds (§5.4).
+4. `get_document` MUST validate its `path` with `validateReadPath(baseDir, path, ReadGlobals(baseDir))`, which accepts every path `validateArchcorePath` accepts **and additionally** a document that resolves strictly inside a declared external global (rendered with a leading `..` because its `path` is `../…` or absolute). The external-global branch MUST be hardened: relative-only input, `.md`-only, lexical containment under a declared global root (blocks `../` traversal), and symlink-evaluated containment (blocks a symlink inside the mount from escaping it). A path under a declared global pointing at a missing file MUST yield an ordinary `document not found`. The write tools MUST NOT use this relaxation — they keep the strict guard (§5.4), so an external global stays unwritable and non-linkable (§5.5).
 
 ### §5 Read-only enforcement
 
 1. `create_document` MUST reject a target directory under any declared global with `cannot create document in a read-only global source`.
 2. `update_document` MUST reject a path under any declared global with `cannot update a read-only global source document`.
 3. `remove_document` MUST reject a path under any declared global with `cannot remove a read-only global source document`.
-4. The guard MUST use the single predicate `isReadOnlyGlobalPath(baseDir, relPath, globals)` = declared global (`isGlobalPath`, which matches in absolute space so `../` and absolute global paths resolve correctly) **OR** inside a reserved `global/` tree — any directory named `global` under `.archcore/`, at any depth (`isReservedGlobalDir`). The reserved directory is therefore read-only even for a path under it that is not declared. This matches the any-depth skip the local scan applies (§3.2), so a `global/` segment hides a document from reads AND makes it read-only — never one without the other.
+4. The write tools MUST use the single shared validator `guardWritablePath(baseDir, relPath, globals)` (@internal/mcp/tools/common.go), which layers, in order:
+   - **(a) lexical** — `validateArchcorePath` (relative, `.archcore/`-prefixed, no traversal);
+   - **(b) document-only** — the basename MUST end in `.md` and MUST NOT be a meta file (`templates.SkipFiles`): `settings.json` and `.sync-state.json` are never write or remove targets;
+   - **(c) reserved tree, case-folded** — any path segment equal to `global` under case folding (`isReservedGlobalDirFold`): on case-insensitive filesystems (APFS, NTFS) `.archcore/Global/x` resolves to the reserved tree on disk, so the guard MUST fold case;
+   - **(d) declared globals, exact and case-folded** — `isGlobalPath` plus `isGlobalPathFold`, fail-closed: on a case-sensitive filesystem a local directory differing from a declared global only by case is also rejected;
+   - **(e) symlink containment** — the deepest existing ancestor of the target MUST resolve (via `EvalSymlinks`) inside the real `.archcore/` root; the write-side mirror of §4.4, checked BEFORE any `MkdirAll` so a symlinked directory can never route a write outside the tree.
+   The reserved directory is therefore read-only even for a path under it that is not declared. `isGlobalPath` matches in absolute space, so `../` and absolute global paths resolve correctly.
 5. A path that does not begin with `.archcore/` is rejected earlier by `validateArchcorePath` with `invalid path: must start with ".archcore/"`. Consequence: writes targeting a global declared via a `../` path fail with this path-validation message rather than the read-only message; writes targeting an in-tree global under `.archcore/global/` reach the guard and return the read-only message. These are the **write** tools; `get_document` reads an external `../`/absolute global successfully via `validateReadPath` (§4.4) — read access is not blocked by this rule.
-6. The guards MUST fail closed: if `config.LoadGlobals` returns an error (present-but-invalid `settings.json`), the write/relation tool MUST reject with `cannot verify global sources: settings.json is unreadable` rather than proceed.
-7. **Relations.** `add_relation` MUST reject an edge whose source **or** target is read-only-global (`isReadOnlyGlobalPath`), in **either** direction — a declared global or anything in the reserved `.archcore/global/` tree — with `cannot add a relation involving a read-only global source document — relations connect local documents only`. No relation edge may reference a global document; relations connect local documents only. `remove_relation` is exempt (removing an edge never mutates a global, and must stay available to clean up a pre-existing edge).
+6. The guards MUST fail closed: if `config.LoadGlobals` returns an error (present-but-invalid `settings.json`), the write/relation tool MUST reject with `cannot verify global sources: settings.json is unreadable` (`loadGlobalsFailClosed`) rather than proceed.
+7. **Relations.** `add_relation` MUST apply `guardWritablePath` to **both** endpoints, in **either** direction. An endpoint in read-only global space — a declared global or anything in the reserved `.archcore/global/` tree, including case variants — is rejected with `cannot add a relation involving a read-only global source document — relations connect local documents only`; a non-document endpoint (non-`.md`, meta file) is rejected with `relation endpoints must be .md document files`. No relation edge may reference a global document; relations connect local documents only. `remove_relation` is exempt (removing an edge never mutates a global, and must stay available to clean up a pre-existing edge).
 
 ### §6 Source-health handling
 
@@ -169,7 +175,7 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 | Self-overlap | rejected (§6) | A global may not re-mount the primary's own `.archcore`. |
 | Declared source presence | mandatory | A fatal source (missing / not-a-directory / unreadable / self-overlap / duplicate) fails fast (§6); an empty source warns. No silent-skip. |
 | Source classification | shared (`config.CheckGlobalDir`) | Startup and runtime classify identically; no startup-passes-but-runtime-fails gap. |
-| Global mutability via MCP | none | All global documents are read-only through the tools, and are never relation endpoints. |
+| Global mutability via MCP | none | All global documents are read-only through the tools, and are never relation endpoints. The write guard matches global space case-insensitively (§5.4). |
 | Transitive globals | not followed | The global phase reads only the primary's `globals`; a global's own `globals` is ignored. |
 
 ## Invariants
@@ -178,8 +184,9 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 - The same repository scanned as a primary is fully writable; scanned as another project's global it is read-only. Read-only is a property of the *mount*, not the repository.
 - Every document carries exactly one `source_id`; primary documents use `"local"`.
 - Two identical scans against an unchanged tree (primary + globals) MUST produce the same document set and tags.
-- No global document path is ever passed to a write tool successfully.
+- No global document path is ever passed to a write tool successfully — including case-variant spellings of global space on any filesystem.
 - No relation edge references a global document, in either direction; `add_relation` rejects a global on either endpoint.
+- The write tools never rewrite or remove a non-document file (`settings.json`, `.sync-state.json`, non-`.md`) and never follow a symlinked ancestor outside `.archcore/` (§5.4).
 - The startup gate and the runtime scan classify a source identically: a source that aborts the scan also aborts startup, and vice versa (both call `config.CheckGlobalDir`).
 - No global scan error embeds an absolute filesystem path.
 - Globals are surfaced only through the MCP read tools (`list_documents`, `get_document`, `search_documents`); `archcore status` and the SessionStart context operate on local documents only. When a declared global is broken or empty, neither blanks silently: the SessionStart hook degrades to a local-only scan with a warning, and `status` reports a fatal source as a visible failure (and an empty source as a warning) while still running its structural local checks (§6.4).
@@ -196,8 +203,10 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 | Two globals resolve to the same path (duplicate) | `global sources "<a>" and "<b>" resolve to the same path "<path>"` (startup + scan abort) |
 | Global exists but holds no documents (empty) | visible warning naming the source on startup (stderr), `status`, and SessionStart; not an issue, not blocking |
 | Invalid `settings.json` at MCP startup | `invalid .archcore/settings.json: …` (server refuses to start) |
-| Write to global (in-tree path, including a nested `global/` directory at any depth) | `cannot {create,update,remove} … read-only global source …` |
+| Write to global (in-tree path, including a nested `global/` directory at any depth, in any case variant) | `cannot {create,update,remove} … read-only global source …` |
 | Write to global (`../` path) | `invalid path: must start with ".archcore/"` (write-path validation fires first; **reads succeed** — §4.4) |
+| Write/remove of a non-document (`settings.json`, `.sync-state.json`, non-`.md` file) | `invalid path: not a document — only .md document files can be {created,updated,removed}`; relation endpoints: `relation endpoints must be .md document files` |
+| Write path whose existing ancestor resolves outside `.archcore/` (symlink escape) | `invalid path: resolves outside .archcore/` |
 | Read a global via `get_document` | success — body + `read_only`/`source_id`; external `../`/absolute paths admitted by `validateReadPath` (§4.4) |
 | Read path escaping a global (traversal / symlink / non-`.md`) | `invalid path: …` — rejected by `validateReadPath` hardening |
 | Broken global on SessionStart | local-only context + visible warning naming the source (§6.4); session not blocked |
@@ -208,7 +217,7 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 
 ## Conformance
 
-An implementation conforms if it satisfies all MUST/MUST NOT statements in §§1–7, the invariants, and the error-handling rows, and passes the tests in @internal/mcp/tools/globals_test.go, @internal/mcp/tools/globals_edge_test.go, @internal/mcp/integration/globals_test.go, the globals cases in @internal/config/config_test.go and @internal/config/globals_test.go, and the CLI-surface tests in @cmd/mcp_test.go, @cmd/status_test.go, and @cmd/hooks_common_test.go.
+An implementation conforms if it satisfies all MUST/MUST NOT statements in §§1–7, the invariants, and the error-handling rows, and passes the tests in @internal/mcp/tools/globals_test.go, @internal/mcp/tools/globals_edge_test.go, @internal/mcp/tools/guard_writable_path_test.go, @internal/mcp/integration/globals_test.go, the globals cases in @internal/config/config_test.go and @internal/config/globals_test.go, and the CLI-surface tests in @cmd/mcp_test.go, @cmd/status_test.go, and @cmd/hooks_common_test.go.
 
 ## Examples
 
@@ -229,7 +238,7 @@ An implementation conforms if it satisfies all MUST/MUST NOT statements in §§1
   "globals": [ { "id": "company", "path": ".archcore/global/company" } ] }
 ```
 
-Documents at `.archcore/global/company/knowledge/*.md` are mounted read-only as `source_id: company`. Undeclared content elsewhere under `.archcore/global/` stays invisible (§3) and is still read-only and non-linkable (§5) — annotated read-only with the reserved `source_id: __global__`. A write to such a document returns the clean read-only message (§5.5).
+Documents at `.archcore/global/company/knowledge/*.md` are mounted read-only as `source_id: company`. Undeclared content elsewhere under `.archcore/global/` stays invisible (§3) and is still read-only and non-linkable (§5) — annotated read-only with the reserved `source_id: __global__`. A write to such a document returns the clean read-only message (§5.5). A write addressed as `.archcore/Global/company/…` is rejected identically — the guard folds case (§5.4).
 
 ### Several globals (no collision)
 
@@ -253,6 +262,7 @@ Both directories are named `standards`, but `source_id` is the explicit `id`, so
 
 ## Security Considerations
 
-- Global sources are read-only through the MCP tools; no content can be created, modified, or deleted in them, and they are never relation endpoints.
+- Global sources are read-only through the MCP tools; no content can be created, modified, or deleted in them, and they are never relation endpoints. The write guard matches global space case-insensitively, so a case-variant path cannot bypass it on APFS/NTFS.
 - `path` may resolve outside the primary (`../`, absolute). This is intentional for cross-project references; mitigations are that the source is read-only, only recognized-type archcore document files are walked, the declaration is committed and PR-reviewed, and a source may not re-mount the primary's own `.archcore` (self-overlap is rejected).
+- Write tools additionally refuse to follow a symlinked ancestor outside the real `.archcore/` root (§5.4e) and refuse non-document targets (§5.4b), so a repo-shipped symlink or a meta-file path cannot route a mutation outside the knowledge base.
 - Source-health checks (missing / not-a-directory / unreadable / self-overlap / duplicate) run before serving so the agent never operates against a broken mount configuration. Error messages never embed an absolute filesystem path.

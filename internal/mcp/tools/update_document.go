@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"archcore-cli/internal/config"
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -61,16 +60,20 @@ func HandleUpdateDocument(baseDir string) func(ctx context.Context, request mcp.
 		}
 
 		// Validate path.
-		relPath, err = validateArchcorePath(relPath)
+		globals, guardFail := loadGlobalsFailClosed(baseDir)
+		if guardFail != nil {
+			return guardFail, nil
+		}
+		relPath, err = guardWritablePath(baseDir, relPath, globals)
 		if err != nil {
-			return errorResult(err.Error()), nil
-		}
-		globals, gErr := config.LoadGlobals(baseDir)
-		if gErr != nil {
-			return errorResult("cannot verify global sources: settings.json is unreadable"), nil
-		}
-		if isReadOnlyGlobalPath(baseDir, relPath, globals) {
-			return errorResult("cannot update a read-only global source document"), nil
+			switch {
+			case errors.Is(err, errPathReadOnlyGlobal):
+				return errorResult("cannot update a read-only global source document"), nil
+			case errors.Is(err, errPathNotDocument):
+				return errorResult("invalid path: not a document — only .md document files can be updated"), nil
+			default:
+				return errorResult(err.Error()), nil
+			}
 		}
 
 		// Require at least one update field.
@@ -137,7 +140,7 @@ func HandleUpdateDocument(baseDir string) func(ctx context.Context, request mcp.
 		// Reconstruct the file.
 		fileContent := buildDocumentFile(title, status, tags, body)
 
-		if err := os.WriteFile(absPath, []byte(fileContent), 0o644); err != nil {
+		if err := writeFileAtomic(absPath, []byte(fileContent)); err != nil {
 			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
 
