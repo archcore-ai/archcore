@@ -59,7 +59,7 @@ func HandleInitProject(baseDir string) func(ctx context.Context, request mcp.Cal
 		case err == nil:
 			return initResultPayload(existing, true), nil
 		case !errors.Is(err, os.ErrNotExist):
-			return errorResult(fmt.Sprintf("existing settings unreadable: %v", err)), nil
+			return errorResult(sanitizeError("existing settings unreadable", err)), nil
 		}
 
 		var settings *config.Settings
@@ -81,7 +81,7 @@ func HandleInitProject(baseDir string) func(ctx context.Context, request mcp.Cal
 		settings.Language = language
 
 		if err := config.Save(baseDir, settings); err != nil {
-			return errorResult(fmt.Sprintf("saving settings: %v", err)), nil
+			return errorResult(sanitizeError("saving settings", err)), nil
 		}
 
 		return initResultPayload(settings, false), nil

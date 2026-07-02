@@ -68,14 +68,14 @@ func HandleRemoveRelation(baseDir string) func(ctx context.Context, request mcp.
 
 		m, err := sync.LoadManifest(baseDir)
 		if err != nil {
-			return errorResult("loading manifest: " + err.Error()), nil
+			return errorResult(sanitizeError("loading manifest", err)), nil
 		}
 
 		removed := m.RemoveRelation(source, target, sync.RelationType(relType))
 
 		if removed {
 			if err := sync.SaveManifest(baseDir, m); err != nil {
-				return errorResult("saving manifest: " + err.Error()), nil
+				return errorResult(sanitizeError("saving manifest", err)), nil
 			}
 		}
 

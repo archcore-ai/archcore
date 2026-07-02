@@ -51,7 +51,7 @@ func HandleListDocuments(baseDir string) func(ctx context.Context, request mcp.C
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		docs, err := ScanDocuments(baseDir)
 		if err != nil {
-			return nil, fmt.Errorf("scanning documents: %w", err)
+			return errorResult(sanitizeError("scanning documents", err)), nil
 		}
 
 		types := request.GetStringSlice("types", nil)

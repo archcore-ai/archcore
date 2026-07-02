@@ -73,26 +73,26 @@ func HandleRemoveDocument(baseDir string) func(ctx context.Context, request mcp.
 			if errors.Is(err, fs.ErrNotExist) {
 				return errorResult(fmt.Sprintf("document not found: %s", relPath)), nil
 			}
-			return nil, fmt.Errorf("reading %s: %w", relPath, err)
+			return errorResult(sanitizeError("reading "+relPath, err)), nil
 		}
 
 		// Delete the file.
 		absPath := filepath.Join(baseDir, relPath)
 		if err := os.Remove(absPath); err != nil {
-			return nil, fmt.Errorf("removing %s: %w", relPath, err)
+			return errorResult(sanitizeError("removing "+relPath, err)), nil
 		}
 
 		// Clean up relations from manifest.
 		relationsRemoved := 0
 		m, err := sync.LoadManifest(baseDir)
 		if err != nil {
-			return errorResult(fmt.Sprintf("file deleted but failed to load manifest: %v", err)), nil
+			return errorResult(sanitizeError("file deleted but failed to load manifest", err)), nil
 		}
 		archcoreDir := filepath.Join(baseDir, ".archcore")
 		relationsRemoved = m.CleanupRelations(archcoreDir)
 		if relationsRemoved > 0 {
 			if err := sync.SaveManifest(baseDir, m); err != nil {
-				return errorResult(fmt.Sprintf("file deleted but failed to save manifest: %v", err)), nil
+				return errorResult(sanitizeError("file deleted but failed to save manifest", err)), nil
 			}
 		}
 

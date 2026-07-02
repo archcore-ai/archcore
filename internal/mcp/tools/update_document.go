@@ -104,7 +104,7 @@ func HandleUpdateDocument(baseDir string) func(ctx context.Context, request mcp.
 			if errors.Is(err, fs.ErrNotExist) {
 				return errorResult(fmt.Sprintf("document not found: %s", relPath)), nil
 			}
-			return nil, fmt.Errorf("reading %s: %w", relPath, err)
+			return errorResult(sanitizeError("reading "+relPath, err)), nil
 		}
 
 		// Parse existing document. A broken frontmatter block must fail the
@@ -138,7 +138,7 @@ func HandleUpdateDocument(baseDir string) func(ctx context.Context, request mcp.
 		fileContent := buildDocumentFile(title, status, tags, body)
 
 		if err := os.WriteFile(absPath, []byte(fileContent), 0o644); err != nil {
-			return nil, fmt.Errorf("writing %s: %w", relPath, err)
+			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
 
 		// Derive category from document type, not directory.

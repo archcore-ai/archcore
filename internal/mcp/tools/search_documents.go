@@ -225,7 +225,7 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 			docs, err = ScanDocuments(baseDir)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("scanning documents: %w", err)
+			return errorResult(sanitizeError("scanning documents", err)), nil
 		}
 
 		// Load manifest for relations. If it fails, continue without relations.

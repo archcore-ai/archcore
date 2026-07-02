@@ -531,12 +531,20 @@ func TestHandleUpdateDocument_ReadPermissionError(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chmod(path, 0o644) })
 
-	_, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(base), map[string]any{
 		"path":  ".archcore/knowledge/my-adr.adr.md",
 		"title": "New Title",
 	})
-	if err == nil {
-		t.Error("expected system error for unreadable file, got nil")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsError {
+		t.Fatal("expected tool error for unreadable file")
+	}
+	msg := resultText(t, result)
+	assertNoAbsPath(t, base, msg)
+	if !strings.Contains(msg, "permission denied") {
+		t.Errorf("message = %q, want permission-denied class", msg)
 	}
 }
 

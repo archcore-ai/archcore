@@ -158,7 +158,7 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 			dir = filepath.Join(baseDir, ".archcore")
 		}
 		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return nil, fmt.Errorf("creating directory %q: %w", directory, err)
+			return errorResult(sanitizeError(fmt.Sprintf("creating directory %q", directory), err)), nil
 		}
 
 		outputFile := filepath.Join(dir, filename+"."+docType+".md")
@@ -180,7 +180,7 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 		fileContent := buildDocumentFile(title, status, tags, body)
 
 		if err := os.WriteFile(outputFile, []byte(fileContent), 0o644); err != nil {
-			return nil, fmt.Errorf("writing %s: %w", relPath, err)
+			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
 
 		result := map[string]any{

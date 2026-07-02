@@ -347,6 +347,35 @@ func errorResult(msg string) *mcp.CallToolResult {
 	return mcp.NewToolResultError(msg)
 }
 
+// sanitizeError builds a client-safe error message "<action>: <detail>". When
+// err (anywhere in its chain) is a *fs.PathError or *os.LinkError, detail is a
+// fixed I/O class instead of err.Error(), which embeds an absolute filesystem
+// path (no-absolute-paths-in-mcp-errors.rule). Any other error keeps its own
+// text — validation errors are built from relative manifest/settings keys and
+// are safe and valuable diagnostics.
+func sanitizeError(action string, err error) string {
+	var pathErr *fs.PathError
+	var linkErr *os.LinkError
+	if errors.As(err, &pathErr) || errors.As(err, &linkErr) {
+		return action + ": " + describeIOClass(err)
+	}
+	return action + ": " + err.Error()
+}
+
+// describeIOClass maps an OS-level error to a short, path-free description.
+func describeIOClass(err error) string {
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return "file not found"
+	case errors.Is(err, fs.ErrPermission):
+		return "permission denied"
+	case errors.Is(err, fs.ErrExist):
+		return "file already exists"
+	default:
+		return "file system error"
+	}
+}
+
 // buildDocumentFile reconstructs a full document file from frontmatter fields and body.
 func buildDocumentFile(title string, status templates.DocStatus, tags []string, body string) string {
 	var buf strings.Builder

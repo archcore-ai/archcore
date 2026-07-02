@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -203,9 +204,17 @@ func TestHandleListDocuments_ScanError(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chmod(subDir, 0o755) })
 
-	_, err := callTool(HandleListDocuments(base), nil)
-	if err == nil {
-		t.Fatal("expected error when scan fails due to permissions")
+	result, err := callTool(HandleListDocuments(base), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsError {
+		t.Fatal("expected tool error when scan fails due to permissions")
+	}
+	msg := resultText(t, result)
+	assertNoAbsPath(t, base, msg)
+	if !strings.Contains(msg, "scanning documents: permission denied") {
+		t.Errorf("message = %q, want sanitized scan error", msg)
 	}
 }
 

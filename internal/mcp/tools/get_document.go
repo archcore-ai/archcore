@@ -59,7 +59,7 @@ func HandleGetDocument(baseDir string) func(ctx context.Context, request mcp.Cal
 			if errors.Is(err, fs.ErrNotExist) {
 				return errorResult("document not found: " + cleanPath), nil
 			}
-			return nil, fmt.Errorf("reading %s: %w", cleanPath, err)
+			return errorResult(sanitizeError("reading "+cleanPath, err)), nil
 		}
 
 		// Annotate source metadata based on path and declared globals.

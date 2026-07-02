@@ -104,14 +104,14 @@ func HandleAddRelation(baseDir string) func(ctx context.Context, request mcp.Cal
 
 		m, err := sync.LoadManifest(baseDir)
 		if err != nil {
-			return errorResult("loading manifest: " + err.Error()), nil
+			return errorResult(sanitizeError("loading manifest", err)), nil
 		}
 
 		added := m.AddRelation(source, target, sync.RelationType(relType))
 
 		if added {
 			if err := sync.SaveManifest(baseDir, m); err != nil {
-				return errorResult("saving manifest: " + err.Error()), nil
+				return errorResult(sanitizeError("saving manifest", err)), nil
 			}
 		}
 
