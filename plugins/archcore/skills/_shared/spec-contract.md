@@ -38,6 +38,29 @@ or **before** it (specify the contract to build). One subject per spec.
 6. **Conformance** — what makes an implementation correct: satisfies all MUST
    requirements, all invariants, and all error-handling rules.
 
+## Body cap
+
+- **Default: ≤ 80 lines.** Six mandatory sections above, each a handful of
+  numbered/bulleted points — the "reference, don't reproduce" rule (Forbidden
+  section below) is what keeps a spec this short even for a complex boundary.
+- **Flagship (size/churn-gated, `/archcore:init` hotspot synthesis only): ≤ 120
+  lines.** A hotspot module clearing `LOC > 3000` OR top-quartile churn
+  (`skills/init/lib/detect-hotspots.md` "Flagship specs") MAY compose at this
+  raised cap instead of splitting — see that catalog for the decomposition
+  alternative (≤ 3 sub-specs by separable sub-surface, each back at the default
+  ≤ 80-line cap). The extra room goes to Normative Behavior / Constraints &
+  Invariants, never to reproducing source.
+
+## Status (init-synthesized specs)
+
+A hotspot `spec` synthesized by `/archcore:init` (Tier-2) is created with
+`status: draft` in every case — it is derived heuristically from source + tests,
+not authored or reviewed, so the user confirms it before it becomes canon. Same
+rationale, and same default, as a heuristic-derived cross-cutting `rule`
+(`skills/_shared/rule-contract.md`). This status default is specific to init's
+synthesis path; a spec authored via `/archcore:capture` or `/archcore:decide`
+follows that skill's own status convention.
+
 ## Forbidden in the body
 
 - Decision rationale ("we chose JWT because…") → belongs in a linked `adr`.

@@ -120,14 +120,16 @@ setup() {
     || fail "SKILL.md must name .cursor/rules in agent-file detection, not only CLAUDE.md/AGENTS.md/.cursorrules"
 }
 
-# Depth-axis guards: init exposes a synthesis-budget axis (light default / standard /
-# deep) orthogonal to scale, and the universality invariant that a depth is a budget
-# ceiling — never a quota the model pads to hit — must survive future edits.
-@test "init SKILL.md documents the --depth axis with light default" {
+# Depth-axis guards: init exposes a synthesis-budget axis (light opt-down / standard
+# default / deep opt-up) orthogonal to scale, and the universality invariant that a
+# depth is a budget ceiling — never a quota the model pads to hit — must survive edits.
+@test "init SKILL.md documents the --depth axis with standard as the default" {
   grep -q -- "--depth" "$SKILL" \
     || fail "SKILL.md must document the --depth axis"
-  grep -qiE "default.*light|light.*default" "$SKILL" \
-    || fail "SKILL.md must state light as the default depth"
+  grep -qF 'default `standard`' "$SKILL" \
+    || fail "SKILL.md must state standard as the default depth (light is the opt-down)"
+  grep -qi "opt-down" "$SKILL" \
+    || fail "SKILL.md must frame light as the explicit opt-down tier"
 }
 
 @test "init SKILL.md states the depth ceiling-not-quota universality invariant" {
@@ -143,19 +145,59 @@ setup() {
   [ "$status" -ne 0 ] || fail "init lib/ still references pre-rebalance imports/* directories: $output"
 }
 
-# Cross-file depth-cap guard: SKILL.md's Depth axis table and detect-hotspots.md's
-# "Top-N by mode" table must agree on the deep-depth hotspot ceiling (6/10/16), and
-# Phase A (Step A.3) must collect up to that ceiling rather than silently truncating
-# detection at the standard baseline (3/5/8) — the bug that made deep-depth large-mode
-# unreachable without re-detection.
-@test "SKILL.md and detect-hotspots.md agree on the deep-depth hotspot cap" {
-  grep -q "6 / 10 / 16" "$SKILL" \
-    || fail "SKILL.md Depth axis table drifted from detect-hotspots.md's deep column (6/10/16)"
-  grep -qE '\| *large *\| *3 *\| *8 *\| *16 *\|' "$LIB/detect-hotspots.md" \
-    || fail "detect-hotspots.md Top-N-by-mode large row must read light 3 / standard 8 / deep 16"
+# Cross-file cap guard: SKILL.md's Depth axis table and detect-hotspots.md's "Top-N by
+# mode" table must agree on the large-mode per-selected-domain spec caps. These verbatim
+# "min N, cap M" tokens are the highest drift-risk surface after the flat-cap → per-domain
+# rebalance (the fix for the 24-domain-repo-gets-3-specs thinness — magic-first-day-init.adr).
+@test "SKILL.md and detect-hotspots.md agree on the large-mode per-domain caps" {
+  local f
+  for f in "$SKILL" "$LIB/detect-hotspots.md"; do
+    grep -qF "min 6, cap 12"  "$f" || fail "$(basename "$f") missing large/light cap (min 6, cap 12)"
+    grep -qF "min 10, cap 24" "$f" || fail "$(basename "$f") missing large/standard cap (min 10, cap 24)"
+    grep -qF "min 14, cap 40" "$f" || fail "$(basename "$f") missing large/deep cap (min 14, cap 40)"
+  done
 }
 
 @test "init Phase A collects hotspots up to the deep ceiling, not the standard baseline" {
   grep -q "deep.-depth ceiling" "$SKILL" \
-    || fail "SKILL.md Step A.3 must collect candidates up to the deep-depth ceiling (small 6 / medium 10 / large 16), not just the standard baseline (small 3 / medium 5 / large 8)"
+    || fail "SKILL.md Step A.3 must collect candidates up to the deep-depth ceiling, not just the standard baseline"
+}
+
+# Depth/breadth re-balance guards (foundation-thinness fix): cross-cutting runs at EVERY
+# depth (not standard/deep only); the large-mode spec budget scales per selected domain;
+# the preview surfaces coverage; flagship hotspots get a raised cap or decomposition; and
+# init-synthesized specs are drafts.
+@test "cross-cutting synthesis runs at every depth, not standard/deep only" {
+  grep -qF 'at **every**' "$LIB/detect-cross-cutting.md" \
+    || fail "detect-cross-cutting.md must state the scan runs at every --depth"
+  grep -qi "every depth" "$SKILL" \
+    || fail "SKILL.md must state cross-cutting runs at every depth"
+}
+
+@test "large-mode hotspot budget scales per selected domain" {
+  grep -q "per selected domain" "$LIB/detect-hotspots.md" \
+    || fail "detect-hotspots.md must scale the large-mode cap per selected domain"
+  grep -qiE "per.selected.domain|per-domain" "$SKILL" \
+    || fail "SKILL.md must document per-domain spec scaling in large mode"
+}
+
+@test "init preview surfaces a coverage line" {
+  grep -q "Coverage:" "$SKILL" \
+    || fail "SKILL.md Phase C must include a Coverage line"
+  grep -q "load-bearing modules" "$SKILL" \
+    || fail "SKILL.md Coverage line must report load-bearing module count"
+}
+
+@test "flagship hotspots get a raised cap or decomposition" {
+  grep -q "Flagship specs" "$LIB/detect-hotspots.md" \
+    || fail "detect-hotspots.md must define the flagship (size/churn-gated) treatment"
+  grep -qi "flagship" "$SHARED/spec-contract.md" \
+    || fail "spec-contract.md must define the flagship body cap"
+}
+
+@test "init-synthesized hotspot specs are created as drafts" {
+  grep -qiE "status.{0,3}draft" "$SHARED/spec-contract.md" \
+    || fail "spec-contract.md must state init-synthesized specs are status: draft"
+  grep -q "status='draft'" "$SKILL" \
+    || fail "SKILL.md Phase E must create hotspot specs with status='draft'"
 }

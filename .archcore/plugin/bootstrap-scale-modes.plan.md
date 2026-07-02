@@ -9,6 +9,24 @@ tags:
 ---
 
 > **Outcome (2026-05-15):** Plan executed. Skill shipped as `skills/init/` (renamed from `skills/bootstrap/` per `skill-surface-collapse.adr.md`). Lib files live at `skills/init/lib/detect-*.md`. The command is `/archcore:init`. All references below to `/archcore:bootstrap` and `skills/bootstrap/` should be read as `/archcore:init` and `skills/init/`. The three-mode (small/medium/large) detection logic is preserved as designed.
+>
+> **Update (2026-07-01):** The "large mode cannot meaningfully seed per-domain
+> artifacts in one pass" premise below (Large mode section, and row 7 of the
+> per-mode flow table) is reversed. Real-world run evidence (a 773-module,
+> 24-domain repo seeded only 3 specs and 4 domain data-models at day-one) showed
+> the opposite failure: seeding too *little* per domain, not too much. Day-one
+> large mode now scales the hotspot-spec budget with the Step A.0 domain
+> selection — a per-selected-domain floor of ≥ 1 spec, filled to a depth-scaled
+> cap by repo-wide rank (`light` 2/domain min 6 cap 12, `standard` 3/domain
+> min 10 cap 24, `deep` 4/domain min 14 cap 40) — and seeds a data-model doc for
+> **every** schema-bearing domain regardless of selection. See `SKILL.md` Step
+> A.0 and `skills/init/lib/detect-hotspots.md` "Top-N by mode" for the current
+> numbers; the per-domain `/archcore:init --domain=<slug>` re-run pass described
+> below still exists as a narrower top-up mechanism, now on top of a
+> substantive day-one seed rather than instead of one. The target-context /
+> steady-state lists below (M2 tasks onward) predate the Tier-2 confirmed-
+> synthesis rewrite (`magic-first-day-init.adr`) and are historical context, not
+> the current contract — see `SKILL.md` for current behavior.
 
 ## Goal
 

@@ -9,6 +9,30 @@ tags:
   - "skills"
 ---
 
+> **Update (2026-07-01):** Real-world run evidence on a 773-module / 24-domain
+> Python-FastAPI monolith showed the tiered design below under-seeding at scale:
+> `light` (then the default) produced only 16 docs — 3 hotspot specs and **zero**
+> cross-cutting rules — on a repo with strong, extractable conventions. Three
+> reversals, detailed in `SKILL.md` / `skills/init/lib/detect-hotspots.md` /
+> `skills/init/lib/detect-cross-cutting.md`, keep the tiering below intact but
+> change its numbers: (1) cross-cutting synthesis now runs at **every** depth
+> (`light` ≤ 2 / `standard` ≤ 3 / `deep` ≤ 4 candidates) instead of skipping at
+> `light` — it is the highest value-per-token artifact and was being dropped
+> exactly when it mattered most; (2) large mode's flat repo-wide spec cap is
+> replaced by a **per-selected-domain floor + repo-wide-rank fill**, scaling with
+> how many domains the day-one dialog is actually focused on (ceiling, never a
+> quota — see "Top-N by mode"), and data-model breadth now covers **every**
+> schema-bearing domain, not only the dialog-selected ones; (3) **the default
+> depth changed from `light` to `standard`** — init is fully gated (nothing is
+> written before `confirm`, every depth's cost is shown before the user commits),
+> so the default should be the good first-day seed, not merely the cheapest one;
+> `light` is now the explicit cost-conscious opt-down. A size/churn-gated
+> "flagship spec" tier (raised body cap or decomposition into ≤ 3 sub-specs by
+> separable sub-surface) was also added for very large or hot hotspots, and
+> init-synthesized hotspot specs now consistently get `status: draft` (same
+> rationale as heuristic-derived cross-cutting rules). The Tier boundaries,
+> single-preview/single-confirm gate, and line caps below are unchanged.
+
 ## Context
 
 `no-auto-generated-context.adr` (now superseded) closed the door on any LLM-scan-generated documents, citing arxiv 2510.21413: auto-generated, AGENTS.md-style context files reduced agent task success in 5 of 8 settings and raised inference cost 20–23%. The designed-in consequence was an `/archcore:init` that seeds **0–4 tiny documents** (stack rule, run guide, and — in larger modes — an entry-point inventory and a top-level map) and surfaces everything else as a non-binding "propose" to-do list it explicitly refuses to auto-execute.
@@ -26,7 +50,7 @@ A pre-implementation prompt-engineering review (ai-kit:prompt-engineer) confirme
 `/archcore:init` populates `.archcore/` in a single pass: **detect → compose → one preview → one confirm → create + wire-relations**. Detection and composition are ordered sub-phases that load only the catalogs each needs, preserving the established lazy-reading discipline. What may be composed is bounded by tier:
 
 - **Tier 1 — Extractive facts (auto-composed in full).** Derived mechanically from manifests, schemas, routing, and config — not synthesized prose: stack rule, run guide, entry-point inventory, top-level map, **data-model doc** (ORM schemas / migrations / `*.proto`), **integrations doc** (third-party SDK dependencies → external services), **config/env doc** (variable names + purpose only — **never values**, a security boundary), **public-surface doc** (the role-based outward shape entry points don't cover — web routes, a library's exported API, a multi-command CLI's commands, an agent-plugin's skills/commands, mobile screens — so library / SPA / plugin / markdown-tooling repos still get a substantive structural fact). Available in all modes; breadth scales with repo size. Each has its own line cap in its catalog.
-- **Tier 2 — Confirmed synthesis (stubs shown, bodies composed only after confirm).** `spec` documents for the per-mode top-N hotspot modules (small 3 / medium 5 / large 3 per selected domain) and 0–2 cross-cutting `rule`s, each composed under the `skills/_shared/` precision contracts — including a new `rule-contract.md` added for the rule bodies. To keep the highest-cost operation behind the curation gate, the preview shows only spec **stubs** (title + the LOC / test-ratio that qualified the module). The agent reads hotspot source files and composes full spec bodies **after** `confirm`, skipping any the user deselected. Tier-2 artifacts are the only LLM-synthesized documents, and they are never created unseen. Hotspot ranking uses a tests-aware **primary** tier with a **test-independent fallback** (fan-in / public surface / size / churn) so test-less repos — scripts, SPAs, ML, CLIs, agent-plugin tooling — still surface real specs instead of an empty pool.
+- **Tier 2 — Confirmed synthesis (stubs shown, bodies composed only after confirm).** `spec` documents for the per-mode, per-depth top-N hotspot modules (small/medium: flat scale baseline; large: per-selected-domain floor + repo-wide-rank fill, scaling with the domain dialog — see `SKILL.md` "Top-N by mode") and cross-cutting `rule`s (0 up to the active depth's cap — `light` ≤2 / `standard` ≤3 / `deep` ≤4 — running at every depth, not gated to `standard`/`deep`), each composed under the `skills/_shared/` precision contracts — including a new `rule-contract.md` added for the rule bodies. A size/churn-gated hotspot ("flagship") composes at a raised body cap or decomposes into ≤ 3 sub-specs by separable sub-surface; every init-synthesized spec is created `status: draft`. To keep the highest-cost operation behind the curation gate, the preview shows only spec **stubs** (title + the LOC / test-ratio that qualified the module) plus a Coverage line (specs / load-bearing modules, domains seeded, cross-cutting rules) so sparseness is visible before `confirm`. The agent reads hotspot source files and composes full spec bodies **after** `confirm`, skipping any the user deselected. Tier-2 artifacts are the only LLM-synthesized documents, and they are never created unseen. Hotspot ranking uses a tests-aware **primary** tier with a **test-independent fallback** (fan-in / public surface / size / churn) so test-less repos — scripts, SPAs, ML, CLIs, agent-plugin tooling — still surface real specs instead of an empty pool.
 - **Tier 3 — Capstone index.** One `architecture-overview` `doc` that maps the seed: an index keyed by document type and topic, plus structural facts (module / domain counts, language, framework, ORM). Per `precision-rules.md` Rule 5 it does **not** enumerate `.archcore/` paths in its body — cross-document links live exclusively in the relation graph. Capped under 150 lines. Not a prose summary of the codebase.
 - **Imports.** Existing `CLAUDE.md` / `AGENTS.md` / `.cursorrules` are parsed into typed documents in the main flow. The current HIGH-cost gate (combined > 50 KB OR > 5 files OR yield > 8 documents) is preserved and shown as a line item in the preview.
 - **Relation wiring.** Init auto-adds `related` / `implements` / `depends_on` edges among the seeded documents so `/archcore:context` and the graph are useful immediately.
