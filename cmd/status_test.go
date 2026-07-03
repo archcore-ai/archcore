@@ -487,3 +487,20 @@ func TestStatus_EmptyGlobalWarnsNotIssue(t *testing.T) {
 		t.Errorf("status output should name the empty source; got:\n%s", out)
 	}
 }
+
+// TestStatus_CRLFFrontmatterAccepted pins CRLF normalization: a document with
+// Windows line endings has valid frontmatter and must not be reported as
+// missing it (every other surface — SplitDocument, sync, MCP — accepts CRLF).
+func TestStatus_CRLFFrontmatterAccepted(t *testing.T) {
+	dir := initValidDir(t)
+	crlfDoc := "---\r\ntitle: Win Doc\r\nstatus: draft\r\n---\r\n\r\nBody.\r\n"
+	writeDoc(t, dir, "knowledge", "win-doc.adr.md", crlfDoc)
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("CRLF document must pass status checks, got: %v\noutput: %s", err, out)
+	}
+	if strings.Contains(out, "missing YAML frontmatter") {
+		t.Errorf("CRLF document falsely reported as missing frontmatter:\n%s", out)
+	}
+}

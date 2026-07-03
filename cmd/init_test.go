@@ -151,17 +151,19 @@ func TestRunInit_ServerUnreachable(t *testing.T) {
 
 	base := t.TempDir()
 	settings := config.NewOnPremSettings(srv.URL)
+	// Soft-failure convention: an unreachable server warns but completes
+	// initialization — the directory and settings are already on disk and the
+	// remaining setup is local-only.
 	result, err := runInit(context.Background(), base, settings)
-	if err == nil {
-		t.Fatal("expected error for unreachable server")
+	if err != nil {
+		t.Fatalf("unreachable server must not abort init: %v", err)
 	}
-	if result != nil {
-		t.Fatal("expected nil result on server error")
+	if result == nil {
+		t.Fatal("expected a result on soft failure")
 	}
-	if !errors.Is(err, ErrServerUnreachable) {
-		t.Fatalf("expected ErrServerUnreachable, got: %v", err)
+	if result.serverReachable {
+		t.Error("serverReachable must be false for an unreachable server")
 	}
-	// Dirs should still be created even though server is unreachable.
 	if !config.DirExists(base) {
 		t.Error(".archcore/ directory should be created even when server is unreachable")
 	}

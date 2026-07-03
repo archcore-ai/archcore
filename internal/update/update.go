@@ -427,9 +427,15 @@ func extractFromTarGz(archiveData []byte, candidates ...string) ([]byte, error) 
 		// The binary may be at the root or inside a directory.
 		name := path.Base(filepath.ToSlash(hdr.Name))
 		if _, ok := candidateSet[name]; ok && hdr.Typeflag == tar.TypeReg {
-			data, err := io.ReadAll(io.LimitReader(tr, maxArchiveSize))
+			// Read limit+1 so exceeding the cap is an error, not a silent
+			// truncation that would install a broken binary (the checksum is
+			// verified on the compressed archive, not the extracted bytes).
+			data, err := io.ReadAll(io.LimitReader(tr, maxArchiveSize+1))
 			if err != nil {
 				return nil, fmt.Errorf("reading %s from archive: %w", name, err)
+			}
+			if int64(len(data)) > maxArchiveSize {
+				return nil, fmt.Errorf("%s exceeds size limit (%d bytes)", name, int64(maxArchiveSize))
 			}
 			return data, nil
 		}
@@ -462,10 +468,13 @@ func extractFromZip(archiveData []byte, candidates ...string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("opening %s in zip: %w", name, err)
 		}
-		data, err := io.ReadAll(io.LimitReader(rc, maxArchiveSize))
+		data, err := io.ReadAll(io.LimitReader(rc, maxArchiveSize+1))
 		rc.Close()
 		if err != nil {
 			return nil, fmt.Errorf("reading %s from zip: %w", name, err)
+		}
+		if int64(len(data)) > maxArchiveSize {
+			return nil, fmt.Errorf("%s exceeds size limit (%d bytes)", name, int64(maxArchiveSize))
 		}
 		return data, nil
 	}
@@ -485,8 +494,10 @@ func atomicReplace(target string, data []byte) error {
 	base := filepath.Base(target)
 	tmpPath := filepath.Join(dir, fmt.Sprintf("%s.tmp.%d", base, os.Getpid()))
 
-	if err := os.WriteFile(tmpPath, data, 0o755); err != nil {
-		return fmt.Errorf("writing temp binary: %w", err)
+	// Write + fsync before rename: without the sync, a power loss in the
+	// writeback window can leave a zero-length binary with the old one gone.
+	if err := writeBinarySynced(tmpPath, data); err != nil {
+		return err
 	}
 
 	if runtime.GOOS == "windows" {
@@ -516,5 +527,29 @@ func atomicReplace(target string, data []byte) error {
 		return fmt.Errorf("renaming temp to target: %w", err)
 	}
 
+	return nil
+}
+
+// writeBinarySynced writes data to path (0o755) and fsyncs it before close,
+// removing the file on any failure.
+func writeBinarySynced(path string, data []byte) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o755)
+	if err != nil {
+		return fmt.Errorf("writing temp binary: %w", err)
+	}
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		os.Remove(path)
+		return fmt.Errorf("writing temp binary: %w", err)
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		os.Remove(path)
+		return fmt.Errorf("syncing temp binary: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(path)
+		return fmt.Errorf("closing temp binary: %w", err)
+	}
 	return nil
 }

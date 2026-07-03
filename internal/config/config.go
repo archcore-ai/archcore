@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"archcore-cli/internal/jsonfile"
 )
 
 const (
@@ -384,7 +386,9 @@ func Save(baseDir string, s *Settings) error {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(settingsPath(baseDir), data, 0o644)
+	// Atomic write: a crash mid-write must never leave a truncated
+	// settings.json — every command fails to Load one.
+	return jsonfile.WriteAtomic(settingsPath(baseDir), data)
 }
 
 func InitDir(baseDir string) error {

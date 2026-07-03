@@ -131,11 +131,13 @@ func HandleUpdateDocument(baseDir string) func(ctx context.Context, request mcp.
 		if newContent != "" {
 			body = stripFrontmatter(newContent)
 		}
+		// Preserved tags keep their on-disk order — normalizing them here
+		// would reorder the user's tags on a title-only update. Provided tags
+		// are already validated and normalized by parseTags.
 		tags := existingFM.Tags
 		if tagsProvided {
 			tags = newTags
 		}
-		tags = normalizeTags(tags)
 
 		// Reconstruct the file.
 		fileContent := buildDocumentFile(title, status, tags, body)

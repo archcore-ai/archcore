@@ -103,8 +103,9 @@ func runHooksInstallForAgent(baseDir string, id agents.AgentID) error {
 		return err
 	}
 	if !installed {
+		// Hookless agents still get their MCP config, matching the
+		// auto-detect path (installAgents).
 		fmt.Println(display.WarnLine(fmt.Sprintf("%s does not support hooks", agent.DisplayName)))
-		return nil
 	}
 	if err := installMCPForAgent(baseDir, agent); err != nil {
 		return err

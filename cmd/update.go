@@ -43,7 +43,9 @@ func buildUpdateCmd(version string, u *update.Updater) *cobra.Command {
 			if err != nil {
 				fmt.Println(display.FailLine("Could not check for updates"))
 				fmt.Println(display.HintLine(err.Error()))
-				return nil
+				// Updating is this command's sole job — scripts must see a
+				// non-zero exit on failure.
+				return fmt.Errorf("checking for updates: %w", err)
 			}
 
 			fmt.Println(display.CheckLine(fmt.Sprintf("Current: %s", version)))
@@ -63,7 +65,7 @@ func buildUpdateCmd(version string, u *update.Updater) *cobra.Command {
 			if err := u.Apply(ctx, latest); err != nil {
 				fmt.Println(display.FailLine("Update failed"))
 				fmt.Println(display.HintLine(err.Error()))
-				return nil
+				return fmt.Errorf("update failed: %w", err)
 			}
 
 			fmt.Println(display.CheckLine("Checksum verified"))

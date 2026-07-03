@@ -93,9 +93,13 @@ func runInit(ctx context.Context, baseDir string, settings *config.Settings) (*i
 	if serverURL := settings.ServerURL(); serverURL != "" {
 		client := api.NewClient(serverURL)
 		if err := client.CheckHealth(ctx); err != nil {
-			return nil, &serverUnreachableError{url: serverURL, err: err}
+			// Soft failure: an unreachable server must not abort init — the
+			// directory and settings are already on disk and the remaining
+			// setup (agent detection, hooks, MCP config) is local-only.
+			fmt.Println(display.WarnLine((&serverUnreachableError{url: serverURL, err: err}).Error()))
+		} else {
+			result.serverReachable = true
 		}
-		result.serverReachable = true
 	}
 
 	return result, nil
@@ -139,10 +143,6 @@ func newInitCmd() *cobra.Command {
 
 			result, err := runInit(ctx, cwd, settings)
 			if err != nil {
-				if errors.Is(err, ErrServerUnreachable) {
-					fmt.Println(display.FailLine(err.Error()))
-					return nil
-				}
 				return err
 			}
 

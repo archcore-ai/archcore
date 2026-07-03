@@ -159,7 +159,11 @@ func checkFrontmatter(absPath, relPath string) int {
 		fmt.Println(display.FailLine(fmt.Sprintf("%s: cannot read file: %v", relPath, err)))
 		return issues
 	}
-	content := string(data)
+	// Normalize CRLF and strip a UTF-8 BOM before structural checks, matching
+	// templates.SplitDocument — a Windows-edited document is not "missing"
+	// its frontmatter.
+	content := strings.ReplaceAll(string(data), "\r\n", "\n")
+	content = strings.TrimPrefix(content, "\ufeff")
 
 	// Check for frontmatter delimiters.
 	if !strings.HasPrefix(content, "---\n") {
