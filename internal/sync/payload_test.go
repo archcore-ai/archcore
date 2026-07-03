@@ -10,81 +10,6 @@ import (
 	"archcore-cli/templates"
 )
 
-func TestParseFrontmatter(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name       string
-		content    string
-		wantTitle  string
-		wantStatus templates.DocStatus
-		wantTags   []string
-	}{
-		{
-			name:       "full frontmatter",
-			content:    "---\ntitle: My Document\nstatus: accepted\n---\n\n# Body",
-			wantTitle:  "My Document",
-			wantStatus: "accepted",
-		},
-		{
-			name:       "title only",
-			content:    "---\ntitle: Only Title\n---\n\nBody text",
-			wantTitle:  "Only Title",
-			wantStatus: "",
-		},
-		{
-			name:       "no frontmatter",
-			content:    "# Just Markdown",
-			wantTitle:  "",
-			wantStatus: "",
-		},
-		{
-			name:       "unclosed frontmatter",
-			content:    "---\ntitle: Broken\n",
-			wantTitle:  "",
-			wantStatus: "",
-		},
-		{
-			name:       "windows line endings",
-			content:    "---\r\ntitle: Win Doc\r\nstatus: draft\r\n---\r\n\r\nBody",
-			wantTitle:  "Win Doc",
-			wantStatus: "draft",
-		},
-		{
-			name:       "empty content",
-			content:    "",
-			wantTitle:  "",
-			wantStatus: "",
-		},
-		{
-			name:       "with tags",
-			content:    "---\ntitle: Tagged\nstatus: draft\ntags:\n  - api\n  - backend\n---\n\nBody",
-			wantTitle:  "Tagged",
-			wantStatus: "draft",
-			wantTags:   []string{"api", "backend"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			title, status, tags := ParseFrontmatter(tt.content)
-			if title != tt.wantTitle {
-				t.Errorf("title = %q, want %q", title, tt.wantTitle)
-			}
-			if status != tt.wantStatus {
-				t.Errorf("status = %q, want %q", status, tt.wantStatus)
-			}
-			if len(tt.wantTags) == 0 {
-				if len(tags) != 0 {
-					t.Errorf("tags = %v, want empty", tags)
-				}
-			} else {
-				if fmt.Sprintf("%v", tags) != fmt.Sprintf("%v", tt.wantTags) {
-					t.Errorf("tags = %v, want %v", tags, tt.wantTags)
-				}
-			}
-		})
-	}
-}
-
 func TestBuildPayload(t *testing.T) {
 	t.Parallel()
 	baseDir := t.TempDir()
@@ -504,36 +429,6 @@ func TestBuildPayload_FileAtRoot(t *testing.T) {
 	}
 	if payload.Created[0].Category != "knowledge" {
 		t.Errorf("Category = %q, want %q", payload.Created[0].Category, "knowledge")
-	}
-}
-
-func TestParseFrontmatter_WithTags(t *testing.T) {
-	t.Parallel()
-	content := "---\ntitle: Tagged\nstatus: draft\ntags:\n  - frontend\n  - auth\n---\n\nBody"
-	title, status, tags := ParseFrontmatter(content)
-	if title != "Tagged" {
-		t.Errorf("title = %q, want %q", title, "Tagged")
-	}
-	if status != "draft" {
-		t.Errorf("status = %q, want %q", status, "draft")
-	}
-	if len(tags) != 2 || tags[0] != "frontend" || tags[1] != "auth" {
-		t.Errorf("tags = %v, want [frontend auth]", tags)
-	}
-}
-
-func TestParseFrontmatter_WithoutTags(t *testing.T) {
-	t.Parallel()
-	content := "---\ntitle: No Tags\nstatus: accepted\n---\n\nBody"
-	title, status, tags := ParseFrontmatter(content)
-	if title != "No Tags" {
-		t.Errorf("title = %q, want %q", title, "No Tags")
-	}
-	if status != "accepted" {
-		t.Errorf("status = %q, want %q", status, "accepted")
-	}
-	if tags != nil {
-		t.Errorf("tags = %v, want nil", tags)
 	}
 }
 

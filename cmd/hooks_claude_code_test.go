@@ -18,9 +18,6 @@ func TestReadHookInput(t *testing.T) {
 		if err != nil {
 			t.Fatalf("readHookInput: %v", err)
 		}
-		if input.SessionID != "abc" {
-			t.Errorf("session_id = %q, want %q", input.SessionID, "abc")
-		}
 		if input.CWD != "/tmp" {
 			t.Errorf("cwd = %q, want %q", input.CWD, "/tmp")
 		}

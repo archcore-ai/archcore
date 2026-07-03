@@ -74,11 +74,6 @@ var SkipFiles = map[string]bool{
 	".sync-state.json": true,
 }
 
-// ValidStatuses returns all valid document status values.
-func ValidStatuses() []DocStatus {
-	return []DocStatus{StatusDraft, StatusAccepted, StatusRejected}
-}
-
 // ValidStatusStrings returns all valid document statuses as plain strings.
 // Useful for assembling error messages with strings.Join.
 func ValidStatusStrings() []string {
@@ -92,11 +87,6 @@ func IsValidStatus(s DocStatus) bool {
 		return true
 	}
 	return false
-}
-
-// ValidCategories returns all valid document category values.
-func ValidCategories() []Category {
-	return []Category{CategoryVision, CategoryKnowledge, CategoryExperience}
 }
 
 // ValidCategoryStrings returns all valid document categories as plain strings.
@@ -169,15 +159,6 @@ func ValidTypes() []string {
 		string(TypeSyRS),
 		string(TypeSRS),
 	}
-}
-
-// TypesByCategory returns types grouped by category.
-func TypesByCategory() map[Category][]string {
-	result := map[Category][]string{}
-	for dt, cat := range categoryMap {
-		result[cat] = append(result[cat], string(dt))
-	}
-	return result
 }
 
 // IsValidType checks whether the given string is a valid document type.

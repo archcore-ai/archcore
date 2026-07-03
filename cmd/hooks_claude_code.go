@@ -12,11 +12,9 @@ import (
 )
 
 // hookInput represents the JSON payload Claude Code sends via stdin.
+// Only cwd is consumed; the other fields the agent sends are ignored.
 type hookInput struct {
-	SessionID     string `json:"session_id"`
-	CWD           string `json:"cwd"`
-	HookEventName string `json:"hook_event_name"`
-	Source        string `json:"source"`
+	CWD string `json:"cwd"`
 }
 
 // hookOutput is the JSON response written to stdout.

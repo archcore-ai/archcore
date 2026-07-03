@@ -29,12 +29,6 @@ type Payload struct {
 	Deleted     []string    `json:"deleted"`
 }
 
-// ParseFrontmatter extracts title, status, and tags from raw document content.
-func ParseFrontmatter(content string) (title string, status templates.DocStatus, tags []string) {
-	fm, _, _ := templates.SplitDocument([]byte(content))
-	return fm.Title, fm.Status, fm.Tags
-}
-
 // validateRelPath checks that a relative path does not escape the base directory.
 func validateRelPath(relPath string) error {
 	cleaned := filepath.Clean(relPath)

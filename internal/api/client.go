@@ -15,11 +15,6 @@ import (
 
 const maxResponseSize = 10 << 20 // 10 MB
 
-type Project struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-}
-
 // SyncAcceptedEntry represents a file that was successfully processed.
 type SyncAcceptedEntry struct {
 	Path   string `json:"path"`
@@ -76,12 +71,8 @@ func (c *Client) applyAuth(req *http.Request) {
 
 // readErrorBody reads up to 512 bytes from the response body for error context.
 func readErrorBody(body io.Reader) string {
-	b := make([]byte, 512)
-	n, _ := io.ReadAtLeast(body, b, 1)
-	if n == 0 {
-		return ""
-	}
-	return strings.TrimSpace(string(b[:n]))
+	b, _ := io.ReadAll(io.LimitReader(body, 512))
+	return strings.TrimSpace(string(b))
 }
 
 func (c *Client) get(ctx context.Context, path string, dest any) error {
@@ -124,22 +115,6 @@ func (c *Client) CheckHealth(ctx context.Context) error {
 		return fmt.Errorf("server is not ready")
 	}
 	return nil
-}
-
-func (c *Client) ListProjects(ctx context.Context) ([]Project, error) {
-	var projects []Project
-	if err := c.get(ctx, "/projects", &projects); err != nil {
-		return nil, err
-	}
-	return projects, nil
-}
-
-func (c *Client) GetProject(ctx context.Context, id int64) (*Project, error) {
-	var project Project
-	if err := c.get(ctx, fmt.Sprintf("/projects/%d", id), &project); err != nil {
-		return nil, err
-	}
-	return &project, nil
 }
 
 // Sync pushes document changes to POST /sync.

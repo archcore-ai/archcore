@@ -886,7 +886,7 @@ func TestIsValidType(t *testing.T) {
 
 func TestIsValidStatus(t *testing.T) {
 	t.Parallel()
-	for _, s := range ValidStatuses() {
+	for _, s := range []DocStatus{StatusDraft, StatusAccepted, StatusRejected} {
 		t.Run("valid/"+string(s), func(t *testing.T) {
 			t.Parallel()
 			if !IsValidStatus(s) {
@@ -902,15 +902,6 @@ func TestIsValidStatus(t *testing.T) {
 				t.Errorf("IsValidStatus(%q) = true, want false", v)
 			}
 		})
-	}
-}
-
-func TestValidStatuses(t *testing.T) {
-	t.Parallel()
-	want := []DocStatus{StatusDraft, StatusAccepted, StatusRejected}
-	got := ValidStatuses()
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("ValidStatuses() = %v, want %v", got, want)
 	}
 }
 
@@ -952,36 +943,6 @@ func TestCategoryForType(t *testing.T) {
 	}
 }
 
-func TestTypesByCategory(t *testing.T) {
-	t.Parallel()
-	byCategory := TypesByCategory()
-	knownCategories := map[Category]bool{
-		CategoryVision:     true,
-		CategoryKnowledge:  true,
-		CategoryExperience: true,
-	}
-	for cat := range byCategory {
-		if !knownCategories[cat] {
-			t.Errorf("unexpected category key %q in TypesByCategory result", cat)
-		}
-	}
-	seen := map[string]Category{}
-	for cat, types := range byCategory {
-		for _, typ := range types {
-			if prev, exists := seen[typ]; exists {
-				t.Errorf("type %q appears in both %q and %q", typ, prev, cat)
-			}
-			seen[typ] = cat
-		}
-	}
-	all := ValidTypes()
-	for _, typ := range all {
-		if _, found := seen[typ]; !found {
-			t.Errorf("type %q from ValidTypes() not found in any TypesByCategory bucket", typ)
-		}
-	}
-}
-
 func TestValidTypes_Completeness(t *testing.T) {
 	t.Parallel()
 	types := ValidTypes()
@@ -995,13 +956,8 @@ func TestValidTypes_Completeness(t *testing.T) {
 			t.Errorf("IsValidType(%q) = false for entry from ValidTypes()", typ)
 		}
 	}
-	byCategory := TypesByCategory()
-	total := 0
-	for _, bucket := range byCategory {
-		total += len(bucket)
-	}
-	if len(types) != total {
-		t.Errorf("ValidTypes() count = %d, TypesByCategory total = %d; they must match", len(types), total)
+	if len(types) != len(categoryMap) {
+		t.Errorf("ValidTypes() count = %d, categoryMap size = %d; they must match", len(types), len(categoryMap))
 	}
 }
 

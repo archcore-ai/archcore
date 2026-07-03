@@ -74,8 +74,5 @@ func ScanFiles(baseDir string) ([]FileState, error) {
 		return nil
 	})
 
-	if os.IsNotExist(err) {
-		return nil, nil
-	}
 	return files, err
 }
