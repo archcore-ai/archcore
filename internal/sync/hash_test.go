@@ -209,3 +209,39 @@ func TestScanFiles(t *testing.T) {
 		})
 	}
 }
+
+// TestScanFiles_SkipsGlobalSpace pins that sync never pushes read-only global
+// space: the reserved global/ tree and documents under a declared in-tree
+// global source are excluded from the scan.
+func TestScanFiles_SkipsGlobalSpace(t *testing.T) {
+	t.Parallel()
+	baseDir := t.TempDir()
+	write := func(rel, content string) {
+		t.Helper()
+		abs := filepath.Join(baseDir, ".archcore", filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(abs, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("knowledge/local.adr.md", "---\ntitle: L\nstatus: draft\n---\n\nbody")
+	write("global/corp/x.rule.md", "---\ntitle: G\nstatus: accepted\n---\n\nbody")
+	write("vendored/y.rule.md", "---\ntitle: V\nstatus: accepted\n---\n\nbody")
+	settings := `{"sync": "none", "globals": [{"id": "vendored", "path": ".archcore/vendored"}]}`
+	if err := os.WriteFile(filepath.Join(baseDir, ".archcore", "settings.json"), []byte(settings), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := ScanFiles(baseDir)
+	if err != nil {
+		t.Fatalf("ScanFiles: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("ScanFiles returned %d files, want 1 (only the local doc): %+v", len(files), files)
+	}
+	if files[0].RelPath != "knowledge/local.adr.md" {
+		t.Errorf("RelPath = %q, want the local document", files[0].RelPath)
+	}
+}

@@ -8,7 +8,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"archcore-cli/internal/config"
 	"archcore-cli/templates"
 )
 
@@ -35,13 +37,27 @@ func HashFile(path string) (string, error) {
 }
 
 // ScanFiles walks .archcore/ recursively and returns the current state of
-// every .md file found. Skips hidden directories, settings.json, and
-// .sync-state.json.
+// every .md file found. Skips hidden directories, settings.json,
+// .sync-state.json, the reserved global/ tree, and any document under a
+// declared global source — globals are read-only mounts owned by another
+// repository and must never be pushed to the server as local documents.
 func ScanFiles(baseDir string) ([]FileState, error) {
 	archcoreDir := filepath.Join(baseDir, ".archcore")
 	var files []FileState
 
-	err := templates.WalkArchcoreFiles(archcoreDir, func(path string, d fs.DirEntry) error {
+	var globalDirs []string
+	for _, gs := range config.ReadGlobals(baseDir) {
+		globalDirs = append(globalDirs, filepath.ToSlash(config.ResolveGlobalPath(baseDir, gs.Path)))
+	}
+
+	err := templates.WalkArchcoreFilesSkipping(archcoreDir, []string{"global"}, func(path string, d fs.DirEntry) error {
+		slashPath := filepath.ToSlash(path)
+		for _, dir := range globalDirs {
+			if slashPath == dir || strings.HasPrefix(slashPath, dir+"/") {
+				return nil
+			}
+		}
+
 		relPath, _ := filepath.Rel(archcoreDir, path)
 		relPath = filepath.ToSlash(relPath)
 

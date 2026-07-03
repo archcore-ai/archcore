@@ -83,27 +83,9 @@ func newSyncCmd() *cobra.Command {
 	return cmd
 }
 
-func runSync(cmd *cobra.Command, flags *syncFlags) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	// 1. Validate preconditions.
-	pre, err := checkSyncPreconditions(cwd)
-	if err != nil {
-		if flags.CI {
-			return err
-		}
-		fmt.Println(display.FailLine(err.Error()))
-		return nil
-	}
-
-	client := api.NewClient(pre.ServerURL)
-	return doSync(cmd.Context(), cwd, flags, pre, client)
-}
-
-// doSync contains the core sync logic, separated from cobra and os.Getwd for testability.
+// doSync contains the core sync logic, separated from cobra and os.Getwd for
+// testability. When the sync gate in newSyncCmd is lifted, its RunE becomes:
+// checkSyncPreconditions(cwd) → api.NewSyncClient(pre.ServerURL) → doSync.
 func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPreconditions, client syncClient) error {
 	// 2. Load manifest and scan files.
 	manifest, err := archsync.LoadManifest(baseDir)
@@ -229,17 +211,34 @@ func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPrec
 		newPID := int(resp.ProjectID)
 		pre.Settings.ProjectID = &newPID
 		if err := config.Save(baseDir, pre.Settings); err != nil {
-			return fmt.Errorf("saving project_id to settings: %w", err)
+			return fmt.Errorf(
+				"project created on server (id: %d) but saving it to settings failed: %w — run 'archcore config set project_id %d' before the next sync to avoid creating a duplicate project",
+				newPID, err, newPID)
 		}
 	}
 
-	// 8. Update manifest with new hashes.
+	// 8. Update manifest — only for changes the server confirmed
+	// (sync-manifest-update-on-success-only.rule). A file the server rejected
+	// keeps its old hash so the next sync retries it; recording it as synced
+	// would silently drop the document from the server forever.
+	accepted := make(map[string]bool, len(resp.Accepted))
+	for _, a := range resp.Accepted {
+		accepted[a.Path] = true
+	}
+	errored := make(map[string]bool, len(resp.Errors))
+	for _, e := range resp.Errors {
+		errored[e.Path] = true
+	}
 	for _, e := range diffEntries {
 		switch e.Action {
 		case archsync.ActionCreated, archsync.ActionModified:
-			manifest.Files[e.RelPath] = e.Hash
+			if accepted[e.RelPath] {
+				manifest.Files[e.RelPath] = e.Hash
+			}
 		case archsync.ActionDeleted:
-			delete(manifest.Files, e.RelPath)
+			if !errored[e.RelPath] {
+				delete(manifest.Files, e.RelPath)
+			}
 		}
 	}
 	if err := archsync.SaveManifest(baseDir, manifest); err != nil {

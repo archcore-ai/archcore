@@ -305,13 +305,18 @@ func TestListProjects_ConnectionRefused(t *testing.T) {
 	}
 }
 
-func TestNewAuthenticatedClient(t *testing.T) {
-	c := NewAuthenticatedClient("http://example.com", "my-token")
+func TestNewSyncClient(t *testing.T) {
+	c := NewSyncClient("http://example.com")
 	if c.BaseURL != "http://example.com/api/v1" {
 		t.Errorf("BaseURL = %q, want %q", c.BaseURL, "http://example.com/api/v1")
 	}
-	if c.Token != "my-token" {
-		t.Errorf("Token = %q, want %q", c.Token, "my-token")
+}
+
+func TestNewClient_TrimsTrailingSlash(t *testing.T) {
+	for _, c := range []*Client{NewClient("http://example.com/"), NewSyncClient("http://example.com///")} {
+		if c.BaseURL != "http://example.com/api/v1" {
+			t.Errorf("BaseURL = %q, want %q (trailing slash must be trimmed)", c.BaseURL, "http://example.com/api/v1")
+		}
 	}
 }
 
@@ -432,7 +437,8 @@ func TestSync(t *testing.T) {
 			srv := httptest.NewServer(tt.handler)
 			defer srv.Close()
 
-			c := NewAuthenticatedClient(srv.URL, "test-token")
+			c := NewSyncClient(srv.URL)
+			c.Token = "test-token"
 			payload := &archsync.Payload{
 				Created: []archsync.FileEntry{
 					{Path: "vision/test.md", SHA256: "abc", Content: "# Test"},
@@ -488,7 +494,8 @@ func TestSync_SendsPayloadFields(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewAuthenticatedClient(srv.URL, "token")
+	c := NewSyncClient(srv.URL)
+	c.Token = "token"
 	payload := &archsync.Payload{
 		ProjectID:   &pid,
 		ProjectName: &projectName,
@@ -508,7 +515,8 @@ func TestSync_ConnectionRefused(t *testing.T) {
 	srv := httptest.NewServer(http.NotFoundHandler())
 	srv.Close()
 
-	c := NewAuthenticatedClient(srv.URL, "token")
+	c := NewSyncClient(srv.URL)
+	c.Token = "token"
 	_, _, err := c.Sync(context.Background(), &archsync.Payload{
 		Created:  []archsync.FileEntry{},
 		Modified: []archsync.FileEntry{},

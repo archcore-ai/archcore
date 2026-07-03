@@ -48,20 +48,22 @@ type Client struct {
 
 func NewClient(serverURL string) *Client {
 	return &Client{
-		BaseURL: serverURL + "/api/v1",
+		BaseURL: strings.TrimRight(serverURL, "/") + "/api/v1",
 		HTTPClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 	}
 }
 
-// NewAuthenticatedClient creates a client with a Bearer token for sync operations.
-func NewAuthenticatedClient(serverURL, token string) *Client {
+// NewSyncClient creates a client tuned for sync pushes. The http.Client
+// timeout is TOTAL (it includes uploading the request body), and a first sync
+// sends the full content of every document in one POST — the default 10s
+// client can time out mid-upload on a slow uplink and never succeed.
+func NewSyncClient(serverURL string) *Client {
 	return &Client{
-		BaseURL: serverURL + "/api/v1",
-		Token:   token,
+		BaseURL: strings.TrimRight(serverURL, "/") + "/api/v1",
 		HTTPClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 120 * time.Second,
 		},
 	}
 }

@@ -594,3 +594,106 @@ func TestRunSync_ExistingProject_NoRepoURL(t *testing.T) {
 		t.Errorf("RepoURL should be nil for existing project, got %q", *mock.payload.RepoURL)
 	}
 }
+
+// TestDoSync_ClientError_CI pins error propagation: in CI mode a failed sync
+// call must return the error (non-zero exit) and leave no manifest behind.
+func TestDoSync_ClientError_CI(t *testing.T) {
+	t.Parallel()
+	baseDir := setupSyncTestDir(t)
+	writeSyncDoc(t, baseDir, "knowledge/a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
+
+	mock := &mockSyncClient{err: context.DeadlineExceeded}
+	flags := &syncFlags{CI: true}
+	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock)
+	if err == nil {
+		t.Fatal("CI mode must propagate a sync failure as an error")
+	}
+	if !mock.called {
+		t.Fatal("client must have been called")
+	}
+	if _, statErr := os.Stat(filepath.Join(baseDir, ".archcore", ".sync-state.json")); !os.IsNotExist(statErr) {
+		t.Error("manifest must not be written after a failed sync")
+	}
+}
+
+// TestDoSync_PartialFailure_RejectedFilesNotRecorded pins
+// sync-manifest-update-on-success-only.rule: on HTTP 207 the manifest records
+// hashes only for files in resp.Accepted; a rejected file keeps no hash so the
+// next sync retries it, and an errored deletion stays in the manifest.
+func TestDoSync_PartialFailure_RejectedFilesNotRecorded(t *testing.T) {
+	t.Parallel()
+	baseDir := setupSyncTestDir(t)
+	writeSyncDoc(t, baseDir, "knowledge/good.adr.md", "---\ntitle: Good\nstatus: draft\n---\n\nbody")
+	writeSyncDoc(t, baseDir, "knowledge/bad.adr.md", "---\ntitle: Bad\nstatus: draft\n---\n\nbody")
+
+	// Seed a manifest with a file that no longer exists on disk (a deletion)
+	// which the server will reject.
+	m := archsync.NewManifest()
+	m.Files["knowledge/gone.adr.md"] = strings.Repeat("a", 64)
+	if err := archsync.SaveManifest(baseDir, m); err != nil {
+		t.Fatal(err)
+	}
+
+	mock := &mockSyncClient{
+		resp: &api.SyncResponse{
+			ProjectID: 1,
+			Accepted:  []api.SyncAcceptedEntry{{Path: "knowledge/good.adr.md", Action: "created"}},
+			Errors: []api.SyncErrorEntry{
+				{Path: "knowledge/bad.adr.md", Message: "validation failed"},
+				{Path: "knowledge/gone.adr.md", Message: "delete rejected"},
+			},
+		},
+	}
+	flags := &syncFlags{CI: true}
+	if err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock); err != nil {
+		t.Fatalf("doSync: %v", err)
+	}
+
+	saved, err := archsync.LoadManifest(baseDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := saved.Files["knowledge/good.adr.md"]; !ok {
+		t.Error("accepted file must be recorded in the manifest")
+	}
+	if _, ok := saved.Files["knowledge/bad.adr.md"]; ok {
+		t.Error("rejected file must NOT be recorded — it would never be retried")
+	}
+	if _, ok := saved.Files["knowledge/gone.adr.md"]; !ok {
+		t.Error("errored deletion must stay in the manifest for retry")
+	}
+}
+
+// TestDoSync_AcceptedDeletionRemoved pins the deletion path: a deletion the
+// server did not reject is dropped from the manifest.
+func TestDoSync_AcceptedDeletionRemoved(t *testing.T) {
+	t.Parallel()
+	baseDir := setupSyncTestDir(t)
+	writeSyncDoc(t, baseDir, "knowledge/kept.adr.md", "---\ntitle: K\nstatus: draft\n---\n\nbody")
+
+	m := archsync.NewManifest()
+	m.Files["knowledge/old.adr.md"] = strings.Repeat("b", 64)
+	if err := archsync.SaveManifest(baseDir, m); err != nil {
+		t.Fatal(err)
+	}
+
+	mock := &mockSyncClient{
+		resp: &api.SyncResponse{
+			ProjectID: 1,
+			Accepted:  []api.SyncAcceptedEntry{{Path: "knowledge/kept.adr.md", Action: "created"}},
+			Deleted:   []string{"knowledge/old.adr.md"},
+		},
+	}
+	flags := &syncFlags{CI: true}
+	if err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock); err != nil {
+		t.Fatalf("doSync: %v", err)
+	}
+
+	saved, err := archsync.LoadManifest(baseDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := saved.Files["knowledge/old.adr.md"]; ok {
+		t.Error("confirmed deletion must be removed from the manifest")
+	}
+}
