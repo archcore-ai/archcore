@@ -946,3 +946,52 @@ func TestHandleSearchDocuments_UnknownModeFallsBackToSnippets(t *testing.T) {
 		t.Errorf("unknown mode must behave as snippets (no Body), got: %q", got[0].Body)
 	}
 }
+
+// TestParseMtimeAfter pins the relative-duration grammar the tool description
+// advertises ("24h", "30d"), including the overflow guards.
+func TestParseMtimeAfter(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		input   string
+		wantErr string // empty = must parse
+	}{
+		{name: "empty is zero time", input: ""},
+		{name: "rfc3339", input: "2026-01-02T15:04:05Z"},
+		{name: "days", input: "30d"},
+		{name: "hours", input: "24h"},
+		{name: "zero days", input: "0d"},
+		{name: "too short", input: "d", wantErr: "expected RFC3339"},
+		{name: "no number", input: "xd", wantErr: "expected RFC3339"},
+		{name: "negative", input: "-1d", wantErr: "expected RFC3339"},
+		{name: "unknown unit", input: "10y", wantErr: "unknown duration unit"},
+		{name: "day overflow guard", input: "40000d", wantErr: "day count too large"},
+		{name: "hour overflow guard", input: "900000h", wantErr: "hour count too large"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := parseMtimeAfter(tt.input)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("parseMtimeAfter(%q) = %v, want error", tt.input, got)
+				}
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Errorf("error = %q, want it to contain %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseMtimeAfter(%q) error: %v", tt.input, err)
+			}
+			if tt.input == "" && !got.IsZero() {
+				t.Error("empty input must yield the zero time")
+			}
+			if tt.input == "24h" {
+				if d := time.Since(got); d < 23*time.Hour || d > 25*time.Hour {
+					t.Errorf("24h parsed to %v ago, want ~24h", d)
+				}
+			}
+		})
+	}
+}

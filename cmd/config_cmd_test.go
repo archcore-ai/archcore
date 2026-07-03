@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -304,10 +305,26 @@ func TestRunConfig_NoArgs_PrintsSync(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chdir(origDir) })
 
+	r, w, pipeErr := os.Pipe()
+	if pipeErr != nil {
+		t.Fatal(pipeErr)
+	}
+	oldStdout := os.Stdout
+	os.Stdout = w
+	defer func() { os.Stdout = oldStdout }()
+
 	cmd := newConfigCmd()
 	cmd.SetArgs([]string{})
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	execErr := cmd.Execute()
+	w.Close()
+	os.Stdout = oldStdout
+	if execErr != nil {
+		t.Fatalf("unexpected error: %v", execErr)
+	}
+	var out bytes.Buffer
+	out.ReadFrom(r)
+	if !strings.Contains(out.String(), "sync") || !strings.Contains(out.String(), "none") {
+		t.Errorf("no-args config must print the sync setting, got: %s", out.String())
 	}
 }
 
@@ -411,5 +428,45 @@ func TestConfigSetArchcoreURL_SwitchesAndPersists(t *testing.T) {
 	}
 	if s2.ArchcoreURL != "http://localhost:8080" {
 		t.Errorf("ArchcoreURL = %q, want %q", s2.ArchcoreURL, "http://localhost:8080")
+	}
+}
+
+// TestRunConfig_UsageErrors pins the usage and unknown-subcommand branches.
+func TestRunConfig_UsageErrors(t *testing.T) {
+	dir := setupConfigTest(t, config.NewNoneSettings())
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(origDir); err != nil {
+			t.Error(err)
+		}
+	})
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{name: "get without key", args: []string{"get"}, wantErr: "usage: archcore config get <key>"},
+		{name: "set without value", args: []string{"set", "language"}, wantErr: "usage: archcore config set <key> <value>"},
+		{name: "unknown subcommand", args: []string{"bogus"}, wantErr: `unknown subcommand "bogus"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := newConfigCmd()
+			cmd.SetArgs(tt.args)
+			err := cmd.Execute()
+			if err == nil {
+				t.Fatal("expected usage error")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error = %q, want it to contain %q", err, tt.wantErr)
+			}
+		})
 	}
 }

@@ -859,3 +859,65 @@ func TestDownload_SizeLimit(t *testing.T) {
 		t.Errorf("expected size limit error, got: %v", err)
 	}
 }
+
+// TestAtomicReplace_RenameFailureCleansTmp pins the non-Windows rollback path:
+// when the final rename fails, the temp binary is removed and the error
+// surfaces — the interrupted-update case.
+func TestAtomicReplace_RenameFailureCleansTmp(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("non-Windows rename path")
+	}
+	dir := t.TempDir()
+	target := filepath.Join(dir, "occupied")
+	// A non-empty directory at the target makes os.Rename fail.
+	if err := os.MkdirAll(filepath.Join(target, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := atomicReplace(target, []byte("binary"))
+	if err == nil {
+		t.Fatal("expected error renaming onto a non-empty directory")
+	}
+	entries, readErr := os.ReadDir(dir)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".tmp.") {
+			t.Errorf("temp binary %s left behind after failed rename", e.Name())
+		}
+	}
+}
+
+// TestCheckLatest_ConnectionRefused pins the transport-error path.
+func TestCheckLatest_ConnectionRefused(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.NotFoundHandler())
+	srv.Close() // close immediately
+
+	u := NewUpdater("v1.0.0", "archcore-ai/cli", "archcore")
+	u.HTTPClient = &http.Client{Transport: &rewriteTransport{base: http.DefaultTransport, target: srv.URL}}
+
+	if _, err := u.CheckLatest(context.Background()); err == nil {
+		t.Fatal("expected error for closed server")
+	}
+}
+
+// TestCheckLatest_ContextCancelled pins cancellation propagation.
+func TestCheckLatest_ContextCancelled(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(releaseResponse{TagName: "v9.9.9"})
+	}))
+	defer srv.Close()
+
+	u := NewUpdater("v1.0.0", "archcore-ai/cli", "archcore")
+	u.HTTPClient = &http.Client{Transport: &rewriteTransport{base: http.DefaultTransport, target: srv.URL}}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := u.CheckLatest(ctx); err == nil {
+		t.Fatal("expected error for cancelled context")
+	}
+}

@@ -115,3 +115,27 @@ func TestHandleSessionStart_Empty(t *testing.T) {
 		}
 	}
 }
+
+// TestResolveBaseDir pins the hook baseDir decision: cwd from the hook payload
+// wins; an empty payload falls back to the process working directory.
+func TestResolveBaseDir(t *testing.T) {
+	got, err := resolveBaseDir(&hookInput{CWD: "/payload/dir"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "/payload/dir" {
+		t.Errorf("resolveBaseDir(cwd set) = %q, want the payload cwd", got)
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err = resolveBaseDir(&hookInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != wd {
+		t.Errorf("resolveBaseDir(empty) = %q, want process wd %q", got, wd)
+	}
+}

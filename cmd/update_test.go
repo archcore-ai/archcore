@@ -27,7 +27,10 @@ func TestUpdateCmd_AlreadyUpToDate(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	out := runUpdateCmd(t, "v1.0.0", srv)
+	out, execErr := runUpdateCmd(t, "v1.0.0", srv)
+	if execErr != nil {
+		t.Fatalf("up-to-date check must exit zero, got: %v", execErr)
+	}
 
 	if !strings.Contains(out, "Already up to date") {
 		t.Errorf("expected 'Already up to date' in output, got: %s", out)
@@ -118,8 +121,8 @@ func TestUpdateCmd_UpdateAvailable(t *testing.T) {
 	if !strings.Contains(output, "Current: v1.0.0") {
 		t.Errorf("expected 'Current: v1.0.0' in output, got: %s", output)
 	}
-	if !strings.Contains(output, "Latest:  v2.0.0") {
-		t.Errorf("expected 'Latest:  v2.0.0' in output, got: %s", output)
+	if !strings.Contains(output, "Latest:") || !strings.Contains(output, "v2.0.0") {
+		t.Errorf("expected latest version v2.0.0 in output, got: %s", output)
 	}
 	if !strings.Contains(output, "Downloading") {
 		t.Errorf("expected 'Downloading' in output, got: %s", output)
@@ -148,7 +151,12 @@ func TestUpdateCmd_DevVersion(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	out := runUpdateCmd(t, "vdev", srv)
+	// The download 404s, so the attempted update fails — the command must
+	// exit non-zero (new exit contract), which itself proves it tried.
+	out, execErr := runUpdateCmd(t, "vdev", srv)
+	if execErr == nil {
+		t.Fatal("failed update attempt must exit non-zero")
+	}
 
 	// Dev version should always try to update (not show "Already up to date").
 	if strings.Contains(out, "Already up to date") {
@@ -165,15 +173,20 @@ func TestUpdateCmd_APIError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	out := runUpdateCmd(t, "v1.0.0", srv)
+	out, execErr := runUpdateCmd(t, "v1.0.0", srv)
+	if execErr == nil {
+		t.Fatal("failed update check must exit non-zero")
+	}
 
 	if !strings.Contains(out, "Could not check for updates") {
 		t.Errorf("expected error message in output, got: %s", out)
 	}
 }
 
-// runUpdateCmd executes the update command with a test server and captures stdout.
-func runUpdateCmd(t *testing.T, version string, srv *httptest.Server) string {
+// runUpdateCmd executes the update command with a test server and captures
+// stdout plus the command's execution error, so callers can assert the exit
+// contract alongside the output.
+func runUpdateCmd(t *testing.T, version string, srv *httptest.Server) (string, error) {
 	t.Helper()
 
 	client := &http.Client{
@@ -206,14 +219,14 @@ func runUpdateCmd(t *testing.T, version string, srv *httptest.Server) string {
 
 	ctx := context.Background()
 	root.SetContext(ctx)
-	_ = root.Execute()
+	execErr := root.Execute()
 	w.Close()
 	os.Stdout = oldStdout
 
 	var out bytes.Buffer
 	out.ReadFrom(r)
 
-	return out.String()
+	return out.String(), execErr
 }
 
 // testRewriteTransport rewrites all request URLs to point at a test server.

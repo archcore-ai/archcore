@@ -504,3 +504,63 @@ func TestStatus_CRLFFrontmatterAccepted(t *testing.T) {
 		t.Errorf("CRLF document falsely reported as missing frontmatter:\n%s", out)
 	}
 }
+
+// TestStatus_MalformedFrontmatterBranches pins every failure branch of
+// checkFrontmatter: unclosed delimiter, invalid YAML, empty required fields.
+func TestStatus_MalformedFrontmatterBranches(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		wantMsg string
+	}{
+		{
+			name:    "unclosed frontmatter",
+			content: "---\ntitle: Broken\nstatus: draft\n",
+			wantMsg: "missing closing --- delimiter",
+		},
+		{
+			name:    "invalid yaml",
+			content: "---\ntitle: [broken\nstatus: draft\n---\n\nBody",
+			wantMsg: "invalid YAML in frontmatter",
+		},
+		{
+			name:    "empty title",
+			content: "---\ntitle: \"\"\nstatus: draft\n---\n\nBody",
+			wantMsg: `missing required field "title"`,
+		},
+		{
+			name:    "missing status",
+			content: "---\ntitle: Ok\n---\n\nBody",
+			wantMsg: `missing required field "status"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := initValidDir(t)
+			writeDoc(t, dir, "knowledge", "bad.adr.md", tt.content)
+
+			out, err := runCmdInDir(t, dir, "status")
+			if err == nil {
+				t.Fatalf("expected status to report an issue\noutput: %s", out)
+			}
+			if !strings.Contains(out, tt.wantMsg) {
+				t.Errorf("output missing %q:\n%s", tt.wantMsg, out)
+			}
+		})
+	}
+}
+
+// TestStatus_InvalidTagReported pins the checkTagHygiene invalid-tag branch.
+func TestStatus_InvalidTagReported(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "tagged.adr.md",
+		"---\ntitle: T\nstatus: draft\ntags:\n  - \"BAD TAG!\"\n---\n\nBody.\n")
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatalf("expected status to report an issue\noutput: %s", out)
+	}
+	if !strings.Contains(out, `invalid tag "BAD TAG!"`) {
+		t.Errorf("output missing invalid-tag failure:\n%s", out)
+	}
+}
