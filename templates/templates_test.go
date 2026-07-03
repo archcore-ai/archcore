@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -1030,5 +1031,46 @@ func TestWalkArchcoreFiles_CallbackError(t *testing.T) {
 	})
 	if !errors.Is(err, sentinel) {
 		t.Errorf("expected sentinel error, got %v", err)
+	}
+}
+
+// TestWalkArchcoreFilesSkipping_SkipsSymlinks guards the single walk choke point
+// used by list_documents, search_documents, status, and sync: a symlinked .md
+// entry (to a file or a directory) that points outside the tree must never be
+// visited, so nothing outside .archcore/ is ever read, hashed, or listed.
+func TestWalkArchcoreFilesSkipping_SkipsSymlinks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink test not portable to Windows")
+	}
+	dir := t.TempDir()
+	real := filepath.Join(dir, "real.adr.md")
+	if err := os.WriteFile(real, []byte("content"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	// A symlinked .md file pointing at a secret outside the tree.
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "secret.adr.md")
+	if err := os.WriteFile(secret, []byte("TOP-SECRET"), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if err := os.Symlink(secret, filepath.Join(dir, "leak.adr.md")); err != nil {
+		t.Fatalf("Symlink: %v", err)
+	}
+	// A symlinked directory that would otherwise be descended into.
+	if err := os.Symlink(outside, filepath.Join(dir, "linkdir")); err != nil {
+		t.Fatalf("Symlink: %v", err)
+	}
+
+	var visited []string
+	err := WalkArchcoreFilesSkipping(dir, nil, func(path string, d fs.DirEntry) error {
+		visited = append(visited, filepath.Base(path))
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk: %v", err)
+	}
+	if len(visited) != 1 || visited[0] != "real.adr.md" {
+		t.Fatalf("visited = %v, want only [real.adr.md] (symlinks must be skipped)", visited)
 	}
 }

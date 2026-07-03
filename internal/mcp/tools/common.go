@@ -346,19 +346,21 @@ func guardWritablePath(baseDir, relPath string, globals []config.GlobalSource) (
 	if isReservedGlobalDirFold(cleaned) || isGlobalPath(baseDir, cleaned, globals) || isGlobalPathFold(baseDir, cleaned, globals) {
 		return "", errPathReadOnlyGlobal
 	}
-	if err := checkWriteSymlinkContainment(baseDir, cleaned); err != nil {
+	if err := checkSymlinkContainment(baseDir, cleaned); err != nil {
 		return "", err
 	}
 	return cleaned, nil
 }
 
-// checkWriteSymlinkContainment verifies that the deepest existing ancestor of
+// checkSymlinkContainment verifies that the deepest existing ancestor of
 // relPath resolves inside the real .archcore/ root after evaluating symlinks.
 // For update/remove that ancestor is the file itself; for create it is the
 // closest existing parent directory, which catches a repo-shipped symlink
-// (.archcore/x -> /elsewhere) before MkdirAll would follow it. Errors never
-// embed absolute paths (no-absolute-paths-in-mcp-errors.rule).
-func checkWriteSymlinkContainment(baseDir, relPath string) error {
+// (.archcore/x -> /elsewhere) before MkdirAll would follow it. The read guard
+// reuses it so get_document can't read a file outside .archcore/ through a
+// symlinked document. Errors never embed absolute paths
+// (no-absolute-paths-in-mcp-errors.rule).
+func checkSymlinkContainment(baseDir, relPath string) error {
 	root := filepath.Join(baseDir, ".archcore")
 	realRoot, err := filepath.EvalSymlinks(root)
 	if err != nil {
@@ -623,8 +625,15 @@ func validateArchcorePath(relPath string) (string, error) {
 // so the caller reports an ordinary "document not found". Errors never embed an
 // absolute path (see no-absolute-paths-in-mcp-errors.rule).
 func validateReadPath(baseDir, relPath string, globals []config.GlobalSource) (string, error) {
-	// Local documents and in-tree globals: unchanged, strict validation.
+	// Local documents and in-tree globals: strict lexical validation, then a
+	// symlink-containment check so a symlinked document (.archcore/x.adr.md ->
+	// /etc/passwd) can't leak a file outside .archcore/ through get_document.
+	// This mirrors the write guard; the external-global branch below runs its
+	// own EvalSymlinks containment.
 	if cleaned, err := validateArchcorePath(relPath); err == nil {
+		if err := checkSymlinkContainment(baseDir, cleaned); err != nil {
+			return "", err
+		}
 		return cleaned, nil
 	}
 

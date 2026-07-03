@@ -250,6 +250,16 @@ func WalkArchcoreFilesSkipping(archcoreDir string, skipDirs []string, fn func(pa
 
 		name := d.Name()
 
+		// Never follow symlinks. A symlink inside .archcore/ (or a mounted
+		// global) could point at a file outside the tree; reading, hashing, or
+		// listing its target would breach the "nothing outside .archcore/ is
+		// ever read" invariant (sync-path-security.rule). d.Type() reflects the
+		// entry itself (lstat semantics), so this catches symlinks to both files
+		// and directories without ever resolving the target.
+		if d.Type()&fs.ModeSymlink != 0 {
+			return nil
+		}
+
 		if d.IsDir() {
 			// Skip hidden directories (but not .archcore itself).
 			if strings.HasPrefix(name, ".") && path != archcoreDir {

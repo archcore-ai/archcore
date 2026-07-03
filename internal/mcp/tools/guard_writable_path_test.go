@@ -86,6 +86,46 @@ func TestGuardWritablePath_SymlinkEscape(t *testing.T) {
 	assertNoAbsPath(t, outside, err.Error())
 }
 
+// TestValidateReadPath_SymlinkEscape guards the read side: a symlinked document
+// inside .archcore/ that points at a file outside it must be rejected, so
+// get_document / search_documents can never leak a foreign file's contents
+// through the MCP server. Mirrors TestGuardWritablePath_SymlinkEscape.
+func TestValidateReadPath_SymlinkEscape(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink test not portable to Windows")
+	}
+	base := setupTestArchcore(t)
+	if err := os.MkdirAll(filepath.Join(base, ".archcore", "knowledge"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "id_rsa")
+	if err := os.WriteFile(secret, []byte("TOP-SECRET"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, ".archcore", "knowledge", "leak.adr.md")
+	if err := os.Symlink(secret, link); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := validateReadPath(base, ".archcore/knowledge/leak.adr.md", nil)
+	if !errors.Is(err, errPathEscapes) {
+		t.Fatalf("error = %v, want errPathEscapes", err)
+	}
+	assertNoAbsPath(t, base, err.Error())
+	assertNoAbsPath(t, outside, err.Error())
+
+	// A legit in-tree document must still pass.
+	real := filepath.Join(base, ".archcore", "knowledge", "ok.adr.md")
+	if err := os.WriteFile(real, []byte("# ok"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := validateReadPath(base, ".archcore/knowledge/ok.adr.md", nil); err != nil {
+		t.Fatalf("validateReadPath rejected a legit document: %v", err)
+	}
+}
+
 func TestHandleUpdateDocument_SettingsJSONBlocked(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
