@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -13,7 +10,6 @@ import (
 	"archcore-cli/internal/display"
 
 	"github.com/spf13/cobra"
-	orderedmap "github.com/wk8/go-ordered-map/v2"
 )
 
 // hookEntry represents a single hook command configuration.
@@ -158,73 +154,13 @@ func runHooksInstall(baseDir string) error {
 		return fmt.Errorf(".archcore/ not found — run 'archcore init' first")
 	}
 
-	claudeDir := filepath.Join(baseDir, ".claude")
-	if err := os.MkdirAll(claudeDir, 0o755); err != nil {
-		return fmt.Errorf("creating .claude/ directory: %w", err)
+	events := make([]hookEventInstall, len(archcoreHooks))
+	for i, h := range archcoreHooks {
+		events[i] = hookEventInstall{Event: h.Event, Command: h.Matcher.Hooks[0].Command, Entry: h.Matcher}
 	}
-
-	settingsPath := filepath.Join(claudeDir, "settings.json")
-
-	// Read existing settings or start empty (ordered to preserve key order).
-	raw := orderedmap.New[string, json.RawMessage]()
-	data, err := os.ReadFile(settingsPath)
-	if err == nil {
-		if unmarshalErr := json.Unmarshal(data, raw); unmarshalErr != nil {
-			_ = os.WriteFile(settingsPath+".bak", data, 0o644)
-			fmt.Println(display.WarnLine(fmt.Sprintf("Corrupted %s backed up, starting fresh", settingsPath)))
-			raw = orderedmap.New[string, json.RawMessage]()
-		}
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("reading %s: %w", settingsPath, err)
-	}
-
-	// Parse existing hooks section (ordered to preserve event order).
-	hooks := orderedmap.New[string, []hookMatcher]()
-	if hooksRaw, ok := raw.Get("hooks"); ok {
-		if err := json.Unmarshal(hooksRaw, hooks); err != nil {
-			return fmt.Errorf("parsing hooks section: %w", err)
-		}
-	}
-
-	// Merge each archcore hook in deterministic order.
-	for _, h := range archcoreHooks {
-		existing, _ := hooks.Get(h.Event)
-		if hasCommand(existing, h.Matcher.Hooks[0].Command) {
-			fmt.Println(display.WarnLine(fmt.Sprintf("Already installed: %s", h.Event)))
-			continue
-		}
-		hooks.Set(h.Event, append(existing, h.Matcher))
-		fmt.Println(display.CheckLine(fmt.Sprintf("Installed hook: %s", h.Event)))
-	}
-
-	// Write back.
-	hooksJSON, err := json.Marshal(hooks)
-	if err != nil {
-		return err
-	}
-	raw.Set("hooks", json.RawMessage(hooksJSON))
-
-	out, err := json.MarshalIndent(raw, "", "  ")
-	if err != nil {
-		return err
-	}
-	out = append(out, '\n')
-
-	if err := os.WriteFile(settingsPath, out, 0o644); err != nil {
-		return fmt.Errorf("writing %s: %w", settingsPath, err)
-	}
-
-	return nil
-}
-
-// hasCommand checks whether any matcher already contains the exact command.
-func hasCommand(matchers []hookMatcher, command string) bool {
-	for _, m := range matchers {
-		for _, h := range m.Hooks {
-			if h.Command == command {
-				return true
-			}
-		}
-	}
-	return false
+	return installHookEvents(hookInstallSpec{
+		Path:   filepath.Join(baseDir, ".claude", "settings.json"),
+		Probe:  matcherEntryHasCommand,
+		Events: events,
+	})
 }

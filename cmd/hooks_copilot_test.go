@@ -9,6 +9,14 @@ import (
 	"archcore-cli/internal/agents"
 )
 
+// copilotHooksConfig is the decode shape tests use to assert on the written
+// .github/hooks/archcore.json. Production code round-trips the file as opaque
+// RawMessage (cmd/hooks_install.go) and no longer needs a typed config.
+type copilotHooksConfig struct {
+	Version int                           `json:"version"`
+	Hooks   map[string][]copilotHookEntry `json:"hooks"`
+}
+
 func TestCopilotWriteHooksConfig_NewFile(t *testing.T) {
 	t.Parallel()
 	base := setupArchcoreDir(t)

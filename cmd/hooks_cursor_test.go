@@ -9,6 +9,14 @@ import (
 	"archcore-cli/internal/agents"
 )
 
+// cursorHooksConfig is the decode shape tests use to assert on the written
+// .cursor/hooks.json. Production code round-trips the file as opaque
+// RawMessage (cmd/hooks_install.go) and no longer needs a typed config.
+type cursorHooksConfig struct {
+	Version int                          `json:"version"`
+	Hooks   map[string][]cursorHookEntry `json:"hooks"`
+}
+
 func TestCursorWriteHooksConfig_NewFile(t *testing.T) {
 	t.Parallel()
 	base := setupArchcoreDir(t)

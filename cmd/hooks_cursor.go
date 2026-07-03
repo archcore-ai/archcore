@@ -1,24 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
 
 	"archcore-cli/internal/config"
-	"archcore-cli/internal/display"
 
 	"github.com/spf13/cobra"
 )
-
-// cursorHooksConfig represents the .cursor/hooks.json structure.
-type cursorHooksConfig struct {
-	Version int                          `json:"version"`
-	Hooks   map[string][]cursorHookEntry `json:"hooks"`
-}
 
 // cursorHookEntry represents a single hook in Cursor config.
 type cursorHookEntry struct {
@@ -51,63 +40,19 @@ func runCursorHooksInstall(baseDir string) error {
 		return fmt.Errorf(".archcore/ not found — run 'archcore init' first")
 	}
 
-	cursorDir := filepath.Join(baseDir, ".cursor")
-	if err := os.MkdirAll(cursorDir, 0o755); err != nil {
-		return fmt.Errorf("creating .cursor/ directory: %w", err)
-	}
-
-	hooksPath := filepath.Join(cursorDir, "hooks.json")
-
-	var cfg cursorHooksConfig
-	data, err := os.ReadFile(hooksPath)
-	if err == nil {
-		if unmarshalErr := json.Unmarshal(data, &cfg); unmarshalErr != nil {
-			_ = os.WriteFile(hooksPath+".bak", data, 0o644)
-			fmt.Println(display.WarnLine(fmt.Sprintf("Corrupted %s backed up, starting fresh", hooksPath)))
-			cfg = cursorHooksConfig{}
-		}
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("reading %s: %w", hooksPath, err)
-	}
-
-	if cfg.Version == 0 {
-		cfg.Version = 1
-	}
-	if cfg.Hooks == nil {
-		cfg.Hooks = make(map[string][]cursorHookEntry)
-	}
-
-	for _, ev := range cursorHookEvents {
-		if cursorHasCommand(cfg.Hooks[ev.Event], ev.Command) {
-			fmt.Println(display.WarnLine(fmt.Sprintf("Cursor: already installed: %s", ev.Event)))
-			continue
-		}
-		cfg.Hooks[ev.Event] = append(cfg.Hooks[ev.Event], cursorHookEntry{
+	events := make([]hookEventInstall, len(cursorHookEvents))
+	for i, ev := range cursorHookEvents {
+		events[i] = hookEventInstall{
+			Event:   ev.Event,
 			Command: ev.Command,
-			Type:    "command",
-		})
-		fmt.Println(display.CheckLine(fmt.Sprintf("Cursor: installed hook: %s", ev.Event)))
-	}
-
-	out, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	out = append(out, '\n')
-
-	if err := os.WriteFile(hooksPath, out, 0o644); err != nil {
-		return fmt.Errorf("writing %s: %w", hooksPath, err)
-	}
-
-	return nil
-}
-
-// cursorHasCommand checks whether any entry already contains the exact command.
-func cursorHasCommand(entries []cursorHookEntry, command string) bool {
-	for _, e := range entries {
-		if e.Command == command {
-			return true
+			Entry:   cursorHookEntry{Command: ev.Command, Type: "command"},
 		}
 	}
-	return false
+	return installHookEvents(hookInstallSpec{
+		Label:         "Cursor",
+		Path:          filepath.Join(baseDir, ".cursor", "hooks.json"),
+		EnsureVersion: true,
+		Probe:         commandEntryHasCommand,
+		Events:        events,
+	})
 }

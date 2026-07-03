@@ -1,24 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
 
 	"archcore-cli/internal/config"
-	"archcore-cli/internal/display"
 
 	"github.com/spf13/cobra"
 )
-
-// copilotHooksConfig represents the .github/hooks/<name>.json structure.
-type copilotHooksConfig struct {
-	Version int                           `json:"version"`
-	Hooks   map[string][]copilotHookEntry `json:"hooks"`
-}
 
 // copilotHookEntry represents a single hook in Copilot config.
 type copilotHookEntry struct {
@@ -51,63 +40,19 @@ func runCopilotHooksInstall(baseDir string) error {
 		return fmt.Errorf(".archcore/ not found — run 'archcore init' first")
 	}
 
-	hooksDir := filepath.Join(baseDir, ".github", "hooks")
-	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
-		return fmt.Errorf("creating .github/hooks/ directory: %w", err)
-	}
-
-	hooksPath := filepath.Join(hooksDir, "archcore.json")
-
-	var cfg copilotHooksConfig
-	data, err := os.ReadFile(hooksPath)
-	if err == nil {
-		if unmarshalErr := json.Unmarshal(data, &cfg); unmarshalErr != nil {
-			_ = os.WriteFile(hooksPath+".bak", data, 0o644)
-			fmt.Println(display.WarnLine(fmt.Sprintf("Corrupted %s backed up, starting fresh", hooksPath)))
-			cfg = copilotHooksConfig{}
-		}
-	} else if !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("reading %s: %w", hooksPath, err)
-	}
-
-	if cfg.Version == 0 {
-		cfg.Version = 1
-	}
-	if cfg.Hooks == nil {
-		cfg.Hooks = make(map[string][]copilotHookEntry)
-	}
-
-	for _, ev := range copilotHookEvents {
-		if copilotHasCommand(cfg.Hooks[ev.Event], ev.Command) {
-			fmt.Println(display.WarnLine(fmt.Sprintf("Copilot: already installed: %s", ev.Event)))
-			continue
-		}
-		cfg.Hooks[ev.Event] = append(cfg.Hooks[ev.Event], copilotHookEntry{
-			Type: "command",
-			Bash: ev.Command,
-		})
-		fmt.Println(display.CheckLine(fmt.Sprintf("Copilot: installed hook: %s", ev.Event)))
-	}
-
-	out, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	out = append(out, '\n')
-
-	if err := os.WriteFile(hooksPath, out, 0o644); err != nil {
-		return fmt.Errorf("writing %s: %w", hooksPath, err)
-	}
-
-	return nil
-}
-
-// copilotHasCommand checks whether any entry already contains the exact command.
-func copilotHasCommand(entries []copilotHookEntry, command string) bool {
-	for _, e := range entries {
-		if e.Bash == command {
-			return true
+	events := make([]hookEventInstall, len(copilotHookEvents))
+	for i, ev := range copilotHookEvents {
+		events[i] = hookEventInstall{
+			Event:   ev.Event,
+			Command: ev.Command,
+			Entry:   copilotHookEntry{Type: "command", Bash: ev.Command},
 		}
 	}
-	return false
+	return installHookEvents(hookInstallSpec{
+		Label:         "Copilot",
+		Path:          filepath.Join(baseDir, ".github", "hooks", "archcore.json"),
+		EnsureVersion: true,
+		Probe:         bashEntryHasCommand,
+		Events:        events,
+	})
 }
