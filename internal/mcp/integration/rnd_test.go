@@ -34,7 +34,7 @@ func TestRejectedRnDStaysVisible(t *testing.T) {
 	}
 
 	// list_documents with NO status filter must include the rejected rnd.
-	docs := decodeJSON[[]tools.LocalDocument](t, mustCallTool(t, c, "list_documents", nil))
+	docs := decodeListDocuments(t, mustCallTool(t, c, "list_documents", nil))
 	if !rejectedRnDVisible(docs, wantPath) {
 		t.Errorf("list_documents (no status filter) hid the rejected rnd %q; got %+v", wantPath, docs)
 	}

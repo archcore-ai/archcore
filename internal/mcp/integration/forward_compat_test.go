@@ -20,7 +20,7 @@ func TestServer_ServesLocalDocsWithUnknownField(t *testing.T) {
 	c := newTestClient(t, base)
 
 	res := mustCallTool(t, c, "list_documents", map[string]any{})
-	docs := decodeJSON[[]listedDoc](t, res)
+	docs := decodeListedDocs(t, res)
 	if len(docs) != 1 {
 		t.Fatalf("want 1 local doc served despite an unknown config field, got %d: %+v", len(docs), docs)
 	}

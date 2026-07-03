@@ -138,7 +138,7 @@ func listByTag(t *testing.T, c *client.Client, tag string) []tools.LocalDocument
 	res := mustCallTool(t, c, "list_documents", map[string]any{
 		"tags": []string{tag},
 	})
-	return decodeJSON[[]tools.LocalDocument](t, res)
+	return decodeListDocuments(t, res)
 }
 
 // getDoc fetches a single document and decodes the EnrichedDocument payload.

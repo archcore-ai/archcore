@@ -71,7 +71,7 @@ func TestGlobals_SurfacedThroughTools(t *testing.T) {
 	c := newTestClient(t, base)
 
 	res := mustCallTool(t, c, "list_documents", map[string]any{})
-	docs := decodeJSON[[]listedDoc](t, res)
+	docs := decodeListedDocs(t, res)
 	if len(docs) != 3 {
 		t.Fatalf("list_documents: want 3 docs (1 local + 2 global), got %d: %+v", len(docs), docs)
 	}

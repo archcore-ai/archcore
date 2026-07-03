@@ -20,6 +20,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 
 	mcpserver "archcore-cli/internal/mcp"
+	"archcore-cli/internal/mcp/tools"
 	"archcore-cli/internal/sync"
 )
 
@@ -177,4 +178,22 @@ func createADR(t *testing.T, c *client.Client, dir, slug string) string {
 		t.Fatalf("create_document(%s) returned empty path; payload=%v", slug, payload)
 	}
 	return path
+}
+
+// decodeListDocuments unmarshals a list_documents envelope and returns the
+// documents page.
+func decodeListDocuments(t *testing.T, result *mcp.CallToolResult) []tools.LocalDocument {
+	t.Helper()
+	return decodeJSON[struct {
+		Documents []tools.LocalDocument `json:"documents"`
+	}](t, result).Documents
+}
+
+// decodeListedDocs is decodeListDocuments for the integration package's
+// reduced listedDoc shape.
+func decodeListedDocs(t *testing.T, result *mcp.CallToolResult) []listedDoc {
+	t.Helper()
+	return decodeJSON[struct {
+		Documents []listedDoc `json:"documents"`
+	}](t, result).Documents
 }

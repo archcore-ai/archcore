@@ -92,7 +92,7 @@ func TestInitToCreateToGetRoundTrip(t *testing.T) {
 
 	// 2. list_documents on freshly initialized project — empty.
 	listResult := mustCallTool(t, c, "list_documents", nil)
-	docs := decodeJSON[[]tools.LocalDocument](t, listResult)
+	docs := decodeListDocuments(t, listResult)
 	if len(docs) != 0 {
 		t.Fatalf("list_documents on empty project: got %d docs, want 0", len(docs))
 	}
@@ -154,7 +154,7 @@ func TestInitToCreateToGetRoundTrip(t *testing.T) {
 
 	// 5. list_documents now returns the one created doc.
 	listResult2 := mustCallTool(t, c, "list_documents", nil)
-	docs2 := decodeJSON[[]tools.LocalDocument](t, listResult2)
+	docs2 := decodeListDocuments(t, listResult2)
 	if len(docs2) != 1 {
 		t.Fatalf("list_documents after create: got %d docs, want 1", len(docs2))
 	}

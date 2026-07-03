@@ -19,10 +19,11 @@ func listTitles(t *testing.T, base string) map[string]string {
 	if result.IsError {
 		t.Fatalf("list_documents error: %s", resultText(t, result))
 	}
-	var docs []LocalDocument
-	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &docs); err != nil {
+	var envelope listDocumentsResult
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &envelope); err != nil {
 		t.Fatal(err)
 	}
+	docs := envelope.Documents
 	titles := make(map[string]string, len(docs))
 	for _, d := range docs {
 		titles[d.Path] = d.Title

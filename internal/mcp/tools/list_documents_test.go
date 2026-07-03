@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,10 +29,11 @@ func TestHandleListDocuments_Empty(t *testing.T) {
 		t.Fatal("unexpected error result")
 	}
 
-	var docs []LocalDocument
-	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &docs); err != nil {
+	var envelope listDocumentsResult
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &envelope); err != nil {
 		t.Fatal(err)
 	}
+	docs := envelope.Documents
 	if len(docs) != 0 {
 		t.Errorf("expected 0, got %d", len(docs))
 	}
@@ -48,10 +50,11 @@ func TestHandleListDocuments_AllDocs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var docs []LocalDocument
-	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &docs); err != nil {
+	var envelope listDocumentsResult
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &envelope); err != nil {
 		t.Fatal(err)
 	}
+	docs := envelope.Documents
 	if len(docs) != 2 {
 		t.Errorf("expected 2, got %d", len(docs))
 	}
@@ -70,10 +73,11 @@ func TestHandleListDocuments_FilterByType(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var docs []LocalDocument
-	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &docs); err != nil {
+	var envelope listDocumentsResult
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &envelope); err != nil {
 		t.Fatal(err)
 	}
+	docs := envelope.Documents
 	if len(docs) != 1 {
 		t.Fatalf("expected 1, got %d", len(docs))
 	}
@@ -95,10 +99,11 @@ func TestHandleListDocuments_FilterByCategory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var docs []LocalDocument
-	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &docs); err != nil {
+	var envelope listDocumentsResult
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &envelope); err != nil {
 		t.Fatal(err)
 	}
+	docs := envelope.Documents
 	if len(docs) != 1 {
 		t.Fatalf("expected 1, got %d", len(docs))
 	}
@@ -120,10 +125,11 @@ func TestHandleListDocuments_FilterByStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var docs []LocalDocument
-	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &docs); err != nil {
+	var envelope listDocumentsResult
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &envelope); err != nil {
 		t.Fatal(err)
 	}
+	docs := envelope.Documents
 	if len(docs) != 1 {
 		t.Fatalf("expected 1, got %d", len(docs))
 	}
@@ -146,10 +152,11 @@ func TestHandleListDocuments_FilterByTags(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var docs []LocalDocument
-	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &docs); err != nil {
+	var envelope listDocumentsResult
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &envelope); err != nil {
 		t.Fatal(err)
 	}
+	docs := envelope.Documents
 	if len(docs) != 1 {
 		t.Fatalf("expected 1, got %d", len(docs))
 	}
@@ -164,10 +171,11 @@ func TestHandleListDocuments_FilterByTags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var docs2 []LocalDocument
-	if err := json.Unmarshal([]byte(result2.Content[0].(mcp.TextContent).Text), &docs2); err != nil {
+	var envelope2 listDocumentsResult
+	if err := json.Unmarshal([]byte(result2.Content[0].(mcp.TextContent).Text), &envelope2); err != nil {
 		t.Fatal(err)
 	}
+	docs2 := envelope2.Documents
 	if len(docs2) != 2 {
 		t.Fatalf("expected 2 (OR semantics), got %d", len(docs2))
 	}
@@ -232,14 +240,97 @@ func TestHandleListDocuments_TagsAndTypeFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var docs []LocalDocument
-	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &docs); err != nil {
+	var envelope listDocumentsResult
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &envelope); err != nil {
 		t.Fatal(err)
 	}
+	docs := envelope.Documents
 	if len(docs) != 1 {
 		t.Fatalf("expected 1 (type+tag filter), got %d", len(docs))
 	}
 	if docs[0].Type != "adr" {
 		t.Errorf("type = %q, want adr", docs[0].Type)
+	}
+}
+
+// TestHandleListDocuments_Pagination pins the limit/offset contract: default
+// 100, cap 500 (silent clamp), 0/omitted → default, negative → error, offset
+// past the end → empty page, truncated flag set exactly when more rows remain.
+func TestHandleListDocuments_Pagination(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	for i := range 7 {
+		writeDoc(t, base, "knowledge", fmt.Sprintf("doc-%d.adr.md", i), "---\ntitle: D\nstatus: draft\n---\n")
+	}
+
+	decode := func(t *testing.T, result *mcp.CallToolResult) listDocumentsResult {
+		t.Helper()
+		var envelope listDocumentsResult
+		if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &envelope); err != nil {
+			t.Fatal(err)
+		}
+		return envelope
+	}
+
+	tests := []struct {
+		name          string
+		args          map[string]any
+		wantErr       bool
+		wantReturned  int
+		wantOffset    int
+		wantTruncated bool
+	}{
+		{name: "default returns all under limit", args: nil, wantReturned: 7},
+		{name: "limit truncates", args: map[string]any{"limit": 3}, wantReturned: 3, wantTruncated: true},
+		{name: "offset pages", args: map[string]any{"limit": 3, "offset": 3}, wantReturned: 3, wantOffset: 3, wantTruncated: true},
+		{name: "last page not truncated", args: map[string]any{"limit": 3, "offset": 6}, wantReturned: 1, wantOffset: 6},
+		{name: "offset past end yields empty page", args: map[string]any{"offset": 100}, wantReturned: 0, wantOffset: 7},
+		{name: "limit above cap is clamped", args: map[string]any{"limit": 100000}, wantReturned: 7},
+		{name: "zero limit maps to default", args: map[string]any{"limit": 0}, wantReturned: 7},
+		{name: "negative limit is an error", args: map[string]any{"limit": -1}, wantErr: true},
+		{name: "negative offset is an error", args: map[string]any{"offset": -1}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := callTool(HandleListDocuments(base), tt.args)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.IsError != tt.wantErr {
+				t.Fatalf("IsError = %v, want %v (%s)", result.IsError, tt.wantErr, resultText(t, result))
+			}
+			if tt.wantErr {
+				return
+			}
+			envelope := decode(t, result)
+			if envelope.Total != 7 {
+				t.Errorf("total = %d, want 7", envelope.Total)
+			}
+			if envelope.Returned != tt.wantReturned || len(envelope.Documents) != tt.wantReturned {
+				t.Errorf("returned = %d (docs %d), want %d", envelope.Returned, len(envelope.Documents), tt.wantReturned)
+			}
+			if envelope.Offset != tt.wantOffset {
+				t.Errorf("offset = %d, want %d", envelope.Offset, tt.wantOffset)
+			}
+			if envelope.Truncated != tt.wantTruncated {
+				t.Errorf("truncated = %v, want %v", envelope.Truncated, tt.wantTruncated)
+			}
+		})
+	}
+}
+
+// TestHandleListDocuments_EmptyDocumentsIsArray pins that "documents" is [] on
+// an empty page, never null (matching the search_documents convention).
+func TestHandleListDocuments_EmptyDocumentsIsArray(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	result, err := callTool(HandleListDocuments(base), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := result.Content[0].(mcp.TextContent).Text
+	if !strings.Contains(text, `"documents":[]`) {
+		t.Errorf("empty page must serialize documents as [], got: %s", text)
 	}
 }
