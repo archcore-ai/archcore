@@ -4,10 +4,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -16,7 +13,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"archcore-cli/internal/sync"
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -228,12 +224,13 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 			return errorResult(sanitizeError("scanning documents", err)), nil
 		}
 
-		// Load manifest for relations. If it fails, continue without relations.
-		var manifest *sync.Manifest
-		if m, mErr := sync.LoadManifest(baseDir); mErr == nil {
-			manifest = m
-		} else if !errors.Is(mErr, fs.ErrNotExist) {
-			fmt.Fprintf(os.Stderr, "search_documents: failed to load manifest: %v\n", mErr)
+		// Load manifest for relations. A present-but-invalid manifest is a tool
+		// error, consistent with get_document and list_relations — a silently
+		// empty relation set is exactly the incomplete-context failure the
+		// globals work eliminated (missing file = empty manifest, not an error).
+		manifest, mErr := sharedManifestStore.load(baseDir)
+		if mErr != nil {
+			return errorResult(sanitizeError("loading manifest", mErr)), nil
 		}
 
 		lowerContent := strings.ToLower(contentFilter)

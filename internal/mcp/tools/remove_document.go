@@ -85,18 +85,18 @@ func HandleRemoveDocument(baseDir string) func(ctx context.Context, request mcp.
 			return errorResult(sanitizeError("removing "+relPath, err)), nil
 		}
 
-		// Clean up relations from manifest.
+		// Clean up relations from manifest. relations_removed counts only the
+		// deleted document's own edges; CleanupRelations still opportunistically
+		// drops any other stale edge, but those are hygiene, not this deletion.
 		relationsRemoved := 0
-		m, err := sync.LoadManifest(baseDir)
-		if err != nil {
-			return errorResult(sanitizeError("file deleted but failed to load manifest", err)), nil
-		}
 		archcoreDir := filepath.Join(baseDir, ".archcore")
-		relationsRemoved = m.CleanupRelations(archcoreDir)
-		if relationsRemoved > 0 {
-			if err := sync.SaveManifest(baseDir, m); err != nil {
-				return errorResult(sanitizeError("file deleted but failed to save manifest", err)), nil
-			}
+		docRelPath := normalizeRelPath(relPath)
+		if err := sharedManifestStore.mutate(baseDir, func(m *sync.Manifest) bool {
+			out, in := m.RelationsFor(docRelPath)
+			relationsRemoved = len(out) + len(in)
+			return m.CleanupRelations(archcoreDir) > 0
+		}); err != nil {
+			return errorResult(sanitizeError("file deleted but failed to update manifest", err)), nil
 		}
 
 		result := map[string]any{

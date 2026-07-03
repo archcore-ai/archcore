@@ -66,17 +66,12 @@ func HandleRemoveRelation(baseDir string) func(ctx context.Context, request mcp.
 			return errorResult("target path must not contain '..'"), nil
 		}
 
-		m, err := sync.LoadManifest(baseDir)
-		if err != nil {
-			return errorResult(sanitizeError("loading manifest", err)), nil
-		}
-
-		removed := m.RemoveRelation(source, target, sync.RelationType(relType))
-
-		if removed {
-			if err := sync.SaveManifest(baseDir, m); err != nil {
-				return errorResult(sanitizeError("saving manifest", err)), nil
-			}
+		var removed bool
+		if err := sharedManifestStore.mutate(baseDir, func(m *sync.Manifest) bool {
+			removed = m.RemoveRelation(source, target, sync.RelationType(relType))
+			return removed
+		}); err != nil {
+			return errorResult(sanitizeError("updating manifest", err)), nil
 		}
 
 		result := map[string]any{

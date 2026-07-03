@@ -251,3 +251,49 @@ func TestHandleRemoveDocument_BothDirectionRelations(t *testing.T) {
 		t.Errorf("expected 0 relations, got %d", len(m2.Relations))
 	}
 }
+
+// TestHandleRemoveDocument_StaleRelationsNotCounted pins relations_removed
+// semantics: only the deleted document's own edges are counted; a pre-existing
+// stale edge (both endpoints already missing) is still cleaned opportunistically
+// but does not inflate this deletion's count.
+func TestHandleRemoveDocument_StaleRelationsNotCounted(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
+	writeDoc(t, base, "", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
+	writeDoc(t, base, "", "c.plan.md", "---\ntitle: C\nstatus: draft\n---\n\nbody")
+
+	m := sync.NewManifest()
+	m.AddRelation("a.adr.md", "b.prd.md", sync.RelImplements) // outgoing edge of A — counted
+	m.AddRelation("c.plan.md", "a.adr.md", sync.RelRelated)   // incoming edge of A — counted
+	m.AddRelation("x.adr.md", "y.adr.md", sync.RelRelated)    // stale: both endpoints missing
+	if err := sync.SaveManifest(base, m); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+		"path": ".archcore/a.adr.md",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsError {
+		t.Fatalf("unexpected error: %s", result.Content[0].(mcp.TextContent).Text)
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp["relations_removed"] != float64(2) {
+		t.Errorf("relations_removed = %v, want 2 (stale edge must not be counted)", resp["relations_removed"])
+	}
+
+	m2, err := sync.LoadManifest(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m2.Relations) != 0 {
+		t.Errorf("expected all relations cleaned (incl. the stale edge), got %d", len(m2.Relations))
+	}
+}

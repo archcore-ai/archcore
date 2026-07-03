@@ -110,17 +110,12 @@ func HandleAddRelation(baseDir string) func(ctx context.Context, request mcp.Cal
 			return errorResult("target document not found: .archcore/" + target), nil
 		}
 
-		m, err := sync.LoadManifest(baseDir)
-		if err != nil {
-			return errorResult(sanitizeError("loading manifest", err)), nil
-		}
-
-		added := m.AddRelation(source, target, sync.RelationType(relType))
-
-		if added {
-			if err := sync.SaveManifest(baseDir, m); err != nil {
-				return errorResult(sanitizeError("saving manifest", err)), nil
-			}
+		var added bool
+		if err := sharedManifestStore.mutate(baseDir, func(m *sync.Manifest) bool {
+			added = m.AddRelation(source, target, sync.RelationType(relType))
+			return added
+		}); err != nil {
+			return errorResult(sanitizeError("updating manifest", err)), nil
 		}
 
 		result := map[string]any{

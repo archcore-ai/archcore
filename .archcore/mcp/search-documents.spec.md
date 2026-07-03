@@ -49,7 +49,7 @@ If the implementation, tests, or downstream consumers diverge from this specific
 - Tool registration: @internal/mcp/server.go
 - Tests: @internal/mcp/tools/search_documents_test.go
 - Shared scan helpers: @internal/mcp/tools/common.go (`ScanDocuments`, `ScanDocumentsFull`)
-- Manifest loading: @internal/sync/manifest.go
+- Manifest loading: @internal/mcp/tools/manifest_store.go (shared cached store, `sharedManifestStore.load`) over @internal/sync/manifest.go
 - Source-extension list: @templates/source_extensions.go
 
 ## Subject
@@ -68,7 +68,7 @@ If the implementation, tests, or downstream consumers diverge from this specific
 | Explicit reference | A path reference in a document body matching the regex `@[\w./\-_]+`.                                                                                           |
 | Bare mention       | A path-like token in a document body matching `[\w\-_]+/[\w\-_./]+`, accepted only when one of the heuristic conditions defined in Normative Behavior §5 holds. |
 | Specificity        | A non-negative integer measure of how precisely a candidate match relates to the filter.                                                                        |
-| Manifest           | The JSON file at `.archcore/.sync-state.json` that stores document relations, loaded via `sync.LoadManifest`.                                                   |
+| Manifest           | The JSON file at `.archcore/.sync-state.json` that stores document relations, loaded via the shared manifest store.                                             |
 | Source extension   | An extension listed in `templates.IsSourceExtension` (e.g., `.go`, `.ts`, `.py`, `.md`).                                                                        |
 | Output mode        | The `mode` parameter selecting payload detail: `snippets` (excerpt windows only) or `full` (also inline the matched document's body).                            |
 
@@ -144,9 +144,9 @@ A JSON array of `searchResult` objects. Each object has the following fields:
 
 ### §3 Manifest loading
 
-1. The handler SHOULD call `sync.LoadManifest(baseDir)` to obtain relation data.
-2. If manifest loading fails, the handler MUST continue processing and emit all results with empty `incoming_relations` and `outgoing_relations` arrays.
-3. Manifest load failures MUST be logged to `os.Stderr` (never `os.Stdout`, which is the MCP protocol channel).
+1. The handler MUST obtain relation data from the shared manifest store (`sharedManifestStore.load` in @internal/mcp/tools/manifest_store.go), which caches the parsed manifest keyed on the file's (mtime, size) and delegates to `sync.LoadManifest`.
+2. A **missing** `.sync-state.json` is NOT an error: it yields an empty manifest, and all results carry empty `incoming_relations` / `outgoing_relations` arrays.
+3. A **present-but-invalid** manifest MUST fail the call with the MCP error `loading manifest: <reason>` — consistent with `get_document` and `list_relations`. Silently degrading to empty relations hides real graph state (the silent-incomplete-context failure class). The reason preserves validation detail (built from relative manifest keys); OS-level failures map to a fixed I/O class via `sanitizeError`, so the message never embeds an absolute filesystem path.
 
 ### §4 Metadata filters (AND semantics)
 
@@ -247,14 +247,15 @@ For every emitted result, the handler MUST populate `incoming_relations` and `ou
 | All filters empty     | MCP error: `specify at least one filter (...)`                             | Caller adds at least one filter.                                                                    |
 | `limit < 0`           | MCP error: `limit must be non-negative`                                    | Caller supplies non-negative limit.                                                                 |
 | Invalid `mtime_after` | MCP error: `invalid mtime_after: <reason>`                                 | Caller supplies valid RFC3339 or relative duration.                                                 |
-| Manifest read fails   | Continue with empty relations, log to stderr                               | Caller treats empty relations as absence of data.                                                   |
+| Manifest missing      | Empty relations arrays on every result                                     | Caller treats empty relations as absence of data.                                                   |
+| Manifest present but invalid | MCP error: `loading manifest: <reason>` (validation detail preserved; never an absolute path) | Caller (or user) repairs `.sync-state.json`; relation data is authoritative, not silently droppable. |
 | Malformed frontmatter | Silently skip frontmatter parse; doc still indexed with empty title/status | Caller cannot distinguish malformed frontmatter from absent frontmatter — acceptable for this spec. |
-| I/O error during scan | Wrapped error returned to MCP client                                       | Caller retries or falls back.                                                                       |
+| I/O error during scan | MCP error: `scanning documents: <I/O class>` (sanitized, no absolute path) | Caller retries or falls back.                                                                       |
 
 ### Failure semantics
 
-- Non-retriable: filter validation errors, `limit` validation.
-- Retriable: transient I/O errors during scan (wrapped and surfaced).
+- Non-retriable: filter validation errors, `limit` validation, present-but-invalid manifest (until the file is repaired).
+- Retriable: transient I/O errors during scan (sanitized and surfaced).
 - The handler is idempotent: no observable state changes between calls.
 
 ## Conformance
@@ -378,10 +379,11 @@ search_documents({})
 
 - The tool operates only under `baseDir/.archcore/` and never outside. No path traversal is possible via the filters (no filter accepts a filesystem path as input — `path_ref` is matched against document body content, not dereferenced).
 - The tool is read-only; no content can be written, modified, or deleted through it.
-- Manifest load failures MUST be logged to stderr, not stdout, to protect the MCP protocol channel from corruption.
+- Every error message is sanitized: OS-level failures map to a fixed I/O class, so no absolute filesystem path ever reaches the MCP client (see @.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md). Nothing is written to stdout besides protocol frames.
 
 ## Compatibility
 
 - The response shape is additive: new fields MAY be added to `searchResult` or `Match` without breaking existing consumers that ignore unknown fields. The `body` field (added with `mode=full`) is one such additive field — absent in `snippets` mode.
 - Existing field names, types, and enum values MUST NOT be removed or repurposed in a minor CLI release. A breaking change requires a new major version.
 - The `sort` and `mode` enums MAY grow additional values in a minor release; existing `relevance`, `mtime`, `snippets`, and `full` semantics MUST remain stable.
+- Behavior change (2026-07): a present-but-invalid manifest was previously degraded to empty relations with a stderr log; it is now a tool error (§3.3), unified with `get_document` / `list_relations`.

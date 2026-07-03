@@ -8,7 +8,6 @@ import (
 	"io/fs"
 
 	"archcore-cli/internal/config"
-	"archcore-cli/internal/sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -67,22 +66,25 @@ func HandleGetDocument(baseDir string) func(ctx context.Context, request mcp.Cal
 
 		enriched := EnrichedDocument{LocalDocument: doc}
 
-		// Try to load relations from manifest.
+		// Load relations from the manifest. A present-but-invalid manifest is a
+		// tool error — silently reporting "no relations" hides real graph state.
 		relPath := normalizeRelPath(cleanPath)
-		if m, mErr := sync.LoadManifest(baseDir); mErr == nil {
-			outgoing, incoming := m.RelationsFor(relPath)
-			for _, r := range outgoing {
-				enriched.OutgoingRelations = append(enriched.OutgoingRelations, DocumentRelation{
-					Path: ".archcore/" + r.Target,
-					Type: string(r.Type),
-				})
-			}
-			for _, r := range incoming {
-				enriched.IncomingRelations = append(enriched.IncomingRelations, DocumentRelation{
-					Path: ".archcore/" + r.Source,
-					Type: string(r.Type),
-				})
-			}
+		m, mErr := sharedManifestStore.load(baseDir)
+		if mErr != nil {
+			return errorResult(sanitizeError("loading manifest", mErr)), nil
+		}
+		outgoing, incoming := m.RelationsFor(relPath)
+		for _, r := range outgoing {
+			enriched.OutgoingRelations = append(enriched.OutgoingRelations, DocumentRelation{
+				Path: ".archcore/" + r.Target,
+				Type: string(r.Type),
+			})
+		}
+		for _, r := range incoming {
+			enriched.IncomingRelations = append(enriched.IncomingRelations, DocumentRelation{
+				Path: ".archcore/" + r.Source,
+				Type: string(r.Type),
+			})
 		}
 
 		data, err := json.Marshal(enriched)

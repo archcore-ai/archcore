@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -9,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func TestSanitizeError(t *testing.T) {
@@ -118,7 +121,7 @@ func TestHandleAddRelation_UnreadableManifest_NoPathLeak(t *testing.T) {
 	}
 	msg := resultText(t, result)
 	assertNoAbsPath(t, base, msg)
-	if !strings.Contains(msg, "loading manifest: permission denied") {
+	if !strings.Contains(msg, "updating manifest: permission denied") {
 		t.Errorf("message = %q, want sanitized permission-denied class", msg)
 	}
 }
@@ -149,6 +152,64 @@ func TestHandleAddRelation_CorruptManifest_ValidationTextSurvives(t *testing.T) 
 	assertNoAbsPath(t, base, msg)
 	if !strings.Contains(msg, `invalid type "bogus"`) {
 		t.Errorf("message = %q, want validation detail preserved", msg)
+	}
+}
+
+// TestReadTools_CorruptManifestIsToolError pins the unified corrupt-manifest
+// semantics: a present-but-invalid .sync-state.json is a tool error in every
+// read tool — never a silent "no relations" (a missing file stays an empty
+// manifest and is not an error).
+func TestReadTools_CorruptManifestIsToolError(t *testing.T) {
+	t.Parallel()
+	corrupt := `{"version":1,"files":{},"relations":[{"source":"x.adr.md","target":"y.adr.md","type":"bogus"}]}`
+
+	tests := []struct {
+		name    string
+		handler func(string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error)
+		args    map[string]any
+	}{
+		{
+			name:    "list_relations",
+			handler: HandleListRelations,
+			args:    map[string]any{},
+		},
+		{
+			name:    "get_document",
+			handler: HandleGetDocument,
+			args:    map[string]any{"path": ".archcore/knowledge/a.adr.md"},
+		},
+		{
+			name:    "search_documents",
+			handler: HandleSearchDocuments,
+			args:    map[string]any{"types": []any{"adr"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupTestArchcore(t)
+			writeDoc(t, base, "knowledge", "a.adr.md", sanitizeTestDoc)
+			manifestFile := filepath.Join(base, ".archcore", ".sync-state.json")
+			if err := os.WriteFile(manifestFile, []byte(corrupt), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			result, err := callTool(tt.handler(base), tt.args)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !result.IsError {
+				t.Fatal("expected tool error for present-but-invalid manifest")
+			}
+			msg := resultText(t, result)
+			assertNoAbsPath(t, base, msg)
+			if !strings.Contains(msg, "loading manifest") {
+				t.Errorf("message = %q, want loading-manifest error", msg)
+			}
+			if !strings.Contains(msg, `invalid type "bogus"`) {
+				t.Errorf("message = %q, want validation detail preserved", msg)
+			}
+		})
 	}
 }
 
@@ -268,7 +329,7 @@ func TestHandleRemoveDocument_UnreadableManifest_NoPathLeak(t *testing.T) {
 	}
 	msg := resultText(t, result)
 	assertNoAbsPath(t, base, msg)
-	if !strings.Contains(msg, "file deleted but failed to load manifest: permission denied") {
+	if !strings.Contains(msg, "file deleted but failed to update manifest: permission denied") {
 		t.Errorf("message = %q, want sanitized manifest error", msg)
 	}
 }

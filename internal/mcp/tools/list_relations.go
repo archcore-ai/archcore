@@ -28,12 +28,11 @@ func HandleListRelations(baseDir string) func(ctx context.Context, request mcp.C
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		path := request.GetString("path", "")
 
-		m, err := sync.LoadManifest(baseDir)
+		// A present-but-invalid manifest is a tool error — silently reporting an
+		// empty graph hides real relation state (missing file = empty manifest).
+		m, err := sharedManifestStore.load(baseDir)
 		if err != nil {
-			// If manifest can't be loaded, return empty relations.
-			result := map[string]any{"relations": []sync.Relation{}}
-			data, _ := json.Marshal(result)
-			return mcp.NewToolResultText(string(data)), nil
+			return errorResult(sanitizeError("loading manifest", err)), nil
 		}
 
 		var relations []sync.Relation
