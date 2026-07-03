@@ -16,29 +16,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ErrServerUnreachable = errors.New("server unreachable")
-
 // skipAgentSentinel is the AgentID value used to represent the "Skip" option in
 // the agent picker. Empty AgentID is reserved for this sentinel and never
 // matches a real agent.
 const skipAgentSentinel agents.AgentID = ""
-
-type serverUnreachableError struct {
-	url string
-	err error
-}
-
-func (e *serverUnreachableError) Error() string {
-	return fmt.Sprintf("cannot reach server at %s: %v", e.url, e.err)
-}
-
-func (e *serverUnreachableError) Unwrap() error {
-	return e.err
-}
-
-func (e *serverUnreachableError) Is(target error) bool {
-	return target == ErrServerUnreachable
-}
 
 type initResult struct {
 	serverReachable bool // only meaningful when ServerURL != ""
@@ -96,7 +77,7 @@ func runInit(ctx context.Context, baseDir string, settings *config.Settings) (*i
 			// Soft failure: an unreachable server must not abort init — the
 			// directory and settings are already on disk and the remaining
 			// setup (agent detection, hooks, MCP config) is local-only.
-			fmt.Println(display.WarnLine((&serverUnreachableError{url: serverURL, err: err}).Error()))
+			fmt.Println(display.WarnLine(fmt.Sprintf("cannot reach server at %s: %v", serverURL, err)))
 		} else {
 			result.serverReachable = true
 		}
