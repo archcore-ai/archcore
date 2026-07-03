@@ -209,3 +209,66 @@ func TestOpenCode_WriteMCPConfig_PreservesExistingArchcore(t *testing.T) {
 		t.Errorf("existing archcore entry was overwritten; file = %s", data)
 	}
 }
+
+// TestOpenCode_WriteMCPConfig_CorruptedJSON pins the delegation to the shared
+// ADR policy: a corrupted opencode.json is backed up as .bak and replaced with
+// a fresh archcore-only config (previously a hard failure).
+func TestOpenCode_WriteMCPConfig_CorruptedJSON(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	original := `{not json`
+	if err := os.WriteFile(filepath.Join(base, "opencode.json"), []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := writeOpenCodeMCPConfig(base); err != nil {
+		t.Fatalf("corrupted config must be backed up, not fail: %v", err)
+	}
+	bak, err := os.ReadFile(filepath.Join(base, "opencode.json.bak"))
+	if err != nil {
+		t.Fatalf("reading backup: %v", err)
+	}
+	if string(bak) != original {
+		t.Errorf(".bak = %q, want original bytes", bak)
+	}
+	data, err := os.ReadFile(filepath.Join(base, "opencode.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		MCP map[string]json.RawMessage `json:"mcp"`
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.MCP["archcore"]; !ok {
+		t.Error("fresh config must contain the archcore entry")
+	}
+}
+
+// TestOpenCode_WriteMCPConfig_NullMCPSection pins `"mcp": null` handling
+// (previously a nil-map assignment panic).
+func TestOpenCode_WriteMCPConfig_NullMCPSection(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	if err := os.WriteFile(filepath.Join(base, "opencode.json"), []byte(`{"mcp": null}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := writeOpenCodeMCPConfig(base); err != nil {
+		t.Fatalf("null mcp section must not fail: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(base, "opencode.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		MCP map[string]json.RawMessage `json:"mcp"`
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.MCP["archcore"]; !ok {
+		t.Error("archcore entry must be added over a null section")
+	}
+}

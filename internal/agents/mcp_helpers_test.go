@@ -337,3 +337,114 @@ func TestWriteStandardMCPJSON_InvalidJSON(t *testing.T) {
 		t.Error("missing 'archcore' in mcpServers after recovery")
 	}
 }
+
+// TestWriteVSCodeMCPJSON_JSONCLeftUntouched pins the corruptSkipInstall policy
+// for VS Code targets: a JSONC file (valid for VS Code, invalid strict JSON)
+// must not be backed up or replaced — the user's other MCP servers survive and
+// the install degrades to manual instructions with a nil error.
+func TestWriteVSCodeMCPJSON_JSONCLeftUntouched(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	filePath := filepath.Join(base, ".vscode", "mcp.json")
+	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := "// user comment\n{\"servers\": {\"other\": {\"type\": \"stdio\", \"command\": \"other\"}}}\n"
+	if err := os.WriteFile(filePath, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := WriteVSCodeMCPJSON(filePath); err != nil {
+		t.Fatalf("JSONC file must not fail the install: %v", err)
+	}
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != original {
+		t.Errorf("JSONC file must be left byte-identical:\ngot:\n%s\nwant:\n%s", data, original)
+	}
+	if _, err := os.Stat(filePath + ".bak"); !os.IsNotExist(err) {
+		t.Error("no .bak may be created for a JSONC file")
+	}
+}
+
+// TestWriteStandardMCPJSON_NullServersSection pins the `"mcpServers": null`
+// handling (previously a nil-map assignment panic).
+func TestWriteStandardMCPJSON_NullServersSection(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	filePath := filepath.Join(base, ".mcp.json")
+	if err := os.WriteFile(filePath, []byte(`{"mcpServers": null}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := WriteStandardMCPJSON(filePath); err != nil {
+		t.Fatalf("null servers section must not fail: %v", err)
+	}
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		Servers map[string]json.RawMessage `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Servers["archcore"]; !ok {
+		t.Error("archcore entry must be added over a null section")
+	}
+}
+
+// TestWriteStandardMCPJSON_PreservesTopLevelKeyOrder pins order preservation:
+// the previous map-based rewrite alphabetized the user's keys.
+func TestWriteStandardMCPJSON_PreservesTopLevelKeyOrder(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	filePath := filepath.Join(base, ".mcp.json")
+	input := `{"zeta": 1, "alpha": {"x": true}, "mcpServers": {}}`
+	if err := os.WriteFile(filePath, []byte(input), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := WriteStandardMCPJSON(filePath); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	zi, ai, mi := strings.Index(text, `"zeta"`), strings.Index(text, `"alpha"`), strings.Index(text, `"mcpServers"`)
+	if !(zi >= 0 && zi < ai && ai < mi) {
+		t.Errorf("top-level key order not preserved: zeta@%d alpha@%d mcpServers@%d\n%s", zi, ai, mi, text)
+	}
+}
+
+// TestWriteStandardMCPJSON_BackupWriteFailureAborts pins the abort policy from
+// backup-invalid-configs.adr.md: if the .bak cannot be written, the original
+// corrupted file must stay untouched and the install must fail.
+func TestWriteStandardMCPJSON_BackupWriteFailureAborts(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	filePath := filepath.Join(base, ".mcp.json")
+	original := `{corrupted`
+	if err := os.WriteFile(filePath, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filePath+".bak", 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := WriteStandardMCPJSON(filePath); err == nil {
+		t.Fatal("expected error when the backup cannot be written")
+	}
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != original {
+		t.Error("original corrupted file must stay untouched when backup fails")
+	}
+}
