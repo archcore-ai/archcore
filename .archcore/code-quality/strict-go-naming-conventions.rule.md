@@ -39,7 +39,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 ### D. Constructor functions
 
 - **MUST**: Exported constructors that allocate and return a value are named `New<Type>` and return `*<Type>`, `<Type>`, or an interface satisfied by `<Type>`. Examples: `NewClient`, `NewManifest`, `NewUpdater`, `NewServer`.
-- **MUST**: When a type has multiple constructors with distinct preset configurations, each variant is suffixed: `NewCloudSettings`, `NewOnPremSettings`, `NewNoneSettings`, `NewAuthenticatedClient`. The plain `New<Type>` form is reserved for the simplest default — or omitted if every variant has a meaningful name.
+- **MUST**: When a type has multiple constructors with distinct preset configurations, each variant is suffixed: `NewCloudSettings`, `NewOnPremSettings`, `NewNoneSettings`, `NewSyncClient`. The plain `New<Type>` form is reserved for the simplest default — or omitted if every variant has a meaningful name.
 - **MAY**: Use the functional-options pattern (`NewSettings(WithCloud(), WithProject(42))`) as an alternative to variant-suffix constructors when the configuration space is large or open-ended. Pick one style per type and stay consistent.
 - **MAY**: Use `Build<Type>` or `Make<Type>` for **multi-step assembly** that performs non-trivial work — reads files, parses input, traverses a graph — before producing the value. Example: `BuildPayload(baseDir, entries)` reads files and parses frontmatter; `BuildIndex` walks a directory. Keep `New<Type>` for lightweight constructors that only initialize fields.
 - **MUST**: Cobra command factories (package `cmd`) are named `new<Name>Cmd` — lowercase `new`, suffix `Cmd`. They are unexported because cobra commands are wired only inside `cmd/`. (Project convention, not Go-wide practice.)
@@ -47,7 +47,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 
 ### E. Function and method names
 
-- **MUST**: Functions and methods are verbs or verb phrases — `Validate`, `AddRelation`, `CleanupRelations`, `CheckHealth`, `ListProjects`.
+- **MUST**: Functions and methods are verbs or verb phrases — `Validate`, `AddRelation`, `CleanupRelations`, `CheckHealth`.
 - **MUST NOT**: Prefix simple property-style getters with `Get`. Wrong: `GetSync`, `GetServerURL`. Right: `Sync`, `ServerURL`. (Effective Go.)
 - **MUST**: Property-style methods (no parameters, return a derived value, idempotent) are nouns: `Client.ServerURL()`, `Settings.Sync()`.
 - **MUST**: Setters use the `Set<Property>` form: `SetTimeout`, `SetVerbose`. Setters take exactly the value they set.
@@ -58,7 +58,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 
 - **MUST**: A single letter matching the type's initial — `c` for `Client`, `s` for `Settings`, `m` for `Manifest`, `u` for `Updater`, `a` for `Agent`.
 - **MUST**: The same receiver name across every method on the same type. Mixing `c *Client` and `cl *Client` in one package is forbidden.
-- **EDGE CASE**: When two types in the same package share an initial (e.g., `Settings` and `Server`), use the shortest unambiguous prefix and stay consistent — `s` for `Settings`, `srv` for `Server`. Document the choice with a one-line comment at the first method.
+- **EDGE CASE**: When two types in the same package share an initial (e.g., `GlobalInspection` and `GlobalState`), use the shortest unambiguous prefix and stay consistent — `g` for `GlobalInspection`, `st` for `GlobalState`. Document the choice with a one-line comment at the first method.
 - **MUST NOT**: Use `this` or `self`.
 
 ### G. Constants and string enums
@@ -86,11 +86,11 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 
 ### H. Package names
 
-- **MUST**: Lowercase, single-word, ASCII letters only. Wrong: `helperUtils`, `helper_utils`, `myPkg`. Right: `agents`, `sync`, `update`, `templates`, `display`, `prompts`.
-- **MUST**: Singular unless the package is intrinsically a registry of items: `agents`, `templates`, `prompts`, `tools` (registries — plural); `sync`, `update`, `display`, `config` (singular role/verb). (Project preference, not a Go-wide rule.)
+- **MUST**: Lowercase, single-word, ASCII letters only. Wrong: `helperUtils`, `helper_utils`, `myPkg`. Right: `agents`, `sync`, `update`, `templates`, `display`, `prompts`, `jsonfile`.
+- **MUST**: Singular unless the package is intrinsically a registry of items: `agents`, `templates`, `prompts`, `tools` (registries — plural); `sync`, `update`, `display`, `config`, `jsonfile` (singular role/verb). (Project preference, not a Go-wide rule.)
 - **MUST NOT**: Use generic names — `util`, `utils`, `helpers`, `common`, `misc`, `shared`. Pick a name that describes what is *inside*.
 - **MUST NOT**: Stutter the package name in identifiers exposed by the package: `agents.AgentList`, `sync.SyncManifest`. Use `agents.List`, `sync.Manifest`.
-- **NOTE**: `internal/sync` shadows stdlib `sync`. Internal use is fine; importers in `cmd/` alias it as `archsync`. Do not rename to avoid the shadow.
+- **NOTE**: `internal/sync` shadows stdlib `sync`. Internal use is fine; importers alias it as `archsync` whenever the file also needs (or could plausibly need) stdlib `sync`. Do not rename to avoid the shadow.
 
 ### I. File names
 
@@ -100,7 +100,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 
 ### J. Error names and messages
 
-- **MUST**: Sentinel errors are package-level `var` declared as `Err<Cause>`, exported when the caller is expected to compare with `errors.Is`: `ErrServerUnreachable`. Internal sentinels stay unexported (`errInvalidPath`).
+- **MUST**: Sentinel errors are package-level `var` declared as `Err<Cause>`, exported when the caller is expected to compare with `errors.Is`: `ErrServerUnreachable`, `ErrAlreadyReported`. Internal sentinels stay unexported (`errPathEscapes`).
 - **MUST**: Custom error types are named `<cause>Error` — `serverUnreachableError`, `validationError`, `pathError`. Export them when external callers must `errors.As` to read structured fields (cf. `*os.PathError`); keep unexported otherwise.
 - **MUST**: Error messages start with a lowercase letter and do not end with punctuation: `"sync mode requires project_id"`, not `"Sync mode requires project_id."`.
 - **EXCEPTION**: Proper nouns retain their canonical case, even at the start of a message: `"GitHub API returned status %d"`, `"S3 upload failed"`, `"Postgres connection refused"` are all valid.
@@ -125,7 +125,7 @@ The codebase already follows ~95% of these rules organically. Codifying them pre
 
 1. **Drift from AI agents.** Agents pattern-match against recent code; without an explicit retrievable rule, the first non-conforming example becomes the next agent's template, and drift compounds.
 2. **Bikeshedding in review.** A clear MUST resolves every "should this be `Url` or `URL`?" question instantly. Reviewers cite a clause; authors fix and move on.
-3. **Type-system erosion.** Three of our four string-enum domains are typed; the other three (`SyncType`, `Status`, `Category`) are bare strings. Without a mandate, the typed pattern slowly atrophies.
+3. **Type-system erosion.** Typed string enums atrophy without a mandate; the original three bare-string domains were migrated, and the rule keeps new ones from appearing.
 
 The strictness is deliberate: every clause maps to a decision the codebase has already made organically. There is no aspirational rule.
 
@@ -258,8 +258,7 @@ return fmt.Errorf("loading config: %v", err) // MUST be %w if caller may unwrap
 
 **Known existing deviations** (new code MUST conform; existing violations are migrated opportunistically when the surrounding code is touched):
 
-- `SyncType*` constants in `internal/config/` must become `type SyncType string`; `Settings.Sync` must use the typed alias.
-- `Status*` constants in `templates/` must become `type DocStatus string`; `Frontmatter.Status` must use the typed alias.
-- `Category*` constants in `templates/` must become `type Category string`; `categoryMap` and `CategoryForType` must use the typed alias.
+- `LocalDocument.Type` and `searchResult.Type` in `internal/mcp/tools/` are bare `string` where `templates.DocumentType` applies (§G). The closed wire vocabularies there (`source_kind`, search match kinds, search modes) are named constants but not typed aliases yet.
+- Historical note: the original three deviations on this list (`SyncType`, `DocStatus`, `Category` bare-string enums) were resolved and verified closed by the July 2026 audit.
 
 **New code** MUST be conforming. A deviation requires a one-line comment naming the reason and the clause: `// §L: grandfathered; in-flight churn risk.`. Silent deviations are review-blocking.
