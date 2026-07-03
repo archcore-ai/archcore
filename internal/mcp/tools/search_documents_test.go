@@ -654,7 +654,7 @@ func TestHandleSearchDocuments_LazyBodyLoad(t *testing.T) {
 	}
 }
 
-func TestHandleSearchDocuments_UnknownTypeReturnsEmpty(t *testing.T) {
+func TestHandleSearchDocuments_UnknownTypeIsError(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "a.rule.md",
@@ -666,9 +666,13 @@ func TestHandleSearchDocuments_UnknownTypeReturnsEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := unmarshalSearch(t, result)
-	if len(got) != 0 {
-		t.Errorf("expected 0 matches for unknown type, got %d", len(got))
+	// A typo'd type previously matched nothing, indistinguishable from "no
+	// documents" — the sibling category/status filters always errored.
+	if !result.IsError {
+		t.Fatal("expected error for unknown type filter")
+	}
+	if msg := resultText(t, result); !strings.Contains(msg, `invalid type "nonexistent"`) {
+		t.Errorf("message = %q, want invalid-type error", msg)
 	}
 }
 

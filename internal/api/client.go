@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -112,7 +113,7 @@ func (c *Client) CheckHealth(ctx context.Context) error {
 		return err
 	}
 	if !result.Ready {
-		return fmt.Errorf("server is not ready")
+		return errors.New("server is not ready")
 	}
 	return nil
 }

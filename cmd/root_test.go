@@ -18,7 +18,7 @@ func TestCleanVersion(t *testing.T) {
 		{"pseudo-version", "v0.0.1-alpha.5.0.20260310123439-e33e445c4e4e", "v0.0.1-alpha.5"},
 		{"pseudo-version+dirty", "v0.0.1-alpha.5.0.20260310123439-e33e445c4e4e+dirty", "v0.0.1-alpha.5"},
 		{"release+dirty", "v1.0.0+dirty", "v1.0.0"},
-		{"dev", "dev", "vdev"},
+		{"dev", "dev", "dev"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -1,18 +1,26 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"archcore-cli/internal/display"
+
+	"github.com/spf13/cobra"
 )
+
+// ErrAlreadyReported marks a failure whose details the command has already
+// printed itself; main only sets the exit code and prints nothing more.
+var ErrAlreadyReported = errors.New("already reported")
 
 var pseudoVersionSuffix = regexp.MustCompile(`\.0\.\d{14}-[0-9a-f]+$`)
 
 func cleanVersion(v string) string {
+	if v == "dev" {
+		return v
+	}
 	if i := strings.Index(v, "+"); i != -1 {
 		v = v[:i]
 	}
@@ -100,7 +108,7 @@ func NewRootCmd(version string) *cobra.Command {
 		newDoctorCmd(),
 		newStatusCmd(),
 		newHooksCmd(ver),
-		newMCPCmd(),
+		newMCPCmd(version),
 		newInstructionsCmd(),
 		newSyncCmd(),
 		newUpdateCmd(ver),

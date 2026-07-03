@@ -17,6 +17,15 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
+// Source annotation vocabulary (wire values; see global-sources.spec §4).
+const (
+	sourceKindLocal  = "local"
+	sourceKindGlobal = "global"
+	// sourceIDReserved marks undeclared content in the reserved global/ tree;
+	// underscores are invalid in a declared id, so it can never collide.
+	sourceIDReserved = "__global__"
+)
+
 // DocumentRelation represents one side of a relation for enriched output.
 type DocumentRelation struct {
 	Path string `json:"path"`
@@ -93,8 +102,8 @@ func scanLocalDocuments(baseDir string, includeContent bool, allGlobals []config
 			return nil
 		}
 		doc := buildDoc(baseDir, p, d, includeContent)
-		doc.SourceID = "local"
-		doc.SourceKind = "local"
+		doc.SourceID = sourceKindLocal
+		doc.SourceKind = sourceKindLocal
 		docs = append(docs, doc)
 		return nil
 	})
@@ -136,7 +145,7 @@ func scanDocuments(baseDir string, includeContent bool, allGlobals []config.Glob
 			}
 			doc := buildDoc(baseDir, p, d, includeContent)
 			doc.SourceID = gs.ID
-			doc.SourceKind = "global"
+			doc.SourceKind = sourceKindGlobal
 			doc.Global = true
 			doc.ReadOnly = true
 			docs = append(docs, doc)
@@ -417,20 +426,20 @@ func writeFileAtomic(absPath string, data []byte) error {
 func annotateSource(doc *LocalDocument, baseDir string, globals []config.GlobalSource) {
 	if id, ok := matchGlobal(baseDir, doc.Path, globals); ok {
 		doc.SourceID = id
-		doc.SourceKind = "global"
+		doc.SourceKind = sourceKindGlobal
 		doc.Global = true
 		doc.ReadOnly = true
 		return
 	}
 	if isReservedGlobalDir(doc.Path) {
-		doc.SourceID = "__global__"
-		doc.SourceKind = "global"
+		doc.SourceID = sourceIDReserved
+		doc.SourceKind = sourceKindGlobal
 		doc.Global = true
 		doc.ReadOnly = true
 		return
 	}
-	doc.SourceID = "local"
-	doc.SourceKind = "local"
+	doc.SourceID = sourceKindLocal
+	doc.SourceKind = sourceKindLocal
 }
 
 // ReadDocumentContent reads a single document fully from a relative path.
@@ -501,6 +510,12 @@ func normalizeTags(tags []string) []string {
 	slices.Sort(out)
 	out = slices.Compact(out)
 	return out
+}
+
+// normalizeRelPath strips the ".archcore/" prefix, converting a tool-facing
+// document path to the manifest-relative form relations are stored in.
+func normalizeRelPath(p string) string {
+	return strings.TrimPrefix(p, ".archcore/")
 }
 
 func errorResult(msg string) *mcp.CallToolResult {

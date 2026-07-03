@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
-
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
+
+	"github.com/spf13/cobra"
 )
 
 func newInstructionsCmd() *cobra.Command {

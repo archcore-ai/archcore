@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -33,10 +34,15 @@ func main() {
 	resolveVersion()
 
 	if err := cmd.NewRootCmd(version).ExecuteContext(ctx); err != nil {
-		if msg := cmd.FormatExecuteError(err); msg != "" {
-			fmt.Println(msg)
-		} else {
-			fmt.Fprintln(os.Stderr, err)
+		switch {
+		case errors.Is(err, cmd.ErrAlreadyReported):
+			// The command already printed its own failure summary.
+		default:
+			if msg := cmd.FormatExecuteError(err); msg != "" {
+				fmt.Fprintln(os.Stderr, msg)
+			} else {
+				fmt.Fprintln(os.Stderr, err)
+			}
 		}
 		os.Exit(1)
 	}

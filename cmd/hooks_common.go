@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"archcore-cli/internal/mcp/tools"
-	"archcore-cli/internal/sync"
+	archsync "archcore-cli/internal/sync"
 	"archcore-cli/templates"
 )
 
@@ -47,8 +47,7 @@ func buildSessionContext(baseDir string) (string, int) {
 
 	var b strings.Builder
 	b.WriteString("[Archcore — Git-native context for AI coding agents]\n")
-	b.WriteString("Git-native context for AI coding agents.\n")
-	b.WriteString("You have MCP tools available: list_documents, get_document, create_document, update_document, add_relation, remove_relation, list_relations.\n")
+	b.WriteString("You have MCP tools available: list_documents, get_document, search_documents, create_document, update_document, remove_document, add_relation, remove_relation, list_relations.\n")
 	if scanWarning != "" {
 		fmt.Fprintf(&b, "\n⚠ %s — context limited to local documents; clone the source or fix .archcore/settings.json.\n", scanWarning)
 	}
@@ -111,7 +110,7 @@ func buildSessionContext(baseDir string) (string, int) {
 	}
 
 	// Document relations summary.
-	if m, mErr := sync.LoadManifest(baseDir); mErr == nil && len(m.Relations) > 0 {
+	if m, mErr := archsync.LoadManifest(baseDir); mErr == nil && len(m.Relations) > 0 {
 		fmt.Fprintf(&b, "\nDOCUMENT RELATIONS: %d relation(s) stored.\n", len(m.Relations))
 		b.WriteString("  Use list_relations, add_relation, remove_relation MCP tools to manage.\n")
 	}

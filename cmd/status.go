@@ -9,14 +9,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
-
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
 	"archcore-cli/internal/mcp/tools"
-	"archcore-cli/internal/sync"
+	archsync "archcore-cli/internal/sync"
 	"archcore-cli/templates"
+
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 func newStatusCmd() *cobra.Command {
@@ -30,7 +30,7 @@ func newStatusCmd() *cobra.Command {
 			}
 			issues := runStatus(cwd)
 			if issues > 0 {
-				return fmt.Errorf("%d issue(s) found", issues)
+				return ErrAlreadyReported
 			}
 			return nil
 		},
@@ -241,7 +241,7 @@ func checkTagHygiene(docs []tools.LocalDocument, scanErr error) int {
 
 func checkManifest(baseDir string) int {
 	issues := 0
-	manifestPath := filepath.Join(baseDir, ".archcore", sync.ManifestFile)
+	manifestPath := filepath.Join(baseDir, ".archcore", archsync.ManifestFile)
 
 	data, err := os.ReadFile(manifestPath)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -253,19 +253,19 @@ func checkManifest(baseDir string) int {
 		return 1
 	}
 
-	jsonIssues := sync.ValidateManifestJSON(data)
+	jsonIssues := archsync.ValidateManifestJSON(data)
 	for _, issue := range jsonIssues {
 		issues++
 		fmt.Println(display.FailLine(fmt.Sprintf("Sync manifest: %s", issue)))
 	}
 
 	if len(jsonIssues) == 0 {
-		var m sync.Manifest
+		var m archsync.Manifest
 		if err := json.Unmarshal(data, &m); err == nil {
 			if m.Files == nil {
 				m.Files = make(map[string]string)
 			}
-			semIssues := sync.ValidateManifest(&m)
+			semIssues := archsync.ValidateManifest(&m)
 			for _, issue := range semIssues {
 				issues++
 				fmt.Println(display.FailLine(fmt.Sprintf("Sync manifest: %s", issue)))
@@ -299,14 +299,14 @@ func checkManifest(baseDir string) int {
 // fixManifest removes orphaned relations from the sync manifest.
 // Returns the number of relations removed and any error.
 func fixManifest(baseDir string) (int, error) {
-	manifestPath := filepath.Join(baseDir, ".archcore", sync.ManifestFile)
+	manifestPath := filepath.Join(baseDir, ".archcore", archsync.ManifestFile)
 
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return 0, nil // no manifest — nothing to fix
 	}
 
-	var m sync.Manifest
+	var m archsync.Manifest
 	if err := json.Unmarshal(data, &m); err != nil {
 		return 0, nil // corrupt manifest — checkManifest will report it
 	}
@@ -317,13 +317,13 @@ func fixManifest(baseDir string) (int, error) {
 		return 0, nil
 	}
 
-	if err := sync.SaveManifest(baseDir, &m); err != nil {
+	if err := archsync.SaveManifest(baseDir, &m); err != nil {
 		return 0, fmt.Errorf("failed to save manifest after cleanup: %w", err)
 	}
 	return removed, nil
 }
 
-func checkDanglingRelations(baseDir string, relations []sync.Relation) []string {
+func checkDanglingRelations(baseDir string, relations []archsync.Relation) []string {
 	var issues []string
 	for _, rel := range relations {
 		srcPath := filepath.Join(baseDir, ".archcore", rel.Source)

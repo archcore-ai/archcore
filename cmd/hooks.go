@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -59,7 +60,7 @@ func newHooksInstallCmd() *cobra.Command {
 				return err
 			}
 			if !config.DirExists(cwd) {
-				return fmt.Errorf(".archcore/ not found — run 'archcore init' first")
+				return errors.New(".archcore/ not found — run 'archcore init' first")
 			}
 
 			if agentFlag != "" {
@@ -152,7 +153,7 @@ func installAgents(baseDir string, list []*agents.Agent) {
 // runHooksInstall installs Claude Code hooks into .claude/settings.json.
 func runHooksInstall(baseDir string) error {
 	if !config.DirExists(baseDir) {
-		return fmt.Errorf(".archcore/ not found — run 'archcore init' first")
+		return errors.New(".archcore/ not found — run 'archcore init' first")
 	}
 
 	events := make([]hookEventInstall, len(archcoreHooks))

@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"fmt"
+	"errors"
 	"path/filepath"
 
 	"archcore-cli/internal/config"
@@ -37,7 +37,7 @@ func newHooksCursorCmd(version string) *cobra.Command {
 // runCursorHooksInstall writes hooks config to .cursor/hooks.json.
 func runCursorHooksInstall(baseDir string) error {
 	if !config.DirExists(baseDir) {
-		return fmt.Errorf(".archcore/ not found — run 'archcore init' first")
+		return errors.New(".archcore/ not found — run 'archcore init' first")
 	}
 
 	events := make([]hookEventInstall, len(cursorHookEvents))

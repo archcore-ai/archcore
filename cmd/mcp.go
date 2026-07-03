@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
 	mcpserver "archcore-cli/internal/mcp"
 	"archcore-cli/internal/mcp/tools"
+
+	"github.com/spf13/cobra"
 )
 
-func newMCPCmd() *cobra.Command {
+func newMCPCmd(version string) *cobra.Command {
 	var projectFlag string
 
 	cmd := &cobra.Command{
@@ -44,7 +44,7 @@ func newMCPCmd() *cobra.Command {
 				}
 			}
 
-			return mcpserver.RunStdio(baseDir)
+			return mcpserver.RunStdio(baseDir, version)
 		},
 	}
 

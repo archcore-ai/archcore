@@ -1,13 +1,14 @@
 package git
 
 import (
+	"context"
 	"os/exec"
 	"testing"
 )
 
 func TestDetectRepoURL_NonGitDir(t *testing.T) {
 	dir := t.TempDir()
-	got := DetectRepoURL(dir)
+	got := DetectRepoURL(context.Background(), dir)
 	if got != "" {
 		t.Errorf("DetectRepoURL(non-git) = %q, want empty string", got)
 	}
@@ -27,7 +28,7 @@ func TestDetectRepoURL_WithRemote(t *testing.T) {
 		}
 	}
 
-	got := DetectRepoURL(dir)
+	got := DetectRepoURL(context.Background(), dir)
 	want := "https://github.com/example/repo.git"
 	if got != want {
 		t.Errorf("DetectRepoURL = %q, want %q", got, want)
@@ -43,7 +44,7 @@ func TestDetectRepoURL_NoOriginRemote(t *testing.T) {
 		t.Fatalf("git init: %v\n%s", err, out)
 	}
 
-	got := DetectRepoURL(dir)
+	got := DetectRepoURL(context.Background(), dir)
 	if got != "" {
 		t.Errorf("DetectRepoURL(no origin) = %q, want empty string", got)
 	}

@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mark3labs/mcp-go/mcp"
-
 	"archcore-cli/internal/config"
+
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func NewInitProjectTool() mcp.Tool {

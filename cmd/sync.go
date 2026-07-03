@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,7 +33,7 @@ type syncPreconditions struct {
 // checkSyncPreconditions validates all requirements before sync can proceed.
 func checkSyncPreconditions(baseDir string) (*syncPreconditions, error) {
 	if !config.DirExists(baseDir) {
-		return nil, fmt.Errorf(".archcore/ directory not found — run 'archcore init' first")
+		return nil, errors.New(".archcore/ directory not found — run 'archcore init' first")
 	}
 
 	settings, err := config.Load(baseDir)
@@ -42,7 +43,7 @@ func checkSyncPreconditions(baseDir string) (*syncPreconditions, error) {
 	warnUnknownConfigFields(os.Stderr, settings)
 
 	if settings.Sync == config.SyncTypeNone {
-		return nil, fmt.Errorf("sync is disabled — run 'archcore config set sync cloud' or 'archcore init' to configure")
+		return nil, errors.New("sync is disabled — run 'archcore config set sync cloud' or 'archcore init' to configure")
 	}
 
 	return &syncPreconditions{
@@ -72,7 +73,7 @@ func newSyncCmd() *cobra.Command {
 		Short:  "Push local documents to the Archcore server",
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return fmt.Errorf("sync is not available yet — this feature is coming soon")
+			return errors.New("sync is not available yet — this feature is coming soon")
 		},
 	}
 
@@ -191,7 +192,7 @@ func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPrec
 		name := deriveProjectName(baseDir)
 		payload.ProjectName = &name
 
-		if repoURL := git.DetectRepoURL(baseDir); repoURL != "" {
+		if repoURL := git.DetectRepoURL(ctx, baseDir); repoURL != "" {
 			payload.RepoURL = &repoURL
 		}
 	}

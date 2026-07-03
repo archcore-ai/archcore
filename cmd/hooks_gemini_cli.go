@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"fmt"
+	"errors"
 	"path/filepath"
 
 	"archcore-cli/internal/config"
@@ -31,7 +31,7 @@ func newHooksGeminiCLICmd(version string) *cobra.Command {
 // runGeminiCLIHooksInstall writes hooks config into .gemini/settings.json.
 func runGeminiCLIHooksInstall(baseDir string) error {
 	if !config.DirExists(baseDir) {
-		return fmt.Errorf(".archcore/ not found — run 'archcore init' first")
+		return errors.New(".archcore/ not found — run 'archcore init' first")
 	}
 
 	events := make([]hookEventInstall, len(geminiHookEvents))

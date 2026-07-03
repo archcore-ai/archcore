@@ -78,6 +78,11 @@ func HandleListDocuments(baseDir string) func(ctx context.Context, request mcp.C
 		}
 
 		types := request.GetStringSlice("types", nil)
+		for _, tp := range types {
+			if !templates.IsValidType(tp) {
+				return errorResult(fmt.Sprintf("invalid type %q (valid: %s)", tp, strings.Join(templates.ValidTypes(), ", "))), nil
+			}
+		}
 		category := templates.Category(request.GetString("category", ""))
 		if category != "" && !templates.IsValidCategory(category) {
 			return errorResult(fmt.Sprintf("invalid category %q (valid: %s)", category, strings.Join(templates.ValidCategoryStrings(), ", "))), nil

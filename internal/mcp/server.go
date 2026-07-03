@@ -3,11 +3,11 @@ package mcp
 import (
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/server"
-
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/mcp/prompts"
 	"archcore-cli/internal/mcp/tools"
+
+	"github.com/mark3labs/mcp-go/server"
 )
 
 var mcpServerInstructions = `You are working with a project that uses Archcore — Git-native context for AI coding agents.
@@ -175,16 +175,20 @@ LANGUAGE REQUIREMENT:
 All document content (title, body text) MUST be written in %q. YAML frontmatter keys and status values remain in English. Slug must still be lowercase ASCII with hyphens.`, language)
 }
 
-// NewServer creates a new MCP server with archcore tools.
-func NewServer(baseDir string) *server.MCPServer {
+// NewServer creates a new MCP server with archcore tools. version is the CLI
+// build version threaded from main (never a package-level global).
+func NewServer(baseDir, version string) *server.MCPServer {
 	language := ""
 	if settings, err := config.Load(baseDir); err == nil {
 		language = settings.Language
 	}
+	if version == "" {
+		version = "dev"
+	}
 
 	s := server.NewMCPServer(
 		"archcore",
-		"1.0.0",
+		version,
 		server.WithInstructions(buildInstructions(language)),
 		server.WithPromptCapabilities(true),
 	)
@@ -206,7 +210,7 @@ func NewServer(baseDir string) *server.MCPServer {
 }
 
 // RunStdio starts the MCP server on stdin/stdout.
-func RunStdio(baseDir string) error {
-	s := NewServer(baseDir)
+func RunStdio(baseDir, version string) error {
+	s := NewServer(baseDir, version)
 	return server.ServeStdio(s)
 }

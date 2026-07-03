@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	"archcore-cli/internal/api"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
+
+	"github.com/spf13/cobra"
 )
 
 func newDoctorCmd() *cobra.Command {
@@ -48,7 +48,7 @@ func newDoctorCmd() *cobra.Command {
 			if !config.DirExists(cwd) {
 				fmt.Println()
 				fmt.Println(display.Warn.Render(fmt.Sprintf("  %d issue(s) found", issues)))
-				return fmt.Errorf("%d issue(s) found", issues)
+				return ErrAlreadyReported
 			}
 
 			// Settings file valid.

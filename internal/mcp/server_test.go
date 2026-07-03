@@ -16,7 +16,7 @@ func TestNewServer_HasTools(t *testing.T) {
 		}
 	}
 
-	s := NewServer(base)
+	s := NewServer(base, "test")
 	if s == nil {
 		t.Fatal("NewServer returned nil")
 	}
@@ -65,7 +65,7 @@ func TestNewServer_WithLanguageSetting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := NewServer(base)
+	s := NewServer(base, "test")
 	if s == nil {
 		t.Fatal("NewServer returned nil")
 	}
@@ -100,7 +100,7 @@ func TestNewServer_MissingSettings_FallsBack(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
 	// No .archcore/settings.json — server should still create successfully.
-	s := NewServer(base)
+	s := NewServer(base, "test")
 	if s == nil {
 		t.Fatal("NewServer returned nil")
 	}

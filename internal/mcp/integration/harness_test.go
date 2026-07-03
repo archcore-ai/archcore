@@ -44,7 +44,7 @@ func initArchcore(t *testing.T) string {
 // must both run before any other request, otherwise calls hang or error.
 func newTestClient(t *testing.T, baseDir string) *client.Client {
 	t.Helper()
-	srv := mcpserver.NewServer(baseDir)
+	srv := mcpserver.NewServer(baseDir, "test")
 
 	c, err := client.NewInProcessClient(srv)
 	if err != nil {

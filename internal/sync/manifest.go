@@ -81,6 +81,10 @@ func ValidateManifestJSON(data []byte) []string {
 		return []string{fmt.Sprintf("invalid JSON: %v", err)}
 	}
 
+	// Unknown root fields are deliberately fail-closed (unlike settings.json's
+	// tolerated Settings.Extra): the manifest is machine-owned state, and an
+	// unrecognized field means a newer binary wrote it — rewriting the file
+	// here would silently drop that field. Bump manifestVersion to migrate.
 	allowedRoot := map[string]bool{"version": true, "files": true, "relations": true}
 	for key := range raw {
 		if !allowedRoot[key] {

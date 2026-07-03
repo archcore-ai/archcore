@@ -108,7 +108,7 @@ func (s *Settings) Validate() error {
 		return fmt.Errorf("unknown sync type %q", s.Sync)
 	}
 	if s.Language != "" && strings.Contains(s.Language, " ") {
-		return fmt.Errorf("language must not contain spaces")
+		return errors.New("language must not contain spaces")
 	}
 	seen := make(map[string]int, len(s.Globals))
 	for i, g := range s.Globals {

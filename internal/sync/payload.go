@@ -32,7 +32,7 @@ type Payload struct {
 // validateRelPath checks that a relative path does not escape the base directory.
 func validateRelPath(relPath string) error {
 	cleaned := filepath.Clean(relPath)
-	if strings.HasPrefix(cleaned, "..") || filepath.IsAbs(cleaned) {
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || filepath.IsAbs(cleaned) {
 		return fmt.Errorf("invalid path %q: must be relative and within .archcore/", relPath)
 	}
 	return nil

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -43,7 +44,7 @@ func runConfig(cmd *cobra.Command, args []string) error {
 	switch args[0] {
 	case "get":
 		if len(args) < 2 {
-			return fmt.Errorf("usage: archcore config get <key>")
+			return errors.New("usage: archcore config get <key>")
 		}
 		// "get sync" is allowed (read-only, safe to expose); "set sync" is blocked below.
 		if args[1] == "project_id" || args[1] == "archcore_url" {
@@ -57,7 +58,7 @@ func runConfig(cmd *cobra.Command, args []string) error {
 
 	case "set":
 		if len(args) < 3 {
-			return fmt.Errorf("usage: archcore config set <key> <value>")
+			return errors.New("usage: archcore config set <key> <value>")
 		}
 		if args[1] == "sync" || args[1] == "project_id" || args[1] == "archcore_url" {
 			return fmt.Errorf("%s is not available yet — sync features are coming soon", args[1])

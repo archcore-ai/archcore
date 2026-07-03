@@ -73,6 +73,17 @@ Set ` + "`mode=full`" + ` when your goal is to read the matched document(s): eac
 
 Prefer this tool over list_documents + get_document loops when you need "which docs match X" — and prefer search_documents(mode=full) over search + get_document when you then need to read those docs.`
 
+// Match evidence vocabulary (wire values in searchMatch.Kind) and the internal
+// pathRef candidate kinds they derive from.
+const (
+	matchKindExplicit = "path_ref_explicit"
+	matchKindMention  = "path_ref_mention"
+	matchKindContent  = "content"
+
+	refKindExplicit = "explicit"
+	refKindMention  = "mention_candidate"
+)
+
 // searchMatch is one piece of evidence tying a document to the query.
 type searchMatch struct {
 	Kind        string `json:"kind"`
@@ -166,6 +177,11 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 		pathRefFilter := strings.TrimSpace(request.GetString("path_ref", ""))
 		contentFilter := request.GetString("content", "")
 		types := request.GetStringSlice("types", nil)
+		for _, tp := range types {
+			if !templates.IsValidType(tp) {
+				return errorResult(fmt.Sprintf("invalid type %q (valid: %s)", tp, strings.Join(templates.ValidTypes(), ", "))), nil
+			}
+		}
 		status := templates.DocStatus(request.GetString("status", ""))
 		mtimeAfterRaw := strings.TrimSpace(request.GetString("mtime_after", ""))
 		sortMode := request.GetString("sort", "relevance")
@@ -268,9 +284,9 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 					if spec == 0 {
 						continue
 					}
-					kind := "path_ref_mention"
-					if r.Kind == "explicit" {
-						kind = "path_ref_explicit"
+					kind := matchKindMention
+					if r.Kind == refKindExplicit {
+						kind = matchKindExplicit
 					}
 					excerpt := buildExcerpt(doc.Content, r.Start, len(r.Raw))
 					matches = append(matches, searchMatch{
@@ -298,7 +314,7 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 					continue
 				}
 				matches = append(matches, searchMatch{
-					Kind:        "content",
+					Kind:        matchKindContent,
 					Ref:         contentFilter,
 					Specificity: spec,
 					Excerpt:     excerpt,
@@ -423,7 +439,7 @@ func extractPathRefs(body string) []pathRef {
 	for _, m := range explicitSpans {
 		refs = append(refs, pathRef{
 			Raw:   body[m[0]:m[1]],
-			Kind:  "explicit",
+			Kind:  refKindExplicit,
 			Start: m[0],
 		})
 	}
@@ -443,7 +459,7 @@ func extractPathRefs(body string) []pathRef {
 		}
 		refs = append(refs, pathRef{
 			Raw:   body[start:end],
-			Kind:  "mention_candidate",
+			Kind:  refKindMention,
 			Start: start,
 		})
 	}
@@ -458,7 +474,7 @@ func extractPathRefs(body string) []pathRef {
 func filterBareMentions(candidates []pathRef) []pathRef {
 	out := make([]pathRef, 0, len(candidates))
 	for _, r := range candidates {
-		if r.Kind == "explicit" {
+		if r.Kind == refKindExplicit {
 			out = append(out, r)
 			continue
 		}

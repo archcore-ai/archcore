@@ -1,5 +1,7 @@
 package sync
 
+import "slices"
+
 // DiffAction classifies what happened to a file since the last sync.
 type DiffAction string
 
@@ -50,14 +52,20 @@ func Diff(current []FileState, manifest *Manifest) []DiffEntry {
 		}
 	}
 
-	// Files in manifest but not on disk are deleted.
+	// Files in manifest but not on disk are deleted. Map iteration order is
+	// random; sort so the deleted-file listing is stable between runs.
+	var deleted []string
 	for relPath := range manifest.Files {
 		if !seen[relPath] {
-			result = append(result, DiffEntry{
-				RelPath: relPath,
-				Action:  ActionDeleted,
-			})
+			deleted = append(deleted, relPath)
 		}
+	}
+	slices.Sort(deleted)
+	for _, relPath := range deleted {
+		result = append(result, DiffEntry{
+			RelPath: relPath,
+			Action:  ActionDeleted,
+		})
 	}
 
 	return result

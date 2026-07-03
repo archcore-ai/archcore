@@ -12,10 +12,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-func normalizeRelPath(p string) string {
-	return strings.TrimPrefix(p, ".archcore/")
-}
-
 func NewAddRelationTool() mcp.Tool {
 	return mcp.NewTool("add_relation",
 		mcp.WithDescription(`Add a directed relation between two documents in the .archcore/ knowledge base.

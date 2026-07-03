@@ -46,8 +46,8 @@ var all = []*Agent{
 	copilotAgent(),
 }
 
-// All returns all registered agents in stable order.
-// Returns a copy to prevent callers from mutating the registry.
+// All returns all registered agents in stable order. The slice is a copy, but
+// the *Agent values are shared registry entries — callers must not mutate them.
 func All() []*Agent {
 	cp := make([]*Agent, len(all))
 	copy(cp, all)
