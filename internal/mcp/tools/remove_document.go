@@ -84,6 +84,7 @@ func HandleRemoveDocument(baseDir string) func(ctx context.Context, request mcp.
 		if err := os.Remove(absPath); err != nil {
 			return errorResult(sanitizeError("removing "+relPath, err)), nil
 		}
+		sharedScanCache.invalidate(absPath)
 
 		// Clean up relations from manifest. relations_removed counts only the
 		// deleted document's own edges; CleanupRelations still opportunistically

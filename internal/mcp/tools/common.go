@@ -51,14 +51,14 @@ type LocalDocument struct {
 // ScanDocuments discovers all .md files recursively inside .archcore/.
 // Global sources declared in settings.json are scanned read-only.
 func ScanDocuments(baseDir string) ([]LocalDocument, error) {
-	return scanDocuments(baseDir, false)
+	return scanDocuments(baseDir, false, config.ReadGlobals(baseDir))
 }
 
 // ScanDocumentsFull mirrors ScanDocuments but also populates the Content field
 // for every document. Frontmatter is parsed from the same bytes read from disk,
 // so this performs no extra I/O compared to ScanDocuments.
 func ScanDocumentsFull(baseDir string) ([]LocalDocument, error) {
-	return scanDocuments(baseDir, true)
+	return scanDocuments(baseDir, true, config.ReadGlobals(baseDir))
 }
 
 // resolveGlobalPath resolves a global source path to an absolute directory.
@@ -74,16 +74,16 @@ func resolveGlobalPath(baseDir, gsPath string) string {
 // documents only (status, SessionStart context) use this so an unreachable global
 // degrades to local-only instead of blanking the whole result.
 func ScanLocalDocuments(baseDir string) ([]LocalDocument, error) {
-	return scanLocalDocuments(baseDir, false)
+	return scanLocalDocuments(baseDir, false, config.ReadGlobals(baseDir))
 }
 
 // scanLocalDocuments performs phase 1 of the scan: the primary's own documents.
 // It skips the reserved global/ mount directory and any document that falls under
 // a declared global source (surfaced read-only in phase 2 instead), so a document
 // is never scanned as both local and global. A missing .archcore/ yields (nil, nil).
-func scanLocalDocuments(baseDir string, includeContent bool) ([]LocalDocument, error) {
+// Declared globals are passed in so settings.json is loaded once per request.
+func scanLocalDocuments(baseDir string, includeContent bool, allGlobals []config.GlobalSource) ([]LocalDocument, error) {
 	archcoreDir := filepath.Join(baseDir, ".archcore")
-	allGlobals := config.ReadGlobals(baseDir)
 	var docs []LocalDocument
 
 	err := templates.WalkArchcoreFilesSkipping(archcoreDir, []string{"global"}, func(p string, d fs.DirEntry) error {
@@ -111,14 +111,13 @@ func scanLocalDocuments(baseDir string, includeContent bool) ([]LocalDocument, e
 //  1. Local documents — skips the global/ subdirectory entirely (scanLocalDocuments).
 //  2. Global sources declared in settings.json — each source is walked
 //     independently and documents are tagged read-only.
-func scanDocuments(baseDir string, includeContent bool) ([]LocalDocument, error) {
-	docs, err := scanLocalDocuments(baseDir, includeContent)
+func scanDocuments(baseDir string, includeContent bool, allGlobals []config.GlobalSource) ([]LocalDocument, error) {
+	docs, err := scanLocalDocuments(baseDir, includeContent, allGlobals)
 	if err != nil {
 		return nil, err
 	}
 
 	// Phase 2: mounted global sources declared in settings.json.
-	allGlobals := config.ReadGlobals(baseDir)
 	seen := make(map[string]string, len(allGlobals)) // resolved dir -> first source id
 	for _, gs := range allGlobals {
 		globalDir := resolveGlobalPath(baseDir, gs.Path)
@@ -150,6 +149,14 @@ func scanDocuments(baseDir string, includeContent bool) ([]LocalDocument, error)
 		}
 	}
 
+	// Amortized cache hygiene: entries for files no longer enumerated
+	// (deleted, renamed) are dropped once the cache outgrows the corpus.
+	seenPaths := make(map[string]bool, len(docs))
+	for _, doc := range docs {
+		seenPaths[filepath.Join(baseDir, filepath.FromSlash(doc.Path))] = true
+	}
+	sharedScanCache.prune(seenPaths)
+
 	return docs, nil
 }
 
@@ -157,6 +164,10 @@ func scanDocuments(baseDir string, includeContent bool) ([]LocalDocument, error)
 // absPath is the absolute path to the file; baseDir is the project root used
 // to compute the relative path stored in LocalDocument.Path. An unreadable file
 // still yields a document populated from its filename-derived fields.
+//
+// Reads go through sharedScanCache: on a (mtime, size) hit the file is neither
+// re-read nor re-parsed — the walk's DirEntry.Info() supplies the key, so a
+// warm scan costs walk+stat instead of ReadFile+YAML per document.
 func buildDoc(baseDir, absPath string, d fs.DirEntry, includeContent bool) LocalDocument {
 	name := d.Name()
 
@@ -164,17 +175,34 @@ func buildDoc(baseDir, absPath string, d fs.DirEntry, includeContent bool) Local
 	category := templates.CategoryForType(templates.DocumentType(docType))
 	slug := templates.ExtractSlug(name)
 
-	data, readErr := os.ReadFile(absPath)
-	var fm templates.Frontmatter
-	if readErr == nil {
-		// A YAML parse error is deliberately ignored: a malformed document is
-		// still indexed with empty metadata (search-documents.spec contract).
-		fm, _, _ = templates.SplitDocument(data)
-	}
-
 	var modTime time.Time
+	var size int64
+	haveInfo := false
 	if info, infoErr := d.Info(); infoErr == nil {
 		modTime = info.ModTime()
+		size = info.Size()
+		haveInfo = true
+	}
+
+	var fm templates.Frontmatter
+	var content string
+	readOK := false
+	if haveInfo {
+		if e, ok := sharedScanCache.lookup(absPath, modTime, size); ok {
+			fm, content, readOK = e.fm, e.content, true
+		}
+	}
+	if !readOK {
+		if data, readErr := os.ReadFile(absPath); readErr == nil {
+			// A YAML parse error is deliberately ignored: a malformed document
+			// is still indexed with empty metadata (search-documents.spec).
+			fm, _, _ = templates.SplitDocument(data)
+			content = string(data)
+			readOK = true
+			if haveInfo {
+				sharedScanCache.store(absPath, docCacheEntry{modTime: modTime, size: size, fm: fm, content: content})
+			}
+		}
 	}
 
 	relPath, _ := filepath.Rel(baseDir, absPath)
@@ -191,8 +219,8 @@ func buildDoc(baseDir, absPath string, d fs.DirEntry, includeContent bool) Local
 		Tags:     fm.Tags,
 		ModTime:  modTime,
 	}
-	if includeContent && readErr == nil {
-		doc.Content = string(data)
+	if includeContent && readOK {
+		doc.Content = content
 	}
 	return doc
 }
@@ -386,8 +414,8 @@ func writeFileAtomic(absPath string, data []byte) error {
 // reserved "__global__" source id, keeping the read label consistent with the write
 // reality. The sentinel carries underscores, which globalIDRe forbids in a declared
 // id, so it can never collide with a real source id. Everything else is local.
-func annotateSource(doc *LocalDocument, baseDir string) {
-	if id, ok := matchGlobal(baseDir, doc.Path, config.ReadGlobals(baseDir)); ok {
+func annotateSource(doc *LocalDocument, baseDir string, globals []config.GlobalSource) {
+	if id, ok := matchGlobal(baseDir, doc.Path, globals); ok {
 		doc.SourceID = id
 		doc.SourceKind = "global"
 		doc.Global = true

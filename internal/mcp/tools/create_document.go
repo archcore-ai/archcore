@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -202,6 +203,7 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 		if err := f.Close(); err != nil {
 			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
+		sharedScanCache.invalidate(outputFile)
 
 		result := map[string]any{
 			"path":     relPath,
@@ -225,23 +227,29 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 	}
 }
 
-// populateNearbyDocuments scans for other documents in the same directory as
+// populateNearbyDocuments lists other documents in the same directory as
 // relPath and exposes them as a hint in result["nearby_documents"]. The agent
 // decides whether any of them warrants an explicit relation via add_relation.
 // Results are sorted lexicographically and capped at maxNearbyDocuments to
-// bound response size in large directories.
+// bound response size in large directories. One ReadDir of the created file's
+// directory — a full-tree scan here read every document body just to list a
+// handful of siblings.
 func populateNearbyDocuments(baseDir, relPath string, result map[string]any) {
-	allDocs, scanErr := ScanDocuments(baseDir)
-	if scanErr != nil {
+	createdDir := path.Dir(relPath)
+	entries, err := os.ReadDir(filepath.Join(baseDir, filepath.FromSlash(createdDir)))
+	if err != nil {
 		return
 	}
 
-	createdDir := filepath.Dir(relPath)
+	createdName := path.Base(relPath)
 	var nearby []string
-	for _, d := range allDocs {
-		if d.Path != relPath && filepath.Dir(d.Path) == createdDir {
-			nearby = append(nearby, d.Path)
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || name == createdName || !strings.HasSuffix(name, ".md") ||
+			templates.SkipFiles[name] || !templates.IsValidType(templates.ExtractDocType(name)) {
+			continue
 		}
+		nearby = append(nearby, path.Join(createdDir, name))
 	}
 	if len(nearby) == 0 {
 		return

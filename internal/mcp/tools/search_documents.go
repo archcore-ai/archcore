@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"archcore-cli/internal/sync"
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -232,6 +233,10 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 		if mErr != nil {
 			return errorResult(sanitizeError("loading manifest", mErr)), nil
 		}
+		// One relation index per call: RelationsFor is a linear scan of ALL
+		// relations, and calling it per matched document made enrichment
+		// O(matched docs × relations).
+		outgoingIdx, incomingIdx := buildRelationIndex(manifest.Relations)
 
 		lowerContent := strings.ToLower(contentFilter)
 
@@ -336,21 +341,18 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 				result.Body = stripFrontmatter(doc.Content)
 			}
 
-			if manifest != nil {
-				relPath := normalizeRelPath(doc.Path)
-				outgoing, incoming := manifest.RelationsFor(relPath)
-				for _, r := range outgoing {
-					result.OutgoingRelations = append(result.OutgoingRelations, DocumentRelation{
-						Path: ".archcore/" + r.Target,
-						Type: string(r.Type),
-					})
-				}
-				for _, r := range incoming {
-					result.IncomingRelations = append(result.IncomingRelations, DocumentRelation{
-						Path: ".archcore/" + r.Source,
-						Type: string(r.Type),
-					})
-				}
+			relPath := normalizeRelPath(doc.Path)
+			for _, r := range outgoingIdx[relPath] {
+				result.OutgoingRelations = append(result.OutgoingRelations, DocumentRelation{
+					Path: ".archcore/" + r.Target,
+					Type: string(r.Type),
+				})
+			}
+			for _, r := range incomingIdx[relPath] {
+				result.IncomingRelations = append(result.IncomingRelations, DocumentRelation{
+					Path: ".archcore/" + r.Source,
+					Type: string(r.Type),
+				})
 			}
 
 			results = append(results, result)
@@ -613,4 +615,16 @@ func sortResults(results []searchResult, mode string) {
 		}
 		return b.ModTime.Compare(a.ModTime)
 	})
+}
+
+// buildRelationIndex builds per-path relation lookups once per call. Keys are
+// manifest-relative paths (no ".archcore/" prefix), matching RelationsFor.
+func buildRelationIndex(rels []sync.Relation) (outgoing, incoming map[string][]sync.Relation) {
+	outgoing = make(map[string][]sync.Relation, len(rels))
+	incoming = make(map[string][]sync.Relation, len(rels))
+	for _, r := range rels {
+		outgoing[r.Source] = append(outgoing[r.Source], r)
+		incoming[r.Target] = append(incoming[r.Target], r)
+	}
+	return outgoing, incoming
 }

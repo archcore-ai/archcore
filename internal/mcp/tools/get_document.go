@@ -45,7 +45,9 @@ func HandleGetDocument(baseDir string) func(ctx context.Context, request mcp.Cal
 		// Validate path safety. Reads additionally allow a document that resolves
 		// inside a declared read-only external global source; the write tools keep
 		// the strict validateArchcorePath and never reach this relaxation.
-		cleanPath, err := validateReadPath(baseDir, reqPath, config.ReadGlobals(baseDir))
+		// Globals are loaded once per request and reused for annotation.
+		globals := config.ReadGlobals(baseDir)
+		cleanPath, err := validateReadPath(baseDir, reqPath, globals)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				return errorResult("document not found: " + reqPath), nil
@@ -62,7 +64,7 @@ func HandleGetDocument(baseDir string) func(ctx context.Context, request mcp.Cal
 		}
 
 		// Annotate source metadata based on path and declared globals.
-		annotateSource(&doc, baseDir)
+		annotateSource(&doc, baseDir, globals)
 
 		enriched := EnrichedDocument{LocalDocument: doc}
 
