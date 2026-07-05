@@ -92,6 +92,15 @@ run_with_stdin() {
   run sh -c "printf '%s' '${stdin_data}' | '${PLUGIN_ROOT}/bin/${script}'"
 }
 
+# Run a bin script with stdin from a fixture file and a forced ARCHCORE_HOST.
+# Needed for env-only hosts (opencode) that have no stdin detection heuristic.
+run_with_fixture_env() {
+  local script="$1"
+  local fixture="$2"
+  local env_host="$3"
+  run sh -c "cat '${FIXTURES}/stdin/${fixture}' | ARCHCORE_HOST='${env_host}' '${PLUGIN_ROOT}/bin/${script}'"
+}
+
 # Source normalize-stdin.sh with given stdin and print exported vars
 run_normalizer() {
   local stdin_data="$1"

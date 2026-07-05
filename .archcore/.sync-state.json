@@ -3146,6 +3146,111 @@
       "source": "plugin/magic-first-day-init.plan.md",
       "target": "plugin/precision-over-coverage.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/host-adapter-contract.spec.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/host-adapter-contract.spec.md",
+      "target": "plugin/stack-and-tooling.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/host-adapter-contract.spec.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/host-adapter-contract.spec.md",
+      "target": "plugin/subdirectory-plugin-layout.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/copilot-host-support.rnd.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/copilot-host-support.rnd.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/copilot-host-support.rnd.md",
+      "target": "plugin/subdirectory-plugin-layout.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/opencode-host-support.rnd.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/opencode-host-support.rnd.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/opencode-host-support.rnd.md",
+      "target": "plugin/stack-and-tooling.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/opencode-adapter-packaging.adr.md",
+      "target": "plugin/stack-and-tooling.rule.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/opencode-adapter-packaging.adr.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/opencode-adapter-packaging.adr.md",
+      "target": "plugin/opencode-host-support.rnd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/opencode-adapter-packaging.adr.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/copilot-adapter-design.adr.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/copilot-adapter-design.adr.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/copilot-adapter-design.adr.md",
+      "target": "plugin/copilot-host-support.rnd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/copilot-adapter-design.adr.md",
+      "target": "plugin/subdirectory-plugin-layout.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/host-expansion-core-readiness.plan.md",
+      "target": "plugin/copilot-adapter-design.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/host-expansion-core-readiness.plan.md",
+      "target": "plugin/opencode-adapter-packaging.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/host-expansion-core-readiness.plan.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "depends_on"
     }
   ]
 }

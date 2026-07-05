@@ -14,9 +14,15 @@ if ! command -v archcore >/dev/null 2>&1; then
   Then verify: archcore --version
   Docs: https://docs.archcore.ai/cli/install/"
   case "$ARCHCORE_HOST" in
-    claude-code|copilot)
+    claude-code)
       _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
       printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}' "$_escaped"
+      ;;
+    copilot)
+      # Native sessionStart output: top-level additionalContext (shape assumed
+      # from the postToolUse contract; smoke-test verifies — contingency B).
+      _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
+      printf '{"additionalContext":"%s"}' "$_escaped"
       ;;
     *)
       printf '%s\n' "$_msg"
@@ -32,18 +38,25 @@ fi
 # .archcore/ and surface it as "the user's knowledge base."
 if [ -f ".cursor-plugin/plugin.json" ] \
   || [ -f ".claude-plugin/plugin.json" ] \
-  || [ -f ".codex-plugin/plugin.json" ]; then
+  || [ -f ".codex-plugin/plugin.json" ] \
+  || [ -f ".plugin/plugin.json" ]; then
   # Silent exit — host shouldn't see noise during normal session-start.
   exit 0
 fi
 
-# Emit informational context to the agent (structured for Claude Code/Copilot, plain for others).
+# Emit informational context to the agent (Claude Code: hookSpecificOutput
+# wrapper; Copilot: native top-level additionalContext; others: plain text —
+# the OpenCode bridge consumes plain stdout verbatim).
 _archcore_emit_info() {
   _msg="$1"
   case "$ARCHCORE_HOST" in
-    claude-code|copilot)
+    claude-code)
       _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
       printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}' "$_escaped"
+      ;;
+    copilot)
+      _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
+      printf '{"additionalContext":"%s"}' "$_escaped"
       ;;
     *)
       printf '%s\n' "$_msg"

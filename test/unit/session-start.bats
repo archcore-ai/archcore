@@ -16,6 +16,153 @@ setup() {
   assert_output --partial "hookSpecificOutput"
 }
 
+# --- Per-host emit-shape pins (three shipped hosts) -------------------------
+# claude-code gets the SessionStart hookSpecificOutput JSON wrapper; cursor and
+# codex fall to the plain-text arm. Pinned so host-expansion edits to the emit
+# function provably leave the shipped hosts untouched.
+
+@test "init nudge: claude-code emits SessionStart hookSpecificOutput JSON" {
+  mock_archcore ""
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "printf '%s' '{\"tool_name\":\"x\"}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial '"hookEventName":"SessionStart"'
+}
+
+@test "init nudge: cursor emits plain text (no JSON wrapper)" {
+  mock_archcore ""
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "printf '%s' '{\"conversation_id\":\"x\"}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "no .archcore/ directory"
+  refute_output --partial "hookSpecificOutput"
+}
+
+@test "init nudge: codex emits plain text (no JSON wrapper)" {
+  mock_archcore ""
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "printf '%s' '{\"turn_id\":\"x\"}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "no .archcore/ directory"
+  refute_output --partial "hookSpecificOutput"
+}
+
+@test "CLI-missing notice: claude-code emits SessionStart hookSpecificOutput JSON" {
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "PATH='/usr/bin:/bin'; export PATH; printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial '"hookEventName":"SessionStart"'
+  assert_output --partial "install.sh"
+}
+
+@test "CLI-missing notice: cursor emits plain text (no JSON wrapper)" {
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "PATH='/usr/bin:/bin'; export PATH; printf '%s' '{\"conversation_id\":\"x\"}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "install.sh"
+  refute_output --partial "hookSpecificOutput"
+}
+
+@test "CLI-missing notice: codex emits plain text (no JSON wrapper)" {
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "PATH='/usr/bin:/bin'; export PATH; printf '%s' '{\"turn_id\":\"x\"}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "install.sh"
+  refute_output --partial "hookSpecificOutput"
+}
+
+# --- Copilot emit shape (native top-level additionalContext) ----------------
+
+@test "init nudge: copilot emits top-level additionalContext JSON" {
+  mock_archcore ""
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "printf '%s' '{}' | ARCHCORE_HOST=copilot '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial '{"additionalContext":"'
+  refute_output --partial "hookSpecificOutput"
+}
+
+@test "CLI-missing notice: copilot emits top-level additionalContext JSON" {
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "PATH='/usr/bin:/bin'; export PATH; ARCHCORE_HOST=copilot; export ARCHCORE_HOST; printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial '{"additionalContext":"'
+  assert_output --partial "install.sh"
+  refute_output --partial "hookSpecificOutput"
+}
+
+@test "copilot: passes host arg to archcore hooks" {
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+if [ "$1" = "hooks" ]; then
+  echo "HOST_ARG: $2"
+  cat > /dev/null
+fi
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  local workdir="$BATS_TEST_TMPDIR/project"
+  mkdir -p "$workdir/.archcore"
+  cd "$workdir"
+  git init -q 2>/dev/null || true
+
+  run sh -c "ARCHCORE_HOST=copilot; export ARCHCORE_HOST; printf '%s' '{\"sessionId\":\"s1\"}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "HOST_ARG: copilot"
+}
+
+# --- OpenCode emit shape (plain text; bridge reads stdout verbatim) ---------
+
+@test "init nudge: opencode emits plain text (no JSON wrapper)" {
+  mock_archcore ""
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "printf '%s' '{}' | ARCHCORE_HOST=opencode '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "no .archcore/ directory"
+  refute_output --partial "hookSpecificOutput"
+  refute_output --partial '"additionalContext"'
+}
+
+@test "CLI-missing notice: opencode emits plain text (no JSON wrapper)" {
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "PATH='/usr/bin:/bin'; export PATH; ARCHCORE_HOST=opencode; export ARCHCORE_HOST; printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "install.sh"
+  refute_output --partial '"additionalContext"'
+}
+
+@test "opencode: passes host arg to archcore hooks" {
+  cat > "$MOCK_BIN/archcore" <<'MOCK'
+#!/bin/sh
+if [ "$1" = "hooks" ]; then
+  echo "HOST_ARG: $2"
+  cat > /dev/null
+fi
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+
+  local workdir="$BATS_TEST_TMPDIR/project"
+  mkdir -p "$workdir/.archcore"
+  cd "$workdir"
+  git init -q 2>/dev/null || true
+
+  run sh -c "ARCHCORE_HOST=opencode; export ARCHCORE_HOST; printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "HOST_ARG: opencode"
+}
+
+@test "refuses to run from a plugin install dir (.plugin sibling)" {
+  mock_archcore ""
+  local fake_plugin="$BATS_TEST_TMPDIR/fake-plugin"
+  mkdir -p "$fake_plugin/.plugin" "$fake_plugin/.archcore"
+  echo '{"name":"fake"}' > "$fake_plugin/.plugin/plugin.json"
+  cd "$fake_plugin"
+
+  run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  [ -z "$output" ] || fail "expected silent exit, got: '$output'"
+}
+
 @test "survives when launcher cannot resolve CLI (no PATH, no cache, no network)" {
   # Initialized project + restricted PATH + ARCHCORE_SKIP_DOWNLOAD=1:
   # launcher exits 1, but session-start wraps with '|| true' and still succeeds.
