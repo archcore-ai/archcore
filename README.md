@@ -1,124 +1,65 @@
 # Archcore CLI
 
+<!-- PLACEHOLDER: centered logo/wordmark, ~300px, light/dark variants via <picture>.
+     Alt text should carry the tagline: "Archcore — git-native context for AI coding agents" -->
+
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Go](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![Release](https://img.shields.io/github/v/release/archcore-ai/cli)](https://github.com/archcore-ai/cli/releases)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/archcore-ai/cli/releases)
 
-**Your AI agent stops guessing and starts following your architecture.**
+**Archcore is a git-native context layer for AI coding agents.**
 
-> Git ships your code. CI/CD ships your delivery. Archcore ships your understanding.
+It ships as a CLI and a local stdio MCP server, so any MCP-compatible coding agent can read and write your repo context through standard tools. Works across Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex CLI, OpenCode, Roo Code, and Cline.
 
-Archcore stores your decisions, rules, and conventions in Git — so your AI agent follows them automatically. Works across Claude Code, Cursor, Copilot, Gemini CLI, Codex, OpenCode, Roo Code, and Cline.
+## See it work
 
-Archcore ships as a CLI **and** a local stdio MCP server — any MCP-compatible coding agent can read and write your repo context through standard tools, while the Claude Code / Cursor plugin adds a higher-level workflow layer.
+That context came from `.archcore/` — typed Markdown documents versioned in Git, served to any agent through MCP tools and session hooks.
 
-> **Using Claude Code or Cursor?** Pair the CLI with the [Archcore Plugin](https://github.com/archcore-ai/archcore-plugin) — same engine, plus skills, intent commands, and guardrails out of the box. Sticking with the CLI is great too — it works across every other agent.
+![archcore demo](demo.gif)
 
-## In 60 seconds
+## What changes
+
+### ❌ Without Archcore
+
+Every session starts from zero. The agent:
+
+- guesses your architecture and breaks your conventions
+- duplicates logic that already exists
+- re-litigates decisions your team already made
+- needs the same context re-explained in every chat
+
+### ✅ With Archcore
+
+Your decisions, rules, and conventions live in Git as structured context. The agent:
+
+- loads the applicable decisions and rules at session start
+- puts code where your architecture says it belongs
+- respects the ADRs, specs, and rules already in the repo
+- records new decisions as durable context — reviewable in PRs, portable across agents
+
+> **The agent stops guessing and starts following the system.**
+
+## Get started in 60 seconds
 
 ```bash
-curl -fsSL https://archcore.ai/install.sh | bash
+curl -fsSL https://archcore.ai/install.sh | bash    # macOS / Linux
 cd your-project && archcore init
 ```
 
-Then open your AI agent and say:
+`archcore init` scaffolds `.archcore/`, detects your coding agents, and wires up hooks and MCP for them.
+
+Then open your agent and say:
 
 > _"We're using PostgreSQL for primary storage. Record this decision."_
 
-Done. There's now a structured ADR in `.archcore/` that every future session — in any agent — can read.
+Done — there is now a structured ADR in `.archcore/` that every future session, in any agent, will see.
 
-> On **Windows**? Use PowerShell: `irm https://archcore.ai/install.ps1 | iex`. For WSL, `go install`, and other options, see [Install methods](#install-methods) or the [full install guide](https://docs.archcore.ai/cli/install/).
+On **Windows**: `irm https://archcore.ai/install.ps1 | iex`. For WSL, `go install`, and building from source, see [Install methods](#reference) below or the [full install guide](https://docs.archcore.ai/cli/install/).
 
-## Ask your AI things like
+## Works with your agent
 
-Once your repo has a few documents, your agent can use them. Try:
-
-> _"Before I touch the auth module, what ADRs and rules apply here?"_
-
-The agent loads the relevant decisions and rules tied to that area before it edits a single line.
-
-> _"Add a new API handler and follow this repo's conventions."_
-
-The agent surfaces the matching rule (e.g. "handlers live in `src/api/handlers/`") and places code where your architecture says it belongs.
-
-> _"What's our error-handling rule?"_
-
-The agent reads `error-wrapping.rule.md` straight from `.archcore/` instead of guessing from a few examples in the codebase.
-
-## Try these first
-
-These prompts capture _new_ context — decisions, rules, plans, incidents. Each creates a structured document the agent (or any teammate) can later reuse.
-
-_New repo? `archcore init` creates `.archcore/`. The MCP server also works in an empty repo and exposes an `init_project` tool, so the agent can bootstrap for you._
-
-> _"We decided to use PostgreSQL instead of MongoDB for our primary database. Record this decision."_
-
-Creates `infrastructure/use-postgres.adr.md` with context, decision, alternatives considered, and consequences.
-
-> _"We have a team convention: always wrap errors with context using fmt.Errorf and %w. Make this a rule."_
-
-Creates `backend/error-wrapping.rule.md` with imperative guidance, rationale, and good/bad code examples.
-
-> _"Last week we had a connection pool exhaustion incident because idle connections weren't being recycled. Document this so we don't repeat it."_
-
-Creates `incidents/connection-pool-exhaustion.cpat.md` with root-cause analysis and prevention steps.
-
-> _"I need a PRD for the user notifications feature — push, email digests, and in-app alerts."_
-
-Creates `notifications/user-notifications.prd.md` with goals, user stories, requirements, and success metrics.
-
-> _"Create an implementation plan for the notifications PRD and link them together."_
-
-Creates `notifications/notifications-implementation.plan.md`, then links it to the PRD with an `implements` relation.
-
-If any of these resonates, the rest of Archcore is more of the same — just structured.
-
-## What changes after install
-
-Without Archcore, the agent:
-
-- ignores your architecture
-- breaks your conventions
-- duplicates logic that already exists
-- re-litigates decisions your team already made
-- needs the same conventions repeated in every chat
-- loses project truth the moment the session ends
-
-With Archcore, the same asks produce code that:
-
-- lands where your architecture says it belongs
-- respects ADRs, specs, and rules already in Git
-- follows team conventions loaded automatically on session start
-- reflects new decisions as future guardrails, not markdown graveyards
-
-> **AI should follow your system, not guess it.**
-
-## Use Archcore when
-
-- Your agent writes code, but not in the way this repo expects
-- Your `CLAUDE.md` / `.cursorrules` / `AGENTS.md` keeps growing and drifting
-- You work with 2+ agents or 2+ host tools (Claude Code + Cursor + Copilot)
-- You want decisions, rules, and specs in Git — not in chat scrollback
-
-**Not for** — chat memory, a prompt library, or a one-shot spec-to-code generator. Archcore is a repo truth layer for coding agents, not a methodology kit.
-
-## Why not just instruction files?
-
-`CLAUDE.md`, `AGENTS.md`, and repository instructions are useful starting points, but they break down when your team needs:
-
-- more than one flat memory file
-- structured document types — ADRs, rules, plans, incidents
-- reusable context across multiple AI tools
-- versioned project knowledge that grows with the codebase
-- relations between documents (a plan that _implements_ a PRD, an RFC that _extends_ an ADR)
-- incident learnings and recurring workflows that agents can pick up later
-
-Instruction files tell the agent _what you want_. Archcore tells the agent _how your system works_ — so the agent can follow your system instead of guessing it.
-
-## Supported agents
-
-Archcore CLI is itself a local stdio MCP server — that is the shared integration surface for every MCP-compatible agent in the table below. Hooks add proactive session-start context where the agent supports them.
+The CLI is itself a local stdio MCP server — one integration surface for every MCP-compatible agent. Hooks add session-start context where the agent supports them.
 
 | Agent          | Hooks | MCP    |
 | -------------- | ----- | ------ |
@@ -131,36 +72,24 @@ Archcore CLI is itself a local stdio MCP server — that is the shared integrati
 | Roo Code       | —     | yes    |
 | Cline          | —     | manual |
 
----
+`archcore init` configures detected agents automatically. To wire one up by hand:
+
+```bash
+archcore mcp install --agent cursor      # write MCP config for a specific agent
+archcore hooks install                   # install session-start hooks for detected agents
+claude mcp add --transport stdio archcore -- archcore mcp   # or add the server manually
+```
 
 ## How it works
 
-1. **Initialize your repo**
-   `archcore init` creates `.archcore/` and installs integrations for supported agents.
-
-2. **Capture durable context**
-   Store architecture decisions, rules, plans, product docs, and incident learnings as structured Markdown files.
-
-3. **Let agents reuse it**
-   Hooks and MCP let your coding agents read existing context and create or update documents during real work.
-
-4. **Keep it in Git**
-   Review context changes like code, evolve them over time, and keep them portable across tools.
-
-### Mental model
-
-Archcore CLI is the **context compiler** — it turns scattered documents into structured, machine-readable context. MCP and hooks are the **runtime** — the surface agents use to consume that context during real work. The [Archcore Plugin](https://github.com/archcore-ai/archcore-plugin) for Claude Code and Cursor is a higher-level runtime built on top.
-
-```text
-implicit repo knowledge  →  structured context  →  AI-readable system
-```
-
-## What lives in `.archcore/`
+1. **Initialize** — `archcore init` creates `.archcore/` and installs agent integrations.
+2. **Capture** — decisions, rules, plans, and guides are stored as typed Markdown documents with YAML frontmatter.
+3. **Reuse** — agents read, create, update, and link documents through MCP tools while they work; hooks load context at session start.
+4. **Keep it in Git** — review context changes like code, evolve them over time, keep them portable across tools.
 
 ```text
 .archcore/
 ├── settings.json
-├── .sync-state.json
 ├── auth/
 │   ├── jwt-strategy.adr.md
 │   └── auth-redesign.prd.md
@@ -172,30 +101,53 @@ implicit repo knowledge  →  structured context  →  AI-readable system
     └── notifications-implementation.plan.md
 ```
 
-The structure is **free-form** — organize documents by domain, feature, team, or whatever fits your repo. Categories are virtual and inferred from the document type in the filename (`slug.type.md`).
+The structure is free-form — organize by domain, feature, or team. A document's type lives in its filename (`slug.type.md`): 19 types across three layers — knowledge (ADRs, rules, specs, guides), vision (PRDs, plans, ideas, requirements tracks), and experience (incident patterns, recurring tasks). This repo's own [`.archcore/`](https://github.com/archcore-ai/cli/tree/main/.archcore) is a working example.
 
-Use `.archcore/` for:
+## Ask your agent
 
-- architecture decisions
-- coding rules and conventions
-- implementation plans
-- product requirements
-- incidents and postmortems
-- reusable workflow knowledge
+> _"Before I touch the auth module, what decisions and rules apply here?"_
 
-See the Archcore CLI repository itself for a working example: [`.archcore/` in this repo](https://github.com/archcore-ai/cli/tree/main/.archcore)
+Loads the ADRs and rules tied to that area before the agent edits a single line.
 
-## What ships in the box
+> _"We have a convention: always wrap errors with fmt.Errorf and %w. Make this a rule."_
 
-- **18 document types** across vision, knowledge, and experience
-- **4 relation types** — `related`, `implements`, `extends`, `depends_on`
-- **10 MCP tools** — `list_documents`, `get_document`, `create_document`, `update_document`, `remove_document`, `search_documents`, `init_project`, plus relation management (`add_relation`, `remove_relation`, `list_relations`)
-- **5 multi-document prompts** — track cascades invokable as slash commands from MCP-compatible agents
-- **Hook integrations** for 4 agents (Claude Code, Cursor, Gemini CLI, GitHub Copilot) and **MCP integrations** for 8
+Creates `backend/error-wrapping.rule.md` with imperative guidance, rationale, and good/bad examples.
 
-## Document types
+> _"Last week we had a connection-pool exhaustion incident. Document it so we don't repeat it."_
 
-Archcore organizes context into 3 layers of knowledge: Vision, Knowledge, and Experience.
+Creates `incidents/connection-pool-exhaustion.cpat.md` with root-cause analysis and prevention steps.
+
+For bigger flows, MCP prompts orchestrate whole document cascades — `/product_track feature="user notifications"` drafts an idea, derives a PRD, builds an implementation plan, and links them together.
+
+## How it compares
+
+| If you rely on…                                          | The gap                                                                           | What Archcore does instead                                                                          |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Nothing**                                              | The agent re-learns your repo every session and re-litigates settled decisions    | Loads decisions, rules, and conventions at session start — in any agent                             |
+| **Flat instruction files** (`CLAUDE.md`, `.cursorrules`) | One growing wall of text — no types, no links, no lifecycle, copy-pasted per tool | Typed documents, a relation graph, a draft → accepted lifecycle, one setup for every agent          |
+| **Memory tools** (claude-mem, Mem0)                      | Remember _what you did_ — volatile, opaque, vendor-bound                          | Stores _how the system is built and what was decided_ — versioned in Git, owned by you              |
+| **Methodology kits** (BMAD, Spec Kit, Agent OS)          | Prescribe a process, often as a one-shot handoff                                  | Stores the artifacts — a living context graph that evolves with the codebase                        |
+| **RAG / a bigger context window**                        | Retrieves what the code _says_, not what was _decided and why_                    | Keeps decisions and rationale explicit and selective — the agent loads what applies, not everything |
+
+**Not for** — chat memory, a prompt library, or a one-shot spec-to-code generator. Archcore is a repo truth layer for coding agents, not a methodology kit.
+
+## Reference
+
+What ships in the box: **19 document types**, **4 relation types**, **10 MCP tools**, **5 multi-document prompts**, hook integrations for 4 agents and MCP integrations for 8.
+
+<details>
+<summary><strong>Document types</strong> — 19 types across vision, knowledge, and experience</summary>
+
+### Knowledge
+
+| Type    | Full Name                    | Description                                                                          |
+| ------- | ---------------------------- | ------------------------------------------------------------------------------------ |
+| `adr`   | Architecture Decision Record | Captures a finalized technical decision with context, alternatives, and consequences |
+| `rfc`   | Request for Comments         | Proposes a significant change open for team review and feedback                      |
+| `rule`  | Rule                         | Coding or process standard with imperative guidance and examples                     |
+| `guide` | Guide                        | Step-by-step instructions for completing a specific task                             |
+| `doc`   | Document                     | Reference documentation, registries, and descriptive material                        |
+| `spec`  | Specification                | Canonical normative contract for a system, component, interface, or protocol         |
 
 ### Vision
 
@@ -204,8 +156,9 @@ Archcore organizes context into 3 layers of knowledge: Vision, Knowledge, and Ex
 | `prd`  | Product Requirements Document | Goals, user stories, acceptance criteria, and success metrics             |
 | `idea` | Idea                          | Lightweight capture of a product or technical idea for future exploration |
 | `plan` | Plan                          | Phased task list with acceptance criteria and dependencies                |
+| `rnd`  | Research                      | Time-boxed investigation that answers a question blocking a decision      |
 
-Archcore also supports two additional requirements tracks for teams that need structured discovery or formal decomposition:
+Two additional requirements tracks for teams that need structured discovery or formal decomposition:
 
 **Sources track** (MRD → BRD → URD) — captures _where_ requirements come from:
 
@@ -224,18 +177,7 @@ Archcore also supports two additional requirements tracks for teams that need st
 | `syrs` | System Requirements Specification      | System functions, interfaces, performance, and design constraints      |
 | `srs`  | Software Requirements Specification    | Software functions, external interfaces, and detailed behavioral specs |
 
-Use PRD for most projects. Add the sources track when you need structured requirement discovery. Add ISO 29148 when you need formal traceability for regulated or complex multi-team systems. Mix freely — some features can use a PRD while others use the full cascade.
-
-### Knowledge
-
-| Type    | Full Name                    | Description                                                                          |
-| ------- | ---------------------------- | ------------------------------------------------------------------------------------ |
-| `adr`   | Architecture Decision Record | Captures a finalized technical decision with context, alternatives, and consequences |
-| `rfc`   | Request for Comments         | Proposes a significant change open for team review and feedback                      |
-| `rule`  | Rule                         | Coding or process standard with imperative guidance and examples                     |
-| `guide` | Guide                        | Step-by-step instructions for completing a specific task                             |
-| `doc`   | Document                     | Reference documentation, registries, and descriptive material                        |
-| `spec`  | Specification                | Canonical normative contract for a system, component, interface, or protocol         |
+Use PRD for most projects; add the sources track for structured requirement discovery, and ISO 29148 for formal traceability in regulated or complex multi-team systems. Mix freely.
 
 ### Experience
 
@@ -258,30 +200,20 @@ tags: [database, infrastructure]
 ...
 ```
 
-Valid statuses: `draft`, `accepted`, and `rejected`. Tags are optional and free-form — use them to mark cross-cutting topics (`security`, `golang`, `frontend`).
+Valid statuses: `draft`, `accepted`, `rejected`. Tags are optional and free-form.
 
-## Document relations
+</details>
 
-Documents can be linked with directed relations to other documents:
+<details>
+<summary><strong>MCP tools, prompts, and relations</strong></summary>
 
-- **related** — general association
-- **implements** — source implements what target specifies
-- **extends** — source builds upon target
-- **depends_on** — source requires target to proceed
+### MCP tools
 
-Relations are stored in `.sync-state.json` and managed automatically by the AI agent through MCP tools.
-
-## AI agent integration
-
-Archcore integrates with AI coding agents in three ways:
-
-- **Hooks** inject context at session start, so the agent is aware of your `.archcore/` documents from the first message.
-- **MCP tools** give the agent capabilities to list, search, read, create, update, and link documents in real time. The MCP server also works in an empty repo and exposes an `init_project` tool, so agents can bootstrap `.archcore/` themselves.
-- **MCP prompts** are ready-made multi-document workflows you trigger from your agent as slash commands.
+10 tools: `init_project`, `list_documents`, `get_document`, `search_documents`, `create_document`, `update_document`, `remove_document`, `add_relation`, `remove_relation`, `list_relations`. The server also works in an empty repo — agents can bootstrap `.archcore/` themselves via `init_project`.
 
 ### Prompts
 
-Prompts orchestrate full document cascades in one call — the agent creates and links every document in the track for you. Most MCP-compatible agents surface them as slash commands (e.g. `/architecture_track`); the exact prefix depends on the client.
+Prompts orchestrate full document cascades in one call. Most MCP-compatible agents surface them as slash commands (the exact prefix depends on the client):
 
 | Prompt               | What it does                                          |
 | -------------------- | ----------------------------------------------------- |
@@ -291,63 +223,36 @@ Prompts orchestrate full document cascades in one call — the agent creates and
 | `sources_track`      | MRD → BRD → URD (market / business / user discovery)  |
 | `iso_track`          | BRS → StRS → SyRS → SRS (formal ISO 29148 cascade)    |
 
-**Example.** In your agent, run `/product_track feature="user notifications"`. The agent drafts an idea, derives a PRD, builds an implementation plan, and links them automatically.
+### Relations
+
+Documents link with directed relations: `related` (general association), `implements` (source implements what target specifies), `extends` (source builds upon target), `depends_on` (source requires target). Managed by the agent through MCP tools.
 
 ### Local MCP server
 
-Archcore does not require a hosted service. The CLI runs a local stdio MCP server:
+`archcore mcp` serves documents from the current directory over stdio. Pass `--project /path/to/repo` (or set `ARCHCORE_PROJECT_ROOT`) when the server is launched from a directory that isn't your workspace — for example, by an editor integration.
 
-```bash
-archcore mcp
-```
+</details>
 
-By default `archcore mcp` serves documents from the current directory. Pass `--project /path/to/repo` (or set `ARCHCORE_PROJECT_ROOT`) to point it elsewhere — useful when the server is launched from a directory that isn't your workspace (for example, by an editor integration).
+<details>
+<summary><strong>Commands</strong></summary>
 
-Wire it into Claude Code:
+| Command                  | Description                                      |
+| ------------------------ | ------------------------------------------------ |
+| `archcore init`          | Initialize `.archcore/` directory interactively  |
+| `archcore doctor`        | Check your archcore setup and fix issues         |
+| `archcore status`        | Check `.archcore/` structure and document health |
+| `archcore config`        | View or modify settings                          |
+| `archcore hooks install` | Install hooks for detected AI agents             |
+| `archcore mcp`           | Run the MCP stdio server                         |
+| `archcore mcp install`   | Install MCP config for detected agents           |
+| `archcore update`        | Update Archcore to the latest version            |
 
-```bash
-claude mcp add --transport stdio archcore -- archcore mcp
-```
+`archcore update` checks GitHub Releases, downloads the newer version, verifies the SHA-256 checksum, and atomically replaces the binary.
 
-Or install automatically for a supported agent:
+</details>
 
-```bash
-archcore mcp install --agent cursor
-```
-
-### Install integrations
-
-```bash
-# Auto-detect agents in your project and install everything
-archcore hooks install
-
-# Or target a specific agent
-archcore mcp install --agent opencode
-archcore hooks install --agent cursor
-```
-
-## Commands
-
-| Command                  | Description                                     |
-| ------------------------ | ----------------------------------------------- |
-| `archcore init`          | Initialize `.archcore/` directory interactively |
-| `archcore doctor`        | Check your archcore setup and fix issues        |
-| `archcore status`        | Check .archcore/ structure and document health  |
-| `archcore config`        | View or modify settings                         |
-| `archcore hooks install` | Install hooks for detected AI agents            |
-| `archcore update`        | Update Archcore to the latest version           |
-| `archcore mcp`           | Run the MCP stdio server                        |
-| `archcore mcp install`   | Install MCP config for detected agents          |
-
-### Update
-
-```bash
-archcore update
-```
-
-The command checks GitHub Releases for a newer version, downloads it, verifies the SHA-256 checksum, and atomically replaces the current binary.
-
-## Install methods
+<details>
+<summary><strong>Install methods</strong></summary>
 
 ### macOS / Linux
 
@@ -361,15 +266,11 @@ curl -fsSL https://archcore.ai/install.sh | bash
 irm https://archcore.ai/install.ps1 | iex
 ```
 
-Installs `archcore.exe` under `%LOCALAPPDATA%\Programs\archcore` and adds it to your user `PATH`. Open a new PowerShell window after install so the `PATH` change is picked up.
+Installs `archcore.exe` under `%LOCALAPPDATA%\Programs\archcore` and adds it to your user `PATH`. Open a new PowerShell window after install.
 
 ### Windows (WSL)
 
-Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install), then run inside it:
-
-```bash
-curl -fsSL https://archcore.ai/install.sh | bash
-```
+Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install), then run the macOS/Linux script inside it.
 
 ### Go install
 
@@ -387,11 +288,14 @@ go build -o archcore .
 
 **Supported platforms:** macOS, Linux, Windows — amd64 and arm64.
 
-For environment variables (`ARCHCORE_VERSION`, `ARCHCORE_INSTALL_DIR`, `GITHUB_TOKEN`) and PATH troubleshooting, see the [full install guide on docs.archcore.ai](https://docs.archcore.ai/cli/install/).
+For environment variables (`ARCHCORE_VERSION`, `ARCHCORE_INSTALL_DIR`, `GITHUB_TOKEN`) and PATH troubleshooting, see the [full install guide](https://docs.archcore.ai/cli/install/).
 
-## Configuration
+</details>
 
-Settings are stored in `.archcore/settings.json` and created during `archcore init`.
+<details>
+<summary><strong>Configuration</strong></summary>
+
+Settings live in `.archcore/settings.json`, created by `archcore init`.
 
 | Field      | Description                                                                      | Values                                  |
 | ---------- | -------------------------------------------------------------------------------- | --------------------------------------- |
@@ -399,64 +303,27 @@ Settings are stored in `.archcore/settings.json` and created during `archcore in
 | `language` | Document language. Helps the agent generate documentation in the right language. | String, defaults to `en`                |
 
 ```bash
-archcore config                              # show all settings
-archcore config get <key>                    # get a specific value
-archcore config set <key> <value>            # set a value
+archcore config                    # show all settings
+archcore config get <key>          # get a specific value
+archcore config set <key> <value>  # set a value
 ```
+
+</details>
+
+## Ecosystem
+
+- **[Archcore Plugin](https://github.com/archcore-ai/archcore-plugin)** — using Claude Code or Cursor? The plugin pairs with the CLI: same engine, plus skills, intent commands, and guardrails. One product, two entry points — the CLI on its own covers every other agent.
+- **[docs.archcore.ai](https://docs.archcore.ai)** — full documentation.
+- **[`.archcore/` in this repo](https://github.com/archcore-ai/cli/tree/main/.archcore)** — a living example: the CLI is built with its own context layer.
 
 ## Development
 
-### Prerequisites
-
-- Go 1.24+
-
-### Build & test
+Requires Go 1.25+.
 
 ```bash
-# Build
-go build -o archcore .
-
-# Run all tests
-go test ./...
-
-# Run a specific package
-go test ./cmd/
-
-# Run a single test
-go test ./cmd/ -run TestConfigCmd
+go build -o archcore .   # build
+go test ./...            # run all tests
 ```
-
-### Project structure
-
-```text
-├── cmd/              # Cobra commands (init, doctor, config, status, hooks, mcp, ...)
-├── internal/
-│   ├── agents/       # Supported AI agents with hooks/MCP capabilities
-│   ├── api/          # HTTP client for archcore server
-│   ├── config/       # Settings management and directory init
-│   ├── display/      # Terminal output formatting (lipgloss)
-│   ├── update/       # Self-update logic (version check, download, verify, replace)
-│   ├── mcp/          # MCP stdio server, tools, and prompts
-│   └── sync/         # Sync logic
-├── templates/        # Document type templates
-├── install.sh        # Install script
-└── .goreleaser.yaml  # Release configuration
-```
-
-## Is Archcore like BMAD / Spec Kit / Memory Bank?
-
-No — these solve different problems. Quick map:
-
-| Tool                  | Category    | What it is                                                                       | How Archcore differs                                                                                  |
-| --------------------- | ----------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| **BMAD**              | Methodology | Agentic SDLC methodology — 12+ roles, 34+ workflows                              | Archcore stores _artifacts_; BMAD prescribes _process_                                                |
-| **Spec Kit**          | Methodology | Spec-driven workflow: `specify → plan → tasks → implement`, one-shot             | Spec Kit is a one-shot handoff; Archcore maintains a living graph that evolves with the codebase     |
-| **Agent OS**          | Methodology | Codebase standards extraction + spec-driven development                          | Closest positioning. Archcore adds typed documents, validated relations, and an optional ISO cascade  |
-| **claude-mem / Mem0** | Memory      | Auto-captures session memory, cross-agent recall                                 | Memory tools remember _what you did_; Archcore stores _how the system is built and what was decided_ |
-| **Cline Memory Bank** | Docs        | Fixed-schema markdown files (`projectbrief`, `activeContext`, `systemPatterns`…) | Same spirit, lower ceremony. Archcore adds typed relations, MCP validation, and multi-step cascades  |
-| **CLAUDE.md / .cursorrules** | Instructions | Single flat file the agent reads at session start                          | Archcore replaces a growing instruction file with typed, related, queryable documents                 |
-
-Pick a methodology tool for an opinionated dev flow. Pick a memory tool for session continuity. Pick Archcore when you want typed, queryable _project truth_ — the decisions, rules, and architecture of _this_ repo — that your coding agent respects on every request.
 
 ## Links & license
 
