@@ -4,23 +4,29 @@
 
 **Make your AI code like it already knows your repo.**
 
-Archcore gives coding agents the architecture, rules, and prior decisions of *this* repo — so new changes land where your project says they belong and follow the team's conventions, automatically.
+Archcore gives coding agents the architecture, rules, and prior decisions of _this_ repo — so new changes land where your project says they belong and follow the team's conventions, automatically.
 
 Works in **Claude Code**, **Cursor**, and **Codex CLI**. One source of truth, in Git.
+
+## See it work
+
+The agent pulls in the rules and decisions that apply — no command needed — and still gives you the seven skills below for anything explicit.
+
+![archcore plugin demo](demo.gif)
 
 ## Commands
 
 Describe what you want in plain English — Archcore routes it. The slash commands below are shortcuts to the same workflows.
 
-| Command              | Outcome                                                | When to use                                                                                                                       |
-| -------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `/archcore:init`     | Make your repo legible to AI agents                    | First-time setup — seeds a stack rule, a run-the-app guide, and imports your `CLAUDE.md` / `AGENTS.md` / `.cursorrules` if present |
-| `/archcore:context`  | Load what's already decided before you change code     | Daily, before editing — pulls relevant rules, decisions, specs, patterns, and reference docs for a file, directory, or topic; or `--git-changes` for the rules governing your uncommitted changes |
-| `/archcore:capture`  | Document what already lives in code                    | A module, API, pipeline, or integration has tribal knowledge but no doc yet                                                       |
-| `/archcore:plan`     | Turn an idea into a scoped implementation plan         | New feature, refactor, or initiative — pick depth with `--track product\|feature\|sources\|iso`                                   |
-| `/archcore:decide`   | Record a decision and (optionally) make it a team rule | A decision was made — capture rationale, consequences, and turn it into an enforced standard                                      |
-| `/archcore:audit`    | Find stale, missing, or drifting docs                  | Health check — add `--deep` for a full audit, `--drift` for code/doc staleness                                                    |
-| `/archcore:help`     | Navigate the skill catalog                             | When you forget which command fits                                                                                                |
+| Command             | Outcome                                                | When to use                                                                                                                                                                                       |
+| ------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/archcore:init`    | Make your repo legible to AI agents                    | First-time setup — seeds a stack rule, a run-the-app guide, and imports your `CLAUDE.md` / `AGENTS.md` / `.cursorrules` if present                                                                |
+| `/archcore:context` | Load what's already decided before you change code     | Daily, before editing — pulls relevant rules, decisions, specs, patterns, and reference docs for a file, directory, or topic; or `--git-changes` for the rules governing your uncommitted changes |
+| `/archcore:capture` | Document what already lives in code                    | A module, API, pipeline, or integration has tribal knowledge but no doc yet                                                                                                                       |
+| `/archcore:plan`    | Turn an idea into a scoped implementation plan         | New feature, refactor, or initiative — pick depth with `--track product\|feature\|sources\|iso`                                                                                                   |
+| `/archcore:decide`  | Record a decision and (optionally) make it a team rule | A decision was made — capture rationale, consequences, and turn it into an enforced standard                                                                                                      |
+| `/archcore:audit`   | Find stale, missing, or drifting docs                  | Health check — add `--deep` for a full audit, `--drift` for code/doc staleness                                                                                                                    |
+| `/archcore:help`    | Navigate the skill catalog                             | When you forget which command fits                                                                                                                                                                |
 
 ## Install
 
@@ -82,7 +88,7 @@ Open your project and try these three prompts. Each shows a different side of wh
 > Empty repo? Run `/archcore:init` first — it seeds a stack rule, a run-the-app guide, and optionally imports your existing `CLAUDE.md` / `AGENTS.md` / `.cursorrules`.
 
 **1. "Before I change anything in `src/auth/`, what should I know?"**
-Your agent sees what's already decided for that path — *before* it touches the code.
+Your agent sees what's already decided for that path — _before_ it touches the code.
 
 **2. "Add a new API handler and follow this repo's conventions."**
 Your agent places the handler where your architecture says it belongs, instead of guessing.
@@ -92,9 +98,21 @@ The decision is captured, codified as a rule, and auto-applied to every future c
 
 ## What changes after install
 
-Without Archcore, the agent guesses your folder structure, re-litigates decisions your team already made, needs the same conventions repeated in every chat, and loses project truth the moment the session ends.
+### ❌ Without Archcore
 
-With Archcore, the same asks produce code that lands where your architecture says it belongs, respects decisions already in Git, follows team conventions loaded automatically, and reflects new decisions as future guardrails — not markdown graveyards.
+- the agent guesses your folder structure
+- re-litigates decisions your team already made
+- needs the same conventions repeated in every chat
+- loses project truth the moment the session ends
+
+### ✅ With Archcore
+
+- code lands where your architecture says it belongs
+- respects decisions already in Git
+- follows team conventions loaded automatically
+- reflects new decisions as future guardrails — not markdown graveyards
+
+> **The agent stops guessing and starts following the system.**
 
 ## Use Archcore when
 
@@ -118,12 +136,12 @@ Built on open standards (Agent Skills, MCP) — skills and MCP tools are shared 
 
 ## How Archcore differs
 
-| Tool                       | Category    | How Archcore differs                                                                            |
-| -------------------------- | ----------- | ----------------------------------------------------------------------------------------------- |
-| **BMAD / Spec Kit / Agent OS** | Methodology | Archcore stores *artifacts* and a living context graph; methodology kits prescribe *process*.   |
-| **Superpowers**            | Methodology | Shapes *agent behavior*; Archcore provides *canonical project knowledge* any agent can read.    |
-| **claude-mem / Mem0 / agentmemory** | Memory      | They remember *what you did*; Archcore stores *how the system is built and what was decided*.   |
-| **Cline Memory Bank**      | Docs        | Same spirit, lower ceremony. Archcore adds typed relations and validated multi-step cascades.   |
+| Tool                                | Category    | How Archcore differs                                                                          |
+| ----------------------------------- | ----------- | --------------------------------------------------------------------------------------------- |
+| **BMAD / Spec Kit / Agent OS**      | Methodology | Archcore stores _artifacts_ and a living context graph; methodology kits prescribe _process_. |
+| **Superpowers**                     | Methodology | Shapes _agent behavior_; Archcore provides _canonical project knowledge_ any agent can read.  |
+| **claude-mem / Mem0 / agentmemory** | Memory      | They remember _what you did_; Archcore stores _how the system is built and what was decided_. |
+| **Cline Memory Bank**               | Docs        | Same spirit, lower ceremony. Archcore adds typed relations and validated multi-step cascades. |
 
 Pick a methodology tool for an opinionated dev flow. Pick a memory tool for session continuity. Pick Archcore when you want typed, queryable **project truth** that your coding agent respects on every request.
 
