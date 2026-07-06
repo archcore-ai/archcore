@@ -842,6 +842,31 @@
       "source": "features/globals-plugin-compat.plan.md",
       "target": "features/globals-cli-forward-compat.plan.md",
       "type": "depends_on"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "mcp/track-cascade-invocation-via-mcp.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "integrations/instruction-nudge-on-init.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "integrations/disable-stop-and-prompt-hooks.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "integrations/agent-hooks-integration.guide.md",
+      "type": "related"
     }
   ]
 }
