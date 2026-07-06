@@ -3251,6 +3251,26 @@
       "source": "plugin/host-expansion-core-readiness.plan.md",
       "target": "plugin/host-adapter-contract.spec.md",
       "type": "depends_on"
+    },
+    {
+      "source": "plugin/bump-plugin-version.cpat.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/bump-plugin-version.cpat.md",
+      "target": "plugin/subdirectory-plugin-layout.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/bump-plugin-version.cpat.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/bump-plugin-version.cpat.md",
+      "target": "plugin/remove-bundled-launcher-global-cli.idea.md",
+      "type": "related"
     }
   ]
 }
