@@ -3271,6 +3271,46 @@
       "source": "plugin/bump-plugin-version.cpat.md",
       "target": "plugin/remove-bundled-launcher-global-cli.idea.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/skill-level-elicitation-pass.idea.md",
+      "target": "plugin/precision-over-coverage.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-level-elicitation-pass.idea.md",
+      "target": "plugin/magic-first-day-init.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-level-elicitation-pass.idea.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/skill-level-elicitation-pass.idea.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/skill-level-elicitation-pass.idea.md",
+      "target": "plugin/commands-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/diagram-support-research.rnd.md",
+      "target": "plugin/precision-over-coverage.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/diagram-support-research.rnd.md",
+      "target": "plugin/skill-surface-collapse.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/diagram-support-research.rnd.md",
+      "target": "plugin/magic-first-day-init.adr.md",
+      "type": "related"
     }
   ]
 }
