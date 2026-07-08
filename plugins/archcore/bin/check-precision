@@ -95,8 +95,11 @@ case "$DOC_TYPE" in
     ;;
   spec)
     check_section "Purpose"
-    check_section "Subject"
+    # Canonical heading is "Surface"; "Contract Surface" is the pre-canon legacy
+    # heading — accepted so existing corpora don't produce advisory noise.
+    check_section "(Contract )?Surface"
     check_section "Normative Behavior"
+    check_section "Conformance"
     ;;
   guide)
     check_section "Steps"

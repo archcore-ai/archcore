@@ -133,6 +133,100 @@ Adopt approach X with explicit versioning and ownership for downstream teams.
   assert_output --partial "Consequences"
 }
 
+@test "spec with canonical headings produces no findings" {
+  # Canonical six-section form per skills/_shared/spec-contract.md.
+  local doc='---
+title: Card Spec
+status: accepted
+---
+
+## Purpose & Scope
+
+Normative for the content card; depended on by the feed and search surfaces, which rely on which fields drive which blocks when items render.
+
+## Surface
+
+Blocks and field-drivers referenced at @ui/card/blocks with states listed inline.
+
+## Normative Behavior
+
+1. WHEN episodes is non-empty, the card MUST render the progress block.
+
+## Constraints & Invariants
+
+Invariant: exactly one primary action is visible in the ready state.
+
+## Failure Behavior
+
+1. IF the data source fails, THEN the card MUST enter the unavailable state.
+
+## Conformance
+
+An implementation conforms when it satisfies behavior 1 and the invariant above.
+'
+  make_doc "card.spec.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"card.spec.md"}}'
+  assert_success
+  assert_output ""
+}
+
+@test "spec with legacy Contract Surface heading produces no section finding" {
+  # Pre-canon corpora use Contract Surface / Error Handling; the Surface check
+  # accepts the legacy heading so older specs do not produce advisory noise.
+  local doc='---
+title: Webhook Delivery Spec
+status: accepted
+---
+
+## Purpose & Scope
+
+Normative for webhook delivery; consumed by external subscriber endpoints that depend on delivery guarantees and the retry policy described in this contract.
+
+## Contract Surface
+
+Deliver entry point and payload schema referenced at @internal/webhooks with identifiers.
+
+## Normative Behavior
+
+1. The service MUST sign every payload with HMAC-SHA256 over the raw body.
+
+## Error Handling
+
+Retries exhausted leads to a failed mark and a delivery.failed event emission.
+
+## Conformance
+
+An implementation conforms when it satisfies behavior 1 and the retry rules above.
+'
+  make_doc "webhook.spec.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__update_document","tool_input":{"path":"webhook.spec.md"}}'
+  assert_success
+  assert_output ""
+}
+
+@test "spec missing Surface and Conformance produces findings, Subject not required" {
+  local doc='---
+title: Bare Spec
+status: draft
+---
+
+## Purpose & Scope
+
+Normative for the export pipeline; depended on by the reporting jobs that read its output files and rely on the ordering guarantees stated below in this document.
+
+## Normative Behavior
+
+1. The pipeline MUST write output files in deterministic order for consumers.
+'
+  make_doc "bare.spec.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"bare.spec.md"}}'
+  assert_success
+  assert_output --partial "missing section"
+  assert_output --partial "Surface"
+  assert_output --partial "Conformance"
+  refute_output --partial "Subject"
+}
+
 @test "frontmatter missing title produces finding" {
   # doc.md type — no section checks fire, isolates the frontmatter check.
   # Body padded to skip length warning.

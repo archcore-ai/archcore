@@ -3311,6 +3311,31 @@
       "source": "plugin/diagram-support-research.rnd.md",
       "target": "plugin/magic-first-day-init.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/spec-single-narrative-ears-bcp14.adr.md",
+      "target": "plugin/spec-format-industry-research.rnd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/no-frd-type-prd-scope-rule.adr.md",
+      "target": "plugin/frd-type-evaluation.rnd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/spec-single-narrative-ears-bcp14.adr.md",
+      "target": "plugin/no-frd-type-prd-scope-rule.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/spec-single-narrative-ears-bcp14.adr.md",
+      "target": "plugin/precision-over-coverage.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/no-frd-type-prd-scope-rule.adr.md",
+      "target": "plugin/skill-surface-collapse.adr.md",
+      "type": "related"
     }
   ]
 }
