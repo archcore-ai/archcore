@@ -76,7 +76,7 @@ func TestGenerateTemplate(t *testing.T) {
 		{
 			name:         "Spec template",
 			documentType: TypeSpec,
-			wantContains: []string{"## Purpose", "## Scope", "## Authority", "## Subject", "## Contract Surface", "## Normative Behavior", "## Constraints", "## Invariants", "## Error Handling", "## Conformance"},
+			wantContains: []string{"## Purpose & Scope", "## Surface", "## Normative Behavior", "## Constraints & Invariants", "## Failure Behavior", "## Conformance"},
 		},
 		{
 			name:         "MRD template",
@@ -287,22 +287,11 @@ func TestGenerateSpecTemplate(t *testing.T) {
 	template := generateSpecTemplate()
 
 	requiredSections := []string{
-		"## Purpose",
-		"## Scope",
-		"## Authority",
-		"## Subject",
-		"## Definitions",
-		"## Contract Surface",
-		"### Interfaces",
-		"### Inputs",
-		"### Outputs",
+		"## Purpose & Scope",
+		"## Surface",
 		"## Normative Behavior",
-		"### Preconditions",
-		"### Postconditions",
-		"## Constraints",
-		"## Invariants",
-		"## Error Handling",
-		"### Failure Semantics",
+		"## Constraints & Invariants",
+		"## Failure Behavior",
 		"## Conformance",
 	}
 
@@ -312,32 +301,36 @@ func TestGenerateSpecTemplate(t *testing.T) {
 		}
 	}
 
-	// Spec must contain code blocks for conformance-critical examples.
-	codeBlockCount := strings.Count(template, "```")
-	if codeBlockCount%2 != 0 {
-		t.Errorf("code block markers = %d, should be even", codeBlockCount)
-	}
-	if codeBlockCount < 2 {
-		t.Errorf("Spec template should have at least 1 code block pair, got %d markers", codeBlockCount)
-	}
-
-	// Spec must contain tables for definitions, inputs, outputs, constraints, error handling.
-	pipeCount := strings.Count(template, "|")
-	if pipeCount < 30 {
-		t.Errorf("Spec template should have substantial table content, got %d pipe characters", pipeCount)
-	}
-
-	// Spec must contain RFC 2119 normative keywords.
-	for _, keyword := range []string{"MUST", "SHOULD", "MAY"} {
-		if !strings.Contains(template, keyword) {
-			t.Errorf("Spec template missing RFC 2119 keyword: %q", keyword)
+	// Legacy sections must not resurface — the lean six-section canon replaced them.
+	for _, legacy := range []string{"## Authority", "## Subject", "## Definitions", "## Contract Surface", "## Error Handling", "## State Model"} {
+		if strings.Contains(template, legacy) {
+			t.Errorf("Spec template contains legacy section: %q", legacy)
 		}
 	}
 
-	// Optional sections must be marked with "Include only if" guidance.
-	optionalMarkers := strings.Count(template, "Include only if")
-	if optionalMarkers < 3 {
-		t.Errorf("Spec template should mark optional sections, got %d 'Include only if' markers", optionalMarkers)
+	// Behavior lines follow EARS clause structure.
+	for _, clause := range []string{"WHEN", "WHILE", "IF", "THEN"} {
+		if !strings.Contains(template, clause) {
+			t.Errorf("Spec template missing EARS clause keyword: %q", clause)
+		}
+	}
+
+	// BCP 14 keywords with the standards cited.
+	for _, keyword := range []string{"MUST", "SHOULD", "MAY", "RFC 2119", "RFC 8174"} {
+		if !strings.Contains(template, keyword) {
+			t.Errorf("Spec template missing normative keyword or citation: %q", keyword)
+		}
+	}
+
+	// The template must stay lean — the spec body cap is 80 lines.
+	if lines := strings.Count(template, "\n"); lines > 80 {
+		t.Errorf("Spec template is %d lines, must stay within the 80-line spec body cap", lines)
+	}
+
+	// Code block markers stay balanced (one Given/When/Then example block).
+	codeBlockCount := strings.Count(template, "```")
+	if codeBlockCount%2 != 0 {
+		t.Errorf("code block markers = %d, should be even", codeBlockCount)
 	}
 
 	// Cross-document linking belongs in the relation graph, not in the body.
@@ -433,7 +426,7 @@ func TestTemplateStructure(t *testing.T) {
 		{TypeRule, 320},
 		{TypeGuide, 830},
 		{TypeDoc, 440},
-		{TypeSpec, 2670},
+		{TypeSpec, 1900},
 		{TypeTaskType, 252},
 		{TypeCPAT, 198},
 		{TypePRD, 1925},

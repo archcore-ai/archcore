@@ -36,8 +36,8 @@ Document types (sections shown are core — full templates auto-generated when c
   rule      — Team standard · sections: Rule, Rationale, Examples (Good/Bad), Enforcement
   guide     — Step-by-step howto · sections: Prerequisites, Steps, Verification, Common Issues
   doc       — Reference material (tables/glossaries) · sections: Overview, Content, Examples
-  spec      — Contract of a depended-on boundary (API/interface/schema/protocol) — captured after code or specified ahead of it
-                · core sections: Purpose, Scope, Normative Behavior, Constraints, Invariants, Error Handling, Conformance
+  spec      — Normative behavior contract of something others rely on — a boundary (API/interface/schema/protocol) or a feature/subsystem — captured after code or specified ahead of it
+                · core sections: Purpose & Scope, Surface, Normative Behavior (EARS clauses + BCP 14 keywords), Constraints & Invariants, Failure Behavior, Conformance
   prd       — Product requirements · sections: Vision, Problem, Goals & Metrics, Requirements
   idea      — Concept worth exploring · sections: Idea, Value, Possible Implementation, Risks
   plan      — Implementation plan · sections: Goal, Tasks, Acceptance Criteria, Dependencies

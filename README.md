@@ -147,7 +147,7 @@ What ships in the box: **19 document types**, **4 relation types**, **10 MCP too
 | `rule`  | Rule                         | Coding or process standard with imperative guidance and examples                     |
 | `guide` | Guide                        | Step-by-step instructions for completing a specific task                             |
 | `doc`   | Document                     | Reference documentation, registries, and descriptive material                        |
-| `spec`  | Specification                | Canonical normative contract for a system, component, interface, or protocol         |
+| `spec`  | Specification                | Normative behavior contract for a boundary or feature/subsystem others rely on       |
 
 ### Vision
 

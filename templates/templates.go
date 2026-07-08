@@ -1169,208 +1169,65 @@ The single concrete step that follows from the recommendation.
 }
 
 func generateSpecTemplate() string {
-	return `## Purpose
+	return `## Purpose & Scope
 
-This specification defines the canonical technical contract for [subject].
+This specification is normative for [subject] — [one-line statement of what it is].
 
-It is normative for:
-- [implementation(s), service(s), component(s)]
-- [consumers, producers, integrators]
-- [test and validation scope]
+Depended on by: [external code, teams, UI surfaces, or sibling modules].
 
-## Scope
+Out of scope: [adjacent concerns covered elsewhere, with a pointer].
 
-### Covers
+## Surface
 
-- [What this specification defines]
-- [Boundaries of the contract]
-- [Actors, systems, or interfaces in scope]
+What dependents see of the subject. Reference source definitions with @-notation
+(@path/to/file) — do NOT copy interface, type, or struct bodies; copies go stale.
 
-### Does Not Cover
+- [Interface / entry point]: @path/to/file — [what it represents, who consumes it]
+- [Part / state / field-driver — for feature subjects]: [field] drives [behavior]
+- States: [state1 → state2 → ...] (include only if the subject is stateful)
 
-- [Explicitly out of scope]
-- [Adjacent concerns covered elsewhere]
-- [Operational or implementation details not governed by this spec]
-
-## Authority
-
-This document is the normative specification for [subject].
-
-If implementation, tests, or operational behavior differ from this specification, this specification takes precedence until it is amended.
-
-## Subject
-
-- **Name**: [Canonical name]
-- **Kind**: [service | component | interface | schema | protocol]
-- **Primary responsibility**: [single sentence]
-- **Consumers / dependents**: [who relies on this contract]
-
-## Definitions
-
-Only include terms used normatively in this document.
-
-| Term | Definition |
-|------|------------|
-| [Term 1] | [Precise definition] |
-| [Term 2] | [Precise definition] |
-
-## Contract Surface
-
-Define the externally observable contract using architectural descriptions and identifier-based references. Reference where things are defined rather than copying their full definitions.
-
-Prefer:
-- File path references using @-notation: @path/to/types.ts, @internal/config/config.go
-- Named identifiers: interface AIChatProps, type MessageRole, func ValidateConfig
-- Prose or table descriptions of shape and semantics
-
-Reserve code blocks for wire-level or protocol-level contracts only — where the exact textual format is itself the normative artifact (e.g., HTTP endpoint shape, CLI flag grammar, binary frame format). Do NOT copy full interface, type, or struct definitions from source files — they will become stale when the source changes.
-
-### Interfaces
-
-For each externally observable interface, state:
-- The canonical identifier name and where it is defined (@path/to/file)
-- What it represents and who consumes it
-- The semantically significant fields or parameters (prose or table)
-
-Use a code block ONLY when the exact textual format of the boundary is itself normative (e.g., HTTP endpoint, wire message structure).
-
-### Inputs
-
-| Input | Type | Description | Required |
-|-------|------|-------------|----------|
-| [input] | [type] | [meaning] | [yes/no] |
-
-### Outputs
-
-| Output | Type | Description |
-|--------|------|-------------|
-| [output] | [type] | [meaning] |
+Use a code block ONLY where the exact textual format is itself normative
+(HTTP endpoint shape, CLI flag grammar, wire format).
 
 ## Normative Behavior
 
-Use RFC 2119 terms: MUST, MUST NOT, SHOULD, SHOULD NOT, MAY.
+Numbered EARS-shaped requirements with BCP 14 keywords (MUST / SHOULD / MAY,
+uppercase only — RFC 2119 + RFC 8174). Keep MUST sparing: interoperation or
+harm prevention only. State the trigger or state explicitly.
 
-1. The system MUST [required behavior].
-2. The system MUST [required behavior].
-3. The system MUST NOT [forbidden behavior].
-4. The system SHOULD [recommended behavior].
-5. The system MAY [optional behavior].
+1. The [subject] MUST [response].
+2. WHEN [trigger], the [subject] MUST [response].
+3. WHILE [state], the [subject] SHOULD [response].
 
-### Preconditions
+## Constraints & Invariants
 
-- [Condition that must be true before behavior applies]
-- [Required inputs or environmental assumptions]
+Plain BCP 14 statements (no EARS clauses needed here).
 
-### Postconditions
+- Constraint: [hard limit] — [rationale]
+- Invariant: [condition that MUST always hold]
 
-- [Condition that must be true after successful processing]
-- [Observable outcome guaranteed by the system]
+## Failure Behavior
 
-## State Model
+Error and edge conditions with the observable outcome of each: response and
+recovery semantics (retriable? idempotent? timeout?) and degradation on bad,
+empty, or missing input or on dependency failure. Same notation.
 
-Include only if the subject is stateful.
-
-### States
-
-| State | Meaning |
-|-------|---------|
-| [state] | [definition] |
-
-### State Transitions
-
-| Current State | Event | Next State | Side Effects |
-|---------------|-------|------------|--------------|
-| [state] | [event] | [state] | [effects] |
-
-## Constraints
-
-| Constraint | Value | Rationale |
-|------------|-------|-----------|
-| [e.g., Max payload size] | [e.g., 1 MB] | [why] |
-| [e.g., Rate limit] | [e.g., 100 req/s] | [why] |
-| [e.g., Max processing time] | [e.g., 200 ms p95] | [why] |
-
-## Invariants
-
-These conditions must always hold.
-
-- [Condition that must always hold]
-- [Condition that must always hold]
-- [Condition that must always hold]
-
-## Error Handling
-
-| Condition | Response | Recovery |
-|-----------|----------|----------|
-| [error condition] | [error code / message / behavior] | [recovery action] |
-| [error condition] | [error code / message / behavior] | [recovery action] |
-
-### Failure Semantics
-
-- [What is retriable vs non-retriable]
-- [Whether processing is atomic, partial, idempotent, eventually consistent, etc.]
-- [Timeout, cancellation, and duplicate handling semantics]
+1. IF [undesired condition], THEN the [subject] MUST [observable outcome].
+2. WHEN [dependency] fails, the [subject] MUST [degradation behavior].
 
 ## Conformance
 
-An implementation conforms to this specification if it satisfies:
+An implementation conforms when it satisfies all MUST requirements, all
+invariants, and all failure rules above.
 
-- all MUST and MUST NOT requirements
-- all stated invariants
-- all applicable interface requirements
-- all applicable error-handling requirements
-- all required state transition rules, if a state model is defined
-
-## Examples
-
-Include only examples that clarify conformance-critical behavior.
-
-### Example: [Scenario Name]
+Optionally close with ONE non-normative example (<= 5 lines, Given/When/Then)
+anchoring the most load-bearing behavior:
 
 ` + "```" + `txt
-// Input
-[example input]
-
-// Output
-[expected output]
-
-// Notes
-[why this example matters]
+Given [initial state]
+When [action]
+Then [expected outcome]
 ` + "```" + `
-
-## Security Considerations
-
-Include only if relevant.
-
-- [Authentication / authorization expectations]
-- [Data handling constraints]
-- [Trust boundaries]
-- [Abuse / misuse considerations]
-
-## Privacy Considerations
-
-Include only if relevant.
-
-- [Data classification]
-- [Retention or minimization constraints]
-- [PII / sensitive data handling expectations]
-
-## Compatibility
-
-Include only if relevant.
-
-- [Backward compatibility guarantees]
-- [Forward compatibility assumptions]
-- [Version negotiation behavior]
-- [Deprecation policy for consumers]
-
-## Migration Notes
-
-Include only for breaking or behaviorally significant changes.
-
-- [Breaking changes]
-- [Required migration steps]
-- [Temporary compatibility behavior]
 `
 }
 
