@@ -867,6 +867,21 @@
       "source": "integrations/save-agent-plans-into-archcore.idea.md",
       "target": "integrations/agent-hooks-integration.guide.md",
       "type": "related"
+    },
+    {
+      "source": "mcp/relation-write-path-graph-growth.idea.md",
+      "target": "mcp/read-path-scan-performance.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/relation-write-path-graph-growth.idea.md",
+      "target": "relations/local-relations-in-sync-state.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/relation-write-path-graph-growth.idea.md",
+      "target": "relations/no-auto-relations-on-create-document.adr.md",
+      "type": "related"
     }
   ]
 }
