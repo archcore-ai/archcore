@@ -9,12 +9,12 @@ tags:
 
 The conceptual definition of the `spec` type — when to use it, the spec-vs-doc/rule/adr distinctions, the one-question test, and good/bad examples — lives in the `archcore` global source `concepts/document-types-reference`. It is not restated here.
 
-In short: use `spec` for the canonical normative contract of one concrete technical boundary (behavior, constraints, invariants, conformance). One subject per spec; normative-first; no general-reference dumping.
+In short: use `spec` for the canonical normative behavior contract of one concrete subject others rely on — a boundary (API, interface, schema, protocol) or a feature/subsystem (behavior, constraints, invariants, conformance). One subject per spec; normative-first; no general-reference dumping.
 
 ## Enforcement (CLI)
 
 - Type-selection rules in `@internal/mcp/server.go` and `@internal/mcp/tools/create_document.go` include the `spec vs doc`, `spec vs rule`, and `spec vs adr` disambiguation.
-- The `spec` type is registered in `@templates/templates.go` with a template structured around: Purpose, Scope, Authority, Subject, Contract Surface, Normative Behavior, Constraints, Invariants, Error Handling, Conformance.
+- The `spec` type is registered in `@templates/templates.go` with the six-section template: Purpose & Scope, Surface, Normative Behavior (EARS clauses + BCP 14 keywords), Constraints & Invariants, Failure Behavior, Conformance.
 
 ## References
 

@@ -882,6 +882,16 @@
       "source": "mcp/relation-write-path-graph-growth.idea.md",
       "target": "relations/no-auto-relations-on-create-document.adr.md",
       "type": "related"
+    },
+    {
+      "source": "document-types/spec-doctrine-ears-alignment.plan.md",
+      "target": "document-types/writing-spec-documents.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/spec-doctrine-ears-alignment.plan.md",
+      "target": "document-types/spec-type-usage.rule.md",
+      "type": "related"
     }
   ]
 }

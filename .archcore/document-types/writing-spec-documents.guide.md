@@ -7,150 +7,112 @@ tags:
 
 ## Overview
 
-A `spec` document is a canonical normative contract for a concrete system, component, interface, schema, or protocol. It defines externally observable behavior, constraints, invariants, and conformance requirements.
+A `spec` document is the durable, normative contract for **behavior others rely on right now** — one API, interface, schema, protocol, feature, or subsystem. One subject per spec, and **one form**: the same six sections regardless of subject. A spec may be written after code (capture the behavior of what exists) or before it (specify what to build). If implementation diverges from the spec, the spec takes precedence.
 
-A good spec is precise enough for implementation and compliance checking. If implementation differs from the spec, the spec takes precedence.
+**Canonical source**: this guide mirrors the Archcore plugin's spec contract (`skills/_shared/spec-contract.md` in the plugin repo) and its ADR "Spec — Single Narrative, Generalized Sections, EARS + BCP 14 Notation". When that contract changes, update this guide and the template in @templates/templates.go together.
+
+**Routing gate**: if the document answers *"what should we build and why"* (user stories, priorities, success metrics), it is a `prd` (or ISO `syrs`/`srs`) — not a spec. If it answers *"what behavior can consumers rely on right now"*, it is a spec.
 
 ### Target Audience
 
-Engineers implementing or consuming the specified component, and AI agents that need to understand system contracts.
-
-### Time Estimate
-
-30–90 minutes for a focused component spec.
+Engineers and AI agents authoring or reviewing specs in this repository.
 
 ## Prerequisites
 
-### Required Knowledge
-
-- Clear understanding of the component, API, or protocol being specified
-- Knowledge of its current or intended behavior, inputs, outputs, and failure modes
-
-### Before You Start
-
-- Check if an `adr` exists for the decision behind this component — link it via `add_relation`
-- Check if an `rfc` preceded this work — the spec formalizes an accepted RFC's design
-- Verify this is a normative contract, not a reference document (`doc`), cross-cutting standard (`rule`), or decision record (`adr`)
+- Confirm the subject warrants a spec — see the spec-type-usage rule (not a `doc`, `rule`, `adr`, `guide`, or `prd`)
+- If an `adr` records the decision behind the subject, link it via `add_relation` after creating
 
 ## Steps
 
-### Step 1: Write Purpose and Scope
+### Step 1: Purpose & Scope
 
-State what the spec defines and who it is normative for. Be precise about boundaries.
+Name the one subject this spec is normative for, who depends on it (external code, teams, UI surfaces, or sibling modules), and what is out of scope (with pointers).
 
-**Good scope**: "This spec defines the webhook delivery contract: payload format, delivery guarantees, retry policy, and signature verification."
+### Step 2: Surface
 
-**Bad scope**: "This spec covers the webhook system." (too broad — split into delivery spec + management API spec)
+What dependents see of the subject: the externally observable interface (inputs, outputs, signatures) and/or the parts, states, and data fields that drive behavior. Reference source definitions by canonical identifier plus `@path/to/file` — never copy interface, type, or struct bodies; copies go stale. Use a code block only where the exact textual format is itself normative (HTTP endpoint shape, CLI flag grammar, wire format).
 
-Remember: **one subject per spec**.
+### Step 3: Normative Behavior
 
-### Step 2: Establish Authority
+Numbered requirements, each in EARS clause order with a BCP 14 keyword (MUST / SHOULD / MAY, uppercase only — RFC 2119 + RFC 8174) as the modal:
 
-Declare that this document is the normative specification for the subject. Link related artifacts — machine-readable schemas (OpenAPI, protobuf, SQL), related ADRs, rules, guides.
+- Ubiquitous: `The <subject> MUST <response>.`
+- Event-driven: `WHEN <trigger>, the <subject> MUST <response>.`
+- State-driven: `WHILE <state>, the <subject> MUST <response>.`
+- Unwanted behavior: `IF <undesired condition>, THEN the <subject> MUST <response>.`
 
-### Step 3: Define the Subject
+Grade with intent: MUST sparingly — interoperation or harm prevention only (RFC 2119 §6); SHOULD where deviation needs a weighed reason; MAY for true options. One requirement per numbered line — split multi-MUST clauses. State the trigger or state explicitly. No rationale tails ("…so that X") — rationale lives in a linked `adr`.
 
-Name the contract object precisely:
-- **Name**: canonical identifier
-- **Kind**: service, component, interface, schema, or protocol
-- **Primary responsibility**: single sentence
-- **Consumers / dependents**: who relies on this contract
+### Step 4: Constraints & Invariants
 
-### Step 4: List Definitions
+Hard limits (each with a rationale) and invariants (conditions that MUST always hold), listed separately. Plain BCP 14 statements — EARS clauses are not required here.
 
-Create a term table for domain-specific vocabulary used normatively in the document. Only include terms that appear in normative sections — this is not a general glossary.
+### Step 5: Failure Behavior
 
-### Step 5: Specify the Contract Surface
+Error and edge conditions with the observable outcome of each: response and recovery semantics (retriable? idempotent? timeout behavior?) and degradation on bad, empty, or missing input or on dependency failure. Same notation as Normative Behavior; error paths use `IF …, THEN …`, not `WHEN`.
 
-Document the externally observable contract:
-- **Interfaces**: Describe each interface by its canonical identifier and a file path reference (@path/to/file), not by copying its source definition. State what the interface represents, who consumes it, and the semantically significant fields in prose or a table. Use a code block only when the exact textual format is itself normative (e.g., an HTTP endpoint shape, a wire message schema, a CLI flag grammar). Full interface or type definitions copied from source code do not belong in a spec — they will become stale when the code changes.
-- **Inputs**: table with type, description, required/optional
-- **Outputs**: table with type, description
+### Step 6: Conformance
 
-Focus on what callers/consumers see — not internal implementation.
+What makes an implementation correct: satisfies all MUST requirements, all invariants, and all failure rules. Point to the executable conformance suite (co-located tests). MAY close with ONE non-normative example block (≤ 5 lines, Given/When/Then) anchoring the most load-bearing behavior.
 
-### Step 6: Document Normative Behavior
+## Body Cap
 
-Write behavioral requirements using RFC 2119 language:
+**≤ 80 lines.** The "reference, don't reproduce" rule is what keeps a spec this short even for a complex subject. (The raised 120-line flagship cap applies only to `/archcore:init` hotspot synthesis, not to authored specs.)
 
-- **MUST** / **MUST NOT** — absolute requirement; violation breaks the contract
-- **SHOULD** / **SHOULD NOT** — recommended; deviation requires justification
-- **MAY** — optional; implementer's choice
+## Forbidden in the Body
 
-Number each requirement for traceability. Include preconditions and postconditions.
-
-### Step 7: Define Constraints and Invariants
-
-Document hard limits (rate limits, payload sizes, timeouts) in a constraints table with rationale.
-
-Separately list invariants — conditions that must always hold regardless of state or input.
-
-### Step 8: Specify Error Handling
-
-Document error conditions with response and recovery. Add failure semantics: what is retriable, whether processing is atomic/idempotent, timeout behavior.
-
-### Step 9: Write Conformance Criteria
-
-Define what it means for an implementation to conform. Typically: satisfies all MUST/MUST NOT requirements, all stated invariants, all interface requirements, all error-handling requirements, and all state transition rules if applicable.
-
-### Step 10: Add Optional Sections
-
-Include only when relevant:
-- **State Model** — if the subject is stateful
-- **Examples** — only for conformance-critical behavior
-- **Security / Privacy Considerations** — if trust boundaries or data handling apply
-- **Compatibility** — if backward/forward compatibility matters
-- **Version History / Migration Notes** — for evolving contracts
+- Decision rationale ("we chose X because…") → linked `adr`
+- User stories, priorities, success metrics → `prd`
+- General reference material (glossaries of everything, inventories) → `doc`
+- Sequential how-to steps ("first call X, then Y") → `guide`
+- A section enumerating other `.archcore/` documents — cross-document links live in the relation graph via `add_relation`. Citing source code (`@path`), schemas, and external authorities is fine.
 
 ## Verification
 
 After writing, check:
 
-- [ ] Purpose section declares normative authority
-- [ ] Scope clearly states what is and is not covered
-- [ ] Subject identifies exactly one contract object (one subject per spec)
-- [ ] Every behavioral requirement uses MUST/SHOULD/MAY
-- [ ] Interfaces described by canonical identifier and file path reference, not by copied source definitions
-- [ ] Constraints have rationale (not just values)
-- [ ] Invariants are listed separately from constraints
-- [ ] Error conditions have both response and recovery
-- [ ] Conformance section defines what "correct implementation" means
-- [ ] No decision rationale in the spec body (that belongs in a linked `adr`)
-- [ ] No general reference material dumped into the spec (that belongs in `doc`)
+- [ ] Exactly six sections, in order: Purpose & Scope, Surface, Normative Behavior, Constraints & Invariants, Failure Behavior, Conformance
+- [ ] Every normative line is numbered, follows EARS clause order, and carries a BCP 14 modal — no SHALL
+- [ ] One requirement per line; the subject of every clause is the specified system, not its caller
+- [ ] Error paths sit in Failure Behavior as `IF …, THEN …`
+- [ ] Interfaces referenced by identifier + `@path`, never reproduced
+- [ ] Body ≤ 80 lines
+- [ ] No rationale, stories, reference dumps, how-to steps, or related-documents sections
 
 ## Common Issues
 
-### Issue 1: Spec is too broad
+### Issue 1: SHALL-only pure EARS
 
-**Cause**: Trying to specify an entire subsystem in one document.
+**Cause**: Adopting EARS together with its traditional `shall` keyword.
 
-**Solution**: Split by component boundary. One API endpoint or one protocol = one spec. Link related specs via `add_relation`. Remember: one subject per spec.
+**Solution**: The modal here is BCP 14 — MUST/SHOULD/MAY grading. Shall-only EARS was an explicitly rejected alternative in the plugin ADR (it loses the grading).
 
-### Issue 2: Mixing rationale with contract
+### Issue 2: Pattern-taxonomy sections
 
-**Cause**: Explaining "why" alongside "what" — e.g., "We use JWT because..."
+**Cause**: Grouping requirements into "Ubiquitous / Event-driven / State-driven…" subsections with U1/E1/S1 labels.
 
-**Solution**: Move rationale to a linked `adr`. The spec states the contract; the adr explains the choice.
+**Solution**: Plain sequential numbering — the clause order itself carries the pattern. Taxonomy labels add lines and misclassification surface without adding precision.
 
-### Issue 3: Spec reads like a guide
+### Issue 3: Error paths written as WHEN
 
-**Cause**: Writing sequential steps ("First, call X. Then call Y.") instead of behavioral requirements.
+**Cause**: Treating failures as ordinary events.
 
-**Solution**: Rewrite as normative rules: "The system MUST validate the token before processing the request." If you need step-by-step instructions, create a `guide`.
+**Solution**: Unwanted behavior is `IF <condition>, THEN the <subject> MUST <response>` — and it belongs in Failure Behavior.
 
-### Issue 4: General reference dumping
+### Issue 4: Compound clauses
 
-**Cause**: Adding glossaries of everything, historical notes, or inventory lists to the spec.
+**Cause**: Chaining several MUSTs (or a MUST and a SHOULD with different subjects) in one numbered line.
 
-**Solution**: Move non-normative reference material to a `doc`. The spec should contain only content that can be used to verify implementation.
+**Solution**: One requirement per line. Split.
 
-### Issue 5: Over-specifying with inline code
+### Issue 5: Requirements on the caller
 
-**Cause**: Copying full interface, type, or struct definitions from source code into the spec because they represent "the contract". This feels precise but is a maintenance liability — the spec now holds a second copy of a definition that will diverge when the source changes.
+**Cause**: Normative lines like "the caller MUST abort".
 
-**Solution**: Reference, don't reproduce. Use the canonical identifier name and an @-path to where it is defined. Describe the semantically significant fields in prose or a table. Reserve code blocks for wire-level or protocol-level contracts where the textual form is itself the normative artifact (HTTP endpoint shapes, CLI flag grammar, binary frame formats).
+**Solution**: The clause subject is the specified component. Caller guidance becomes a recovery note in Failure Behavior, or moves to the consumer's own spec.
 
-## Related Resources
+### Issue 6: Spec too broad, or a second copy of the code
 
-- `.archcore/document-types/spec-type-usage.rule.md` — when to use `spec` vs other types
-- `.archcore/dir/categories-and-document-types.doc.md` — full type system reference
+**Cause**: Specifying a whole subsystem in one document, or pasting interface/type definitions "for precision".
+
+**Solution**: One subject per spec — split by component boundary and link via `add_relation`. Reference `@path`s instead of reproducing source; reserve code blocks for wire-level contracts where the textual form is itself normative.
