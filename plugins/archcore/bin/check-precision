@@ -16,6 +16,11 @@
 #      (precision-rules.rule.md Rule 5 — relations belong in the graph)
 #   6. No multi-line code blocks (>=5 content lines) in architect-voice types
 #      (precision-rules.rule.md Rule 6 — use @references instead)
+#   7. Spec notation (spec-contract.md): BCP 14 modals (no SHALL), the 80-line
+#      body cap, and — on numbered lines only — strict-EARS grammar: one modal
+#      per line (7b, no compound requirements) and an obligated active-voice
+#      subject (7c, no subjectless passive). Advisory only — legacy specs warn
+#      on next edit, never retroactively (migrate-on-next-edit policy).
 
 SCRIPT_DIR=$(dirname "$0")
 # shellcheck source=lib/normalize-stdin.sh
@@ -169,6 +174,48 @@ case "$DOC_TYPE" in
     fi
     ;;
 esac
+
+# --- Check 7: Spec notation ---
+# Source of truth: skills/_shared/spec-contract.md. SHALL is the pure-EARS
+# keyword, not part of the EARS + BCP 14 hybrid; the body cap is 80 lines
+# (120 applies only to init-synthesized flagship specs).
+if [ "$DOC_TYPE" = "spec" ]; then
+  if printf '%s' "$BODY" | grep -qE '\bSHALL\b'; then
+    add_finding "spec notation: SHALL found — grade with BCP 14 modals instead (MUST / SHOULD / MAY, uppercase)"
+  fi
+  BODY_LINES=$(printf '%s\n' "$BODY" | wc -l | tr -d ' ')
+  if [ "$BODY_LINES" -gt 80 ]; then
+    add_finding "spec body is $BODY_LINES lines (cap 80; 120 only for init-synthesized flagship specs)"
+  fi
+
+  # Checks 7b/7c apply only to numbered lines (^[0-9]+.) — Normative + Failure
+  # Behavior. Constraints & Invariants (plain BCP 14, non-EARS by design) and
+  # prose are never touched.
+
+  # Check 7b: compound requirement — >=2 BCP 14 modals in one numbered line.
+  # Normalize the NOT-forms first so "MUST NOT" counts as one modal, then count.
+  COMPOUND=$(printf '%s\n' "$BODY" | grep -E '^[0-9]+\.' | while IFS= read -r _l; do
+    _n=$(printf '%s' "$_l" | sed -E 's/(MUST|SHOULD|SHALL|MAY) NOT/\1/g' \
+      | grep -oE '\b(MUST|SHOULD|SHALL|MAY)\b' | wc -l | tr -d ' ')
+    [ "${_n:-0}" -ge 2 ] && printf 'x'
+  done)
+  if [ -n "$COMPOUND" ]; then
+    add_finding "compound requirement — a numbered line carries >=2 modal keywords; one requirement (one modal) per line, split \"MUST X and MUST NOT Y\" into two lines"
+  fi
+
+  # Check 7c: subjectless passive — "MUST/SHOULD be <verb-ed/-en>" (EN) or
+  # "MUST/SHOULD <verb>ться/тся" (RU) on a numbered line names no obligated actor.
+  # Case-sensitive on the modal (RFC 8174: only uppercase is normative), matching
+  # the SHALL check above. Implicit-trigger deviation (event as grammatical
+  # subject without WHEN) is not reliably lintable — it stays a contract/prose
+  # rule in spec-contract.md, not a hook check.
+  PASSIVE=$(printf '%s\n' "$BODY" | grep -E '^[0-9]+\.' \
+    | grep -oE '\b(MUST|SHOULD)( NOT)? be [a-z]+(ed|en)\b|\b(MUST|SHOULD)( NOT)? [^[:space:]]+(ться|тся)\b' 2>/dev/null \
+    | head -3 | tr '\n' ',' | sed 's/,$//')
+  if [ -n "$PASSIVE" ]; then
+    add_finding "subjectless passive ($PASSIVE) — name the obligated component as the subject, e.g. \"the <component> MUST rotate <thing>\", or use WHEN <trigger> if it responds to an event"
+  fi
+fi
 
 # --- Emit soft warnings if any ---
 if [ -n "$FINDINGS" ]; then

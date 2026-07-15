@@ -204,6 +204,310 @@ An implementation conforms when it satisfies behavior 1 and the retry rules abov
   assert_output ""
 }
 
+@test "spec containing SHALL produces notation finding" {
+  # SHALL is the pure-EARS keyword; the contract grades with BCP 14 modals.
+  local doc='---
+title: Shall Spec
+status: draft
+---
+
+## Purpose & Scope
+
+Normative for the loader; depended on by every command that reads the settings contract below.
+
+## Surface
+
+Load and Save referenced at @internal/config with identifiers listed inline.
+
+## Normative Behavior
+
+1. WHEN a file is loaded, the loader SHALL validate it before returning a value.
+
+## Constraints & Invariants
+
+Invariant: a loaded value always passes validation.
+
+## Failure Behavior
+
+1. IF the file is invalid, THEN the loader MUST reject it with a named field.
+
+## Conformance
+
+An implementation conforms when it satisfies behavior 1 and the invariant above.
+'
+  make_doc "shall.spec.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__update_document","tool_input":{"path":"shall.spec.md"}}'
+  assert_success
+  assert_output --partial "SHALL found"
+  assert_output --partial "MUST / SHOULD / MAY"
+}
+
+@test "lowercase shall does not trigger notation finding" {
+  # RFC 8174: only uppercase keywords are normative; prose shall is not flagged.
+  local doc='---
+title: Prose Spec
+status: draft
+---
+
+## Purpose & Scope
+
+Normative for the exporter; depended on by downstream jobs that shall be documented in their own contract.
+
+## Surface
+
+Export entry point referenced at @internal/export with identifiers listed inline.
+
+## Normative Behavior
+
+1. WHEN an export is requested, the exporter MUST stream rows in key order.
+
+## Constraints & Invariants
+
+Invariant: output ordering is stable across runs.
+
+## Failure Behavior
+
+1. IF the sink is unreachable, THEN the exporter MUST return an error.
+
+## Conformance
+
+An implementation conforms when it satisfies behavior 1 and the invariant above.
+'
+  make_doc "prose.spec.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"prose.spec.md"}}'
+  assert_success
+  assert_output ""
+}
+
+@test "spec body over 80 lines produces cap finding" {
+  local doc='---
+title: Long Spec
+status: draft
+---
+
+## Purpose & Scope
+
+Normative for the long subject; depended on by consumers that rely on the behavior below.
+
+## Surface
+
+Referenced at @internal/long with identifiers listed inline.
+
+## Normative Behavior
+
+1. The subject MUST respond to every request it accepts.
+
+## Constraints & Invariants
+
+Invariant: the subject holds its ordering guarantee.
+
+## Failure Behavior
+
+1. IF the input is malformed, THEN the subject MUST reject it.
+
+## Conformance
+
+An implementation conforms when it satisfies the behaviors above.
+'
+  # Pad past the 80-line body cap with clean numbered requirement lines.
+  local i
+  for i in $(seq 2 60); do
+    doc="$doc
+$i. WHEN trigger $i fires, the subject MUST respond to it."
+  done
+  make_doc "long.spec.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__update_document","tool_input":{"path":"long.spec.md"}}'
+  assert_success
+  assert_output --partial "cap 80"
+}
+
+@test "spec compound requirement (two modals in one line) produces finding" {
+  # Rule 2: one line, one modal. "MUST show ... and MUST NOT show ..." is two.
+  local doc='---
+title: Compound Spec
+status: draft
+---
+
+## Purpose & Scope
+
+Normative for the content card; depended on by the feed and search surfaces that render catalog items from the fields described below.
+
+## Surface
+
+Blocks and field-drivers referenced at @ui/card/blocks with states listed inline.
+
+## Normative Behavior
+
+1. WHEN episodes is non-empty, the card MUST render the progress block.
+2. WHILE status is completed, the card MUST show the badge and MUST NOT show the action.
+
+## Constraints & Invariants
+
+Invariant: exactly one primary action is visible in the ready state.
+
+## Failure Behavior
+
+1. IF the data source fails, THEN the card MUST enter the unavailable state.
+
+## Conformance
+
+An implementation conforms when it satisfies the behaviors and the invariant above.
+'
+  make_doc "compound.spec.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"compound.spec.md"}}'
+  assert_success
+  assert_output --partial "compound requirement"
+}
+
+@test "spec single MUST NOT line does not trigger compound finding" {
+  # MUST NOT is one modal, not two — normalized before counting.
+  local doc='---
+title: Single Modal Spec
+status: draft
+---
+
+## Purpose & Scope
+
+Normative for the loader; depended on by every command that reads the settings contract described below.
+
+## Surface
+
+Load and Save referenced at @internal/config with identifiers listed inline.
+
+## Normative Behavior
+
+1. WHEN a retry budget is exhausted, the loader MUST NOT retry the request again.
+
+## Constraints & Invariants
+
+Invariant: a loaded value always passes validation.
+
+## Failure Behavior
+
+1. IF the file is invalid, THEN the loader MUST reject it with a named field.
+
+## Conformance
+
+An implementation conforms when it satisfies behavior 1 and the invariant above.
+'
+  make_doc "single-modal.spec.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"single-modal.spec.md"}}'
+  assert_success
+  refute_output --partial "compound requirement"
+}
+
+@test "spec subjectless passive (EN) produces finding" {
+  # Rule 1: name the obligated component. "Tokens MUST be rotated" names none.
+  local doc='---
+title: Passive Spec
+status: draft
+---
+
+## Purpose & Scope
+
+Normative for the token rotator; depended on by every session that reads a credential from the store described below.
+
+## Surface
+
+Rotate and Revoke referenced at @internal/auth/rotator with identifiers listed inline.
+
+## Normative Behavior
+
+1. Tokens MUST be rotated every 24 hours.
+
+## Constraints & Invariants
+
+Invariant: a live session always holds a non-expired token.
+
+## Failure Behavior
+
+1. IF rotation fails, THEN the rotator MUST alert the operator.
+
+## Conformance
+
+An implementation conforms when it satisfies behavior 1 and the invariant above.
+'
+  make_doc "passive.spec.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"passive.spec.md"}}'
+  assert_success
+  assert_output --partial "subjectless passive"
+}
+
+@test "spec active-voice obligated subject does not trigger passive finding" {
+  # Same requirement, active voice with the rotator as the obligated subject.
+  local doc='---
+title: Active Spec
+status: draft
+---
+
+## Purpose & Scope
+
+Normative for the token rotator; depended on by every session that reads a credential from the store described below.
+
+## Surface
+
+Rotate and Revoke referenced at @internal/auth/rotator with identifiers listed inline.
+
+## Normative Behavior
+
+1. The rotator MUST rotate the token every 24 hours.
+
+## Constraints & Invariants
+
+Invariant: a live session always holds a non-expired token.
+
+## Failure Behavior
+
+1. IF rotation fails, THEN the rotator MUST alert the operator.
+
+## Conformance
+
+An implementation conforms when it satisfies behavior 1 and the invariant above.
+'
+  make_doc "active.spec.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"active.spec.md"}}'
+  assert_success
+  refute_output --partial "subjectless passive"
+}
+
+@test "spec subjectless passive (RU) produces finding" {
+  # Bilingual coverage (mirrors the forbidden-lexicon RU branch): the reflexive
+  # ending -ться/-тся on a numbered MUST line is a subjectless passive.
+  local doc='---
+title: Passive RU Spec
+status: draft
+---
+
+## Purpose & Scope
+
+Normative for the token rotator; depended on by every session that reads a credential from the store described below.
+
+## Surface
+
+Rotate and Revoke referenced at @internal/auth/rotator with identifiers listed inline.
+
+## Normative Behavior
+
+1. Токены MUST ротироваться каждые 24 часа.
+
+## Constraints & Invariants
+
+Invariant: a live session always holds a non-expired token.
+
+## Failure Behavior
+
+1. IF rotation fails, THEN the rotator MUST alert the operator.
+
+## Conformance
+
+An implementation conforms when it satisfies behavior 1 and the invariant above.
+'
+  make_doc "passive-ru.spec.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":"passive-ru.spec.md"}}'
+  assert_success
+  assert_output --partial "subjectless passive"
+}
+
 @test "spec missing Surface and Conformance produces findings, Subject not required" {
   local doc='---
 title: Bare Spec

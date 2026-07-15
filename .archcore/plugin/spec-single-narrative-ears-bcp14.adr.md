@@ -20,7 +20,7 @@ One `spec` type, one form — six fixed sections for every subject (boundary or 
 5. **Failure Behavior** — error/edge conditions with observable outcome (generalizes Error Handling / Failure & Edge Behavior)
 6. **Conformance** — MAY close with one ≤5-line non-normative Given/When/Then block
 
-Notation for numbered lines in sections 3 and 5: EARS clause order with BCP 14 keywords as the modal — `WHEN <trigger>, the <subject> MUST <response>`, plus WHILE / IF…THEN / ubiquitous forms; MUST/SHOULD/MAY graded per RFC 2119, uppercase-only per RFC 8174, MUST kept sparing per RFC 2119 §6.
+Notation for numbered lines in sections 3 and 5: EARS clause order with BCP 14 keywords as the modal — `WHEN <trigger>, the <subject> MUST <response>`, plus WHILE / IF…THEN / ubiquitous forms; MUST/SHOULD/MAY graded per RFC 2119, uppercase-only per RFC 8174, MUST kept sparing per RFC 2119 §6. Three strict-EARS rules — active obligated subject, one modal per line, and an explicit WHEN for event responses — are specified in `spec-contract.md` and softly enforced by `check-precision` (Checks 7b/7c).
 
 Admission gate: "behavior others rely on right now" → spec; "what should we build and why" (stories, priorities, metrics) → prd/srs.
 
