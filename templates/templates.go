@@ -1193,7 +1193,14 @@ Use a code block ONLY where the exact textual format is itself normative
 
 Numbered EARS-shaped requirements with BCP 14 keywords (MUST / SHOULD / MAY,
 uppercase only — RFC 2119 + RFC 8174). Keep MUST sparing: interoperation or
-harm prevention only. State the trigger or state explicitly.
+harm prevention only. Strict EARS:
+
+- Active voice with an obligated subject — never a subjectless passive
+  ("tokens MUST be rotated" obligates no component).
+- One numbered line = one requirement = one modal keyword (MUST NOT counts
+  as one); split "MUST X and MUST NOT Y" into two numbered lines.
+- Event responses (command invoked, request received, state change) open
+  with "WHEN [trigger]," — the event is the trigger, never the subject.
 
 1. The [subject] MUST [response].
 2. WHEN [trigger], the [subject] MUST [response].
@@ -1210,7 +1217,7 @@ Plain BCP 14 statements (no EARS clauses needed here).
 
 Error and edge conditions with the observable outcome of each: response and
 recovery semantics (retriable? idempotent? timeout?) and degradation on bad,
-empty, or missing input or on dependency failure. Same notation.
+empty, or missing input or on dependency failure. Same notation and rules.
 
 1. IF [undesired condition], THEN the [subject] MUST [observable outcome].
 2. WHEN [dependency] fails, the [subject] MUST [degradation behavior].

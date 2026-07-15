@@ -319,6 +319,30 @@ func TestHandleCreateDocument_AllTypes(t *testing.T) {
 	}
 }
 
+// TestNewCreateDocumentTool_SpecNotationGuidance guards the strict-EARS rules
+// carried in the content parameter description — the guidance agents see when
+// writing a spec body manually (without the plugin skills loaded).
+func TestNewCreateDocumentTool_SpecNotationGuidance(t *testing.T) {
+	t.Parallel()
+
+	tool := NewCreateDocumentTool()
+	prop, ok := tool.InputSchema.Properties["content"].(map[string]any)
+	if !ok {
+		t.Fatal("content property missing from create_document input schema")
+	}
+	desc, _ := prop["description"].(string)
+
+	for _, rule := range []string{
+		"no subjectless passives",
+		"one modal",
+		"never grammatical subjects",
+	} {
+		if !strings.Contains(desc, rule) {
+			t.Errorf("content description missing strict-EARS rule phrase: %q", rule)
+		}
+	}
+}
+
 func TestHandleCreateDocument_WithDirectory(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)

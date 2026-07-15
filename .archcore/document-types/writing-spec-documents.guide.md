@@ -41,7 +41,13 @@ Numbered requirements, each in EARS clause order with a BCP 14 keyword (MUST / S
 - State-driven: `WHILE <state>, the <subject> MUST <response>.`
 - Unwanted behavior: `IF <undesired condition>, THEN the <subject> MUST <response>.`
 
-Grade with intent: MUST sparingly — interoperation or harm prevention only (RFC 2119 §6); SHOULD where deviation needs a weighed reason; MAY for true options. One requirement per numbered line — split multi-MUST clauses. State the trigger or state explicitly. No rationale tails ("…so that X") — rationale lives in a linked `adr`.
+Grade with intent: MUST sparingly — interoperation or harm prevention only (RFC 2119 §6); SHOULD where deviation needs a weighed reason; MAY for true options. No rationale tails ("…so that X") — rationale lives in a linked `adr`.
+
+Three rules keep each line strict-EARS conformant:
+
+1. **Active voice with an obligated subject** — never a subjectless passive. "Tokens MUST be rotated" names no component that bears the obligation; write `the <component> MUST rotate the token`.
+2. **One requirement per numbered line = one modal keyword** (MUST NOT counts as one). Split `MUST X and MUST NOT Y` into two numbered lines.
+3. **Event responses open with the trigger.** When behavior answers a command, request, or state change, use `WHEN <trigger>, the <subject> MUST …` — the event is the trigger, never the grammatical subject. Never leave the trigger implicit inside the subject.
 
 ### Step 4: Constraints & Invariants
 
@@ -49,7 +55,7 @@ Hard limits (each with a rationale) and invariants (conditions that MUST always 
 
 ### Step 5: Failure Behavior
 
-Error and edge conditions with the observable outcome of each: response and recovery semantics (retriable? idempotent? timeout behavior?) and degradation on bad, empty, or missing input or on dependency failure. Same notation as Normative Behavior; error paths use `IF …, THEN …`, not `WHEN`.
+Error and edge conditions with the observable outcome of each: response and recovery semantics (retriable? idempotent? timeout behavior?) and degradation on bad, empty, or missing input or on dependency failure. Same notation and rules as Normative Behavior; error paths use `IF …, THEN …`, not `WHEN`.
 
 ### Step 6: Conformance
 
@@ -73,7 +79,9 @@ After writing, check:
 
 - [ ] Exactly six sections, in order: Purpose & Scope, Surface, Normative Behavior, Constraints & Invariants, Failure Behavior, Conformance
 - [ ] Every normative line is numbered, follows EARS clause order, and carries a BCP 14 modal — no SHALL
-- [ ] One requirement per line; the subject of every clause is the specified system, not its caller
+- [ ] One requirement per line — one modal keyword; split multi-MUST clauses
+- [ ] Active voice with an obligated subject — no subjectless passives ("MUST be rotated"); the subject of every clause is the specified system, not its caller
+- [ ] Event responses (commands, requests, state changes) open with `WHEN <trigger>,` — the event is never the grammatical subject
 - [ ] Error paths sit in Failure Behavior as `IF …, THEN …`
 - [ ] Interfaces referenced by identifier + `@path`, never reproduced
 - [ ] Body ≤ 80 lines
@@ -116,3 +124,15 @@ After writing, check:
 **Cause**: Specifying a whole subsystem in one document, or pasting interface/type definitions "for precision".
 
 **Solution**: One subject per spec — split by component boundary and link via `add_relation`. Reference `@path`s instead of reproducing source; reserve code blocks for wire-level contracts where the textual form is itself normative.
+
+### Issue 7: Subjectless passive obligation
+
+**Cause**: `<thing> MUST be <verb-ed>` with no actor named — "tokens MUST be rotated", "results MUST be recorded". The reader cannot tell which component owns the obligation.
+
+**Solution**: Name the obligated component as the grammatical subject — `the <component> MUST rotate the token`. If the actor is genuinely responding to an event, use the event-driven form `WHEN <trigger>, the <component> MUST …`.
+
+### Issue 8: Command or event as the subject
+
+**Cause**: `The /remember command invalidates the cache` — the triggering command written as the clause subject, leaving the trigger implicit and no component obligated.
+
+**Solution**: Make the trigger explicit and the component the subject: `WHEN the user invokes /remember, the <component> MUST invalidate the cache`.

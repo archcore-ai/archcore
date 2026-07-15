@@ -322,6 +322,21 @@ func TestGenerateSpecTemplate(t *testing.T) {
 		}
 	}
 
+	// Strict-EARS rules: active voice with an obligated subject, one requirement
+	// (one modal) per numbered line, and explicit WHEN for event responses —
+	// codified so the guidance cannot silently regress.
+	for _, rule := range []string{
+		"never a subjectless passive",
+		"one requirement = one modal",
+		"MUST X and MUST NOT Y",
+		"the event is the trigger, never the subject",
+		"Same notation and rules",
+	} {
+		if !strings.Contains(template, rule) {
+			t.Errorf("Spec template missing strict-EARS rule phrase: %q", rule)
+		}
+	}
+
 	// The template must stay lean — the spec body cap is 80 lines.
 	if lines := strings.Count(template, "\n"); lines > 80 {
 		t.Errorf("Spec template is %d lines, must stay within the 80-line spec body cap", lines)
