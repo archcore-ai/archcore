@@ -2,7 +2,7 @@ SHELL := /bin/sh
 REPO_ROOT := $(shell pwd)
 PLUGIN_ROOT := $(REPO_ROOT)/plugins/archcore
 PLUGIN_REL := plugins/archcore
-BIN_SCRIPTS := $(wildcard $(PLUGIN_REL)/bin/check-* $(PLUGIN_REL)/bin/validate-* $(PLUGIN_REL)/bin/session-start) $(PLUGIN_REL)/bin/git-scope
+BIN_SCRIPTS := $(wildcard $(PLUGIN_REL)/bin/check-* $(PLUGIN_REL)/bin/validate-* $(PLUGIN_REL)/bin/session-start) $(PLUGIN_REL)/bin/git-scope $(PLUGIN_REL)/bin/detect-host $(PLUGIN_REL)/bin/cli-gte
 LIB_SCRIPTS := $(PLUGIN_REL)/bin/lib/normalize-stdin.sh
 ALL_SCRIPTS := $(BIN_SCRIPTS) $(LIB_SCRIPTS)
 # Marketplace catalogs stay at repo root; plugin manifests/hooks/mcp live under plugins/archcore/.

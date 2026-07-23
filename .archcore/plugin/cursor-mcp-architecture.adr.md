@@ -45,9 +45,9 @@ This is enforced by three layers of defense:
 **Layer 2 — Template lives in `docs/`, not the plugin root.** `cursor.mcp.json` at the plugin root could trigger Cursor's plugin-MCP auto-detection. Moving it to `docs/cursor.mcp.example.json` keeps the plugin root clean for Cursor. The `.cursor-plugin/plugin.json` manifest deliberately omits the `mcpServers` field for the same reason.
 
 **Layer 3 — Runtime guards.**
-- `bin/session-start` exits silently if cwd contains a sibling `.cursor-plugin/`, `.claude-plugin/`, or `.codex-plugin/` manifest — preventing the hook from emitting the plugin's bundled context as if it were the user's.
-- `archcore mcp` (CLI repo) applies the same detection plus matches against `.cursor/plugins/`, `claude/plugins/`, `.codex/plugins/` path fragments. When detected, the server refuses to read `.archcore/` and exits with a clear error pointing at `--project`.
-- `archcore mcp --project <path>` (CLI repo, new flag) accepts an explicit project root, with `ARCHCORE_PROJECT_ROOT` as an env-var fallback for hosts without variable interpolation.
+- `bin/session-start` exits silently when the working directory sits inside a plugin install — install-cache path fragments in `$PWD`, plus a bounded upward walk for `.cursor-plugin/`, `.claude-plugin/`, `.codex-plugin/` manifests (extended per `host-wiring-parity.adr` to catch cwd in a *subdirectory* of the install) — preventing the hook from emitting the plugin's bundled context as if it were the user's.
+- `archcore mcp` (CLI repo) applies the same protection via `resolveProjectRoot`, which since `host-wiring-parity.adr` rejects any project root containing `.cursor/plugins/`, `.claude/plugins/`, `.codex/plugins/`, or `plugins/cache/` fragments — while accepting a plugin *developer* repo whose root merely carries the manifests. When rejected, the server refuses to read `.archcore/` and exits with a clear error pointing at `--project`.
+- `archcore mcp --project <path>` accepts an explicit project root, with `ARCHCORE_PROJECT_ROOT` as an env-var fallback for hosts without variable interpolation.
 
 Each layer alone is sufficient for the specific scenario observed; in combination they cover scenarios we cannot test (older Cursor versions, future Cursor auto-detect changes, other hosts adopting similar plugin-MCP patterns).
 
@@ -76,7 +76,7 @@ Rejected as the only defense: we cannot prove no plugin-shipped MCP file at the 
 
 **Negative**
 
-- Cursor onboarding gains a manual step (copy template into `~/.cursor/mcp.json`). The README documents this; the `bootstrap` skill could nudge it on first run.
+- ~~Cursor onboarding gains a manual step (copy template into `~/.cursor/mcp.json`).~~ Closed by `host-wiring-parity.adr`: `/archcore:init` and `archcore init --agent cursor` now write a project-level `.cursor/mcp.json` carrying `--project ${workspaceFolder}` (the CLI's dedicated Cursor writer matches the template above; `archcore doctor --fix` converges configs written by older CLIs). The manual user-level copy remains only as a fallback for sessions where no wiring has run yet.
 - The `dev → main` split requires discipline: nobody can hotfix on `main` directly without re-syncing from `dev`. Documented in `docs/release.md`.
 - If Cursor ever supports `${workspaceFolder}` interpolation in plugin-MCP `args` (feature request #74861), we can revisit shipping `mcp.json` at the plugin root — but the CLI guard (Layer 3) stays as belt-and-suspenders.
 

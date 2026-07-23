@@ -216,10 +216,12 @@ MOCK
   assert_output --partial "HOST_ARG: cursor"
 }
 
-@test "session-start invokes only the 'hooks' subcommand" {
-  # Lock the contract: session-start must call `archcore hooks`, nothing else.
-  # Catches accidental regressions where the script swaps to a phantom or
-  # different subcommand.
+@test "session-start invokes only allowlisted subcommands" {
+  # Lock the contract: session-start may call `archcore hooks` (the context
+  # emitter), `archcore update` (only as `update --check` — the cached, quiet
+  # freshness probe behind the outdated-CLI advisory), and `archcore
+  # --version` (advisory display). Nothing else. Catches accidental
+  # regressions where the script swaps to a phantom or different subcommand.
   export MOCK_ARCHCORE_LOG="$BATS_TEST_TMPDIR/archcore.log"
   mock_archcore_logging ""
 
@@ -232,10 +234,21 @@ MOCK
   assert_success
   [ -f "$MOCK_ARCHCORE_LOG" ] || fail "expected archcore to be invoked"
 
-  local invoked
-  invoked=$(sort -u < "$MOCK_ARCHCORE_LOG" | tr '\n' ' ' | sed 's/ $//')
-  [ "$invoked" = "hooks" ] \
-    || fail "expected only 'hooks' subcommand, got: '$invoked'"
+  # The log records full invocations ("$*"), so the `--check` flag is
+  # asserted too: a regression to a bare `archcore update` would be a REAL
+  # self-update fired from a session hook — exactly what the ADR forbids.
+  local invoked line
+  invoked=$(sort -u < "$MOCK_ARCHCORE_LOG")
+  echo "$invoked" | grep -q "^hooks" || fail "expected 'hooks' to be invoked, got: '$invoked'"
+  while IFS= read -r line; do
+    case "$line" in
+      hooks|"hooks "*) ;;
+      "update --check") ;;
+      update|"update "*) fail "only 'update --check' is allowed, got: '$line'" ;;
+      --version) ;;
+      *) fail "unexpected archcore invocation: '$line' (full log: '$invoked')" ;;
+    esac
+  done <<< "$invoked"
 }
 
 @test "refuses to run from a plugin install dir (cursor-plugin sibling)" {
@@ -306,7 +319,7 @@ mock_old_cli() {
   local stderr_msg="${1:-field \"globals\" is not allowed for sync type \"none\"}"
   cat > "$MOCK_BIN/archcore" <<MOCK
 #!/bin/sh
-[ -n "\$MOCK_ARCHCORE_LOG" ] && printf '%s\n' "\$1" >> "\$MOCK_ARCHCORE_LOG"
+[ -n "\$MOCK_ARCHCORE_LOG" ] && printf '%s\n' "\$*" >> "\$MOCK_ARCHCORE_LOG"
 if [ "\$1" = "hooks" ]; then
   cat > /dev/null
   printf '%s\n' '${stderr_msg}' >&2
@@ -423,7 +436,8 @@ MOCK
 
 @test "advisory path still invokes only the 'hooks' subcommand" {
   # Rule-mandated (cli-integration-tests.rule): even on the failure path the
-  # script must shell out to nothing but `archcore hooks`.
+  # script must shell out to nothing but `archcore hooks` (the advisory path
+  # exits before the update-check probe runs).
   export MOCK_ARCHCORE_LOG="$BATS_TEST_TMPDIR/archcore.log"
   mock_old_cli
   export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
@@ -437,8 +451,160 @@ MOCK
   assert_success
   [ -f "$MOCK_ARCHCORE_LOG" ] || fail "expected archcore to be invoked"
 
-  local invoked
-  invoked=$(sort -u < "$MOCK_ARCHCORE_LOG" | tr '\n' ' ' | sed 's/ $//')
-  [ "$invoked" = "hooks" ] \
-    || fail "expected only 'hooks' subcommand, got: '$invoked'"
+  # Log records full invocations ("$*"); every line must be a `hooks` call.
+  local line
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    case "$line" in
+      hooks|"hooks "*) ;;
+      *) fail "expected only 'hooks' invocations, got: '$line'" ;;
+    esac
+  done < "$MOCK_ARCHCORE_LOG"
+}
+
+# Helper: run session-start from a fresh initialized project dir.
+run_session_start_in_project() {
+  local workdir="$BATS_TEST_TMPDIR/project"
+  mkdir -p "$workdir/.archcore"
+  cd "$workdir"
+  run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+}
+
+@test "update advisory: emitted when update --check reports a newer version" {
+  mock_archcore_with_update v9.9.9 v0.5.7
+  export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
+
+  run_session_start_in_project
+  assert_success
+  [[ "$output" == *"CLI update available"* ]] \
+    || fail "expected update advisory in output, got: '$output'"
+  [[ "$output" == *"archcore update"* ]] \
+    || fail "advisory must name the fix command, got: '$output'"
+}
+
+@test "update advisory: names the available and installed versions" {
+  # Pins the `${_ac_update#update available: }` prefix-stripping — a format
+  # regression would echo the raw CLI line instead of the bare version.
+  mock_archcore_with_update v9.9.9 v0.5.7
+  export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
+
+  run_session_start_in_project
+  assert_success
+  [[ "$output" == *"(v9.9.9"* ]] \
+    || fail "expected stripped latest version 'v9.9.9' after '(', got: '$output'"
+  [[ "$output" != *"update available: v9.9.9"* ]] \
+    || fail "raw CLI prefix must be stripped from the advisory, got: '$output'"
+  [[ "$output" == *"installed: v0.5.7"* ]] \
+    || fail "expected installed version in advisory, got: '$output'"
+}
+
+@test "update advisory: probe is exactly 'update --check', never a bare update" {
+  # A bare `archcore update` here would be a REAL self-update fired from a
+  # session hook. The mock exits 1 on it; the log pins the exact invocation.
+  export MOCK_ARCHCORE_LOG="$BATS_TEST_TMPDIR/archcore.log"
+  mock_archcore_with_update
+  export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
+
+  run_session_start_in_project
+  assert_success
+  grep -qx "update --check" "$MOCK_ARCHCORE_LOG" \
+    || fail "expected an 'update --check' invocation, got: $(cat "$MOCK_ARCHCORE_LOG")"
+  ! grep -qx "update" "$MOCK_ARCHCORE_LOG" \
+    || fail "bare 'update' (real self-update) was invoked: $(cat "$MOCK_ARCHCORE_LOG")"
+}
+
+@test "update advisory: rate-limited to once per 24h" {
+  mock_archcore_with_update
+  export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
+
+  run_session_start_in_project
+  assert_success
+  [[ "$output" == *"CLI update available"* ]] || fail "first run must advise"
+
+  run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  [[ "$output" != *"CLI update available"* ]] \
+    || fail "second run within 24h must stay quiet, got: '$output'"
+}
+
+@test "update advisory: fires again once the 24h window has passed" {
+  # Deterministic boundary check via stamp pre-seeding — no clock mock needed.
+  mock_archcore_with_update
+  export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
+  mkdir -p "$CLAUDE_PLUGIN_DATA/archcore"
+  echo "$(( $(date +%s) - 86500 ))" > "$CLAUDE_PLUGIN_DATA/archcore/last-update-advisory"
+
+  run_session_start_in_project
+  assert_success
+  [[ "$output" == *"CLI update available"* ]] \
+    || fail "advisory must fire again after 24h, got: '$output'"
+}
+
+@test "update advisory: stays quiet while the 24h window is open" {
+  mock_archcore_with_update
+  export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
+  mkdir -p "$CLAUDE_PLUGIN_DATA/archcore"
+  echo "$(( $(date +%s) - 100 ))" > "$CLAUDE_PLUGIN_DATA/archcore/last-update-advisory"
+
+  run_session_start_in_project
+  assert_success
+  [[ "$output" != *"CLI update available"* ]] \
+    || fail "advisory must stay quiet inside the 24h window, got: '$output'"
+}
+
+@test "update advisory: garbage stamp treated as due" {
+  # Covers the ''|*[!0-9]* branch — a corrupt stamp must fail open, not
+  # suppress the advisory forever.
+  mock_archcore_with_update
+  export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
+  mkdir -p "$CLAUDE_PLUGIN_DATA/archcore"
+  echo "junk" > "$CLAUDE_PLUGIN_DATA/archcore/last-update-advisory"
+
+  run_session_start_in_project
+  assert_success
+  [[ "$output" == *"CLI update available"* ]] \
+    || fail "garbage stamp must count as due, got: '$output'"
+}
+
+@test "update advisory: not suppressed by a fresh old-CLI advisory stamp" {
+  # The two advisories rate-limit independently — last-cli-advisory (old-CLI
+  # config rejection) must never clobber last-update-advisory.
+  mock_archcore_with_update
+  export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
+  mkdir -p "$CLAUDE_PLUGIN_DATA/archcore"
+  date +%s > "$CLAUDE_PLUGIN_DATA/archcore/last-cli-advisory"
+
+  run_session_start_in_project
+  assert_success
+  [[ "$output" == *"CLI update available"* ]] \
+    || fail "a fresh last-cli-advisory stamp must not suppress the update advisory, got: '$output'"
+}
+
+@test "update advisory: silent when update --check outputs nothing (current or old CLI)" {
+  # An up-to-date CLI prints nothing; an old CLI without --check errors out —
+  # both must yield zero advisory noise.
+  mock_archcore ""
+  export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
+
+  run_session_start_in_project
+  assert_success
+  [[ "$output" != *"CLI update available"* ]] \
+    || fail "no advisory expected when --check is silent, got: '$output'"
+}
+
+@test "update advisory: stamp lands under XDG_DATA_HOME when CLAUDE_PLUGIN_DATA is unset" {
+  # Covers the _archcore_stamp_dir fallback chain (CLAUDE_PLUGIN_DATA →
+  # XDG_DATA_HOME → HOME); every other advisory test pins the first leg.
+  mock_archcore_with_update
+  unset CLAUDE_PLUGIN_DATA
+  export XDG_DATA_HOME="$BATS_TEST_TMPDIR/xdg"
+
+  local workdir="$BATS_TEST_TMPDIR/project"
+  mkdir -p "$workdir/.archcore"
+  cd "$workdir"
+  run sh -c "printf '%s' '{}' | XDG_DATA_HOME='$XDG_DATA_HOME' '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  [[ "$output" == *"CLI update available"* ]] || fail "advisory expected, got: '$output'"
+  [ -f "$XDG_DATA_HOME/archcore-plugin/last-update-advisory" ] \
+    || fail "stamp must land in \$XDG_DATA_HOME/archcore-plugin/, found: $(find "$XDG_DATA_HOME" -type f 2>/dev/null)"
 }

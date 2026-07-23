@@ -28,7 +28,7 @@ The visible `/` palette is exactly 7 commands. Each skill maps to a clearly dist
 
 | Directory | Skill | User intent | Modes / continuations |
 |---|---|---|---|
-| `skills/init/` | init | Seed an empty `.archcore/` on first install — scale-detect (small/medium/large), compose a full first-day seed (stack rule, run guide, data-model, integrations, config, entry points, hotspot specs, linked architecture overview) and import agent files | detect → compose → one preview → single `confirm` → create + wire relations; idempotent (skip-on-exists); `--mode` / `--domain` / `--refresh`; see `magic-first-day-init.adr.md` |
+| `skills/init/` | init | Seed an empty `.archcore/` on first install — scale-detect (small/medium/large), compose a full first-day seed (stack rule, run guide, data-model, integrations, config, entry points, hotspot specs, linked architecture overview) and import agent files | detect → compose → one preview → single `confirm` → create + wire relations; after confirm also installs host wiring — the same files `archcore init` writes for the detected host — via `install_host_config` MCP tool → `archcore init --agent <host> --project <root>` → printed manual command as last resort (`host-wiring-parity.adr.md`); idempotent (skip-on-exists); `--mode` / `--domain` / `--refresh` (the latter also retrofits host wiring on pre-wiring repos); see `magic-first-day-init.adr.md` |
 | `skills/capture/` | capture | Document a module/component/system | routes to adr / spec / doc / guide |
 | `skills/decide/` | decide | Record a decision (ADR) or draft a proposal (RFC); optional standard cascade | ADR → optional CPAT (for code-pattern changes) → optional rule → optional guide |
 | `skills/plan/` | plan | Plan a feature or initiative end-to-end | routes to single plan, or one of the multi-doc flows via references: product (idea→prd→plan), sources (mrd→brd→urd), iso (brs→strs→syrs→srs), feature (prd→spec→plan→task-type) |
@@ -128,6 +128,7 @@ Note: creation-oriented skills (`init`, `capture`, `decide`, `plan`) include inl
 - Skill descriptions MUST enumerate triggers and anti-triggers using the "Activate when X. Do NOT activate for Y." format.
 - Skills MUST default to minimum viable path. Expansion requires a binary scope question. (`init` is the exception: it composes the full scale-appropriate seed and gates it behind one preview/confirm rather than asking per document.)
 - Creation-oriented skills MUST be self-contained with inline creation recipes (question + sections + create + relate per document type produced). Where a flow has multiple steps, per-flow content MAY live in `skills/<name>/references/<flow>.md` (or `skills/<name>/lib/*.md`) and be loaded on demand.
+- WHEN the user confirms the init plan and the installed CLI version is >= v0.6.0, the `init` skill MUST install host wiring for the detected host via the first available path (`install_host_config` MCP tool, else `archcore init --agent <host> --project <root>`, else print the ready-to-run manual command for the user's terminal), and MUST NOT write host configs before confirm (`host-wiring-parity.adr.md`).
 - Analysis skills (`audit`, `context`) MUST use MCP read tools (`list_documents`, `get_document`, `list_relations`) and MAY use git/Grep/Glob for cross-referencing.
 - All skills MUST use MCP tools for document operations. MUST NOT instruct direct Write/Edit to `.archcore/*.md`.
 - Skills MUST reference MCP tools by exact name.
@@ -135,7 +136,7 @@ Note: creation-oriented skills (`init`, `capture`, `decide`, `plan`) include inl
 
 ## Constraints
 
-- Skill files must not exceed 300 lines.
+- Skill files must not exceed 300 lines. Named exception: `skills/init/SKILL.md` may reach 450 lines — it is the only skill carrying a multi-phase gated pipeline (detect → compose → preview → confirm → create) plus host wiring, and further extraction into `lib/` would split a single ordered flow across files.
 - Skill files must not include code blocks longer than 20 lines.
 - Per-flow reference files (under `skills/<name>/references/`, `skills/audit/lib/`, or `skills/init/lib/`) must not exceed 200 lines each.
 - Skills must not reference internal CLI implementation details — only the MCP tool interface.
@@ -168,6 +169,6 @@ A skill file conforms to this specification if:
 2. It has valid frontmatter with `name` and `description` fields and no `disable-model-invocation` flag.
 3. It contains all 5 required sections (title, when-to-use, routing-table-or-step-sequence, execution, result).
 4. It references appropriate MCP tools in its workflow.
-5. It stays within its line limit (300 SKILL.md, 200 references).
+5. It stays within its line limit (300 SKILL.md — 450 for `init` per the named exception above; 200 references).
 6. It does not embed full template content.
 7. Its description follows the "Activate when X. Do NOT activate for Y." format.

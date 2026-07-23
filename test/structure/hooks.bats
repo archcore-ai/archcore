@@ -196,3 +196,29 @@ setup() {
       || fail "$file: '$event' event must invoke bin/session-start; got: $cmds"
   done
 }
+
+@test "PostToolUse matchers cover BOTH project and plugin MCP tool naming" {
+  # Claude Code names plugin-bundled MCP tools mcp__plugin_<plugin>_<server>__*
+  # while a project-level .mcp.json yields mcp__archcore__*. Hook matchers
+  # without regex metacharacters are EXACT matches, so every archcore tool in
+  # a PostToolUse matcher must appear under both prefixes — otherwise
+  # validation hooks silently never fire in one of the two setups.
+  local file matcher tool
+  for file in "hooks/hooks.json" "hooks/codex.hooks.json"; do
+    while IFS= read -r matcher; do
+      [[ "$matcher" == *"mcp__archcore__"* ]] || continue
+      for tool in ${matcher//|/ }; do
+        case "$tool" in
+          mcp__archcore__*)
+            [[ "$matcher" == *"mcp__plugin_archcore_archcore__${tool#mcp__archcore__}"* ]] \
+              || fail "$file: matcher covers $tool but not its plugin-naming twin: $matcher"
+            ;;
+          mcp__plugin_archcore_archcore__*)
+            [[ "$matcher" == *"mcp__archcore__${tool#mcp__plugin_archcore_archcore__}"* ]] \
+              || fail "$file: matcher covers $tool but not its project-naming twin: $matcher"
+            ;;
+        esac
+      done
+    done < <(jq -r '.hooks.PostToolUse[]?.matcher // empty' "$PLUGIN_ROOT/$file")
+  done
+}

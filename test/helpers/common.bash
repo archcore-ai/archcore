@@ -28,6 +28,11 @@ SHIM
     chmod +x "$MOCK_BIN/timeout"
   fi
   export PATH="$MOCK_BIN:$PLUGIN_ROOT/bin:$PATH"
+  # Belt-and-suspenders: keep advisory/staleness rate-limit stamps inside the
+  # test sandbox so no test can ever write into the developer's real
+  # ~/.local/share/archcore-plugin/. Tests that exercise the XDG/HOME fallback
+  # chain unset this explicitly.
+  export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/plugin-data"
 }
 
 setup() {
@@ -47,13 +52,14 @@ MOCK
 }
 
 # Create a mock archcore CLI that handles subcommands.
-# If MOCK_ARCHCORE_LOG is set in the test, every invocation appends $1 (the
-# subcommand) to that file. Lets tests assert which subcommand was actually
-# called, not just that something was called.
+# If MOCK_ARCHCORE_LOG is set in the test, every invocation appends the FULL
+# argument list ("$*") to that file. Lets tests assert exactly how archcore
+# was called — subcommand AND flags (e.g. `update --check` vs a bare
+# `update`, which would be a real self-update in production).
 mock_archcore_multi() {
   cat > "$MOCK_BIN/archcore" <<'MOCK'
 #!/bin/sh
-[ -n "$MOCK_ARCHCORE_LOG" ] && printf '%s\n' "$1" >> "$MOCK_ARCHCORE_LOG"
+[ -n "$MOCK_ARCHCORE_LOG" ] && printf '%s\n' "$*" >> "$MOCK_ARCHCORE_LOG"
 case "$1" in
   doctor) printf '%s\n' "$MOCK_DOCTOR_OUTPUT"; exit "${MOCK_DOCTOR_EXIT:-0}" ;;
   hooks)  printf '%s\n' "$MOCK_HOOKS_OUTPUT"; exit 0 ;;
@@ -63,17 +69,40 @@ MOCK
   chmod +x "$MOCK_BIN/archcore"
 }
 
-# Like mock_archcore but also logs the invoked subcommand to MOCK_ARCHCORE_LOG.
-# Use when the test needs to assert *which* subcommand was called, not just
-# the script's stdout.
+# Like mock_archcore but also logs the full invocation ("$*") to
+# MOCK_ARCHCORE_LOG. Use when the test needs to assert *how* archcore was
+# called (subcommand + flags), not just the script's stdout.
 mock_archcore_logging() {
   local output="$1"
   local exit_code="${2:-0}"
   cat > "$MOCK_BIN/archcore" <<MOCK
 #!/bin/sh
-[ -n "\$MOCK_ARCHCORE_LOG" ] && printf '%s\n' "\$1" >> "\$MOCK_ARCHCORE_LOG"
+[ -n "\$MOCK_ARCHCORE_LOG" ] && printf '%s\n' "\$*" >> "\$MOCK_ARCHCORE_LOG"
 printf '%s\n' '${output}'
 exit ${exit_code}
+MOCK
+  chmod +x "$MOCK_BIN/archcore"
+}
+
+# Mock archcore whose `update --check` reports a pending update ($1, default
+# v9.9.9) and whose --version prints $2 (default v0.5.7); everything else
+# (hooks, doctor, ...) answers quietly with exit 0. A bare `update` (a REAL
+# self-update — forbidden from hooks) exits 1 so any regression that drops
+# `--check` surfaces in both the log and the advisory output.
+mock_archcore_with_update() {
+  local latest="${1:-v9.9.9}"
+  local installed="${2:-v0.5.7}"
+  cat > "$MOCK_BIN/archcore" <<MOCK
+#!/bin/sh
+[ -n "\$MOCK_ARCHCORE_LOG" ] && printf '%s\n' "\$*" >> "\$MOCK_ARCHCORE_LOG"
+case "\$1" in
+  update)
+    if [ "\$2" = "--check" ]; then echo "update available: ${latest}"; exit 0; fi
+    echo "unexpected real self-update invoked" >&2; exit 1 ;;
+  --version) echo "${installed}" ;;
+  *) echo "" ;;
+esac
+exit 0
 MOCK
   chmod +x "$MOCK_BIN/archcore"
 }

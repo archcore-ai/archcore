@@ -1,0 +1,29 @@
+#!/bin/sh
+# detect-host: resolve which AI host this skill session runs under, from
+# environment only. Invoked by the init skill via Bash to pick the --agent id
+# for host-wiring installation (`archcore init --agent <id>` / the
+# install_host_config MCP tool).
+#
+# stdout (always exit 0): exactly one token
+#   claude-code | cursor | codex-cli | __UNKNOWN__
+#
+# Contract (test/unit/detect-host.bats — keep the env constants in sync):
+#   - env-only: stdin is ignored, cwd is never inspected (Cursor guarantees
+#     neither for agent shell commands — cwd-independence plan);
+#   - __UNKNOWN__ is a value, not an error: callers branch on the token and
+#     fall back to asking the user;
+#   - precedence claude-code > cursor > codex-cli — a host-spawned subshell
+#     can inherit stray vars from companion plugins (a real Claude session
+#     carries CODEX_COMPANION_SESSION_ID, for instance), so the most specific
+#     signal wins and codex is keyed on CODEX_HOME alone, never CODEX_*.
+
+if [ -n "${CLAUDECODE:-}" ] || [ -n "${CLAUDE_SKILL_DIR:-}" ]; then
+  echo "claude-code"
+elif [ -n "${CURSOR_TRACE_ID:-}" ]; then
+  echo "cursor"
+elif [ -n "${CODEX_HOME:-}" ]; then
+  echo "codex-cli"
+else
+  echo "__UNKNOWN__"
+fi
+exit 0

@@ -1,0 +1,47 @@
+#!/bin/sh
+# cli-gte: deterministic semver gate for the installed archcore CLI.
+# Invoked by the init skill's pre-flight (host-wiring version gate) so the
+# comparison never happens in prose — an LLM comparing "0.10.0" with "0.6.0"
+# lexically gets it wrong; this script does not.
+#
+# Usage: cli-gte <min-version>       (e.g. cli-gte 0.6.0; leading 'v' ok)
+#
+# stdout (always exit 0): exactly one token
+#   yes        — installed CLI version >= <min-version>
+#   no         — installed CLI version <  <min-version>
+#   __NO_CLI__ — archcore not on PATH, or --version unparsable
+#
+# Contract (test/unit/cli-gte.bats): numeric field-by-field compare of the
+# first three dot-fields; missing fields count as 0; pre-release/build
+# suffixes after the patch number are ignored.
+
+min="${1:-}"
+case "$min" in
+  '') echo "__NO_CLI__"; exit 0 ;;
+esac
+
+ver=$(archcore --version 2>/dev/null | head -n1)
+# Extract the first x.y[.z] group from the output (handles "archcore v0.6.1").
+ver=$(printf '%s\n' "$ver" | sed -n 's/.*[^0-9.]\([0-9][0-9]*\.[0-9][0-9]*\(\.[0-9][0-9]*\)\{0,1\}\).*/\1/p; s/^\([0-9][0-9]*\.[0-9][0-9]*\(\.[0-9][0-9]*\)\{0,1\}\).*/\1/p' | head -n1)
+if [ -z "$ver" ]; then
+  echo "__NO_CLI__"
+  exit 0
+fi
+
+min=${min#v}
+
+# field <version> <n> — print the n-th dot-field as a number (missing → 0).
+field() {
+  printf '%s\n' "$1" | cut -d. -f"$2" | sed 's/[^0-9].*$//' | grep . || echo 0
+}
+
+i=1
+while [ "$i" -le 3 ]; do
+  a=$(field "$ver" "$i")
+  b=$(field "$min" "$i")
+  if [ "$a" -gt "$b" ]; then echo "yes"; exit 0; fi
+  if [ "$a" -lt "$b" ]; then echo "no"; exit 0; fi
+  i=$((i + 1))
+done
+echo "yes"
+exit 0

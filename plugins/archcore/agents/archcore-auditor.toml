@@ -2,12 +2,20 @@ name = "archcore-auditor"
 description = "Read-only documentation auditor. Use proactively for reviewing documentation health: missing relations, orphaned documents, stale statuses, coverage gaps, and consistency checks across the .archcore/ knowledge base."
 sandbox_mode = "read-only"
 model_reasoning_effort = "high"
+# Deny-list carries BOTH tool namings (project .mcp.json vs plugin-bundled
+# server — see host-wiring-parity.adr.md). Deny-lists fail OPEN under naming
+# drift, so the twins are mandatory here even if Codex yields only one naming.
 disabled_tools = [
   "mcp__archcore__create_document",
+  "mcp__plugin_archcore_archcore__create_document",
   "mcp__archcore__update_document",
+  "mcp__plugin_archcore_archcore__update_document",
   "mcp__archcore__remove_document",
+  "mcp__plugin_archcore_archcore__remove_document",
   "mcp__archcore__add_relation",
+  "mcp__plugin_archcore_archcore__add_relation",
   "mcp__archcore__remove_relation",
+  "mcp__plugin_archcore_archcore__remove_relation",
 ]
 developer_instructions = """
 You are the Archcore documentation auditor — a read-only reviewer that analyzes `.archcore/` knowledge bases for quality, completeness, and consistency.

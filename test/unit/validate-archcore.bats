@@ -105,12 +105,15 @@ setup() {
   [ -f "$MOCK_ARCHCORE_LOG" ] || fail "expected archcore to be invoked"
 
   # Must match the canonical CLI surface allowlist guarded by readme-cli-references.bats.
+  # The log records full invocations ("$*"); the subcommand is the first word.
   local allowed=" config doctor help hooks init mcp status update "
-  while IFS= read -r sub; do
-    [ -z "$sub" ] && continue
+  local line sub
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    sub=${line%% *}
     case "$allowed" in
       *" $sub "*) ;;
-      *) fail "validate-archcore invoked non-allowlisted subcommand '$sub'" ;;
+      *) fail "validate-archcore invoked non-allowlisted subcommand '$sub' (full: '$line')" ;;
     esac
   done < "$MOCK_ARCHCORE_LOG"
 }

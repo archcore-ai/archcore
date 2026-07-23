@@ -24,7 +24,7 @@ Every skill carries no `disable-model-invocation` flag. Routing is governed by p
 
 | Skill | Directory | User Intent |
 | --- | --- | --- |
-| init | `skills/init/` | First-time onboarding — seed `.archcore/` with stack rule, run guide, scale-appropriate extras |
+| init | `skills/init/` | First-time onboarding — seed `.archcore/` with stack rule, run guide, scale-appropriate extras, plus host wiring (project MCP config, SessionStart hook, usage hint — same files as `archcore init`; see `host-wiring-parity.adr.md`) |
 | capture | `skills/capture/` | Document a module/component — routes to adr / spec / doc / guide |
 | decide | `skills/decide/` | Record a decision (adr) or draft a proposal (rfc); optional standard cascade (cpat → rule → guide) |
 | plan | `skills/plan/` | Plan a feature or initiative — routes to single plan or one of four flows (product / sources / iso / feature) |
@@ -87,7 +87,7 @@ Every Archcore document type is reachable via an intent skill or direct MCP (`mc
 
 **archcore-auditor** — documentation health checks: coverage gaps, orphaned docs, stale statuses, code-document correlation (cross-references document path mentions with git history to flag drift). Background, yellow, max 15 turns.
 
-For Codex CLI, both subagents also ship as TOML variants (`agents/archcore-assistant.toml`, `agents/archcore-auditor.toml`) — same `developer_instructions` content, plus Codex-specific `sandbox_mode` and `disabled_tools[]` fields.
+For Codex CLI, both subagents also ship as TOML variants (`agents/archcore-assistant.toml`, `agents/archcore-auditor.toml`) — same `developer_instructions` content, plus Codex-specific `sandbox_mode` and `disabled_tools[]` fields. Agent tool lists — the `.md` allow-lists and the auditor TOML deny-list — carry BOTH MCP tool namings (`mcp__archcore__*` + `mcp__plugin_archcore_archcore__*`); twin pairing is guarded by `test/structure/agents.bats` (deny-lists fail open under naming drift, so the guard matters most there).
 
 ### Hooks (6 entries across 3 events)
 
@@ -96,11 +96,13 @@ For Codex CLI, both subagents also ship as TOML variants (`agents/archcore-assis
 | 1 | SessionStart | (all) | `bin/session-start` | — |
 | 2 | PreToolUse | `Write\|Edit` | `bin/check-archcore-write` | 1s |
 | 3 | PreToolUse | `Write\|Edit` | `bin/check-code-alignment` | 1s |
-| 4 | PostToolUse | `mcp__archcore__create_document\|update_document\|remove_document\|add_relation\|remove_relation` | `bin/validate-archcore` | 3s |
-| 5 | PostToolUse | `mcp__archcore__update_document` | `bin/check-cascade` | 3s |
-| 6 | PostToolUse | `mcp__archcore__create_document\|mcp__archcore__update_document` | `bin/check-precision` | 3s |
+| 4 | PostToolUse | `mcp__archcore__create_document\|update_document\|remove_document\|add_relation\|remove_relation` (+ `mcp__plugin_archcore_archcore__*` twins) | `bin/validate-archcore` | 3s |
+| 5 | PostToolUse | `mcp__archcore__update_document` (+ `mcp__plugin_archcore_archcore__*` twin) | `bin/check-cascade` | 3s |
+| 6 | PostToolUse | `mcp__archcore__create_document\|mcp__archcore__update_document` (+ `mcp__plugin_archcore_archcore__*` twins) | `bin/check-precision` | 3s |
 
 Hook configs: `hooks/hooks.json` (Claude Code, PascalCase events), `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`; its `preToolUse` matcher is `Write` only — Cursor exposes no Edit tool), `hooks/codex.hooks.json` (Codex CLI, PascalCase events with `apply_patch` matcher addition for Codex's native edit primitive; commands use Codex's canonical `${PLUGIN_ROOT}` substitution).
+
+Every PostToolUse matcher lists each tool under BOTH namings — a project-level `.mcp.json` yields `mcp__archcore__*`, a plugin-bundled server yields `mcp__plugin_archcore_archcore__*`, and Claude Code matchers without regex metacharacters are exact matches (guarded by `test/structure/hooks.bats`; see `host-wiring-parity.adr.md`).
 
 Hook 2 and Hook 3 share the `Write|Edit` matcher. Hook 2 (`check-archcore-write`) blocks direct writes to `.archcore/*.md`. Hook 3 (`check-code-alignment`) injects relevant `.archcore/` context for source-file edits via `hookSpecificOutput.additionalContext`. They act on disjoint path sets by construction — no conflict.
 
@@ -108,7 +110,7 @@ Hook 6 (`check-precision`) is the Phase 1 implementation of the Precision Initia
 
 Historical note: a prior revision had a `PostToolUse` entry with matcher `Write|Edit` invoking `validate-archcore`. It was removed because PreToolUse already blocks all Write/Edit to `.archcore/*.md` (PostToolUse fires only on success), so the matcher was dead weight forking a shell on every Write/Edit anywhere in the repo. See `hooks-validation-system.spec.md` for the rationale. Structure tests guard against its re-introduction.
 
-`bin/session-start` carries a plugin-install-dir guard (see `cursor-mcp-architecture.adr.md`): when cwd contains a sibling `.cursor-plugin/`, `.claude-plugin/`, or `.codex-plugin/` manifest, the hook exits silently. This prevents the hook from emitting the plugin's bundled `.archcore/` (if any future regression reintroduces it) as the user's knowledge base.
+`bin/session-start` carries a plugin-install-dir guard (see `cursor-mcp-architecture.adr.md`, extended per `host-wiring-parity.adr.md`): it exits silently — **before the CLI availability check, so a misrouted cwd never even sees the install nudge** — when `$PWD` contains an install-cache fragment (`.cursor/plugins/`, `.claude/plugins/`, `.codex/plugins/`, `plugins/cache/`) or when a bounded (depth-12) upward walk finds a `.cursor-plugin/`, `.claude-plugin/`, `.codex-plugin/`, or `.plugin/` manifest — so a cwd misrouted into a subdirectory of an install is caught too. It also emits a rate-limited (24h) outdated-CLI advisory backed by `archcore update --check`.
 
 ### Bin Scripts
 
@@ -118,7 +120,7 @@ The `bin/` tree contains hook scripts, shared shell libraries under `bin/lib/`, 
 | --- | --- | --- |
 | `bin/lib/normalize-stdin.sh` | (library) | Multi-host stdin normalization. Detects host (Claude Code/Cursor/Copilot/Codex), extracts fields (tool_name, file_path, path), normalizes MCP tool names, provides output helpers (archcore_hook_block, archcore_hook_info, archcore_hook_pretool_info, archcore_hook_allow). Sourced by all hook scripts except check-staleness. |
 | `bin/lib/empty-state.sh` | (library) | Defines `archcore_is_functionally_empty [dir]`: `.archcore/` counts as functionally empty when it contains no `.md` file larger than 200 bytes (filters stubs, `.gitkeep` placeholders, scaffolds). Pure POSIX, no jq/awk. Sourced by `bin/session-start` to decide the empty-state nudge. |
-| `bin/session-start` | SessionStart | Sources the normalizer; if `archcore` is not on PATH, prints an install message pointing at https://docs.archcore.ai/cli/install/ and exits 0. Refuses to run when cwd contains a sibling plugin manifest. Otherwise detects missing `.archcore/` and emits init guidance (instructs the agent to call `mcp__archcore__init_project`), or invokes `archcore hooks <host> session-start` directly, then calls `bin/check-staleness`. Always exits 0. |
+| `bin/session-start` | SessionStart | Sources the normalizer; refuses FIRST to run from inside a plugin install (cache-path fragments + bounded depth-12 upward manifest walk — silent exit before any other output). Then, if `archcore` is not on PATH, prints an install message pointing at https://docs.archcore.ai/cli/install/ and exits 0. Otherwise detects missing `.archcore/` and emits init guidance (instructs the agent to call `mcp__archcore__init_project`), or invokes `archcore hooks <host> session-start` directly, then calls `bin/check-staleness` and emits the rate-limited outdated-CLI advisory (`archcore update --check`). Always exits 0. |
 | `bin/check-archcore-write` | PreToolUse | Blocks direct Write/Edit to `.archcore/**/*.md` with exit 2 + stderr message redirecting to MCP tools. Allows `.archcore/settings.json` and `.archcore/.sync-state.json`. Allows all paths outside `.archcore/`. |
 | `bin/check-code-alignment` | PreToolUse | Injects relevant `.archcore/` context for source-file Write/Edit. Greps `.archcore/**/*.md` for documents referencing the edit path (directory prefixes, longest-first). Ranks by specificity → type priority (rule > cpat > adr > spec > guide). Emits top-3 via `hookSpecificOutput.additionalContext` (Claude Code/Codex/Copilot) or `additional_context` (Cursor). Never blocks; always exits 0. Honors `ARCHCORE_DISABLE_INJECTION=1` escape hatch and `.archcore/settings.json → codeAlignment.sourceRoots` override. |
 | `bin/validate-archcore` | PostToolUse | Runs `archcore doctor` directly (timeout 2s) after MCP document operations (by tool_name prefix). The legacy Write/Edit branch in the script is retained as defensive code but is never reached from the current hooks config. Outputs JSON `hookSpecificOutput` when issues found, empty otherwise. Silently exits 0 if the CLI is unavailable. Always exits 0. |
@@ -126,6 +128,8 @@ The `bin/` tree contains hook scripts, shared shell libraries under `bin/lib/`, 
 | `bin/check-cascade` | PostToolUse | After `update_document`, queries `.sync-state.json` relation graph for documents connected via `implements`, `depends_on`, or `extends` to the updated document. Outputs JSON `hookSpecificOutput` listing potentially stale dependents, or empty if no cascade. Always exits 0. |
 | `bin/check-precision` | PostToolUse | Phase 1 of the Precision Initiative. After `create_document` and `update_document`, reads the resulting file from disk and runs four checks: forbidden vagueness lexicon, mandatory sections by type, frontmatter title+status presence, body length ≥200 chars. Emits soft warnings via `additionalContext`. Always exits 0 (never blocks). See `precision-over-coverage.adr.md`. |
 | `bin/git-scope` | (skill helper — not wired to any hooks config) | Resolves a capped, ranked directory set from uncommitted working-tree changes (tracked diff vs HEAD + untracked files, `.archcore/` excluded) for `/archcore:context --git-changes`. Invoked by the context skill via Bash. Emits ≤20 directories ranked by changed-file count plus a `__TOTAL__ <raw-dir-count>` trailer, or a single sentinel (`__USAGE__`, `__NO_GIT__`, `__NOT_REPO__`, `__CLEAN__`). Always exits 0. Covered by the Makefile `BIN_SCRIPTS` lint/permissions set. |
+| `bin/detect-host` | (skill helper — not wired to any hooks config) | Resolves the current AI host from environment only (`CLAUDECODE`/`CLAUDE_SKILL_DIR` → claude-code, `CURSOR_TRACE_ID` → cursor, `CODEX_HOME` → codex-cli; precedence claude > cursor > codex), printing exactly one token or `__UNKNOWN__`; never reads stdin or cwd. Invoked by the init skill to pick the `--agent` id for host wiring (`host-wiring-parity.adr.md`). Always exits 0. Covered by the Makefile `BIN_SCRIPTS` lint/permissions set. |
+| `bin/cli-gte` | (skill helper — not wired to any hooks config) | Deterministic semver gate: `cli-gte <min-version>` prints exactly one token — `yes` (installed `archcore --version` ≥ min), `no`, or `__NO_CLI__` (CLI missing/unparsable); always exits 0. Numeric field-by-field compare so `0.10.0 ≥ 0.6.0` resolves correctly — the init skill's pre-flight host-wiring gate calls it instead of comparing versions in prose (`host-wiring-parity.adr.md`). Contract in `test/unit/cli-gte.bats`. Covered by the Makefile `BIN_SCRIPTS` lint/permissions set. |
 
 ### Test Suite
 
@@ -160,7 +164,7 @@ The `command` resolves through PATH — users must have the Archcore CLI install
 
 Codex CLI uses `.codex-plugin/plugin.json` to point at plugin-root `.codex.mcp.json`, which uses Codex's direct server map shape: `archcore.command: "archcore"`, `archcore.args: ["mcp"]`.
 
-Cursor is the exception. The plugin **does not** ship a plugin-MCP for Cursor — no `mcp.json` at the plugin root. Cursor users instead copy `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped); the template passes `--project ${workspaceFolder}` in `args` to make the workspace explicit. Full rationale and three-layer defense in `cursor-mcp-architecture.adr.md`.
+Cursor is the exception. The plugin **does not** ship a plugin-MCP for Cursor — no `mcp.json` at the plugin root. Cursor users instead copy `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped); the template passes `--project ${workspaceFolder}` in `args` to make the workspace explicit. Since `host-wiring-parity.adr.md`, the project-scoped copy is written automatically by `/archcore:init` (and `archcore init --agent cursor`); the manual copy remains the fallback for sessions where wiring has not run yet. Full rationale and three-layer defense in `cursor-mcp-architecture.adr.md`.
 
 Rationale: see `remove-bundled-launcher-global-cli.idea.md`. The previous bundled launcher (download-on-first-use, checksum-verified, cached per host) is removed; CLI lifecycle now decouples cleanly from plugin releases.
 
@@ -184,7 +188,7 @@ Component manifests, hooks, and MCP configs are plugin-root-relative (under `plu
 | `hooks/codex.hooks.json` | Codex CLI | Hook event config (PascalCase + apply_patch matcher) |
 | `commands/*.md` | Codex CLI | Slash command wrappers (7) — thin shims delegating to `skills/<name>/SKILL.md` |
 | `agents/archcore-assistant.toml` | Codex CLI | Codex TOML subagent (`sandbox_mode = "workspace-write"`); MD original used by Claude Code/Cursor |
-| `agents/archcore-auditor.toml` | Codex CLI | Codex TOML subagent (`sandbox_mode = "read-only"` + `disabled_tools[]`); MD original used by Claude Code/Cursor |
+| `agents/archcore-auditor.toml` | Codex CLI | Codex TOML subagent (`sandbox_mode = "read-only"` + `disabled_tools[]` under both MCP namings); MD original used by Claude Code/Cursor |
 | `rules/archcore-context.mdc` | Cursor | Always-apply context rule |
 | `rules/archcore-files.mdc` | Cursor | .archcore/ glob-triggered MCP-only rule |
 
