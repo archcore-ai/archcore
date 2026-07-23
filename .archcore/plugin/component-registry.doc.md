@@ -10,7 +10,7 @@ tags:
 
 Reference document listing all components of the Archcore Plugin (multi-host: Claude Code, Cursor, Codex CLI).
 
-Note: Claude Code and Cursor surface user-invoked workflows directly from skills (`skills/<name>/SKILL.md`). Codex CLI discovers slash commands from root-level `commands/*.md` wrappers — thin host-adapter shims that delegate to the matching skill. The skill remains the single behavioral source of truth across all three hosts; no workflow logic lives in `commands/`.
+Note: Claude Code and Cursor surface user-invoked workflows directly from skills (`skills/<name>/SKILL.md`). Codex CLI discovers slash commands from root-level `commands/*.md` wrappers — thin host-adapter shims that delegate to the matching skill. The skill remains the single behavioral source of truth across all four hosts; no workflow logic lives in `commands/`.
 
 Per `skill-surface-collapse.adr.md`, the visible `/` palette is exactly **7 auto-invocable intent skills**. There are no per-document-type skills, no track skills, and no utility skills. Track flows live as references under `skills/plan/references/`; drift detection lives at `skills/audit/lib/drift-detection.md`.
 
@@ -100,7 +100,7 @@ For Codex CLI, both subagents also ship as TOML variants (`agents/archcore-assis
 | 5 | PostToolUse | `mcp__archcore__update_document` | `bin/check-cascade` | 3s |
 | 6 | PostToolUse | `mcp__archcore__create_document\|mcp__archcore__update_document` | `bin/check-precision` | 3s |
 
-Hook configs: `hooks/hooks.json` (Claude Code, PascalCase events), `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`; its `preToolUse` matcher is `Write` only — Cursor exposes no Edit tool), `hooks/codex.hooks.json` (Codex CLI, PascalCase events with `apply_patch` matcher addition for Codex's native edit primitive; commands use Codex's canonical `${PLUGIN_ROOT}` substitution).
+Hook configs: `hooks/hooks.json` (Claude Code, PascalCase events), `hooks/cursor.hooks.json` (Cursor, camelCase events + `afterMCPExecution`; its `preToolUse` matcher is `Write` only — Cursor exposes no Edit tool), `hooks/codex.hooks.json` (Codex CLI, PascalCase events with `apply_patch` matcher addition for Codex's native edit primitive; commands use Codex's canonical `${PLUGIN_ROOT}` substitution), `hooks/copilot.hooks.json` (Copilot CLI, native camelCase events, `${COPILOT_PLUGIN_ROOT}` commands, deterministic `ARCHCORE_HOST=copilot`, and `cwd: "."` so hooks run from the user project).
 
 Hook 2 and Hook 3 share the `Write|Edit` matcher. Hook 2 (`check-archcore-write`) blocks direct writes to `.archcore/*.md`. Hook 3 (`check-code-alignment`) injects relevant `.archcore/` context for source-file edits via `hookSpecificOutput.additionalContext`. They act on disjoint path sets by construction — no conflict.
 
@@ -108,7 +108,7 @@ Hook 6 (`check-precision`) is the Phase 1 implementation of the Precision Initia
 
 Historical note: a prior revision had a `PostToolUse` entry with matcher `Write|Edit` invoking `validate-archcore`. It was removed because PreToolUse already blocks all Write/Edit to `.archcore/*.md` (PostToolUse fires only on success), so the matcher was dead weight forking a shell on every Write/Edit anywhere in the repo. See `hooks-validation-system.spec.md` for the rationale. Structure tests guard against its re-introduction.
 
-`bin/session-start` carries a plugin-install-dir guard (see `cursor-mcp-architecture.adr.md`): when cwd contains a sibling `.cursor-plugin/`, `.claude-plugin/`, or `.codex-plugin/` manifest, the hook exits silently. This prevents the hook from emitting the plugin's bundled `.archcore/` (if any future regression reintroduces it) as the user's knowledge base.
+`bin/session-start` carries a plugin-install-dir guard (see `cursor-mcp-architecture.adr.md`): when cwd contains a sibling `.cursor-plugin/`, `.claude-plugin/`, `.codex-plugin/`, or `.plugin/` manifest, the hook exits silently. This prevents the hook from emitting the plugin's bundled `.archcore/` (if any future regression reintroduces it) as the user's knowledge base.
 
 ### Bin Scripts
 
@@ -132,7 +132,7 @@ The `bin/` tree contains hook scripts, shared shell libraries under `bin/lib/`, 
 | Component | Location | Tests | Description |
 | --- | --- | --- | --- |
 | Unit tests | `test/unit/` | — | Test each bin script: stdin parsing, host detection, exit codes, output format, edge cases. |
-| Structure tests | `test/structure/` | — | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules. `hooks.bats` includes anti-regression invariants. `cursor-plugin.bats` locks `docs/cursor.mcp.example.json` shape. `codex-plugin.bats` enforces Codex manifest, marketplace schema, hooks shape, MCP wiring, TOML agents, and parity between `commands/*.md` wrappers (7) and `skills/<name>/SKILL.md`. `marketplace-discovery.bats` pins all three catalogs' `source`/`path` to the `plugins/archcore` subdirectory (issue #2 regression). |
+| Structure tests | `test/structure/` | — | Validate JSON configs, skill frontmatter, agent frontmatter, hook references, script permissions, rules. `hooks.bats` includes anti-regression invariants. `cursor-plugin.bats` locks `docs/cursor.mcp.example.json` shape. `codex-plugin.bats` enforces Codex manifest, marketplace schema, hooks shape, MCP wiring, TOML agents, and parity between `commands/*.md` wrappers (7) and `skills/<name>/SKILL.md`. `copilot-plugin.bats` enforces Copilot manifest pointers, hooks shape, project-root execution, and version parity. `marketplace-discovery.bats` pins all three catalogs' `source`/`path` to the `plugins/archcore` subdirectory (issue #2 regression). |
 | Fixtures | `test/fixtures/stdin/` | — | Mock stdin JSON for Claude Code, Cursor, Copilot, Codex CLI, and malformed inputs |
 | Helpers | `test/helpers/` | — | common.bash (setup, mocks, timeout shim, exports `REPO_ROOT` + `PLUGIN_ROOT`), bats-support, bats-assert (git submodules) |
 | Makefile | `Makefile` | — | Targets: `test`, `test-unit`, `test-structure`, `lint`, `check-json`, `check-perms`, `verify`. Dev-only — stripped from `main` distribution. |
@@ -143,7 +143,7 @@ Run `make verify` for full check. Run `make test` for tests only. See `plugin-te
 
 ### MCP Server
 
-The plugin **ships MCP registration** for Claude Code via `.mcp.json` at the plugin root (`plugins/archcore/.mcp.json`):
+The plugin **ships shared MCP registration** for Claude Code and GitHub Copilot CLI via `.mcp.json` at the plugin root (`plugins/archcore/.mcp.json`):
 
 ```json
 {
@@ -156,7 +156,7 @@ The plugin **ships MCP registration** for Claude Code via `.mcp.json` at the plu
 }
 ```
 
-The `command` resolves through PATH — users must have the Archcore CLI installed globally (see https://docs.archcore.ai/cli/install/). If the CLI is missing at session start, the MCP server fails to register and `bin/session-start` prints the install instructions.
+The `command` resolves through PATH — users must have the Archcore CLI installed globally (see https://docs.archcore.ai/cli/install/). If the CLI is missing at session start, the MCP server fails to register and `bin/session-start` prints the install instructions. Copilot CLI currently launches plugin MCP children from the plugin directory without exposing its project path; correct project-root MCP operation depends on github/copilot-cli#4234.
 
 Codex CLI uses `.codex-plugin/plugin.json` to point at plugin-root `.codex.mcp.json`, which uses Codex's direct server map shape: `archcore.command: "archcore"`, `archcore.args: ["mcp"]`.
 
@@ -173,15 +173,17 @@ Component manifests, hooks, and MCP configs are plugin-root-relative (under `plu
 | `.claude-plugin/plugin.json` | Claude Code | Plugin manifest (plugin root) |
 | `.cursor-plugin/plugin.json` | Cursor | Plugin manifest (plugin root; with explicit component paths; **no `mcpServers` field** — deliberately disabled, see `cursor-mcp-architecture.adr.md`) |
 | `.codex-plugin/plugin.json` | Codex CLI | Plugin manifest (plugin root) with `skills`, `hooks`, and `mcpServers` pointers |
+| `.plugin/plugin.json` | GitHub Copilot CLI | Plugin manifest (plugin root) with explicit `skills`, `agents`, `hooks`, and `mcpServers` pointers |
 | `.claude-plugin/marketplace.json` | Claude Code | Marketplace catalog — **repo root**, `source: ./plugins/archcore` |
 | `.cursor-plugin/marketplace.json` | Cursor | Marketplace catalog — **repo root**, `source: ./plugins/archcore` |
 | `.agents/plugins/marketplace.json` | Codex CLI | Marketplace catalog + default-install policy — **repo root**, `source.path: ./plugins/archcore` |
-| `.mcp.json` | Claude Code | Plugin-provided MCP registration (plugin root; `command: "archcore"` on PATH) |
+| `.mcp.json` | Claude Code / GitHub Copilot CLI | Shared plugin-provided MCP registration (plugin root; `command: "archcore"` on PATH) |
 | `.codex.mcp.json` | Codex CLI | Plugin-provided MCP registration (plugin root; `command: "archcore"` on PATH) |
 | `docs/cursor.mcp.example.json` | Cursor | Reference MCP config for users to copy into `~/.cursor/mcp.json` or `.cursor/mcp.json` (**repo root**). |
 | `hooks/hooks.json` | Claude Code | Hook event config (PascalCase) |
 | `hooks/cursor.hooks.json` | Cursor | Hook event config (camelCase + afterMCPExecution) |
 | `hooks/codex.hooks.json` | Codex CLI | Hook event config (PascalCase + apply_patch matcher) |
+| `hooks/copilot.hooks.json` | GitHub Copilot CLI | Hook event config (camelCase + native mutation matchers + project-root cwd) |
 | `commands/*.md` | Codex CLI | Slash command wrappers (7) — thin shims delegating to `skills/<name>/SKILL.md` |
 | `agents/archcore-assistant.toml` | Codex CLI | Codex TOML subagent (`sandbox_mode = "workspace-write"`); MD original used by Claude Code/Cursor |
 | `agents/archcore-auditor.toml` | Codex CLI | Codex TOML subagent (`sandbox_mode = "read-only"` + `disabled_tools[]`); MD original used by Claude Code/Cursor |

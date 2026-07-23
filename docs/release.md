@@ -28,7 +28,7 @@ This complements two other defenses:
 
 - **CLI guard** in `archcore mcp` — refuses to serve when the working
   directory looks like a plugin install dir (sibling `.cursor-plugin/`,
-  `.claude-plugin/`, or `.codex-plugin/` manifests). See `archcore-cli`
+  `.claude-plugin/`, `.codex-plugin/`, or `.plugin/` manifests). See `archcore-cli`
   repo.
 - **Hook guard** in `bin/session-start` — same detection, silent exit.
 
@@ -61,7 +61,8 @@ multi-host layout ADR and issue #2). That directory carries `skills/`,
 for marketplace surfaces), the per-host manifests
 (`plugins/archcore/.claude-plugin/plugin.json`,
 `plugins/archcore/.cursor-plugin/plugin.json`,
-`plugins/archcore/.codex-plugin/plugin.json`), and the MCP configs
+`plugins/archcore/.codex-plugin/plugin.json`,
+`plugins/archcore/.plugin/plugin.json`), and the MCP configs
 (`plugins/archcore/.mcp.json`, `plugins/archcore/.codex.mcp.json`).
 
 At the **repo root** the marketplace catalogs ship and point at the
@@ -79,10 +80,11 @@ subdirectory: `.agents/plugins/marketplace.json` (Codex),
 
 ## Cutting a release
 
-1. Bump `version` in all three manifests
+1. Bump `version` in all four manifests
    (`plugins/archcore/.claude-plugin/plugin.json`,
    `plugins/archcore/.cursor-plugin/plugin.json`,
-   `plugins/archcore/.codex-plugin/plugin.json`).
+   `plugins/archcore/.codex-plugin/plugin.json`,
+   `plugins/archcore/.plugin/plugin.json`).
 2. Merge the bump PR to `dev`.
 3. Tag the merge commit: `git tag v0.4.1 && git push origin v0.4.1`.
 4. The `release.yml` workflow runs:

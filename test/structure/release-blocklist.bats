@@ -44,6 +44,11 @@ is_stripped() {
     || fail ".codex-plugin/ is in release.yml blocklist — Codex install will break"
 }
 
+@test "release.yml does not strip .plugin/" {
+  ! is_stripped '\.plugin' \
+    || fail ".plugin/ is in release.yml blocklist — Copilot install will break"
+}
+
 @test "release.yml does not strip .agents/" {
   ! is_stripped '\.agents' \
     || fail ".agents/ is in release.yml blocklist — Codex marketplace registry will be missing"

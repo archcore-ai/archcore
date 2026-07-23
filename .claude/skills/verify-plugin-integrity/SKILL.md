@@ -1,12 +1,12 @@
 ---
 name: verify-plugin-integrity
-description: Validate plugin format conformance for Claude Code, Cursor, and Codex CLI — statically audits the plugin manifests under plugins/archcore/ (.claude-plugin/, .cursor-plugin/, .codex-plugin/), the repo-root marketplace catalogs (incl. .agents/plugins/marketplace.json), SKILL.md frontmatter, MD + TOML agent files, Codex commands/*.md wrappers, hooks JSON for all three hosts, plugin-shipped MCP wiring (.mcp.json + .codex.mcp.json), Cursor rules, and bin/ scripts against the official Claude Code plugin spec, Cursor plugin spec, OpenAI Codex CLI plugin docs, and Agent Skills specification. No test execution. Use after structural changes to manifests, skills, agents, hooks, or rules; before opening a PR touching plugin structure; or when multi-host (Claude + Cursor + Codex) consistency is in doubt. For the bats test suite, use /archcore:verify instead.
+description: Validate plugin format conformance for Claude Code, Cursor, Codex CLI, and GitHub Copilot CLI — statically audits the plugin manifests under plugins/archcore/ (.claude-plugin/, .cursor-plugin/, .codex-plugin/, .plugin/), the repo-root marketplace catalogs (incl. .agents/plugins/marketplace.json), SKILL.md frontmatter, MD + TOML agent files, Codex commands/*.md wrappers, hooks JSON for all four hosts, plugin-shipped MCP wiring (.mcp.json + .codex.mcp.json), Cursor rules, and bin/ scripts against the official host plugin specifications and Agent Skills specification. No test execution. Use after structural changes to manifests, skills, agents, hooks, or rules; before opening a PR touching plugin structure; or when multi-host consistency is in doubt. For the bats test suite, use /archcore:verify instead.
 disable-model-invocation: true
 ---
 
 # /verify-plugin-integrity
 
-Static format-conformance audit for the archcore multi-host plugin. Validates that every plugin artifact matches the official Claude Code, Cursor, OpenAI Codex CLI, and Agent Skills specifications, plus the normative Archcore specs in this repo.
+Static format-conformance audit for the archcore multi-host plugin. Validates that every plugin artifact matches the official Claude Code, Cursor, OpenAI Codex CLI, GitHub Copilot CLI, and Agent Skills specifications, plus the normative Archcore specs in this repo.
 
 **Does not** execute tests, lint, scripts, or hooks — for that, use `/archcore:verify` (which runs the bats test suite).
 
@@ -14,7 +14,7 @@ Static format-conformance audit for the archcore multi-host plugin. Validates th
 
 ## Layout (post-relocation — read this first)
 
-The **plugin root is the `plugins/archcore/` subdirectory**, not the repo root. All host-runtime-loaded content lives there: `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, `skills/`, `agents/`, `commands/`, `hooks/`, `bin/`, `rules/`, `assets/`, `.mcp.json`, `.codex.mcp.json`.
+The **plugin root is the `plugins/archcore/` subdirectory**, not the repo root. All host-runtime-loaded content lives there: `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.plugin/plugin.json`, `skills/`, `agents/`, `commands/`, `hooks/`, `bin/`, `rules/`, `assets/`, `.mcp.json`, `.codex.mcp.json`.
 
 The three marketplace catalogs stay at the **repo root** (`.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, `.agents/plugins/marketplace.json`), each pointing `source`/`path` at `./plugins/archcore`. Rationale: Codex never scans a marketplace root for a plugin — a catalog `source.path` of `./` is silently undiscoverable (issue #2). See `.archcore/plugin/subdirectory-plugin-layout.adr.md`.
 
@@ -47,6 +47,11 @@ The three marketplace catalogs stay at the **repo root** (`.claude-plugin/market
 - Codex CLI repo — https://github.com/openai/codex
 - When upstream docs are unreachable or in flux, the internal Codex ground truth is `.archcore/plugin/codex-local-plugin-testing.guide.md` (Step 3 invariants), enforced by `test/structure/codex-plugin.bats`.
 
+### GitHub Copilot CLI
+- Plugin structure — https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/create-plugins
+- Hooks reference — https://docs.github.com/en/copilot/reference/hooks-reference
+- Plugin manifest reference — https://docs.github.com/en/copilot/reference/copilot-cli-reference/plugin-manifest
+
 ### Archcore internal conformance (normative for this repo)
 - `.archcore/plugin/plugin-architecture.spec.md` — seven-skill intent surface, invocation flags
 - `.archcore/plugin/subdirectory-plugin-layout.adr.md` — `plugins/archcore/` layout, catalog `source` rules (issue #2)
@@ -66,11 +71,11 @@ If a local spec conflicts with an external official doc, the external doc is gro
 
 ## When to use
 
-- After editing any file under `plugins/archcore/` (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`, `skills/`, `agents/`, `commands/`, `hooks/`, `rules/`, `bin/`)
+- After editing any file under `plugins/archcore/` (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`, `.plugin/`, `skills/`, `agents/`, `commands/`, `hooks/`, `rules/`, `bin/`)
 - After changing the repo-root marketplace catalogs (`.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, `.agents/plugins/marketplace.json`)
 - After changing `.mcp.json` / `.codex.mcp.json` at the plugin root, or `docs/cursor.mcp.example.json` at the repo root
 - Before opening a PR that touches plugin structure
-- When cross-host (Claude + Cursor + Codex) manifest consistency is in doubt
+- When cross-host manifest consistency is in doubt
 - **Not** for test runs — use `/archcore:verify`
 - **Not** for Archcore document freshness vs code — use `/archcore:audit --drift`
 
@@ -127,15 +132,27 @@ Per `.archcore/plugin/codex-host-support.prd.md` F1 and `.archcore/plugin/codex-
 - **Forbidden**: an inline `mcpServers` object inside the manifest. Codex requires the pointer-to-file shape; an inline object is non-conformant
 - Sibling files: `.codex-plugin/` MUST contain ONLY `plugin.json`. Any additional file (notably a stray `marketplace.json`) is a hard FAIL — Codex marketplace metadata lives at the repo root (see Section 5)
 
+### Section 3a — GitHub Copilot CLI plugin manifest
+
+File: `.plugin/plugin.json` (plugin root)
+
+Per the GitHub Copilot CLI plugin manifest reference, enforced by `test/structure/copilot-plugin.bats`:
+
+- JSON parses and `name`, `description`, and semver `version` are present
+- `hooks` equals `./hooks/copilot.hooks.json`
+- `mcpServers` equals `./.mcp.json`
+- `skills` and `agents` equal `./skills/` and `./agents/`
+- Every explicit relative pointer starts with `./` and resolves inside the plugin root
+
 ### Section 4 — Cross-host consistency
 
-Compare `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, and `.codex-plugin/plugin.json` (all at the plugin root). The following fields MUST be byte-identical across all three:
+Compare `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, and `.plugin/plugin.json` (all at the plugin root). The following fields MUST be byte-identical across all four:
 
 - `name`
 - `description`
 - `version`
 
-Flag any drift — this is the most common regression when bumping versions on one host but forgetting another. Enforced by the cross-host parity assertions in `test/structure/codex-plugin.bats`.
+Flag any drift — this is the most common regression when bumping versions on one host but forgetting another. Enforced by `test/structure/codex-plugin.bats` and `test/structure/copilot-plugin.bats`.
 
 ### Section 5 — Marketplace catalogs (repo root)
 
@@ -284,6 +301,18 @@ Expected PostToolUse shape:
 
 **Runtime caveat** (informational, not a FAIL): live plugin-hook execution is gated behind a Codex feature flag (`codex features enable plugin_hooks`; `under development, false` by default in Codex 0.130.0-era builds) and user trust. Upstream hook docs are in flux — see the guide's "Hook guardrails do not fire" entry. This skill validates static packaging only; live execution is verified by the bats integration suite.
 
+### Section 11a — GitHub Copilot CLI hooks
+
+File: `hooks/copilot.hooks.json` (plugin root)
+
+Per the GitHub Copilot hooks reference, enforced by `test/structure/copilot-plugin.bats`:
+
+- JSON parses, `version: 1` is present, and event keys use native camelCase: `sessionStart`, `preToolUse`, `postToolUse`
+- Every hook sets `cwd: "."`, `ARCHCORE_HOST: "copilot"`, and an appropriate timeout
+- Commands resolve from `${COPILOT_PLUGIN_ROOT}/bin/*`
+- `preToolUse` matchers cover `create`, `edit`, `str_replace_editor`, and `apply_patch`
+- `postToolUse` entries omit matchers so all tool calls reach the shared scripts, which self-filter after normalizing Copilot tool names
+
 ### Section 12 — MCP wiring
 
 Two plugin-shipped MCP configs at the plugin root (`plugins/archcore/`). Both must point at `archcore` resolved via PATH — the plugin does not bundle a launcher (see `remove-bundled-launcher-global-cli.idea.md`). Users install the CLI globally per https://docs.archcore.ai/cli/install/.
@@ -293,6 +322,7 @@ Two plugin-shipped MCP configs at the plugin root (`plugins/archcore/`). Both mu
 - `mcpServers.archcore.command` equals `archcore`
 - `mcpServers.archcore.args` equals `["mcp"]`
 - File MUST NOT contain `${CLAUDE_PLUGIN_ROOT}` or any `bin/archcore` reference (grep — either is a hard FAIL: the launcher was removed)
+- GitHub Copilot CLI shares this config through `.plugin/plugin.json`; `mcpServers.archcore` must remain directly compatible with both hosts
 
 **Codex CLI — `.codex.mcp.json`** (plugin root):
 - File exists at the plugin root (NOT inside `.codex-plugin/`)
@@ -328,7 +358,7 @@ Required `bin/` shape (plugin root):
 
 - `bin/lib/normalize-stdin.sh` exists (sourced by all hook scripts except `check-staleness`)
 - `bin/lib/empty-state.sh` exists (sourced by `session-start` for the empty-state nudge)
-- All hook scripts referenced by any of the three hooks configs exist under `bin/` and are executable: `session-start`, `check-archcore-write`, `check-code-alignment`, `validate-archcore`, `check-cascade`, `check-precision`, `check-staleness`
+- All hook scripts referenced by any of the four hooks configs exist under `bin/` and are executable: `session-start`, `check-archcore-write`, `check-code-alignment`, `validate-archcore`, `check-cascade`, `check-precision`, `check-staleness`
 - `bin/git-scope` exists and is executable — it is a **skill helper** for `/archcore:context --git-changes` (invoked by the context skill via Bash), NOT referenced by any hooks config; do not expect it in the hooks JSON
 - All scripts start with `#!/bin/sh` (POSIX) and pass `shellcheck -s sh -x` when available (`make lint` is the canonical invocation)
 - `bin/session-start` falls back to an install-instructions message pointing at https://docs.archcore.ai/cli/install/ when `archcore` is not on PATH
@@ -343,7 +373,7 @@ Light staleness check against `.archcore/plugin/component-registry.doc.md`:
 - `ls plugins/archcore/agents/*.toml | wc -l` matches the TOML agent total (Codex parity — currently 2)
 - `ls plugins/archcore/commands/*.md | wc -l` equals 7 — one Codex slash-command wrapper per skill; each carries `description:` frontmatter and references the matching `skills/<name>/SKILL.md` (parity per the registry's Codex Slash Command Wrappers table, enforced by `codex-plugin.bats`)
 - Scripts in `bin/` match the registry's Bin Scripts table (hook scripts, `bin/lib/` libraries, and the `git-scope` skill helper)
-- Per-host config table all exists: at the plugin root — `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.mcp.json`, `.codex.mcp.json`, `hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`; at the repo root — `.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, `docs/cursor.mcp.example.json`
+- Per-host config table all exists: at the plugin root — `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.plugin/plugin.json`, `.mcp.json`, `.codex.mcp.json`, `hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`, `hooks/copilot.hooks.json`; at the repo root — `.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, `docs/cursor.mcp.example.json`
 
 This is a spot-check, not a full audit — for full staleness detection use `/archcore:audit --drift`.
 
