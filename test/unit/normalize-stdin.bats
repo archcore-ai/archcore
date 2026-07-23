@@ -27,7 +27,7 @@ setup() {
 }
 
 @test "detects copilot host from native camelCase toolName (no hookEventName)" {
-  run_normalizer '{"sessionId":"s1","timestamp":1751700000000,"cwd":"/work","toolName":"create","toolArgs":"{\"file_path\":\"x.md\"}"}'
+  run_normalizer '{"sessionId":"s1","timestamp":1784816794176,"cwd":"/work","toolName":"create","toolArgs":"{\"path\":\"/work/x.md\"}"}'
   assert_success
   assert_line "HOST=copilot"
 }
@@ -147,15 +147,15 @@ setup() {
 # --- Copilot field extraction ---
 
 @test "copilot: extracts toolName from native payload" {
-  run_normalizer '{"sessionId":"s1","toolName":"create","toolArgs":"{\"file_path\":\".archcore/my.rule.md\"}"}'
+  run_normalizer '{"sessionId":"s1","toolName":"create","toolArgs":"{\"path\":\"/work/.archcore/my.rule.md\"}"}'
   assert_success
   assert_line "TOOL=create"
 }
 
-@test "copilot: extracts file path from escaped toolArgs" {
-  run_normalizer '{"sessionId":"s1","toolName":"create","toolArgs":"{\"file_path\":\".archcore/my.rule.md\",\"content\":\"x\"}"}'
+@test "copilot: extracts native create path from escaped toolArgs" {
+  run_normalizer '{"sessionId":"s1","toolName":"create","toolArgs":"{\"path\":\"/work/.archcore/my.rule.md\",\"file_text\":\"x\"}"}'
   assert_success
-  assert_line "FILE=.archcore/my.rule.md"
+  assert_line "FILE=/work/.archcore/my.rule.md"
 }
 
 @test "copilot: extracts doc path from escaped toolArgs (MCP)" {
