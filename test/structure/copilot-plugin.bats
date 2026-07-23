@@ -54,6 +54,13 @@ HOOKS_REL="hooks/copilot.hooks.json"
   ' "$hooks" > /dev/null
 }
 
+@test "every Copilot hook runs from the user project root" {
+  local hooks="$PLUGIN_ROOT/$HOOKS_REL"
+  jq -e '
+    all(.hooks[][]; .cwd == ".")
+  ' "$hooks" > /dev/null
+}
+
 @test "Copilot hook commands use COPILOT_PLUGIN_ROOT and the shared scripts" {
   local hooks="$PLUGIN_ROOT/$HOOKS_REL"
   local actual expected
