@@ -105,6 +105,13 @@ case "$ARCHCORE_HOST" in
     if [ -z "$ARCHCORE_TOOL_NAME" ]; then
       ARCHCORE_TOOL_NAME=$(_archcore_json_val "tool_name")
     fi
+    case "$ARCHCORE_TOOL_NAME" in
+      archcore-*)
+        # Copilot prefixes MCP tools with "<server>-"; normalize to the
+        # canonical name consumed by the shared post-tool scripts.
+        ARCHCORE_TOOL_NAME="mcp__archcore__${ARCHCORE_TOOL_NAME#archcore-}"
+        ;;
+    esac
     ARCHCORE_FILE_PATH=$(_archcore_json_val_unescaped "file_path")
     if [ -z "$ARCHCORE_FILE_PATH" ]; then
       ARCHCORE_FILE_PATH=$(_archcore_json_val_unescaped "filePath")
