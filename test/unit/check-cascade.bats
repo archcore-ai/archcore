@@ -127,6 +127,14 @@ run_cascade_stdin() {
   assert_output --partial "impl.plan.md"
 }
 
+@test "copilot: native MCP update emits cascade info as Copilot JSON" {
+  create_sync_state '{"source":"impl.plan.md","target":"copilot-hook-probe.doc.md","type":"implements"}'
+  run_cascade copilot/posttooluse-mcp-update.json
+  assert_success
+  assert_output --partial '"additionalContext"'
+  assert_output --partial "impl.plan.md"
+}
+
 # --- Pretty-printed sync-state ---
 
 @test "handles pretty-printed sync-state.json" {

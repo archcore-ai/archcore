@@ -80,6 +80,14 @@ setup() {
   assert_output --partial "additional_context"
 }
 
+@test "copilot native MCP update triggers validation with Copilot JSON" {
+  mock_archcore "✗ broken relation"
+  run_with_fixture validate-archcore copilot/posttooluse-mcp-update.json
+  assert_success
+  assert_output --partial '"additionalContext"'
+  assert_output --partial "validation found issues"
+}
+
 # --- Invocation contract: which subcommand actually ran? ---
 
 @test "validate-archcore calls archcore doctor (not validate)" {

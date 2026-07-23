@@ -9,8 +9,9 @@ Two payload generations:
   GitHub Copilot CLI 1.0.73 (`toolName` + `toolArgs` as an escaped JSON
   string). Native file tools use an absolute `path`; `create` uses
   `file_text`, while `edit` uses `old_str` and `new_str`.
-- `posttooluse-mcp-update.json` — the native post-tool shape used to pin
-  Archcore MCP tool normalization.
+- `posttooluse-mcp-update.json` — a redacted native update capture. Copilot
+  prefixes MCP tools with the server name and a hyphen
+  (`archcore-update_document`).
 
 Session IDs, working directories, prompts, and file contents are redacted;
 field names and nesting are preserved from the captured payloads.

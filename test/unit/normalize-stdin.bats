@@ -164,10 +164,11 @@ setup() {
   assert_line "FILE=/work/src/app.py"
 }
 
-@test "copilot: extracts doc path from escaped toolArgs (MCP)" {
-  run_normalizer '{"sessionId":"s1","toolName":"mcp__archcore__update_document","toolArgs":"{\"path\":\"auth/jwt.adr.md\"}"}'
+@test "copilot: normalizes native MCP tool name and extracts doc path" {
+  run_normalizer '{"sessionId":"s1","toolName":"archcore-update_document","toolArgs":"{\"path\":\".archcore/copilot-hook-probe.doc.md\"}"}'
   assert_success
-  assert_line "DOC=auth/jwt.adr.md"
+  assert_line "TOOL=mcp__archcore__update_document"
+  assert_line "DOC=.archcore/copilot-hook-probe.doc.md"
 }
 
 @test "copilot: legacy hybrid payload still extracts tool_name" {
