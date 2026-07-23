@@ -1,0 +1,1 @@
+{"turn_id":"t1","hook_event_name":"PreToolUse","tool_name":"Write","tool_input":{"file_path":".archcore/my.rule.md","content":"# Rule"}}

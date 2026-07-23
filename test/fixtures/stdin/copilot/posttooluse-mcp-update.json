@@ -1,0 +1,1 @@
+{"sessionId":"s1","timestamp":1751700000000,"cwd":"/work","toolName":"mcp__archcore__update_document","toolArgs":"{\"path\":\"auth/jwt-strategy.adr.md\",\"content\":\"## Context\"}","toolResult":{"resultType":"success","textResultForLlm":"OK"}}

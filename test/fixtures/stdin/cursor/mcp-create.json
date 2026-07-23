@@ -1,0 +1,1 @@
+{"conversation_id":"conv_abc123","hook_event_name":"afterMCPExecution","tool_name":"create_document","tool_input":"{\"type\":\"adr\",\"filename\":\"jwt-strategy\",\"title\":\"JWT Strategy\"}","tool_output":"OK"}

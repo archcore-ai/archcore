@@ -1,0 +1,1 @@
+{"conversation_id":"conv_abc123","hook_event_name":"afterMCPExecution","tool_name":"update_document","tool_input":"{\"path\":\"auth/jwt-strategy.adr.md\",\"content\":\"# Updated\"}","tool_output":"OK"}

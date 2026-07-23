@@ -1,0 +1,1 @@
+{"conversation_id":"conv_abc123","hook_event_name":"preToolUse","tool_name":"Write","tool_input":{"file_path":"src/main.py","content":"hello"}}
