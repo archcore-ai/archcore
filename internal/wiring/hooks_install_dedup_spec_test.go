@@ -47,7 +47,6 @@ func TestHooksInstall_UpdatesStaleArchcoreEntry_Spec(t *testing.T) {
   }
 }`)
 
-	// Act
 	if err := InstallClaudeCodeHooks(base); err != nil {
 		t.Fatalf("InstallClaudeCodeHooks: %v", err)
 	}

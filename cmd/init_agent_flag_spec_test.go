@@ -45,7 +45,6 @@ func TestInitCmd_AgentAndProjectFlags_WritesUnderProjectRoot_Spec(t *testing.T) 
 	elsewhere := t.TempDir()
 	t.Chdir(elsewhere)
 
-	// Act
 	_, err := runInitCmdForSpec(t, "--agent", "cursor", "--project", project)
 	if err != nil {
 		t.Fatalf("init --agent cursor --project: %v", err)

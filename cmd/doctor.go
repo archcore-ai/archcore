@@ -131,7 +131,7 @@ func convergeHostWiring(baseDir string, agentIDs []string) int {
 	} else {
 		list = agents.Detect(baseDir)
 		if len(list) == 0 {
-			return 0 // nothing detected, nothing to converge
+			return 0
 		}
 	}
 
