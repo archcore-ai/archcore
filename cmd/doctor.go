@@ -9,6 +9,7 @@ import (
 	"archcore-cli/internal/api"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
+	"archcore-cli/internal/wiring"
 
 	"github.com/spf13/cobra"
 )
@@ -138,7 +139,7 @@ func convergeHostWiring(baseDir string, agentIDs []string) int {
 	for _, agent := range list {
 		// Hooks: the installers are update-capable — a stale archcore command
 		// is rewritten in place, duplicates are healed.
-		if _, err := installHooksForAgent(baseDir, agent); err != nil {
+		if _, err := wiring.InstallHooksForAgent(baseDir, agent); err != nil {
 			failures++
 			fmt.Println(display.FailLine(fmt.Sprintf("%s hooks: %v", agent.DisplayName, err)))
 		}

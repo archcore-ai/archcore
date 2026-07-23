@@ -1,4 +1,4 @@
-package cmd
+package wiring
 
 import (
 	"bytes"
@@ -15,10 +15,10 @@ var hookInstallers = []struct {
 	install func(string) error
 	relPath string
 }{
-	{"claude", runHooksInstall, ".claude/settings.json"},
-	{"cursor", runCursorHooksInstall, ".cursor/hooks.json"},
-	{"gemini", runGeminiCLIHooksInstall, ".gemini/settings.json"},
-	{"copilot", runCopilotHooksInstall, ".github/hooks/archcore.json"},
+	{"claude", InstallClaudeCodeHooks, ".claude/settings.json"},
+	{"cursor", InstallCursorHooks, ".cursor/hooks.json"},
+	{"gemini", InstallGeminiCLIHooks, ".gemini/settings.json"},
+	{"copilot", InstallCopilotHooks, ".github/hooks/archcore.json"},
 }
 
 func configPathFor(base, relPath string) string {
@@ -50,8 +50,8 @@ func TestHooksInstall_PreservesUnknownHookFields(t *testing.T) {
   }
 }`)
 
-	if err := runHooksInstall(base); err != nil {
-		t.Fatalf("runHooksInstall: %v", err)
+	if err := InstallClaudeCodeHooks(base); err != nil {
+		t.Fatalf("InstallClaudeCodeHooks: %v", err)
 	}
 
 	data, err := os.ReadFile(configPathFor(base, ".claude/settings.json"))
@@ -156,7 +156,7 @@ func TestHooksInstall_BackupWriteFailureAborts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := runHooksInstall(base); err == nil {
+	if err := InstallClaudeCodeHooks(base); err == nil {
 		t.Fatal("expected error when the backup cannot be written")
 	}
 	data, err := os.ReadFile(path)
@@ -178,8 +178,8 @@ func TestHooksInstall_PreservesUnknownTopLevelKeysAndVersion(t *testing.T) {
 		install func(string) error
 		relPath string
 	}{
-		{"cursor", runCursorHooksInstall, ".cursor/hooks.json"},
-		{"copilot", runCopilotHooksInstall, ".github/hooks/archcore.json"},
+		{"cursor", InstallCursorHooks, ".cursor/hooks.json"},
+		{"copilot", InstallCopilotHooks, ".github/hooks/archcore.json"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -217,7 +217,7 @@ func TestHooksInstall_SkipsWriteWhenInstalled(t *testing.T) {
 `
 	path := seedConfig(t, base, ".claude/settings.json", original)
 
-	if err := runHooksInstall(base); err != nil {
+	if err := InstallClaudeCodeHooks(base); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(path)

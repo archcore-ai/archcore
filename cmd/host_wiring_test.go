@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"archcore-cli/internal/wiring"
 )
 
 func decodeWiringReport(t *testing.T, raw []byte) wiringReport {
@@ -86,7 +88,7 @@ func TestHostWiringExecutor_AgentErrorsAreSanitized(t *testing.T) {
 	// Pre-create .archcore/ so init succeeds, then block the hook/MCP writes:
 	// a FILE where claude-code's .claude directory must go makes MkdirAll fail
 	// with a *fs.PathError embedding the absolute path.
-	if _, err := ensureProjectInitialized(base); err != nil {
+	if _, err := wiring.EnsureProjectInitialized(base); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(base, ".claude"), nil, 0o644); err != nil {

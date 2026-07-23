@@ -99,7 +99,7 @@ Files follow the naming convention: `<slug>.<type>.md` (e.g., `use-postgres.adr.
 
 ## How to Add a New MCP Tool
 
-The MCP server (`archcore mcp`) exposes eight tools for AI agents to manage documents: `list_documents`, `get_document`, `create_document`, `update_document`, `remove_document`, `add_relation`, `remove_relation`, `list_relations`.
+The MCP server (`archcore mcp`) exposes eleven tools: `init_project`, `list_documents`, `get_document`, `search_documents`, `create_document`, `update_document`, `remove_document`, `add_relation`, `remove_relation`, `list_relations`, and `install_host_config` (conditionally registered — see below).
 
 1. Create `internal/mcp/tools/<name>.go` returning `(mcp.Tool, server.ToolHandlerFunc)`
 2. Create `internal/mcp/tools/<name>_test.go`
@@ -107,6 +107,10 @@ The MCP server (`archcore mcp`) exposes eight tools for AI agents to manage docu
 4. Use helpers from `common.go` (`ScanDocuments`, `ReadDocumentContent`, `ExtractDocType`, `splitDocument`)
 5. Validate inputs and check path safety (no `..`, must resolve inside `.archcore/`)
 6. Never expose absolute filesystem paths in error messages — see [No Absolute Paths in MCP Errors](../mcp/no-absolute-paths-in-mcp-errors.rule.md)
+
+### Conditionally Registered Tools (executor injection)
+
+A tool whose implementation lives in the cmd layer (because it reuses CLI installers) is registered via a `ServerOption` instead of unconditionally: the handler takes an executor function type defined in `internal/mcp/tools`, and `NewServer` adds the tool only when the option supplies one. `install_host_config` is the pattern's example — `cmd/mcp.go` passes `mcpserver.WithHostWiring(hostWiringExecutor(baseDir))`, where the executor adapts `internal/wiring.Apply` for the MCP boundary (project-relative paths, sanitized errors). This avoids a cmd→internal/mcp import cycle and guarantees headless/test servers built without the option do not expose the tool. See [install_host_config Tool Contract](../mcp/install-host-config-tool-contract.adr.md).
 
 ## How to Modify Hooks
 
@@ -116,12 +120,15 @@ Hooks intercept agent lifecycle events to inject documentation context at sessio
 
 | File | Purpose |
 |------|---------|
-| `cmd/hooks.go` | `hooks install` command, Claude Code hooks config writer, `installHooksForAgent()` router |
-| `cmd/hooks_claude_code.go` | Claude Code subcommand, `hookInput`/`hookOutput` structs, `newSessionStartHookCmd` factory, `handleSessionStart` |
-| `cmd/hooks_cursor.go` | Cursor subcommand, `cursorHooksConfig` writer |
-| `cmd/hooks_gemini_cli.go` | Gemini CLI subcommand, hooks config writer |
-| `cmd/hooks_copilot.go` | GitHub Copilot subcommand, `copilotHooksConfig` writer (`.github/hooks/archcore.json`, `bash` field) |
+| `internal/wiring/hooks_install.go` | Generic hook-config surgery: `installHookEvents`, the `archcore hooks ` ownership marker, entry classification (current / stale-archcore / foreign) |
+| `internal/wiring/hooks_agents.go` | Per-agent installers (`InstallClaudeCodeHooks`, `InstallCursorHooks`, `InstallGeminiCLIHooks`, `InstallCopilotHooks`) + `InstallHooksForAgent()` router |
+| `internal/wiring/wiring.go` | `Apply()` / `EnsureProjectInitialized()` — the shared host-wiring entry points |
+| `cmd/hooks.go` | `hooks install` command wiring |
+| `cmd/hooks_claude_code.go` | Claude Code subcommand, `hookInput`/`hookOutput` structs, `newSessionStartHookCmd` factory, `handleSessionStart`, SessionStart dedup stamps |
+| `cmd/hooks_cursor.go` / `cmd/hooks_gemini_cli.go` / `cmd/hooks_copilot.go` | Per-agent hook subcommands (runtime side) |
 | `cmd/hooks_common.go` | `buildSessionContext()` — the injected session-start text |
+
+Install-time logic (writing host configs) lives in `internal/wiring`; runtime logic (handling a fired hook event) stays in `cmd/`. Installed commands are recognized across CLI versions by the `archcore hooks ` prefix — see [Hook Command Marker ADR](../integrations/hook-command-marker-prefix.adr.md).
 
 ### Shared Handler Pattern
 
@@ -162,9 +169,9 @@ To add support for a new AI coding agent:
 5. **If hooks are supported:**
    - Create `cmd/hooks_<name>.go` with a `newHooksXxxCmd()` subcommand using `newSessionStartHookCmd`
    - Create `cmd/hooks_<name>_test.go`
-   - Add a `runXxxHooksInstall()` function for writing the agent's hooks config
+   - Add an `InstallXxxHooks()` function in `internal/wiring/hooks_agents.go` — the installed command MUST start with `archcore hooks ` (marker contract)
    - Register the subcommand in `cmd/hooks.go:newHooksCmd()`
-   - Add the agent case to `installHooksForAgent()` in `cmd/hooks.go`
+   - Add the agent case to `hooksInstallers` in `internal/wiring/hooks_agents.go`
 
 6. **Update documentation:**
    - Add the agent to [Supported AI Agents Registry](../integrations/supported-ai-agents.doc.md) (registry table + Instruction Nudge Files table)
@@ -178,5 +185,6 @@ To add support for a new AI coding agent:
 - **Interactive forms** — `charmbracelet/huh` for interactive input, with flag-based fallbacks.
 - **Co-located tests** — every command and package has adjacent `_test.go` files using `t.TempDir()` and table-driven subtests.
 - **Shared session-start handler** — all hook-supporting agents use the same `handleSessionStart` and `buildSessionContext` via the `newSessionStartHookCmd` factory, differing only in event name and config format.
+- **Host-wiring domain in `internal/wiring`** — install-time logic (hooks config surgery, per-agent installers, `Apply`/`EnsureProjectInitialized`, path helpers) is shared by `init --agent`, `hooks install`, `doctor --fix`, and the `install_host_config` MCP tool; cobra commands and MCP sanitization stay in `cmd/`.
 - **Usage-nudge instruction files** — `archcore init` (opt-in) and `archcore instructions install`/`remove` write a discovery hint per agent into `AGENTS.md` / `GEMINI.md` / `.claude/rules/archcore.md`. Shared files use an idempotent fenced upsert that preserves user content; helpers live in `internal/agents/instructions.go`, the command in `cmd/instructions.go`. See [Usage-Nudge Instruction File per Agent](../integrations/instruction-nudge-on-init.adr.md).
 - **Invalid config backup** — corrupted config files are backed up as `.bak` before being overwritten. See [Backup Invalid Configs](../integrations/backup-invalid-configs.adr.md).

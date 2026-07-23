@@ -14,6 +14,7 @@ import (
 
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
+	"archcore-cli/internal/wiring"
 )
 
 func healthyHandler() http.HandlerFunc {
@@ -313,9 +314,9 @@ func TestInit_DetectsMultipleAgents(t *testing.T) {
 	for _, agent := range detected {
 		switch agent.ID {
 		case agents.Cursor:
-			runCursorHooksInstall(base)
+			wiring.InstallCursorHooks(base)
 		case agents.GeminiCLI:
-			runGeminiCLIHooksInstall(base)
+			wiring.InstallGeminiCLIHooks(base)
 		}
 	}
 

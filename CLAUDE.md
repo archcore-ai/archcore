@@ -54,10 +54,11 @@ The layout under `.archcore/` is **free-form** — organize by domain/feature/te
 
 - **`config/`** — `settings.json` load/validate and directory init. Sync mode (`none`/`cloud`/`on-prem`) drives which fields are allowed/required, enforced via custom JSON marshaling.
 - **`mcp/`** — MCP server (`server.go`), built on `mark3labs/mcp-go`. Starts even without an `.archcore/` dir (exposes `init_project`).
-  - `mcp/tools/` — 10 tools: `init_project`, `list_documents`, `get_document`, `search_documents`, `create_document`, `update_document`, `remove_document`, `add_relation`, `remove_relation`, `list_relations`. Shared helpers in `common.go`.
+  - `mcp/tools/` — 11 tools: `init_project`, `list_documents`, `get_document`, `search_documents`, `create_document`, `update_document`, `remove_document`, `add_relation`, `remove_relation`, `list_relations`, plus `install_host_config` (registered only when the cmd layer injects an executor via `mcpserver.WithHostWiring`). Shared helpers in `common.go`.
   - `mcp/prompts/` — the five document-track cascades (product, sources, ISO 29148, architecture, standard).
   - `mcp/integration/` — in-process MCP integration tests (Layer A of the E2E strategy).
 - **`agents/`** — registry of supported AI agents (Claude Code, Cursor, Gemini CLI, Copilot, Cline, Codex CLI, OpenCode, Roo Code). Each defines detection, MCP-config writing, hooks, and instruction targets; shared instruction upsert in `instructions.go`.
+- **`wiring/`** — host-wiring domain logic shared by `init --agent`, `hooks install`, `doctor --fix`, and the `install_host_config` MCP tool: hook-config surgery with the `archcore hooks ` ownership marker (`hooks_install.go`), per-agent installers, `Apply`/`EnsureProjectInitialized`, path/dedupe helpers. Cobra commands and MCP sanitization stay in `cmd/`.
 - **`sync/`** — sync internals: content hashing, manifest diffing, payload building (`hash.go`, `diff.go`, `manifest.go`, `payload.go`).
 - **`api/`** — HTTP client for the Archcore server (`/api/v1/status`, `/api/v1/projects`). Cloud URL: `https://app.archcore.ai`.
 - **`update/`** — self-update logic (release lookup, binary replacement).

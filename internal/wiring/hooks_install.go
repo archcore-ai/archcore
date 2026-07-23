@@ -1,4 +1,4 @@
-package cmd
+package wiring
 
 import (
 	"encoding/json"

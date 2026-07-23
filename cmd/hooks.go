@@ -4,34 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
+	"archcore-cli/internal/wiring"
 
 	"github.com/spf13/cobra"
 )
-
-// hookEntry represents a single hook command configuration.
-type hookEntry struct {
-	Type    string `json:"type"`
-	Command string `json:"command"`
-}
-
-// hookMatcher represents a matcher with its hooks array.
-type hookMatcher struct {
-	Matcher string      `json:"matcher"`
-	Hooks   []hookEntry `json:"hooks"`
-}
-
-// archcoreHooks defines the hooks we install for Claude Code, in deterministic order.
-var archcoreHooks = []struct {
-	Event   string
-	Matcher hookMatcher
-}{
-	{"SessionStart", hookMatcher{Matcher: "", Hooks: []hookEntry{{Type: "command", Command: "archcore hooks claude-code session-start"}}}},
-}
 
 func newHooksCmd(version string) *cobra.Command {
 	cmd := &cobra.Command{
@@ -79,32 +59,13 @@ func newHooksInstallCmd() *cobra.Command {
 	return cmd
 }
 
-// hooksInstallers maps agent IDs to their hooks install functions.
-// This is the single source of truth for which agents support hooks.
-var hooksInstallers = map[agents.AgentID]func(string) error{
-	agents.ClaudeCode: runHooksInstall,
-	agents.Cursor:     runCursorHooksInstall,
-	agents.GeminiCLI:  runGeminiCLIHooksInstall,
-	agents.Copilot:    runCopilotHooksInstall,
-}
-
-// installHooksForAgent installs hooks for a single agent that supports them.
-// Returns (false, nil) if the agent doesn't support hooks.
-func installHooksForAgent(baseDir string, agent *agents.Agent) (bool, error) {
-	installer, ok := hooksInstallers[agent.ID]
-	if !ok {
-		return false, nil
-	}
-	return true, installer(baseDir)
-}
-
 // runHooksInstallForAgent installs hooks for a specific agent by ID.
 func runHooksInstallForAgent(baseDir string, id agents.AgentID) error {
 	agent := agents.ByID(id)
 	if agent == nil {
 		return fmt.Errorf("unknown agent %q — valid agents: %v", id, agents.AllIDs())
 	}
-	installed, err := installHooksForAgent(baseDir, agent)
+	installed, err := wiring.InstallHooksForAgent(baseDir, agent)
 	if err != nil {
 		return err
 	}
@@ -143,7 +104,7 @@ func runHooksInstallAutoDetect(baseDir string) error {
 // Shared by 'archcore init' and 'archcore hooks install' auto-detect paths.
 func installAgents(baseDir string, list []*agents.Agent) {
 	for _, agent := range list {
-		installed, err := installHooksForAgent(baseDir, agent)
+		installed, err := wiring.InstallHooksForAgent(baseDir, agent)
 		if err != nil {
 			fmt.Println(display.WarnLine(fmt.Sprintf("%s hooks: %v", agent.DisplayName, err)))
 		} else if !installed {
@@ -153,21 +114,4 @@ func installAgents(baseDir string, list []*agents.Agent) {
 			fmt.Println(display.WarnLine(fmt.Sprintf("%s MCP: %v", agent.DisplayName, err)))
 		}
 	}
-}
-
-// runHooksInstall installs Claude Code hooks into .claude/settings.json.
-func runHooksInstall(baseDir string) error {
-	if !config.DirExists(baseDir) {
-		return errors.New(".archcore/ not found — run 'archcore init' first")
-	}
-
-	events := make([]hookEventInstall, len(archcoreHooks))
-	for i, h := range archcoreHooks {
-		events[i] = hookEventInstall{Event: h.Event, Command: h.Matcher.Hooks[0].Command, Entry: h.Matcher}
-	}
-	return installHookEvents(hookInstallSpec{
-		Path:   filepath.Join(baseDir, ".claude", "settings.json"),
-		Probe:  matcherEntryHasCommand,
-		Events: events,
-	})
 }

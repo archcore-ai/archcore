@@ -242,20 +242,20 @@ func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPS
 // SIGINT/SIGTERM, so no second signal handler is needed here.
 //
 // stdout shield: the JSON-RPC stream owns the real stdout, so before
-// listening we point os.Stdout at os.Stderr. Tool executors reuse CLI
-// helpers (host-wiring installers, display lines) that print via
-// fmt.Println — with the shield those prints become stderr logs instead of
-// corrupting protocol frames. The swap is process-global and Go-level only:
-// RunStdio must stay the sole purpose of its process, and tool executors
-// must not spawn children that inherit the real fd 1. A tool-handler
-// goroutine still running after Listen returns would print to the restored
-// stdout — the stream is closing then, so this is accepted.
+// listening shieldStdout reroutes stdout. Tool executors reuse CLI helpers
+// (host-wiring installers, display lines) that print via fmt.Println — with
+// the shield those prints become stderr logs instead of corrupting protocol
+// frames. On unix the shield works at the file-descriptor level (fd 1 is
+// repointed at stderr; the protocol stream lives on a private CLOEXEC fd), so
+// even raw writes and child processes cannot reach the protocol. On Windows
+// the shield is Go-level only — see stdio_shield_windows.go for the residual
+// invariant. The swap is process-global: RunStdio must stay the sole purpose
+// of its process.
 func RunStdio(ctx context.Context, baseDir, version string, opts ...ServerOption) error {
 	s := NewServer(baseDir, version, opts...)
 
-	protocolOut := os.Stdout
-	os.Stdout = os.Stderr
-	defer func() { os.Stdout = protocolOut }()
+	protocolOut, restore := shieldStdout()
+	defer restore()
 
 	return server.NewStdioServer(s).Listen(ctx, os.Stdin, protocolOut)
 }

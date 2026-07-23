@@ -11,6 +11,7 @@ import (
 	"archcore-cli/internal/api"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
+	"archcore-cli/internal/wiring"
 
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -197,7 +198,7 @@ func runInitForAgents(baseDir string, agentIDs []string) error {
 	fmt.Println(display.WelcomeBanner())
 	fmt.Println()
 
-	created, err := ensureProjectInitialized(baseDir)
+	created, err := wiring.EnsureProjectInitialized(baseDir)
 	if err != nil {
 		return err
 	}
@@ -209,7 +210,7 @@ func runInitForAgents(baseDir string, agentIDs []string) error {
 	}
 
 	installAgents(baseDir, list)
-	if targets := dedupeByInstructionsPath(baseDir, list); len(targets) > 0 {
+	if targets := wiring.DedupeByInstructionsPath(baseDir, list); len(targets) > 0 {
 		installInstructionsForAgents(baseDir, targets)
 	}
 
@@ -319,7 +320,7 @@ func agentsFromPicked(picked []agents.AgentID) agentSelection {
 // files (AGENTS.md, GEMINI.md) that should not be touched without consent. The
 // dedicated 'archcore instructions install' command covers automation.
 func maybeInstallInstructions(baseDir string, list []*agents.Agent) {
-	targets := dedupeByInstructionsPath(baseDir, list)
+	targets := wiring.DedupeByInstructionsPath(baseDir, list)
 	if len(targets) == 0 {
 		return
 	}
@@ -332,7 +333,7 @@ func maybeInstallInstructions(baseDir string, list []*agents.Agent) {
 
 	paths := make([]string, len(targets))
 	for i, agent := range targets {
-		paths[i] = displayPath(baseDir, agent.InstructionsPath(baseDir))
+		paths[i] = wiring.DisplayPath(baseDir, agent.InstructionsPath(baseDir))
 	}
 
 	ok, err := confirmInstructions(paths)

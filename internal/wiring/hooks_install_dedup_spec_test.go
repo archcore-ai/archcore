@@ -1,4 +1,4 @@
-package cmd
+package wiring
 
 // TDD spec pinning a CONFIRMED defect in the hook installers' idempotency
 // probes (matcherEntryHasCommand / commandEntryHasCommand /
@@ -48,8 +48,8 @@ func TestHooksInstall_UpdatesStaleArchcoreEntry_Spec(t *testing.T) {
 }`)
 
 	// Act
-	if err := runHooksInstall(base); err != nil {
-		t.Fatalf("runHooksInstall: %v", err)
+	if err := InstallClaudeCodeHooks(base); err != nil {
+		t.Fatalf("InstallClaudeCodeHooks: %v", err)
 	}
 
 	// Assert: exactly one archcore-marked SessionStart entry, updated to the
@@ -109,8 +109,8 @@ func TestHooksInstall_RemovesStaleDuplicateWhenCurrentPresent(t *testing.T) {
   }
 }`)
 
-	if err := runHooksInstall(base); err != nil {
-		t.Fatalf("runHooksInstall: %v", err)
+	if err := InstallClaudeCodeHooks(base); err != nil {
+		t.Fatalf("InstallClaudeCodeHooks: %v", err)
 	}
 
 	data, err := os.ReadFile(configPathFor(base, ".claude/settings.json"))
@@ -141,8 +141,8 @@ func TestHooksInstall_MixedEntryNeverTouched(t *testing.T) {
   }
 }`)
 
-	if err := runHooksInstall(base); err != nil {
-		t.Fatalf("runHooksInstall: %v", err)
+	if err := InstallClaudeCodeHooks(base); err != nil {
+		t.Fatalf("InstallClaudeCodeHooks: %v", err)
 	}
 
 	data, err := os.ReadFile(configPathFor(base, ".claude/settings.json"))
@@ -175,8 +175,8 @@ func TestHooksInstall_UpdatesStaleCursorEntry(t *testing.T) {
   }
 }`)
 
-	if err := runCursorHooksInstall(base); err != nil {
-		t.Fatalf("runCursorHooksInstall: %v", err)
+	if err := InstallCursorHooks(base); err != nil {
+		t.Fatalf("InstallCursorHooks: %v", err)
 	}
 
 	data, err := os.ReadFile(configPathFor(base, ".cursor/hooks.json"))
@@ -211,8 +211,8 @@ func TestHooksInstall_UserWrappedCommandSurvives(t *testing.T) {
   }
 }`)
 
-	if err := runCursorHooksInstall(base); err != nil {
-		t.Fatalf("runCursorHooksInstall: %v", err)
+	if err := InstallCursorHooks(base); err != nil {
+		t.Fatalf("InstallCursorHooks: %v", err)
 	}
 
 	data, err := os.ReadFile(configPathFor(base, ".cursor/hooks.json"))
@@ -254,8 +254,8 @@ func TestHooksInstall_UpdatesStaleCopilotEntry(t *testing.T) {
   }
 }`)
 
-	if err := runCopilotHooksInstall(base); err != nil {
-		t.Fatalf("runCopilotHooksInstall: %v", err)
+	if err := InstallCopilotHooks(base); err != nil {
+		t.Fatalf("InstallCopilotHooks: %v", err)
 	}
 
 	data, err := os.ReadFile(configPathFor(base, ".github/hooks/archcore.json"))

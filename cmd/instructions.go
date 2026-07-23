@@ -4,12 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
+	"archcore-cli/internal/wiring"
 
 	"github.com/spf13/cobra"
 )
@@ -142,7 +141,7 @@ func printInstructionsAgentSelectionStatus(sel agentSelection) {
 // list, deduped by instruction-file path so the six AGENTS.md agents trigger a
 // single write. Per-file failures are warnings, not aborts.
 func installInstructionsForAgents(baseDir string, list []*agents.Agent) {
-	for _, agent := range dedupeByInstructionsPath(baseDir, list) {
+	for _, agent := range wiring.DedupeByInstructionsPath(baseDir, list) {
 		if err := installInstructionsForAgent(baseDir, agent); err != nil {
 			fmt.Println(display.WarnLine(err.Error()))
 			continue
@@ -155,14 +154,14 @@ func installInstructionsForAgent(baseDir string, agent *agents.Agent) error {
 		return fmt.Errorf("writing %s instructions: %w", agent.DisplayName, err)
 	}
 	fmt.Println(display.CheckLine(fmt.Sprintf(
-		"Added Archcore usage hint to %s", displayPath(baseDir, agent.InstructionsPath(baseDir)))))
+		"Added Archcore usage hint to %s", wiring.DisplayPath(baseDir, agent.InstructionsPath(baseDir)))))
 	return nil
 }
 
 // removeInstructionsForAgents strips the Archcore usage hint for each agent in
 // list, deduped by instruction-file path.
 func removeInstructionsForAgents(baseDir string, list []*agents.Agent) {
-	for _, agent := range dedupeByInstructionsPath(baseDir, list) {
+	for _, agent := range wiring.DedupeByInstructionsPath(baseDir, list) {
 		if err := removeInstructionsForAgent(baseDir, agent); err != nil {
 			fmt.Println(display.WarnLine(err.Error()))
 			continue
@@ -175,39 +174,6 @@ func removeInstructionsForAgent(baseDir string, agent *agents.Agent) error {
 		return fmt.Errorf("removing %s instructions: %w", agent.DisplayName, err)
 	}
 	fmt.Println(display.CheckLine(fmt.Sprintf(
-		"Removed Archcore usage hint from %s", displayPath(baseDir, agent.InstructionsPath(baseDir)))))
+		"Removed Archcore usage hint from %s", wiring.DisplayPath(baseDir, agent.InstructionsPath(baseDir)))))
 	return nil
-}
-
-// dedupeByInstructionsPath returns one agent per unique instruction-file path,
-// preserving registry order. Agents without an instruction target are skipped.
-func dedupeByInstructionsPath(baseDir string, list []*agents.Agent) []*agents.Agent {
-	seen := make(map[string]bool, len(list))
-	out := make([]*agents.Agent, 0, len(list))
-	for _, agent := range list {
-		// Skip agents missing any instruction hook. The registry wires all three
-		// together (enforced by TestAllAgents_RequiredFields), so this guard
-		// makes the dedup the single safe gate before callers deref the others.
-		if agent.InstructionsPath == nil || agent.WriteInstructions == nil || agent.RemoveInstructions == nil {
-			continue
-		}
-		path := agent.InstructionsPath(baseDir)
-		if seen[path] {
-			continue
-		}
-		seen[path] = true
-		out = append(out, agent)
-	}
-	return out
-}
-
-// displayPath renders an instruction-file path relative to baseDir with forward
-// slashes, for stable user-facing and test output. If path is not under baseDir
-// (Rel fails or escapes upward), it falls back to the cleaned path unchanged.
-func displayPath(baseDir, path string) string {
-	rel, err := filepath.Rel(baseDir, path)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		return filepath.ToSlash(path)
-	}
-	return filepath.ToSlash(rel)
 }

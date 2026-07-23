@@ -892,6 +892,26 @@
       "source": "document-types/spec-doctrine-ears-alignment.plan.md",
       "target": "document-types/spec-type-usage.rule.md",
       "type": "related"
+    },
+    {
+      "source": "mcp/install-host-config-tool-contract.adr.md",
+      "target": "integrations/hook-command-marker-prefix.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/install-host-config-tool-contract.adr.md",
+      "target": "integrations/mcp-config-converge-ownership.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/install-host-config-tool-contract.adr.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-command-marker-prefix.adr.md",
+      "target": "integrations/cli-hooks-reference.doc.md",
+      "type": "related"
     }
   ]
 }
