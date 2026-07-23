@@ -18,12 +18,13 @@ matrix_rows() {
 hooks/hooks.json|SessionStart|PostToolUse,PreToolUse,SessionStart,|PreToolUse|Write Edit
 hooks/cursor.hooks.json|sessionStart|afterMCPExecution,preToolUse,sessionStart,|preToolUse|Write
 hooks/codex.hooks.json|SessionStart|PostToolUse,PreToolUse,SessionStart,|PreToolUse|Write Edit apply_patch
+hooks/copilot.hooks.json|sessionStart|postToolUse,preToolUse,sessionStart,|preToolUse|create edit str_replace_editor apply_patch
 ROWS
 }
 
 # Normalize a hooks config's command list to sorted unique script basenames.
 script_basenames() {
-  jq -r '.. | .command? // empty' "$1" | sed 's|"||g' | awk -F/ '{print $NF}' | sort -u
+  jq -r '.. | .command? // .bash? // empty' "$1" | sed 's|"||g' | awk -F/ '{print $NF}' | sort -u
 }
 
 @test "host matrix: every host hooks file has the expected event set" {
@@ -40,7 +41,9 @@ script_basenames() {
   local file session_key cmds
   while IFS='|' read -r file session_key _ _ _; do
     [ -z "$file" ] && continue
-    cmds=$(jq -r --arg e "$session_key" '.hooks[$e][]?.hooks[]?.command // empty' "$PLUGIN_ROOT/$file")
+    cmds=$(jq -r --arg e "$session_key" \
+      '.hooks[$e][]? | (.hooks[]?.command // .command? // .bash? // empty)' \
+      "$PLUGIN_ROOT/$file")
     echo "$cmds" | grep -q 'bin/session-start' \
       || fail "$file: '$session_key' must invoke bin/session-start; got: $cmds"
   done < <(matrix_rows)
@@ -51,14 +54,18 @@ script_basenames() {
   while IFS='|' read -r file _ _ guard_event tools; do
     [ -z "$file" ] && continue
     # The write-guard event must run both check-archcore-write and check-code-alignment.
-    entry_cmds=$(jq -r --arg e "$guard_event" '.hooks[$e][]?.hooks[]?.command // empty' "$PLUGIN_ROOT/$file")
+    entry_cmds=$(jq -r --arg e "$guard_event" \
+      '.hooks[$e][]? | (.hooks[]?.command // .command? // .bash? // empty)' \
+      "$PLUGIN_ROOT/$file")
     echo "$entry_cmds" | grep -q 'bin/check-archcore-write' \
       || fail "$file: '$guard_event' must invoke bin/check-archcore-write; got: $entry_cmds"
     echo "$entry_cmds" | grep -q 'bin/check-code-alignment' \
       || fail "$file: '$guard_event' must invoke bin/check-code-alignment; got: $entry_cmds"
     # The guard entry's matcher must cover every mutation tool of that host.
     guard_matcher=$(jq -r --arg e "$guard_event" \
-      '.hooks[$e][] | select(.hooks[]?.command | test("check-archcore-write")) | .matcher' \
+      '.hooks[$e][] |
+       select((.hooks[]?.command // .command? // .bash? // "") | test("check-archcore-write")) |
+       .matcher' \
       "$PLUGIN_ROOT/$file" | head -1)
     for tok in $tools; do
       case "$guard_matcher" in
