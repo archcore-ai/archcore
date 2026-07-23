@@ -158,6 +158,12 @@ setup() {
   assert_line "FILE=/work/.archcore/my.rule.md"
 }
 
+@test "copilot: extracts native edit path from escaped toolArgs" {
+  run_normalizer '{"sessionId":"s1","toolName":"edit","toolArgs":"{\"path\":\"/work/src/app.py\",\"old_str\":\"a\",\"new_str\":\"b\"}"}'
+  assert_success
+  assert_line "FILE=/work/src/app.py"
+}
+
 @test "copilot: extracts doc path from escaped toolArgs (MCP)" {
   run_normalizer '{"sessionId":"s1","toolName":"mcp__archcore__update_document","toolArgs":"{\"path\":\"auth/jwt.adr.md\"}"}'
   assert_success
