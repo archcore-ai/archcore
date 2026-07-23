@@ -44,7 +44,8 @@ func newMCPCmd(version string) *cobra.Command {
 				}
 			}
 
-			return mcpserver.RunStdio(baseDir, version)
+			return mcpserver.RunStdio(cmd.Context(), baseDir, version,
+				mcpserver.WithHostWiring(hostWiringExecutor(baseDir)))
 		},
 	}
 
@@ -110,7 +111,7 @@ func newMCPInstallCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&agentFlag, "agent", "", "install for a specific agent (e.g. cursor, gemini-cli)")
+	cmd.Flags().StringVar(&agentFlag, "agent", "", "install for a single agent (e.g. cursor, gemini-cli); not repeatable — the last value wins")
 	cmd.Flags().StringVar(&projectFlag, "project", "",
 		"project root containing .archcore/ (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
 	return cmd

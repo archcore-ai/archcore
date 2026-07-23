@@ -31,8 +31,9 @@ type openCodeMCPEntry struct {
 }
 
 func writeOpenCodeMCPConfig(baseDir string) error {
-	return writeMCPConfig(filepath.Join(baseDir, "opencode.json"), "mcp", openCodeMCPEntry{
+	_, err := writeMCPConfig(filepath.Join(baseDir, "opencode.json"), "mcp", openCodeMCPEntry{
 		Type:    "local",
 		Command: []string{"archcore", "mcp"},
-	}, corruptBackupAndReset)
+	}, corruptBackupAndReset, mcpKeepExisting)
+	return err
 }

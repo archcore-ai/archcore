@@ -87,16 +87,32 @@ func runInit(ctx context.Context, baseDir string, settings *config.Settings) (*i
 }
 
 func newInitCmd() *cobra.Command {
-	return &cobra.Command{
+	var (
+		agentFlags  []string
+		projectFlag string
+	)
+
+	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize archcore in the current directory",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
+			// --agent switches to the non-interactive mode used by the plugin
+			// skill, CI, and scripts: no TTY prompts, explicit consent implied
+			// by the flag, project root resolved flag > env > cwd.
+			if len(agentFlags) > 0 {
+				baseDir, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
+				if err != nil {
+					return err
+				}
+				return runInitForAgents(baseDir, agentFlags)
+			}
+
 			fmt.Println(display.WelcomeBanner())
 			fmt.Println()
 
-			cwd, err := os.Getwd()
+			cwd, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
 			if err != nil {
 				return err
 			}
@@ -155,6 +171,51 @@ func newInitCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().StringArrayVar(&agentFlags, "agent", nil,
+		"non-interactive: initialize and install hooks + MCP config + usage hint for the given agent id (repeatable; e.g. claude-code, cursor, codex-cli)")
+	cmd.Flags().StringVar(&projectFlag, "project", "",
+		"project root to initialize (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
+	return cmd
+}
+
+// runInitForAgents is the non-interactive init path behind --agent. Contract
+// (init_agent_flag_spec_test.go): validate every agent id before any write;
+// never open a TTY prompt; write all artifacts under baseDir regardless of
+// process cwd; keep existing .archcore/ settings untouched (idempotent pass);
+// explicit --agent implies consent for the usage-hint instructions.
+func runInitForAgents(baseDir string, agentIDs []string) error {
+	list := make([]*agents.Agent, 0, len(agentIDs))
+	for _, id := range agentIDs {
+		agent := agents.ByID(agents.AgentID(id))
+		if agent == nil {
+			return fmt.Errorf("unknown agent %q — valid agents: %v", id, agents.AllIDs())
+		}
+		list = append(list, agent)
+	}
+
+	fmt.Println(display.WelcomeBanner())
+	fmt.Println()
+
+	created, err := ensureProjectInitialized(baseDir)
+	if err != nil {
+		return err
+	}
+	if created {
+		fmt.Println(display.CheckLine("Created .archcore/ directory"))
+		fmt.Println(display.CheckLine("Settings saved to .archcore/settings.json"))
+	} else {
+		fmt.Println(display.CheckLine("Existing .archcore/ kept (settings untouched)"))
+	}
+
+	installAgents(baseDir, list)
+	if targets := dedupeByInstructionsPath(baseDir, list); len(targets) > 0 {
+		installInstructionsForAgents(baseDir, targets)
+	}
+
+	fmt.Println()
+	fmt.Println(display.Success.Render("  Ready! Run 'archcore status' to verify."))
+	return nil
 }
 
 // resolveAgents detects installed agents in baseDir; if none are found and

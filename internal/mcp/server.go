@@ -1,7 +1,9 @@
 package mcp
 
 import (
+	"context"
 	"fmt"
+	"os"
 
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/mcp/prompts"
@@ -175,9 +177,31 @@ LANGUAGE REQUIREMENT:
 All document content (title, body text) MUST be written in %q. YAML frontmatter keys and status values remain in English. Slug must still be lowercase ASCII with hyphens.`, language)
 }
 
+// ServerOption customizes optional server capabilities.
+type ServerOption func(*serverConfig)
+
+type serverConfig struct {
+	hostWiring tools.HostWiringFunc
+}
+
+// WithHostWiring registers the install_host_config tool backed by the given
+// executor. The executor is injected from the cmd layer, where the host-wiring
+// installers live alongside the CLI commands that share them.
+func WithHostWiring(fn tools.HostWiringFunc) ServerOption {
+	return func(cfg *serverConfig) { cfg.hostWiring = fn }
+}
+
 // NewServer creates a new MCP server with archcore tools. version is the CLI
 // build version threaded from main (never a package-level global).
-func NewServer(baseDir, version string) *server.MCPServer {
+func NewServer(baseDir, version string, opts ...ServerOption) *server.MCPServer {
+	var cfg serverConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	return newServerWithConfig(baseDir, version, cfg)
+}
+
+func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPServer {
 	language := ""
 	if settings, err := config.Load(baseDir); err == nil {
 		language = settings.Language
@@ -204,13 +228,34 @@ func NewServer(baseDir, version string) *server.MCPServer {
 	s.AddTool(tools.NewRemoveRelationTool(), tools.HandleRemoveRelation(baseDir))
 	s.AddTool(tools.NewListRelationsTool(), tools.HandleListRelations(baseDir))
 
+	if cfg.hostWiring != nil {
+		s.AddTool(tools.NewInstallHostConfigTool(), tools.HandleInstallHostConfig(cfg.hostWiring))
+	}
+
 	prompts.RegisterAll(s)
 
 	return s
 }
 
-// RunStdio starts the MCP server on stdin/stdout.
-func RunStdio(baseDir, version string) error {
-	s := NewServer(baseDir, version)
-	return server.ServeStdio(s)
+// RunStdio starts the MCP server on stdin/stdout. ctx drives shutdown — the
+// caller threads cmd.Context(), which the root command already cancels on
+// SIGINT/SIGTERM, so no second signal handler is needed here.
+//
+// stdout shield: the JSON-RPC stream owns the real stdout, so before
+// listening we point os.Stdout at os.Stderr. Tool executors reuse CLI
+// helpers (host-wiring installers, display lines) that print via
+// fmt.Println — with the shield those prints become stderr logs instead of
+// corrupting protocol frames. The swap is process-global and Go-level only:
+// RunStdio must stay the sole purpose of its process, and tool executors
+// must not spawn children that inherit the real fd 1. A tool-handler
+// goroutine still running after Listen returns would print to the restored
+// stdout — the stream is closing then, so this is accepted.
+func RunStdio(ctx context.Context, baseDir, version string, opts ...ServerOption) error {
+	s := NewServer(baseDir, version, opts...)
+
+	protocolOut := os.Stdout
+	os.Stdout = os.Stderr
+	defer func() { os.Stdout = protocolOut }()
+
+	return server.NewStdioServer(s).Listen(ctx, os.Stdin, protocolOut)
 }

@@ -49,13 +49,16 @@ func newHooksCmd(version string) *cobra.Command {
 }
 
 func newHooksInstallCmd() *cobra.Command {
-	var agentFlag string
+	var (
+		agentFlag   string
+		projectFlag string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install archcore hooks for coding agents",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
+			cwd, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
 			if err != nil {
 				return err
 			}
@@ -70,7 +73,9 @@ func newHooksInstallCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&agentFlag, "agent", "", "install hooks for a specific agent (e.g. cursor, gemini-cli)")
+	cmd.Flags().StringVar(&agentFlag, "agent", "", "install hooks for a single agent (e.g. cursor, gemini-cli); not repeatable — the last value wins")
+	cmd.Flags().StringVar(&projectFlag, "project", "",
+		"project root containing .archcore/ (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
 	return cmd
 }
 

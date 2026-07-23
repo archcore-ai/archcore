@@ -19,7 +19,7 @@ func NewInitProjectTool() mcp.Tool {
 
 Call this tool ONCE per project, before creating any documents, if list_documents reports the project is not yet initialized (empty result with no .archcore/ directory). Idempotent — safe to call on an already-initialized project (existing settings preserved and returned).
 
-Creates the .archcore/ directory and settings.json. Does not install agent hooks (use 'archcore hooks install') or register the MCP server (use 'archcore mcp install').
+Creates the .archcore/ directory and settings.json only — no host wiring (hooks, MCP registration, instructions file). For that, during an explicit init/setup flow, call install_host_config (or run 'archcore init --agent <id>' from a shell).
 
 Returns: JSON with { initialized: true, settings: {...}, already_initialized: bool }.`),
 		mcp.WithString("language",

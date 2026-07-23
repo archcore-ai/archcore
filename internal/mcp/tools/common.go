@@ -539,6 +539,13 @@ func sanitizeError(action string, err error) string {
 	return action + ": " + err.Error()
 }
 
+// SanitizeError exposes sanitizeError to injected executors (the cmd-layer
+// host-wiring installer) so per-item error strings embedded in a tool's
+// success payload obey the same no-absolute-paths rule as top-level errors.
+func SanitizeError(action string, err error) string {
+	return sanitizeError(action, err)
+}
+
 // describeIOClass maps an OS-level error to a short, path-free description.
 func describeIOClass(err error) string {
 	switch {

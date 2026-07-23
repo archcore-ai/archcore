@@ -133,6 +133,6 @@ After writing, check:
 
 ### Issue 8: Command or event as the subject
 
-**Cause**: `The /remember command invalidates the cache` — the triggering command written as the clause subject, leaving the trigger implicit and no component obligated.
+**Cause**: `The /rebuild-index command invalidates the cache` — the triggering command written as the clause subject, leaving the trigger implicit and no component obligated.
 
-**Solution**: Make the trigger explicit and the component the subject: `WHEN the user invokes /remember, the <component> MUST invalidate the cache`.
+**Solution**: Make the trigger explicit and the component the subject: `WHEN the user invokes /rebuild-index, the <component> MUST invalidate the cache`.
