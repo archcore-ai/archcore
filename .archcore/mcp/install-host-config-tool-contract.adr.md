@@ -22,7 +22,7 @@ Three linked decisions form the tool's contract:
 - MCP config writes merge only owned fields (mcp-config-converge-ownership.adr) — user fields and foreign servers survive.
 If either contract weakens, `DestructiveHint` must be revisited in the same change.
 
-**3. Instruction-nudge files never mention the tool.** The usage-nudge instructions (AGENTS.md / GEMINI.md / .claude/rules/) deliberately omit `install_host_config` — nudging agents toward a gated tool contradicts the gate. This omission is by design, not an oversight.
+**3. Instruction-nudge files never mention the tool.** The usage-nudge instructions (CLAUDE.md / AGENTS.md / GEMINI.md) deliberately omit `install_host_config` — nudging agents toward a gated tool contradicts the gate. This omission is by design, not an oversight.
 
 **Registration is conditional.** The tool is registered only when the cmd layer injects an executor via `mcpserver.WithHostWiring` (@internal/mcp/server.go); a bare `NewServer` does not expose it. The executor lives in cmd (@cmd/host_wiring.go) and adapts @internal/wiring — this injection avoids a cmd→internal/mcp import cycle and keeps the MCP boundary responsible for sanitization (project-relative paths, sanitized errors per no-absolute-paths-in-mcp-errors.rule).
 

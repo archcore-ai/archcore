@@ -160,7 +160,7 @@ To add support for a new AI coding agent:
    - `WriteMCPConfig` — write the archcore MCP entry (use `WriteStandardMCPJSON` if the agent uses standard `mcpServers` format)
    - `WriteHooksConfig` — set to `nil` if hooks not supported
    - `ManualMCPInstallHint` — set if MCP must be installed manually (e.g., Cline)
-   - `InstructionsPath`, `WriteInstructions`, `RemoveInstructions` — the usage-nudge target. Point them at a shared helper in `internal/agents/instructions.go` (`agentsMDInstructions*` for `AGENTS.md`, `geminiInstructions*` for `GEMINI.md`, or an owned target like Claude's). `TestAllAgents_RequiredFields` fails if any are nil.
+   - `InstructionsPath`, `WriteInstructions`, `RemoveInstructions` — the usage-nudge target. Point them at a shared helper in `internal/agents/instructions.go` (`agentsMDInstructions*` for `AGENTS.md`, `geminiInstructions*` for `GEMINI.md`, or `claudeInstructions*` — the dual-write that lands both `CLAUDE.md` and the shared `AGENTS.md` block, and migrates away the legacy `.claude/rules/archcore.md`). `TestAllAgents_RequiredFields` fails if any are nil.
 
 3. **Register the agent** — Add the constructor call to the `all` slice in `internal/agents/agents.go`
 
@@ -186,5 +186,5 @@ To add support for a new AI coding agent:
 - **Co-located tests** — every command and package has adjacent `_test.go` files using `t.TempDir()` and table-driven subtests.
 - **Shared session-start handler** — all hook-supporting agents use the same `handleSessionStart` and `buildSessionContext` via the `newSessionStartHookCmd` factory, differing only in event name and config format.
 - **Host-wiring domain in `internal/wiring`** — install-time logic (hooks config surgery, per-agent installers, `Apply`/`EnsureProjectInitialized`, path helpers) is shared by `init --agent`, `hooks install`, `doctor --fix`, and the `install_host_config` MCP tool; cobra commands and MCP sanitization stay in `cmd/`.
-- **Usage-nudge instruction files** — `archcore init` (opt-in) and `archcore instructions install`/`remove` write a discovery hint per agent into `AGENTS.md` / `GEMINI.md` / `.claude/rules/archcore.md`. Shared files use an idempotent fenced upsert that preserves user content; helpers live in `internal/agents/instructions.go`, the command in `cmd/instructions.go`. See [Usage-Nudge Instruction File per Agent](../integrations/instruction-nudge-on-init.adr.md).
+- **Usage-nudge instruction files** — `archcore init` (opt-in) and `archcore instructions install`/`remove` write a discovery hint per agent into `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` (Claude Code gets `CLAUDE.md` + `AGENTS.md`; the legacy `.claude/rules/archcore.md` is migrated away on (re)wiring). All targets use an idempotent fenced upsert that preserves user content; helpers live in `internal/agents/instructions.go`, the command in `cmd/instructions.go`. See [Usage-Nudge Instruction File per Agent](../integrations/instruction-nudge-on-init.adr.md).
 - **Invalid config backup** — corrupted config files are backed up as `.bak` before being overwritten. See [Backup Invalid Configs](../integrations/backup-invalid-configs.adr.md).

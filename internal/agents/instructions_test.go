@@ -135,22 +135,28 @@ func TestUpsertFencedBlock_CreatesDirs(t *testing.T) {
 	}
 }
 
-func TestWriteOwnedFile_CreatesAndOverwrites(t *testing.T) {
+func TestWriteClaudeInstructions_MigratesLegacyRulesFile(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), ".claude", "rules", "archcore.md")
+	base := t.TempDir()
+	legacy := filepath.Join(base, ".claude", "rules", "archcore.md")
+	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	writeFile(t, legacy, "legacy nudge\n")
 
-	if err := writeOwnedFile(path, "first\n"); err != nil {
-		t.Fatalf("first write: %v", err)
-	}
-	if got := readFile(t, path); got != "first\n" {
-		t.Errorf("got %q, want %q", got, "first\n")
+	if err := writeClaudeInstructions(base); err != nil {
+		t.Fatalf("writeClaudeInstructions: %v", err)
 	}
 
-	if err := writeOwnedFile(path, "second\n"); err != nil {
-		t.Fatalf("second write: %v", err)
+	// Legacy owned file is migrated away...
+	if _, err := os.Stat(legacy); !os.IsNotExist(err) {
+		t.Errorf("legacy .claude/rules/archcore.md should be removed, stat err = %v", err)
 	}
-	if got := readFile(t, path); got != "second\n" {
-		t.Errorf("overwrite failed: got %q, want %q", got, "second\n")
+	// ...and both current targets carry the block.
+	for _, f := range []string{"CLAUDE.md", "AGENTS.md"} {
+		if got := readFile(t, filepath.Join(base, f)); !strings.Contains(got, instructionsMarkerStart) {
+			t.Errorf("%s missing managed block after write", f)
+		}
 	}
 }
 
@@ -237,7 +243,7 @@ func TestAgentInstructionsPath(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
 	want := map[AgentID]string{
-		ClaudeCode: filepath.Join(base, ".claude", "rules", "archcore.md"),
+		ClaudeCode: filepath.Join(base, "CLAUDE.md"),
 		GeminiCLI:  filepath.Join(base, "GEMINI.md"),
 		Cursor:     filepath.Join(base, "AGENTS.md"),
 		OpenCode:   filepath.Join(base, "AGENTS.md"),
@@ -257,20 +263,27 @@ func TestAgentInstructionsPath(t *testing.T) {
 	}
 }
 
-func TestWriteInstructions_ClaudeOwnedNoMarkers(t *testing.T) {
+func TestWriteInstructions_ClaudeWritesBothTargets(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
 
 	if err := ByID(ClaudeCode).WriteInstructions(base); err != nil {
 		t.Fatalf("WriteInstructions: %v", err)
 	}
-	got := readFile(t, filepath.Join(base, ".claude", "rules", "archcore.md"))
 
-	if strings.Contains(got, instructionsMarkerStart) {
-		t.Error("owned Claude file must not contain HTML markers")
+	// CLAUDE.md — the file Claude Code reads natively — carries the fenced block.
+	claudeMD := readFile(t, filepath.Join(base, "CLAUDE.md"))
+	if !strings.Contains(claudeMD, instructionsMarkerStart) {
+		t.Error("CLAUDE.md should carry the fenced block for Claude Code")
 	}
-	if !strings.Contains(got, "## Archcore — project context for this repo") {
-		t.Error("owned Claude file missing nudge body")
+	if !strings.Contains(claudeMD, "## Archcore — project context for this repo") {
+		t.Error("CLAUDE.md missing nudge body")
+	}
+
+	// AGENTS.md also carries the block (standard the plugin + other hosts use).
+	agentsMD := readFile(t, filepath.Join(base, "AGENTS.md"))
+	if !strings.Contains(agentsMD, instructionsMarkerStart) {
+		t.Error("AGENTS.md should carry the fenced block for Claude Code")
 	}
 }
 

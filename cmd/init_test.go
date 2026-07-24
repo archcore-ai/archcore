@@ -642,7 +642,7 @@ func TestMaybeInstallInstructions_OptInWrites(t *testing.T) {
 		maybeInstallInstructions(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)})
 	})
 
-	if _, err := os.Stat(filepath.Join(base, ".claude", "rules", "archcore.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(base, "CLAUDE.md")); err != nil {
 		t.Errorf("opt-in should write the instruction file: %v", err)
 	}
 }
@@ -656,7 +656,7 @@ func TestMaybeInstallInstructions_DeclineSkips(t *testing.T) {
 		maybeInstallInstructions(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)})
 	})
 
-	if _, err := os.Stat(filepath.Join(base, ".claude", "rules", "archcore.md")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(base, "CLAUDE.md")); !os.IsNotExist(err) {
 		t.Errorf("declined hint should not write file, stat err = %v", err)
 	}
 	if !strings.Contains(out, "Skipped") {
@@ -672,7 +672,7 @@ func TestMaybeInstallInstructions_NonInteractiveSkips(t *testing.T) {
 		maybeInstallInstructions(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)})
 	})
 
-	if _, err := os.Stat(filepath.Join(base, ".claude", "rules", "archcore.md")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(base, "CLAUDE.md")); !os.IsNotExist(err) {
 		t.Errorf("non-interactive should not write file, stat err = %v", err)
 	}
 	if !strings.Contains(out, "non-interactive") {

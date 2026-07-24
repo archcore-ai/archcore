@@ -14,7 +14,9 @@ const instructionsStartMarker = "<!-- archcore:start -->"
 func TestInstallInstructionsForAgents_DedupesAndWrites(t *testing.T) {
 	// Not parallel: captureStdout reassigns the global os.Stdout.
 	base := t.TempDir()
-	// Three AGENTS.md agents + Claude (owned file). AGENTS.md must be written once.
+	// Three AGENTS.md agents + Claude (CLAUDE.md + AGENTS.md). Claude dedupes on
+	// its own CLAUDE.md path; the AGENTS.md block is written once (idempotent
+	// upsert), and Claude's CLAUDE.md adds one more install line.
 	list := []*agents.Agent{
 		agents.ByID(agents.CodexCLI),
 		agents.ByID(agents.Cursor),
@@ -30,18 +32,18 @@ func TestInstallInstructionsForAgents_DedupesAndWrites(t *testing.T) {
 	if n := strings.Count(agentsMD, instructionsStartMarker); n != 1 {
 		t.Errorf("AGENTS.md should have exactly 1 managed block, got %d", n)
 	}
-	if _, err := os.Stat(filepath.Join(base, ".claude", "rules", "archcore.md")); err != nil {
-		t.Errorf(".claude/rules/archcore.md missing: %v", err)
+	if _, err := os.Stat(filepath.Join(base, "CLAUDE.md")); err != nil {
+		t.Errorf("CLAUDE.md missing: %v", err)
 	}
 
 	if n := strings.Count(out, "Added Archcore usage hint"); n != 2 {
-		t.Errorf("want 2 install lines (AGENTS.md + Claude), got %d:\n%s", n, out)
+		t.Errorf("want 2 install lines (AGENTS.md + CLAUDE.md), got %d:\n%s", n, out)
 	}
 	if !strings.Contains(out, "AGENTS.md") {
 		t.Errorf("output missing AGENTS.md:\n%s", out)
 	}
-	if !strings.Contains(out, ".claude/rules/archcore.md") {
-		t.Errorf("output missing Claude path (forward slashes):\n%s", out)
+	if !strings.Contains(out, "CLAUDE.md") {
+		t.Errorf("output missing Claude path:\n%s", out)
 	}
 }
 
@@ -81,15 +83,71 @@ func TestRunInstructionsInstallForAgent_Claude(t *testing.T) {
 		}
 	})
 
-	got := readFileString(t, filepath.Join(base, ".claude", "rules", "archcore.md"))
-	if strings.Contains(got, instructionsStartMarker) {
-		t.Error("owned Claude file must not contain markers")
+	claudeMD := readFileString(t, filepath.Join(base, "CLAUDE.md"))
+	if !strings.Contains(claudeMD, instructionsStartMarker) {
+		t.Error("CLAUDE.md should carry the fenced block")
 	}
-	if !strings.Contains(got, "## Archcore — project context for this repo") {
-		t.Error("Claude file missing nudge body")
+	if !strings.Contains(claudeMD, "## Archcore — project context for this repo") {
+		t.Error("CLAUDE.md missing nudge body")
 	}
-	if !strings.Contains(got, "global sources") {
-		t.Error("Claude file missing global-sources nudge")
+	if !strings.Contains(claudeMD, "global sources") {
+		t.Error("CLAUDE.md missing global-sources nudge")
+	}
+
+	agentsMD := readFileString(t, filepath.Join(base, "AGENTS.md"))
+	if !strings.Contains(agentsMD, instructionsStartMarker) {
+		t.Error("AGENTS.md should carry the fenced block for Claude Code")
+	}
+}
+
+// TestRemoveInstructionsForAgent_Claude_PreservesSharedAgentsMD pins the remove
+// asymmetry: removing Claude Code alone strips its own CLAUDE.md block but must
+// NOT strip the shared AGENTS.md block a co-installed AGENTS.md agent (Cursor
+// here) still relies on. A "clean up everything" refactor of
+// removeClaudeInstructions would break a co-installed user with no other test
+// failing — this is the guard against it.
+func TestRemoveInstructionsForAgent_Claude_PreservesSharedAgentsMD(t *testing.T) {
+	// Not parallel: captureStdout reassigns the global os.Stdout.
+	base := t.TempDir()
+	captureStdout(t, func() {
+		installInstructionsForAgents(base, []*agents.Agent{
+			agents.ByID(agents.Cursor), agents.ByID(agents.ClaudeCode),
+		})
+		if err := removeInstructionsForAgent(base, agents.ByID(agents.ClaudeCode)); err != nil {
+			t.Fatalf("remove claude: %v", err)
+		}
+	})
+
+	// CLAUDE.md held only our block → deleted.
+	if _, err := os.Stat(filepath.Join(base, "CLAUDE.md")); !os.IsNotExist(err) {
+		t.Errorf("CLAUDE.md should be removed, stat err = %v", err)
+	}
+	// The shared AGENTS.md block MUST survive for the still-installed Cursor.
+	agentsMD := readFileString(t, filepath.Join(base, "AGENTS.md"))
+	if n := strings.Count(agentsMD, instructionsStartMarker); n != 1 {
+		t.Errorf("removing Claude alone must leave Cursor's AGENTS.md block intact, got %d blocks:\n%s", n, agentsMD)
+	}
+}
+
+// TestInstallInstructionsForAgents_ClaudePlusAgentsMD_Idempotent guards that the
+// composed dual write (Claude's CLAUDE.md + the AGENTS.md upsert) is byte-stable
+// across re-installs — init is commonly re-run, so a second pass must not append
+// or drift either file.
+func TestInstallInstructionsForAgents_ClaudePlusAgentsMD_Idempotent(t *testing.T) {
+	// Not parallel: captureStdout reassigns the global os.Stdout.
+	base := t.TempDir()
+	list := []*agents.Agent{agents.ByID(agents.Cursor), agents.ByID(agents.ClaudeCode)}
+
+	captureStdout(t, func() { installInstructionsForAgents(base, list) })
+	firstAgents := readFileString(t, filepath.Join(base, "AGENTS.md"))
+	firstClaude := readFileString(t, filepath.Join(base, "CLAUDE.md"))
+
+	captureStdout(t, func() { installInstructionsForAgents(base, list) })
+	if got := readFileString(t, filepath.Join(base, "AGENTS.md")); got != firstAgents {
+		t.Errorf("AGENTS.md not byte-identical on re-install:\n%q\n%q", firstAgents, got)
+	}
+	if got := readFileString(t, filepath.Join(base, "CLAUDE.md")); got != firstClaude {
+		t.Errorf("CLAUDE.md not byte-identical on re-install")
 	}
 }
 
@@ -103,12 +161,12 @@ func TestRemoveInstructionsForAgents_RoundTrip(t *testing.T) {
 		removeInstructionsForAgents(base, agents.All())
 	})
 
-	// AGENTS.md held only our block → deleted; Claude owned file → deleted.
+	// AGENTS.md held only our block → deleted; Claude's CLAUDE.md → deleted.
 	if _, err := os.Stat(filepath.Join(base, "AGENTS.md")); !os.IsNotExist(err) {
 		t.Errorf("AGENTS.md should be deleted after remove, stat err = %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(base, ".claude", "rules", "archcore.md")); !os.IsNotExist(err) {
-		t.Errorf(".claude file should be deleted after remove, stat err = %v", err)
+	if _, err := os.Stat(filepath.Join(base, "CLAUDE.md")); !os.IsNotExist(err) {
+		t.Errorf("CLAUDE.md should be deleted after remove, stat err = %v", err)
 	}
 }
 
@@ -172,8 +230,8 @@ func TestRunInstructionsRemoveForAgent_Claude(t *testing.T) {
 			t.Fatalf("remove: %v", err)
 		}
 	})
-	if _, err := os.Stat(filepath.Join(base, ".claude", "rules", "archcore.md")); !os.IsNotExist(err) {
-		t.Errorf("file should be removed, stat err = %v", err)
+	if _, err := os.Stat(filepath.Join(base, "CLAUDE.md")); !os.IsNotExist(err) {
+		t.Errorf("CLAUDE.md should be removed, stat err = %v", err)
 	}
 }
 

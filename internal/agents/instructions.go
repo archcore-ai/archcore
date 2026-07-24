@@ -16,10 +16,17 @@ import (
 // the discovery trigger. See
 // .archcore/integrations/instruction-nudge-on-init.adr.md.
 //
-// Two file kinds:
-//   - Shared user files (AGENTS.md, GEMINI.md): fenced-block upsert — archcore
-//     only ever touches the span between its markers, never user content.
-//   - Owned files (.claude/rules/archcore.md): archcore owns the whole file.
+// All targets are shared user files written with a fenced-block upsert —
+// archcore only ever touches the span between its markers, never surrounding
+// user content: AGENTS.md (six agents), GEMINI.md (Gemini CLI), and CLAUDE.md
+// (Claude Code).
+//
+// Claude Code gets CLAUDE.md AND AGENTS.md. Per Anthropic's docs Claude Code
+// reads CLAUDE.md natively but does NOT auto-read AGENTS.md, so CLAUDE.md is
+// what delivers the nudge to Claude Code; the AGENTS.md block is written too so
+// the repo also carries the standard block the plugin and the other hosts
+// converge on. Earlier CLI versions instead wrote an owned .claude/rules/
+// archcore.md file; that is now migrated away (removed) on install/remove.
 
 const (
 	// instructionsMarkerStart and instructionsMarkerEnd delimit the archcore-
@@ -69,21 +76,18 @@ const instructionsBody = "## Archcore — project context for this repo\n" +
 // into shared instruction files. Compile-time constant concatenation.
 const instructionsFencedBlock = instructionsHeader + "\n" + instructionsBody + "\n" + instructionsMarkerEnd
 
-// ownedInstructionsContent is the whole-file content for owned instruction
-// files (no markers — archcore owns the entire file).
-const ownedInstructionsContent = instructionsBody + "\n"
-
 // Shared instruction-file names. Six agents read AGENTS.md; Gemini CLI reads
-// GEMINI.md by default; Claude Code does not read AGENTS.md and gets its own
-// owned file under .claude/rules/.
+// GEMINI.md by default; Claude Code reads CLAUDE.md (and also gets AGENTS.md).
 const (
 	agentsInstructionsFile = "AGENTS.md"
 	geminiInstructionsFile = "GEMINI.md"
+	claudeInstructionsFile = "CLAUDE.md"
 )
 
-// claudeInstructionsRelPath is the Claude Code owned-file location. Files under
-// .claude/rules/*.md auto-load at CLAUDE.md priority without imports.
-var claudeInstructionsRelPath = filepath.Join(".claude", "rules", "archcore.md")
+// legacyClaudeRulesRelPath is the pre-CLAUDE.md Claude Code owned-file location
+// written by older CLI versions. Claude Code now gets its nudge from CLAUDE.md,
+// so this file is migrated away (removed) whenever Claude Code is (re)wired.
+var legacyClaudeRulesRelPath = filepath.Join(".claude", "rules", "archcore.md")
 
 // findManagedSpans returns the byte ranges [start, end) of every well-formed
 // archcore managed block in content — a markerStart paired with the next
@@ -215,17 +219,6 @@ func removeFencedBlock(path string) error {
 	return os.WriteFile(path, []byte(content+"\n"), 0o644)
 }
 
-// writeOwnedFile creates parent directories and writes content as the entire
-// file, overwriting any existing content. Used for files archcore owns wholly
-// (e.g. .claude/rules/archcore.md).
-func writeOwnedFile(path, content string) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("creating directory %s: %w", dir, err)
-	}
-	return os.WriteFile(path, []byte(content), 0o644)
-}
-
 // removeOwnedFile deletes the file at path. A missing file is a no-op.
 func removeOwnedFile(path string) error {
 	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -260,14 +253,40 @@ func removeGeminiInstructions(baseDir string) error {
 	return removeFencedBlock(geminiInstructionsPath(baseDir))
 }
 
+// claudeInstructionsPath is the path reported for Claude Code — its CLAUDE.md
+// file. It doubles as the dedupe key, and being distinct from AGENTS.md
+// guarantees Claude Code always runs its own write/remove (which also touches
+// AGENTS.md) regardless of agent-list order.
 func claudeInstructionsPath(baseDir string) string {
-	return filepath.Join(baseDir, claudeInstructionsRelPath)
+	return filepath.Join(baseDir, claudeInstructionsFile)
 }
 
+// writeClaudeInstructions writes the nudge to BOTH Claude Code targets:
+// CLAUDE.md (read natively by Claude Code — this is what actually delivers the
+// nudge) and the shared AGENTS.md fenced block (the standard the plugin and the
+// six AGENTS.md hosts converge on). Both are idempotent fenced upserts, so a
+// co-installed AGENTS.md agent writing the same block is harmless. It also
+// migrates away the legacy owned .claude/rules/archcore.md file older CLIs
+// wrote, so the nudge is not loaded twice.
 func writeClaudeInstructions(baseDir string) error {
-	return writeOwnedFile(claudeInstructionsPath(baseDir), ownedInstructionsContent)
+	if err := upsertFencedBlock(claudeInstructionsPath(baseDir)); err != nil {
+		return err
+	}
+	if err := upsertFencedBlock(agentsMDInstructionsPath(baseDir)); err != nil {
+		return err
+	}
+	return removeOwnedFile(filepath.Join(baseDir, legacyClaudeRulesRelPath))
 }
 
+// removeClaudeInstructions strips the CLAUDE.md fenced block (keeping user
+// content) and deletes the legacy .claude/rules/archcore.md file. The shared
+// AGENTS.md block is left to the AGENTS.md agents' own remove (both run in the
+// "remove all" path), so removing Claude Code alone never strips a block a
+// co-installed Cursor/Codex still relies on.
 func removeClaudeInstructions(baseDir string) error {
-	return removeOwnedFile(claudeInstructionsPath(baseDir))
+	if err := removeFencedBlock(claudeInstructionsPath(baseDir)); err != nil {
+		return err
+	}
+	return removeOwnedFile(filepath.Join(baseDir, legacyClaudeRulesRelPath))
 }
+

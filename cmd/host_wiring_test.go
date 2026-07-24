@@ -50,7 +50,8 @@ func TestHostWiringExecutor_ClaudeCode_FreshProject(t *testing.T) {
 		".archcore/settings.json",
 		".mcp.json",
 		filepath.Join(".claude", "settings.json"),
-		filepath.Join(".claude", "rules", "archcore.md"),
+		"CLAUDE.md",
+		"AGENTS.md",
 	} {
 		if _, err := os.Stat(filepath.Join(base, rel)); err != nil {
 			t.Errorf("expected artifact %s: %v", rel, err)

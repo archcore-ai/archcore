@@ -18,7 +18,7 @@ func newInstructionsCmd() *cobra.Command {
 		Use:   "instructions",
 		Short: "Manage the Archcore usage hint in agent instruction files",
 		Long: "Writes a short, always-on \"use Archcore\" hint into each detected agent's " +
-			"instruction file (AGENTS.md, GEMINI.md, or .claude/rules/archcore.md) so agents " +
+			"instruction file (AGENTS.md, GEMINI.md, or CLAUDE.md) so agents " +
 			"discover and use the Archcore MCP tools even without the Archcore plugin.",
 	}
 	cmd.AddCommand(newInstructionsInstallCmd(), newInstructionsRemoveCmd())

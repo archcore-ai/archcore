@@ -46,7 +46,7 @@ The layout under `.archcore/` is **free-form** — organize by domain/feature/te
 - `doctor` — health check: structure + settings + server connectivity.
 - `config` — view/modify `.archcore/settings.json` (`config get|set <key> [value]`).
 - `hooks` — install/manage SessionStart hooks per agent (`claude-code`, `cursor`, `gemini-cli`, `copilot`, plus `install`/`remove`).
-- `instructions` — install/remove per-agent usage-nudge files (`AGENTS.md` / `GEMINI.md` / `.claude/rules/`).
+- `instructions` — install/remove per-agent usage-nudge files (`AGENTS.md` / `GEMINI.md` / `CLAUDE.md`).
 - `sync` — one-way push sync of `.archcore/` to a cloud/on-prem server.
 - `update` — self-update to the latest release.
 

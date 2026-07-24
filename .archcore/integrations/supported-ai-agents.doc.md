@@ -46,16 +46,16 @@ Cline stores MCP config in VS Code `globalStorage`, not in a project-level file.
 
 Beyond hooks and MCP, `archcore init` (opt-in) and `archcore instructions install` write a short, always-on "use Archcore" hint into each agent's instruction file so that CLI-only users (no Archcore plugin) discover and invoke the MCP tools. Under Tool Search, MCP tools are deferred — only names load at startup — so this nudge is the discovery trigger. See [Write a Usage-Nudge Instruction File per Agent on init](instruction-nudge-on-init.adr.md).
 
-| Agent | Instruction file | Write mode |
-|-------|------------------|------------|
-| Claude Code | `.claude/rules/archcore.md` | owned (whole file) |
+| Agent | Instruction file(s) | Write mode |
+|-------|---------------------|------------|
+| Claude Code | `CLAUDE.md` **and** `AGENTS.md` | fenced upsert (both) |
 | Gemini CLI | `GEMINI.md` | fenced upsert |
 | Cursor, OpenCode, Codex CLI, Roo Code, Cline, GitHub Copilot | `AGENTS.md` | fenced upsert |
 
-- **Owned files** — archcore owns the whole file and overwrites it freely. Claude Code does not read `AGENTS.md`; it reads `.claude/rules/*.md` (auto-loaded at CLAUDE.md priority), so it gets a dedicated file.
-- **Fenced upsert** — for shared files, archcore only ever touches the span between `<!-- archcore:start -->` and `<!-- archcore:end -->`. User content outside the markers is never modified, and writing twice is idempotent.
-- **Dedup** — the six `AGENTS.md` agents share one file, written once.
-- **Reverse** — `archcore instructions remove [--agent <id>]` strips the fenced block (keeping user content) or deletes the owned file.
+- **Claude Code gets `CLAUDE.md` + `AGENTS.md`.** Per Anthropic's docs (code.claude.com/docs/en/memory) Claude Code reads `CLAUDE.md` natively but does **not** auto-read `AGENTS.md`, so `CLAUDE.md` is what delivers the nudge; the `AGENTS.md` block is written too so the repo carries the standard the plugin and the six other hosts converge on. `CLAUDE.md` holds the full nudge body directly (no `@import`), so the two files aren't coupled. Since Claude Code loads only `CLAUDE.md`, there is no duplicated context cost. Earlier CLIs wrote an owned `.claude/rules/archcore.md`; that is now **migrated away** (removed) on (re)wiring.
+- **Fenced upsert** — for every target (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`), archcore only ever touches the span between `<!-- archcore:start -->` and `<!-- archcore:end -->`. User content outside the markers is never modified, and writing twice is idempotent — so Claude Code and a co-installed `AGENTS.md` agent both writing the AGENTS.md block collapse to one.
+- **Dedup** — the six `AGENTS.md`-only agents share one file, written once. Claude Code dedupes on its own `CLAUDE.md` path (distinct from `AGENTS.md`), so it always runs its own write (which also refreshes the `AGENTS.md` block) regardless of the agent list order.
+- **Reverse** — `archcore instructions remove [--agent <id>]` strips the fenced block (keeping user content). Removing Claude Code alone strips only its `CLAUDE.md` block (and deletes the legacy `.claude/rules/archcore.md`), leaving the shared `AGENTS.md` block to the `AGENTS.md` agents' own remove (both run in the "remove all" path).
 - **Source:** `internal/agents/instructions.go`, `cmd/instructions.go`.
 
 ## Per-Agent Details
@@ -68,7 +68,7 @@ Only the `SessionStart` lifecycle event is active. `Stop` and `UserPromptSubmit`
 - **Hook events:** `SessionStart`
 - **Hook commands:** `archcore hooks claude-code session-start`
 - **MCP format:** Standard `mcpServers` JSON (`{"command": "archcore", "args": ["mcp"]}`)
-- **Instruction file:** `.claude/rules/archcore.md` (owned)
+- **Instruction file:** `CLAUDE.md` (fenced upsert — read natively by Claude Code) **and** `AGENTS.md` (fenced upsert — for the plugin and other hosts)
 - **Source:** `internal/agents/claude_code.go`, `cmd/hooks_claude_code.go`
 
 ### Cursor
@@ -136,7 +136,7 @@ Only the `SessionStart` lifecycle event is active. `Stop` and `UserPromptSubmit`
 
 1. **Define the ID** — Add a new `AgentID` constant in `internal/agents/agents.go`
 2. **Create agent file** — Add `internal/agents/<name>.go` implementing the `Agent` struct with `DetectFn`, `MCPConfigPath`, `WriteMCPConfig`, and optionally `WriteHooksConfig`
-3. **Wire the instruction nudge** — Set `InstructionsPath`, `WriteInstructions`, and `RemoveInstructions`, pointing at the right shared target via the helpers in `internal/agents/instructions.go` (`agentsMDInstructions*` for `AGENTS.md`, or a dedicated owned/fenced target). `TestAllAgents_RequiredFields` fails if any are nil.
+3. **Wire the instruction nudge** — Set `InstructionsPath`, `WriteInstructions`, and `RemoveInstructions`, pointing at the right shared target via the helpers in `internal/agents/instructions.go` (`agentsMDInstructions*` for `AGENTS.md`, `geminiInstructions*` for `GEMINI.md`, or `claudeInstructions*` for the `CLAUDE.md` + `AGENTS.md` dual-write). `TestAllAgents_RequiredFields` fails if any are nil.
 4. **Register** — Add the agent constructor to the `all` slice in `internal/agents/agents.go`
 5. **Add tests** — Create `internal/agents/<name>_test.go`
 6. **If hooks supported** — Create `cmd/hooks_<name>.go` with event handlers and install logic; register the subcommand in `cmd/hooks.go:newHooksCmd()`; add the case to `installHooksForAgent()` in `cmd/hooks.go`

@@ -119,11 +119,6 @@
       "type": "related"
     },
     {
-      "source": "document-types/iso-29148-document-types-implementation.plan.md",
-      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
-      "type": "related"
-    },
-    {
       "source": "document-types/mrd-brd-urd-requirement-sources.idea.md",
       "target": "document-types/iso-29148-document-types-implementation.plan.md",
       "type": "related"
@@ -912,6 +907,46 @@
       "source": "integrations/hook-command-marker-prefix.adr.md",
       "target": "integrations/cli-hooks-reference.doc.md",
       "type": "related"
+    },
+    {
+      "source": "document-types/iso-29148-document-types-implementation.plan.md",
+      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "code-quality/cli-full-audit-2026-07-fix.plan.md",
+      "target": "code-quality/strict-go-naming-conventions.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/cli-full-audit-2026-07-fix.plan.md",
+      "target": "sync/sync-engine.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/cli-full-audit-2026-07-fix.plan.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/cli-full-audit-2026-07-fix.plan.md",
+      "target": "integrations/backup-invalid-configs.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/cli-full-audit-2026-07-fix.plan.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/sync-engine.spec.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "sync/sync-command-implementation.plan.md",
+      "target": "sync/sync-engine.spec.md",
+      "type": "implements"
     }
   ]
 }

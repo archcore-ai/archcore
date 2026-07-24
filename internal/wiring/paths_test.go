@@ -14,7 +14,7 @@ func TestDedupeByInstructionsPath_AllAgents(t *testing.T) {
 	got := DedupeByInstructionsPath(base, agents.All())
 
 	// Eight agents collapse to three unique targets, in registry order:
-	// Claude Code (owned file), Cursor (AGENTS.md), Gemini CLI (GEMINI.md).
+	// Claude Code (CLAUDE.md), Cursor (AGENTS.md), Gemini CLI (GEMINI.md).
 	if len(got) != 3 {
 		t.Fatalf("want 3 unique targets, got %d", len(got))
 	}
