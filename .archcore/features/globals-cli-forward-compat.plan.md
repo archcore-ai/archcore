@@ -14,10 +14,12 @@ tags:
 знает (добавленное более новым CLI). Свойство **field-agnostic** — применяется к любому
 неизвестному ключу единообразно, без привязки к конкретной фиче.
 
-> **Статус: реализовано** (core + tests). Остаётся только релиз-процесс (сиквенсинг) и
-> опциональный `ARCHCORE_AUTO_UPDATE`. Реализация: `internal/config/config.go`
-> (`Settings.Extra`, `knownFields`, `UnmarshalJSON`, `MarshalJSON`, `UnknownFieldNames`),
-> warning на entry-points (`cmd/config_warn.go` + `cmd/mcp.go`/`config.go`/`doctor.go`/`sync.go`).
+> **Status (revised 2026-07-24): implemented, except one optional item.**
+> Implementation: `internal/config/config.go` (`Settings.Extra`, `knownFields`,
+> `UnmarshalJSON`, `MarshalJSON`, `UnknownFieldNames`), entry-point warnings
+> (`cmd/config_warn.go` + `cmd/mcp.go`/`config.go`/`doctor.go`/`sync.go`). The release
+> sequencing note landed in `how-to-release.guide` (2026-07-24). The only open item is
+> the optional `ARCHCORE_AUTO_UPDATE` — not started, low priority, deliberately deferred.
 
 ### Проблема
 
@@ -68,9 +70,9 @@ session), падает в CI/офлайн/locked, ломает запиненн�
 - [x] Тест: `config set <известное-поле>` не теряет нераспознанное поле (round-trip, e2e)
 - [x] Тест (regression): known-wrong-mode и битые значения известных полей по-прежнему ошибка
 - [x] Тест: MCP startup (`checkGlobals`) и in-process server терпят неизвестное поле
-- [ ] Релиз-процесс: выпускать терпимый парсер не позже добавления нового поля конфига
-  (зафиксировать в `how-to-release.guide`)
-- [ ] (опц.) `ARCHCORE_AUTO_UPDATE=1` opt-in self-heal, по умолчанию off
+- [x] Релиз-процесс: выпускать терпимый парсер не позже добавления нового поля конфига —
+  recorded in `how-to-release.guide` ("Sequencing Releases That Add settings.json Fields", 2026-07-24)
+- [ ] (опц.) `ARCHCORE_AUTO_UPDATE=1` opt-in self-heal, по умолчанию off — deferred, low priority
 
 ## Acceptance Criteria
 

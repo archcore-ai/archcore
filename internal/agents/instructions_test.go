@@ -160,6 +160,69 @@ func TestWriteClaudeInstructions_MigratesLegacyRulesFile(t *testing.T) {
 	}
 }
 
+// TestRemoveClaudeInstructions_DeletesLegacyRulesFile: uninstalling Claude Code
+// must also delete the legacy .claude/rules/archcore.md, not just strip CLAUDE.md.
+func TestRemoveClaudeInstructions_DeletesLegacyRulesFile(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	legacy := filepath.Join(base, legacyClaudeRulesRelPath)
+	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	writeFile(t, legacy, "legacy nudge\n")
+
+	if err := removeClaudeInstructions(base); err != nil {
+		t.Fatalf("removeClaudeInstructions: %v", err)
+	}
+	if _, err := os.Stat(legacy); !os.IsNotExist(err) {
+		t.Errorf("legacy .claude/rules/archcore.md should be removed on uninstall, stat err = %v", err)
+	}
+}
+
+// TestWriteClaudeInstructions_PreservesExistingUserCLAUDEMD pins the common
+// upgrade path: a hand-written CLAUDE.md plus the legacy rules file. User content
+// must survive, the legacy file must migrate away, and re-runs stay byte-stable.
+func TestWriteClaudeInstructions_PreservesExistingUserCLAUDEMD(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	user := "# My Project\n\nHand-written Claude guidance.\n"
+	writeFile(t, filepath.Join(base, "CLAUDE.md"), user)
+	legacy := filepath.Join(base, legacyClaudeRulesRelPath)
+	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	writeFile(t, legacy, "legacy nudge\n")
+
+	if err := writeClaudeInstructions(base); err != nil {
+		t.Fatalf("writeClaudeInstructions: %v", err)
+	}
+
+	claudeMD := readFile(t, filepath.Join(base, "CLAUDE.md"))
+	if !strings.Contains(claudeMD, "Hand-written Claude guidance.") {
+		t.Error("user CLAUDE.md content was lost")
+	}
+	if n := strings.Count(claudeMD, instructionsMarkerStart); n != 1 {
+		t.Errorf("want exactly 1 managed block in CLAUDE.md, got %d", n)
+	}
+	if strings.Contains(claudeMD, "legacy nudge") {
+		t.Error("legacy content must not be merged into CLAUDE.md")
+	}
+	if _, err := os.Stat(legacy); !os.IsNotExist(err) {
+		t.Errorf("legacy rules file should be migrated away, stat err = %v", err)
+	}
+
+	agentsMD := readFile(t, filepath.Join(base, "AGENTS.md"))
+	if err := writeClaudeInstructions(base); err != nil {
+		t.Fatalf("second writeClaudeInstructions: %v", err)
+	}
+	if got := readFile(t, filepath.Join(base, "CLAUDE.md")); got != claudeMD {
+		t.Errorf("CLAUDE.md not byte-identical on re-run:\nfirst:\n%q\nsecond:\n%q", claudeMD, got)
+	}
+	if got := readFile(t, filepath.Join(base, "AGENTS.md")); got != agentsMD {
+		t.Errorf("AGENTS.md not byte-identical on re-run")
+	}
+}
+
 func TestRemoveFencedBlock_KeepsUserContent(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "AGENTS.md")

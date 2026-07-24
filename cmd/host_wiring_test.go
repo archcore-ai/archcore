@@ -65,6 +65,48 @@ func TestHostWiringExecutor_ClaudeCode_FreshProject(t *testing.T) {
 	}
 }
 
+// TestHostWiringExecutor_ClaudeCode_UpgradeFromLegacy: rewiring a pre-migration
+// project (hand-written CLAUDE.md + legacy .claude/rules/archcore.md) must
+// migrate the legacy file away and upsert CLAUDE.md without losing user content.
+func TestHostWiringExecutor_ClaudeCode_UpgradeFromLegacy(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	user := "# My Project\n\nHand-written Claude guidance.\n"
+	if err := os.WriteFile(filepath.Join(base, "CLAUDE.md"), []byte(user), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	legacy := filepath.Join(base, ".claude", "rules", "archcore.md")
+	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(legacy, []byte("legacy nudge\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	raw, err := hostWiringExecutor(base)("claude-code", false)
+	if err != nil {
+		t.Fatalf("executor: %v", err)
+	}
+	report := decodeWiringReport(t, raw)
+	if len(report.Agents) != 1 || len(report.Agents[0].Errors) != 0 {
+		t.Fatalf("unexpected agent reports: %+v", report.Agents)
+	}
+
+	if _, err := os.Stat(legacy); !os.IsNotExist(err) {
+		t.Errorf("legacy .claude/rules/archcore.md should be migrated away, stat err = %v", err)
+	}
+	claudeMD, err := os.ReadFile(filepath.Join(base, "CLAUDE.md"))
+	if err != nil {
+		t.Fatalf("ReadFile CLAUDE.md: %v", err)
+	}
+	if !strings.Contains(string(claudeMD), "Hand-written Claude guidance.") {
+		t.Error("user CLAUDE.md content was lost during upgrade")
+	}
+	if n := strings.Count(string(claudeMD), "<!-- archcore:start -->"); n != 1 {
+		t.Errorf("want exactly 1 managed block in CLAUDE.md after upgrade, got %d", n)
+	}
+}
+
 // The report is returned to an MCP client, so every path and error string in
 // it must be project-relative (no-absolute-paths-in-mcp-errors.rule).
 func TestHostWiringExecutor_ReportHasNoAbsolutePaths(t *testing.T) {

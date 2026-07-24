@@ -15,6 +15,12 @@ tags:
 Код плагина — в отдельном репозитории `archcore/plugin` (`plugins/archcore`). Контекст —
 проблема 7 зонтичного плана (@.archcore/features/globals-prototype-fixes.plan.md).
 
+> **Status (revised 2026-07-24): partially implemented — 3 of 5 tasks done.** The open
+> tasks (compatibility advisory in `bin/session-start`; `--exclude-dir` in
+> `bin/check-staleness` and `bin/check-code-alignment`) live in the separate
+> `archcore/plugin` repository and cannot be verified from this repo — this plan is
+> coordination-only; checkboxes close when the plugin work merges.
+
 ## Решение
 
 ### A. Инвариант агностичности плагина (4 правила)

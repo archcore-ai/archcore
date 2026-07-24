@@ -74,6 +74,16 @@ The Claude plugin's `SKILL.md` pins a **minimum CLI version** (currently `v0.6.0
 - Tag **behind** the constant (e.g. constant says `v0.6.0`, CLI shipped as `v0.6.1` only): the gate rejects users running a perfectly capable CLI.
 - Feature lands in a **later** tag than the constant (constant `v0.6.0`, but the tool only exists from `v0.6.1`): the gate admits CLIs without the tool and the plugin fails on an unknown tool call mid-flow.
 
+## Sequencing Releases That Add settings.json Fields
+
+`Settings` parsing is forward-compatible (tolerant parser, see `globals-cli-forward-compat.plan`): unknown config fields are captured in `Settings.Extra` with a soft warning instead of a hard error. But tolerance only protects binaries that **already ship it** — CLIs released before the tolerant parser hard-fail on any unknown field.
+
+**Rule: a release that introduces a new `settings.json` field must ship no earlier than the release carrying the tolerant parser** (shipped since the globals rollout). In practice, when planning a release that adds a config field:
+
+1. Confirm the previous released version already tolerates unknown fields (it does for every release ≥ the globals rollout; keep this check for long-lived maintenance branches).
+2. Prefer shipping parser/validation changes in an earlier, separate release from the feature that writes the new field — users on the intermediate version then upgrade smoothly in either order.
+3. Never backport a new config field to a branch whose parser is still strict.
+
 ## Verification
 
 - GitHub Release page shows 6 archives (4 `.tar.gz` for darwin/linux amd64+arm64, 2 `.zip` for windows amd64+arm64) plus `checksums.txt`

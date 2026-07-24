@@ -289,4 +289,3 @@ func removeClaudeInstructions(baseDir string) error {
 	}
 	return removeOwnedFile(filepath.Join(baseDir, legacyClaudeRulesRelPath))
 }
-

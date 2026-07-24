@@ -32,6 +32,11 @@ type Agent struct {
 	InstructionsPath   func(baseDir string) string
 	WriteInstructions  func(baseDir string) error
 	RemoveInstructions func(baseDir string) error
+
+	// ExtraInstructionsPaths lists additional files WriteInstructions touches
+	// beyond InstructionsPath (nil for single-target agents). Install-only:
+	// RemoveInstructions deliberately leaves these to their owning agents' remove.
+	ExtraInstructionsPaths func(baseDir string) []string
 }
 
 // all is the ordered registry of agents. Order matters for display/iteration.

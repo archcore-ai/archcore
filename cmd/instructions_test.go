@@ -129,6 +129,28 @@ func TestRemoveInstructionsForAgent_Claude_PreservesSharedAgentsMD(t *testing.T)
 	}
 }
 
+// TestRemoveInstructionsForAgent_ClaudeOnly_LeavesAgentsMD pins the claude-only
+// remove residue: removing Claude Code alone deliberately leaves the AGENTS.md
+// block; only the no-flag "remove all" path cleans it up (see the nudge ADR).
+func TestRemoveInstructionsForAgent_ClaudeOnly_LeavesAgentsMD(t *testing.T) {
+	// Not parallel: captureStdout reassigns the global os.Stdout.
+	base := t.TempDir()
+	captureStdout(t, func() {
+		installInstructionsForAgents(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)})
+		if err := removeInstructionsForAgent(base, agents.ByID(agents.ClaudeCode)); err != nil {
+			t.Fatalf("remove claude: %v", err)
+		}
+	})
+
+	if _, err := os.Stat(filepath.Join(base, "CLAUDE.md")); !os.IsNotExist(err) {
+		t.Errorf("CLAUDE.md should be removed, stat err = %v", err)
+	}
+	agentsMD := readFileString(t, filepath.Join(base, "AGENTS.md"))
+	if n := strings.Count(agentsMD, instructionsStartMarker); n != 1 {
+		t.Errorf("claude-only remove leaves the AGENTS.md block by design, got %d blocks:\n%s", n, agentsMD)
+	}
+}
+
 // TestInstallInstructionsForAgents_ClaudePlusAgentsMD_Idempotent guards that the
 // composed dual write (Claude's CLAUDE.md + the AGENTS.md upsert) is byte-stable
 // across re-installs — init is commonly re-run, so a second pass must not append

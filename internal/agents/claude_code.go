@@ -20,5 +20,8 @@ func claudeCodeAgent() *Agent {
 		InstructionsPath:   claudeInstructionsPath,
 		WriteInstructions:  writeClaudeInstructions,
 		RemoveInstructions: removeClaudeInstructions,
+		ExtraInstructionsPaths: func(baseDir string) []string {
+			return []string{agentsMDInstructionsPath(baseDir)}
+		},
 	}
 }

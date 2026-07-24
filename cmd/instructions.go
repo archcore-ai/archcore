@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
@@ -153,8 +154,15 @@ func installInstructionsForAgent(baseDir string, agent *agents.Agent) error {
 	if err := agent.WriteInstructions(baseDir); err != nil {
 		return fmt.Errorf("writing %s instructions: %w", agent.DisplayName, err)
 	}
+	// Name every file the write touched, not just the primary target.
+	paths := []string{wiring.DisplayPath(baseDir, agent.InstructionsPath(baseDir))}
+	if agent.ExtraInstructionsPaths != nil {
+		for _, p := range agent.ExtraInstructionsPaths(baseDir) {
+			paths = append(paths, wiring.DisplayPath(baseDir, p))
+		}
+	}
 	fmt.Println(display.CheckLine(fmt.Sprintf(
-		"Added Archcore usage hint to %s", wiring.DisplayPath(baseDir, agent.InstructionsPath(baseDir)))))
+		"Added Archcore usage hint to %s", strings.Join(paths, " and "))))
 	return nil
 }
 
