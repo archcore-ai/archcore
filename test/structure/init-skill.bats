@@ -201,3 +201,48 @@ setup() {
   grep -q "status='draft'" "$SKILL" \
     || fail "SKILL.md Phase E must create hotspot specs with status='draft'"
 }
+
+# Host-wiring parity guards (CLI >= v0.6.1 moved the claude-code nudge from the owned
+# .claude/rules/archcore.md to CLAUDE.md + AGENTS.md managed blocks; the CLI deletes the
+# legacy file on rewire). The preview/closing file lists and the version gate must move
+# in lockstep — a stale path or gate value re-opens the preview/reality mismatch where
+# the skill promises one layout and the CLI writes another.
+@test "init host wiring names CLAUDE.md + AGENTS.md for claude-code, never the legacy rules file" {
+  run grep -rn "\.claude/rules/archcore\.md" "$PLUGIN_ROOT/skills/init/"
+  [ "$status" -ne 0 ] || fail "init still references the legacy .claude/rules/archcore.md: $output"
+  grep -qE 'claude-code → .*CLAUDE\.md.*AGENTS\.md' "$SKILL" \
+    || fail "SKILL.md per-host list must name CLAUDE.md + AGENTS.md for claude-code"
+}
+
+@test "init version gate pins CLI >= 0.6.1 with no stale 0.6.0 references" {
+  grep -qF 'cli-gte" 0.6.1' "$SKILL" \
+    || fail "SKILL.md must gate host wiring on cli-gte 0.6.1"
+  run grep -n "0\.6\.0" "$SKILL"
+  [ "$status" -ne 0 ] || fail "SKILL.md still references CLI 0.6.0: $output"
+}
+
+@test "import flow strips the archcore managed block, never re-importing its own nudge" {
+  grep -qF "archcore:start" "$LIB/extract-routing.md" \
+    || fail "extract-routing.md Block splitting must ignore the archcore managed block"
+  grep -qF "archcore:start" "$LIB/agent-files.md" \
+    || fail "agent-files.md must exclude managed-block-only files from import candidacy"
+}
+
+@test "SKILL.md and skills-system.spec.md agree on the CLI wiring gate version" {
+  grep -qF "0.6.1" "$SKILL" \
+    || fail "SKILL.md missing the 0.6.1 gate version"
+  grep -qF "v0.6.1" "$REPO_ROOT/.archcore/plugin/skills-system.spec.md" \
+    || fail "skills-system.spec.md must pin the same v0.6.1 wiring gate"
+}
+
+@test "init Step A.4 sizes CLAUDE.md/AGENTS.md only after stripping the managed block" {
+  grep -qF "after stripping any archcore managed block" "$SKILL" \
+    || fail "SKILL.md Step A.4 must require stripping the managed block before sizing CLAUDE.md/AGENTS.md — a raw byte-size probe re-admits managed-block-only files as import candidates"
+}
+
+@test "init description names the managed block and no lib file drifts to a synonym" {
+  grep -qE '^description: .*CLAUDE\.md/AGENTS\.md managed block' "$SKILL" \
+    || fail "SKILL.md frontmatter description must name the CLAUDE.md/AGENTS.md managed block as a host-wiring output"
+  run grep -rn "usage nudge" "$PLUGIN_ROOT/skills/init/"
+  [ "$status" -ne 0 ] || fail "init skill re-introduced the 'usage nudge' synonym (canonical terms: 'managed block' / 'usage hint'): $output"
+}

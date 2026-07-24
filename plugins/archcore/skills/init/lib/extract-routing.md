@@ -10,6 +10,7 @@ The skill's LLM does the classification; this file is the spec it follows.
     - **Headings (H1 / H2 / H3)** — each heading starts a new block that runs until the next heading of the same or higher level.
     - **Horizontal rules (`---`, `***`, `___`)** — treated as block separators.
     - **Frontmatter** — ignored. Do not create a document from the frontmatter block.
+    - **Archcore managed block** — ignored. The span from `<!-- archcore:start -->` to `<!-- archcore:end -->` (inclusive) is archcore's own usage hint, written into `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` by `archcore init` host wiring. Strip every such span before splitting — importing it would re-ingest archcore's plumbing as a knowledge document. This also applies to yield estimation in `agent-files.md`.
 
 2. Drop blocks that have no actual content (heading-only, whitespace-only, just a list of links).
 

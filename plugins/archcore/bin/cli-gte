@@ -21,8 +21,11 @@ case "$min" in
 esac
 
 ver=$(archcore --version 2>/dev/null | head -n1)
-# Extract the first x.y[.z] group from the output (handles "archcore v0.6.1").
-ver=$(printf '%s\n' "$ver" | sed -n 's/.*[^0-9.]\([0-9][0-9]*\.[0-9][0-9]*\(\.[0-9][0-9]*\)\{0,1\}\).*/\1/p; s/^\([0-9][0-9]*\.[0-9][0-9]*\(\.[0-9][0-9]*\)\{0,1\}\).*/\1/p' | head -n1)
+# Take the FIRST x.y[.z] group on the line — the CLI's own version. head -n1
+# on a left-to-right scan is deliberate: a banner may carry a trailing build
+# date or toolchain token ("archcore v0.6.0 build 2026.07.1", "... go1.25.1"),
+# and grabbing the LAST group would let an old CLI slip through the gate.
+ver=$(printf '%s\n' "$ver" | grep -Eo '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n1)
 if [ -z "$ver" ]; then
   echo "__NO_CLI__"
   exit 0

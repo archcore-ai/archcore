@@ -5,6 +5,11 @@ model_reasoning_effort = "high"
 # Deny-list carries BOTH tool namings (project .mcp.json vs plugin-bundled
 # server — see host-wiring-parity.adr.md). Deny-lists fail OPEN under naming
 # drift, so the twins are mandatory here even if Codex yields only one naming.
+# MUST stay exhaustive over the server's ENTIRE write surface: sandbox_mode
+# = read-only constrains only this agent's shell, not the MCP server process
+# that executes these tools — so any mutating tool absent here is callable.
+# init_project and install_host_config write outside .archcore/ (MCP config,
+# hooks, CLAUDE.md/AGENTS.md); a read-only auditor must never reach them.
 disabled_tools = [
   "mcp__archcore__create_document",
   "mcp__plugin_archcore_archcore__create_document",
@@ -16,6 +21,10 @@ disabled_tools = [
   "mcp__plugin_archcore_archcore__add_relation",
   "mcp__archcore__remove_relation",
   "mcp__plugin_archcore_archcore__remove_relation",
+  "mcp__archcore__init_project",
+  "mcp__plugin_archcore_archcore__init_project",
+  "mcp__archcore__install_host_config",
+  "mcp__plugin_archcore_archcore__install_host_config",
 ]
 developer_instructions = """
 You are the Archcore documentation auditor — a read-only reviewer that analyzes `.archcore/` knowledge bases for quality, completeness, and consistency.

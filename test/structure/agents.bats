@@ -82,13 +82,23 @@ setup() {
   grep -qE '^sandbox_mode = "read-only"' "$PLUGIN_ROOT/agents/archcore-auditor.toml"
 }
 
-@test "auditor.toml disables mutating MCP tools" {
+@test "auditor.toml denies EVERY mutating MCP tool under both namings" {
+  # The deny-list is the read-only auditor's ONLY enforcement surface for MCP
+  # tools: sandbox_mode=read-only constrains this agent's shell, not the MCP
+  # server process that executes the tool, and the list fails OPEN — any
+  # mutating tool absent here is callable. So it MUST be exhaustive over the
+  # server's whole write surface, not just the historical document/relation
+  # ops (init_project + install_host_config write outside .archcore/).
   local file="$PLUGIN_ROOT/agents/archcore-auditor.toml"
-  grep -q 'mcp__archcore__create_document' "$file"
-  grep -q 'mcp__archcore__update_document' "$file"
-  grep -q 'mcp__archcore__remove_document' "$file"
-  grep -q 'mcp__archcore__add_relation' "$file"
-  grep -q 'mcp__archcore__remove_relation' "$file"
+  local tool
+  for tool in create_document update_document remove_document \
+              add_relation remove_relation \
+              init_project install_host_config; do
+    grep -qF "\"mcp__archcore__${tool}\"" "$file" \
+      || fail "auditor.toml missing deny for mcp__archcore__${tool}"
+    grep -qF "\"mcp__plugin_archcore_archcore__${tool}\"" "$file" \
+      || fail "auditor.toml missing deny for mcp__plugin_archcore_archcore__${tool}"
+  done
 }
 
 @test "agent tool lists cover BOTH project and plugin MCP tool naming" {

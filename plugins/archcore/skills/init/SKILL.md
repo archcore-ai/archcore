@@ -1,7 +1,7 @@
 ---
 name: init
 argument-hint: "[--depth=light|standard|deep] [--mode=small|medium|large] [--domain=<slug>] [--refresh]"
-description: "First-time Archcore setup. Detects repo scale and shape, then composes a full first-day seed — stack rule, run guide, data-model, integrations, config, entry points, public surface, a linked architecture overview, and specs for the top hotspot modules — shown in ONE preview and created on a single confirm, plus host wiring (MCP config, hooks). Imports agent-instruction files — aggregate files (CLAUDE.md/AGENTS.md/.cursorrules) as link stubs, modular rule files (.cursor/rules/*.mdc and equivalents) as rule docs by default. Use on a fresh clone, empty `.archcore/`, 'set up archcore', or to wire host configs (MCP/hooks). Not for individual docs or planning."
+description: "First-time Archcore setup. Detects repo scale and shape, then composes a full first-day seed — stack rule, run guide, data-model, integrations, config, entry points, public surface, a linked architecture overview, and specs for the top hotspot modules — shown in ONE preview and created on a single confirm, plus host wiring (MCP config, hooks, CLAUDE.md/AGENTS.md managed block). Imports agent-instruction files — aggregate files (CLAUDE.md/AGENTS.md/.cursorrules) as link stubs, modular rule files (.cursor/rules/*.mdc and equivalents) as rule docs by default. Use on a fresh clone, empty `.archcore/`, 'set up archcore', or to wire host configs (MCP/hooks/CLAUDE.md+AGENTS.md). Not for individual docs or planning."
 ---
 
 # /archcore:init
@@ -90,13 +90,13 @@ Content voice: default to architectural prose — decisions, rationale, intent. 
 Before any init step, verify that the Archcore CLI is available on PATH. The canonical installer is documented at https://docs.archcore.ai/cli/install/ — use it as the single source of truth; do **not** suggest other channels (`brew`, `go install`, etc.) even if the user mentions them.
 
 1. Run: `archcore --version` (via Bash tool)
-2. If it **succeeds** → check the host-wiring version gate with the deterministic helper (never compare versions yourself — lexical comparison breaks on double-digit fields): run `"$d/../../bin/cli-gte" 0.6.0` (same `$d` resolution as the Step -1 probe below). It prints exactly one token:
+2. If it **succeeds** → check the host-wiring version gate with the deterministic helper (never compare versions yourself — lexical comparison breaks on double-digit fields). Resolve `$d` **in this same Bash call** (each Bash invocation is a fresh shell — nothing persists from a later step), exactly as the Step -1 probe below does: run `d="${CLAUDE_SKILL_DIR:-<absolute dir of this SKILL.md>}"; "$d/../../bin/cli-gte" 0.6.1`. It prints exactly one token:
    - `yes` → proceed immediately to Step -1 (host wiring enabled).
    - `__NO_CLI__` (unexpected here — `--version` just succeeded) → treat as `no`.
    - `no` → the seed still works, but the host-wiring step (see "Host wiring" below) needs a newer CLI. Ask the user once:
-     > Archcore CLI `<version>` is older than v0.6.0 — host wiring (project MCP config, SessionStart hook, usage hint) will be skipped. Update now via `archcore update`? (y/N)
-     - On `y` → run `archcore update` (Bash), re-run the `cli-gte 0.6.0` check, and proceed to Step -1 (host wiring enabled on `yes`, disabled otherwise).
-     - On `N` / silence → proceed to Step -1 with host wiring **disabled**: omit the Host wiring line from the preview, skip Phase E step 0 entirely (the cascade never runs — its manual-fallback leg is NOT a substitute for this note), and in the closing message note: *"Host wiring skipped (CLI < v0.6.0) — update with `archcore update`, then run `archcore init --agent <host> --project "<root>"` in a terminal to make this repo self-contained for CLI-only teammates."* (`<host>`/`<root>` come from the Step -1 probe, which runs regardless of the gate.)
+     > Archcore CLI `<version>` is older than v0.6.1 — host wiring (project MCP config, SessionStart hook, usage hint) will be skipped. Update now via `archcore update`? (y/N)
+     - On `y` → run `archcore update` (Bash), re-run the `cli-gte 0.6.1` check, and proceed to Step -1 (host wiring enabled on `yes`, disabled otherwise).
+     - On `N` / silence → proceed to Step -1 with host wiring **disabled**: omit the Host wiring line from the preview, skip Phase E step 0 entirely (the cascade never runs — its manual-fallback leg is NOT a substitute for this note), and in the closing message note: *"Host wiring skipped (CLI < v0.6.1) — update with `archcore update`, then run `archcore init --agent <host> --project "<root>"` in a terminal to make this repo self-contained for CLI-only teammates."* (`<host>`/`<root>` come from the Step -1 probe, which runs regardless of the gate.)
 3. If it **fails** (command not found):
    - Detect the platform via `uname -s` (Bash). `Darwin`/`Linux` → POSIX path. Anything else (Windows native) → instruct-only path.
    - **POSIX path** — ask the user once:
@@ -108,7 +108,7 @@ Before any init step, verify that the Archcore CLI is available on PATH. The can
      >
      > Run it now? (y/N)
    - On `y` → execute the command exactly as shown (Bash tool). After it returns, re-run `archcore --version`.
-     - Success → print: *"Archcore CLI installed (`<version>`). Proceeding with init."* → apply the same v0.6.0 comparison from item 2 (a fresh install is normally current, so host wiring is enabled) → go to Step -1.
+     - Success → print: *"Archcore CLI installed (`<version>`). Proceeding with init."* → apply the same v0.6.1 comparison from item 2 (a fresh install is normally current, so host wiring is enabled) → go to Step -1.
      - Still failing → print the install message below and **stop**.
    - On `N` / silence / **instruct-only path** → print and stop:
      > Archcore CLI required. Install it, then re-run `/archcore:init`:
@@ -184,7 +184,7 @@ If BOTH are false, take the **empty** route. No content seed — but host wiring
 
 When host wiring is **disabled** by the pre-flight version gate, reply with exactly this and stop (no writes):
 
-> Archcore is ready at `.archcore/`. No source code detected yet — no content to seed. Host wiring skipped (CLI < v0.6.0) — update with `archcore update`, then re-run `/archcore:init`. The SessionStart empty-state nudge will keep pointing here until then.
+> Archcore is ready at `.archcore/`. No source code detected yet — no content to seed. Host wiring skipped (CLI < v0.6.1) — update with `archcore update`, then re-run `/archcore:init`. The SessionStart empty-state nudge will keep pointing here until then.
 
 Otherwise show a mini-preview:
 
@@ -194,7 +194,7 @@ Otherwise show a mini-preview:
 >
 > ```
 > Host wiring (<host>) → <root>
->   • <per-host file list — e.g. for claude-code: .mcp.json · .claude/settings.json (SessionStart hook) · .claude/rules/archcore.md>
+>   • <per-host file list — e.g. for claude-code: .mcp.json · .claude/settings.json (SessionStart hook) · CLAUDE.md + AGENTS.md (managed block)>
 > ```
 >
 > `confirm` to write these, `cancel` to leave the repo untouched. Re-run `/archcore:init` after the first manifest or source file lands — the SessionStart empty-state nudge will keep pointing here until then.
@@ -252,7 +252,7 @@ Read `lib/detect-stack.md`, `lib/detect-data-model.md`, `lib/detect-integrations
 
 ### Step A.4: Agent files
 
-Detect **all** agent-instruction candidates per `lib/agent-files.md` (paths + byte sizes + **class**) — do not stop at CLAUDE.md/AGENTS.md; enumerate the modular directories (`.cursor/rules/*.mdc`, `.github/instructions/*.md`, `.windsurf/rules/*.md`) too. `lib/agent-files.md` assigns each file a class that sets its default import mode:
+Detect **all** agent-instruction candidates per `lib/agent-files.md` (paths + byte sizes + **class**) — do not stop at CLAUDE.md/AGENTS.md; enumerate the modular directories (`.cursor/rules/*.mdc`, `.github/instructions/*.md`, `.windsurf/rules/*.md`) too. **Sizing exception for CLAUDE.md / AGENTS.md**: compute their size and non-emptiness only **after stripping any archcore managed block** (`<!-- archcore:start -->` … `<!-- archcore:end -->`) — never from a raw file-size probe; a file whose only content is the managed block is not a candidate at all and must not appear in the preview (`lib/agent-files.md` → Probe paths). `lib/agent-files.md` assigns each file a class that sets its default import mode:
 
 - **`aggregate`** (CLAUDE.md, AGENTS.md, .cursorrules, …) — default **link** (one pointer `doc`). Extract is opt-in.
 - **`modular-rule`** (`.cursor/rules/*.mdc` and equivalents) — default **extract**: one `rule`/`doc` per file, classified by content (genuine conventions → `conventions/`), reproduced verbatim. A file > 200 lines degrades to `link`.
@@ -332,7 +332,7 @@ Imports (modular rules — extract → rule by default):
   • .cursor/rules/app-router-only.mdc — rule, 1 doc        ~0   (edit → link)
   • .cursor/rules/error-handling.mdc (240 ln) — link       ~0   (large; edit → extract)
 Host wiring (as `archcore init`, host: claude-code) → /Users/x/myrepo
-  • .mcp.json · .claude/settings.json (SessionStart hook) · .claude/rules/archcore.md   (edit → hosts: all / skip)
+  • .mcp.json · .claude/settings.json (SessionStart hook) · CLAUDE.md + AGENTS.md (managed block)   (edit → hosts: all / skip)
 Relations: ~14 edges.
 Estimated: ~22k (standard, shown) · ~7k (light) · ~50k (deep).
 Already present (skipped): <list, or "none">.
@@ -351,7 +351,7 @@ Already present (skipped): <list, or "none">.
 - For each **Tier-2 stub** show the qualifying `LOC / test-ratio` and the per-item synthesis cost, so `edit` is an informed budget lever. A flagship stub (`detect-hotspots.md` "Flagship specs") shows its raised-cap or decomposition treatment inline, e.g. `spec: order-service — 6400 LOC src / 1100 LOC tests ~24k [flagship: raised cap]` or `[flagship: split → 2 sub-specs]`.
 - For **aggregate imports**, show as **link** by default with `(edit → extract)`; if a file's cost tier is **HIGH**, prefix `⚠️ HIGH COST` on the extract option — extract is only entered when the user explicitly opts in.
 - For **modular-rule imports**, show as **extract → rule** by default with `(edit → link)`; a file > 200 lines shows as **link** with `(large; edit → extract)`. If a cross-cutting stub was dropped because an imported rule covers it, show `↳ synthesis skipped` under that stub.
-- The **Host wiring line** (omit when disabled by the pre-flight version gate) names the detected host, the resolved project root **explicitly** (the user must see WHERE files will land — Cursor can misroute cwd, and this line is the check against it), and the per-host file list: claude-code → `.mcp.json` + `.claude/settings.json` (SessionStart hook) + `.claude/rules/archcore.md`; cursor → `.cursor/mcp.json` + `.cursor/hooks.json` + `AGENTS.md` managed block; codex-cli → `.codex/config.toml` + `AGENTS.md` managed block. `edit → hosts: all` widens the install to every agent auto-detected in the repo; `edit → skip wiring` drops the line. These files live **outside** `.archcore/` — they are written only after `confirm`, like everything else.
+- The **Host wiring line** (omit when disabled by the pre-flight version gate) names the detected host, the resolved project root **explicitly** (the user must see WHERE files will land — Cursor can misroute cwd, and this line is the check against it), and the per-host file list: claude-code → `.mcp.json` + `.claude/settings.json` (SessionStart hook) + `CLAUDE.md` + `AGENTS.md` managed blocks (CLAUDE.md is what Claude Code actually reads; AGENTS.md is the shared standard block — one write, both files; the CLI also deletes the legacy nudge file under `.claude/rules/` left by pre-v0.6.1 CLIs); cursor → `.cursor/mcp.json` + `.cursor/hooks.json` + `AGENTS.md` managed block; codex-cli → `.codex/config.toml` + `AGENTS.md` managed block. `edit → hosts: all` widens the install to every agent auto-detected in the repo; `edit → skip wiring` drops the line. These files live **outside** `.archcore/` — they are written only after `confirm`, like everything else.
 
 ## Phase D — CONFIRM
 
@@ -384,7 +384,7 @@ For the confirmed set only, in order:
 
 ### Closing message: outlook
 
-Summarize what was created, then make the value-loop visible and list the over-time targets. When host wiring ran, lead with its one-line outcome — e.g. *"Host wiring (claude-code): .mcp.json, SessionStart hook, .claude/rules/archcore.md — repo now works for CLI-only teammates."* — or the per-artifact errors if any failed. Per-mode template. **Conditionalize the "Try it now" line:** if ≥ 1 hotspot spec was created, point at the top hotspot path; if none (empty pool or all deselected), point at a seeded fact via `/archcore:context` instead.
+Summarize what was created, then make the value-loop visible and list the over-time targets. When host wiring ran, lead with its one-line outcome — e.g. *"Host wiring (claude-code): .mcp.json, SessionStart hook, CLAUDE.md + AGENTS.md managed block — repo now works for CLI-only teammates."* — or the per-artifact errors if any failed. Per-mode template. **Conditionalize the "Try it now" line:** if ≥ 1 hotspot spec was created, point at the top hotspot path; if none (empty pool or all deselected), point at a seeded fact via `/archcore:context` instead.
 
 **Small:**
 

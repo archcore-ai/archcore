@@ -84,6 +84,23 @@ MOCK
   assert_output "yes"
 }
 
+@test "cli-gte: banner with a trailing build/toolchain token reads the FIRST version" {
+  # Regression: greedy extraction used to grab the LAST x.y.z group (the build
+  # date / go version), reporting 2026.07.1 instead of 0.6.0 and waving an old
+  # CLI through the gate. Must compare the leading CLI version → 0.6.0 < 0.6.1.
+  mock_version "archcore v0.6.0 build 2026.07.1"
+  run "$GTE" 0.6.1
+  assert_success
+  assert_output "no"
+}
+
+@test "cli-gte: version glued to a toolchain token still reads the FIRST version" {
+  mock_version "archcore 0.6.0 go1.25.1"
+  run "$GTE" 0.6.1
+  assert_success
+  assert_output "no"
+}
+
 @test "cli-gte: leading v on the min argument is accepted" {
   mock_version "v0.6.0"
   run "$GTE" v0.6.0
