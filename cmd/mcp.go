@@ -21,6 +21,9 @@ func newMCPCmd(version string) *cobra.Command {
 		Use:   "mcp",
 		Short: "MCP stdio server for archcore documents",
 		Long:  "Starts an MCP (Model Context Protocol) stdio server that exposes archcore document tools.",
+		// Serving takes no positional args; a stray one (`mcp bogus`) must error,
+		// not silently start the server ignoring it.
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			baseDir, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
 			if err != nil {
@@ -95,6 +98,8 @@ func newMCPInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install MCP server config for coding agents",
+		// Agent selection is via --agent; reject stray positional args.
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			baseDir, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
 			if err != nil {

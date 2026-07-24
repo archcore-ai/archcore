@@ -37,6 +37,10 @@ func newHooksInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install archcore hooks for coding agents",
+		// Agent selection is via --agent; reject stray positional args so a
+		// mistyped `hooks install cursor` fails loudly instead of silently
+		// running auto-detect.
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cwd, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
 			if err != nil {

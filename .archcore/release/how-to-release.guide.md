@@ -61,7 +61,7 @@ tags:
 
 ## Coordinated Release with the Claude Plugin
 
-The Claude plugin's `SKILL.md` pins a **minimum CLI version** (currently `v0.6.0`) and gates `/archcore:init` on it: an older `archcore --version` makes the plugin skip the `install_host_config` MCP tool and ask the user to update. That constant and the actual CLI release tag must agree, and the order of operations matters.
+The Claude plugin's `SKILL.md` pins a **minimum CLI version** (currently `v0.6.1` — the CLAUDE.md/AGENTS.md nudge layout) and gates `/archcore:init` on it: an older `archcore --version` makes the plugin skip the `install_host_config` MCP tool and ask the user to update. That constant and the actual CLI release tag must agree, and the order of operations matters.
 
 **Rollout order — CLI first, plugin second:**
 

@@ -93,6 +93,8 @@ func newSessionStartHookCmd(use, short, version string) *cobra.Command {
 		Use:    use,
 		Short:  short,
 		Hidden: true,
+		// The hook payload arrives on stdin as JSON; no positional args are read.
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			input, err := readHookInput(os.Stdin)
 			if err != nil {

@@ -127,6 +127,21 @@ func findManagedSpans(content string) [][2]int {
 	return spans
 }
 
+// InstructionBlockPresent reports whether the file at path currently holds an
+// archcore managed block. It is the ground-truth check wiring uses to report
+// exactly the instruction files that landed on disk: a multi-file write
+// (claude-code: CLAUDE.md + AGENTS.md) can fail partway, and the report must
+// name the file that WAS written rather than treat the whole agent as unwritten.
+// A missing or unreadable file (including a path that is a directory) reads as
+// absent.
+func InstructionBlockPresent(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return len(findManagedSpans(string(data))) > 0
+}
+
 // upsertFencedBlock writes the archcore managed block into the file at path. If
 // one or more managed blocks already exist, the first is replaced in place and
 // any duplicates are dropped (collapsing to a single block); otherwise the
@@ -172,7 +187,7 @@ func upsertFencedBlock(path string) error {
 		out = b.String()
 	}
 
-	return os.WriteFile(path, []byte(out), 0o644)
+	return writeFileAtomic(path, []byte(out))
 }
 
 // removeFencedBlock strips every archcore managed block from the file at path,
@@ -216,7 +231,7 @@ func removeFencedBlock(path string) error {
 	if content = strings.TrimRight(content, "\r\n"); content == "" {
 		return removeOwnedFile(path)
 	}
-	return os.WriteFile(path, []byte(content+"\n"), 0o644)
+	return writeFileAtomic(path, []byte(content+"\n"))
 }
 
 // removeOwnedFile deletes the file at path. A missing file is a no-op.
@@ -224,6 +239,67 @@ func removeOwnedFile(path string) error {
 	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("removing %s: %w", path, err)
 	}
+	return nil
+}
+
+// writeFileAtomic replaces the file at path with data by writing a sibling temp
+// file and renaming it into place. The rename is atomic on POSIX, so a crash or
+// ENOSPC mid-write can never leave a shared user file (CLAUDE.md / AGENTS.md /
+// GEMINI.md) half-written with the managed block torn across the failure — the
+// old contents survive intact until the single rename swaps them. It preserves
+// two behaviors of the plain os.WriteFile it replaces:
+//
+//   - Permission bits: os.WriteFile keeps an existing file's mode (the mode
+//     argument only applies on create); a naive temp+rename would reset it to
+//     the temp file's mode, so we copy the target's current perm onto the temp
+//     before renaming, falling back to 0o644 for a new file.
+//   - Symlinks: os.WriteFile follows a symlink and writes through to its target.
+//     We resolve the link and rename onto the resolved target, so a symlinked
+//     instruction file stays a symlink instead of being replaced by a regular
+//     file. (A dangling link resolves to itself and is materialized as a real
+//     file — writing through an unresolvable target is impossible anyway.)
+func writeFileAtomic(path string, data []byte) error {
+	// Follow a symlink to the file it points at so we replace that file and the
+	// link is preserved. EvalSymlinks fails for a not-yet-existing path, in
+	// which case target stays the literal path (the fresh-file case).
+	target := path
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		target = resolved
+	}
+
+	perm := os.FileMode(0o644)
+	if info, err := os.Stat(target); err == nil {
+		perm = info.Mode().Perm()
+	}
+
+	dir := filepath.Dir(target)
+	tmp, err := os.CreateTemp(dir, ".archcore-*.tmp")
+	if err != nil {
+		return fmt.Errorf("creating temp file in %s: %w", dir, err)
+	}
+	// Remove the temp file if we return before the rename consumes it.
+	tmpName := tmp.Name()
+	defer func() {
+		if tmpName != "" {
+			_ = os.Remove(tmpName)
+		}
+	}()
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return fmt.Errorf("writing %s: %w", target, err)
+	}
+	if err := tmp.Chmod(perm); err != nil {
+		tmp.Close()
+		return fmt.Errorf("setting permissions on %s: %w", target, err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("closing temp file for %s: %w", target, err)
+	}
+	if err := os.Rename(tmpName, target); err != nil {
+		return fmt.Errorf("replacing %s: %w", target, err)
+	}
+	tmpName = "" // consumed by the rename — nothing to clean up
 	return nil
 }
 

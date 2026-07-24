@@ -78,6 +78,11 @@ func NewRootCmd(version string) *cobra.Command {
 		Version:       ver,
 		SilenceErrors: true,
 		SilenceUsage:  true,
+		// No explicit Args here: for the ROOT command cobra's legacyArgs already
+		// rejects an unknown top-level word (`archcore bogus`) as an unknown
+		// command, so RunE (the banner) only runs on a bare `archcore`. A NoArgs
+		// here would be dead — unlike the non-root commands below, which DO need
+		// it because legacyArgs lets a subcommand's stray positional through.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(cmd.OutOrStdout(), display.WelcomeBanner())
 			fmt.Fprintln(cmd.OutOrStdout())

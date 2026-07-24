@@ -35,6 +35,10 @@ func newInstructionsInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Write the Archcore usage hint into agent instruction files",
+		// Agent selection is via --agent, never a positional arg. Reject stray
+		// args so a mistyped `install cursor` fails loudly instead of silently
+		// falling through to auto-detect and ignoring the intended scope.
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cwd, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
 			if err != nil {
@@ -67,6 +71,11 @@ func newInstructionsRemoveCmd() *cobra.Command {
 		// step that must still work after the project has been de-initialized.
 		// removeFencedBlock only touches archcore's marked span, so it is safe
 		// to run anywhere.
+		//
+		// Reject positional args: without this, `remove claude-code` silently
+		// ignores the arg (it is not --agent), falls into the no-flag branch,
+		// and strips the hint from EVERY target instead of the one named.
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cwd, err := os.Getwd()
 			if err != nil {
@@ -155,11 +164,9 @@ func installInstructionsForAgent(baseDir string, agent *agents.Agent) error {
 		return fmt.Errorf("writing %s instructions: %w", agent.DisplayName, err)
 	}
 	// Name every file the write touched, not just the primary target.
-	paths := []string{wiring.DisplayPath(baseDir, agent.InstructionsPath(baseDir))}
-	if agent.ExtraInstructionsPaths != nil {
-		for _, p := range agent.ExtraInstructionsPaths(baseDir) {
-			paths = append(paths, wiring.DisplayPath(baseDir, p))
-		}
+	paths := make([]string, 0, 2)
+	for _, p := range agent.AllInstructionsPaths(baseDir) {
+		paths = append(paths, wiring.DisplayPath(baseDir, p))
 	}
 	fmt.Println(display.CheckLine(fmt.Sprintf(
 		"Added Archcore usage hint to %s", strings.Join(paths, " and "))))

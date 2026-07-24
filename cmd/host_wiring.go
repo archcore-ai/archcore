@@ -14,12 +14,17 @@ import (
 // relative to the project root; error strings are sanitized — the report goes
 // to an MCP client (no-absolute-paths-in-mcp-errors.rule).
 type wiringAgentReport struct {
-	Agent          string   `json:"agent"`
-	MCPConfigPath  string   `json:"mcp_config_path,omitempty"`
-	MCPManualHint  string   `json:"mcp_manual_hint,omitempty"`
-	HooksSupported bool     `json:"hooks_supported"`
-	Instructions   string   `json:"instructions_path,omitempty"`
-	Errors         []string `json:"errors,omitempty"`
+	Agent          string `json:"agent"`
+	MCPConfigPath  string `json:"mcp_config_path,omitempty"`
+	MCPManualHint  string `json:"mcp_manual_hint,omitempty"`
+	HooksSupported bool   `json:"hooks_supported"`
+	Instructions   string `json:"instructions_path,omitempty"`
+	// InstructionsExtra names additional instruction files the write touched
+	// beyond instructions_path (claude-code: AGENTS.md). Additive field —
+	// instructions_path keeps its single-primary-path meaning for existing
+	// consumers.
+	InstructionsExtra []string `json:"instructions_extra_paths,omitempty"`
+	Errors            []string `json:"errors,omitempty"`
 }
 
 type wiringReport struct {
@@ -51,6 +56,9 @@ func hostWiringExecutor(baseDir string) tools.HostWiringFunc {
 			}
 			if a.Instructions != "" {
 				r.Instructions = wiring.DisplayPath(baseDir, a.Instructions)
+			}
+			for _, p := range a.ExtraInstructions {
+				r.InstructionsExtra = append(r.InstructionsExtra, wiring.DisplayPath(baseDir, p))
 			}
 			for _, e := range a.Errors {
 				r.Errors = append(r.Errors, tools.SanitizeError(e.Action, e.Err))

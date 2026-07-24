@@ -127,6 +127,7 @@ func buildUpdateCmd(version string, u *update.Updater) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Update archcore to the latest version",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 

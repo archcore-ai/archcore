@@ -72,6 +72,7 @@ func newSyncCmd() *cobra.Command {
 		Use:    "sync",
 		Short:  "Push local documents to the Archcore server",
 		Hidden: true,
+		Args:   cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return errors.New("sync is not available yet — this feature is coming soon")
 		},

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -293,6 +294,34 @@ func TestRunInstructionsInstallAutoDetect_SkipShowsInstructionsHint(t *testing.T
 	}
 	if strings.Contains(out, "archcore mcp install") || strings.Contains(out, "archcore hooks install") {
 		t.Errorf("output should not mention mcp/hooks recovery hints:\n%s", out)
+	}
+}
+
+// A positional arg is never a valid way to pick an agent — that is --agent's
+// job. Without cobra.NoArgs, `instructions remove claude-code` silently ignores
+// the arg and strips the hint from EVERY target (the no-flag branch). Rejecting
+// stray args at validation time fails before RunE, so no file is touched.
+func TestInstructionsCmd_RejectsPositionalArgs(t *testing.T) {
+	t.Parallel()
+	for _, args := range [][]string{
+		{"install", "claude-code"},
+		{"remove", "claude-code"},
+	} {
+		t.Run(strings.Join(args, "_"), func(t *testing.T) {
+			t.Parallel()
+			cmd := newInstructionsCmd()
+			cmd.SetArgs(args)
+			cmd.SetOut(io.Discard)
+			cmd.SetErr(io.Discard)
+
+			err := cmd.Execute()
+			if err == nil {
+				t.Fatalf("%v: expected an error for the stray positional arg, got nil", args)
+			}
+			if !strings.Contains(err.Error(), "unknown command") {
+				t.Errorf("%v: error %q should reject the positional arg", args, err.Error())
+			}
+		})
 	}
 }
 

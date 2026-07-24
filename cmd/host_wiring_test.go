@@ -60,8 +60,15 @@ func TestHostWiringExecutor_ClaudeCode_FreshProject(t *testing.T) {
 	if r.MCPConfigPath != ".mcp.json" {
 		t.Errorf("mcp_config_path = %q, want project-relative %q", r.MCPConfigPath, ".mcp.json")
 	}
-	if r.Instructions == "" {
-		t.Error("instructions_path must be reported")
+	// The report must name EVERY instruction file the write touched: CLAUDE.md
+	// as the primary path and AGENTS.md as the extra — an MCP client (the
+	// plugin) relays this report, so an unnamed file would be written to the
+	// user's repo silently.
+	if r.Instructions != "CLAUDE.md" {
+		t.Errorf("instructions_path = %q, want %q", r.Instructions, "CLAUDE.md")
+	}
+	if len(r.InstructionsExtra) != 1 || r.InstructionsExtra[0] != "AGENTS.md" {
+		t.Errorf("instructions_extra_paths = %v, want [AGENTS.md]", r.InstructionsExtra)
 	}
 }
 
@@ -203,18 +210,73 @@ func TestHostWiringExecutor_AllDetectedAddsMarkedAgents(t *testing.T) {
 	}
 }
 
+// Instruction attribution in a mixed run: claude-code's entry carries its full
+// touch-set (CLAUDE.md primary + AGENTS.md extra); cursor's entry carries
+// AGENTS.md as its own primary with no extras. Both agents legitimately touch
+// AGENTS.md — the report must say so per agent, not lose the file to the
+// dedupe (the pre-fix behavior attributed AGENTS.md to nobody when claude-code
+// ran alone, and only to cursor in a mixed run).
+func TestHostWiringExecutor_MixedAgents_InstructionAttribution(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(base, ".cursor"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	raw, err := hostWiringExecutor(base)("claude-code", true)
+	if err != nil {
+		t.Fatalf("executor: %v", err)
+	}
+	report := decodeWiringReport(t, raw)
+
+	byAgent := map[string]wiringAgentReport{}
+	for _, r := range report.Agents {
+		byAgent[r.Agent] = r
+	}
+
+	claude, ok := byAgent["claude-code"]
+	if !ok {
+		t.Fatalf("no claude-code entry in report: %+v", report.Agents)
+	}
+	if claude.Instructions != "CLAUDE.md" {
+		t.Errorf("claude-code instructions_path = %q, want CLAUDE.md", claude.Instructions)
+	}
+	if len(claude.InstructionsExtra) != 1 || claude.InstructionsExtra[0] != "AGENTS.md" {
+		t.Errorf("claude-code instructions_extra_paths = %v, want [AGENTS.md]", claude.InstructionsExtra)
+	}
+
+	cursor, ok := byAgent["cursor"]
+	if !ok {
+		t.Fatalf("no cursor entry in report: %+v", report.Agents)
+	}
+	if cursor.Instructions != "AGENTS.md" {
+		t.Errorf("cursor instructions_path = %q, want AGENTS.md", cursor.Instructions)
+	}
+	if len(cursor.InstructionsExtra) != 0 {
+		t.Errorf("cursor instructions_extra_paths = %v, want empty", cursor.InstructionsExtra)
+	}
+}
+
 func TestHostWiringExecutor_IdempotentSecondRun(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
 	exec := hostWiringExecutor(base)
 
+	// Byte-stability is asserted for every file the executor writes on this
+	// path — the MCP config AND both instruction targets. The instruction
+	// upserts are the seam where a duplicate managed block would appear.
+	tracked := []string{".mcp.json", "CLAUDE.md", "AGENTS.md"}
+
 	if _, err := exec("claude-code", false); err != nil {
 		t.Fatal(err)
 	}
-	mcpPath := filepath.Join(base, ".mcp.json")
-	first, err := os.ReadFile(mcpPath)
-	if err != nil {
-		t.Fatal(err)
+	first := map[string][]byte{}
+	for _, rel := range tracked {
+		data, err := os.ReadFile(filepath.Join(base, rel))
+		if err != nil {
+			t.Fatalf("ReadFile %s after first run: %v", rel, err)
+		}
+		first[rel] = data
 	}
 
 	raw, err := exec("claude-code", false)
@@ -225,11 +287,13 @@ func TestHostWiringExecutor_IdempotentSecondRun(t *testing.T) {
 	if report.ArchcoreInitialized {
 		t.Error("second run must not report archcore_initialized")
 	}
-	second, err := os.ReadFile(mcpPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(first) != string(second) {
-		t.Errorf("second run changed .mcp.json:\nfirst:\n%s\nsecond:\n%s", first, second)
+	for _, rel := range tracked {
+		second, err := os.ReadFile(filepath.Join(base, rel))
+		if err != nil {
+			t.Fatalf("ReadFile %s after second run: %v", rel, err)
+		}
+		if string(first[rel]) != string(second) {
+			t.Errorf("second run changed %s:\nfirst:\n%s\nsecond:\n%s", rel, first[rel], second)
+		}
 	}
 }

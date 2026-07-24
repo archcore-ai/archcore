@@ -39,6 +39,19 @@ type Agent struct {
 	ExtraInstructionsPaths func(baseDir string) []string
 }
 
+// AllInstructionsPaths returns every file WriteInstructions touches for this
+// agent: the primary InstructionsPath followed by any ExtraInstructionsPaths.
+// It is the single source of truth for "what a write touches" — both the CLI
+// confirmation line and the wiring report derive from it, so a new multi-target
+// agent cannot be under-reported on one path and not the other.
+func (a *Agent) AllInstructionsPaths(baseDir string) []string {
+	paths := []string{a.InstructionsPath(baseDir)}
+	if a.ExtraInstructionsPaths != nil {
+		paths = append(paths, a.ExtraInstructionsPaths(baseDir)...)
+	}
+	return paths
+}
+
 // all is the ordered registry of agents. Order matters for display/iteration.
 var all = []*Agent{
 	claudeCodeAgent(),

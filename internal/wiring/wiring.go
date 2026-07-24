@@ -35,7 +35,12 @@ type AgentResult struct {
 	MCPManualHint  string
 	HooksSupported bool
 	Instructions   string // empty when no instruction nudge was written
-	Errors         []AgentError
+	// ExtraInstructions lists additional instruction files the agent's write
+	// touched beyond Instructions (e.g. claude-code also upserts AGENTS.md).
+	// Kept separate from Instructions so existing consumers of the single
+	// primary path keep working unchanged.
+	ExtraInstructions []string
+	Errors            []AgentError
 }
 
 // Report is the result of one Apply call.
@@ -109,23 +114,42 @@ func Apply(baseDir string, host agents.AgentID, allDetected bool) (Report, error
 		report.Agents = append(report.Agents, r)
 	}
 
-	// Instructions last, deduped by path (several agents share AGENTS.md).
+	// Instructions last, deduped by path (several agents share AGENTS.md). One
+	// deduped write may touch several files (claude-code: CLAUDE.md + AGENTS.md)
+	// and may fail partway, so the report is derived from what actually landed
+	// on disk — not from the all-or-nothing error alone:
+	//
+	//   - Paths: each agent reports exactly the files that carry the managed
+	//     block now (InstructionBlockPresent), so a partial write names the file
+	//     that was written and omits the one that failed — never a silent write.
+	//   - Errors: a write failure is attributed to EVERY agent sharing that file,
+	//     not just the dedupe representative, so a shared-AGENTS.md failure is not
+	//     lost for the non-representative agents (cursor + opencode).
 	for _, a := range DedupeByInstructionsPath(baseDir, list) {
 		path := a.InstructionsPath(baseDir)
-		if err := a.WriteInstructions(baseDir); err != nil {
-			for i := range report.Agents {
-				if report.Agents[i].Agent == a.ID {
-					report.Agents[i].Errors = append(report.Agents[i].Errors,
-						AgentError{Action: "instructions", Err: err})
-				}
-			}
-			continue
-		}
-		// Mark every listed agent that shares this instructions file.
+		writeErr := a.WriteInstructions(baseDir)
+
 		for i := range report.Agents {
 			la := agents.ByID(report.Agents[i].Agent)
-			if la != nil && la.InstructionsPath != nil && la.InstructionsPath(baseDir) == path {
-				report.Agents[i].Instructions = path
+			if la == nil || la.InstructionsPath == nil || la.InstructionsPath(baseDir) != path {
+				continue
+			}
+			// Report each of this agent's touch-set files that is actually on
+			// disk. AllInstructionsPaths is [primary, extra...], so index 0 maps
+			// to Instructions and the rest to ExtraInstructions.
+			for j, p := range la.AllInstructionsPaths(baseDir) {
+				if !agents.InstructionBlockPresent(p) {
+					continue
+				}
+				if j == 0 {
+					report.Agents[i].Instructions = p
+				} else {
+					report.Agents[i].ExtraInstructions = append(report.Agents[i].ExtraInstructions, p)
+				}
+			}
+			if writeErr != nil {
+				report.Agents[i].Errors = append(report.Agents[i].Errors,
+					AgentError{Action: "instructions", Err: writeErr})
 			}
 		}
 	}
