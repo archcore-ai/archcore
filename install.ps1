@@ -124,7 +124,7 @@ function Get-LatestVersion {
     if ($location -is [array]) { $location = $location[0] }
 
     if (-not $location -or $location -notmatch '/releases/tag/(.+)$') {
-        Write-ErrExit "Could not resolve the latest version from $url. Check your internet connection or proxy settings, or pin a version to skip this lookup: `$env:ARCHCORE_VERSION='x.y.z'"
+        Write-ErrExit "Could not resolve the latest version from $url$diagnostic. Check your internet connection or proxy settings, or pin a version to skip this lookup: `$env:ARCHCORE_VERSION='x.y.z'"
     }
 
     return $Matches[1]
