@@ -89,36 +89,38 @@ function Get-Arch {
 # github.com: it carries no rate-limit budget and needs no token.
 function Get-LatestVersion {
     $url = "https://github.com/${GITHUB_REPO}/releases/latest"
-    $headers = @{ 'User-Agent' = 'archcore-installer' }
     $location = $null
+    $diagnostic = ''
 
+    # HttpWebRequest is the one redirect API that behaves identically on
+    # Windows PowerShell 5.1 and PowerShell 7: with AllowAutoRedirect disabled
+    # GetResponse() returns the 302 itself instead of throwing, and .Headers is
+    # a WebHeaderCollection on both, so a single string index works everywhere.
+    #
+    # Invoke-WebRequest -MaximumRedirection 0 cannot do this portably and was
+    # tried first: PS7 raises HttpResponseException whose HttpResponseHeaders
+    # has no string indexer (only a typed .Location), while PS5.1 raises
+    # InvalidOperationException that carries no .Response at all. Each stack
+    # failed on the other's shape and silently produced an empty version, so
+    # every unpinned install broke — caught only once CI ran both shells.
     try {
-        # Both stacks treat a 3xx as a terminating error when redirects are
-        # disabled — PS7 raises HttpResponseException, PS5.1 a WebException —
-        # so this branch is effectively unreachable today. It is kept for a
-        # stack that returns the redirect response instead of throwing.
-        $resp = Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers `
-            -MaximumRedirection 0 -ErrorAction Stop
-        $location = $resp.Headers['Location']
-    } catch {
-        $response = $null
-        try { $response = $_.Exception.Response } catch { }
-        if ($response) {
-            # The two stacks expose Location through mutually exclusive shapes.
-            # PS7's HttpResponseHeaders offers only the typed .Location (Uri)
-            # property and throws on a string index; PS5.1's WebHeaderCollection
-            # has no .Location property but does support the index. Because
-            # Set-StrictMode turns each mismatch into a terminating error, both
-            # attempts must be guarded — reading only one silently yields an
-            # empty version and fails every unpinned install on that stack.
-            try { $location = [string]$response.Headers.Location } catch { }
-            if (-not $location) {
-                try { $location = $response.Headers['Location'] } catch { }
-            }
+        $req = [System.Net.WebRequest]::Create($url)
+        $req.Method = 'HEAD'
+        $req.AllowAutoRedirect = $false
+        $req.UserAgent = 'archcore-installer'
+        $resp = $req.GetResponse()
+        try {
+            $location = $resp.Headers['Location']
+        } finally {
+            $resp.Close()
         }
+    } catch {
+        # Surfaced in the error below: without it a resolution failure is
+        # indistinguishable from a network outage, which is what made the
+        # previous breakage so hard to read from CI logs.
+        $diagnostic = " ($($_.Exception.Message))"
     }
 
-    # PS5.1 may hand back a string[] for a repeated header.
     if ($location -is [array]) { $location = $location[0] }
 
     if (-not $location -or $location -notmatch '/releases/tag/(.+)$') {
