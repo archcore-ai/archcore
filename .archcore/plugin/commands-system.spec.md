@@ -46,7 +46,7 @@ All commands are auto-invocable. The user describes intent in natural language a
 
 | Command | Description (in skill picker) | Argument | Behavior |
 |---|---|---|---|
-| `/archcore:init` | First-time onboarding — detect scale + shape, compose a full first-day seed (stack rule, run guide, data-model, integrations, config, entry points, architecture overview, hotspot specs) and import agent files | `[--mode=small\|medium\|large] [--domain=<slug>] [--refresh]` | Detect → compose → one preview → single `confirm` → create + wire relations. Nothing written before confirm. Idempotent (skip-on-exists). See `magic-first-day-init.adr.md`. |
+| `/archcore:init` | First-time onboarding — detect scale + shape, compose a full first-day seed (stack rule, run guide, data-model, integrations, config, entry points, architecture overview, hotspot specs) and import agent files | `[--mode=small\|medium\|large] [--domain=<slug>] [--refresh]` | Detect → compose → one preview → single `confirm` → create + wire relations. Nothing written before confirm. Idempotent (skip-on-exists). Also installs host wiring (project MCP config, SessionStart hook, usage hint) matching `archcore init` — see `host-wiring-parity.adr.md`. See `magic-first-day-init.adr.md`. |
 | `/archcore:capture` | Document a module / component / system | `[topic]` | Routes to adr / spec / doc / guide based on context |
 | `/archcore:decide` | Record a decision (ADR) or draft a proposal (RFC); optional standard cascade | `[topic]` | Creates adr or rfc; offers optional CPAT → rule → guide continuation |
 | `/archcore:plan` | Plan a feature or initiative end-to-end | `[topic] [--product\|--sources\|--iso\|--feature]` | Routes to single plan, or one of four flows: product (idea→prd→plan), sources (mrd→brd→urd), iso (brs→strs→syrs→srs), feature (prd→spec→plan→task-type) |
@@ -131,7 +131,7 @@ The right skill auto-invokes from the phrasing.
 - All creation commands MUST suggest `add_relation` calls after document creation.
 - Analysis commands (`audit`, `context`) MUST use MCP read tools for data gathering.
 - `/archcore:audit` MUST default to the short dashboard when invoked without arguments and switch modes when `--deep` or `--drift` is present.
-- `/archcore:init` MUST write no document before the user confirms the preview, and MUST be idempotent: every already-present artifact is skipped (skip-on-exists shown in the preview), and a fully-seeded repo early-exits unless `--refresh` or `--domain` is passed.
+- `/archcore:init` MUST write no document before the user confirms the preview, and MUST be idempotent: every already-present artifact is skipped (skip-on-exists shown in the preview), and a fully-seeded repo early-exits unless `--refresh` or `--domain` is passed. Its host-wiring writes (files outside `.archcore/`) are equally confirm-gated (`host-wiring-parity.adr.md`).
 
 ## Constraints
 

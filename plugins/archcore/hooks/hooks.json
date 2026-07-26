@@ -30,7 +30,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "mcp__archcore__create_document|mcp__archcore__update_document|mcp__archcore__remove_document|mcp__archcore__add_relation|mcp__archcore__remove_relation",
+        "matcher": "mcp__archcore__create_document|mcp__plugin_archcore_archcore__create_document|mcp__archcore__update_document|mcp__plugin_archcore_archcore__update_document|mcp__archcore__remove_document|mcp__plugin_archcore_archcore__remove_document|mcp__archcore__add_relation|mcp__plugin_archcore_archcore__add_relation|mcp__archcore__remove_relation|mcp__plugin_archcore_archcore__remove_relation",
         "hooks": [
           {
             "type": "command",
@@ -40,7 +40,7 @@
         ]
       },
       {
-        "matcher": "mcp__archcore__update_document",
+        "matcher": "mcp__archcore__update_document|mcp__plugin_archcore_archcore__update_document",
         "hooks": [
           {
             "type": "command",
@@ -50,7 +50,7 @@
         ]
       },
       {
-        "matcher": "mcp__archcore__create_document|mcp__archcore__update_document",
+        "matcher": "mcp__archcore__create_document|mcp__plugin_archcore_archcore__create_document|mcp__archcore__update_document|mcp__plugin_archcore_archcore__update_document",
         "hooks": [
           {
             "type": "command",

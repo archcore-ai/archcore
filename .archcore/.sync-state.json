@@ -3336,6 +3336,41 @@
       "source": "plugin/no-frd-type-prd-scope-rule.adr.md",
       "target": "plugin/skill-surface-collapse.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/host-wiring-parity.adr.md",
+      "target": "plugin/cursor-mcp-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/host-wiring-parity.adr.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/host-wiring-parity.adr.md",
+      "target": "plugin/magic-first-day-init.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/host-wiring-parity.adr.md",
+      "target": "plugin/bundled-cli-launcher.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/host-wiring-parity.adr.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/host-wiring-parity.adr.md",
+      "target": "plugin/skills-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/component-registry.doc.md",
+      "target": "plugin/host-wiring-parity.adr.md",
+      "type": "related"
     }
   ]
 }

@@ -82,13 +82,51 @@ setup() {
   grep -qE '^sandbox_mode = "read-only"' "$PLUGIN_ROOT/agents/archcore-auditor.toml"
 }
 
-@test "auditor.toml disables mutating MCP tools" {
+@test "auditor.toml denies EVERY mutating MCP tool under both namings" {
+  # The deny-list is the read-only auditor's ONLY enforcement surface for MCP
+  # tools: sandbox_mode=read-only constrains this agent's shell, not the MCP
+  # server process that executes the tool, and the list fails OPEN — any
+  # mutating tool absent here is callable. So it MUST be exhaustive over the
+  # server's whole write surface, not just the historical document/relation
+  # ops (init_project + install_host_config write outside .archcore/).
   local file="$PLUGIN_ROOT/agents/archcore-auditor.toml"
-  grep -q 'mcp__archcore__create_document' "$file"
-  grep -q 'mcp__archcore__update_document' "$file"
-  grep -q 'mcp__archcore__remove_document' "$file"
-  grep -q 'mcp__archcore__add_relation' "$file"
-  grep -q 'mcp__archcore__remove_relation' "$file"
+  local tool
+  for tool in create_document update_document remove_document \
+              add_relation remove_relation \
+              init_project install_host_config; do
+    grep -qF "\"mcp__archcore__${tool}\"" "$file" \
+      || fail "auditor.toml missing deny for mcp__archcore__${tool}"
+    grep -qF "\"mcp__plugin_archcore_archcore__${tool}\"" "$file" \
+      || fail "auditor.toml missing deny for mcp__plugin_archcore_archcore__${tool}"
+  done
+}
+
+@test "agent tool lists cover BOTH project and plugin MCP tool naming" {
+  # Same premise as the hooks matcher test (host-wiring-parity.adr.md): a
+  # project .mcp.json yields mcp__archcore__*, a plugin-bundled server yields
+  # mcp__plugin_archcore_archcore__*. Allow-lists (md tools:) missing a twin
+  # fail closed but lose capability; deny-lists (toml disabled_tools) missing
+  # a twin fail OPEN — the read-only auditor could mutate. Every archcore
+  # tool mentioned in an agent tool list must appear under both namings.
+  local file tool suffix
+  for file in "$PLUGIN_ROOT/agents/archcore-assistant.md" \
+              "$PLUGIN_ROOT/agents/archcore-auditor.md" \
+              "$PLUGIN_ROOT/agents/archcore-auditor.toml"; do
+    while IFS= read -r tool; do
+      case "$tool" in
+        mcp__plugin_archcore_archcore__*)
+          suffix="${tool#mcp__plugin_archcore_archcore__}"
+          grep -q "mcp__archcore__${suffix}\b" "$file" \
+            || fail "$(basename "$file"): lists $tool but not its project-naming twin"
+          ;;
+        mcp__archcore__*)
+          suffix="${tool#mcp__archcore__}"
+          grep -q "mcp__plugin_archcore_archcore__${suffix}\b" "$file" \
+            || fail "$(basename "$file"): lists $tool but not its plugin-naming twin"
+          ;;
+      esac
+    done < <(grep -oE 'mcp__(plugin_archcore_)?archcore__[a-z_]+' "$file" | sort -u)
+  done
 }
 
 @test "assistant.toml uses workspace-write sandbox" {

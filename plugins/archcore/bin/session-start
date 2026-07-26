@@ -6,6 +6,41 @@ SCRIPT_DIR=$(dirname "$0")
 # shellcheck source=lib/normalize-stdin.sh
 . "$SCRIPT_DIR/lib/normalize-stdin.sh"
 
+# Refuse to run when cwd looks like a plugin install directory. Hosts can
+# misroute cwd (notably Cursor stdio hooks — see forum #99215) and launch us
+# inside ~/.cursor/plugins/cache/.../<sha>/ instead of the user workspace.
+# Without this guard, session-start would read the plugin's own bundled
+# .archcore/ and surface it as "the user's knowledge base."
+#
+# Runs FIRST — before the CLI availability check — so a misrouted cwd stays
+# silent even when archcore is not on PATH (the install nudge belongs to real
+# project sessions, not plugin-cache ones).
+#
+# Two layers, both silent-exit (host shouldn't see noise during session-start),
+# mirroring the CLI's resolveProjectRoot guard:
+#   1. install-cache path fragments in $PWD — catches any depth inside a host's
+#      plugin cache;
+#   2. bounded upward walk for plugin manifests — catches installs outside the
+#      known cache locations (cwd may sit in a SUBDIRECTORY of the install,
+#      e.g. <install>/skills/init/, where no manifest is a direct sibling).
+case "/$PWD/" in
+  */.cursor/plugins/* | */.claude/plugins/* | */.codex/plugins/* | */plugins/cache/*)
+    exit 0 ;;
+esac
+
+_ac_guard_dir="$PWD"
+_ac_guard_depth=0
+while [ -n "$_ac_guard_dir" ] && [ "$_ac_guard_dir" != "/" ] && [ "$_ac_guard_depth" -lt 12 ]; do
+  if [ -f "$_ac_guard_dir/.cursor-plugin/plugin.json" ] \
+    || [ -f "$_ac_guard_dir/.claude-plugin/plugin.json" ] \
+    || [ -f "$_ac_guard_dir/.codex-plugin/plugin.json" ] \
+    || [ -f "$_ac_guard_dir/.plugin/plugin.json" ]; then
+    exit 0
+  fi
+  _ac_guard_dir=$(dirname "$_ac_guard_dir")
+  _ac_guard_depth=$((_ac_guard_depth + 1))
+done
+
 # Check if archcore CLI is available on PATH
 if ! command -v archcore >/dev/null 2>&1; then
   _msg="[Archcore] CLI not found on PATH. Install it first:
@@ -28,19 +63,6 @@ if ! command -v archcore >/dev/null 2>&1; then
       printf '%s\n' "$_msg"
       ;;
   esac
-  exit 0
-fi
-
-# Refuse to run when cwd looks like a plugin install directory. Hosts can
-# misroute cwd (notably Cursor stdio hooks — see forum #99215) and launch us
-# inside ~/.cursor/plugins/cache/.../<sha>/ instead of the user workspace.
-# Without this guard, session-start would read the plugin's own bundled
-# .archcore/ and surface it as "the user's knowledge base."
-if [ -f ".cursor-plugin/plugin.json" ] \
-  || [ -f ".claude-plugin/plugin.json" ] \
-  || [ -f ".codex-plugin/plugin.json" ] \
-  || [ -f ".plugin/plugin.json" ]; then
-  # Silent exit — host shouldn't see noise during normal session-start.
   exit 0
 fi
 
@@ -84,12 +106,14 @@ _archcore_stamp_dir() {
   fi
 }
 
-# True when the advisory has NOT been shown within the last 24h. A separate
-# stamp from check-staleness so the two rate-limit windows never clobber each
-# other. Global (per-binary) suppression is correct — the broken CLI is one
-# global binary, not a per-project condition.
-_archcore_advisory_due() {
-  _stamp="$(_archcore_stamp_dir)/last-cli-advisory"
+# Generic 24h rate-limit over a named stamp file. Each advisory keeps its own
+# stamp (separate from check-staleness's) so the rate-limit windows never
+# clobber each other. Global (per-binary) suppression is correct for CLI
+# advisories — the CLI is one global binary, not a per-project condition.
+#
+# _archcore_due <stamp-name>: true when the advisory has NOT fired in 24h.
+_archcore_due() {
+  _stamp="$(_archcore_stamp_dir)/$1"
   [ -f "$_stamp" ] || return 0
   _now=$(date +%s 2>/dev/null) || return 1
   _last=$(cat "$_stamp" 2>/dev/null)
@@ -99,11 +123,12 @@ _archcore_advisory_due() {
   [ "$((_now - _last))" -ge 86400 ]
 }
 
-# Record that the advisory was shown (rate-limit window starts now).
-_archcore_advisory_stamp() {
+# _archcore_stamp_now <stamp-name>: record that an advisory was shown
+# (rate-limit window starts now).
+_archcore_stamp_now() {
   _dir="$(_archcore_stamp_dir)"
   mkdir -p "$_dir" 2>/dev/null || true
-  date +%s > "$_dir/last-cli-advisory" 2>/dev/null || true
+  date +%s > "$_dir/$1" 2>/dev/null || true
 }
 
 # True when the captured stderr ($1) carries the strict parser's field-rejection
@@ -144,14 +169,14 @@ _ac_err="${TMPDIR:-/tmp}/archcore_ss_err_$$"
 printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_HOST" session-start 2>"$_ac_err"
 _ac_rc=$?
 
-if [ "$_ac_rc" -ne 0 ] && _archcore_config_rejected "$_ac_err" && _archcore_advisory_due; then
+if [ "$_ac_rc" -ne 0 ] && _archcore_config_rejected "$_ac_err" && _archcore_due last-cli-advisory; then
   _archcore_emit_info "[Archcore] This project's .archcore/settings.json uses a newer setting (e.g. global sources) that the installed archcore CLI is too old to understand — so its MCP server and context are unavailable here until you update. Update the CLI:
   macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash
   Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex
   Then verify: archcore --version
   Docs: https://docs.archcore.ai/cli/install/
   Archcore context will work again once the CLI is updated."
-  _archcore_advisory_stamp
+  _archcore_stamp_now last-cli-advisory
   rm -f "$_ac_err"
   exit 0
 fi
@@ -170,4 +195,20 @@ STALENESS=$("$SCRIPT_DIR/check-staleness" 2>/dev/null) || true
 if [ -n "$STALENESS" ]; then
   echo ""
   echo "$STALENESS"
+fi
+
+# Outdated-CLI advisory. `archcore update --check` is designed for exactly
+# this call site: result cached 24h in XDG state, ~500ms network bound, silent
+# on any failure, exit 0 always (older CLIs without the flag error out — the
+# 2>/dev/null + empty-output check swallows that too). The advisory line is
+# additionally rate-limited by its own 24h stamp so a pending update nudges
+# once a day, not every session. Plain text after the JSON slot, same pattern
+# as the staleness/empty-state lines above.
+if _archcore_due last-update-advisory; then
+  _ac_update=$(archcore update --check 2>/dev/null) || _ac_update=""
+  if [ -n "$_ac_update" ]; then
+    echo ""
+    echo "[Archcore] CLI update available (${_ac_update#update available: } — installed: $(archcore --version 2>/dev/null || echo '?')). Run: archcore update"
+    _archcore_stamp_now last-update-advisory
+  fi
 fi
