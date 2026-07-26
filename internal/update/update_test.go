@@ -7,7 +7,6 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -59,57 +58,125 @@ func TestNeedsUpdate(t *testing.T) {
 }
 
 func TestCheckLatest(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/archcore-ai/cli/releases/latest" {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(releaseResponse{TagName: "v1.2.3"})
-	}))
-	defer srv.Close()
-
-	u := NewUpdater("v1.0.0", "archcore-ai/cli", "archcore")
-	u.HTTPClient = srv.Client()
-
-	// Override the GitHub API URL by wrapping the transport.
-	u.HTTPClient.Transport = &rewriteTransport{
-		base:   srv.Client().Transport,
-		target: srv.URL,
-	}
-
-	got, err := u.CheckLatest(context.Background())
-	if err != nil {
-		t.Fatalf("CheckLatest() error: %v", err)
-	}
-	if got != "v1.2.3" {
-		t.Errorf("CheckLatest() = %q, want %q", got, "v1.2.3")
-	}
-}
-
-func TestCheckLatestError(t *testing.T) {
 	tests := []struct {
 		name       string
 		statusCode int
-		body       string
+		location   string
+		want       string
 	}{
-		{"server error", http.StatusInternalServerError, "internal error"},
-		{"not found", http.StatusNotFound, "not found"},
-		{"rate limited", http.StatusForbidden, "rate limit exceeded"},
-		{"empty tag_name", http.StatusOK, `{"tag_name": ""}`},
-		{"malformed JSON", http.StatusOK, "not json at all"},
-		// Non-200 with a body that WOULD decode cleanly: isolates the HTTP
-		// status guard. Without it, this valid JSON decodes and the error
-		// vanishes — the other 500/404 cases hide that because their bodies
-		// fail to decode anyway.
-		{"non-200 with valid body", http.StatusInternalServerError, `{"tag_name": "v9.9.9"}`},
+		// github.com answers /releases/latest with a 302 to the tag page.
+		{"302 to tag page", http.StatusFound,
+			"https://github.com/archcore-ai/cli/releases/tag/v1.2.3", "v1.2.3"},
+		// Any 3xx is a legitimate way to point at the tag page.
+		{"301 to tag page", http.StatusMovedPermanently,
+			"https://github.com/archcore-ai/cli/releases/tag/v1.2.3", "v1.2.3"},
+		{"307 to tag page", http.StatusTemporaryRedirect,
+			"https://github.com/archcore-ai/cli/releases/tag/v1.2.3", "v1.2.3"},
+		{"308 to tag page", http.StatusPermanentRedirect,
+			"https://github.com/archcore-ai/cli/releases/tag/v1.2.3", "v1.2.3"},
+		// The tag comes from the resolved path, so query and fragment never
+		// reach it.
+		{"query and fragment", http.StatusFound,
+			"https://github.com/archcore-ai/cli/releases/tag/v1.2.3?a=b#frag", "v1.2.3"},
+		// ... and neither can smuggle a second marker past the search (a
+		// raw-string LastIndex would have returned "evil" for these two).
+		{"query with a decoy tag marker", http.StatusFound,
+			"https://github.com/archcore-ai/cli/releases/tag/v1.2.3?next=/releases/tag/evil", "v1.2.3"},
+		{"fragment with a decoy tag marker", http.StatusFound,
+			"https://github.com/archcore-ai/cli/releases/tag/v1.2.3#/releases/tag/evil", "v1.2.3"},
+		// Relative Location resolved against the request URL.
+		{"relative location", http.StatusFound,
+			"/archcore-ai/cli/releases/tag/v1.2.3", "v1.2.3"},
+		// Dot-segments are normalized before the marker search.
+		{"dot segments inside the path", http.StatusFound,
+			"https://github.com/archcore-ai/cli/releases/x/../tag/v1.2.3", "v1.2.3"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/archcore-ai/cli/releases/latest" {
+					http.NotFound(w, r)
+					return
+				}
+				w.Header().Set("Location", tt.location)
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			u := NewUpdater("v1.0.0", "archcore-ai/cli", "archcore")
+			// Point the github.com host at the test server by wrapping the transport.
+			u.HTTPClient = &http.Client{
+				Transport: &rewriteTransport{
+					base:   http.DefaultTransport,
+					target: srv.URL,
+				},
+			}
+
+			got, err := u.CheckLatest(context.Background())
+			if err != nil {
+				t.Fatalf("CheckLatest() error: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("CheckLatest() = %q, want %q", got, tt.want)
+			}
+			// Halting redirects must stay local to the call: Apply reuses the
+			// caller's client to follow the release-asset redirect chain.
+			if u.HTTPClient.CheckRedirect != nil {
+				t.Error("CheckRedirect leaked onto the caller's client")
+			}
+		})
+	}
+}
+
+func TestCheckLatestError(t *testing.T) {
+	tests := []struct {
+		name        string
+		statusCode  int
+		location    string
+		errContains string
+	}{
+		{"server error", http.StatusInternalServerError, "", "returned status 500"},
+		{"not found", http.StatusNotFound, "", "returned status 404"},
+		{"rate limited", http.StatusForbidden, "", "returned status 403"},
+		// The status guard is load-bearing on its own: without it this row
+		// would decode to v9.9.9 from a body-bearing 200.
+		{"non-redirect with tag location", http.StatusOK,
+			"https://github.com/archcore-ai/cli/releases/tag/v9.9.9", "returned status 200"},
+		// A repo with no published release redirects to the bare /releases
+		// page, verified against github/gitignore and golang/go (both have an
+		// empty releases list): 302 -> https://github.com/OWNER/REPO/releases.
+		{"no release published", http.StatusFound,
+			"https://github.com/archcore-ai/cli/releases", "unexpected redirect"},
+		// A redirect that lands somewhere else entirely — e.g. an interstitial
+		// or a repo rename, whose target is another /releases/latest.
+		{"redirect without tag segment", http.StatusFound,
+			"https://github.com/login", "unexpected redirect"},
+		// Traversal in the redirect target must not survive into the tag: the
+		// resolved path is /archcore-ai/evil, which has no tag marker at all.
+		{"redirect with traversal segments", http.StatusFound,
+			"https://github.com/archcore-ai/cli/releases/tag/../../../evil", "unexpected redirect"},
+		// Well-formed tag URL with nothing after the marker.
+		{"redirect with empty tag", http.StatusFound,
+			"https://github.com/archcore-ai/cli/releases/tag/", "empty tag in redirect"},
+		// 3xx with the Location header missing entirely — a distinct branch
+		// from "redirected somewhere that is not a tag page".
+		{"redirect without location", http.StatusFound, "", "no Location header"},
+		// An unparseable Location. The status must be a 3xx the http.Client
+		// does not itself follow (300 is not in its redirect set), because for
+		// 301/302/303/307/308 the client parses Location before consulting
+		// CheckRedirect and fails the whole call earlier.
+		{"unparseable location", http.StatusMultipleChoices, "http://[::1",
+			"parsing redirect location"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if tt.location != "" {
+					w.Header().Set("Location", tt.location)
+				}
+				w.WriteHeader(tt.statusCode)
 			}))
 			defer srv.Close()
 
@@ -125,7 +192,43 @@ func TestCheckLatestError(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}
+			if !strings.Contains(err.Error(), tt.errContains) {
+				t.Errorf("error = %v, want it to contain %q", err, tt.errContains)
+			}
 		})
+	}
+}
+
+// TestCheckLatest_NilHTTPClient pins the http.DefaultClient fallback: an
+// Updater built without an HTTPClient must not nil-panic. The context is
+// cancelled up front, so the transport returns before touching the network.
+func TestCheckLatest_NilHTTPClient(t *testing.T) {
+	t.Parallel()
+	u := &Updater{CurrentVersion: "v1.0.0", GitHubRepo: "archcore-ai/cli", BinaryName: "archcore"}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := u.CheckLatest(ctx); err == nil {
+		t.Fatal("expected error for cancelled context")
+	}
+	if u.HTTPClient != nil {
+		t.Error("client() must not populate HTTPClient")
+	}
+	if http.DefaultClient.CheckRedirect != nil {
+		t.Error("CheckRedirect leaked onto http.DefaultClient")
+	}
+}
+
+// TestDownload_NilHTTPClient pins the same fallback on the download path, so
+// one Updater cannot be defended in CheckLatest and nil-panic here.
+func TestDownload_NilHTTPClient(t *testing.T) {
+	t.Parallel()
+	u := &Updater{CurrentVersion: "v1.0.0", GitHubRepo: "archcore-ai/cli", BinaryName: "archcore"}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := u.download(ctx, "v1.0.0", "checksums.txt"); err == nil {
+		t.Fatal("expected error for cancelled context")
 	}
 }
 
@@ -908,7 +1011,8 @@ func TestCheckLatest_ConnectionRefused(t *testing.T) {
 func TestCheckLatest_ContextCancelled(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(releaseResponse{TagName: "v9.9.9"})
+		w.Header().Set("Location", "https://github.com/archcore-ai/cli/releases/tag/v9.9.9")
+		w.WriteHeader(http.StatusFound)
 	}))
 	defer srv.Close()
 

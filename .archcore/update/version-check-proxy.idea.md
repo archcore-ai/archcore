@@ -1,8 +1,20 @@
 ---
 title: "Proxy GitHub Release Check Through archcore.ai to Avoid Rate Limits"
-status: draft
+status: rejected
 tags:
   - "update"
+---
+
+## Outcome
+
+**Rejected — not needed.** See `resolve-latest-via-github-redirect.adr.md`.
+
+The rate-limit problem this idea set out to solve was removed without any proxy: `https://github.com/archcore-ai/cli/releases/latest` answers with a `302` whose `Location` header already carries the tag, and plain `github.com` carries no rate-limit budget. That delivers every item under **Value** below — no limits behind corporate NAT, no `GITHUB_TOKEN`, zero configuration — while adding no service to operate and no dependency on archcore.ai availability.
+
+The one benefit it does not deliver is control of the endpoint: the redirect exposes only the tag, so analytics, staged rollouts and deprecation notices remain out of reach. Should any of those become a requirement, this idea is the upgrade path and can be revived; the ADR records it as such.
+
+The original proposal is kept below as the historical record.
+
 ---
 
 ## Idea

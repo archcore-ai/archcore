@@ -20,7 +20,8 @@ import (
 	"archcore-cli/internal/update"
 )
 
-// checkUpdater builds an Updater whose GitHub API calls hit srv.
+// checkUpdater builds an Updater whose github.com requests — the
+// /releases/latest redirect lookup — hit srv instead.
 func checkUpdater(version string, srv *httptest.Server) *update.Updater {
 	client := &http.Client{Transport: &testRewriteTransport{target: srv.URL}}
 	return &update.Updater{
@@ -31,10 +32,13 @@ func checkUpdater(version string, srv *httptest.Server) *update.Updater {
 	}
 }
 
+// releaseServer mimics github.com/OWNER/REPO/releases/latest, which answers
+// with a 302 to the tag page rather than a JSON body.
 func releaseServer(t *testing.T, tag string) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"tag_name": "` + tag + `"}`))
+		w.Header().Set("Location", "https://github.com/archcore-ai/cli/releases/tag/"+tag)
+		w.WriteHeader(http.StatusFound)
 	}))
 	t.Cleanup(srv.Close)
 	return srv
@@ -91,7 +95,8 @@ func TestUpdateCheck_FreshCacheSkipsNetwork(t *testing.T) {
 	var requests atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
-		_, _ = w.Write([]byte(`{"tag_name": "v9.9.9"}`))
+		w.Header().Set("Location", "https://github.com/archcore-ai/cli/releases/tag/v9.9.9")
+		w.WriteHeader(http.StatusFound)
 	}))
 	t.Cleanup(srv.Close)
 	cache := filepath.Join(t.TempDir(), "last-update-check")

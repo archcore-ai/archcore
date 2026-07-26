@@ -31,7 +31,7 @@ const (
 	// stamped (empty cache content) so sessions on a slow or offline network
 	// don't pay the probe timeout on every hook invocation.
 	updateCheckFailureTTL = time.Hour
-	// updateCheckTimeout must absorb a cold TLS handshake to api.github.com;
+	// updateCheckTimeout must absorb a cold TLS handshake to github.com;
 	// the negative cache keeps the worst case to one stall per failure TTL.
 	updateCheckTimeout = 2 * time.Second
 )

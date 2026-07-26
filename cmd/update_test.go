@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -22,8 +21,8 @@ import (
 
 func TestUpdateCmd_AlreadyUpToDate(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"tag_name": "v1.0.0"})
+		w.Header().Set("Location", "https://github.com/archcore-ai/cli/releases/tag/v1.0.0")
+		w.WriteHeader(http.StatusFound)
 	}))
 	defer srv.Close()
 
@@ -55,9 +54,9 @@ func TestUpdateCmd_UpdateAvailable(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case strings.Contains(r.URL.Path, "releases/latest"):
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"tag_name": "v2.0.0"})
+		case strings.HasSuffix(r.URL.Path, "releases/latest"):
+			w.Header().Set("Location", "https://github.com/archcore-ai/cli/releases/tag/v2.0.0")
+			w.WriteHeader(http.StatusFound)
 		case strings.HasSuffix(r.URL.Path, archiveName):
 			w.Write(archiveData)
 		case strings.HasSuffix(r.URL.Path, "checksums.txt"):
@@ -141,9 +140,9 @@ func TestUpdateCmd_UpdateAvailable(t *testing.T) {
 func TestUpdateCmd_DevVersion(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case strings.Contains(r.URL.Path, "releases/latest"):
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]string{"tag_name": "v1.0.0"})
+		case strings.HasSuffix(r.URL.Path, "releases/latest"):
+			w.Header().Set("Location", "https://github.com/archcore-ai/cli/releases/tag/v1.0.0")
+			w.WriteHeader(http.StatusFound)
 		default:
 			// Return 404 for downloads — we just want to verify it attempts update.
 			http.NotFound(w, r)

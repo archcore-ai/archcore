@@ -81,39 +81,35 @@ detect_arch() {
 }
 
 # ── Version resolution ──────────────────────────────────────────────────────
-parse_version_from_json() {
-    local json="$1"
-
-    # Cascade: jq -> python3 -> grep/sed
-    if command -v jq &>/dev/null; then
-        jq -r '.tag_name' <<< "$json"
-    elif command -v python3 &>/dev/null; then
-        python3 -c "import sys,json; print(json.loads(sys.stdin.read())['tag_name'])" <<< "$json"
-    else
-        grep '"tag_name"' <<< "$json" | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/'
-    fi
-}
-
+# Deliberately resolved through the github.com web redirect rather than
+# api.github.com/repos/.../releases/latest. The REST API allows only 60
+# unauthenticated requests per hour *per IP*, so every user behind a shared
+# egress address — corporate NAT, CGNAT, CI runners — draws from one tiny
+# shared budget and installs start failing with a 403. This redirect is plain
+# github.com: it carries no x-ratelimit-* budget, needs no token, and needs no
+# JSON parser.
 get_latest_version() {
-    local url="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
-    local curl_opts=(-fsSL --retry 3 --retry-delay 2)
+    local url="https://github.com/${GITHUB_REPO}/releases/latest"
+    local redirect_url
 
-    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-        curl_opts+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
-    fi
+    # HEAD without -L: curl stops at the 302 and reports the Location header.
+    # stderr is discarded so a retried transport error prints curl's diagnostic
+    # once per attempt into the user's terminal ahead of our own message.
+    redirect_url=$(curl -fsS -I -o /dev/null -w '%{redirect_url}' \
+        --retry 3 --retry-delay 2 "$url" 2>/dev/null) || \
+        error_exit "Could not reach ${url}. Check your internet connection or proxy settings, or pin a version to skip this lookup: ARCHCORE_VERSION=x.y.z curl -fsSL https://archcore.ai/install.sh | bash"
 
-    local response
-    response=$(curl "${curl_opts[@]}" "$url" 2>/dev/null) || \
-        error_exit "Failed to fetch latest version from GitHub. Please check your internet connection."
+    # Expected shape: https://github.com/OWNER/REPO/releases/tag/vX.Y.Z
+    # A repo with no published release still answers 302, but points at the
+    # bare /releases page (verified against github/gitignore and golang/go,
+    # both of which have an empty releases list), so match on the tag segment
+    # rather than on emptiness.
+    case "$redirect_url" in
+        */releases/tag/*) ;;
+        *) error_exit "Could not resolve the latest version from ${url} (unexpected response). Pin a version instead: ARCHCORE_VERSION=x.y.z curl -fsSL https://archcore.ai/install.sh | bash" ;;
+    esac
 
-    local version
-    version=$(parse_version_from_json "$response")
-
-    if [[ -z "$version" || "$version" == "null" ]]; then
-        error_exit "Failed to parse version from GitHub API response."
-    fi
-
-    printf '%s' "$version"
+    printf '%s' "${redirect_url##*/tag/}"
 }
 
 # ── Download helper ─────────────────────────────────────────────────────────

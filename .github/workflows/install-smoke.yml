@@ -10,25 +10,33 @@ on:
 
 jobs:
   windows:
-    name: Windows (${{ matrix.mode }})
+    name: Windows ${{ matrix.shell }} (${{ matrix.mode }})
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
         mode: [file, pipe]
+        # `pwsh` is PowerShell 7 (HttpClient stack), `powershell` is Windows
+        # PowerShell 5.1 (HttpWebRequest stack) — the version the script's
+        # #Requires line targets. The two surface a redirect's Location header
+        # through mutually exclusive shapes: a typed .Location property on PS7,
+        # a string indexer on PS5.1, each throwing on the other's form under
+        # Set-StrictMode. Testing only pwsh let a resolver that fails every
+        # unpinned PS7 install pass CI, so both are exercised.
+        shell: [pwsh, powershell]
     steps:
       - uses: actions/checkout@v4
 
       - name: Install (file mode)
         if: matrix.mode == 'file'
-        shell: pwsh
+        shell: ${{ matrix.shell }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pwsh -NoProfile -File .\install.ps1
+        run: ${{ matrix.shell }} -NoProfile -File .\install.ps1
 
       - name: Install (pipe mode via iex)
         if: matrix.mode == 'pipe'
-        shell: pwsh
+        shell: ${{ matrix.shell }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # Exercises the `irm | iex` path: script runs in-memory, $PSCommandPath
@@ -37,7 +45,7 @@ jobs:
         run: Get-Content -Raw .\install.ps1 | Invoke-Expression
 
       - name: Assert install result
-        shell: pwsh
+        shell: ${{ matrix.shell }}
         run: |
           $bin = Join-Path $env:LOCALAPPDATA 'Programs\archcore\archcore.exe'
           if (-not (Test-Path $bin)) {
@@ -79,6 +87,30 @@ jobs:
           test -x "$bin" || { echo "Binary not found or not executable at $bin" >&2; exit 1; }
           "$bin" --help >/dev/null || { echo "archcore --help failed" >&2; exit 1; }
           echo "OK: $bin"
+
+  anonymous:
+    name: Ubuntu — no credentials
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the installer with no token in the environment
+        # Every other job passes GITHUB_TOKEN, which would mask a regression
+        # back to api.github.com: that endpoint allows 60 requests/hour per IP,
+        # and an authenticated call sails through where an anonymous one on a
+        # shared Actions runner address does not. Resolving the version from
+        # the github.com redirect needs no credentials at all — this job is the
+        # only place that actually proves it.
+        env:
+          GITHUB_TOKEN: ""
+        run: bash install.sh
+
+      - name: Assert install result
+        run: |
+          bin="$HOME/.local/bin/archcore"
+          test -x "$bin" || { echo "Binary not found or not executable at $bin" >&2; exit 1; }
+          "$bin" --help >/dev/null || { echo "archcore --help failed" >&2; exit 1; }
+          echo "OK: $bin (anonymous install)"
 
   alpine:
     name: Alpine 3.19 (musl)

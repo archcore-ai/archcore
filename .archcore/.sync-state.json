@@ -947,6 +947,31 @@
       "source": "sync/sync-command-implementation.plan.md",
       "target": "sync/sync-engine.spec.md",
       "type": "implements"
+    },
+    {
+      "source": "update/self-update-command.guide.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "release/install-script-usage.guide.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/update-version-check-strategy.rfc.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "update/version-check-proxy.idea.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "release/release-infrastructure.doc.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "related"
     }
   ]
 }

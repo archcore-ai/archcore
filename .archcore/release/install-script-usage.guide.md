@@ -47,11 +47,13 @@ tags:
    ARCHCORE_INSTALL_DIR=/usr/local/bin curl -fsSL https://archcore.ai/install.sh | bash
    ```
 
-4. **Authenticate for private repos or rate limits**
+4. **Authenticate for private repos**
 
    ```bash
    GITHUB_TOKEN=ghp_xxx curl -fsSL https://archcore.ai/install.sh | bash
    ```
+
+   The token authenticates asset downloads only. Version resolution never uses it — see Environment Variables below.
 
 ### Windows
 
@@ -73,7 +75,7 @@ tags:
    $env:ARCHCORE_INSTALL_DIR = 'C:\tools\archcore'; irm https://archcore.ai/install.ps1 | iex
    ```
 
-4. **Authenticate for private repos or rate limits**
+4. **Authenticate for private repos**
 
    ```powershell
    $env:GITHUB_TOKEN = 'ghp_xxx'; irm https://archcore.ai/install.ps1 | iex
@@ -94,7 +96,7 @@ This uses the same install script as macOS / Linux — WSL provides a full Linux
 ## What the Scripts Do
 
 1. Detect OS (`darwin`/`linux`/`windows`) and architecture (`amd64`/`arm64`)
-2. Resolve the latest version from GitHub API (or use `ARCHCORE_VERSION`)
+2. Resolve the latest version by reading the `Location` header of `https://github.com/archcore-ai/cli/releases/latest` (or skip the lookup entirely with `ARCHCORE_VERSION`). The GitHub REST API is deliberately not used — see `resolve-latest-via-github-redirect.adr.md`.
 3. Download the platform-specific archive (`.tar.gz` on Unix, `.zip` on Windows) and `checksums.txt`
 4. Verify SHA-256 checksum
 5. Extract the binary and install it atomically to the install directory
@@ -106,9 +108,9 @@ This uses the same install script as macOS / Linux — WSL provides a full Linux
 
 | Variable | Default (Unix) | Default (Windows) | Description |
 |---|---|---|---|
-| `ARCHCORE_VERSION` | (latest) | (latest) | Pin to a specific release tag (e.g. `v1.0.0`) |
+| `ARCHCORE_VERSION` | (latest) | (latest) | Pin to a specific release tag (e.g. `v1.0.0`). Skips the version lookup. |
 | `ARCHCORE_INSTALL_DIR` | `~/.local/bin` | `%LOCALAPPDATA%\Programs\archcore` | Override the install directory |
-| `GITHUB_TOKEN` | (none) | (none) | GitHub token for authenticated API/download requests |
+| `GITHUB_TOKEN` | (none) | (none) | GitHub token for authenticated asset downloads (private repos). Not used for version resolution — that reads a public redirect with no rate limit. |
 
 On Windows, set env vars with PowerShell syntax: `$env:ARCHCORE_VERSION = 'v1.0.0'` before the `irm | iex` pipeline.
 
@@ -123,7 +125,8 @@ Expected output: `archcore <version> (commit: <sha>)`
 ## Common Issues
 
 - **"command not found" after install** — The install directory is not in your `$PATH`. The script prints instructions for your shell (bash/zsh/fish).
-- **"Failed to fetch latest version"** — Network issue or GitHub API rate limit. Set `GITHUB_TOKEN` or use `ARCHCORE_VERSION` to skip the API call.
+- **"Could not reach https://github.com/…/releases/latest"** — Network, proxy, or DNS issue. There is no API rate limit involved, so `GITHUB_TOKEN` will not help; pin a version instead: `ARCHCORE_VERSION=x.y.z`.
+- **"Could not resolve the latest version … (unexpected response)"** — `github.com` answered without the expected `/releases/tag/` redirect. Usually a captive portal or proxy interstitial intercepting the request; it can also mean the repo has no published release yet. Pin a version to bypass the lookup.
 - **"Checksum verification failed"** — The download was corrupted. Retry the install.
 - **"Unsupported operating system/architecture"** — Only `darwin`/`linux`/`windows` on `amd64`/`arm64` are supported. If you're on a different target (armv7, ppc64le, s390x, riscv64), no binary ships for your platform — build from source via `go install github.com/archcore-ai/cli@latest`.
 - **"this installer requires bash"** — You piped the install script into `sh` (or another POSIX shell). Use `| bash` instead. On Debian/Ubuntu `/bin/sh` is dash, which does not support `set -o pipefail`.

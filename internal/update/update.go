@@ -8,7 +8,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -49,44 +48,89 @@ func NewUpdater(currentVersion, repo, binaryName string) *Updater {
 	}
 }
 
-// releaseResponse holds the relevant fields from the GitHub Releases API.
-type releaseResponse struct {
-	TagName string `json:"tag_name"`
+// tagPathMarker separates the repo path from the tag in a /releases/latest
+// redirect: https://github.com/OWNER/REPO/releases/tag/vX.Y.Z
+const tagPathMarker = "/releases/tag/"
+
+// maxRedirectBodyDrain caps the bytes read from a redirect body before close.
+// A 3xx body is empty, so this still buys connection reuse; an unexpected HTML
+// error page can no longer stall the caller (`update --check` runs inside
+// editor hooks on a 2s budget).
+const maxRedirectBodyDrain = 4 << 10
+
+// client returns the HTTP client to use, falling back to http.DefaultClient
+// for a zero-value Updater.
+func (u *Updater) client() *http.Client {
+	if u.HTTPClient != nil {
+		return u.HTTPClient
+	}
+	return http.DefaultClient
 }
 
-// CheckLatest queries the GitHub API for the latest release tag.
+// CheckLatest resolves the tag of the newest published release.
+//
+// It deliberately reads the github.com web redirect rather than calling
+// api.github.com/repos/.../releases/latest. The REST API allows only 60
+// unauthenticated requests per hour *per IP*, and this check runs from editor
+// hooks on every installed machine — so a team behind one egress address
+// (corporate NAT, CGNAT, CI runners) burns that budget and silently stops
+// seeing updates. GET /releases/latest answers with a redirect whose Location
+// already carries the tag, costs no rate-limit budget, and needs no token.
 func (u *Updater) CheckLatest(ctx context.Context) (string, error) {
-	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", u.GitHubRepo)
+	latestURL := fmt.Sprintf("https://github.com/%s/releases/latest", u.GitHubRepo)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, latestURL, nil)
 	if err != nil {
 		return "", fmt.Errorf("creating request: %w", err)
 	}
-	req.Header.Set("Accept", "application/vnd.github+json")
 
-	resp, err := u.HTTPClient.Do(req)
+	// Copy the client so halting redirects stays local to this call and does
+	// not leak into the caller's client (which Apply reuses to follow the
+	// release-asset redirect chain).
+	halted := *u.client()
+	halted.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	resp, err := halted.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("checking latest release: %w", err)
 	}
 	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxRedirectBodyDrain))
 		resp.Body.Close()
 	}()
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	// Any 3xx is accepted: GitHub answers 302 today but 301/303/307/308 are
+	// all legitimate ways to say "the tag lives over there". The Location
+	// check below is the real gate — a redirect that does not land on a tag
+	// page fails regardless of which 3xx carried it.
+	if resp.StatusCode/100 != 3 {
+		return "", fmt.Errorf("github.com returned status %d for %s", resp.StatusCode, latestURL)
 	}
 
-	var release releaseResponse
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxChecksumsSize)).Decode(&release); err != nil {
-		return "", fmt.Errorf("parsing release response: %w", err)
+	// resp.Location resolves the header against the request URL and normalizes
+	// dot-segments, and reading .Path drops query and fragment — so none of
+	// those can smuggle a tag past the marker search below.
+	loc, err := resp.Location()
+	if errors.Is(err, http.ErrNoLocation) {
+		return "", fmt.Errorf("no Location header in %d response from %s", resp.StatusCode, latestURL)
+	}
+	if err != nil {
+		return "", fmt.Errorf("parsing redirect location from %s: %w", latestURL, err)
 	}
 
-	if release.TagName == "" {
-		return "", fmt.Errorf("empty tag_name in release response")
+	idx := strings.LastIndex(loc.Path, tagPathMarker)
+	if idx < 0 {
+		return "", fmt.Errorf("unexpected redirect resolving latest release: %q", loc.String())
 	}
 
-	return release.TagName, nil
+	tag := strings.Trim(loc.Path[idx+len(tagPathMarker):], "/")
+	if tag == "" {
+		return "", fmt.Errorf("empty tag in redirect %q", loc.String())
+	}
+
+	return tag, nil
 }
 
 // NeedsUpdate compares current and latest versions.
@@ -280,7 +324,7 @@ func (u *Updater) download(ctx context.Context, version, filename string) ([]byt
 		return nil, fmt.Errorf("creating request for %s: %w", filename, err)
 	}
 
-	resp, err := u.HTTPClient.Do(req)
+	resp, err := u.client().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("downloading %s: %w", filename, err)
 	}

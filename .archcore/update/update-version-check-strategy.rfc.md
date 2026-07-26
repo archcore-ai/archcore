@@ -1,8 +1,20 @@
 ---
 title: "Version Check Strategy for archcore update"
-status: draft
+status: rejected
 tags:
   - "update"
+---
+
+## Resolution
+
+**Rejected — superseded by `resolve-latest-via-github-redirect.adr.md`.**
+
+None of the five options below shipped. The implemented solution is a sixth one this RFC did not consider: read the `302 Location` header of `https://github.com/archcore-ai/cli/releases/latest`, which already carries the tag. It removes the rate limit without the infrastructure Options A, B and E require, and without settling for the partial mitigation of Option D.
+
+This RFC's own recommendation — Option B, a static `version.txt` published by CI — was not taken. It still needs a release-pipeline step that can fail silently and leave users pinned to a stale version, whereas the redirect tracks the actual release by construction.
+
+The comparison below is kept as the historical record of what was weighed.
+
 ---
 
 ## Summary
@@ -11,7 +23,7 @@ Define how `archcore update` resolves the latest available version without requi
 
 ## Motivation
 
-Current implementation calls `api.github.com/repos/archcore-ai/cli/releases/latest` directly. GitHub's unauthenticated rate limit is 60 requests/hour per IP. This is fine for individual developers but problematic for:
+The implementation at the time of writing called `api.github.com/repos/archcore-ai/cli/releases/latest` directly. GitHub's unauthenticated rate limit is 60 requests/hour per IP. This is fine for individual developers but problematic for:
 
 - Teams behind corporate NAT (shared IP)
 - CI environments running version checks
@@ -80,7 +92,7 @@ Use Option D (ETag caching) as primary, fall back to Option A (proxy) if GitHub 
 **Pros:** Best of both worlds — usually zero server load, graceful degradation.
 **Cons:** Most complex. Two code paths to maintain.
 
-## Recommendation
+## Recommendation (superseded — see Resolution)
 
 **Option B (static version file)** for simplicity, with Option A as future upgrade path if we need richer metadata (release notes, minimum version, deprecation notices).
 
@@ -97,3 +109,5 @@ Option B requires:
 ## Alternatives
 
 All five options are detailed above. The "do nothing" alternative (Option C) is viable for the current user base but doesn't scale to teams.
+
+The alternative that was ultimately chosen — reading the `github.com` `/releases/latest` redirect — is not among them; this RFC framed the problem as "which endpoint do we host or cache" and so missed the option that requires neither.

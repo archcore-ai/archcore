@@ -81,24 +81,51 @@ function Get-Arch {
 }
 
 # ── Version resolution ──────────────────────────────────────────────────────
+# Deliberately resolved through the github.com web redirect rather than
+# api.github.com/repos/.../releases/latest. The REST API allows only 60
+# unauthenticated requests per hour *per IP*, so every user behind a shared
+# egress address — corporate NAT, CGNAT, CI runners — draws from one tiny
+# shared budget and installs start failing with a 403. This redirect is plain
+# github.com: it carries no rate-limit budget and needs no token.
 function Get-LatestVersion {
-    $url = "https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
+    $url = "https://github.com/${GITHUB_REPO}/releases/latest"
     $headers = @{ 'User-Agent' = 'archcore-installer' }
-    if ($env:GITHUB_TOKEN) {
-        $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN"
-    }
+    $location = $null
 
     try {
-        $release = Invoke-RestMethod -UseBasicParsing -Uri $url -Headers $headers
+        # Both stacks treat a 3xx as a terminating error when redirects are
+        # disabled — PS7 raises HttpResponseException, PS5.1 a WebException —
+        # so this branch is effectively unreachable today. It is kept for a
+        # stack that returns the redirect response instead of throwing.
+        $resp = Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers `
+            -MaximumRedirection 0 -ErrorAction Stop
+        $location = $resp.Headers['Location']
     } catch {
-        Write-ErrExit "Failed to fetch latest version from GitHub. Please check your internet connection."
+        $response = $null
+        try { $response = $_.Exception.Response } catch { }
+        if ($response) {
+            # The two stacks expose Location through mutually exclusive shapes.
+            # PS7's HttpResponseHeaders offers only the typed .Location (Uri)
+            # property and throws on a string index; PS5.1's WebHeaderCollection
+            # has no .Location property but does support the index. Because
+            # Set-StrictMode turns each mismatch into a terminating error, both
+            # attempts must be guarded — reading only one silently yields an
+            # empty version and fails every unpinned install on that stack.
+            try { $location = [string]$response.Headers.Location } catch { }
+            if (-not $location) {
+                try { $location = $response.Headers['Location'] } catch { }
+            }
+        }
     }
 
-    $tag = $release.tag_name
-    if (-not $tag -or $tag -eq 'null') {
-        Write-ErrExit 'Failed to parse version from GitHub API response.'
+    # PS5.1 may hand back a string[] for a repeated header.
+    if ($location -is [array]) { $location = $location[0] }
+
+    if (-not $location -or $location -notmatch '/releases/tag/(.+)$') {
+        Write-ErrExit "Could not resolve the latest version from $url. Check your internet connection or proxy settings, or pin a version to skip this lookup: `$env:ARCHCORE_VERSION='x.y.z'"
     }
-    return $tag
+
+    return $Matches[1]
 }
 
 # ── Download helper ─────────────────────────────────────────────────────────
