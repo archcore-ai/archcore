@@ -129,6 +129,45 @@ setup() {
   done
 }
 
+# Copilot is the THIRD naming. Claude/Cursor see mcp__archcore__* (project
+# .mcp.json) or mcp__plugin_archcore_archcore__* (plugin-bundled server);
+# Copilot flattens MCP tools to "<server>-<tool>" — archcore-list_documents —
+# verified against Copilot CLI 1.0.73 (see bin/lib/normalize-stdin.sh, which
+# normalizes that form back to the canonical one for the hook scripts).
+#
+# An agent `tools:` list is an ALLOW-list and unrecognized names are ignored,
+# so a missing twin does not misfire — it silently strips the agent of every
+# archcore tool on that host, which is the failure this test exists to catch.
+#
+# The .toml agents are exempt: that format is Codex-only and Copilot never
+# reads it. Codex's deny-list keeps its own two-naming guard above.
+@test "agent .md tool lists carry the Copilot flat naming too" {
+  local file tool suffix
+  for file in "$PLUGIN_ROOT/agents/archcore-assistant.md" \
+              "$PLUGIN_ROOT/agents/archcore-auditor.md"; do
+    while IFS= read -r tool; do
+      suffix="${tool#mcp__archcore__}"
+      grep -qE "^[[:space:]]*-[[:space:]]+archcore-${suffix}\$" "$file" \
+        || fail "$(basename "$file"): lists $tool but not its Copilot twin archcore-${suffix}"
+    done < <(grep -oE 'mcp__archcore__[a-z_]+' "$file" | sort -u)
+  done
+}
+
+# Inverse direction: a Copilot entry with no canonical twin means someone added
+# a tool for one host only — the allow-lists must stay a single set across hosts.
+@test "no Copilot-only tool entry without its canonical twin" {
+  local file tool suffix
+  for file in "$PLUGIN_ROOT/agents/archcore-assistant.md" \
+              "$PLUGIN_ROOT/agents/archcore-auditor.md"; do
+    while IFS= read -r tool; do
+      suffix="${tool#archcore-}"
+      grep -qF "mcp__archcore__${suffix}" "$file" \
+        || fail "$(basename "$file"): lists $tool but not mcp__archcore__${suffix}"
+    done < <(grep -oE '^[[:space:]]*-[[:space:]]+archcore-[a-z_]+' "$file" \
+             | sed 's/^[[:space:]]*-[[:space:]]*//' | sort -u)
+  done
+}
+
 @test "assistant.toml uses workspace-write sandbox" {
   grep -qE '^sandbox_mode = "workspace-write"' "$PLUGIN_ROOT/agents/archcore-assistant.toml"
 }

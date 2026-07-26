@@ -61,6 +61,14 @@ codex
 # then run /plugins, open Archcore, select Install plugin
 ```
 
+**GitHub Copilot CLI** — installs straight from this repo's plugin subdirectory.
+
+```bash
+copilot plugin install archcore-ai/plugin:plugins/archcore
+```
+
+Copilot **CLI** only: VS Code agent mode has no self-serve plugin install, and cloud-agent sandboxes do not load plugin hooks.
+
 <details>
 <summary>Local development & team rollouts</summary>
 
@@ -125,12 +133,12 @@ The decision is captured, codified as a rule, and auto-applied to every future c
 
 ## Supported hosts
 
-| Host            | Status      | Install            |
-| --------------- | ----------- | ------------------ |
-| **Claude Code** | Production  | Plugin marketplace |
-| **Cursor**      | Implemented | Plugin marketplace |
-| **Codex CLI**   | Implemented | Plugin marketplace |
-| GitHub Copilot  | Planned     | —                  |
+| Host                   | Status      | Install                                |
+| ---------------------- | ----------- | -------------------------------------- |
+| **Claude Code**        | Production  | Plugin marketplace                     |
+| **Cursor**             | Implemented | Plugin marketplace                     |
+| **Codex CLI**          | Implemented | Plugin marketplace                     |
+| **GitHub Copilot CLI** | Implemented | `copilot plugin install` (subdir spec) |
 
 Built on open standards (Agent Skills, MCP) — skills and MCP tools are shared across hosts; only manifests are host-specific.
 

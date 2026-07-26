@@ -214,6 +214,37 @@ setup() {
     || fail "SKILL.md per-host list must name CLAUDE.md + AGENTS.md for claude-code"
 }
 
+# Copilot host parity (copilot-adapter-design.adr). bin/detect-host cannot detect
+# Copilot — the CLI exports no marker into agent shell commands — so a Copilot
+# session ALWAYS falls through to the AskUserQuestion branch. If that question
+# offers only the three detectable hosts, a Copilot user is stuck with no correct
+# answer and init picks the wrong agent id. The ask-fallback is therefore the only
+# thing that makes init usable on this host, and it must not silently regress.
+@test "init host question offers Copilot, which detect-host can never return" {
+  grep -qi "GitHub Copilot CLI" "$SKILL" \
+    || fail "SKILL.md Step -1 must offer GitHub Copilot CLI in the host AskUserQuestion — detect-host cannot return it"
+  grep -qF '`copilot`' "$SKILL" \
+    || fail "SKILL.md must map the Copilot answer to the 'copilot' agent id"
+  grep -q '__UNKNOWN__' "$SKILL" \
+    || fail "SKILL.md must keep the __UNKNOWN__ fallback the Copilot path depends on"
+}
+
+# The four hosts detect-host CAN return must stay in lockstep between the script's
+# contract and the skill's prose — a token added to one and not the other silently
+# routes a real session into the ask-fallback (or worse, an unmapped id).
+@test "init SKILL.md and bin/detect-host agree on the emitted token set" {
+  local tok
+  for tok in claude-code cursor codex-cli __UNKNOWN__; do
+    grep -qF "$tok" "$PLUGIN_ROOT/bin/detect-host" \
+      || fail "bin/detect-host no longer emits '$tok' — SKILL.md Step -1 still documents it"
+    grep -qF "$tok" "$SKILL" \
+      || fail "SKILL.md Step -1 must document the '$tok' token bin/detect-host emits"
+  done
+  grep -q 'echo "copilot"' "$PLUGIN_ROOT/bin/detect-host" \
+    && fail "bin/detect-host now emits 'copilot' — update SKILL.md Step -1 and drop the ask-fallback note"
+  return 0
+}
+
 @test "init version gate pins CLI >= 0.6.1 with no stale 0.6.0 references" {
   grep -qF 'cli-gte" 0.6.1' "$SKILL" \
     || fail "SKILL.md must gate host wiring on cli-gte 0.6.1"
