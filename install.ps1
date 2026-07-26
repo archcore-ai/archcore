@@ -258,14 +258,35 @@ function Add-ToUserPath {
 }
 
 # ── Post-install smoke test ─────────────────────────────────────────────────
+# Advisory only. The binary is already installed and PATH is already updated by
+# the time this runs, so nothing here may abort the script.
+#
+# Windows PowerShell 5.1 converts a native command's stderr writes into error
+# records, and $ErrorActionPreference = 'Stop' promotes the first one into a
+# terminating error. `archcore --help` prints ~1 KB of banner to stderr while
+# still exiting 0, so this call used to kill the installer *after* a completely
+# successful install — and silently, because `*> $null` discarded the error text
+# along with everything else. PowerShell 7 does not perform that conversion,
+# which is why the failure only appeared once CI started running both shells.
 function Test-Install {
     param([string]$InstallPath)
 
-    & $InstallPath --help *> $null
-    if ($LASTEXITCODE -ne 0) {
-        Write-WarnMsg 'Binary installed but --help did not exit cleanly. It may still work.'
-    } else {
+    $exitCode = $null
+    $previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $InstallPath --help *> $null
+        $exitCode = $LASTEXITCODE
+    } catch {
+        $exitCode = -1
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+
+    if ($exitCode -eq 0) {
         Write-Success 'Binary executes OK'
+    } else {
+        Write-WarnMsg 'Binary installed but --help did not exit cleanly. It may still work.'
     }
 }
 
