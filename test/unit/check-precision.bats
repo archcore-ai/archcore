@@ -78,6 +78,71 @@ Future migrations will follow this exact pattern with clear hand-off rules.
   assert_output ""
 }
 
+# --- Tool-naming reach (host-wiring-parity.adr) ---
+#
+# check-precision gates on mcp__archcore__create_document|update_document only.
+# The same server also reaches the model as mcp__plugin_archcore_archcore__*
+# (plugin-bundled) and archcore-* (Copilot). normalize-stdin folds both to the
+# canonical name; without that fold this hook fires and exits silently, so a
+# document created through either registration skips precision review with no
+# trace anywhere. These pin the fold end-to-end, through the real script.
+
+@test "plugin-bundled MCP naming reaches the precision check" {
+  local doc='---
+title: Robust Plan
+status: draft
+---
+
+## Context
+
+We need a robust approach for the migration plan with concrete steps documented.
+
+## Decision
+
+Use approach X with explicit versioning and clear ownership for downstream teams.
+
+## Alternatives Considered
+
+Approach Y was ruled out due to specific compatibility constraints last quarter.
+
+## Consequences
+
+Cleanup and migration tasks will follow this exact pattern with hand-off rules.
+'
+  make_doc "plugin-named.adr.md" "$doc"
+  run_precision_stdin '{"tool_name":"mcp__plugin_archcore_archcore__create_document","tool_input":{"path":"plugin-named.adr.md"}}'
+  assert_success
+  assert_output --partial "forbidden words"
+}
+
+@test "Copilot flat MCP naming reaches the precision check" {
+  local doc='---
+title: Robust Plan
+status: draft
+---
+
+## Context
+
+We need a robust approach for the migration plan with concrete steps documented.
+
+## Decision
+
+Use approach X with explicit versioning and clear ownership for downstream teams.
+
+## Alternatives Considered
+
+Approach Y was ruled out due to specific compatibility constraints last quarter.
+
+## Consequences
+
+Cleanup and migration tasks will follow this exact pattern with hand-off rules.
+'
+  make_doc "copilot-named.adr.md" "$doc"
+  run_precision_stdin '{"sessionId":"s1","toolName":"archcore-create_document","toolArgs":"{\"path\":\"copilot-named.adr.md\"}"}'
+  assert_success
+  assert_output --partial "forbidden words"
+}
+
 # --- Each check fires independently ---
 
 @test "forbidden lexicon hit produces finding" {
