@@ -14,6 +14,43 @@ setup() {
   [ -f "$PLUGIN_ROOT/agents/archcore-auditor.md" ]
 }
 
+# --- Copilot copies -------------------------------------------------------
+#
+# Copilot CLI loads plugin agents only from *.agent.md files, so it needs its
+# own copies. They live in copilot-agents/ rather than beside the originals
+# because .agent.md still matches the *.md glob Claude Code and Cursor use —
+# a sibling copy would hand both hosts two files declaring the same `name:`.
+#
+# The copies are byte-identical by design: the tool allow-lists inside them
+# already carry all three MCP namings (mcp__archcore__*,
+# mcp__plugin_archcore_archcore__*, archcore-<tool>), so there is nothing
+# host-specific left to diverge. cmp catches drift here, in CI, instead of on
+# a live Copilot session where a stale copy just behaves subtly differently.
+
+@test "Copilot agent copies exist with the .agent.md extension" {
+  [ -f "$PLUGIN_ROOT/copilot-agents/archcore-assistant.agent.md" ]
+  [ -f "$PLUGIN_ROOT/copilot-agents/archcore-auditor.agent.md" ]
+}
+
+@test "Copilot agent copies are byte-identical to the originals" {
+  local agent
+  for agent in archcore-assistant archcore-auditor; do
+    cmp -s "$PLUGIN_ROOT/agents/$agent.md" \
+           "$PLUGIN_ROOT/copilot-agents/$agent.agent.md" \
+      || fail "copilot-agents/$agent.agent.md has drifted from agents/$agent.md"
+  done
+}
+
+@test "every MD agent has a Copilot copy" {
+  # Guards the direction cmp cannot: a NEW agent added to agents/ with no
+  # copilot-agents/ counterpart would leave Copilot silently one agent short.
+  local name
+  while IFS= read -r name; do
+    [ -f "$PLUGIN_ROOT/copilot-agents/$name.agent.md" ] \
+      || fail "agents/$name.md has no copilot-agents/$name.agent.md copy"
+  done < <(find "$PLUGIN_ROOT/agents" -maxdepth 1 -name '*.md' -exec basename {} .md \;)
+}
+
 @test "assistant has required frontmatter fields" {
   local file="$PLUGIN_ROOT/agents/archcore-assistant.md"
   head -20 "$file" | grep -q '^name:'

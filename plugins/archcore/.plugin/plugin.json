@@ -8,8 +8,7 @@
   "license": "Apache-2.0",
   "repository": "https://github.com/archcore-ai/plugin",
   "hooks": "./hooks/copilot.hooks.json",
-  "mcpServers": "./.mcp.json",
   "skills": "./skills/",
-  "agents": "./agents/",
+  "agents": "./copilot-agents/",
   "commands": "./commands/"
 }

@@ -3371,6 +3371,26 @@
       "source": "plugin/component-registry.doc.md",
       "target": "plugin/host-wiring-parity.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/copilot-mcp-architecture.adr.md",
+      "target": "plugin/copilot-adapter-design.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/copilot-mcp-architecture.adr.md",
+      "target": "plugin/cursor-mcp-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/copilot-mcp-architecture.adr.md",
+      "target": "plugin/host-wiring-parity.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/copilot-mcp-architecture.adr.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
     }
   ]
 }

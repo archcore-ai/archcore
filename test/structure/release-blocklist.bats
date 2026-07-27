@@ -62,6 +62,7 @@ is_stripped() {
 @test "release.yml does not strip skills/, agents/, commands/, rules/, hooks/, bin/" {
   ! is_stripped 'skills' || fail "skills/ is in blocklist"
   ! is_stripped 'agents' || fail "agents/ is in blocklist"
+  ! is_stripped 'copilot-agents' || fail "copilot-agents/ is in blocklist"
   ! is_stripped 'commands' || fail "commands/ is in blocklist"
   ! is_stripped 'rules' || fail "rules/ is in blocklist"
   ! is_stripped 'hooks' || fail "hooks/ is in blocklist"
