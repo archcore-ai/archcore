@@ -1,0 +1,50 @@
+name: Test
+
+# The release workflow already runs `go test ./...`, but only on a tag — so a
+# broken test first surfaced during a release, with the tag already pushed.
+# This moves the same gate to the point where it can still cheaply say no.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A force-push supersedes the previous run; keep the newest, drop the rest.
+# main is exempt: every commit there should keep a result of its own.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    name: vet + test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Formatting first: it is the cheapest signal and the one most likely to
+      # differ between a contributor's editor and the repo.
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt would rewrite these files; run 'gofmt -w .'"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
