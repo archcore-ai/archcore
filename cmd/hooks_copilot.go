@@ -10,7 +10,7 @@ func newHooksCopilotCmd(version string) *cobra.Command {
 		Short: "Handle GitHub Copilot hook events",
 	}
 	cmd.AddCommand(
-		newSessionStartHookCmd("session-start", "Handle Copilot SessionStart hook event", version),
+		newSessionStartHookCmd("session-start", "Handle Copilot SessionStart hook event", version, shapeCopilotNative),
 	)
 	return cmd
 }

@@ -173,10 +173,11 @@ func convergeMCPForAgent(baseDir string, agent *agents.Agent) (bool, error) {
 	switch agent.ID {
 	case agents.Cursor:
 		return agents.ConvergeCursorMCPJSON(path)
-	case agents.ClaudeCode, agents.GeminiCLI, agents.RooCode:
+	// Copilot rides the standard shape: its only project-level MCP source is
+	// the workspace-root .mcp.json, the same file (and key, and entry) as
+	// claude-code — see copilotMCPPath.
+	case agents.ClaudeCode, agents.GeminiCLI, agents.RooCode, agents.Copilot:
 		return agents.ConvergeStandardMCPJSON(path)
-	case agents.Copilot:
-		return agents.ConvergeVSCodeMCPJSON(path)
 	default:
 		return false, agent.WriteMCPConfig(baseDir)
 	}

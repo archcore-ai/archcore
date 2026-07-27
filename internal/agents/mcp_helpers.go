@@ -16,29 +16,6 @@ type mcpServerEntry struct {
 	Args    []string `json:"args"`
 }
 
-// vscodeMCPEntry represents an MCP server entry in VS Code format (used by Copilot).
-type vscodeMCPEntry struct {
-	Type    string   `json:"type"`
-	Command string   `json:"command"`
-	Args    []string `json:"args"`
-}
-
-// corruptPolicy controls what happens when the target file exists but is not
-// valid strict JSON.
-type corruptPolicy int
-
-const (
-	// corruptBackupAndReset backs the original up as .bak with a visible
-	// warning and starts fresh (backup-invalid-configs.adr.md). The install
-	// aborts if the backup itself cannot be written.
-	corruptBackupAndReset corruptPolicy = iota
-	// corruptSkipInstall leaves the file untouched and prints manual install
-	// instructions. Used for JSONC-capable targets (.vscode/mcp.json), where
-	// "invalid strict JSON" is usually a perfectly valid JSONC config whose
-	// other MCP servers must not be silently replaced.
-	corruptSkipInstall
-)
-
 // mcpWriteMode controls behavior when an archcore entry already exists.
 type mcpWriteMode int
 
@@ -56,35 +33,21 @@ const (
 // It merges an "archcore" entry under serversKey, round-tripping everything
 // else (unknown keys, other servers, key order) as opaque RawMessage, and
 // writes atomically. Returns whether the file was changed.
-func writeMCPConfig(filePath, serversKey string, entry any, policy corruptPolicy, mode mcpWriteMode) (bool, error) {
+func writeMCPConfig(filePath, serversKey string, entry any, mode mcpWriteMode) (bool, error) {
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return false, fmt.Errorf("creating directory %s: %w", dir, err)
 	}
 
-	var doc *jsonfile.Doc
-	switch policy {
-	case corruptBackupAndReset:
-		var backedUp bool
-		var err error
-		doc, backedUp, err = jsonfile.ReadOrBackup(filePath)
-		if err != nil {
-			return false, err
-		}
-		if backedUp {
-			fmt.Println(display.WarnLine(fmt.Sprintf("Corrupted %s backed up, starting fresh", filePath)))
-		}
-	default: // corruptSkipInstall
-		var err error
-		doc, err = jsonfile.Read(filePath)
-		if err != nil {
-			entryJSON, _ := json.Marshal(entry)
-			fmt.Println(display.WarnLine(fmt.Sprintf(
-				"%s is not valid strict JSON (VS Code configs may contain comments) — left untouched", filePath)))
-			fmt.Println(display.HintLine(fmt.Sprintf(
-				"Add archcore manually under %q: \"archcore\": %s", serversKey, entryJSON)))
-			return false, nil
-		}
+	// A target that exists but is not valid strict JSON is backed up as .bak
+	// with a visible warning and rewritten fresh (backup-invalid-configs.adr).
+	// The install aborts if the backup itself cannot be written.
+	doc, backedUp, err := jsonfile.ReadOrBackup(filePath)
+	if err != nil {
+		return false, err
+	}
+	if backedUp {
+		fmt.Println(display.WarnLine(fmt.Sprintf("Corrupted %s backed up, starting fresh", filePath)))
 	}
 
 	servers := jsonfile.NewDoc()
@@ -175,49 +138,32 @@ var (
 		Command: "archcore",
 		Args:    []string{"mcp", "--project", "${workspaceFolder}"},
 	}
-	copilotMCPEntry = vscodeMCPEntry{
-		Type:    "stdio",
-		Command: "archcore",
-		Args:    []string{"mcp"},
-	}
 )
 
 // WriteStandardMCPJSON writes or merges an archcore entry into a standard
 // mcpServers JSON config file (used by Claude Code, Gemini CLI, Roo Code).
 func WriteStandardMCPJSON(filePath string) error {
-	_, err := writeMCPConfig(filePath, "mcpServers", standardMCPEntry, corruptBackupAndReset, mcpKeepExisting)
+	_, err := writeMCPConfig(filePath, "mcpServers", standardMCPEntry, mcpKeepExisting)
 	return err
 }
 
 // WriteCursorMCPJSON writes or merges an archcore entry into Cursor's
 // .cursor/mcp.json (see cursorMCPEntry for why its args differ).
 func WriteCursorMCPJSON(filePath string) error {
-	_, err := writeMCPConfig(filePath, "mcpServers", cursorMCPEntry, corruptBackupAndReset, mcpKeepExisting)
+	_, err := writeMCPConfig(filePath, "mcpServers", cursorMCPEntry, mcpKeepExisting)
 	return err
 }
 
-// WriteVSCodeMCPJSON writes or merges an archcore entry into a VS Code-style
-// MCP config file (uses "servers" key + "type": "stdio"), used by GitHub Copilot.
-func WriteVSCodeMCPJSON(filePath string) error {
-	_, err := writeMCPConfig(filePath, "servers", copilotMCPEntry, corruptSkipInstall, mcpKeepExisting)
-	return err
-}
-
-// ConvergeStandardMCPJSON, ConvergeCursorMCPJSON, and ConvergeVSCodeMCPJSON
-// are the doctor --fix counterparts of the writers above: an existing
-// archcore entry that drifted from the desired shape (e.g. a Cursor config
-// written before --project ${workspaceFolder} existed) is updated in place.
-// Foreign servers and unknown keys stay untouched. They report whether the
-// file changed.
+// ConvergeStandardMCPJSON and ConvergeCursorMCPJSON are the doctor --fix
+// counterparts of the writers above: an existing archcore entry that drifted
+// from the desired shape (e.g. a Cursor config written before
+// --project ${workspaceFolder} existed) is updated in place. Foreign servers
+// and unknown keys stay untouched. They report whether the file changed.
 
 func ConvergeStandardMCPJSON(filePath string) (bool, error) {
-	return writeMCPConfig(filePath, "mcpServers", standardMCPEntry, corruptBackupAndReset, mcpConverge)
+	return writeMCPConfig(filePath, "mcpServers", standardMCPEntry, mcpConverge)
 }
 
 func ConvergeCursorMCPJSON(filePath string) (bool, error) {
-	return writeMCPConfig(filePath, "mcpServers", cursorMCPEntry, corruptBackupAndReset, mcpConverge)
-}
-
-func ConvergeVSCodeMCPJSON(filePath string) (bool, error) {
-	return writeMCPConfig(filePath, "servers", copilotMCPEntry, corruptSkipInstall, mcpConverge)
+	return writeMCPConfig(filePath, "mcpServers", cursorMCPEntry, mcpConverge)
 }

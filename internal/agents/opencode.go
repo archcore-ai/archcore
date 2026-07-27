@@ -34,6 +34,6 @@ func writeOpenCodeMCPConfig(baseDir string) error {
 	_, err := writeMCPConfig(filepath.Join(baseDir, "opencode.json"), "mcp", openCodeMCPEntry{
 		Type:    "local",
 		Command: []string{"archcore", "mcp"},
-	}, corruptBackupAndReset, mcpKeepExisting)
+	}, mcpKeepExisting)
 	return err
 }

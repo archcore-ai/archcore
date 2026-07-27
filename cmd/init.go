@@ -175,7 +175,7 @@ func newInitCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringArrayVar(&agentFlags, "agent", nil,
-		"non-interactive: initialize and install hooks + MCP config + usage hint for the given agent id (repeatable; e.g. claude-code, cursor, codex-cli)")
+		"non-interactive: initialize and install hooks + MCP config + usage hint for the given agent id (repeatable; e.g. claude-code, cursor, codex-cli, copilot)")
 	cmd.Flags().StringVar(&projectFlag, "project", "",
 		"project root to initialize (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
 	return cmd

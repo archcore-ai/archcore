@@ -49,6 +49,28 @@ type hookOutput struct {
 	SystemMessage      string         `json:"systemMessage,omitempty"`
 }
 
+// copilotHookOutput is Copilot's native sessionStart response: a bare
+// top-level additionalContext, no wrapper and no systemMessage slot
+// (GitHub's hooks-configuration reference). Copilot's PascalCase
+// "Claude-compatible" mode changes only the INPUT payload shape — the output
+// schema is the native one either way — so the hooks config we install
+// (camelCase "sessionStart") and this writer must agree, or the context is
+// parsed as nothing and the session starts blind.
+type copilotHookOutput struct {
+	AdditionalContext string `json:"additionalContext,omitempty"`
+}
+
+// sessionOutputShape selects how a host wants session-start context framed.
+type sessionOutputShape int
+
+const (
+	// shapeClaudeCompat — {"hookSpecificOutput": {...}, "systemMessage": ...}.
+	// Claude Code's native schema, which Cursor and Gemini CLI also accept.
+	shapeClaudeCompat sessionOutputShape = iota
+	// shapeCopilotNative — {"additionalContext": "..."}.
+	shapeCopilotNative
+)
+
 // resolveBaseDir returns the base directory from hook input, falling back to cwd.
 func resolveBaseDir(input *hookInput) (string, error) {
 	if input.CWD != "" {
@@ -82,13 +104,15 @@ func newHooksClaudeCodeCmd(version string) *cobra.Command {
 }
 
 func newSessionStartCmd(version string) *cobra.Command {
-	return newSessionStartHookCmd("session-start", "Handle SessionStart hook event", version)
+	return newSessionStartHookCmd("session-start", "Handle SessionStart hook event", version, shapeClaudeCompat)
 }
 
 // --- Hook command factories ---
 
-// newSessionStartHookCmd creates a session-start hook command (shared across agents).
-func newSessionStartHookCmd(use, short, version string) *cobra.Command {
+// newSessionStartHookCmd creates a session-start hook command (shared across
+// agents). The shape argument is per-host and NOT cosmetic: a host that does
+// not recognize the wrapper reads no context at all.
+func newSessionStartHookCmd(use, short, version string, shape sessionOutputShape) *cobra.Command {
 	return &cobra.Command{
 		Use:    use,
 		Short:  short,
@@ -104,7 +128,7 @@ func newSessionStartHookCmd(use, short, version string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			out, err := handleSessionStartDeduped(baseDir, version, input.dedupKey(), defaultSessionStampDir())
+			out, err := handleSessionStartDeduped(baseDir, version, input.dedupKey(), defaultSessionStampDir(), shape)
 			if err != nil {
 				return err
 			}
@@ -208,7 +232,7 @@ func sweepExpiredStamps(stampDir string) {
 // An empty key or stampDir fails open (always emit); a suppressed repeat
 // returns empty output with nil error — hosts must never see a failing hook
 // here, just silence.
-func handleSessionStartDeduped(baseDir, version, key, stampDir string) ([]byte, error) {
+func handleSessionStartDeduped(baseDir, version, key, stampDir string, shape sessionOutputShape) ([]byte, error) {
 	dedup := key != "" && stampDir != ""
 	if dedup {
 		key += "\x00" + baseDir
@@ -216,7 +240,7 @@ func handleSessionStartDeduped(baseDir, version, key, stampDir string) ([]byte, 
 			return nil, nil
 		}
 	}
-	out, err := handleSessionStart(baseDir, version)
+	out, err := handleSessionStart(baseDir, version, shape)
 	if err != nil {
 		if dedup {
 			// Don't let a failed build suppress the retry within the window.
@@ -229,8 +253,14 @@ func handleSessionStartDeduped(baseDir, version, key, stampDir string) ([]byte, 
 
 // --- Session Start Handler (Claude Code adapter) ---
 
-func handleSessionStart(baseDir, version string) ([]byte, error) {
+func handleSessionStart(baseDir, version string, shape sessionOutputShape) ([]byte, error) {
 	ctx, docCount := buildSessionContext(baseDir)
+	if shape == shapeCopilotNative {
+		// No systemMessage slot on this host, so the connected line is dropped
+		// rather than smuggled into additionalContext — it is a cosmetic banner
+		// for the user, not context for the model.
+		return json.Marshal(copilotHookOutput{AdditionalContext: ctx})
+	}
 	output := hookOutput{
 		HookSpecificOutput: map[string]any{
 			"hookEventName":     "SessionStart",

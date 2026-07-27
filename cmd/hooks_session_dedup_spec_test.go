@@ -27,7 +27,7 @@ func TestHandleSessionStart_DedupesBySessionID_Spec(t *testing.T) {
 	stampDir := t.TempDir()
 
 	// 1. First call for session "s1": full context emitted.
-	first, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir)
+	first, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
 	if err != nil {
 		t.Fatalf("first call: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestHandleSessionStart_DedupesBySessionID_Spec(t *testing.T) {
 
 	// 2. Repeat for the SAME session: empty output, nil error — hosts must
 	// never see a failing hook here, just silence.
-	second, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir)
+	second, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
 	if err != nil {
 		t.Fatalf("repeat call must not error: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestHandleSessionStart_DedupesBySessionID_Spec(t *testing.T) {
 	}
 
 	// 3. A DIFFERENT session emits again — dedup is per-session, not global.
-	other, err := handleSessionStartDeduped(base, "v0.0.0-test", "s2", stampDir)
+	other, err := handleSessionStartDeduped(base, "v0.0.0-test", "s2", stampDir, shapeClaudeCompat)
 	if err != nil {
 		t.Fatalf("other-session call: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestHandleSessionStart_EmptyKeyFailsOpen(t *testing.T) {
 	stampDir := t.TempDir()
 
 	for i := 1; i <= 2; i++ {
-		out, err := handleSessionStartDeduped(base, "v0.0.0-test", "", stampDir)
+		out, err := handleSessionStartDeduped(base, "v0.0.0-test", "", stampDir, shapeClaudeCompat)
 		if err != nil {
 			t.Fatalf("call %d: %v", i, err)
 		}
@@ -89,7 +89,7 @@ func TestHandleSessionStart_UnwritableStampDirFailsOpen(t *testing.T) {
 	stampDir := filepath.Join(parent, "stamps")
 
 	for i := 1; i <= 2; i++ {
-		out, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir)
+		out, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
 		if err != nil {
 			t.Fatalf("call %d must stay exit-0 with unwritable stamp dir: %v", i, err)
 		}
@@ -104,7 +104,7 @@ func TestHandleSessionStart_ExpiredStampReEmits(t *testing.T) {
 	base := setupArchcoreDir(t)
 	stampDir := t.TempDir()
 
-	if _, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir); err != nil {
+	if _, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat); err != nil {
 		t.Fatal(err)
 	}
 	// Age the stamp beyond the window: the next call must emit again. The
@@ -115,7 +115,7 @@ func TestHandleSessionStart_ExpiredStampReEmits(t *testing.T) {
 		t.Fatalf("aging stamp: %v", err)
 	}
 
-	out, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir)
+	out, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestHandleSessionStart_ConcurrentDoubleFire_ExactlyOneEmits(t *testing.T) {
 	for i := range n {
 		wg.Go(func() {
 			<-start
-			outs[i], errs[i] = handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir)
+			outs[i], errs[i] = handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
 		})
 	}
 	close(start)
@@ -170,7 +170,7 @@ func TestHandleSessionStart_SameSessionDifferentProjectsBothEmit(t *testing.T) {
 	baseB := setupArchcoreDir(t)
 	stampDir := t.TempDir()
 
-	outA, err := handleSessionStartDeduped(baseA, "v0.0.0-test", "s1", stampDir)
+	outA, err := handleSessionStartDeduped(baseA, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
 	if err != nil {
 		t.Fatalf("project A: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestHandleSessionStart_SameSessionDifferentProjectsBothEmit(t *testing.T) {
 		t.Fatal("project A must emit")
 	}
 
-	outB, err := handleSessionStartDeduped(baseB, "v0.0.0-test", "s1", stampDir)
+	outB, err := handleSessionStartDeduped(baseB, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
 	if err != nil {
 		t.Fatalf("project B: %v", err)
 	}

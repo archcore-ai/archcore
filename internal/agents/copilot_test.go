@@ -7,8 +7,9 @@ import (
 )
 
 // TestCopilotAgent_MCPWiring pins the registry closures for Copilot: a typo in
-// the .vscode/mcp.json wiring would otherwise ship green because only the
-// shared helper was tested, not the per-agent hookup.
+// the .mcp.json wiring would otherwise ship green because only the shared
+// helper was tested, not the per-agent hookup. The path itself (and the two
+// wrong paths it must never write) is covered in mcp_helpers_test.go.
 func TestCopilotAgent_MCPWiring(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
@@ -17,7 +18,7 @@ func TestCopilotAgent_MCPWiring(t *testing.T) {
 		t.Fatal("copilot agent not registered")
 	}
 
-	wantPath := filepath.Join(base, ".vscode", "mcp.json")
+	wantPath := filepath.Join(base, ".mcp.json")
 	if got := a.MCPConfigPath(base); got != wantPath {
 		t.Errorf("MCPConfigPath = %q, want %q", got, wantPath)
 	}

@@ -170,134 +170,6 @@ func TestWriteStandardMCPJSON_CreatesDirs(t *testing.T) {
 	}
 }
 
-func TestWriteVSCodeMCPJSON_NewFile(t *testing.T) {
-	t.Parallel()
-	base := t.TempDir()
-	filePath := filepath.Join(base, ".vscode", "mcp.json")
-
-	if err := WriteVSCodeMCPJSON(filePath); err != nil {
-		t.Fatalf("WriteVSCodeMCPJSON: %v", err)
-	}
-
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		t.Fatalf("ReadFile: %v", err)
-	}
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		t.Fatalf("Unmarshal: %v", err)
-	}
-
-	var servers map[string]json.RawMessage
-	if err := json.Unmarshal(raw["servers"], &servers); err != nil {
-		t.Fatalf("Unmarshal servers: %v", err)
-	}
-
-	if _, ok := servers["archcore"]; !ok {
-		t.Error("missing 'archcore' in servers")
-	}
-
-	var entry struct {
-		Type    string   `json:"type"`
-		Command string   `json:"command"`
-		Args    []string `json:"args"`
-	}
-	if err := json.Unmarshal(servers["archcore"], &entry); err != nil {
-		t.Fatalf("Unmarshal entry: %v", err)
-	}
-	if entry.Type != "stdio" {
-		t.Errorf("type = %q, want %q", entry.Type, "stdio")
-	}
-	if entry.Command != "archcore" {
-		t.Errorf("command = %q, want %q", entry.Command, "archcore")
-	}
-	if len(entry.Args) != 1 || entry.Args[0] != "mcp" {
-		t.Errorf("args = %v, want [mcp]", entry.Args)
-	}
-}
-
-func TestWriteVSCodeMCPJSON_Idempotent(t *testing.T) {
-	t.Parallel()
-	base := t.TempDir()
-	filePath := filepath.Join(base, ".vscode", "mcp.json")
-
-	if err := WriteVSCodeMCPJSON(filePath); err != nil {
-		t.Fatalf("first call: %v", err)
-	}
-	if err := WriteVSCodeMCPJSON(filePath); err != nil {
-		t.Fatalf("second call: %v", err)
-	}
-
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		t.Fatalf("ReadFile: %v", err)
-	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		t.Fatalf("Unmarshal: %v", err)
-	}
-	var servers map[string]json.RawMessage
-	if err := json.Unmarshal(raw["servers"], &servers); err != nil {
-		t.Fatalf("Unmarshal servers: %v", err)
-	}
-
-	if len(servers) != 1 {
-		t.Errorf("expected 1 server entry, got %d", len(servers))
-	}
-}
-
-func TestWriteVSCodeMCPJSON_MergesExisting(t *testing.T) {
-	t.Parallel()
-	base := t.TempDir()
-	filePath := filepath.Join(base, ".vscode", "mcp.json")
-
-	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
-		t.Fatalf("MkdirAll: %v", err)
-	}
-
-	existing := map[string]any{
-		"servers": map[string]any{
-			"other-tool": map[string]any{
-				"type":    "stdio",
-				"command": "other-tool",
-				"args":    []string{"serve"},
-			},
-		},
-	}
-	data, err := json.MarshalIndent(existing, "", "  ")
-	if err != nil {
-		t.Fatalf("MarshalIndent: %v", err)
-	}
-	if err := os.WriteFile(filePath, data, 0o644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-
-	if err := WriteVSCodeMCPJSON(filePath); err != nil {
-		t.Fatalf("WriteVSCodeMCPJSON: %v", err)
-	}
-
-	result, err2 := os.ReadFile(filePath)
-	if err2 != nil {
-		t.Fatalf("ReadFile: %v", err2)
-	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(result, &raw); err != nil {
-		t.Fatalf("Unmarshal: %v", err)
-	}
-	var servers map[string]json.RawMessage
-	if err := json.Unmarshal(raw["servers"], &servers); err != nil {
-		t.Fatalf("Unmarshal servers: %v", err)
-	}
-
-	if _, ok := servers["other-tool"]; !ok {
-		t.Error("existing 'other-tool' was lost during merge")
-	}
-	if _, ok := servers["archcore"]; !ok {
-		t.Error("missing 'archcore' after install")
-	}
-}
-
 func TestWriteStandardMCPJSON_InvalidJSON(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
@@ -335,37 +207,6 @@ func TestWriteStandardMCPJSON_InvalidJSON(t *testing.T) {
 	}
 	if _, ok := servers["archcore"]; !ok {
 		t.Error("missing 'archcore' in mcpServers after recovery")
-	}
-}
-
-// TestWriteVSCodeMCPJSON_JSONCLeftUntouched pins the corruptSkipInstall policy
-// for VS Code targets: a JSONC file (valid for VS Code, invalid strict JSON)
-// must not be backed up or replaced — the user's other MCP servers survive and
-// the install degrades to manual instructions with a nil error.
-func TestWriteVSCodeMCPJSON_JSONCLeftUntouched(t *testing.T) {
-	t.Parallel()
-	base := t.TempDir()
-	filePath := filepath.Join(base, ".vscode", "mcp.json")
-	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	original := "// user comment\n{\"servers\": {\"other\": {\"type\": \"stdio\", \"command\": \"other\"}}}\n"
-	if err := os.WriteFile(filePath, []byte(original), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := WriteVSCodeMCPJSON(filePath); err != nil {
-		t.Fatalf("JSONC file must not fail the install: %v", err)
-	}
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != original {
-		t.Errorf("JSONC file must be left byte-identical:\ngot:\n%s\nwant:\n%s", data, original)
-	}
-	if _, err := os.Stat(filePath + ".bak"); !os.IsNotExist(err) {
-		t.Error("no .bak may be created for a JSONC file")
 	}
 }
 
@@ -446,5 +287,103 @@ func TestWriteStandardMCPJSON_BackupWriteFailureAborts(t *testing.T) {
 	}
 	if string(data) != original {
 		t.Error("original corrupted file must stay untouched when backup fails")
+	}
+}
+
+// --- Copilot MCP path -------------------------------------------------------
+//
+// Copilot CLI reads exactly one project-level MCP source: the workspace-root
+// .mcp.json, keyed "mcpServers". These tests pin that, because the two paths
+// this agent must NOT use are both plausible-looking and both wrong:
+// .vscode/mcp.json (dropped upstream in v1.0.37, github/copilot-cli#3019) and
+// .github/mcp.json (listed in GitHub's config-dir docs but never read —
+// github/copilot-cli#1886). Either one silently yields a Copilot session with
+// no archcore tools, which is invisible until a user trips it.
+
+func TestCopilotAgent_WritesWorkspaceRootMCPJSON(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	agent := copilotAgent()
+
+	want := filepath.Join(base, ".mcp.json")
+	if got := agent.MCPConfigPath(base); got != want {
+		t.Errorf("MCPConfigPath = %q, want %q", got, want)
+	}
+	if err := agent.WriteMCPConfig(base); err != nil {
+		t.Fatalf("WriteMCPConfig: %v", err)
+	}
+
+	for _, dead := range []string{
+		filepath.Join(base, ".vscode", "mcp.json"),
+		filepath.Join(base, ".github", "mcp.json"),
+	} {
+		if _, err := os.Stat(dead); !os.IsNotExist(err) {
+			t.Errorf("%s must not be written — Copilot CLI does not read it", dead)
+		}
+	}
+
+	data, err := os.ReadFile(want)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if _, ok := raw["servers"]; ok {
+		t.Error(`"servers" is the VS Code key; Copilot CLI reads "mcpServers"`)
+	}
+	var servers map[string]json.RawMessage
+	if err := json.Unmarshal(raw["mcpServers"], &servers); err != nil {
+		t.Fatalf("Unmarshal mcpServers: %v", err)
+	}
+	var entry struct {
+		Command string   `json:"command"`
+		Args    []string `json:"args"`
+	}
+	if err := json.Unmarshal(servers["archcore"], &entry); err != nil {
+		t.Fatalf("Unmarshal entry: %v", err)
+	}
+	if entry.Command != "archcore" || len(entry.Args) != 1 || entry.Args[0] != "mcp" {
+		t.Errorf("entry = %+v, want {archcore [mcp]}", entry)
+	}
+}
+
+// Copilot and claude-code deliberately target the SAME file. Wiring both must
+// converge on one archcore entry, in either order — if it ever duplicated or
+// fought, a repo wired for both hosts would flip shape on every init.
+func TestCopilotAndClaudeCodeShareOneMCPEntry(t *testing.T) {
+	t.Parallel()
+	for _, order := range [][]*Agent{
+		{copilotAgent(), claudeCodeAgent()},
+		{claudeCodeAgent(), copilotAgent()},
+	} {
+		base := t.TempDir()
+		if order[0].MCPConfigPath(base) != order[1].MCPConfigPath(base) {
+			t.Fatalf("expected a shared MCP path, got %q and %q",
+				order[0].MCPConfigPath(base), order[1].MCPConfigPath(base))
+		}
+		for _, a := range order {
+			if err := a.WriteMCPConfig(base); err != nil {
+				t.Fatalf("%s WriteMCPConfig: %v", a.ID, err)
+			}
+		}
+
+		data, err := os.ReadFile(filepath.Join(base, ".mcp.json"))
+		if err != nil {
+			t.Fatalf("ReadFile: %v", err)
+		}
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(data, &raw); err != nil {
+			t.Fatalf("Unmarshal: %v", err)
+		}
+		var servers map[string]json.RawMessage
+		if err := json.Unmarshal(raw["mcpServers"], &servers); err != nil {
+			t.Fatalf("Unmarshal mcpServers: %v", err)
+		}
+		if len(servers) != 1 {
+			t.Errorf("%s then %s: expected 1 server entry, got %d",
+				order[0].ID, order[1].ID, len(servers))
+		}
 	}
 }

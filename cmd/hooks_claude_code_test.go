@@ -47,7 +47,7 @@ func TestHandleSessionStart_WithDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	data, err := handleSessionStart(base, "v0.1.0")
+	data, err := handleSessionStart(base, "v0.1.0", shapeClaudeCompat)
 	if err != nil {
 		t.Fatalf("handleSessionStart: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestHandleSessionStart_Empty(t *testing.T) {
 	t.Parallel()
 	base := setupArchcoreDir(t)
 
-	data, err := handleSessionStart(base, "v0.1.0")
+	data, err := handleSessionStart(base, "v0.1.0", shapeClaudeCompat)
 	if err != nil {
 		t.Fatalf("handleSessionStart: %v", err)
 	}

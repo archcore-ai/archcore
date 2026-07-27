@@ -10,7 +10,7 @@ func newHooksGeminiCLICmd(version string) *cobra.Command {
 		Short: "Handle Gemini CLI hook events",
 	}
 	cmd.AddCommand(
-		newSessionStartHookCmd("session-start", "Handle Gemini CLI SessionStart hook event", version),
+		newSessionStartHookCmd("session-start", "Handle Gemini CLI SessionStart hook event", version, shapeClaudeCompat),
 	)
 	return cmd
 }
