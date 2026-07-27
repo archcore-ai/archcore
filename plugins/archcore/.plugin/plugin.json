@@ -10,5 +10,6 @@
   "hooks": "./hooks/copilot.hooks.json",
   "mcpServers": "./.mcp.json",
   "skills": "./skills/",
-  "agents": "./agents/"
+  "agents": "./agents/",
+  "commands": "./commands/"
 }

@@ -22,8 +22,35 @@ HOOKS_REL="hooks/copilot.hooks.json"
     .hooks == "./hooks/copilot.hooks.json" and
     .mcpServers == "./.mcp.json" and
     .skills == "./skills/" and
-    .agents == "./agents/"
+    .agents == "./agents/" and
+    .commands == "./commands/"
   ' "$manifest" > /dev/null
+}
+
+# Copilot's documented component defaults are agents/, skills/, hooks.json and
+# .mcp.json — commands/ is NOT among them (copilot-host-support.rnd). Every
+# other host picks the wrappers up by default; here the pointer is the only
+# thing that makes /archcore:* exist at all, so it is asserted separately from
+# the block above with its own reason.
+@test "Copilot manifest declares commands explicitly (no default covers it)" {
+  local manifest="$PLUGIN_ROOT/$MANIFEST_REL"
+  [ "$(jq -r '.commands' "$manifest")" = "./commands/" ]
+  [ -d "$PLUGIN_ROOT/commands" ]
+}
+
+@test "Copilot exposes the same command wrappers as the other hosts" {
+  local expected actual
+  expected=$(find "$PLUGIN_ROOT/commands" -name '*.md' -exec basename {} .md \; | sort)
+  actual=$(find "$PLUGIN_ROOT/skills" -mindepth 1 -maxdepth 1 -type d \
+    ! -name '_*' -exec basename {} \; | sort)
+  [ -n "$expected" ] || fail "no command wrappers found"
+  # Every wrapper must name a real skill; a wrapper pointing at a removed skill
+  # would surface a /archcore:<name> entry that dead-ends on Copilot.
+  local cmd
+  for cmd in $expected; do
+    echo "$actual" | grep -qx "$cmd" \
+      || fail "commands/$cmd.md has no matching skills/$cmd/"
+  done
 }
 
 @test "Copilot manifest version matches the Claude manifest" {
