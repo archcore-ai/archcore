@@ -79,39 +79,48 @@ done
 
 # --- Scan .archcore/ documents, one grep per token (longest first).
 #     A document matched by a longer token is NOT re-scored by shorter ones. ---
-SEEN="/tmp/archcore_align_seen_$$"
 RANKED="/tmp/archcore_align_ranked_$$"
-: > "$SEEN"
 : > "$RANKED"
-trap 'rm -f "$SEEN" "$RANKED"' EXIT INT TERM
+trap 'rm -f "$RANKED"' EXIT INT TERM
 
+# One grep per token (longest first), each hit tagged with that token's length;
+# a single awk pass then keeps each document's FIRST occurrence, which is its
+# most specific match.
+#
+# The dedup deliberately lives in awk rather than in a per-document `grep -qxF`
+# against a seen-file. That older shape spawned two processes per matching
+# document per token, so cost scaled with MATCHES, not corpus size: measured at
+# ~6 ms per matching document, a knowledge base where ~170 documents mention a
+# common source root exceeded this hook's 1 s budget outright. Because injection
+# is additive and non-blocking, a timeout here raises nothing — context simply
+# stops being injected, silently, on exactly the large knowledge bases that need
+# it most. Process spawns are now O(tokens), independent of how many documents
+# match.
+#
+# NB: .archcore/global/ (the read-only global mount) is deliberately NOT
+# excluded here. Org-wide rules there are constraints the source edit must
+# follow, so they are exactly the context this hook should surface. (Contrast
+# check-staleness, which DOES exclude global/: its nudge asks you to update the
+# doc, which is impossible for a read-only global.)
 for _tok in $TOKENS; do
-  _tok_len=${#_tok}
   # grep -rlF: recursive, list-matches-only, fixed-string. --include filters files.
-  # NB: .archcore/global/ (the read-only global mount) is deliberately NOT
-  # excluded here. Org-wide rules there are constraints the source edit must
-  # follow, so they are exactly the context this hook should surface. (Contrast
-  # check-staleness, which DOES exclude global/: its nudge asks you to update the
-  # doc, which is impossible for a read-only global.)
-  grep -rlF "$_tok" .archcore --include='*.md' 2>/dev/null | while IFS= read -r _doc; do
-    [ -z "$_doc" ] && continue
-    if grep -qxF "$_doc" "$SEEN" 2>/dev/null; then
-      continue
-    fi
-    _base=$(basename "$_doc" .md)
-    case "$_base" in
-      *.rule)  _prio=5; _type=rule ;;
-      *.cpat)  _prio=4; _type=cpat ;;
-      *.adr)   _prio=3; _type=adr ;;
-      *.spec)  _prio=2; _type=spec ;;
-      *.guide) _prio=1; _type=guide ;;
-      *) continue ;;
-    esac
-    printf '%s\n' "$_doc" >> "$SEEN"
-    # Sortable key: 3-digit token length + 1-digit priority. Higher = better.
-    printf '%03d%d\t%s\t%s\n' "$_tok_len" "$_prio" "$_type" "$_doc" >> "$RANKED"
-  done
-done
+  grep -rlF "$_tok" .archcore --include='*.md' 2>/dev/null \
+    | awk -v len="${#_tok}" '{ print len "\t" $0 }'
+done | awk -F'\t' '!seen[$2]++' | while IFS="$(printf '\t')" read -r _tok_len _doc; do
+  [ -z "$_doc" ] && continue
+  _base=${_doc##*/}
+  _base=${_base%.md}
+  case "$_base" in
+    *.rule)  _prio=5; _type=rule ;;
+    *.cpat)  _prio=4; _type=cpat ;;
+    *.adr)   _prio=3; _type=adr ;;
+    *.spec)  _prio=2; _type=spec ;;
+    *.guide) _prio=1; _type=guide ;;
+    *) continue ;;
+  esac
+  # Sortable key: 3-digit token length + 1-digit priority. Higher = better.
+  printf '%03d%d\t%s\t%s\n' "$_tok_len" "$_prio" "$_type" "$_doc"
+done > "$RANKED"
 
 [ ! -s "$RANKED" ] && archcore_hook_allow
 
