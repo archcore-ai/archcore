@@ -14,7 +14,7 @@ Static format-conformance audit for the archcore multi-host plugin. Validates th
 
 ## Layout (post-relocation — read this first)
 
-The **plugin root is the `plugins/archcore/` subdirectory**, not the repo root. All host-runtime-loaded content lives there: `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.plugin/plugin.json`, `skills/`, `agents/`, `commands/`, `hooks/`, `bin/`, `rules/`, `assets/`, `.mcp.json`, `.codex.mcp.json`.
+The **plugin root is the `plugins/archcore/` subdirectory**, not the repo root. All host-runtime-loaded content lives there: `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.plugin/plugin.json`, `skills/`, `agents/`, `copilot-agents/`, `commands/`, `hooks/`, `bin/`, `rules/`, `assets/`, `.mcp.json`, `.codex.mcp.json`.
 
 The three marketplace catalogs stay at the **repo root** (`.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`, `.agents/plugins/marketplace.json`), each pointing `source`/`path` at `./plugins/archcore`. Rationale: Codex never scans a marketplace root for a plugin — a catalog `source.path` of `./` is silently undiscoverable (issue #2). See `.archcore/plugin/subdirectory-plugin-layout.adr.md`.
 
@@ -140,8 +140,9 @@ Per the GitHub Copilot CLI plugin manifest reference, enforced by `test/structur
 
 - JSON parses and `name`, `description`, and semver `version` are present
 - `hooks` equals `./hooks/copilot.hooks.json`
-- `mcpServers` equals `./.mcp.json`
-- `skills` and `agents` equal `./skills/` and `./agents/`
+- `skills` equals `./skills/` and `commands` equals `./commands/` (Copilot gives `commands` no default path — without the pointer the seven `/archcore:*` wrappers do not load)
+- `agents` equals `./copilot-agents/`, that directory exists, and every file in it ends in `.agent.md` (Copilot loads plugin agents only from that extension; the copies stay out of `agents/` because `.agent.md` also matches the `*.md` glob Claude Code and Cursor use)
+- **Forbidden**: `mcpServers`. Copilot launches a plugin's MCP child in the plugin install directory with no project path (github/copilot-cli#4234), so documents would land in `~/.copilot/installed-plugins/`. See `copilot-mcp-architecture.adr`
 - Every explicit relative pointer starts with `./` and resolves inside the plugin root
 
 ### Section 4 — Cross-host consistency
@@ -322,7 +323,7 @@ Two plugin-shipped MCP configs at the plugin root (`plugins/archcore/`). Both mu
 - `mcpServers.archcore.command` equals `archcore`
 - `mcpServers.archcore.args` equals `["mcp"]`
 - File MUST NOT contain `${CLAUDE_PLUGIN_ROOT}` or any `bin/archcore` reference (grep — either is a hard FAIL: the launcher was removed)
-- GitHub Copilot CLI shares this config through `.plugin/plugin.json`; `mcpServers.archcore` must remain directly compatible with both hosts
+- GitHub Copilot CLI does NOT share this config: `.plugin/plugin.json` declares no `mcpServers` (github/copilot-cli#4234). The file itself must still stay at the plugin root — Claude Code discovers it there with no manifest key, which is why it could not simply be moved out of the way the Cursor template was
 
 **Codex CLI — `.codex.mcp.json`** (plugin root):
 - File exists at the plugin root (NOT inside `.codex-plugin/`)
@@ -389,7 +390,8 @@ This is a spot-check, not a full audit — for full staleness detection use `/ar
 | 1  | Claude manifest                  | ✓ / ✗    | brief                                    |
 | 2  | Cursor manifest                  | ✓ / ✗    | brief                                    |
 | 3  | Codex manifest                   | ✓ / ✗    | interface{} block + no legacy top-level  |
-| 4  | Cross-host consistency           | ✓ / ✗    | name/description/version match (3 hosts) |
+| 3a | Copilot manifest                 | ✓ / ✗    | commands + copilot-agents, no mcpServers |
+| 4  | Cross-host consistency           | ✓ / ✗    | name/description/version match (4 hosts) |
 | 5  | Marketplace catalogs             | ✓ / ✗    | subdirectory source guard (3 catalogs)   |
 | 6  | Skills frontmatter (N)           | ✓ / ✗    | 7-intent surface + count                 |
 | 7  | MD agents (N)                    | ✓ / ✗    | bootstrap preamble + forbidden fields    |
@@ -397,12 +399,13 @@ This is a spot-check, not a full audit — for full staleness detection use `/ar
 | 9  | Hooks (Claude)                   | ✓ / ✗    | PascalCase + anti-regression invariant   |
 | 10 | Hooks (Cursor)                   | ✓ / ✗    | camelCase events, exact Write matcher    |
 | 11 | Hooks (Codex)                    | ✓ / ✗    | PascalCase + apply_patch + ${PLUGIN_ROOT}|
-| 12 | MCP wiring (.mcp + .codex.mcp)   | ✓ / ✗    | PATH commands, no launcher remnants      |
+| 11a| Hooks (Copilot)                  | ✓ / ✗    | camelCase + bash/cwd + COPILOT_PLUGIN_ROOT|
+| 12 | MCP wiring (.mcp + .codex.mcp)   | ✓ / ✗    | PATH commands, no launcher remnants; Copilot ships none |
 | 13 | Rules                            | ✓ / ✗    | mdc frontmatter                          |
 | 14 | Bin scripts                      | ✓ / ✗    | hook scripts + libs + no launcher        |
 | 15 | Registry spot-check              | ✓ / ✗    | counts + wrappers match                  |
 
-Result: X / 15 sections passed.
+Result: X / 17 sections passed.
 ```
 
 For every FAIL, print one line below the table in the form:
@@ -413,4 +416,4 @@ For every FAIL, print one line below the table in the form:
 
 Cite the specific spec URL (Claude Code / Cursor / OpenAI Codex / agentskills.io) or `.archcore/*.md` line that was violated. Do not paraphrase — quote the rule.
 
-If everything passes, print one line: `All 15 sections passed. Plugin format is conformant.`
+If everything passes, print one line: `All 17 sections passed. Plugin format is conformant.`

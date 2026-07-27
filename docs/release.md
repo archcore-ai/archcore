@@ -10,7 +10,7 @@
 - **`main`** is the public distribution surface. It is **synthesized**
   by `.github/workflows/release.yml` from a tagged commit on `dev` and
   **must not** be edited directly. Anyone who clones the repo as a
-  Cursor / Claude Code / Codex plugin gets `main`.
+  Cursor / Claude Code / Codex / Copilot plugin gets `main`.
 
 ## Why the split exists
 
@@ -57,8 +57,8 @@ Everything else ships. The plugin itself lives under **`plugins/archcore/`**
 — a dedicated subdirectory required so Codex can discover it (Codex
 marketplace `source.path` must point at a subdir, not the repo root; see the
 multi-host layout ADR and issue #2). That directory carries `skills/`,
-`agents/`, `commands/`, `rules/`, `hooks/`, `bin/`, `assets/` (icon + logo
-for marketplace surfaces), the per-host manifests
+`agents/`, `copilot-agents/`, `commands/`, `rules/`, `hooks/`, `bin/`,
+`assets/` (icon + logo for marketplace surfaces), the per-host manifests
 (`plugins/archcore/.claude-plugin/plugin.json`,
 `plugins/archcore/.cursor-plugin/plugin.json`,
 `plugins/archcore/.codex-plugin/plugin.json`,
@@ -69,7 +69,9 @@ At the **repo root** the marketplace catalogs ship and point at the
 subdirectory: `.agents/plugins/marketplace.json` (Codex),
 `.claude-plugin/marketplace.json` (Claude), and
 `.cursor-plugin/marketplace.json` (Cursor) — each with
-`source`/`path` = `./plugins/archcore`. Also at the root:
+`source`/`path` = `./plugins/archcore`. There is deliberately no fourth
+catalog: Copilot CLI has no marketplace, and installs by subdirectory spec
+(`archcore-ai/plugin:plugins/archcore`) instead. Also at the root:
 `docs/cursor.mcp.example.json`, `docs/TERMS.md`, `README.md`, `LICENSE`,
 `NOTICE`.
 
@@ -98,7 +100,9 @@ subdirectory: `.agents/plugins/marketplace.json` (Codex),
    - Creates an orphan commit and force-pushes to `main`.
    - Publishes a GitHub Release with auto-generated notes.
 5. Users update via their host's plugin marketplace (which pulls from
-   `main`).
+   `main`). Copilot CLI has no marketplace catalog — it installs and
+   updates through `copilot plugin install archcore-ai/plugin:plugins/archcore`,
+   reading the same `main`.
 
 ## Manual sync
 

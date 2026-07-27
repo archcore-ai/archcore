@@ -10,7 +10,7 @@ tags:
 
 Define the contract for user-invoked skills: their discoverability, naming, argument handling, and behavior when users invoke them via slash commands. The current surface is **7 commands**, all auto-invocable, governed by `skill-surface-collapse.adr.md`. The prior tiered structure (intent/track/utility) is superseded — every remaining skill is intent-class.
 
-Note: Claude Code and Cursor surface user-invoked workflows directly from skills. Codex CLI requires `commands/*.md` wrappers — thin host-adapter shims that delegate to `skills/<name>/SKILL.md`. The skill file remains the single behavioral source of truth.
+Note: Claude Code and Cursor surface user-invoked workflows directly from skills. Codex CLI requires `commands/*.md` wrappers — thin host-adapter shims that delegate to `skills/<name>/SKILL.md`. GitHub Copilot CLI surfaces skills directly too, but its manifest gives the `commands` field no default path, so `.plugin/plugin.json` names `./commands/` explicitly; without that pointer the wrappers simply do not load there. On Copilot a skill takes precedence over a command of the same name, so the wrappers act as a fallback surface rather than the primary one. The skill file remains the single behavioral source of truth on every host.
 
 ## Scope
 
@@ -96,7 +96,7 @@ The `/archcore:init` command accepts `--mode=small|medium|large` (force the dete
 
 ### Discoverability
 
-Claude Code, Cursor, and Codex CLI all show the 7 skills in a flat list. Discoverability is supported by:
+All four hosts — Claude Code, Cursor, Codex CLI, GitHub Copilot CLI — show the 7 skills in a flat list. Discoverability is supported by:
 
 1. **`/archcore:help`** — explains the active surface and routes users to the right command.
 2. **SessionStart empty-state nudge** — on fresh repos, the session-start hook points users at `/archcore:init` so onboarding is self-routing.
@@ -139,6 +139,7 @@ The right skill auto-invokes from the phrasing.
 - The visible palette MUST be exactly 7 commands. Adding an eighth skill requires a new ADR.
 - Commands ask at most one scope-confirmation question before starting execution (`/archcore:init` is the exception: it presents one preview manifest and proceeds on a single `confirm` / `edit` / `cancel`).
 - Flow steps within `plan` ask at most 1–2 content questions per document step.
+- Every host that needs the `commands/` wrappers MUST point at them from its manifest where the host provides no default (Copilot); a missing pointer removes the entire `/archcore:*` surface on that host and is pinned by `test/structure/copilot-plugin.bats`.
 
 ## Invariants
 
@@ -148,6 +149,7 @@ The right skill auto-invokes from the phrasing.
 - Every analysis command gathers data via MCP read tools before producing output.
 - The `help` command accurately reflects the current 7-command surface and notes direct-MCP access for any document type.
 - Every Archcore document type has at least one intent path that can create it.
+- The set of `commands/*.md` wrappers matches the set of `skills/<name>/` directories exactly — a wrapper naming a removed skill would surface a `/archcore:<name>` entry that dead-ends.
 
 ## Error Handling
 
@@ -158,9 +160,9 @@ The right skill auto-invokes from the phrasing.
 
 ## Conformance
 
-A user-invoked skill or Codex command wrapper conforms to this specification if:
+A user-invoked skill or its command wrapper conforms to this specification if:
 
-1. Its behavior resides at `skills/<name>/SKILL.md` and `<name>` is one of: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. Codex may also expose a matching `commands/<name>.md` wrapper.
+1. Its behavior resides at `skills/<name>/SKILL.md` and `<name>` is one of: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. Codex and Copilot may also expose a matching `commands/<name>.md` wrapper — required on Codex, which does not surface skills directly, and a fallback on Copilot, which does.
 2. Its description uses the "Activate when X. Do NOT activate for Y." trigger format.
 3. It uses MCP tools exclusively for document operations.
 4. Creation commands check for duplicates before creation and suggest relations after.

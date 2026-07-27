@@ -6,7 +6,7 @@
 
 Archcore gives coding agents the architecture, rules, and prior decisions of _this_ repo — so new changes land where your project says they belong and follow the team's conventions, automatically.
 
-Works in **Claude Code**, **Cursor**, and **Codex CLI**. One source of truth, in Git.
+Works in **Claude Code**, **Cursor**, **Codex CLI**, and **GitHub Copilot CLI**. One source of truth, in Git.
 
 ## See it work
 
@@ -69,6 +69,12 @@ copilot plugin install archcore-ai/plugin:plugins/archcore
 
 Copilot **CLI** only: VS Code agent mode has no self-serve plugin install, and cloud-agent sandboxes do not load plugin hooks.
 
+On Copilot the plugin brings skills, commands, agents and hooks — but not the MCP server. Copilot launches a plugin's MCP in the plugin's own directory rather than your project ([github/copilot-cli#4234](https://github.com/github/copilot-cli/issues/4234)), so documents would land in the plugin cache. Register it per project instead:
+
+```bash
+archcore init --agent copilot --project "$PWD"
+```
+
 <details>
 <summary>Local development & team rollouts</summary>
 
@@ -83,6 +89,19 @@ claude --plugin-dir /path/to/plugin
 ```bash
 ln -s /path/to/plugin ~/.cursor/plugins/local/archcore
 # then in Cursor: Cmd/Ctrl+Shift+P → "Developer: Reload Window"
+```
+
+**Codex CLI** — point a local marketplace at the checkout:
+
+```bash
+codex plugin marketplace add /path/to/plugin
+codex plugin add archcore@archcore-plugins
+```
+
+**GitHub Copilot CLI** — load the plugin directory directly:
+
+```bash
+copilot --plugin-dir /path/to/plugin/plugins/archcore
 ```
 
 **Cursor team rollouts** — Dashboard → Settings → Plugins → Team Marketplaces → Import (paste the GitHub URL).
@@ -126,7 +145,7 @@ The decision is captured, codified as a rule, and auto-applied to every future c
 
 - Your agent writes code, but not the way this repo expects
 - Your `CLAUDE.md` / `.cursorrules` / `AGENTS.md` keeps growing and drifting
-- You work with 2+ agents or 2+ host tools (Claude Code + Cursor + Codex)
+- You work with 2+ agents or 2+ host tools (Claude Code + Cursor + Codex + Copilot)
 - You want decisions, rules, and specs in Git — not in chat scrollback
 
 **Not for** — chat memory, a prompt library, or a one-shot spec-to-code generator. Archcore is a repo truth layer for coding agents, not a methodology kit.
@@ -158,6 +177,7 @@ Pick a methodology tool for an opinionated dev flow. Pick a memory tool for sess
 **Claude Code:** `/plugin uninstall archcore@archcore-plugins`
 **Cursor:** remove from plugin settings.
 **Codex CLI:** `codex plugin uninstall archcore`
+**GitHub Copilot CLI:** `copilot plugin uninstall archcore`
 
 ## License & contributing
 
