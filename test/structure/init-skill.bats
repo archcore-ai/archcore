@@ -214,11 +214,66 @@ setup() {
     || fail "SKILL.md per-host list must name CLAUDE.md + AGENTS.md for claude-code"
 }
 
-@test "init version gate pins CLI >= 0.6.1 with no stale 0.6.0 references" {
-  grep -qF 'cli-gte" 0.6.1' "$SKILL" \
-    || fail "SKILL.md must gate host wiring on cli-gte 0.6.1"
-  run grep -n "0\.6\.0" "$SKILL"
-  [ "$status" -ne 0 ] || fail "SKILL.md still references CLI 0.6.0: $output"
+# Copilot host parity (copilot-adapter-design.adr). bin/detect-host cannot detect
+# Copilot — the CLI exports no marker into agent shell commands — so a Copilot
+# session ALWAYS falls through to the AskUserQuestion branch. If that question
+# offers only the three detectable hosts, a Copilot user is stuck with no correct
+# answer and init picks the wrong agent id. The ask-fallback is therefore the only
+# thing that makes init usable on this host, and it must not silently regress.
+@test "init host wiring names all three files copilot needs, and calls them non-optional" {
+  # The claude-code row above is pinned by name; this is its copilot twin, and
+  # without it the row can be trimmed to any subset and nothing notices.
+  #
+  # The three are not interchangeable. The plugin ships no MCP for Copilot
+  # (copilot-mcp-architecture.adr), so .mcp.json is the ONLY thing that gives
+  # that host document tools — a session missing it has skills and hooks and no
+  # way to read or write a document, which looks like a broken plugin rather
+  # than missing wiring. The `archcore init --agent copilot` writes exactly
+  # these three (internal/agents/copilot.go, internal/wiring/hooks_agents.go),
+  # so a drift here is the skill promising a layout the CLI does not produce.
+  grep -qE 'copilot → .*\.mcp\.json.*\.github/hooks/archcore\.json.*AGENTS\.md' "$SKILL" \
+    || fail "SKILL.md per-host list must name .mcp.json + .github/hooks/archcore.json + AGENTS.md for copilot"
+  grep -q 'Host wiring line is never optional' "$SKILL" \
+    || fail "SKILL.md must state that host wiring is not optional on copilot — no wiring means no document tools at all"
+}
+
+@test "init host question offers Copilot, which detect-host can never return" {
+  grep -qi "GitHub Copilot CLI" "$SKILL" \
+    || fail "SKILL.md Step -1 must offer GitHub Copilot CLI in the host AskUserQuestion — detect-host cannot return it"
+  grep -qF '`copilot`' "$SKILL" \
+    || fail "SKILL.md must map the Copilot answer to the 'copilot' agent id"
+  grep -q '__UNKNOWN__' "$SKILL" \
+    || fail "SKILL.md must keep the __UNKNOWN__ fallback the Copilot path depends on"
+}
+
+# The four hosts detect-host CAN return must stay in lockstep between the script's
+# contract and the skill's prose — a token added to one and not the other silently
+# routes a real session into the ask-fallback (or worse, an unmapped id).
+@test "init SKILL.md and bin/detect-host agree on the emitted token set" {
+  local tok
+  for tok in claude-code cursor codex-cli __UNKNOWN__; do
+    grep -qF "$tok" "$PLUGIN_ROOT/bin/detect-host" \
+      || fail "bin/detect-host no longer emits '$tok' — SKILL.md Step -1 still documents it"
+    grep -qF "$tok" "$SKILL" \
+      || fail "SKILL.md Step -1 must document the '$tok' token bin/detect-host emits"
+  done
+  grep -q 'echo "copilot"' "$PLUGIN_ROOT/bin/detect-host" \
+    && fail "bin/detect-host now emits 'copilot' — update SKILL.md Step -1 and drop the ask-fallback note"
+  return 0
+}
+
+@test "init version gate pins CLI >= 0.6.4 with no stale gate references" {
+  # v0.6.4 is the release where the Copilot writer stopped targeting
+  # .vscode/mcp.json — a surface Copilot CLI dropped in v1.0.37 — and started
+  # writing the workspace-root .mcp.json it actually reads. Since Copilot has
+  # no plugin-shipped MCP (copilot-mcp-architecture.adr), an older CLI leaves
+  # that host with no document tools at all, so the gate has to move with it.
+  grep -qF 'cli-gte" 0.6.4' "$SKILL" \
+    || fail "SKILL.md must gate host wiring on cli-gte 0.6.4"
+  run grep -n "cli-gte\" 0\.6\.[0-3]\b\|cli-gte 0\.6\.[0-3]\b" "$SKILL"
+  [ "$status" -ne 0 ] || fail "SKILL.md still calls the gate with a stale version: $output"
+  run grep -n "CLI < v0\.6\.[0-3]\b\|older than v0\.6\.[0-3]\b" "$SKILL"
+  [ "$status" -ne 0 ] || fail "SKILL.md still names a stale gate version to the user: $output"
 }
 
 @test "import flow strips the archcore managed block, never re-importing its own nudge" {
@@ -229,10 +284,13 @@ setup() {
 }
 
 @test "SKILL.md and skills-system.spec.md agree on the CLI wiring gate version" {
-  grep -qF "0.6.1" "$SKILL" \
-    || fail "SKILL.md missing the 0.6.1 gate version"
-  grep -qF "v0.6.1" "$REPO_ROOT/.archcore/plugin/skills-system.spec.md" \
-    || fail "skills-system.spec.md must pin the same v0.6.1 wiring gate"
+  # Derived from the skill rather than hardcoded twice: the next bump then
+  # touches one literal, and this test still catches the spec falling behind.
+  local gate
+  gate=$(grep -o 'cli-gte" [0-9]\+\.[0-9]\+\.[0-9]\+' "$SKILL" | head -1 | awk '{print $2}')
+  [ -n "$gate" ] || fail "SKILL.md has no cli-gte call to read the gate version from"
+  grep -qF "v$gate" "$REPO_ROOT/.archcore/plugin/skills-system.spec.md" \
+    || fail "skills-system.spec.md must pin the same v$gate wiring gate (SKILL.md says $gate)"
 }
 
 @test "init Step A.4 sizes CLAUDE.md/AGENTS.md only after stripping the managed block" {

@@ -11,10 +11,13 @@ background: true
 tools:
   - mcp__archcore__list_documents
   - mcp__plugin_archcore_archcore__list_documents
+  - archcore-list_documents
   - mcp__archcore__get_document
   - mcp__plugin_archcore_archcore__get_document
+  - archcore-get_document
   - mcp__archcore__list_relations
   - mcp__plugin_archcore_archcore__list_relations
+  - archcore-list_relations
   - Read
   - Grep
   - Glob

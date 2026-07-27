@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "cwd": ".",
+        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/session-start",
+        "env": {
+          "ARCHCORE_HOST": "copilot"
+        }
+      }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "matcher": "create|edit|str_replace_editor|apply_patch",
+        "cwd": ".",
+        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/check-archcore-write",
+        "env": {
+          "ARCHCORE_HOST": "copilot"
+        },
+        "timeoutSec": 1
+      },
+      {
+        "type": "command",
+        "matcher": "create|edit|str_replace_editor|apply_patch",
+        "cwd": ".",
+        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/check-code-alignment",
+        "env": {
+          "ARCHCORE_HOST": "copilot"
+        },
+        "timeoutSec": 1
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "cwd": ".",
+        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/validate-archcore",
+        "env": {
+          "ARCHCORE_HOST": "copilot"
+        },
+        "timeoutSec": 3
+      },
+      {
+        "type": "command",
+        "cwd": ".",
+        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/check-cascade",
+        "env": {
+          "ARCHCORE_HOST": "copilot"
+        },
+        "timeoutSec": 3
+      },
+      {
+        "type": "command",
+        "cwd": ".",
+        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/check-precision",
+        "env": {
+          "ARCHCORE_HOST": "copilot"
+        },
+        "timeoutSec": 3
+      }
+    ]
+  }
+}

@@ -20,6 +20,9 @@
 #   claude-code: CLAUDECODE=1 or CLAUDE_SKILL_DIR set
 #   cursor:      CURSOR_TRACE_ID set
 #   codex-cli:   CODEX_HOME set
+#   copilot:     NONE — see the __UNKNOWN__ test below. Copilot CLI exports no
+#                marker into agent shell commands, so it is deliberately absent
+#                from the token set and the init skill asks the user instead.
 #
 # The exec-bit check is a hard assertion (not a skip): a lost exec bit must
 # turn the suite red, not silently green it via 10 skips. `env -i` gives a
@@ -82,6 +85,29 @@ setup() {
   run env -i PATH="$PATH" CURSOR_TRACE_ID=abc CODEX_HOME="$HOME/.codex" "$DETECT"
   assert_success
   assert_output "cursor"
+}
+
+# Copilot is NOT a detectable token, and this test pins that on purpose.
+# Copilot CLI exports nothing into the shell commands it runs for the agent —
+# every documented COPILOT_* var is read FROM the user environment, so their
+# presence proves only that the user set them, not that this is a Copilot
+# session. Keying a branch on them would steal sessions from other hosts.
+# A Copilot session is resolved by the init skill's AskUserQuestion fallback.
+# If Copilot ever ships a real marker (microsoft/vscode#311734), replace this
+# test with a positive one — do not simply delete it.
+@test "detect-host: user-set COPILOT_* vars are NOT a detection signal" {
+  require_detect_host
+  run env -i PATH="$PATH" COPILOT_HOME="$HOME/.copilot" COPILOT_MODEL=gpt-5.2 \
+    COPILOT_ALLOW_ALL=true "$DETECT"
+  assert_success
+  assert_output "__UNKNOWN__"
+}
+
+@test "detect-host: COPILOT_* never outranks a real host signal" {
+  require_detect_host
+  run env -i PATH="$PATH" COPILOT_HOME="$HOME/.copilot" CODEX_HOME="$HOME/.codex" "$DETECT"
+  assert_success
+  assert_output "codex-cli"
 }
 
 @test "detect-host: claude-code wins the 3-way tie (all host envs present)" {

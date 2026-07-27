@@ -6,82 +6,78 @@ setup() {
   common_setup
 }
 
-# --- hooks.json (Claude Code) ---
-
-@test "hooks.json: all commands reference existing files" {
-  local missing=""
-  while IFS= read -r cmd; do
-    local resolved
-    resolved=$(echo "$cmd" | sed "s|\"||g; s|\${CLAUDE_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
-    if [ ! -f "$resolved" ]; then
-      missing="$missing $cmd"
-    fi
-  done < <(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/hooks.json")
-  [ -z "$missing" ] || fail "Missing files: $missing"
+# --- Script resolution, all hosts ------------------------------------------
+#
+# One table instead of a pair of near-identical tests per host. The pair-per-
+# host shape is what let Copilot ship without either check: adding a host meant
+# copy-pasting two more tests, and nobody did.
+#
+# Two host-specific details make a naive copy worse than useless here:
+#
+#   * Copilot names the field "bash", not "command". `jq '.. | .command?'`
+#     returns NOTHING for copilot.hooks.json, so a copied test iterates an
+#     empty set and reports ok — coverage that exists only in the test name.
+#   * Each host substitutes its own plugin-root variable. Keeping them per-row
+#     (rather than stripping any ${...}) means a config that borrows another
+#     host's variable fails to resolve and is caught here.
+#
+# host|config|plugin-root variable
+hook_configs() {
+  cat <<'EOF'
+claude|hooks/hooks.json|CLAUDE_PLUGIN_ROOT
+cursor|hooks/cursor.hooks.json|CURSOR_PLUGIN_ROOT
+codex|hooks/codex.hooks.json|PLUGIN_ROOT
+copilot|hooks/copilot.hooks.json|COPILOT_PLUGIN_ROOT
+EOF
 }
 
-@test "hooks.json: all referenced scripts are executable" {
-  local not_exec=""
-  while IFS= read -r cmd; do
-    local resolved
-    resolved=$(echo "$cmd" | sed "s|\"||g; s|\${CLAUDE_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
-    if [ -f "$resolved" ] && [ ! -x "$resolved" ]; then
-      not_exec="$not_exec $cmd"
-    fi
-  done < <(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/hooks.json")
-  [ -z "$not_exec" ] || fail "Not executable: $not_exec"
+# Emits every script path a hook config invokes, plugin-root variable resolved.
+hook_scripts() {
+  local config="$1" var="$2"
+  jq -r '.. | (.command? // .bash?) // empty' "$PLUGIN_ROOT/$config" \
+    | sed "s|\"||g; s|\${$var}|$PLUGIN_ROOT|g"
 }
 
-# --- cursor.hooks.json ---
-
-@test "cursor.hooks.json: all commands reference existing files" {
-  local missing=""
-  while IFS= read -r cmd; do
-    local resolved
-    resolved=$(echo "$cmd" | sed "s|\"||g; s|\${CURSOR_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
-    if [ ! -f "$resolved" ]; then
-      missing="$missing $cmd"
-    fi
-  done < <(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/cursor.hooks.json")
-  [ -z "$missing" ] || fail "Missing files: $missing"
+@test "every host hook config invokes scripts that exist" {
+  local host config var script missing=""
+  while IFS='|' read -r host config var; do
+    [ -n "$host" ] || continue
+    local found=0
+    while IFS= read -r script; do
+      [ -z "$script" ] && continue
+      found=1
+      [ -f "$script" ] || missing="$missing $host:$script"
+    done < <(hook_scripts "$config" "$var")
+    # An empty extraction means the accessor stopped matching this host's
+    # schema — the exact failure this table exists to prevent.
+    [ "$found" = "1" ] || fail "$config: no script paths extracted at all"
+  done < <(hook_configs)
+  [ -z "$missing" ] || fail "hook scripts do not exist:$missing"
 }
 
-# --- codex.hooks.json ---
-
-@test "codex.hooks.json: all commands reference existing files" {
-  local missing=""
-  while IFS= read -r cmd; do
-    local resolved
-    resolved=$(echo "$cmd" | sed "s|\${PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
-    if [ ! -f "$resolved" ]; then
-      missing="$missing $cmd"
-    fi
-  done < <(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/codex.hooks.json")
-  [ -z "$missing" ] || fail "Missing files: $missing"
+@test "every host hook config invokes scripts that are executable" {
+  local host config var script not_exec=""
+  while IFS='|' read -r host config var; do
+    [ -n "$host" ] || continue
+    while IFS= read -r script; do
+      [ -z "$script" ] && continue
+      if [ -f "$script" ] && [ ! -x "$script" ]; then
+        not_exec="$not_exec $host:$script"
+      fi
+    done < <(hook_scripts "$config" "$var")
+  done < <(hook_configs)
+  [ -z "$not_exec" ] || fail "hook scripts not executable:$not_exec"
 }
 
-@test "codex.hooks.json: all referenced scripts are executable" {
-  local not_exec=""
-  while IFS= read -r cmd; do
-    local resolved
-    resolved=$(echo "$cmd" | sed "s|\${PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
-    if [ -f "$resolved" ] && [ ! -x "$resolved" ]; then
-      not_exec="$not_exec $cmd"
-    fi
-  done < <(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/codex.hooks.json")
-  [ -z "$not_exec" ] || fail "Not executable: $not_exec"
-}
-
-@test "cursor.hooks.json: all referenced scripts are executable" {
-  local not_exec=""
-  while IFS= read -r cmd; do
-    local resolved
-    resolved=$(echo "$cmd" | sed "s|\"||g; s|\${CURSOR_PLUGIN_ROOT}|${PLUGIN_ROOT}|g")
-    if [ -f "$resolved" ] && [ ! -x "$resolved" ]; then
-      not_exec="$not_exec $cmd"
-    fi
-  done < <(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/cursor.hooks.json")
-  [ -z "$not_exec" ] || fail "Not executable: $not_exec"
+@test "every hooks/*.json is enrolled in the resolution table" {
+  # Without this, a fifth host's config ships unchecked exactly the way
+  # copilot.hooks.json did.
+  local file base missing=""
+  for file in "$PLUGIN_ROOT"/hooks/*.json; do
+    base="hooks/$(basename "$file")"
+    hook_configs | grep -q "|$base|" || missing="$missing $base"
+  done
+  [ -z "$missing" ] || fail "hook configs missing from hook_configs():$missing"
 }
 
 # --- Phase 2.1 anti-regression invariants ---
@@ -155,44 +151,49 @@ setup() {
 
 # --- Consistency ---
 
-@test "both hook configs reference the same set of scripts" {
-  local cc_scripts cursor_scripts
-  cc_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/hooks.json" | sed 's|"||g; s|${CLAUDE_PLUGIN_ROOT}||' | sort -u)
-  cursor_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/cursor.hooks.json" | sed 's|"||g; s|${CURSOR_PLUGIN_ROOT}||' | sort -u)
-  [ "$cc_scripts" = "$cursor_scripts" ] || {
-    echo "Claude Code scripts: $cc_scripts"
-    echo "Cursor scripts: $cursor_scripts"
-    fail "Script sets differ between hosts"
-  }
-}
-
-@test "codex hook config references the same script set as Claude Code" {
-  local cc_scripts codex_scripts
-  cc_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/hooks.json" | sed 's|"||g; s|${CLAUDE_PLUGIN_ROOT}/||' | sort -u)
-  codex_scripts=$(jq -r '.. | .command? // empty' "$PLUGIN_ROOT/hooks/codex.hooks.json" | sed 's|"||g; s|${PLUGIN_ROOT}/||' | sort -u)
-  [ "$cc_scripts" = "$codex_scripts" ] || {
-    echo "Claude Code scripts: $cc_scripts"
-    echo "Codex scripts: $codex_scripts"
-    fail "Script sets differ between Claude Code and Codex"
-  }
+@test "every host hook config references the same set of scripts" {
+  # The portable core is one set of scripts; a host that wires up a subset is a
+  # host where some guard silently does not run. Paths are compared with the
+  # plugin root resolved, so all four configs are directly comparable.
+  local host config var scripts reference="" ref_host=""
+  while IFS='|' read -r host config var; do
+    [ -n "$host" ] || continue
+    scripts=$(hook_scripts "$config" "$var" | sort -u)
+    if [ -z "$reference" ]; then
+      reference="$scripts"
+      ref_host="$host"
+    elif [ "$scripts" != "$reference" ]; then
+      echo "$ref_host scripts:"; echo "$reference"
+      echo "$host scripts:"; echo "$scripts"
+      fail "script sets differ between $ref_host and $host"
+    fi
+  done < <(hook_configs)
 }
 
 @test "every host hook config registers bin/session-start on its session-start event" {
   # bin/session-start emits the init_project nudge on first-time / empty-state
   # sessions. If any host loses this wiring, onboarding silently breaks on that
-  # host. Event keys differ by casing per host: SessionStart (Claude/Codex,
-  # PascalCase) vs sessionStart (Cursor, camelCase).
+  # host. Two things differ per host: the event key casing — SessionStart
+  # (Claude/Codex) vs sessionStart (Cursor/Copilot) — and the entry shape,
+  # since Copilot's entries are flat objects carrying "bash" where the others
+  # nest a .hooks[] array of objects carrying "command". The union accessor
+  # covers both; an empty extraction fails loudly rather than passing on an
+  # empty set.
   local entries=(
     "hooks/hooks.json:SessionStart"
     "hooks/codex.hooks.json:SessionStart"
     "hooks/cursor.hooks.json:sessionStart"
+    "hooks/copilot.hooks.json:sessionStart"
   )
   local entry file event cmds
   for entry in "${entries[@]}"; do
     file="${entry%:*}"
     event="${entry#*:}"
-    cmds=$(jq -r --arg e "$event" '.hooks[$e][]?.hooks[]?.command // empty' "$PLUGIN_ROOT/$file")
-    echo "$cmds" | grep -q 'bin/session-start$' \
+    cmds=$(jq -r --arg e "$event" \
+      '.hooks[$e][]? | (.hooks[]?.command // .command? // .bash?) // empty' \
+      "$PLUGIN_ROOT/$file")
+    [ -n "$cmds" ] || fail "$file: '$event' event yielded no commands at all"
+    echo "$cmds" | grep -q 'bin/session-start"\?$' \
       || fail "$file: '$event' event must invoke bin/session-start; got: $cmds"
   done
 }
@@ -203,6 +204,12 @@ setup() {
   # without regex metacharacters are EXACT matches, so every archcore tool in
   # a PostToolUse matcher must appear under both prefixes — otherwise
   # validation hooks silently never fire in one of the two setups.
+  #
+  # Cursor and Copilot are absent by design, not by omission: Cursor has no
+  # postToolUse event at all (it uses afterMCPExecution), and Copilot's
+  # postToolUse entries carry no matcher — the scripts self-filter there, which
+  # copilot-plugin.bats asserts directly. Where there is no matcher there is no
+  # matcher to get wrong.
   local file matcher tool
   for file in "hooks/hooks.json" "hooks/codex.hooks.json"; do
     while IFS= read -r matcher; do

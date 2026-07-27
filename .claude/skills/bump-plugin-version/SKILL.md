@@ -1,20 +1,20 @@
 ---
 name: bump-plugin-version
 argument-hint: "[patch | minor | major | X.Y.Z]  (default: patch)"
-description: Bump the archcore plugin version across all three host manifests (.claude-plugin, .cursor-plugin, .codex-plugin) in one step, keeping them byte-identical. Derives the next version from the latest git tag. Triggers on /bump-plugin-version. Edits files only — merging, tagging, and publishing stay manual per docs/release.md.
+description: Bump the archcore plugin version across all four host manifests (.claude-plugin, .cursor-plugin, .codex-plugin, .plugin) in one step, keeping their versions byte-identical. Derives the next version from the latest git tag. Triggers on /bump-plugin-version. Edits files only — merging, tagging, and publishing stay manual per docs/release.md.
 disable-model-invocation: true
 model: haiku
 ---
 
 # /bump-plugin-version
 
-Bump the plugin `version` in all three per-host manifests at once, following the
+Bump the plugin `version` in all four per-host manifests at once, following the
 canonical pattern in the `bump-plugin-version` cpat. The next version is derived
 from the **latest git tag** (the release source of truth), not the manifest.
 
 ## Hard constraints (non-negotiable)
 
-- Edit ONLY the three `plugin.json` files listed in Step 1. Nothing else in the
+- Edit ONLY the four `plugin.json` files listed in Step 1. Nothing else in the
   repo carries the plugin version — not the marketplace catalogs, MCP configs, or
   hook JSON (`cursor.hooks.json`'s `"version": 1` is a schema version, not this).
 - Use the `Edit` tool for a targeted `"version": "<OLD>"` → `"version": "<NEXT>"`
@@ -48,11 +48,12 @@ Read the canonical pattern so this run stays aligned with it:
 `mcp__archcore__get_document(path=".archcore/plugin/bump-plugin-version.cpat.md")`
 
 The cpat is authoritative for **which files change** and **what must not**. The
-three manifests (plugin root is `plugins/archcore/`):
+four manifests (plugin root is `plugins/archcore/`):
 
 - `plugins/archcore/.claude-plugin/plugin.json`
 - `plugins/archcore/.cursor-plugin/plugin.json`
 - `plugins/archcore/.codex-plugin/plugin.json`
+- `plugins/archcore/.plugin/plugin.json`
 
 ### Step 2 — Resolve the version and compute the next one
 
@@ -65,7 +66,7 @@ ARG="patch"   # ← replace with the text after /bump-plugin-version: patch | mi
 
 extract_ver() { grep -oE '"version" *: *"[0-9]+\.[0-9]+\.[0-9]+"' "$1" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'; }
 
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
+LATEST_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
 if [ -n "$LATEST_TAG" ]; then
   BASE="${LATEST_TAG#v}"
 else
@@ -102,15 +103,16 @@ esac
 echo "OLD versions:"; extract_ver plugins/archcore/.claude-plugin/plugin.json
 extract_ver plugins/archcore/.cursor-plugin/plugin.json
 extract_ver plugins/archcore/.codex-plugin/plugin.json
+extract_ver plugins/archcore/.plugin/plugin.json
 echo "$LATEST_TAG (base $BASE) -> NEXT $NEXT"
 ```
 
 If the manifests already disagree (drift), note it — the bump reconciles them all
 to `NEXT`. State `NEXT` explicitly before editing anything.
 
-### Step 3 — Write NEXT to all three manifests
+### Step 3 — Write NEXT to all four manifests
 
-For **each** of the three files, use `Edit` to replace that file's current version
+For **each** of the four files, use `Edit` to replace that file's current version
 line — `"version": "<OLD>"` → `"version": "<NEXT>"`. Only the version substring
 changes; formatting, key order, `name`, and `description` stay untouched. If a
 file's `<OLD>` differs from the others (drift), still set it to `NEXT` — that is the
@@ -118,22 +120,23 @@ reconciliation.
 
 ### Step 4 — Verify parity
 
-All three MUST now read the same `NEXT` — check by equality, not by eye:
+All four MUST now read the same `NEXT` — check by equality, not by eye:
 
 ```bash
 extract_ver() { grep -oE '"version" *: *"[0-9]+\.[0-9]+\.[0-9]+"' "$1" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'; }
 V1=$(extract_ver plugins/archcore/.claude-plugin/plugin.json)
 V2=$(extract_ver plugins/archcore/.cursor-plugin/plugin.json)
 V3=$(extract_ver plugins/archcore/.codex-plugin/plugin.json)
-if [ "$V1" = "$V2" ] && [ "$V2" = "$V3" ]; then echo "PARITY OK: $V1"
-else echo "DRIFT: claude=$V1 cursor=$V2 codex=$V3" >&2; exit 1; fi
+V4=$(extract_ver plugins/archcore/.plugin/plugin.json)
+if [ "$V1" = "$V2" ] && [ "$V2" = "$V3" ] && [ "$V3" = "$V4" ]; then echo "PARITY OK: $V1"
+else echo "DRIFT: claude=$V1 cursor=$V2 codex=$V3 copilot=$V4" >&2; exit 1; fi
 ```
 
 Then run the test-enforced invariant (this is the CI check the skill exists to keep
 green; run it, don't skip it — only note "bats unavailable" if the binary is missing):
 
 ```bash
-bats test/structure/json-configs.bats test/structure/codex-plugin.bats
+bats test/structure/json-configs.bats test/structure/codex-plugin.bats test/structure/copilot-plugin.bats
 ```
 
 ## Result
@@ -146,8 +149,8 @@ Report in this shape:
 - Latest tag: <LATEST_TAG or "(no tags)">
 - Step: <patch | minor | major | explicit X.Y.Z>
 - Version: <BASE> -> <NEXT>
-- Drift reconciled: <none | claude=<v> cursor=<v> codex=<v> → unified to <NEXT>>
-- Parity: all three manifests now read "<NEXT>" (bats: <pass | not run>)
+- Drift reconciled: <none | claude=<v> cursor=<v> codex=<v> copilot=<v> → unified to <NEXT>>
+- Parity: all four manifests now read "<NEXT>" (bats: <pass | not run>)
 
 Manual next steps (not run):
 1. Review & commit the bump on dev.

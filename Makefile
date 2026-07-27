@@ -8,11 +8,12 @@ ALL_SCRIPTS := $(BIN_SCRIPTS) $(LIB_SCRIPTS)
 # Marketplace catalogs stay at repo root; plugin manifests/hooks/mcp live under plugins/archcore/.
 JSON_FILES := .agents/plugins/marketplace.json .claude-plugin/marketplace.json .cursor-plugin/marketplace.json \
               $(PLUGIN_REL)/.claude-plugin/plugin.json $(PLUGIN_REL)/.cursor-plugin/plugin.json \
-              $(PLUGIN_REL)/.codex-plugin/plugin.json $(PLUGIN_REL)/.codex.mcp.json \
+              $(PLUGIN_REL)/.codex-plugin/plugin.json $(PLUGIN_REL)/.plugin/plugin.json $(PLUGIN_REL)/.codex.mcp.json \
               $(PLUGIN_REL)/hooks/hooks.json $(PLUGIN_REL)/hooks/cursor.hooks.json $(PLUGIN_REL)/hooks/codex.hooks.json \
+              $(PLUGIN_REL)/hooks/copilot.hooks.json \
               $(PLUGIN_REL)/.mcp.json docs/cursor.mcp.example.json
 
-.PHONY: test test-codex-smoke lint check-json check-perms verify all
+.PHONY: test test-unit test-structure test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
 
 all: check-json check-perms lint test
 
@@ -31,6 +32,10 @@ test-structure:
 test-codex-smoke:
 	@command -v bats >/dev/null 2>&1 || { echo "bats-core not found. Install: brew install bats-core"; exit 1; }
 	@PLUGIN_ROOT=$(PLUGIN_ROOT) REPO_ROOT=$(REPO_ROOT) bats test/integration/codex-plugin-smoke.bats
+
+test-copilot-smoke:
+	@command -v bats >/dev/null 2>&1 || { echo "bats-core not found. Install: brew install bats-core"; exit 1; }
+	@PLUGIN_ROOT=$(PLUGIN_ROOT) REPO_ROOT=$(REPO_ROOT) bats test/integration/copilot-plugin-smoke.bats
 
 lint:
 	@command -v shellcheck >/dev/null 2>&1 || { echo "shellcheck not found, skipping"; exit 0; }

@@ -27,7 +27,7 @@ setup() {
 }
 
 @test "detects copilot host from native camelCase toolName (no hookEventName)" {
-  run_normalizer '{"sessionId":"s1","timestamp":1751700000000,"cwd":"/work","toolName":"create","toolArgs":"{\"file_path\":\"x.md\"}"}'
+  run_normalizer '{"sessionId":"s1","timestamp":1784816794176,"cwd":"/work","toolName":"create","toolArgs":"{\"path\":\"/work/x.md\"}"}'
   assert_success
   assert_line "HOST=copilot"
 }
@@ -147,21 +147,83 @@ setup() {
 # --- Copilot field extraction ---
 
 @test "copilot: extracts toolName from native payload" {
-  run_normalizer '{"sessionId":"s1","toolName":"create","toolArgs":"{\"file_path\":\".archcore/my.rule.md\"}"}'
+  run_normalizer '{"sessionId":"s1","toolName":"create","toolArgs":"{\"path\":\"/work/.archcore/my.rule.md\"}"}'
   assert_success
   assert_line "TOOL=create"
 }
 
-@test "copilot: extracts file path from escaped toolArgs" {
-  run_normalizer '{"sessionId":"s1","toolName":"create","toolArgs":"{\"file_path\":\".archcore/my.rule.md\",\"content\":\"x\"}"}'
+@test "copilot: extracts native create path from escaped toolArgs" {
+  run_normalizer '{"sessionId":"s1","toolName":"create","toolArgs":"{\"path\":\"/work/.archcore/my.rule.md\",\"file_text\":\"x\"}"}'
   assert_success
-  assert_line "FILE=.archcore/my.rule.md"
+  assert_line "FILE=/work/.archcore/my.rule.md"
 }
 
-@test "copilot: extracts doc path from escaped toolArgs (MCP)" {
-  run_normalizer '{"sessionId":"s1","toolName":"mcp__archcore__update_document","toolArgs":"{\"path\":\"auth/jwt.adr.md\"}"}'
+@test "copilot: extracts native edit path from escaped toolArgs" {
+  run_normalizer '{"sessionId":"s1","toolName":"edit","toolArgs":"{\"path\":\"/work/src/app.py\",\"old_str\":\"a\",\"new_str\":\"b\"}"}'
   assert_success
-  assert_line "DOC=auth/jwt.adr.md"
+  assert_line "FILE=/work/src/app.py"
+}
+
+@test "copilot: normalizes native MCP tool name and extracts doc path" {
+  run_normalizer '{"sessionId":"s1","toolName":"archcore-update_document","toolArgs":"{\"path\":\".archcore/copilot-hook-probe.doc.md\"}"}'
+  assert_success
+  assert_line "TOOL=mcp__archcore__update_document"
+  assert_line "DOC=.archcore/copilot-hook-probe.doc.md"
+}
+
+# --- Canonical MCP tool naming (all three registrations) ---
+#
+# The same archcore MCP server reaches the model under three names depending on
+# how it was registered. Downstream scripts (validate-archcore, check-precision,
+# check-cascade) gate on the project naming alone, so a payload that arrives
+# under either other name must be folded here — otherwise those hooks fire and
+# silently do nothing, which is invisible until a user's document skips
+# validation entirely. Hook MATCHERS carry both namings too, but that is a
+# different layer: matchers decide whether a script runs, this decides what it
+# sees.
+
+@test "claude-code: plugin-bundled MCP naming folds to the canonical name" {
+  run_normalizer '{"tool_name":"mcp__plugin_archcore_archcore__create_document","tool_input":{"path":".archcore/x.adr.md"}}'
+  assert_success
+  assert_line "TOOL=mcp__archcore__create_document"
+  assert_line "DOC=.archcore/x.adr.md"
+}
+
+@test "codex: plugin-bundled MCP naming folds to the canonical name" {
+  run_normalizer '{"turn_id":"t1","tool_name":"mcp__plugin_archcore_archcore__update_document","tool_input":{"path":".archcore/y.spec.md"}}'
+  assert_success
+  assert_line "TOOL=mcp__archcore__update_document"
+}
+
+@test "opencode: plugin-bundled MCP naming folds to the canonical name" {
+  run sh -c "printf '%s' '{\"tool_name\":\"mcp__plugin_archcore_archcore__add_relation\"}' | ARCHCORE_HOST=opencode sh -c '
+    . \"$PLUGIN_ROOT/bin/lib/normalize-stdin.sh\"
+    echo \"TOOL=\$ARCHCORE_TOOL_NAME\"'"
+  assert_success
+  assert_line "TOOL=mcp__archcore__add_relation"
+}
+
+@test "canonical project naming passes through untouched" {
+  run_normalizer '{"tool_name":"mcp__archcore__create_document","tool_input":{"path":".archcore/z.adr.md"}}'
+  assert_success
+  assert_line "TOOL=mcp__archcore__create_document"
+}
+
+@test "a foreign MCP server is never rewritten" {
+  # Only the archcore server's own namings fold. A tool from some other plugin
+  # that happens to share the prefix shape must reach the scripts verbatim, or
+  # the guards would start claiming authority over documents they do not own.
+  run_normalizer '{"tool_name":"mcp__plugin_other_other__create_document"}'
+  assert_success
+  assert_line "TOOL=mcp__plugin_other_other__create_document"
+}
+
+@test "copilot: a non-MCP native tool name is not mistaken for a server prefix" {
+  # "archcore-" folding must not swallow ordinary Copilot file tools.
+  run_normalizer '{"sessionId":"s1","toolName":"create","toolArgs":"{\"path\":\"/work/src/a.ts\"}"}'
+  assert_success
+  assert_line "TOOL=create"
+  assert_line "FILE=/work/src/a.ts"
 }
 
 @test "copilot: legacy hybrid payload still extracts tool_name" {

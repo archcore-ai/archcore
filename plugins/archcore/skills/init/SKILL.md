@@ -90,13 +90,13 @@ Content voice: default to architectural prose — decisions, rationale, intent. 
 Before any init step, verify that the Archcore CLI is available on PATH. The canonical installer is documented at https://docs.archcore.ai/cli/install/ — use it as the single source of truth; do **not** suggest other channels (`brew`, `go install`, etc.) even if the user mentions them.
 
 1. Run: `archcore --version` (via Bash tool)
-2. If it **succeeds** → check the host-wiring version gate with the deterministic helper (never compare versions yourself — lexical comparison breaks on double-digit fields). Resolve `$d` **in this same Bash call** (each Bash invocation is a fresh shell — nothing persists from a later step), exactly as the Step -1 probe below does: run `d="${CLAUDE_SKILL_DIR:-<absolute dir of this SKILL.md>}"; "$d/../../bin/cli-gte" 0.6.1`. It prints exactly one token:
+2. If it **succeeds** → check the host-wiring version gate with the deterministic helper (never compare versions yourself — lexical comparison breaks on double-digit fields). Resolve `$d` **in this same Bash call** (each Bash invocation is a fresh shell — nothing persists from a later step), exactly as the Step -1 probe below does: run `d="${CLAUDE_SKILL_DIR:-<absolute dir of this SKILL.md>}"; "$d/../../bin/cli-gte" 0.6.4`. It prints exactly one token:
    - `yes` → proceed immediately to Step -1 (host wiring enabled).
    - `__NO_CLI__` (unexpected here — `--version` just succeeded) → treat as `no`.
    - `no` → the seed still works, but the host-wiring step (see "Host wiring" below) needs a newer CLI. Ask the user once:
-     > Archcore CLI `<version>` is older than v0.6.1 — host wiring (project MCP config, SessionStart hook, usage hint) will be skipped. Update now via `archcore update`? (y/N)
-     - On `y` → run `archcore update` (Bash), re-run the `cli-gte 0.6.1` check, and proceed to Step -1 (host wiring enabled on `yes`, disabled otherwise).
-     - On `N` / silence → proceed to Step -1 with host wiring **disabled**: omit the Host wiring line from the preview, skip Phase E step 0 entirely (the cascade never runs — its manual-fallback leg is NOT a substitute for this note), and in the closing message note: *"Host wiring skipped (CLI < v0.6.1) — update with `archcore update`, then run `archcore init --agent <host> --project "<root>"` in a terminal to make this repo self-contained for CLI-only teammates."* (`<host>`/`<root>` come from the Step -1 probe, which runs regardless of the gate.)
+     > Archcore CLI `<version>` is older than v0.6.4 — host wiring (project MCP config, SessionStart hook, usage hint) will be skipped. Update now via `archcore update`? (y/N)
+     - On `y` → run `archcore update` (Bash), re-run the `cli-gte 0.6.4` check, and proceed to Step -1 (host wiring enabled on `yes`, disabled otherwise).
+     - On `N` / silence → proceed to Step -1 with host wiring **disabled**: omit the Host wiring line from the preview, skip Phase E step 0 entirely (the cascade never runs — its manual-fallback leg is NOT a substitute for this note), and in the closing message note: *"Host wiring skipped (CLI < v0.6.4) — update with `archcore update`, then run `archcore init --agent <host> --project "<root>"` in a terminal to make this repo self-contained for CLI-only teammates."* (`<host>`/`<root>` come from the Step -1 probe, which runs regardless of the gate.)
 3. If it **fails** (command not found):
    - Detect the platform via `uname -s` (Bash). `Darwin`/`Linux` → POSIX path. Anything else (Windows native) → instruct-only path.
    - **POSIX path** — ask the user once:
@@ -108,7 +108,7 @@ Before any init step, verify that the Archcore CLI is available on PATH. The can
      >
      > Run it now? (y/N)
    - On `y` → execute the command exactly as shown (Bash tool). After it returns, re-run `archcore --version`.
-     - Success → print: *"Archcore CLI installed (`<version>`). Proceeding with init."* → apply the same v0.6.1 comparison from item 2 (a fresh install is normally current, so host wiring is enabled) → go to Step -1.
+     - Success → print: *"Archcore CLI installed (`<version>`). Proceeding with init."* → apply the same v0.6.4 comparison from item 2 (a fresh install is normally current, so host wiring is enabled) → go to Step -1.
      - Still failing → print the install message below and **stop**.
    - On `N` / silence / **instruct-only path** → print and stop:
      > Archcore CLI required. Install it, then re-run `/archcore:init`:
@@ -142,9 +142,9 @@ Immediately after, give the user a one-line confirmation:
 d="${CLAUDE_SKILL_DIR:-<absolute dir of this SKILL.md>}"; host=$("$d/../../bin/detect-host"); root=$(git rev-parse --show-toplevel 2>/dev/null || pwd); printf '%s\n%s\n' "$host" "$root"
 ```
 
-`${CLAUDE_SKILL_DIR}` is set by Claude Code only. On other hosts (Cursor, Codex CLI) substitute the absolute directory of this skill file — you know it from having read this file; `bin/detect-host` is two directories up from it (`<plugin-root>/bin/detect-host`).
+`${CLAUDE_SKILL_DIR}` is set by Claude Code only. On other hosts (Cursor, Codex CLI, GitHub Copilot CLI) substitute the absolute directory of this skill file — you know it from having read this file; `bin/detect-host` is two directories up from it (`<plugin-root>/bin/detect-host`).
 
-`bin/detect-host` resolves the current host from environment only (never cwd or stdin — Cursor guarantees neither) and prints exactly one token: `claude-code` | `cursor` | `codex-cli` | `__UNKNOWN__`. If the probe returns `__UNKNOWN__` **or anything else than the three host tokens** (empty output, a path error — treat all the same), ask one `AskUserQuestion` — "Which AI host is this session running in?" with options Claude Code / Cursor / Codex CLI — and map the answer to the agent id. Remember `host` and `root` for the Host wiring preview line and Phase E; do not re-run the probe.
+`bin/detect-host` resolves the current host from environment only (never cwd or stdin — Cursor guarantees neither) and prints exactly one token: `claude-code` | `cursor` | `codex-cli` | `__UNKNOWN__`. **A GitHub Copilot CLI session always lands on `__UNKNOWN__`** — Copilot sets no environment marker in the shell commands it runs, so it is resolved by the question below rather than by the probe (rationale in `bin/detect-host`). If the probe returns `__UNKNOWN__` **or anything else than the three host tokens** (empty output, a path error — treat all the same), ask one `AskUserQuestion` — "Which AI host is this session running in?" with options Claude Code / Cursor / Codex CLI / GitHub Copilot CLI — and map the answer to the agent id (`claude-code` / `cursor` / `codex-cli` / `copilot`). Remember `host` and `root` for the Host wiring preview line and Phase E; do not re-run the probe.
 
 `init_project` initializes only `.archcore/` — host wiring (MCP config, hook, usage hint) is planned in the preview and executed in Phase E, never here. Do not run `archcore init` yourself at this step; the terminal path is the Phase E fallback for the user, not a pre-flight action.
 
@@ -184,7 +184,8 @@ If BOTH are false, take the **empty** route. No content seed — but host wiring
 
 When host wiring is **disabled** by the pre-flight version gate, reply with exactly this and stop (no writes):
 
-> Archcore is ready at `.archcore/`. No source code detected yet — no content to seed. Host wiring skipped (CLI < v0.6.1) — update with `archcore update`, then re-run `/archcore:init`. The SessionStart empty-state nudge will keep pointing here until then.
+> Archcore is ready at `.archcore/`. No source code detected yet — no content to seed. Host wiring skipped (CLI < v0.6.4) — update with `archcore update`, then re-run `/archcore:init`. The SessionStart empty-state nudge will keep pointing here until then.
+
 
 Otherwise show a mini-preview:
 
@@ -351,7 +352,7 @@ Already present (skipped): <list, or "none">.
 - For each **Tier-2 stub** show the qualifying `LOC / test-ratio` and the per-item synthesis cost, so `edit` is an informed budget lever. A flagship stub (`detect-hotspots.md` "Flagship specs") shows its raised-cap or decomposition treatment inline, e.g. `spec: order-service — 6400 LOC src / 1100 LOC tests ~24k [flagship: raised cap]` or `[flagship: split → 2 sub-specs]`.
 - For **aggregate imports**, show as **link** by default with `(edit → extract)`; if a file's cost tier is **HIGH**, prefix `⚠️ HIGH COST` on the extract option — extract is only entered when the user explicitly opts in.
 - For **modular-rule imports**, show as **extract → rule** by default with `(edit → link)`; a file > 200 lines shows as **link** with `(large; edit → extract)`. If a cross-cutting stub was dropped because an imported rule covers it, show `↳ synthesis skipped` under that stub.
-- The **Host wiring line** (omit when disabled by the pre-flight version gate) names the detected host, the resolved project root **explicitly** (the user must see WHERE files will land — Cursor can misroute cwd, and this line is the check against it), and the per-host file list: claude-code → `.mcp.json` + `.claude/settings.json` (SessionStart hook) + `CLAUDE.md` + `AGENTS.md` managed blocks (CLAUDE.md is what Claude Code actually reads; AGENTS.md is the shared standard block — one write, both files; the CLI also deletes the legacy nudge file under `.claude/rules/` left by pre-v0.6.1 CLIs); cursor → `.cursor/mcp.json` + `.cursor/hooks.json` + `AGENTS.md` managed block; codex-cli → `.codex/config.toml` + `AGENTS.md` managed block. `edit → hosts: all` widens the install to every agent auto-detected in the repo; `edit → skip wiring` drops the line. These files live **outside** `.archcore/` — they are written only after `confirm`, like everything else.
+- The **Host wiring line** (omit when disabled by the pre-flight version gate) names the detected host, the resolved project root **explicitly** (the user must see WHERE files will land — Cursor can misroute cwd, and this line is the check against it), and the per-host file list: claude-code → `.mcp.json` + `.claude/settings.json` (SessionStart hook) + `CLAUDE.md` + `AGENTS.md` managed blocks (CLAUDE.md is what Claude Code actually reads; AGENTS.md is the shared standard block — one write, both files; the CLI also deletes the legacy nudge file under `.claude/rules/` left by pre-v0.6.1 CLIs); cursor → `.cursor/mcp.json` + `.cursor/hooks.json` + `AGENTS.md` managed block; codex-cli → `.codex/config.toml` + `AGENTS.md` managed block; copilot → `.mcp.json` + `.github/hooks/archcore.json` (sessionStart) + `AGENTS.md` managed block. **On copilot the Host wiring line is never optional** — the plugin ships no MCP server for that host (Copilot launches a plugin's MCP in the plugin's own directory, github/copilot-cli#4234), so without wiring the session has skills and hooks but no document tools at all. If the version gate disabled wiring, say so plainly in the closing message rather than seeding silently. `edit → hosts: all` widens the install to every agent auto-detected in the repo; `edit → skip wiring` drops the line. These files live **outside** `.archcore/` — they are written only after `confirm`, like everything else.
 
 ## Phase D — CONFIRM
 

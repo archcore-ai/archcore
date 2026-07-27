@@ -80,6 +80,37 @@ setup() {
   assert_output --partial "additional_context"
 }
 
+@test "copilot native MCP update triggers validation with Copilot JSON" {
+  mock_archcore "✗ broken relation"
+  run_with_fixture validate-archcore copilot/posttooluse-mcp-update.json
+  assert_success
+  assert_output --partial '"additionalContext"'
+  assert_output --partial "validation found issues"
+}
+
+# --- Tool-naming reach (host-wiring-parity.adr) ---
+#
+# validate-archcore's MCP arm gates on mcp__archcore__* only. The same server
+# also reaches the model as mcp__plugin_archcore_archcore__* (plugin-bundled,
+# Claude Code) and archcore-* (Copilot). normalize-stdin folds both to the
+# canonical name; without that fold this hook runs and falls through to the
+# Write/Edit arm, whose path check fails, so post-mutation validation is
+# skipped in silence — the worst kind of gap, because the hook LOOKS wired.
+
+@test "plugin-bundled MCP naming triggers validation" {
+  mock_archcore "✗ broken relation"
+  run sh -c "printf '%s' '{\"tool_name\":\"mcp__plugin_archcore_archcore__create_document\",\"tool_input\":{\"path\":\".archcore/x.adr.md\"}}' | '${PLUGIN_ROOT}/bin/validate-archcore'"
+  assert_success
+  assert_output --partial "validation found issues"
+}
+
+@test "Copilot flat MCP naming triggers validation" {
+  mock_archcore "✗ broken relation"
+  run sh -c "printf '%s' '{\"sessionId\":\"s1\",\"toolName\":\"archcore-create_document\",\"toolArgs\":\"{\\\"path\\\":\\\".archcore/x.adr.md\\\"}\"}' | '${PLUGIN_ROOT}/bin/validate-archcore'"
+  assert_success
+  assert_output --partial "validation found issues"
+}
+
 # --- Invocation contract: which subcommand actually ran? ---
 
 @test "validate-archcore calls archcore doctor (not validate)" {

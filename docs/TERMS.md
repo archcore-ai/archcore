@@ -1,6 +1,6 @@
 # Terms of Service
 
-_Last updated: 2026-05-17_
+_Last updated: 2026-07-27_
 
 These terms govern your use of the Archcore plugin (the "Plugin") distributed in this repository.
 
@@ -10,7 +10,7 @@ The Plugin is licensed under the **Apache License, Version 2.0**. You may use, m
 
 ## Use of the Plugin
 
-- The Plugin integrates with AI coding agents (Claude Code, Codex, Cursor, and similar hosts) and operates on files inside your project.
+- The Plugin integrates with AI coding agents (Claude Code, Codex, Cursor, GitHub Copilot CLI, and similar hosts) and operates on files inside your project.
 - You are responsible for the actions you trigger through your AI agent host, including all writes the Plugin performs on your repository.
 - The Plugin does not transmit your project contents to Archcore servers. Communication is local between the host and the Plugin's MCP server and hooks.
 

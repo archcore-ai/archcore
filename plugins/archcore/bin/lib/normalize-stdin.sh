@@ -99,9 +99,8 @@ case "$ARCHCORE_HOST" in
     # Native camelCase payload: toolName + toolArgs (an ESCAPED JSON string,
     # so field extraction goes through the unescaped helper, which also
     # handles plain objects). Legacy Claude-compat payloads (hookEventName +
-    # snake_case tool_input) extract via the tool_name fallback. The toolArgs
-    # key candidates (file_path/filePath/path) are provisional until real
-    # payload captures land — see copilot-host-support.rnd Next Action.
+    # snake_case tool_input) extract via the tool_name fallback. Native file
+    # tools use an absolute path key (verified against Copilot CLI 1.0.73).
     ARCHCORE_TOOL_NAME=$(_archcore_json_val "toolName")
     if [ -z "$ARCHCORE_TOOL_NAME" ]; then
       ARCHCORE_TOOL_NAME=$(_archcore_json_val "tool_name")
@@ -109,6 +108,13 @@ case "$ARCHCORE_HOST" in
     ARCHCORE_FILE_PATH=$(_archcore_json_val_unescaped "file_path")
     if [ -z "$ARCHCORE_FILE_PATH" ]; then
       ARCHCORE_FILE_PATH=$(_archcore_json_val_unescaped "filePath")
+    fi
+    if [ -z "$ARCHCORE_FILE_PATH" ]; then
+      case "$ARCHCORE_TOOL_NAME" in
+        create|edit|str_replace_editor|apply_patch)
+          ARCHCORE_FILE_PATH=$(_archcore_json_val_unescaped "path")
+          ;;
+      esac
     fi
     ARCHCORE_DOC_PATH=$(_archcore_json_val "path")
     if [ -z "$ARCHCORE_DOC_PATH" ]; then
@@ -139,6 +145,30 @@ case "$ARCHCORE_HOST" in
     ARCHCORE_TOOL_NAME=$(_archcore_json_val "tool_name")
     ARCHCORE_FILE_PATH=$(_archcore_json_val "file_path")
     ARCHCORE_DOC_PATH=$(_archcore_json_val "path")
+    ;;
+esac
+
+# --- Canonical MCP tool naming ---
+# The SAME archcore MCP server reaches the model under three different names,
+# depending on how it was registered — and the consuming scripts must not have
+# to know which:
+#
+#   mcp__archcore__<tool>                    project .mcp.json (Claude Code, Codex)
+#   mcp__plugin_archcore_archcore__<tool>    plugin-bundled server (Claude Code)
+#   archcore-<tool>                          Copilot flattens to "<server>-<tool>"
+#
+# Everything downstream (bin/validate-archcore, bin/check-precision,
+# bin/check-cascade) gates on the project naming alone. Without this fold, a
+# session using either of the other two registrations fires those hooks and
+# they silently no-op — the failure mode host-wiring-parity.adr calls out for
+# the hook MATCHERS, which carry both namings; matchers decide *whether* a
+# script runs, this decides *what it sees*. Both layers are needed.
+case "$ARCHCORE_TOOL_NAME" in
+  mcp__plugin_archcore_archcore__*)
+    ARCHCORE_TOOL_NAME="mcp__archcore__${ARCHCORE_TOOL_NAME#mcp__plugin_archcore_archcore__}"
+    ;;
+  archcore-*)
+    ARCHCORE_TOOL_NAME="mcp__archcore__${ARCHCORE_TOOL_NAME#archcore-}"
     ;;
 esac
 

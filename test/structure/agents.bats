@@ -14,6 +14,43 @@ setup() {
   [ -f "$PLUGIN_ROOT/agents/archcore-auditor.md" ]
 }
 
+# --- Copilot copies -------------------------------------------------------
+#
+# Copilot CLI loads plugin agents only from *.agent.md files, so it needs its
+# own copies. They live in copilot-agents/ rather than beside the originals
+# because .agent.md still matches the *.md glob Claude Code and Cursor use —
+# a sibling copy would hand both hosts two files declaring the same `name:`.
+#
+# The copies are byte-identical by design: the tool allow-lists inside them
+# already carry all three MCP namings (mcp__archcore__*,
+# mcp__plugin_archcore_archcore__*, archcore-<tool>), so there is nothing
+# host-specific left to diverge. cmp catches drift here, in CI, instead of on
+# a live Copilot session where a stale copy just behaves subtly differently.
+
+@test "Copilot agent copies exist with the .agent.md extension" {
+  [ -f "$PLUGIN_ROOT/copilot-agents/archcore-assistant.agent.md" ]
+  [ -f "$PLUGIN_ROOT/copilot-agents/archcore-auditor.agent.md" ]
+}
+
+@test "Copilot agent copies are byte-identical to the originals" {
+  local agent
+  for agent in archcore-assistant archcore-auditor; do
+    cmp -s "$PLUGIN_ROOT/agents/$agent.md" \
+           "$PLUGIN_ROOT/copilot-agents/$agent.agent.md" \
+      || fail "copilot-agents/$agent.agent.md has drifted from agents/$agent.md"
+  done
+}
+
+@test "every MD agent has a Copilot copy" {
+  # Guards the direction cmp cannot: a NEW agent added to agents/ with no
+  # copilot-agents/ counterpart would leave Copilot silently one agent short.
+  local name
+  while IFS= read -r name; do
+    [ -f "$PLUGIN_ROOT/copilot-agents/$name.agent.md" ] \
+      || fail "agents/$name.md has no copilot-agents/$name.agent.md copy"
+  done < <(find "$PLUGIN_ROOT/agents" -maxdepth 1 -name '*.md' -exec basename {} .md \;)
+}
+
 @test "assistant has required frontmatter fields" {
   local file="$PLUGIN_ROOT/agents/archcore-assistant.md"
   head -20 "$file" | grep -q '^name:'
@@ -126,6 +163,45 @@ setup() {
           ;;
       esac
     done < <(grep -oE 'mcp__(plugin_archcore_)?archcore__[a-z_]+' "$file" | sort -u)
+  done
+}
+
+# Copilot is the THIRD naming. Claude/Cursor see mcp__archcore__* (project
+# .mcp.json) or mcp__plugin_archcore_archcore__* (plugin-bundled server);
+# Copilot flattens MCP tools to "<server>-<tool>" — archcore-list_documents —
+# verified against Copilot CLI 1.0.73 (see bin/lib/normalize-stdin.sh, which
+# normalizes that form back to the canonical one for the hook scripts).
+#
+# An agent `tools:` list is an ALLOW-list and unrecognized names are ignored,
+# so a missing twin does not misfire — it silently strips the agent of every
+# archcore tool on that host, which is the failure this test exists to catch.
+#
+# The .toml agents are exempt: that format is Codex-only and Copilot never
+# reads it. Codex's deny-list keeps its own two-naming guard above.
+@test "agent .md tool lists carry the Copilot flat naming too" {
+  local file tool suffix
+  for file in "$PLUGIN_ROOT/agents/archcore-assistant.md" \
+              "$PLUGIN_ROOT/agents/archcore-auditor.md"; do
+    while IFS= read -r tool; do
+      suffix="${tool#mcp__archcore__}"
+      grep -qE "^[[:space:]]*-[[:space:]]+archcore-${suffix}\$" "$file" \
+        || fail "$(basename "$file"): lists $tool but not its Copilot twin archcore-${suffix}"
+    done < <(grep -oE 'mcp__archcore__[a-z_]+' "$file" | sort -u)
+  done
+}
+
+# Inverse direction: a Copilot entry with no canonical twin means someone added
+# a tool for one host only — the allow-lists must stay a single set across hosts.
+@test "no Copilot-only tool entry without its canonical twin" {
+  local file tool suffix
+  for file in "$PLUGIN_ROOT/agents/archcore-assistant.md" \
+              "$PLUGIN_ROOT/agents/archcore-auditor.md"; do
+    while IFS= read -r tool; do
+      suffix="${tool#archcore-}"
+      grep -qF "mcp__archcore__${suffix}" "$file" \
+        || fail "$(basename "$file"): lists $tool but not mcp__archcore__${suffix}"
+    done < <(grep -oE '^[[:space:]]*-[[:space:]]+archcore-[a-z_]+' "$file" \
+             | sed 's/^[[:space:]]*-[[:space:]]*//' | sort -u)
   done
 }
 
