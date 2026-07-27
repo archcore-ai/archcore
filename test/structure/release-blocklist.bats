@@ -18,9 +18,19 @@ YML() {
 
 is_stripped() {
   # Matches `rm -rf <path>` or `rm -f <path>` lines, allowing trailing
-  # comments. The path is anchored exactly (no prefix matches, so
-  # `assets` does not match `assets-foo`).
-  grep -qE "^\s*rm\s+(-rf|-f)\s+${1}(\s|$|#)" "$(YML)"
+  # comments. The trailing boundary anchors the path exactly, so `assets`
+  # does not match `assets-foo`.
+  #
+  # The leading `(\S*/)?` is what makes the negative assertions below mean
+  # anything. Everything the plugin ships lives under plugins/archcore/, so a
+  # strip line that actually breaks an install reads
+  # `rm -rf plugins/archcore/skills` — and a pattern anchored right after
+  # `rm -rf ` could only ever match a bare top-level `skills`, a line nobody
+  # would write. Without the prefix group, release.yml could delete skills/,
+  # commands/, assets/ and copilot-agents/ and every test here stayed green.
+  # The group requires a trailing slash, so `agents` still does not match
+  # `copilot-agents`.
+  grep -qE "^\s*rm\s+(-rf|-f)\s+(\S*/)?${1}(\s|$|#)" "$(YML)"
 }
 
 # --- Files that MUST ship to main (no blocklist entry) ---------------------

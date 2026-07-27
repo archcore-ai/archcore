@@ -220,6 +220,23 @@ setup() {
 # offers only the three detectable hosts, a Copilot user is stuck with no correct
 # answer and init picks the wrong agent id. The ask-fallback is therefore the only
 # thing that makes init usable on this host, and it must not silently regress.
+@test "init host wiring names all three files copilot needs, and calls them non-optional" {
+  # The claude-code row above is pinned by name; this is its copilot twin, and
+  # without it the row can be trimmed to any subset and nothing notices.
+  #
+  # The three are not interchangeable. The plugin ships no MCP for Copilot
+  # (copilot-mcp-architecture.adr), so .mcp.json is the ONLY thing that gives
+  # that host document tools — a session missing it has skills and hooks and no
+  # way to read or write a document, which looks like a broken plugin rather
+  # than missing wiring. The `archcore init --agent copilot` writes exactly
+  # these three (internal/agents/copilot.go, internal/wiring/hooks_agents.go),
+  # so a drift here is the skill promising a layout the CLI does not produce.
+  grep -qE 'copilot → .*\.mcp\.json.*\.github/hooks/archcore\.json.*AGENTS\.md' "$SKILL" \
+    || fail "SKILL.md per-host list must name .mcp.json + .github/hooks/archcore.json + AGENTS.md for copilot"
+  grep -q 'Host wiring line is never optional' "$SKILL" \
+    || fail "SKILL.md must state that host wiring is not optional on copilot — no wiring means no document tools at all"
+}
+
 @test "init host question offers Copilot, which detect-host can never return" {
   grep -qi "GitHub Copilot CLI" "$SKILL" \
     || fail "SKILL.md Step -1 must offer GitHub Copilot CLI in the host AskUserQuestion — detect-host cannot return it"
