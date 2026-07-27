@@ -245,11 +245,18 @@ setup() {
   return 0
 }
 
-@test "init version gate pins CLI >= 0.6.1 with no stale 0.6.0 references" {
-  grep -qF 'cli-gte" 0.6.1' "$SKILL" \
-    || fail "SKILL.md must gate host wiring on cli-gte 0.6.1"
-  run grep -n "0\.6\.0" "$SKILL"
-  [ "$status" -ne 0 ] || fail "SKILL.md still references CLI 0.6.0: $output"
+@test "init version gate pins CLI >= 0.6.4 with no stale gate references" {
+  # v0.6.4 is the release where the Copilot writer stopped targeting
+  # .vscode/mcp.json — a surface Copilot CLI dropped in v1.0.37 — and started
+  # writing the workspace-root .mcp.json it actually reads. Since Copilot has
+  # no plugin-shipped MCP (copilot-mcp-architecture.adr), an older CLI leaves
+  # that host with no document tools at all, so the gate has to move with it.
+  grep -qF 'cli-gte" 0.6.4' "$SKILL" \
+    || fail "SKILL.md must gate host wiring on cli-gte 0.6.4"
+  run grep -n "cli-gte\" 0\.6\.[0-3]\b\|cli-gte 0\.6\.[0-3]\b" "$SKILL"
+  [ "$status" -ne 0 ] || fail "SKILL.md still calls the gate with a stale version: $output"
+  run grep -n "CLI < v0\.6\.[0-3]\b\|older than v0\.6\.[0-3]\b" "$SKILL"
+  [ "$status" -ne 0 ] || fail "SKILL.md still names a stale gate version to the user: $output"
 }
 
 @test "import flow strips the archcore managed block, never re-importing its own nudge" {
@@ -260,10 +267,13 @@ setup() {
 }
 
 @test "SKILL.md and skills-system.spec.md agree on the CLI wiring gate version" {
-  grep -qF "0.6.1" "$SKILL" \
-    || fail "SKILL.md missing the 0.6.1 gate version"
-  grep -qF "v0.6.1" "$REPO_ROOT/.archcore/plugin/skills-system.spec.md" \
-    || fail "skills-system.spec.md must pin the same v0.6.1 wiring gate"
+  # Derived from the skill rather than hardcoded twice: the next bump then
+  # touches one literal, and this test still catches the spec falling behind.
+  local gate
+  gate=$(grep -o 'cli-gte" [0-9]\+\.[0-9]\+\.[0-9]\+' "$SKILL" | head -1 | awk '{print $2}')
+  [ -n "$gate" ] || fail "SKILL.md has no cli-gte call to read the gate version from"
+  grep -qF "v$gate" "$REPO_ROOT/.archcore/plugin/skills-system.spec.md" \
+    || fail "skills-system.spec.md must pin the same v$gate wiring gate (SKILL.md says $gate)"
 }
 
 @test "init Step A.4 sizes CLAUDE.md/AGENTS.md only after stripping the managed block" {

@@ -8,7 +8,7 @@ tags:
 
 ## Purpose
 
-Define the contract for how skills are structured, discovered, and used within the Archcore Plugin (Claude Code, Cursor, Codex CLI). Skills are organized as a single tier of auto-invocable intent skills. Per-type elicitation and per-flow orchestration live inline within these intents — there are no per-document-type skills and no separate track tier.
+Define the contract for how skills are structured, discovered, and used within the Archcore Plugin (Claude Code, Cursor, Codex CLI, GitHub Copilot CLI). Skills are organized as a single tier of auto-invocable intent skills. Per-type elicitation and per-flow orchestration live inline within these intents — there are no per-document-type skills and no separate track tier.
 
 The current surface is governed by `skill-surface-collapse.adr.md`, which supersedes the track tier from `intent-based-skill-architecture.adr.md`, the standalone `actualize`/`review` split from `merge-review-status-remove-graph.adr.md`, and the mainstream/niche type-skill stratification from `inverted-invocation-policy.adr.md`.
 
@@ -64,6 +64,10 @@ Where a skill needs to support multiple multi-document flows or heavy detection 
 | `detect-*.md`, `extract-*.md`, `compose-overview.md` | `skills/init/lib/*.md` | `init` | scale/stack/domain/module/entry-point/hotspot/data-model/integration/config detection catalogs + capstone composer, read lazily in the Detect/Compose sub-phases |
 
 This pattern keeps each SKILL.md under the line budget while preserving rich per-flow elicitation and detection behind a single intent entry point.
+
+### Host surfacing
+
+Claude Code, Cursor and GitHub Copilot CLI surface skills directly in their `/` menus. Codex CLI does not, and reaches the same seven through `commands/*.md` wrappers; Copilot loads those wrappers too, behind the skills, and only because `.plugin/plugin.json` points at `commands/` explicitly — that field has no default path on Copilot. See `commands-system.spec.md`.
 
 ### Document-type coverage
 
@@ -128,7 +132,8 @@ Note: creation-oriented skills (`init`, `capture`, `decide`, `plan`) include inl
 - Skill descriptions MUST enumerate triggers and anti-triggers using the "Activate when X. Do NOT activate for Y." format.
 - Skills MUST default to minimum viable path. Expansion requires a binary scope question. (`init` is the exception: it composes the full scale-appropriate seed and gates it behind one preview/confirm rather than asking per document.)
 - Creation-oriented skills MUST be self-contained with inline creation recipes (question + sections + create + relate per document type produced). Where a flow has multiple steps, per-flow content MAY live in `skills/<name>/references/<flow>.md` (or `skills/<name>/lib/*.md`) and be loaded on demand.
-- WHEN the user confirms the init plan and the installed CLI version is >= v0.6.1, the `init` skill MUST install host wiring for the detected host via the first available path (`install_host_config` MCP tool, else `archcore init --agent <host> --project <root>`, else print the ready-to-run manual command for the user's terminal), and MUST NOT write host configs before confirm (`host-wiring-parity.adr.md`).
+- WHEN the user confirms the init plan and the installed CLI version is >= v0.6.4, the `init` skill MUST install host wiring for the detected host via the first available path (`install_host_config` MCP tool, else `archcore init --agent <host> --project <root>`, else print the ready-to-run manual command for the user's terminal), and MUST NOT write host configs before confirm (`host-wiring-parity.adr.md`).
+- IF `bin/detect-host` returns `__UNKNOWN__`, THEN the `init` skill MUST ask the user which host to wire, offering all four. A GitHub Copilot CLI session always lands on this path — that host sets no environment marker a hook-less helper can read — and on Copilot the wiring is not optional polish: without it there is no MCP server at all (`copilot-mcp-architecture.adr.md`).
 - Analysis skills (`audit`, `context`) MUST use MCP read tools (`list_documents`, `get_document`, `list_relations`) and MAY use git/Grep/Glob for cross-referencing.
 - All skills MUST use MCP tools for document operations. MUST NOT instruct direct Write/Edit to `.archcore/*.md`.
 - Skills MUST reference MCP tools by exact name.
@@ -141,6 +146,7 @@ Note: creation-oriented skills (`init`, `capture`, `decide`, `plan`) include inl
 - Per-flow reference files (under `skills/<name>/references/`, `skills/audit/lib/`, or `skills/init/lib/`) must not exceed 200 lines each.
 - Skills must not reference internal CLI implementation details — only the MCP tool interface.
 - Skills must not embed full document templates.
+- Skills MUST NOT contain host-conditional instructions (`host-adapter-contract.spec.md`); host differences belong in `bin/` and in the per-host configs.
 
 ## Invariants
 
@@ -171,4 +177,3 @@ A skill file conforms to this specification if:
 4. It references appropriate MCP tools in its workflow.
 5. It stays within its line limit (300 SKILL.md — 450 for `init` per the named exception above; 200 references).
 6. It does not embed full template content.
-7. Its description follows the "Activate when X. Do NOT activate for Y." format.
