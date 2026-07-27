@@ -37,7 +37,7 @@ Runs all checks in order: JSON validation → permission check → ShellCheck �
 make test
 ```
 
-Runs both unit and structure tests via bats-core (212 tests total as of the global-CLI cutover).
+Runs both unit and structure tests via bats-core. The suite grows with the plugin, so treat the count `make test` prints as the number to compare against — not one written down here.
 
 To run a subset:
 
@@ -49,8 +49,8 @@ make test-structure  # structure tests for configs and frontmatter
 To run a single test file:
 
 ```bash
-PLUGIN_ROOT=$(pwd) bats test/unit/normalize-stdin.bats
-PLUGIN_ROOT=$(pwd) bats test/unit/validate-archcore.bats
+PLUGIN_ROOT=$(pwd)/plugins/archcore REPO_ROOT=$(pwd) bats test/unit/normalize-stdin.bats
+PLUGIN_ROOT=$(pwd)/plugins/archcore REPO_ROOT=$(pwd) bats test/unit/validate-archcore.bats
 ```
 
 ### 3. Run ShellCheck lint
@@ -68,11 +68,24 @@ make check-json    # validates all JSON configs via jq
 make check-perms   # verifies bin/ scripts are executable
 ```
 
-### 5. Plugin integrity check
+### 5. Host install smoke tests
+
+```bash
+make test-codex-smoke     # requires the codex CLI on PATH
+make test-copilot-smoke   # requires the copilot CLI on PATH
+```
+
+Neither runs as part of `make test`, and both **skip** rather than fail when their host binary is absent — so they ship, stay quiet in CI, and run for free on a contributor's machine that has the host installed. They cover what static tests cannot: that a real install of the plugin produces a tree the host can actually load. That is the exact gap issue #2 fell through for Codex, where every structural test was green while marketplace discovery silently found nothing.
+
+The Copilot smoke test asserts filesystem facts rather than CLI output: every path the manifest names survives the install, the hook scripts keep their executable bit, and no plugin MCP server is registered (github/copilot-cli#4234). Host output wording is not a contract we control; what the plugin promises is what lands on disk.
+
+### 6. Plugin integrity check
 
 `make verify` is the canonical way to run plugin integrity checks. The previous `/archcore:verify` skill was retired by `skill-surface-collapse.adr.md` — use the Makefile target instead. Inside a host session, ask the model to "run make verify and report the results" if you want AI-assisted verification.
 
-### 6. Write a new test
+Two structure files carry the per-host regression guards specifically: `test/structure/host-coverage-matrix.bats` (one enrolled row per hooks config, with an enrollment guard so a new host cannot ship unchecked) and `test/structure/copilot-plugin.bats` / `codex-plugin.bats` / `cursor-plugin.bats` for the per-host manifests.
+
+### 7. Write a new test
 
 **Unit test** — for bin/ script logic (stdin parsing, exit codes, output):
 
@@ -87,6 +100,7 @@ make check-perms   # verifies bin/ scripts are executable
 3. Use helpers from `test/helpers/common.bash`:
    - `run_with_fixture <script> <fixture-path>` — run script with fixture file as stdin
    - `run_with_stdin <script> <inline-json>` — run script with inline stdin
+   - `run_with_fixture_env <script> <fixture> <host>` — same, with `ARCHCORE_HOST` forced (needed for env-only hosts such as opencode)
    - `mock_archcore <output> [exit-code]` — create a mock `archcore` CLI on `PATH` that returns canned output for *any* subcommand. Use only when the test does not care which subcommand was called.
    - `mock_archcore_logging <output> [exit-code]` — same as `mock_archcore`, but every invocation appends the subcommand argument (`$1`) to `$MOCK_ARCHCORE_LOG` if that env var is set. Use whenever the test needs to assert which subcommand the script invoked (recommended for any hook that shells out to the CLI).
    - `mock_archcore_multi` — multi-subcommand mock (responds with `$MOCK_DOCTOR_OUTPUT` for `doctor`, `$MOCK_HOOKS_OUTPUT` for `hooks`); also logs to `$MOCK_ARCHCORE_LOG` when set.
@@ -95,21 +109,25 @@ make check-perms   # verifies bin/ scripts are executable
 
 **Testing CLI fallback paths** — `test/unit/session-start.bats` covers the missing-CLI fallback: with a restricted PATH where `archcore` is not resolvable, `bin/session-start` must still exit 0 and emit the install message pointing at https://docs.archcore.ai/cli/install/. Other hook scripts that shell out to `archcore` (e.g., `validate-archcore`) use `mock_archcore_logging` to assert which subcommand was invoked.
 
+**One caveat when comparing two runs of `session-start`.** `archcore hooks <host> session-start` emits its context only the first time it sees a given project, so two invocations in the same directory are not comparable — the second is legitimately empty. Give each invocation its own project directory (see `test/unit/probe-wrapper.bats`).
+
 **Structure test** — for config/file validation:
 
 1. Create `test/structure/<topic>.bats`
 2. Same setup as unit tests
-3. Use `$PLUGIN_ROOT` to reference project files
+3. Use `$PLUGIN_ROOT` to reference plugin files and `$REPO_ROOT` for repo-root files (catalogs, docs, `.archcore/`)
 4. Use `jq` for JSON validation, `grep` for frontmatter checks
 5. For scripts that invoke the CLI, the `scripts.bats` structure tests verify the direct `archcore` invocation pattern (no launcher indirection). README references to `archcore <subcmd>` are guarded by `readme-cli-references.bats` against the canonical surface allowlist.
+
+**Prefer a table over a copy when a test is per-host.** Four hosts means four near-identical tests, and the fourth is the one nobody writes. Worse, a copied test can pass on an empty set: `jq '.. | .command?'` returns nothing for `hooks/copilot.hooks.json`, whose entries use `bash`. `test/structure/hooks.bats` shows the shape — one table of `host|config|plugin-root-variable`, a union accessor, an assertion that the extraction was not empty, and an enrollment guard so a fifth config cannot slip past the table.
 
 **Fixture** — mock stdin JSON for hook scripts:
 
 1. Create `test/fixtures/stdin/<host>/<name>.json`
-2. Hosts: `claude-code/`, `cursor/`, `copilot/`, `malformed/`
-3. Match the exact JSON structure the hook receives from that host
+2. Hosts: `claude-code/`, `cursor/`, `codex/`, `copilot/`, `opencode/`, `malformed/`
+3. Match the exact JSON structure the hook receives from that host. Copilot's native payloads are the least guessable: the edited path lives inside an escaped JSON **string** under `toolArgs`, not in a nested object.
 
-### 7. Assert CLI subcommand invocations
+### 8. Assert CLI subcommand invocations
 
 Per `cli-integration-tests.rule.md`, any change that touches a script invoking `archcore` MUST be covered by tests that pin the exact subcommand. The plugin enforces this contract at two layers:
 
@@ -133,13 +151,19 @@ A test that asserts only `assert_success` after a CLI invocation is insufficient
 
 When the canonical CLI surface changes upstream (new subcommand added/removed), update the `ARCHCORE_SUBCOMMANDS` constant in `readme-cli-references.bats` and add an invocation-log assertion for any new subcommand the plugin starts using.
 
+### 9. Live-session probes
+
+Some questions no bats test can answer: whether a host loads the hooks config at all, whether its matcher fires on the tool name the model actually chose, and whether a deny is honored or merely displayed. Those are the province of `host-probe-protocol.spec`, and `test/probe/mkprobe` builds the disposable tree they run against. Everything mechanically checkable belongs here instead — `test/unit/hook-latency.bats` is the model: it turned "does the injection guard stay inside its budget" from a live question into a CI assertion.
+
 ## Verification
 
 - `make verify` exits 0 with "All checks passed"
-- All 212 tests show `ok` in the TAP output
+- Every line in the TAP output is `ok` (bats prints the total; there is no fixed number to match)
 - ShellCheck reports "all clean"
 - No `not ok` lines in test output
 - After breaking something intentionally (e.g., remove execute permission from a bin script, or rename a bin script the Makefile references), the relevant test fails
+
+That last item is a habit, not a formality. A test that has never been observed failing is a test whose failure mode is unknown — especially timing tests, table-driven tests, and anything that iterates a set that could be empty.
 
 ## Common Issues
 
@@ -172,6 +196,7 @@ The test suite provides a `timeout` shim automatically for macOS. If you see tim
 - Check that `submodules: true` is set in the checkout step of the GitHub Actions workflow
 - Ensure the CI runner has `jq` installed (it's not always pre-installed)
 - On Linux, `/bin/sh` is `dash` (strict POSIX). On macOS, `/bin/sh` is bash in POSIX mode. If a test reveals a bashism in a bin script, fix the script — the bin scripts must be POSIX-compatible.
+- Timing assertions (`hook-latency.bats`) use deliberately generous thresholds and best-of-N sampling, because CI runners are slower and noisier than a laptop. If one fails, suspect an algorithmic regression before suspecting the runner: the regressions these guard against are factors of ten, not percentages.
 
 ### ShellCheck SC2034 in normalize-stdin.sh
 
@@ -189,5 +214,14 @@ When adding a new bin/ script:
 3. If it reads hook stdin, source the normalizer: `. "$SCRIPT_DIR/lib/normalize-stdin.sh"`
 4. Add `# shellcheck source=lib/normalize-stdin.sh` before the source line
 5. If the script invokes the Archcore CLI, call `archcore <subcmd>` directly (resolved via PATH). The plugin no longer bundles a launcher — assume the user has installed the CLI per https://docs.archcore.ai/cli/install/. Wrap the call with `timeout` and `|| true` if the hook must remain non-blocking.
-6. Write tests in `test/unit/<name>.bats`. If the script invokes the CLI, include the invocation-log assertion described in step 7 above (mandated by `cli-integration-tests.rule.md`).
+6. Write tests in `test/unit/<name>.bats`. If the script invokes the CLI, include the invocation-log assertion described in step 8 above (mandated by `cli-integration-tests.rule.md`).
 7. The structure tests will automatically verify permissions and shebang. README references to new subcommands are guarded by `readme-cli-references.bats`.
+
+### Adding a new host
+
+1. Add the manifest, the hooks config, and the `normalize-stdin.sh` case (`host-adapter-contract.spec`).
+2. Enroll it in `host-coverage-matrix.bats` — the enrollment guard fails until you do.
+3. Enroll it in the `hooks.bats` resolution table and the `json-configs.bats` metadata table; both have their own enrollment guards for the same reason.
+4. Add stdin fixtures under `test/fixtures/stdin/<host>/`.
+5. Add a smoke test under `test/integration/`, with a `command -v <host> || skip` guard.
+6. Add its row to the probe records table (`probe-records.bats` derives the host list from the coverage matrix, so the row becomes mandatory automatically).

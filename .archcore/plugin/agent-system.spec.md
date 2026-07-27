@@ -8,11 +8,11 @@ tags:
 
 ## Purpose
 
-Define the contract for the Archcore Claude Plugin's subagents — `archcore-assistant` (read/write) and `archcore-auditor` (read-only).
+Define the contract for the Archcore plugin's subagents — `archcore-assistant` (read/write) and `archcore-auditor` (read-only) — across every host that loads them.
 
 ## Scope
 
-This specification covers both agent definitions in `agents/`, their system prompts, tool restrictions, invocation triggers, and domain expertise.
+This specification covers both agent definitions, their per-host file formats, their system prompts, tool restrictions, invocation triggers, and domain expertise.
 
 ## Authority
 
@@ -20,13 +20,29 @@ This specification is the authoritative reference for both agents. The Single Un
 
 ## Subject
 
+### Per-host file formats
+
+The two agents are one definition each, shipped in the format every host's loader accepts. Content is identical across formats; only the container differs.
+
+| Format | Location | Read by | Notes |
+|---|---|---|---|
+| `<name>.md` | `agents/` | Claude Code, Cursor | The canonical source; agent id comes from frontmatter `name:` |
+| `<name>.toml` | `agents/` | Codex CLI | Adds `sandbox_mode` and `disabled_tools[]`; body kept in parity with the MD |
+| `<name>.agent.md` | `copilot-agents/` | GitHub Copilot CLI | Byte-identical copy of the MD; agent id comes from the filename |
+
+Copilot's copies sit in a directory of their own rather than beside the originals. Its loader accepts only the `*.agent.md` extension, and that extension still matches the `*.md` glob Claude Code and Cursor use — a sibling copy would give both hosts two files declaring the same `name:`. The TOML variants never had this problem because their extension is foreign to every md-globbing host. `test/structure/agents.bats` holds the copies byte-identical (`cmp`) and fails when an agent in `agents/` has no counterpart.
+
+### MCP tool naming
+
+A tool list is only as good as the names in it. The same MCP server appears under three names depending on how it was registered: `mcp__archcore__*` (project `.mcp.json`), `mcp__plugin_archcore_archcore__*` (plugin-bundled on Claude Code), and the flat `archcore-<tool>` (Copilot, which joins server and tool with a hyphen). Every allow-list and deny-list in the agent files carries all three. This matters asymmetrically: an allow-list missing a name loses a capability, while the auditor's TOML **deny**-list missing a name silently grants the read-only agent the power to mutate. `test/structure/agents.bats` pins the twins in both directions.
+
 ### Agent 1: archcore-assistant (Read/Write)
 
 Handles complex, multi-step documentation tasks requiring write access to MCP tools.
 
 #### Definition File
 
-Location: `agents/archcore-assistant.md`
+Location: `agents/archcore-assistant.md` (plus the TOML and `*.agent.md` variants above)
 
 ```yaml
 ---
@@ -54,9 +70,11 @@ tools:
 ---
 ```
 
+(Abbreviated: the shipped file lists each MCP tool under all three namings.)
+
 #### Invocation Triggers
 
-Claude should invoke `archcore-assistant` when:
+The host should invoke `archcore-assistant` when:
 
 - User requests creation of multiple related documents
 - Task involves requirements decomposition (e.g., "break this PRD into specifications")
@@ -69,7 +87,7 @@ Performs documentation health checks without any mutation capability.
 
 #### Definition File
 
-Location: `agents/archcore-auditor.md`
+Location: `agents/archcore-auditor.md` (plus the TOML and `*.agent.md` variants above)
 
 ```yaml
 ---
@@ -94,7 +112,7 @@ tools:
 
 #### Invocation Triggers
 
-Claude should invoke `archcore-auditor` when:
+The host should invoke `archcore-auditor` when:
 
 - User asks for a documentation audit, health check, or review
 - User asks "what's missing?" or "what needs attention?" about documentation
@@ -186,6 +204,7 @@ Three tracks that can coexist:
 - MUST, immediately after the bootstrap calls return, note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding with the user's task. This synthesis is a read-only transformation over data already in hand; it adds no new tool calls.
 - MUST use MCP tools for all `.archcore/` operations (no Write/Edit/Bash).
 - MUST call `list_documents` before creating any document to prevent duplicates (subsumed by the bootstrap requirement above, retained for emphasis).
+- MUST list every MCP tool they use under all three namings, so the definition works whether the server was registered by the project, by the plugin, or by Copilot's flattening.
 - Should explain reasoning when choosing document types or relation types.
 
 ### archcore-assistant Only
@@ -209,6 +228,7 @@ Three tracks that can coexist:
 - System prompts must not exceed 2000 lines.
 - Neither agent may modify files outside `.archcore/` via any means.
 - Both agents respect existing document statuses.
+- Format variants exist only where a host's loader requires one. They are copies, not forks: no host-specific instruction may enter any variant (`host-adapter-contract.spec`).
 
 ## Invariants
 
@@ -217,6 +237,8 @@ Three tracks that can coexist:
 - Both agents check for existing documents before suggesting creation.
 - Every sub-agent invocation's first tool calls are `list_documents` and `list_relations` (bootstrap requirement per `subagent-knowledge-tree-bootstrap.adr`). `archcore-auditor` has no exception to this invariant; `archcore-assistant` has a narrow exception only for strictly single-document reads with explicit paths.
 - Both agent system prompts carry a `# First Step — Bootstrap Knowledge Tree` section as the first content section after the YAML frontmatter, with cross-references to `remove-skill-verify-mcp-preamble.cpat` and `subagent-knowledge-tree-bootstrap.adr`, and with the synthesis directive anchor literal `recent accepted decisions` present.
+- Every agent present in `agents/*.md` has a byte-identical `copilot-agents/<name>.agent.md` counterpart.
+- No Copilot-only tool entry exists without its canonical twin.
 
 ## Error Handling
 
@@ -228,10 +250,10 @@ Three tracks that can coexist:
 
 An agent conforms to this specification if:
 
-1. It resides at `agents/<name>.md` with the correct frontmatter
-2. Its tool list matches the allowed tools exactly (per tool access matrix)
+1. It resides at `agents/<name>.md` with the correct frontmatter, and every format variant its hosts require exists: `agents/<name>.toml` for Codex, `copilot-agents/<name>.agent.md` for Copilot
+2. Its tool list matches the allowed tools exactly (per tool access matrix), under all three MCP namings
 3. Its system prompt covers the shared domain knowledge
 4. It follows the normative behavior for its role
 5. archcore-auditor produces no mutations; archcore-assistant produces structured output
 6. Its system prompt carries the `# First Step — Bootstrap Knowledge Tree` section per `subagent-knowledge-tree-bootstrap.adr`, including cross-references to that ADR and to `remove-skill-verify-mcp-preamble.cpat`, plus the synthesis directive whose anchor literal `recent accepted decisions` is grep-able in both files
-7. `test/structure/agents.bats` asserts the bootstrap preamble and the synthesis directive anchor are present in both agent files
+7. `test/structure/agents.bats` asserts the bootstrap preamble, the synthesis directive anchor, the three-way tool naming, and byte-identity of the Copilot copies
