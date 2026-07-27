@@ -8,6 +8,8 @@ tags:
   - "validation"
 ---
 
+---
+
 > **Outcome (2026-05-15):** The Actualize system shipped, but as the `--drift` mode of the unified `/archcore:audit` skill rather than as a standalone `/archcore:actualize` skill. Layer 1 and Layer 2 (the `bin/check-staleness` SessionStart hook and the `bin/check-cascade` PostToolUse hook) shipped as designed. Layer 3 was folded into `audit` per `skill-surface-collapse.adr.md`. The detection protocol now lives at `skills/audit/lib/drift-detection.md`. This spec is preserved for historical context; the active contract is the `--drift` mode in `commands-system.spec.md` and `plugin-architecture.spec.md`.
 
 ## Purpose
@@ -106,7 +108,7 @@ PostToolUse hook, fires after `mcp__archcore__update_document` succeeds. Does NO
 
 #### Handler
 
-`bin/check-cascade`, registered as a PostToolUse hook entry across all hosts (`hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`).
+`bin/check-cascade`, registered as a PostToolUse hook entry in all four host hook configs (`hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`, `hooks/copilot.hooks.json`).
 
 #### Detection Logic
 
@@ -129,6 +131,8 @@ PostToolUse hook, fires after `mcp__archcore__update_document` succeeds. Does NO
   }
 }
 ```
+
+The wrapper above is Claude Code's and Codex's. Cursor takes `additional_context`, Copilot a bare top-level `additionalContext`, and OpenCode the plain message — the script never builds these by hand; `bin/lib/normalize-stdin.sh` output helpers pick the shape from `ARCHCORE_HOST`.
 
 #### Relation Direction Table
 
@@ -183,12 +187,24 @@ Drift mode loads `skills/audit/lib/drift-detection.md` for the detailed protocol
 
 ### hooks configuration
 
-The cascade PostToolUse entry is shipped in all three host hook configs:
+The cascade PostToolUse entry is shipped in all four host hook configs. Claude Code, Cursor and Codex share this shape (the plugin-root variable differs per host):
 
 ```json
 {
   "matcher": "mcp__archcore__update_document",
   "hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/bin/check-cascade", "timeout": 3}]
+}
+```
+
+Copilot's entry is structurally different and cannot be produced by search-and-replacing the variable — it is a flat object using `bash` instead of `command`, `timeoutSec` instead of `timeout`, and **no matcher at all**, because Copilot's `postToolUse` does not take one. The script self-filters there on the normalized tool name:
+
+```json
+{
+  "type": "command",
+  "cwd": ".",
+  "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/check-cascade",
+  "env": { "ARCHCORE_HOST": "copilot" },
+  "timeoutSec": 3
 }
 ```
 
@@ -206,7 +222,7 @@ Requirements: executable, exits 0, completes within 3 seconds, POSIX shell, degr
 
 PostToolUse handler for cascade detection after `update_document`.
 
-Requirements: executable, exits 0, reads JSON from stdin, outputs JSON with `hookSpecificOutput` when cascade detected, POSIX shell.
+Requirements: executable, exits 0, reads JSON from stdin, outputs the host-shaped context envelope when cascade detected, POSIX shell.
 
 ## Normative Behavior
 
@@ -216,6 +232,7 @@ Requirements: executable, exits 0, reads JSON from stdin, outputs JSON with `hoo
 - Layer 2 MUST fire only after `update_document`, not after `create_document` or `remove_document`.
 - Layer 2 MUST only flag documents connected via `implements`, `depends_on`, or `extends` (not `related`).
 - Layer 2 MUST NOT block the update operation.
+- WHERE a host's PostToolUse event accepts no matcher, `bin/check-cascade` MUST reach the same decision by filtering on the normalized tool name — the set of updates that trigger a cascade warning MUST NOT differ by host.
 - Layer 3 (`/archcore:audit --drift`) MUST verify MCP availability before analysis.
 - Layer 3 MUST NOT modify documents without explicit user confirmation per document.
 - Layer 3 MUST present findings grouped by severity (critical, cascade, temporal).
@@ -252,7 +269,7 @@ The Actualize system conforms to this specification if:
 
 1. `bin/check-staleness` runs at SessionStart and produces code-drift warnings when applicable.
 2. `bin/check-cascade` runs after `update_document` and produces cascade warnings when applicable.
-3. Every host hook config (`hooks.json`, `cursor.hooks.json`, `codex.hooks.json`) registers `check-cascade` on `update_document`.
+3. Every host hook config (`hooks.json`, `cursor.hooks.json`, `codex.hooks.json`, `copilot.hooks.json`) registers `check-cascade` on `update_document` — by matcher where the host has one, and by the script's own filtering on Copilot, which has none.
 4. `/archcore:audit --drift` exists as a mode of the `audit` intent skill, with routing-table support and the 3-dimension analysis.
 5. The drift protocol lives at `skills/audit/lib/drift-detection.md`.
 6. All hooks complete within their timeout budgets.

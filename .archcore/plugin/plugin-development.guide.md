@@ -8,20 +8,24 @@ tags:
 
 ## Prerequisites
 
-- Claude Code, Cursor, or Codex CLI installed with plugin support
+- Claude Code, Cursor, Codex CLI, or GitHub Copilot CLI installed with plugin support
 - Git for version control
 - bats-core for tests (`brew install bats-core` on macOS)
 - jq for JSON validation (`brew install jq`)
 - ShellCheck (optional, `brew install shellcheck`)
 - **Archcore CLI** installed globally via the official installer at https://docs.archcore.ai/cli/install/ — `curl -fsSL https://archcore.ai/install.sh | bash` (macOS/Linux/WSL) or `irm https://archcore.ai/install.ps1 | iex` (Windows PowerShell 5.1+). Verify with `archcore --version`.
 
-That's it. The plugin does not bundle a launcher — it assumes users have the Archcore CLI installed globally on PATH. MCP is registered automatically for Claude Code via plugin-root `.mcp.json`, and for Codex CLI via `.codex-plugin/plugin.json` pointing at plugin-root `.codex.mcp.json`. Both `.mcp.json` and `.codex.mcp.json` simply name `archcore` as the command — host runtimes resolve it via PATH.
+That's it. The plugin does not bundle a launcher — it assumes users have the Archcore CLI installed globally on PATH. MCP is registered automatically for Claude Code via plugin-root `.mcp.json`, and for Codex CLI via `.codex-plugin/plugin.json` pointing at plugin-root `.codex.mcp.json`. Both simply name `archcore` as the command — host runtimes resolve it via PATH.
 
-For Cursor development, you register MCP externally by copying `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped). The plugin deliberately does **not** ship a Cursor plugin-MCP — see `cursor-mcp-architecture.adr.md` for the three-layer rationale (Cursor 2.5+ spawns plugin-MCPs from the plugin install dir rather than the workspace, and its MCP stdio schema has no `cwd` field). The template passes `--project ${workspaceFolder}` in `args` so the server always resolves the workspace, regardless of how Cursor invokes it.
+**Two hosts get no plugin-shipped MCP, deliberately.** Cursor and GitHub Copilot CLI each launch a plugin's MCP child outside the user's project, so a plugin-shipped server would read and write the wrong tree.
 
-For Codex development, `codex plugin marketplace add /path/to/plugin` registers the marketplace. The current CLI loads enabled plugins from its installed plugin cache; run `make test-codex-smoke` for the local installed-cache smoke that verifies skill discovery and plugin-managed MCP.
+For Cursor development, register MCP externally by copying `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped). See `cursor-mcp-architecture.adr.md` for the three-layer rationale (Cursor 2.5+ spawns plugin-MCPs from the plugin install dir rather than the workspace, and its MCP stdio schema has no `cwd` field). The template passes `--project ${workspaceFolder}` in `args` so the server always resolves the workspace, regardless of how Cursor invokes it.
 
-Initialize a project for testing with `mcp__archcore__init_project` (via a Claude Code or Cursor session) rather than an out-of-band CLI command; the plugin routes initialization through MCP.
+For Copilot development, run `archcore init --agent copilot --project "$PWD"` in the test project (CLI ≥ v0.6.4). That writes the workspace-root `.mcp.json` Copilot CLI actually reads. See `copilot-mcp-architecture.adr.md`: Copilot launches a plugin's MCP child in the plugin install directory and passes it no project path at all (github/copilot-cli#4234), so documents would land in `~/.copilot/installed-plugins/` while every tool reported success.
+
+For Codex development, `codex plugin marketplace add /path/to/plugin` registers the marketplace. The current CLI loads enabled plugins from its installed plugin cache; run `make test-codex-smoke` for the local installed-cache smoke that verifies skill discovery and plugin-managed MCP. `make test-copilot-smoke` is the equivalent for Copilot.
+
+Initialize a project for testing with `mcp__archcore__init_project` (via any host session) rather than an out-of-band CLI command; the plugin routes initialization through MCP.
 
 ## Steps
 
@@ -39,11 +43,14 @@ The plugin uses a `dev → main` split: all PRs land on `dev`. The `main` branch
 ### 2. Run the host with the plugin loaded locally
 
 ```bash
-claude --plugin-dir .    # Claude Code
-cursor --plugin-dir .    # Cursor
+claude   --plugin-dir plugins/archcore    # Claude Code
+cursor   --plugin-dir plugins/archcore    # Cursor
+copilot  --plugin-dir plugins/archcore    # GitHub Copilot CLI
 ```
 
-This loads the plugin from the current directory without requiring marketplace installation. Changes to plugin files are picked up after running `/reload-plugins` inside the session.
+Codex has no `--plugin-dir`; use a local marketplace (`codex plugin marketplace add /path/to/plugin`).
+
+This loads the plugin without requiring marketplace installation. Changes to plugin files are picked up after running `/reload-plugins` inside the session.
 
 ### 3. Modify an existing skill
 
@@ -53,9 +60,9 @@ Edit `skills/<name>/SKILL.md`. Required frontmatter fields: `name` (must match d
 
 Reload and test: `/reload-plugins`, then try `/archcore:<name>`.
 
-#### 3a. Add a Codex slash command wrapper (required for user-facing skills)
+#### 3a. Add a slash command wrapper (required for user-facing skills)
 
-Claude Code and Cursor surface skills directly in the `/` menu. Codex CLI does not — it discovers slash commands from root-level `commands/<name>.md` files. The plugin ships 7 wrappers, one per skill. If you ever add a new top-level skill (requires a new ADR), add the matching wrapper:
+Claude Code, Cursor and Copilot surface skills directly in the `/` menu. Codex CLI does not — it discovers slash commands from `commands/<name>.md` files. The plugin ships 7 wrappers, one per skill. If you ever add a new top-level skill (requires a new ADR), add the matching wrapper:
 
 ```markdown
 ---
@@ -73,11 +80,13 @@ The user invoked this command with: $ARGUMENTS
 Use the Archcore skill at `skills/my-skill/SKILL.md`.
 ```
 
-Wrappers carry no workflow logic — behavior lives in the skill, the single source of truth. `test/structure/codex-plugin.bats` enforces parity: every wrapper must exist, carry `description:`, and reference its matching `skills/<name>/SKILL.md`.
+Wrappers carry no workflow logic — behavior lives in the skill, the single source of truth. `test/structure/codex-plugin.bats` and `copilot-plugin.bats` enforce parity: every wrapper must exist, carry `description:`, and reference its matching `skills/<name>/SKILL.md`.
+
+Copilot loads the same wrappers, but only because `.plugin/plugin.json` names `./commands/` explicitly — that field has no default path on Copilot. A skill outranks a command of the same name there, so the wrappers are a fallback surface rather than the primary one; the pointer still has to be present, and a structure test keeps it there.
 
 ### 4. Add or modify hooks
 
-Edit `hooks/hooks.json` (Claude Code), `hooks/cursor.hooks.json` (Cursor), or `hooks/codex.hooks.json` (Codex CLI) to add event handlers.
+Edit `hooks/hooks.json` (Claude Code), `hooks/cursor.hooks.json` (Cursor), `hooks/codex.hooks.json` (Codex CLI), or `hooks/copilot.hooks.json` (GitHub Copilot CLI) to add event handlers. Every hooks config must also be enrolled in `test/structure/host-coverage-matrix.bats` and in the resolution table in `hooks.bats`; both have enrollment guards that fail until it is.
 
 Hook scripts go in `bin/` and must:
 
@@ -86,15 +95,20 @@ Hook scripts go in `bin/` and must:
 - Source `bin/lib/normalize-stdin.sh` if they read hook stdin
 - Add `# shellcheck source=lib/normalize-stdin.sh` before the source line
 - Invoke the CLI directly as `archcore` (resolved via PATH); the plugin no longer ships a launcher wrapper
-- If the script reads `.archcore/` or emits user-visible context, guard against being launched from a plugin install directory by exiting silently when cwd contains a sibling `.cursor-plugin/`, `.claude-plugin/`, or `.codex-plugin/` manifest (see `bin/session-start` for the canonical pattern, and `cursor-mcp-architecture.adr.md` for the rationale)
+- If the script reads `.archcore/` or emits user-visible context, guard against being launched from a plugin install directory by exiting silently when cwd contains — or sits beneath — a `.cursor-plugin/`, `.claude-plugin/`, `.codex-plugin/`, or `.plugin/` manifest (see `bin/session-start` for the canonical pattern, and `cursor-mcp-architecture.adr.md` for the rationale)
 
 Each host's hook config uses its host's canonical plugin-root env var:
 
 - `${CLAUDE_PLUGIN_ROOT}` — Claude Code's native injection (`hooks/hooks.json`).
 - `${CURSOR_PLUGIN_ROOT}` — Cursor's native injection (`hooks/cursor.hooks.json`).
 - `${PLUGIN_ROOT}` — Codex CLI's canonical, host-neutral env var (`hooks/codex.hooks.json`). Codex's hooks engine (`codex-rs/hooks/src/engine/discovery.rs`) injects `PLUGIN_ROOT` as the canonical name; `CLAUDE_PLUGIN_ROOT` is also injected but only as a backward-compat alias for porting old Claude plugins — do NOT use it in a Codex-native hook config. `CODEX_PLUGIN_ROOT` does not exist in Codex.
+- `${COPILOT_PLUGIN_ROOT}` — Copilot CLI's injection (`hooks/copilot.hooks.json`). It exists **only inside hook processes**, which is why `bin/detect-host` cannot key on it and why a Copilot session resolves to `__UNKNOWN__` there.
+
+Copilot's config differs from the others in shape, not just in names: entries use `bash` rather than `command`, `timeoutSec` rather than `timeout`, are flat objects rather than nested groups, carry `cwd: "."` so the hook runs from the user's project, and its `postToolUse` entries have no matcher at all — the scripts self-filter. A test written by copying another host's and swapping the filename will iterate an empty set and report `ok`.
 
 Plugin-shipped Codex hooks require `codex features enable plugin_hooks` to actually fire (the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0). See `codex-path-resolution.adr.md` for the full mechanism.
+
+Two Copilot hook semantics differ from every other host and both are load-bearing: `exit 2` is only a **warning** there, so a deny must be written to stdout as `{"permissionDecision":"deny","permissionDecisionReason":…}`; and a `preToolUse` **timeout fails open**, which makes guard latency a correctness concern rather than a comfort one. `test/unit/hook-latency.bats` keeps both PreToolUse guards far inside the 1-second budget for that reason.
 
 ### 5. Modify agents
 
@@ -102,8 +116,12 @@ Edit `agents/archcore-assistant.md` or `agents/archcore-auditor.md`:
 
 - Frontmatter: `name`, `description`, `model`, `maxTurns`, `tools`
 - The auditor must remain read-only (only list_documents, get_document, list_relations MCP tools)
+- Tool lists carry every MCP naming: `mcp__archcore__*`, `mcp__plugin_archcore_archcore__*`, and Copilot's flat `archcore-<tool>`
 
-For Codex CLI, also update the matching TOML variant (`agents/archcore-assistant.toml`, `agents/archcore-auditor.toml`) — TOML and MD must keep identical `developer_instructions` content; structural drift is detected by `test/structure/agents.bats`.
+Then propagate to the two format variants, both checked by `test/structure/agents.bats`:
+
+- **Codex** — `agents/<name>.toml`; TOML and MD must keep identical `developer_instructions` content.
+- **Copilot** — `copilot-agents/<name>.agent.md`; a byte-identical copy (`cmp`), because Copilot's loader accepts only the `*.agent.md` extension. Keep it in `copilot-agents/`, never beside the original: `.agent.md` still matches the `*.md` glob Claude Code and Cursor use, so a sibling copy would hand both hosts two files declaring the same `name:`.
 
 ### 6. Run tests
 
@@ -116,12 +134,14 @@ make verify    # full check: JSON + permissions + shellcheck + tests
 Or run individual checks:
 
 ```bash
-make test           # all bats tests
-make test-unit      # unit tests (bin script logic)
-make test-structure # structure tests (configs, frontmatter)
-make lint           # shellcheck
-make check-json     # JSON validity
-make check-perms    # executable permissions
+make test               # all bats tests
+make test-unit          # unit tests (bin script logic)
+make test-structure     # structure tests (configs, frontmatter)
+make test-codex-smoke   # install smoke, skips without the codex CLI
+make test-copilot-smoke # install smoke, skips without the copilot CLI
+make lint               # shellcheck
+make check-json         # JSON validity
+make check-perms        # executable permissions
 ```
 
 `make verify` is the canonical way to run plugin integrity checks; there is no `/archcore:verify` skill (removed by `skill-surface-collapse.adr.md`).
@@ -130,14 +150,17 @@ See `plugin-testing.guide.md` for detailed testing instructions.
 
 ### 7. Test all components manually
 
-- Skills: discuss relevant topics and verify Claude activates the skill
-- Commands: run each `/archcore:<name>` command (in all three hosts where applicable) and verify behavior — Codex pulls these from `commands/`, Claude Code and Cursor pull them from `skills/`
+- Skills: discuss relevant topics and verify the host activates the skill
+- Commands: run each `/archcore:<name>` command on every host you can reach and verify behavior — Codex pulls these from `commands/`, Claude Code, Cursor and Copilot from `skills/`
 - Agent: invoke the agent on a multi-document task
-- Hooks: trigger Write/Edit on `.archcore/` and verify PreToolUse blocks it
+- Hooks: trigger Write/Edit on `.archcore/` and verify the pre-mutation guard blocks it
 - MCP availability: ensure `archcore` is on PATH and `archcore --version` works
 - For Codex: from a directory **outside** the plugin source repo (e.g., `cd $(mktemp -d)`), call any `mcp__archcore__*` tool and verify the MCP starts.
 - For Cursor: after copying `docs/cursor.mcp.example.json` into `.cursor/mcp.json`, open an empty project. `list_documents` should return empty (not the plugin's own dev docs). If it returns dev docs, the plugin-install-dir guards regressed — file an issue against this repo and `archcore-ai/cli`.
+- For Copilot: `copilot mcp list` must NOT show an `archcore` server contributed by the plugin. If it does, the manifest regressed or the host auto-discovers plugin-root `.mcp.json` — either way, capture it, because that question is unresolved from GitHub's own documentation (see `copilot-mcp-architecture.adr.md`).
 - Integrity check: `make verify`
+
+For the questions no manual checklist can settle — whether a deny is honored or merely displayed, whether pre-mutation hooks fire on delegated calls — follow `host-probe-protocol.spec.md` and record the result.
 
 ## Verification
 
@@ -153,30 +176,36 @@ See `plugin-testing.guide.md` for detailed testing instructions.
 
 ### Plugin not loading
 
-- Ensure `.claude-plugin/plugin.json` (Claude Code), `.cursor-plugin/plugin.json` (Cursor), or `.codex-plugin/plugin.json` (Codex CLI) exists and has valid JSON
-- Check that directories (skills/, agents/, hooks/, commands/) are at the plugin root
+- Ensure the manifest for your host exists and has valid JSON: `.claude-plugin/plugin.json` (Claude Code), `.cursor-plugin/plugin.json` (Cursor), `.codex-plugin/plugin.json` (Codex CLI), `.plugin/plugin.json` (GitHub Copilot CLI)
+- Check that directories (skills/, agents/, copilot-agents/, hooks/, commands/) are at the plugin root
 - Run `claude --debug` to see plugin loading details
 
 ### Skill not activating
 
-- Check the `description` field in SKILL.md frontmatter — it determines when Claude activates the skill
+- Check the `description` field in SKILL.md frontmatter — it determines when the host activates the skill
 - Ensure `name` matches the directory name
 - Run `/reload-plugins` after changes
 
-### `/archcore:<name>` missing in Codex `/` menu
+### `/archcore:<name>` missing in the Codex `/` menu
 
 - Confirm `commands/<name>.md` exists and has `description:` frontmatter
 - Confirm it references `skills/<name>/SKILL.md` (the bats parity test enforces this)
 - Run `make test-structure` — `codex-plugin.bats` will flag missing or malformed wrappers
 - Restart Codex after adding new wrappers (the marketplace cache is read once on session start)
 
+### Agents missing in Copilot
+
+- Confirm the file is `copilot-agents/<name>.agent.md`. Copilot derives the agent id from the filename and loads only that extension — a plain `<name>.md` is invisible to it, which is exactly why the copies exist.
+- Confirm `.plugin/plugin.json` has `"agents": "./copilot-agents/"`. The field defaults to `agents/`, so an omitted pointer silently looks in the directory that holds no `*.agent.md` files at all.
+
 ### Hook not firing
 
 - Ensure bin/ scripts are executable: `chmod +x bin/<name>`
 - Check the shebang line: `#!/bin/sh`
-- Verify the hook JSON structure matches the expected format
+- Verify the hook JSON structure matches the expected format for that host
 - Test scripts manually: `echo '{"tool_name":"Write","tool_input":{"file_path":".archcore/test.adr.md"}}' | bin/check-archcore-write`
 - For Codex specifically: hooks require `codex features enable plugin_hooks` (the `plugin_hooks` feature is under development; absent the flag, Codex does not run plugin-shipped hooks)
+- For Copilot specifically: check the entry uses `bash`, not `command`, and `timeoutSec`, not `timeout` — a config written in Claude's shape loads without error and does nothing
 
 ### Tests failing
 
@@ -193,8 +222,14 @@ The plugin ships `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI
 2. **CLI available?** — run `archcore --version` from the terminal. Expected: prints a version.
    - Not found? → Install via the official installer: `curl -fsSL https://archcore.ai/install.sh | bash` (macOS/Linux/WSL) or `irm https://archcore.ai/install.ps1 | iex` (Windows). Full docs: https://docs.archcore.ai/cli/install/
    - Permission denied? → Check that the CLI binary is executable
-3. **Session lifecycle** — Claude Code registers MCP servers at session start. If the CLI was missing at that moment, installing it mid-session will NOT reconnect the server. Restart the host (Claude Code / Codex CLI) after a fresh install.
+3. **Session lifecycle** — Claude Code registers MCP servers at session start. If the CLI was missing at that moment, installing it mid-session will NOT reconnect the server. Restart the host after a fresh install.
 4. **Duplicate suppression?** — if `/plugin` shows "Errors (1)" with an `archcore` MCP message, a user- or project-registered `archcore` has the same command. This is benign; the resolved binary is the same either way. To silence the warning, remove the redundant user/project registration.
+
+### No MCP tools at all (GitHub Copilot CLI)
+
+Expected until the project is wired — the plugin ships no MCP server for Copilot. Run `archcore init --agent copilot --project "$PWD"` (CLI ≥ v0.6.4), which writes the workspace-root `.mcp.json`, then restart the session. Copilot discovers `.mcp.json` by walking from the working directory up to the git root, so a repo-root file covers monorepo layouts.
+
+If tools appear but documents land somewhere unexpected, check where: github/copilot-cli#4234 puts a plugin-contributed MCP child in `~/.copilot/installed-plugins/`. A project-registered server does not have that problem, because the host launches it from the project.
 
 ### MCP server not connecting (Cursor)
 
