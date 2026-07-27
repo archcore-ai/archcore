@@ -3391,6 +3391,26 @@
       "source": "plugin/copilot-mcp-architecture.adr.md",
       "target": "plugin/component-registry.doc.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/host-probe-protocol.spec.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/host-probe-protocol.spec.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/host-probe-protocol.spec.md",
+      "target": "plugin/jtbd1-phase2-hardening-delegated.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/host-probe-protocol.spec.md",
+      "target": "plugin/plugin-testing.guide.md",
+      "type": "related"
     }
   ]
 }
