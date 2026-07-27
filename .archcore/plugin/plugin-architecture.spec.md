@@ -184,7 +184,9 @@ When the model attempts to Write/Edit a `.archcore/*.md` file directly:
 3. Model retries via create_document or update_document
 ```
 
-The deny mechanism is the one architectural detail that cannot be host-neutral: exit 2 + stderr on Claude Code, Codex and Cursor; on Copilot exit 2 is only a *warning*, so the guard writes `{"permissionDecision":"deny",…}` to stdout instead. A guard that reports a block the host ignores is a guard that does not block — the translation table lives in `host-adapter-contract.spec.md`.
+The deny mechanism is the one architectural detail that cannot be host-neutral: exit 2 + stderr on Claude Code, Codex and Cursor; on Copilot the guard writes `{"permissionDecision":"deny",…}` to stdout with exit 0, because there **every** non-zero exit denies and only the JSON form carries the reason back to the user. A guard whose reason never arrives is a guard the user cannot act on — the translation table lives in `host-adapter-contract.spec.md`.
+
+That asymmetry propagates one level up, into how hooks are wired rather than what they decide. Where a non-zero exit is the deny channel, a guard that cannot start degrades to no enforcement; where every non-zero exit denies, it degrades to refusing the user's every matched edit, indistinguishable from a real verdict. Hook bootstrap is therefore part of the architecture on such a host, not an implementation detail — see `host-adapter-contract.spec.md` item 3.
 
 Note: PreToolUse blocks the write BEFORE it happens, so PostToolUse never fires for blocked `.archcore/*.md` writes. There is no PostToolUse `Write|Edit` validate-archcore entry — it would be dead weight forking a shell on every write anywhere in the repo. Validation runs only on the MCP path.
 
@@ -271,7 +273,7 @@ Hooks form a cross-cutting layer that enforces architectural invariants and dete
 | check-cascade | PostToolUse (`update_document`) | afterMCPExecution (filtered) | PostToolUse (`update_document`) | postToolUse (no matcher — script self-filters) | Cascade staleness detection via relation graph |
 | check-precision | PostToolUse (`create_document\|update_document`) | afterMCPExecution (filtered) | PostToolUse (`create_document\|update_document`) | postToolUse (no matcher — script self-filters) | Forbidden vagueness + section + stub-length warnings |
 
-Two properties of this matrix are load-bearing. First, where a host offers no matcher, selection moves into the script — the *set* of tool calls that trigger a behavior must not differ by host, only the mechanism that selects them. Second, Copilot's entries are structurally different (flat objects, `bash` instead of `command`, `timeoutSec` instead of `timeout`), so a config or a test produced by copying another host's row will load cleanly and do nothing.
+Three properties of this matrix are load-bearing. First, where a host offers no matcher, selection moves into the script — the *set* of tool calls that trigger a behavior must not differ by host, only the mechanism that selects them. Second, Copilot's entries are structurally different (flat objects, `bash` instead of `command`, `timeoutSec` instead of `timeout`), so a config or a test produced by copying another host's row will load cleanly and do nothing. Third, the Copilot column's commands reach `bin/` through a chain of candidate plugin roots rather than one substitution, because GitHub documents no plugin-root variable for hook processes — a matrix row says nothing about whether the script is reachable, which is why that is tested by execution.
 
 ### Cross-Layer Interaction Patterns
 
@@ -319,6 +321,7 @@ Example: User updates a PRD → check-cascade fires → finds plan that `impleme
 - Agents MUST use MCP tools exclusively for `.archcore/` operations.
 - Hooks MUST fire for every relevant tool call, regardless of which path initiated it.
 - The PreToolUse hook MUST block `.archcore/**/*.md` writes using the deny mechanism the host honors.
+- A hook MUST NOT influence a tool call for any reason other than its own verdict; on a host where every non-zero exit denies, a hook that cannot reach its script MUST exit 0.
 - PostToolUse validation hooks MUST run `archcore doctor` after every MCP document mutation.
 - PostToolUse cascade hook MUST run after `update_document` to detect relation-graph staleness.
 - PostToolUse precision hook MUST run after `create_document` and `update_document`.
@@ -333,7 +336,7 @@ Example: User updates a PRD → check-cascade fires → finds plan that `impleme
 - Hooks must complete within their timeout (PreToolUse: 1s, PostToolUse: 3s), with enough margin that a host whose pre-mutation timeout fails open never reaches it.
 - Skill files must not exceed 300 lines.
 - Per-flow reference files must not exceed 200 lines.
-- A new host costs a manifest, a hooks config, a normalizer case, and enrollment in the coverage matrix — no changes to skills, agents, or `bin/` logic.
+- A new host costs a manifest, a hooks config, a normalizer case, a resolvable path from that config to `bin/`, and enrollment in the coverage matrix — no changes to skills, agents, or `bin/` logic.
 
 ## Invariants
 
@@ -343,6 +346,7 @@ Example: User updates a PRD → check-cascade fires → finds plan that `impleme
 - Every `update_document` triggers cascade detection in addition to validation.
 - Every `create_document` and `update_document` triggers precision check.
 - Every direct `.archcore/*.md` write attempt is blocked by PreToolUse on every host that supports pre-mutation hooks.
+- No tool call is ever denied by the plugin for a reason other than a guard's verdict.
 - Every session starts with project context loaded and staleness check run (or a warning if the CLI is missing).
 - Skills inline per-type elicitation; this duplication is intentional and accepted per `skills-system.spec.md` to keep each entry point self-contained.
 - Agents never have Write/Edit/Bash access to `.archcore/` files.
@@ -357,6 +361,7 @@ Example: User updates a PRD → check-cascade fires → finds plan that `impleme
 - **Duplicate document**: `create_document` fails. Skills suggest alternative filename.
 - **Intent routing ambiguous**: Skill asks one scope-confirmation question. If still ambiguous, falls back to the `capture` skill (most general).
 - **Flow interrupted mid-cascade**: `plan` skill detects existing documents via `list_documents` and resumes from the next step.
+- **Hook cannot reach its script**: the hook exits 0 with a stderr warning naming the script. Enforcement is off for that session; the warning is the only signal, which is why silence there is treated as a defect.
 - **Hook timeout**: PostToolUse fails open. PreToolUse behavior is the host's: fail-closed on Claude Code, Codex and Cursor; fail-**open** on Copilot, which is why both PreToolUse guards are held far inside budget rather than trusted to the host.
 - **Agent exceeds turn limit**: Agent returns partial results. User can re-invoke or continue manually.
 - **Git unavailable for staleness**: SessionStart skips staleness check. `/archcore:audit --drift` skips code-drift analysis but performs cascade and temporal.
@@ -378,3 +383,4 @@ The plugin architecture conforms to this specification if:
 11. Continuation logic for `decide` (ADR → CPAT → rule → guide) lives under `skills/decide/references/continuations.md`.
 12. Every Archcore document type is reachable through at least one intent skill.
 13. The event matrix above lists every implemented host, and each host's row is backed by a row in `test/structure/host-coverage-matrix.bats`.
+14. Each host's hook commands are proven to reach `bin/` by executing them, not by inspecting them — the assertion that pinned Copilot's commands as strings matched a broken command exactly and shipped it.

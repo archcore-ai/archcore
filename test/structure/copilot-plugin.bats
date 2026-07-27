@@ -150,22 +150,129 @@ HOOKS_REL="hooks/copilot.hooks.json"
   ' "$hooks" > /dev/null
 }
 
-@test "Copilot hook commands use COPILOT_PLUGIN_ROOT and the shared scripts" {
-  local hooks="$PLUGIN_ROOT/$HOOKS_REL"
+# Every hook command must reach its script through a chain of plugin-root
+# candidates rather than one variable.
+#
+# COPILOT_PLUGIN_ROOT appears in no GitHub documentation — checked 2026-07-27
+# against the CLI plugin reference and the hooks reference, neither of which
+# contains the string. The only documented spelling is ${PLUGIN_ROOT} ("Use
+# ${PLUGIN_ROOT} to reference paths within the plugin directory"), which is also
+# what codex.hooks.json uses.
+#
+# Naming a single variable is what shipped the defect: unset, it left the
+# literal path /bin/<script>, and Copilot classifies a failed exec as "other
+# non-zero exit", i.e. a DENY of every matched tool call. See
+# copilot-adapter-design.adr.
+hook_commands() {
+  jq -r '.hooks[][] | .bash' "$PLUGIN_ROOT/$HOOKS_REL"
+}
+
+# The one bin script a command routes to, from every mention it makes of one.
+command_script() {
+  printf '%s' "$1" | grep -o 'bin/[a-z0-9_-]*' | sort -u
+}
+
+@test "every Copilot hook command considers all three plugin-root candidates" {
+  local cmd var
+  while IFS= read -r cmd; do
+    [ -z "$cmd" ] && continue
+    for var in COPILOT_PLUGIN_ROOT PLUGIN_ROOT CLAUDE_PLUGIN_ROOT; do
+      case "$cmd" in
+        *"\$$var"*) ;;
+        *) fail "hook command never considers \$$var: $cmd" ;;
+      esac
+    done
+  done < <(hook_commands)
+}
+
+@test "every Copilot hook command routes to exactly one shared bin script" {
+  local cmd scripts
+  while IFS= read -r cmd; do
+    [ -z "$cmd" ] && continue
+    scripts=$(command_script "$cmd")
+    [ "$(printf '%s\n' "$scripts" | wc -l | tr -d ' ')" = "1" ] \
+      || fail "hook command mixes several scripts ($scripts): $cmd"
+  done < <(hook_commands)
+}
+
+@test "Copilot hook commands cover the shared bin scripts and nothing else" {
   local actual expected
-  actual=$(jq -r '.hooks[][] | .bash' "$hooks" | sort)
+  actual=$(hook_commands | grep -o 'bin/[a-z0-9_-]*' | sort -u)
   expected=$(printf '%s\n' \
-    '"${COPILOT_PLUGIN_ROOT}"/bin/check-archcore-write' \
-    '"${COPILOT_PLUGIN_ROOT}"/bin/check-cascade' \
-    '"${COPILOT_PLUGIN_ROOT}"/bin/check-code-alignment' \
-    '"${COPILOT_PLUGIN_ROOT}"/bin/check-precision' \
-    '"${COPILOT_PLUGIN_ROOT}"/bin/session-start' \
-    '"${COPILOT_PLUGIN_ROOT}"/bin/validate-archcore' | sort)
+    'bin/check-archcore-write' \
+    'bin/check-cascade' \
+    'bin/check-code-alignment' \
+    'bin/check-precision' \
+    'bin/session-start' \
+    'bin/validate-archcore' | sort)
   [ "$actual" = "$expected" ] || {
     echo "expected: $expected"
     echo "actual: $actual"
     fail "Copilot hook commands must route to the shared bin scripts"
   }
+}
+
+# --- Behaviour of the resolution chain -------------------------------------
+#
+# The assertions above cannot tell a working chain from a plausible-looking one,
+# and that is exactly the defect that shipped: the config read correctly and
+# denied every edit. These three run the commands.
+
+@test "an unresolved plugin root exits 0 and says so" {
+  local cmd status out
+  while IFS= read -r cmd; do
+    [ -z "$cmd" ] && continue
+    out=$(env -u COPILOT_PLUGIN_ROOT -u PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT \
+            sh -c "$cmd" 2>&1 </dev/null) && status=0 || status=$?
+    # The exit status matters more than the message. Any non-zero exit other
+    # than 2 denies the tool call on Copilot, so a plugin we cannot locate must
+    # fail open rather than block the session out of its own repo.
+    [ "$status" = "0" ] \
+      || fail "unresolved root exits $status — Copilot reads that as a deny: $cmd"
+    case "$out" in
+      *"plugin root unresolved"*) ;;
+      *) fail "unresolved root fails silently, disabling the guard unnoticed: $cmd" ;;
+    esac
+  done < <(hook_commands)
+}
+
+@test "each plugin-root candidate on its own reaches the script" {
+  local cmd script stub var out
+  stub="$BATS_TEST_TMPDIR/stub-root"
+  while IFS= read -r cmd; do
+    [ -z "$cmd" ] && continue
+    script=$(command_script "$cmd")
+    rm -rf "$stub"
+    mkdir -p "$stub/bin"
+    printf '#!/bin/sh\necho REACHED\n' > "$stub/$script"
+    chmod +x "$stub/$script"
+    for var in COPILOT_PLUGIN_ROOT PLUGIN_ROOT CLAUDE_PLUGIN_ROOT; do
+      out=$(env -u COPILOT_PLUGIN_ROOT -u PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT \
+              "$var=$stub" sh -c "$cmd" 2>&1 </dev/null)
+      [ "$out" = "REACHED" ] \
+        || fail "\$$var alone does not reach $script (got: $out)"
+    done
+  done < <(hook_commands)
+}
+
+@test "a candidate that does not hold the script is skipped, not fatal" {
+  # A PLUGIN_ROOT set for an unrelated tool must not shadow the real plugin:
+  # each candidate is probed with -x, not merely tested for emptiness.
+  local cmd script stub out
+  stub="$BATS_TEST_TMPDIR/skip-root"
+  while IFS= read -r cmd; do
+    [ -z "$cmd" ] && continue
+    script=$(command_script "$cmd")
+    rm -rf "$stub"
+    mkdir -p "$stub/bin"
+    printf '#!/bin/sh\necho REACHED\n' > "$stub/$script"
+    chmod +x "$stub/$script"
+    out=$(env -u CLAUDE_PLUGIN_ROOT \
+            COPILOT_PLUGIN_ROOT="$BATS_TEST_TMPDIR/absent" \
+            PLUGIN_ROOT="$stub" sh -c "$cmd" 2>&1 </dev/null)
+    [ "$out" = "REACHED" ] \
+      || fail "a dead first candidate blocks the rest of the chain: $out"
+  done < <(hook_commands)
 }
 
 @test "Copilot preToolUse covers every native mutation tool" {
@@ -176,7 +283,7 @@ HOOKS_REL="hooks/copilot.hooks.json"
     all(.hooks.preToolUse[];
       .matcher == $matcher and
       .timeoutSec == 1 and
-      (.bash | test("/bin/check-(archcore-write|code-alignment)$"))
+      (.bash | test("bin/check-(archcore-write|code-alignment)"))
     )
   ' "$hooks" > /dev/null
 }
@@ -188,7 +295,7 @@ HOOKS_REL="hooks/copilot.hooks.json"
     all(.hooks.postToolUse[];
       (has("matcher") | not) and
       .timeoutSec == 3 and
-      (.bash | test("/bin/(validate-archcore|check-cascade|check-precision)$"))
+      (.bash | test("bin/(validate-archcore|check-cascade|check-precision)"))
     )
   ' "$hooks" > /dev/null
 }

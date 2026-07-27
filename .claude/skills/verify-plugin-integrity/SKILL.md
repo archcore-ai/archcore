@@ -310,7 +310,7 @@ Per the GitHub Copilot hooks reference, enforced by `test/structure/copilot-plug
 
 - JSON parses, `version: 1` is present, and event keys use native camelCase: `sessionStart`, `preToolUse`, `postToolUse`
 - Every hook sets `cwd: "."`, `ARCHCORE_HOST: "copilot"`, and an appropriate timeout
-- Commands resolve from `${COPILOT_PLUGIN_ROOT}/bin/*`
+- Commands resolve `bin/*` through the plugin-root candidate chain — `$COPILOT_PLUGIN_ROOT`, then `$PLUGIN_ROOT`, then `$CLAUDE_PLUGIN_ROOT`, each probed with `-x` — and exit 0 with a stderr warning when none resolves. `COPILOT_PLUGIN_ROOT` alone is a **fail**: it is undocumented, and unset it leaves the literal path `/bin/<script>`, which Copilot reads as a deny of every matched tool call (`copilot-adapter-design.adr`). The bats file executes these commands, so trust it over eyeballing the JSON.
 - `preToolUse` matchers cover `create`, `edit`, `str_replace_editor`, and `apply_patch`
 - `postToolUse` entries omit matchers so all tool calls reach the shared scripts, which self-filter after normalizing Copilot tool names
 
@@ -399,7 +399,7 @@ This is a spot-check, not a full audit — for full staleness detection use `/ar
 | 9  | Hooks (Claude)                   | ✓ / ✗    | PascalCase + anti-regression invariant   |
 | 10 | Hooks (Cursor)                   | ✓ / ✗    | camelCase events, exact Write matcher    |
 | 11 | Hooks (Codex)                    | ✓ / ✗    | PascalCase + apply_patch + ${PLUGIN_ROOT}|
-| 11a| Hooks (Copilot)                  | ✓ / ✗    | camelCase + bash/cwd + COPILOT_PLUGIN_ROOT|
+| 11a| Hooks (Copilot)                  | ✓ / ✗    | camelCase + bash/cwd + root candidate chain|
 | 12 | MCP wiring (.mcp + .codex.mcp)   | ✓ / ✗    | PATH commands, no launcher remnants; Copilot ships none |
 | 13 | Rules                            | ✓ / ✗    | mdc frontmatter                          |
 | 14 | Bin scripts                      | ✓ / ✗    | hook scripts + libs + no launcher        |

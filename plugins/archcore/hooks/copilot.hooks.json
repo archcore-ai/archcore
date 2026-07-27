@@ -5,7 +5,7 @@
       {
         "type": "command",
         "cwd": ".",
-        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/session-start",
+        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/session-start\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/session-start\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/session-start\" ] && exec \"$PLUGIN_ROOT/bin/session-start\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/session-start\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/session-start\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/session-start\" >&2; exit 0",
         "env": {
           "ARCHCORE_HOST": "copilot"
         }
@@ -16,7 +16,7 @@
         "type": "command",
         "matcher": "create|edit|str_replace_editor|apply_patch",
         "cwd": ".",
-        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/check-archcore-write",
+        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/check-archcore-write\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/check-archcore-write\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/check-archcore-write\" ] && exec \"$PLUGIN_ROOT/bin/check-archcore-write\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/check-archcore-write\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/check-archcore-write\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/check-archcore-write\" >&2; exit 0",
         "env": {
           "ARCHCORE_HOST": "copilot"
         },
@@ -26,7 +26,7 @@
         "type": "command",
         "matcher": "create|edit|str_replace_editor|apply_patch",
         "cwd": ".",
-        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/check-code-alignment",
+        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/check-code-alignment\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/check-code-alignment\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/check-code-alignment\" ] && exec \"$PLUGIN_ROOT/bin/check-code-alignment\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/check-code-alignment\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/check-code-alignment\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/check-code-alignment\" >&2; exit 0",
         "env": {
           "ARCHCORE_HOST": "copilot"
         },
@@ -37,7 +37,7 @@
       {
         "type": "command",
         "cwd": ".",
-        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/validate-archcore",
+        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/validate-archcore\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/validate-archcore\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/validate-archcore\" ] && exec \"$PLUGIN_ROOT/bin/validate-archcore\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/validate-archcore\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/validate-archcore\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/validate-archcore\" >&2; exit 0",
         "env": {
           "ARCHCORE_HOST": "copilot"
         },
@@ -46,7 +46,7 @@
       {
         "type": "command",
         "cwd": ".",
-        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/check-cascade",
+        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/check-cascade\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/check-cascade\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/check-cascade\" ] && exec \"$PLUGIN_ROOT/bin/check-cascade\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/check-cascade\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/check-cascade\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/check-cascade\" >&2; exit 0",
         "env": {
           "ARCHCORE_HOST": "copilot"
         },
@@ -55,7 +55,7 @@
       {
         "type": "command",
         "cwd": ".",
-        "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/check-precision",
+        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/check-precision\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/check-precision\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/check-precision\" ] && exec \"$PLUGIN_ROOT/bin/check-precision\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/check-precision\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/check-precision\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/check-precision\" >&2; exit 0",
         "env": {
           "ARCHCORE_HOST": "copilot"
         },

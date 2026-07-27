@@ -17,37 +17,55 @@ setup() {
 #   * Copilot names the field "bash", not "command". `jq '.. | .command?'`
 #     returns NOTHING for copilot.hooks.json, so a copied test iterates an
 #     empty set and reports ok — coverage that exists only in the test name.
-#   * Each host substitutes its own plugin-root variable. Keeping them per-row
-#     (rather than stripping any ${...}) means a config that borrows another
-#     host's variable fails to resolve and is caught here.
+#   * Each host substitutes its own plugin-root variable, and a config that
+#     borrows another host's resolves to nothing at runtime. That is now checked
+#     by its own test below rather than by substitution, because Copilot's
+#     commands name three candidate variables (see copilot-plugin.bats) and a
+#     one-variable sed would leave the other two unresolved.
 #
-# host|config|plugin-root variable
+# host|config|plugin-root variables the config may name
 hook_configs() {
   cat <<'EOF'
 claude|hooks/hooks.json|CLAUDE_PLUGIN_ROOT
 cursor|hooks/cursor.hooks.json|CURSOR_PLUGIN_ROOT
 codex|hooks/codex.hooks.json|PLUGIN_ROOT
-copilot|hooks/copilot.hooks.json|COPILOT_PLUGIN_ROOT
+copilot|hooks/copilot.hooks.json|COPILOT_PLUGIN_ROOT PLUGIN_ROOT CLAUDE_PLUGIN_ROOT
 EOF
 }
 
-# Emits every script path a hook config invokes, plugin-root variable resolved.
+# Emits every script a hook config invokes, as an absolute path.
+#
+# Extraction is by script basename, not by substituting the host's plugin-root
+# variable: Copilot's commands name their script once per candidate plus once in
+# the fallback warning, so a substituting sed would emit the surrounding shell
+# as though it were a path.
 hook_scripts() {
-  local config="$1" var="$2"
+  local config="$1"
   jq -r '.. | (.command? // .bash?) // empty' "$PLUGIN_ROOT/$config" \
-    | sed "s|\"||g; s|\${$var}|$PLUGIN_ROOT|g"
+    | grep -o 'bin/[a-z0-9_-]*' \
+    | sed "s|^|$PLUGIN_ROOT/|" \
+    | sort -u
+}
+
+# Emits every plugin-root variable a hook config names, one per line.
+hook_root_vars() {
+  local config="$1"
+  jq -r '.. | (.command? // .bash?) // empty' "$PLUGIN_ROOT/$config" \
+    | grep -o '\$[{]\?[A-Z_]*PLUGIN_ROOT' \
+    | tr -d '${' \
+    | sort -u
 }
 
 @test "every host hook config invokes scripts that exist" {
-  local host config var script missing=""
-  while IFS='|' read -r host config var; do
+  local host config vars script missing=""
+  while IFS='|' read -r host config vars; do
     [ -n "$host" ] || continue
     local found=0
     while IFS= read -r script; do
       [ -z "$script" ] && continue
       found=1
       [ -f "$script" ] || missing="$missing $host:$script"
-    done < <(hook_scripts "$config" "$var")
+    done < <(hook_scripts "$config")
     # An empty extraction means the accessor stopped matching this host's
     # schema — the exact failure this table exists to prevent.
     [ "$found" = "1" ] || fail "$config: no script paths extracted at all"
@@ -56,17 +74,41 @@ hook_scripts() {
 }
 
 @test "every host hook config invokes scripts that are executable" {
-  local host config var script not_exec=""
-  while IFS='|' read -r host config var; do
+  local host config vars script not_exec=""
+  while IFS='|' read -r host config vars; do
     [ -n "$host" ] || continue
     while IFS= read -r script; do
       [ -z "$script" ] && continue
       if [ -f "$script" ] && [ ! -x "$script" ]; then
         not_exec="$not_exec $host:$script"
       fi
-    done < <(hook_scripts "$config" "$var")
+    done < <(hook_scripts "$config")
   done < <(hook_configs)
   [ -z "$not_exec" ] || fail "hook scripts not executable:$not_exec"
+}
+
+@test "every host hook config names only its own plugin-root variables" {
+  # Replaces what the old per-row sed enforced implicitly: a config naming
+  # another host's variable resolves to nothing at runtime. Copilot is the one
+  # host with a chain of candidates, because COPILOT_PLUGIN_ROOT appears in no
+  # GitHub documentation while ${PLUGIN_ROOT} is the documented spelling —
+  # copilot-plugin.bats carries the detail.
+  local host config vars var allowed found
+  while IFS='|' read -r host config vars; do
+    [ -n "$host" ] || continue
+    local seen=0
+    while IFS= read -r var; do
+      [ -z "$var" ] && continue
+      seen=1
+      found=0
+      for allowed in $vars; do
+        [ "$var" = "$allowed" ] && found=1
+      done
+      [ "$found" = "1" ] \
+        || fail "$config names \$$var, which $host does not provide (allowed: $vars)"
+    done < <(hook_root_vars "$config")
+    [ "$seen" = "1" ] || fail "$config names no plugin-root variable at all"
+  done < <(hook_configs)
 }
 
 @test "every hooks/*.json is enrolled in the resolution table" {
@@ -155,10 +197,10 @@ hook_scripts() {
   # The portable core is one set of scripts; a host that wires up a subset is a
   # host where some guard silently does not run. Paths are compared with the
   # plugin root resolved, so all four configs are directly comparable.
-  local host config var scripts reference="" ref_host=""
-  while IFS='|' read -r host config var; do
+  local host config vars scripts reference="" ref_host=""
+  while IFS='|' read -r host config vars; do
     [ -n "$host" ] || continue
-    scripts=$(hook_scripts "$config" "$var" | sort -u)
+    scripts=$(hook_scripts "$config" | sort -u)
     if [ -z "$reference" ]; then
       reference="$scripts"
       ref_host="$host"
@@ -193,7 +235,9 @@ hook_scripts() {
       '.hooks[$e][]? | (.hooks[]?.command // .command? // .bash?) // empty' \
       "$PLUGIN_ROOT/$file")
     [ -n "$cmds" ] || fail "$file: '$event' event yielded no commands at all"
-    echo "$cmds" | grep -q 'bin/session-start"\?$' \
+    # Not anchored at end of line: Copilot's command continues past the script
+    # path with the rest of its candidate chain and a fallback warning.
+    echo "$cmds" | grep -q 'bin/session-start' \
       || fail "$file: '$event' event must invoke bin/session-start; got: $cmds"
   done
 }

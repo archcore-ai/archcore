@@ -52,6 +52,8 @@ Codex has no `--plugin-dir`; use a local marketplace (`codex plugin marketplace 
 
 This loads the plugin without requiring marketplace installation. Changes to plugin files are picked up after running `/reload-plugins` inside the session.
 
+**On Copilot, `--plugin-dir` is not equivalent to an install for hook purposes.** Which plugin-root variable a hook process receives, and whether it receives one at all under this flag rather than `copilot plugin install`, is undocumented — see step 4. If session start prints `plugin root unresolved`, that is what happened; run `make test-copilot-smoke` or a real install instead, and record the result per `host-probe-protocol.spec.md`.
+
 ### 3. Modify an existing skill
 
 The plugin ships **7 skills** (per `skill-surface-collapse.adr.md`): `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. Each lives at `skills/<name>/SKILL.md`. Adding an eighth top-level skill requires a new ADR — prefer adding flow logic under `skills/plan/references/` or `skills/decide/references/` instead.
@@ -97,18 +99,22 @@ Hook scripts go in `bin/` and must:
 - Invoke the CLI directly as `archcore` (resolved via PATH); the plugin no longer ships a launcher wrapper
 - If the script reads `.archcore/` or emits user-visible context, guard against being launched from a plugin install directory by exiting silently when cwd contains — or sits beneath — a `.cursor-plugin/`, `.claude-plugin/`, `.codex-plugin/`, or `.plugin/` manifest (see `bin/session-start` for the canonical pattern, and `cursor-mcp-architecture.adr.md` for the rationale)
 
-Each host's hook config uses its host's canonical plugin-root env var:
+Three hosts substitute a single canonical plugin-root env var; Copilot is the exception:
 
 - `${CLAUDE_PLUGIN_ROOT}` — Claude Code's native injection (`hooks/hooks.json`).
 - `${CURSOR_PLUGIN_ROOT}` — Cursor's native injection (`hooks/cursor.hooks.json`).
 - `${PLUGIN_ROOT}` — Codex CLI's canonical, host-neutral env var (`hooks/codex.hooks.json`). Codex's hooks engine (`codex-rs/hooks/src/engine/discovery.rs`) injects `PLUGIN_ROOT` as the canonical name; `CLAUDE_PLUGIN_ROOT` is also injected but only as a backward-compat alias for porting old Claude plugins — do NOT use it in a Codex-native hook config. `CODEX_PLUGIN_ROOT` does not exist in Codex.
-- `${COPILOT_PLUGIN_ROOT}` — Copilot CLI's injection (`hooks/copilot.hooks.json`). It exists **only inside hook processes**, which is why `bin/detect-host` cannot key on it and why a Copilot session resolves to `__UNKNOWN__` there.
+- **Copilot has no confirmed variable, so `hooks/copilot.hooks.json` probes three.** `COPILOT_PLUGIN_ROOT` — which this adapter relied on until 2026-07-27 — appears in no GitHub documentation; the only documented spelling is `${PLUGIN_ROOT}` ("Use `${PLUGIN_ROOT}` to reference paths within the plugin directory"), and for writable state the documented pair is `${COPILOT_PLUGIN_DATA}` / `${CLAUDE_PLUGIN_DATA}`. Each command now tests `$COPILOT_PLUGIN_ROOT`, `$PLUGIN_ROOT` and `$CLAUDE_PLUGIN_ROOT` in turn with `-x`, execs the first that actually holds the script, and otherwise warns on stderr and exits 0. Variables are written unbraced so the command behaves identically whether Copilot expands them or `sh` does. Whichever variable is real, `bin/detect-host` still cannot key on it — it exists only inside hook processes, so a Copilot session resolves to `__UNKNOWN__` there.
+
+If you edit those commands, note that `test/structure/copilot-plugin.bats` **runs** them under `env -u` rather than comparing strings: exit 0 with a warning when nothing resolves, each candidate sufficient alone, a dead candidate skipped rather than fatal. The old string-equality assertions matched the broken command exactly and shipped it — see `copilot-adapter-design.adr.md` and `cli-integration-tests.rule.md`.
 
 Copilot's config differs from the others in shape, not just in names: entries use `bash` rather than `command`, `timeoutSec` rather than `timeout`, are flat objects rather than nested groups, carry `cwd: "."` so the hook runs from the user's project, and its `postToolUse` entries have no matcher at all — the scripts self-filter. A test written by copying another host's and swapping the filename will iterate an empty set and report `ok`.
 
 Plugin-shipped Codex hooks require `codex features enable plugin_hooks` to actually fire (the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0). See `codex-path-resolution.adr.md` for the full mechanism.
 
-Two Copilot hook semantics differ from every other host and both are load-bearing: `exit 2` is only a **warning** there, so a deny must be written to stdout as `{"permissionDecision":"deny","permissionDecisionReason":…}`; and a `preToolUse` **timeout fails open**, which makes guard latency a correctness concern rather than a comfort one. `test/unit/hook-latency.bats` keeps both PreToolUse guards far inside the 1-second budget for that reason.
+Two Copilot hook semantics differ from every other host and both are load-bearing. First, **every non-zero exit denies**: `exit 2` is a deny whose stdout JSON is merged with the deny decision, and any other non-zero exit denies as `Denied by preToolUse hook (hook errored)` (hooks-reference, re-read 2026-07-27). Guard scripts still write `{"permissionDecision":"deny","permissionDecisionReason":…}` to stdout with exit 0, because that is how a deny carries its reason — not because exit 2 fails to block. The corollary is that a guard which cannot *start* denies the write too, which is why hook bootstrap gets the candidate chain above. Second, a `preToolUse` **timeout fails open**, which makes guard latency a correctness concern rather than a comfort one; `test/unit/hook-latency.bats` keeps both PreToolUse guards far inside the 1-second budget for that reason.
+
+Hooks are also narrower than plugins on this host: hooks-reference names exactly two supported surfaces, Copilot CLI and Copilot cloud agent. VS Code agent mode is not one of them, even though Copilot Chat ships its own CLI binary under the extension's `globalStorage` and hook machinery has been observed firing there.
 
 ### 5. Modify agents
 
@@ -158,9 +164,10 @@ See `plugin-testing.guide.md` for detailed testing instructions.
 - For Codex: from a directory **outside** the plugin source repo (e.g., `cd $(mktemp -d)`), call any `mcp__archcore__*` tool and verify the MCP starts.
 - For Cursor: after copying `docs/cursor.mcp.example.json` into `.cursor/mcp.json`, open an empty project. `list_documents` should return empty (not the plugin's own dev docs). If it returns dev docs, the plugin-install-dir guards regressed — file an issue against this repo and `archcore-ai/cli`.
 - For Copilot: `copilot mcp list` must NOT show an `archcore` server contributed by the plugin. If it does, the manifest regressed or the host auto-discovers plugin-root `.mcp.json` — either way, capture it, because that question is unresolved from GitHub's own documentation (see `copilot-mcp-architecture.adr.md`).
+- For Copilot: session start must NOT print `archcore: plugin root unresolved`. If it does, no candidate variable was injected and **every guard is silently disabled** for that session — capture which load path produced it, because that is the open question in `copilot-adapter-design.adr.md`.
 - Integrity check: `make verify`
 
-For the questions no manual checklist can settle — whether a deny is honored or merely displayed, whether pre-mutation hooks fire on delegated calls — follow `host-probe-protocol.spec.md` and record the result.
+For the questions no manual checklist can settle — whether a deny is honored or merely displayed, whether pre-mutation hooks fire on delegated calls, which plugin-root variable Copilot injects — follow `host-probe-protocol.spec.md` and record the result.
 
 ## Verification
 
@@ -206,6 +213,16 @@ For the questions no manual checklist can settle — whether a deny is honored o
 - Test scripts manually: `echo '{"tool_name":"Write","tool_input":{"file_path":".archcore/test.adr.md"}}' | bin/check-archcore-write`
 - For Codex specifically: hooks require `codex features enable plugin_hooks` (the `plugin_hooks` feature is under development; absent the flag, Codex does not run plugin-shipped hooks)
 - For Copilot specifically: check the entry uses `bash`, not `command`, and `timeoutSec`, not `timeout` — a config written in Claude's shape loads without error and does nothing
+
+### `/bin/sh: /bin/<script>: No such file or directory` (GitHub Copilot CLI)
+
+The historical symptom of an unresolved plugin root: `"${COPILOT_PLUGIN_ROOT}"/bin/session-start` collapses to `/bin/session-start` when the variable is empty. A current plugin prints `archcore: plugin root unresolved` instead and exits 0, so if you see the old message the session is running a build from before 2026-07-27 — reinstall.
+
+Either way the cause is the same, and on `preToolUse` the consequence is severe: a failed exec is a non-zero exit, which Copilot reads as a deny, so **every** `create|edit|str_replace_editor|apply_patch` call is refused with `Denied by preToolUse hook (hook errored)`. Check in this order:
+
+1. **Which surface?** Hooks are documented for Copilot CLI and cloud agent only. A VS Code / Copilot Chat session is neither, even though it ships its own CLI binary — nothing about variable injection is guaranteed there.
+2. **Which load path?** `--plugin-dir` is not `copilot plugin install`. Confirm `copilot plugin list` shows `archcore`.
+3. **Which config?** Copilot reads hooks from six places besides a plugin (policy `.d` files, `.github/hooks/*.json`, `~/.copilot/hooks/`, `.github/copilot/settings.json`, `~/.copilot/settings.json`, and the shared subset of repo-level `.claude/settings.json`). A plugin's hooks config copied into any of those gets no plugin root by design.
 
 ### Tests failing
 

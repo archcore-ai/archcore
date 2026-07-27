@@ -65,7 +65,8 @@ setup() {
 }
 
 # Copilot deny contract (copilot-adapter-design.adr): stdout permissionDecision
-# JSON + exit 0 — exit 2 is only a warning on this host and does NOT block.
+# JSON + exit 0. Every non-zero exit denies on this host, so exit 2 would block
+# too — what it would not do is tell the user why. The reason text is the point.
 @test "copilot: denies write to .archcore/*.md via permissionDecision JSON" {
   run_with_fixture check-archcore-write copilot/pretooluse-create-archcore.json
   assert_success

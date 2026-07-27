@@ -196,17 +196,9 @@ The cascade PostToolUse entry is shipped in all four host hook configs. Claude C
 }
 ```
 
-Copilot's entry is structurally different and cannot be produced by search-and-replacing the variable — it is a flat object using `bash` instead of `command`, `timeoutSec` instead of `timeout`, and **no matcher at all**, because Copilot's `postToolUse` does not take one. The script self-filters there on the normalized tool name:
+Copilot's entry is structurally different and cannot be produced by search-and-replacing the variable. It is a flat object carrying `bash` instead of `command`, `timeoutSec` instead of `timeout`, `cwd: "."`, `env.ARCHCORE_HOST=copilot`, and **no matcher at all**, because Copilot's `postToolUse` does not take one — the script self-filters there on the normalized tool name.
 
-```json
-{
-  "type": "command",
-  "cwd": ".",
-  "bash": "\"${COPILOT_PLUGIN_ROOT}\"/bin/check-cascade",
-  "env": { "ARCHCORE_HOST": "copilot" },
-  "timeoutSec": 3
-}
-```
+Its `bash` value is also not a single substitution, so it is described here rather than pasted: it probes `$COPILOT_PLUGIN_ROOT`, `$PLUGIN_ROOT` and `$CLAUDE_PLUGIN_ROOT` in turn with `-x`, execs the first that holds `bin/check-cascade`, and otherwise warns on stderr and exits 0. Until 2026-07-27 it was the one-liner `"${COPILOT_PLUGIN_ROOT}"/bin/check-cascade`, which resolved to the literal path `/bin/check-cascade` whenever that undocumented variable was unset. The live config is `hooks/copilot.hooks.json`; the reasoning is in `copilot-adapter-design.adr.md`.
 
 SessionStart hook calls `bin/check-staleness` internally as part of `bin/session-start`.
 
@@ -233,6 +225,7 @@ Requirements: executable, exits 0, reads JSON from stdin, outputs the host-shape
 - Layer 2 MUST only flag documents connected via `implements`, `depends_on`, or `extends` (not `related`).
 - Layer 2 MUST NOT block the update operation.
 - WHERE a host's PostToolUse event accepts no matcher, `bin/check-cascade` MUST reach the same decision by filtering on the normalized tool name — the set of updates that trigger a cascade warning MUST NOT differ by host.
+- WHERE a host's hook command cannot resolve `bin/check-cascade`, it MUST exit 0 rather than fail; a post-mutation hook has no verdict to deliver and MUST NOT turn a resolution failure into one.
 - Layer 3 (`/archcore:audit --drift`) MUST verify MCP availability before analysis.
 - Layer 3 MUST NOT modify documents without explicit user confirmation per document.
 - Layer 3 MUST present findings grouped by severity (critical, cascade, temporal).
@@ -261,6 +254,7 @@ Requirements: executable, exits 0, reads JSON from stdin, outputs the host-shape
 - **No `.archcore/` commits**: Layer 1 skips. Layer 3 falls back to file modification times.
 - **archcore CLI unavailable**: Layer 2 skips. Layer 3 uses MCP tools directly.
 - **Relation graph empty**: Layer 2 produces no output. Layer 3 skips cascade analysis.
+- **Hook command cannot locate its script**: exit 0 with a stderr warning; the layer is inert for that session and the warning is the only signal.
 - **Large project (>100 documents)**: Layer 3 should scope analysis when possible. Suggest user provides tag/category filter.
 
 ## Conformance

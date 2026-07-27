@@ -319,7 +319,9 @@ setup() {
 }
 
 @test "archcore_hook_block copilot: emits permissionDecision deny JSON and exits 0" {
-  # Copilot deny contract: stdout JSON + exit 0 (exit 2 is only a warning there).
+  # Copilot deny contract: stdout JSON + exit 0. Not because exit 2 fails to
+  # block — every non-zero exit denies there — but because permissionDecisionReason
+  # is the only way the deny carries its reason (copilot-adapter-design.adr).
   run sh -c 'printf "%s" "{}" | ARCHCORE_HOST=copilot sh -c "
     . \"${PLUGIN_ROOT}/bin/lib/normalize-stdin.sh\"
     archcore_hook_block \"blocked reason\"

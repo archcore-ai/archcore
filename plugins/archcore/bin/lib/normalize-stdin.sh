@@ -177,8 +177,22 @@ esac
 # Block the current operation (for gatekeeping hooks like preToolUse).
 # Exit code 2 blocks in Claude Code, Cursor, and Codex; the OpenCode bridge
 # translates exit 2 + stderr into a thrown error (see host-adapter-contract).
-# GitHub Copilot is different: exit 2 is only a WARNING there — a deny
-# requires stdout JSON permissionDecision with exit 0 (hooks-reference).
+#
+# GitHub Copilot takes the stdout-JSON arm, but not because exit 2 fails to
+# block there. The hooks reference (re-read 2026-07-27) says the opposite of
+# what this comment used to claim: "exit 2 is treated as a deny: any stdout
+# JSON is merged with the deny decision and the tool call is denied even if
+# that JSON reports permissionDecision: allow", and "Other non-zero exits
+# denies the tool call with Denied by preToolUse hook (hook errored)". So on
+# Copilot every non-zero exit denies; what exit 2 does NOT carry is our reason
+# text. The permissionDecisionReason field is the only way to tell the user
+# WHY, which is why this arm stays — with exit 0, where the docs say stdout is
+# parsed as hook output.
+#
+# The corollary is a hazard, not a nicety: a guard that dies for an unrelated
+# reason (missing interpreter, unresolved plugin root) denies the tool call
+# rather than passing it through. hooks/copilot.hooks.json therefore resolves
+# the plugin root through a candidate chain and exits 0 when it finds nothing.
 archcore_hook_block() {
   _reason="$1"
   case "$ARCHCORE_HOST" in

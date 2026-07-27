@@ -77,6 +77,8 @@ The hooks system consists of event handlers registered in each host's hooks conf
 
 **Per-host shape divergence.** Cursor and Codex differ from the above only in event-name casing, plugin-root variable, and matcher contents. Copilot differs structurally: entries are flat objects (no nested `hooks[]` group), the command lives under `bash` rather than `command`, the budget under `timeoutSec` rather than `timeout`, each entry sets `cwd: "."` so the hook runs from the user's project and `env.ARCHCORE_HOST=copilot` so detection is deterministic, and its `postToolUse` entries carry **no matcher at all**. A config or a test written by copying another host's and swapping names will load without error and do nothing — which is why `test/structure/hooks.bats` extracts commands through a `.command // .bash` union and fails loudly when the extraction is empty.
 
+**Copilot commands are not a single substitution.** Every other host's command is `${THAT_HOST_VARIABLE}/bin/<script>`. Copilot's is a candidate chain: `$COPILOT_PLUGIN_ROOT`, then `$PLUGIN_ROOT`, then `$CLAUDE_PLUGIN_ROOT`, each probed with `-x` for the script itself, exec'ing the first that holds it and otherwise warning on stderr and exiting 0. The variable this adapter shipped with is documented nowhere by GitHub, and unset it left the literal path `/bin/<script>` — see `copilot-adapter-design.adr.md`. Extraction in tests is therefore by `bin/<script>` token rather than by resolving one variable; a substituting `sed` would emit the surrounding shell as if it were a path.
+
 **Dual tool naming (mandatory).** Every archcore tool in a PostToolUse matcher is listed under BOTH namings: `mcp__archcore__X` (the name a project-level `.mcp.json` server yields) and `mcp__plugin_archcore_archcore__X` (the name Claude Code gives tools from a plugin-bundled MCP server — `mcp__plugin_<plugin>_<server>__*`). Claude Code matchers without regex metacharacters are exact matches, so a single-naming matcher silently never fires in one of the two setups. Guarded by `test/structure/hooks.bats`; rationale in `host-wiring-parity.adr.md`.
 
 Matchers and scripts solve different halves of the same problem, and the split matters. A matcher decides *whether the script runs at all*; the script decides *what to do*. `bin/lib/normalize-stdin.sh` therefore folds all three namings — including Copilot's flat `archcore-<tool>`, where the host joins server and tool with a hyphen — into the canonical `mcp__archcore__*` before any guard inspects a tool name. Without that fold a guard fires and then silently falls through its own filter, which is the worst of both: cost paid, protection absent. On Copilot, where `postToolUse` takes no matcher, that filtering *is* the whole selection mechanism.
@@ -89,7 +91,7 @@ The two PreToolUse entries on `Write|Edit` are deliberately coupled: `check-arch
 
 **Event**: SessionStart / `sessionStart` (fires when a session begins or resumes)
 **Matcher**: empty (matches all session sources: startup, resume, clear, compact)
-**Handler**: `${CLAUDE_PLUGIN_ROOT}/bin/session-start` (per-host plugin-root variable)
+**Handler**: `${CLAUDE_PLUGIN_ROOT}/bin/session-start` (per-host plugin-root variable; on Copilot, the candidate chain)
 **Behavior**: pipeline of phases:
 
 0. **Plugin-install-dir guard.** Exit 0 silently when `$PWD` contains an install-cache path fragment (`.cursor/plugins/`, `.claude/plugins/`, `.codex/plugins/`, `plugins/cache/`) or when a bounded upward walk finds a `.cursor-plugin/`, `.claude-plugin/`, `.codex-plugin/`, or `.plugin/` manifest — a cwd misrouted into a plugin install (at any depth) must never surface the plugin's own bundled files as the user's knowledge base (`cursor-mcp-architecture.adr.md`, extended per `host-wiring-parity.adr.md`).
@@ -118,7 +120,9 @@ Staleness and the advisory are additive — if either fails or produces no outpu
 3. If NO match: exit 0 with empty output (allow the operation)
 4. If MATCH: deny, using the mechanism the host honors
 
-**Deny mechanism is host-specific, and getting it wrong fails open.** On Claude Code, Codex and Cursor, exit code 2 is a blocking error — stderr goes to the model as feedback and the tool call is blocked. **On Copilot exit 2 is only a warning**: the write proceeds. There a deny must be written to stdout as `{"permissionDecision":"deny","permissionDecisionReason":"…"}` with exit 0. (Copilot does treat other non-zero exits as fail-closed denials, but with no reason text reaching the model, so the JSON form is the contract.) The branch lives in the shared script keyed on `ARCHCORE_HOST`; see `host-adapter-contract.spec.md` for the full translation table.
+**Deny mechanism is host-specific.** On Claude Code, Codex and Cursor, exit code 2 is a blocking error — stderr goes to the model as feedback and the tool call is blocked. On Copilot the guard writes `{"permissionDecision":"deny","permissionDecisionReason":"…"}` to stdout with exit 0 instead, and the reason is why: **every** non-zero exit denies there — exit 2 explicitly (its stdout JSON merged with the deny), any other non-zero exit as `Denied by preToolUse hook (hook errored)` — but only the JSON form carries reason text back to the user (hooks-reference, re-read 2026-07-27). The branch lives in the shared script keyed on `ARCHCORE_HOST`; see `host-adapter-contract.spec.md` for the full translation table.
+
+**On that host the failure mode inverts.** Where exit 2 is the deny channel, a guard that cannot start degrades to no enforcement. Where every non-zero exit denies, it degrades to refusing every matched tool call — and the host cannot tell the two apart. This is why hook bootstrap on Copilot is specified below as a correctness requirement rather than left to the adapter, and why `hooks/copilot.hooks.json` exits 0 when it cannot locate a script.
 
 **Reason message when blocking**:
 
@@ -291,7 +295,7 @@ The scripts never build these by hand; the output helpers in `bin/lib/normalize-
 | PostToolUse cascade (Hook 5) | Always (no cascade → empty; cascade → context) | N/A |
 | PostToolUse precision (Hook 6) | Always (clean → empty; warnings → context) | N/A |
 
-The exit-2 column is Claude Code's convention, adopted by Codex and Cursor. Copilot is the one host where a non-zero exit is not the deny channel — see Hook 2.
+The exit-2 column is Claude Code's convention, adopted by Codex and Cursor. Copilot is the one host where a non-zero exit is not the *reason-carrying* deny channel — it denies on any non-zero exit, including exit 2, but only the stdout JSON tells the user why. See Hook 2.
 
 ### bin/ Scripts
 
@@ -317,7 +321,7 @@ Requirements:
 
 Shell script that reads stdin JSON, extracts the target path, and decides whether to block.
 
-Requirements: executable; `#!/bin/sh`; reads JSON from stdin; exit 0 when allowing; denies through the mechanism the host honors — exit 2 + stderr on Claude Code / Codex / Cursor, stdout `{"permissionDecision":"deny","permissionDecisionReason":…}` with exit 0 on Copilot; completes within 1 second.
+Requirements: executable; `#!/bin/sh`; reads JSON from stdin; exit 0 when allowing; denies through the mechanism the host honors — exit 2 + stderr on Claude Code / Codex / Cursor, stdout `{"permissionDecision":"deny","permissionDecisionReason":…}` with exit 0 on Copilot, where any non-zero exit would deny without carrying the reason; completes within 1 second.
 
 #### `bin/check-code-alignment`
 
@@ -377,9 +381,11 @@ PostToolUse handler running the precision lexicon, mandatory-sections, frontmatt
 ## Normative Behavior
 
 - The PreToolUse block hook (Hook 2) MUST block all Write/Edit calls targeting `.archcore/**/*.md` files on every host, using that host's honored deny mechanism.
-- WHERE a host does not treat exit 2 as blocking, the block hook MUST emit that host's deny payload instead; a guard that reports a block the host ignores is a guard that does not block.
+- WHERE a host does not carry reason text on a non-zero exit, the block hook MUST emit that host's deny payload instead; a guard whose reason never reaches the user is a guard the user cannot act on.
 - The PreToolUse block hook MUST NOT block writes to `.archcore/settings.json` or `.archcore/.sync-state.json`.
 - The PreToolUse block hook MUST NOT block writes to files outside `.archcore/`.
+- WHERE a host treats every non-zero exit as a deny, each hook command MUST resolve its script before invoking it and MUST exit 0 when it cannot — a guard that fails to start on such a host blocks the user's work instead of merely going unenforced.
+- WHERE a hook command cannot resolve its script, it MUST report that on stderr rather than exiting silently.
 - The PreToolUse injection hook (Hook 3) MUST exit 0 on every code path and MUST NEVER block or fail an edit.
 - The PreToolUse injection hook MUST short-circuit silently for paths inside `.archcore/`, paths outside configured source roots, and paths that produce no matches.
 - The PreToolUse injection hook MUST rank matches by specificity first (longest matching directory prefix wins), type priority second, and MUST restrict eligible types to `rule`, `cpat`, `adr`, `spec`, `guide`.
@@ -414,6 +420,7 @@ PostToolUse handler running the precision lexicon, mandatory-sections, frontmatt
 - Hooks must degrade gracefully if the Archcore CLI is missing (skip validation/cascade silently; SessionStart prints install guidance and exits 0).
 - The injection hook MUST degrade gracefully for large corpora — either by completing in time at lower fidelity or by short-circuiting cleanly; it MUST NOT time out in a way that costs a write its context.
 - Bin scripts must be POSIX-compatible shell (no bash-specific features).
+- Hook configs carry no decision logic. Resolving the path to a script is the sole exception, granted by `host-adapter-contract.spec.md` item 3 and limited to probing candidate plugin roots.
 
 ## Invariants
 
@@ -425,6 +432,7 @@ PostToolUse handler running the precision lexicon, mandatory-sections, frontmatt
 - The PostToolUse hooks never modify files — they only report.
 - Every PostToolUse matcher covers both archcore tool namings — no hook silently dies when the MCP registration path changes.
 - Every guard that fires also acts: no naming reaches a script that the script cannot recognize.
+- No hook denies a tool call for a reason unrelated to its own verdict. On a host where any non-zero exit denies, an unlocatable script yields exit 0 and a stderr warning.
 - Hook 4 (validation) and Hook 5 (cascade) fire independently on `update_document` — neither depends on the other.
 - SessionStart and PostToolUse hooks exit 0 regardless of outcome.
 - The PreToolUse block hook exits 0 (allow, or Copilot deny-JSON) or 2 (block) — never other codes.
@@ -442,6 +450,7 @@ PostToolUse handler running the precision lexicon, mandatory-sections, frontmatt
 - If the staleness timestamp file is missing, empty, or contains non-numeric data: treat as "never emitted" and run the check normally.
 - If `archcore update --check` fails, is unsupported, or the network is down: the advisory stays silent; no retry, no error surface.
 - If the injection hook encounters any error (grep failure, malformed frontmatter, I/O error): exit 0 with empty output.
+- If a hook command cannot locate its script under any candidate plugin root: exit 0 with a stderr warning naming the script. Enforcement is off for that session, and the warning is the only thing distinguishing it from a clean one.
 - If a host's pre-mutation hook times out: on Copilot the write proceeds (fail-open) — mitigated by keeping both guards far inside budget rather than by relying on the host. Elsewhere the host's own timeout semantics apply. Observed per host as probe D in `host-probe-protocol.spec.md`.
 
 ## Conformance
@@ -462,3 +471,4 @@ The hooks system conforms to this specification if:
 12. Output formats follow each host's documented shape — `hookSpecificOutput` for Claude Code and Codex, flat `additional_context` for Cursor, top-level `additionalContext` and `permissionDecision` deny JSON for Copilot, plain text for OpenCode — all produced by the shared output helpers rather than by per-script string building.
 13. Delegated tool invocations are covered by Hooks 2 and 3 identically to main-session calls; no committed code contains a probe line (the harness in `test/probe/` wraps a copy — see `host-probe-protocol.spec.md`).
 14. Every script that invokes `archcore` passes only allowlisted subcommands; the contract is enforced by `test/structure/readme-cli-references.bats` and per-script invocation-log assertions.
+15. Each host's hook commands resolve their scripts under that host's documented load paths, verified by executing the command rather than by inspecting it — `test/structure/copilot-plugin.bats` runs Copilot's under `env -u` for the unresolved, single-candidate, and dead-candidate cases.

@@ -23,8 +23,14 @@ ROWS
 }
 
 # Normalize a hooks config's command list to sorted unique script basenames.
+#
+# Extraction matches the bin/<script> token rather than taking the tail of the
+# command: Copilot's commands continue past the script path with the rest of
+# their plugin-root candidate chain and a fallback warning, so a last-field awk
+# returns "check-cascade >&2; exit 0" and the parity check compares garbage.
 script_basenames() {
-  jq -r '.. | .command? // .bash? // empty' "$1" | sed 's|"||g' | awk -F/ '{print $NF}' | sort -u
+  jq -r '.. | .command? // .bash? // empty' "$1" \
+    | grep -o 'bin/[a-z0-9_-]*' | awk -F/ '{print $NF}' | sort -u
 }
 
 @test "host matrix: every host hooks file has the expected event set" {

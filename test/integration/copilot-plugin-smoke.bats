@@ -85,7 +85,7 @@ install_plugin() {
       broken="$broken not-executable:$script"
     fi
   done < <(jq -r '.. | .bash? // empty' "$root/hooks/copilot.hooks.json" \
-             | sed "s|\"||g; s|\${COPILOT_PLUGIN_ROOT}|$root|g")
+             | grep -o 'bin/[a-z0-9_-]*' | sort -u | sed "s|^|$root/|")
   [ -z "$broken" ] || fail "hook scripts unusable after install:$broken"
 }
 

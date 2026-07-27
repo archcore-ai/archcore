@@ -139,4 +139,11 @@ Start the session with the log wired up, for example:
 
 Then, in order: P0 (check the log has a session-start line BEFORE prompting),
 A, A-d, B, C, D. Remove the tree when done: rm -rf "$DEST"
+
+On Copilot, P0 has an extra way to fail that is NOT a coverage gap: if the
+session prints "archcore: plugin root unresolved", the host injected none of
+the plugin-root variables the hook config probes, so no guard ran at all.
+GitHub documents no plugin-root variable for hook processes and hooks only for
+Copilot CLI and cloud agent -- not VS Code (copilot-adapter-design.adr). Record
+which load path produced it; per the protocol, do NOT record a row for that run.
 EOF

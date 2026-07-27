@@ -23,8 +23,10 @@
 # COPILOT_GITHUB_TOKEN, COPILOT_CUSTOM_INSTRUCTIONS_DIRS) is read FROM the
 # user environment, never exported by the CLI — adding a Copilot-detection
 # feature is an open upstream request (microsoft/vscode#311734).
-# COPILOT_PLUGIN_ROOT exists only inside hook processes, and this script runs
-# from a skill's Bash call, not a hook. So a Copilot session resolves to
+# The plugin-root variables exist only inside hook processes — and on Copilot
+# which one arrives is itself undocumented, which is why hooks/copilot.hooks.json
+# probes three (copilot-adapter-design.adr). This script runs from a skill's
+# Bash call, not a hook, so none of them is available. A Copilot session resolves
 # __UNKNOWN__ by design and the init skill asks the user instead (see
 # skills/init/SKILL.md Step -1). Do NOT key a branch on COPILOT_HOME: it is
 # unset unless the user overrode the config dir, so it would misdetect a
