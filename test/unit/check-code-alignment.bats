@@ -183,6 +183,12 @@ EOF
 }
 
 # --- Multi-host ---
+#
+# One host per shape, end to end: the hook must both find the documents from
+# that host's payload and answer in that host's output schema. A host that is
+# tested only through the normalizer can still be broken here — the extraction
+# is host-specific (Copilot carries the path inside an escaped JSON string
+# under toolArgs) and so is the wrapper.
 
 @test "cursor: emits additional_context (no hookSpecificOutput wrapper)" {
   setup_repo >/dev/null
@@ -190,6 +196,43 @@ EOF
   assert_success
   assert_output --partial 'additional_context'
   refute_output --partial 'hookSpecificOutput'
+}
+
+@test "copilot: native payload injects, and emits top-level additionalContext" {
+  # Copilot's preToolUse runs on a 1s budget and its timeout fails open, so a
+  # break here is doubly quiet: no context, no error, write proceeds.
+  local repo payload
+  repo=$(setup_repo)
+  payload="$BATS_TEST_TMPDIR/copilot-edit.json"
+  cat > "$payload" <<'EOF'
+{"sessionId":"s1","timestamp":1784816974910,"cwd":"/work","toolName":"edit","toolArgs":"{\"path\":\"src/hooks/foo.sh\",\"old_str\":\"a\",\"new_str\":\"b\"}"}
+EOF
+  run sh -c "cd '$repo' && cat '$payload' | '${PLUGIN_ROOT}/bin/check-code-alignment'"
+  assert_success
+  assert_output --partial '[Archcore Context]'
+  assert_output --partial 'src/hooks/foo.sh'
+  assert_output --partial 'additionalContext'
+  # Claude's wrapper on Copilot means the host ignores the whole payload.
+  refute_output --partial 'hookSpecificOutput'
+}
+
+@test "codex: shares the Claude wrapper" {
+  # Codex reuses Claude's PreToolUse schema. Pinned so a future per-host branch
+  # in the output helpers cannot silently change it.
+  setup_repo >/dev/null
+  run sh -c "printf '%s' '{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"src/hooks/foo.sh\"}}' | ARCHCORE_HOST=codex '${PLUGIN_ROOT}/bin/check-code-alignment'"
+  assert_success
+  assert_output --partial 'hookSpecificOutput'
+  assert_output --partial '[Archcore Context]'
+}
+
+@test "opencode: emits the bare message, no JSON envelope" {
+  setup_repo >/dev/null
+  run sh -c "printf '%s' '{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"src/hooks/foo.sh\"}}' | ARCHCORE_HOST=opencode '${PLUGIN_ROOT}/bin/check-code-alignment'"
+  assert_success
+  assert_output --partial '[Archcore Context]'
+  refute_output --partial 'hookSpecificOutput'
+  refute_output --partial 'additionalContext'
 }
 
 # --- Non-blocking safety ---

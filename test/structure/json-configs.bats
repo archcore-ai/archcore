@@ -83,18 +83,46 @@ setup() {
 
 # --- Cross-reference consistency ---
 
-@test "plugin.json name matches across hosts" {
-  local cc_name cursor_name
-  cc_name=$(jq -r '.name' "$PLUGIN_ROOT/.claude-plugin/plugin.json")
-  cursor_name=$(jq -r '.name' "$PLUGIN_ROOT/.cursor-plugin/plugin.json")
-  [ "$cc_name" = "$cursor_name" ]
+# Every manifest the plugin ships. Claude Code is the reference: it is the
+# host bump-plugin-version and the marketplace catalogs are keyed to.
+host_manifests() {
+  cat <<'EOF'
+cursor|.cursor-plugin/plugin.json
+codex|.codex-plugin/plugin.json
+copilot|.plugin/plugin.json
+EOF
 }
 
-@test "plugin.json version matches across hosts" {
-  local cc_ver cursor_ver
-  cc_ver=$(jq -r '.version' "$PLUGIN_ROOT/.claude-plugin/plugin.json")
-  cursor_ver=$(jq -r '.version' "$PLUGIN_ROOT/.cursor-plugin/plugin.json")
-  [ "$cc_ver" = "$cursor_ver" ]
+@test "plugin.json name/description/version match across ALL four hosts" {
+  # Was Claude vs Cursor only, which left Codex and Copilot free to drift —
+  # and drift here is not cosmetic: these four manifests are one plugin seen
+  # from four hosts, so a stale version ships an install that reports the
+  # wrong release, and a stale description ships a different pitch to those
+  # users. verify-plugin-integrity §4 compares all four; this makes it a gate
+  # rather than a checklist item.
+  local ref="$PLUGIN_ROOT/.claude-plugin/plugin.json"
+  local host manifest field ref_val val
+  while IFS='|' read -r host manifest; do
+    [ -n "$host" ] || continue
+    for field in name description version; do
+      ref_val=$(jq -r ".$field" "$ref")
+      val=$(jq -r ".$field" "$PLUGIN_ROOT/$manifest")
+      [ "$val" = "$ref_val" ] \
+        || fail "$manifest: $field drift — claude='$ref_val' $host='$val'"
+    done
+  done < <(host_manifests)
+}
+
+@test "every shipped plugin.json is enrolled in the metadata parity table" {
+  # A fifth host's manifest must not be able to ship unchecked.
+  local dir base missing=""
+  for dir in "$PLUGIN_ROOT"/.*-plugin "$PLUGIN_ROOT"/.plugin; do
+    [ -f "$dir/plugin.json" ] || continue
+    base="$(basename "$dir")/plugin.json"
+    [ "$base" = ".claude-plugin/plugin.json" ] && continue  # the reference
+    host_manifests | grep -q "|$base$" || missing="$missing $base"
+  done
+  [ -z "$missing" ] || fail "manifests missing from host_manifests():$missing"
 }
 
 @test "marketplace.json plugin metadata matches across Claude and Cursor" {
