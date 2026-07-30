@@ -72,6 +72,7 @@ func FormatExecuteError(err error) string {
 
 func NewRootCmd(version string) *cobra.Command {
 	ver := cleanVersion(version)
+	display.SetVersion(ver)
 	root := &cobra.Command{
 		Use:           "archcore",
 		Short:         "Archcore — Git-native context for AI coding agents",
