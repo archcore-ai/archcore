@@ -5,80 +5,71 @@ import (
 	"testing"
 )
 
-func TestBannerWithoutVersion(t *testing.T) {
-	SetVersion("")
-	b := Banner()
-	if !strings.Contains(b, "Archcore") {
-		t.Fatalf("Banner missing 'Archcore': %q", b)
+func TestVersionSuffix(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		want    string
+	}{
+		{"empty", "", ""},
+		{"dev", "dev", ""},
+		{"real version", "v0.5.4", " v0.5.4"},
+		{"another version", "v1.2.3", " v1.2.3"},
 	}
-	if strings.Contains(b, "v0.5.4") {
-		t.Fatalf("Banner should not contain version when unset: %q", b)
-	}
-}
-
-func TestBannerWithVersion(t *testing.T) {
-	SetVersion("v0.5.4")
-	b := Banner()
-	if !strings.Contains(b, "v0.5.4") {
-		t.Fatalf("Banner missing version 'v0.5.4': %q", b)
-	}
-}
-
-func TestBannerWithDevVersion(t *testing.T) {
-	SetVersion("dev")
-	b := Banner()
-	if strings.Contains(b, "dev") {
-		t.Fatalf("Banner should not contain 'dev' version: %q", b)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := versionSuffix(tt.version)
+			if got != tt.want {
+				t.Fatalf("versionSuffix(%q) = %q, want %q", tt.version, got, tt.want)
+			}
+		})
 	}
 }
 
-func TestWelcomeBannerWithoutVersion(t *testing.T) {
-	SetVersion("")
-	wb := WelcomeBanner()
-	if !strings.Contains(wb, "Archcore") {
-		t.Fatalf("WelcomeBanner missing 'Archcore': %q", wb)
+func TestBanner(t *testing.T) {
+	tests := []struct {
+		name        string
+		version     string
+		wantContain string
+		notContain  string
+	}{
+		{"no version", "", "Archcore", "v0.5.4"},
+		{"dev version", "dev", "Archcore", "dev"},
+		{"real version", "v0.5.4", "v0.5.4", ""},
 	}
-	if strings.Contains(wb, "v0.5.4") {
-		t.Fatalf("WelcomeBanner should not contain version when unset: %q", wb)
-	}
-}
-
-func TestWelcomeBannerWithVersion(t *testing.T) {
-	SetVersion("v0.5.4")
-	wb := WelcomeBanner()
-	if !strings.Contains(wb, "v0.5.4") {
-		t.Fatalf("WelcomeBanner missing version 'v0.5.4': %q", wb)
-	}
-}
-
-func TestWelcomeBannerWithDevVersion(t *testing.T) {
-	SetVersion("dev")
-	wb := WelcomeBanner()
-	if strings.Contains(wb, "dev") {
-		t.Fatalf("WelcomeBanner should not contain 'dev' version: %q", wb)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := Banner(tt.version)
+			if !strings.Contains(b, tt.wantContain) {
+				t.Fatalf("Banner(%q) missing %q: %q", tt.version, tt.wantContain, b)
+			}
+			if tt.notContain != "" && strings.Contains(b, tt.notContain) {
+				t.Fatalf("Banner(%q) should not contain %q: %q", tt.version, tt.notContain, b)
+			}
+		})
 	}
 }
 
-func TestVersionSuffixEmpty(t *testing.T) {
-	SetVersion("")
-	got := versionSuffix()
-	if got != "" {
-		t.Fatalf("expected empty suffix, got %q", got)
+func TestWelcomeBanner(t *testing.T) {
+	tests := []struct {
+		name        string
+		version     string
+		wantContain string
+		notContain  string
+	}{
+		{"no version", "", "Archcore", "v0.5.4"},
+		{"dev version", "dev", "Archcore", "dev"},
+		{"real version", "v0.5.4", "v0.5.4", ""},
 	}
-}
-
-func TestVersionSuffixDev(t *testing.T) {
-	SetVersion("dev")
-	got := versionSuffix()
-	if got != "" {
-		t.Fatalf("expected empty suffix for dev, got %q", got)
-	}
-}
-
-func TestVersionSuffixReal(t *testing.T) {
-	SetVersion("v1.2.3")
-	got := versionSuffix()
-	if got != " v1.2.3" {
-		t.Fatalf("expected ' v1.2.3', got %q", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wb := WelcomeBanner(tt.version)
+			if !strings.Contains(wb, tt.wantContain) {
+				t.Fatalf("WelcomeBanner(%q) missing %q: %q", tt.version, tt.wantContain, wb)
+			}
+			if tt.notContain != "" && strings.Contains(wb, tt.notContain) {
+				t.Fatalf("WelcomeBanner(%q) should not contain %q: %q", tt.version, tt.notContain, wb)
+			}
+		})
 	}
 }

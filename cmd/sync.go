@@ -65,7 +65,7 @@ type syncFlags struct {
 	CI     bool
 }
 
-func newSyncCmd() *cobra.Command {
+func newSyncCmd(version string) *cobra.Command {
 	flags := &syncFlags{}
 
 	cmd := &cobra.Command{
@@ -88,7 +88,7 @@ func newSyncCmd() *cobra.Command {
 // doSync contains the core sync logic, separated from cobra and os.Getwd for
 // testability. When the sync gate in newSyncCmd is lifted, its RunE becomes:
 // checkSyncPreconditions(cwd) → api.NewSyncClient(pre.ServerURL) → doSync.
-func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPreconditions, client syncClient) error {
+func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPreconditions, client syncClient, version string) error {
 	// 2. Load manifest and scan files.
 	manifest, err := archsync.LoadManifest(baseDir)
 	if err != nil {
@@ -136,7 +136,7 @@ func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPrec
 		return nil
 	}
 
-	fmt.Println(display.Banner())
+	fmt.Println(display.Banner(version))
 	fmt.Println()
 	if len(created) > 0 {
 		fmt.Println(display.CheckLine(fmt.Sprintf("%d new file(s)", len(created))))

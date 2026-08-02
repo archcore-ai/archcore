@@ -16,24 +16,18 @@ var (
 	Logo    = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
 )
 
-var version = ""
-
-func SetVersion(v string) {
-	version = v
-}
-
-func versionSuffix() string {
+func versionSuffix(version string) string {
 	if version == "" || version == "dev" {
 		return ""
 	}
 	return " " + version
 }
 
-func Banner() string {
-	return Title.Render("Archcore"+versionSuffix()) + Dim.Render(" — Git-native context for AI coding agents")
+func Banner(version string) string {
+	return Title.Render("Archcore"+versionSuffix(version)) + Dim.Render(" — Git-native context for AI coding agents")
 }
 
-func WelcomeBanner() string {
+func WelcomeBanner(version string) string {
 	logoLines := []string{
 		"╔══════╗",
 		"║      ║",
@@ -44,7 +38,7 @@ func WelcomeBanner() string {
 	logo := Logo.Render(strings.Join(logoLines, "\n"))
 
 	textLines := []string{
-		Title.Render("Archcore" + versionSuffix() + " — Git-native context for AI coding agents"),
+		Title.Render("Archcore" + versionSuffix(version) + " — Git-native context for AI coding agents"),
 		Dim.Render("Context engineering for repositories"),
 		Dim.Render("https://archcore.ai"),
 	}

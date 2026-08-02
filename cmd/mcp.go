@@ -30,7 +30,7 @@ func newMCPCmd(version string) *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintln(os.Stderr, display.WelcomeBanner())
+			fmt.Fprintln(os.Stderr, display.WelcomeBanner(version))
 			fmt.Fprintln(os.Stderr)
 			if !config.DirExists(baseDir) {
 				fmt.Fprintln(os.Stderr, display.Dim.Render("  MCP server running on stdio (uninitialized project — only init_project tool is useful until the agent initializes .archcore/)..."))
