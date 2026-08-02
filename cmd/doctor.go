@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newDoctorCmd() *cobra.Command {
+func newDoctorCmd(version string) *cobra.Command {
 	var (
 		fix         bool
 		fixAgents   []string
@@ -31,7 +31,7 @@ func newDoctorCmd() *cobra.Command {
 				return errors.New("--agent requires --fix")
 			}
 
-			fmt.Println(display.Banner())
+			fmt.Println(display.Banner(version))
 			fmt.Println()
 
 			cwd, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))

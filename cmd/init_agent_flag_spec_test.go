@@ -28,7 +28,7 @@ import (
 // implementation routes output via cmd.OutOrStdout().
 func runInitCmdForSpec(t *testing.T, args ...string) (*bytes.Buffer, error) {
 	t.Helper()
-	cmd := newInitCmd()
+	cmd := newInitCmd("")
 	out := &bytes.Buffer{}
 	cmd.SetOut(out)
 	cmd.SetErr(out)

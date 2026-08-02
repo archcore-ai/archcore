@@ -221,7 +221,7 @@ func TestRunSync_DryRun_DoesNotUpdateManifest(t *testing.T) {
 	mock := &mockSyncClient{}
 	flags := &syncFlags{DryRun: true, CI: true}
 
-	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock)
+	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock, "")
 	if err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
@@ -264,7 +264,7 @@ func TestRunSync_Force_ResyncsUnchangedFiles(t *testing.T) {
 	}
 	flags := &syncFlags{Force: true, CI: true}
 
-	err = doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock)
+	err = doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock, "")
 	if err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
@@ -298,7 +298,7 @@ func TestRunSync_Force_DetectsDeletions(t *testing.T) {
 	}
 	flags := &syncFlags{Force: true, CI: true}
 
-	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock)
+	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock, "")
 	if err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
@@ -351,7 +351,7 @@ func TestRunSync_NoChanges_ShortCircuit(t *testing.T) {
 	mock := &mockSyncClient{}
 	flags := &syncFlags{CI: true}
 
-	err = doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock)
+	err = doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock, "")
 	if err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
@@ -377,7 +377,7 @@ func TestRunSync_EndToEnd(t *testing.T) {
 	}
 	flags := &syncFlags{CI: true}
 
-	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock)
+	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock, "")
 	if err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
@@ -428,7 +428,7 @@ func TestRunSync_AutoCreateProject(t *testing.T) {
 	pre := testPreconditionsNoPID(baseDir)
 	pre.Settings = &config.Settings{Sync: config.SyncTypeCloud}
 
-	err := doSync(context.Background(), baseDir, flags, pre, mock)
+	err := doSync(context.Background(), baseDir, flags, pre, mock, "")
 	if err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
@@ -468,7 +468,7 @@ func TestRunSync_PayloadHasFrontmatter(t *testing.T) {
 	}
 	flags := &syncFlags{CI: true}
 
-	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock)
+	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock, "")
 	if err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
@@ -511,7 +511,7 @@ func TestRunSync_AutoCreate_NoGitRepo_RepoURLNil(t *testing.T) {
 	pre := testPreconditionsNoPID(baseDir)
 	pre.Settings = &config.Settings{Sync: config.SyncTypeCloud}
 
-	err := doSync(context.Background(), baseDir, flags, pre, mock)
+	err := doSync(context.Background(), baseDir, flags, pre, mock, "")
 	if err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
@@ -548,7 +548,7 @@ func TestRunSync_AutoCreate_WithGitRepo_RepoURLPopulated(t *testing.T) {
 	pre := testPreconditionsNoPID(baseDir)
 	pre.Settings = &config.Settings{Sync: config.SyncTypeCloud}
 
-	err := doSync(context.Background(), baseDir, flags, pre, mock)
+	err := doSync(context.Background(), baseDir, flags, pre, mock, "")
 	if err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
@@ -585,7 +585,7 @@ func TestRunSync_ExistingProject_NoRepoURL(t *testing.T) {
 	}
 	flags := &syncFlags{CI: true}
 
-	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock)
+	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock, "")
 	if err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
@@ -604,7 +604,7 @@ func TestDoSync_ClientError_CI(t *testing.T) {
 
 	mock := &mockSyncClient{err: context.DeadlineExceeded}
 	flags := &syncFlags{CI: true}
-	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock)
+	err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock, "")
 	if err == nil {
 		t.Fatal("CI mode must propagate a sync failure as an error")
 	}
@@ -645,7 +645,7 @@ func TestDoSync_PartialFailure_RejectedFilesNotRecorded(t *testing.T) {
 		},
 	}
 	flags := &syncFlags{CI: true}
-	if err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock); err != nil {
+	if err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock, ""); err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
 
@@ -685,7 +685,7 @@ func TestDoSync_AcceptedDeletionRemoved(t *testing.T) {
 		},
 	}
 	flags := &syncFlags{CI: true}
-	if err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock); err != nil {
+	if err := doSync(context.Background(), baseDir, flags, testPreconditions(baseDir), mock, ""); err != nil {
 		t.Fatalf("doSync: %v", err)
 	}
 

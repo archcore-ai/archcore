@@ -136,7 +136,7 @@ func buildUpdateCmd(version string, u *update.Updater) *cobra.Command {
 				return nil
 			}
 
-			fmt.Println(display.Banner())
+			fmt.Println(display.Banner(version))
 			fmt.Println()
 			fmt.Println(display.Dim.Render("  Checking for updates..."))
 

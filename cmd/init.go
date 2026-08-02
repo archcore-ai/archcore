@@ -87,7 +87,7 @@ func runInit(ctx context.Context, baseDir string, settings *config.Settings) (*i
 	return result, nil
 }
 
-func newInitCmd() *cobra.Command {
+func newInitCmd(version string) *cobra.Command {
 	var (
 		agentFlags  []string
 		projectFlag string
@@ -108,10 +108,10 @@ func newInitCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return runInitForAgents(baseDir, agentFlags)
+				return runInitForAgents(baseDir, agentFlags, version)
 			}
 
-			fmt.Println(display.WelcomeBanner())
+			fmt.Println(display.WelcomeBanner(version))
 			fmt.Println()
 
 			cwd, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
@@ -186,7 +186,7 @@ func newInitCmd() *cobra.Command {
 // never open a TTY prompt; write all artifacts under baseDir regardless of
 // process cwd; keep existing .archcore/ settings untouched (idempotent pass);
 // explicit --agent implies consent for the usage-hint instructions.
-func runInitForAgents(baseDir string, agentIDs []string) error {
+func runInitForAgents(baseDir string, agentIDs []string, version string) error {
 	list := make([]*agents.Agent, 0, len(agentIDs))
 	for _, id := range agentIDs {
 		agent := agents.ByID(agents.AgentID(id))
@@ -196,7 +196,7 @@ func runInitForAgents(baseDir string, agentIDs []string) error {
 		list = append(list, agent)
 	}
 
-	fmt.Println(display.WelcomeBanner())
+	fmt.Println(display.WelcomeBanner(version))
 	fmt.Println()
 
 	created, err := wiring.EnsureProjectInitialized(baseDir)
