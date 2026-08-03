@@ -39,13 +39,9 @@ Treat mounted global documents as read-only. Do not edit them or create relation
 
 ## Managed Blocks
 
-Do not edit content inside an Archcore-managed block:
-
-```text
-<!-- archcore:start -->
-...
-<!-- archcore:end -->
-```
+Do not edit content inside an Archcore-managed block. Archcore delimits a
+managed block with a start marker and an end marker, each an HTML comment
+that names the block (`archcore:start`, `archcore:end`).
 
 Keep repository-specific instructions outside the managed block.
 

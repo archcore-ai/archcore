@@ -48,3 +48,19 @@ jobs:
 
       - name: Test
         run: go test ./...
+
+      # `go test` (TestShippedInstructionFixtures) already pins every shipped
+      # instruction file — examples/ and the repo root's own AGENTS.md /
+      # CLAUDE.md / GEMINI.md — to the current writer output, so it fails on
+      # any drift, including drift outside examples/. This step is a narrower,
+      # independent check scoped to examples/: it runs the actual generator
+      # script end to end and fails on any uncommitted diff, catching drift in
+      # scripts/regen-examples.sh's own output even if the pinned-fixture test
+      # above were ever weakened or bypassed.
+      - name: Check examples/ fixtures are in sync with the generator
+        run: |
+          ./scripts/regen-examples.sh
+          if ! git diff --exit-code -- examples/; then
+            echo "::error::examples/ instruction fixtures are out of sync with scripts/regen-examples.sh. Run './scripts/regen-examples.sh' locally and commit the result."
+            exit 1
+          fi
