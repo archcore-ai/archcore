@@ -11,99 +11,102 @@ tags:
 
 ## Resolution
 
-**Superseded by the settings.json-only model.** Problems 1–5 are resolved; problem 6
-(lifecycle / distribution) and problem 7 (version & plugin compatibility) remain open. Canonical docs:
+Superseded by the settings.json-only model. Problems 1 to 5 are resolved. Problem 6
+(lifecycle and distribution) and problem 7 (version and plugin compatibility) remain open.
 
-- Decision: @.archcore/globals/global-sources-via-settings.adr.md
-- Contract: @.archcore/globals/global-sources.spec.md
-- Standards: @.archcore/globals/declaring-global-sources.rule.md, @.archcore/globals/local-overrides-global.rule.md
-- Mandatory sources: @.archcore/globals/globals-are-mandatory.adr.md
-- Vendoring how-to: @.archcore/globals/vendoring-a-global.guide.md
+The canonical documents now are the ADR on declaring globals in `settings.json`, the global
+sources contract, the rules on declaring globals and on local-over-global precedence, the ADR
+on mandatory sources, and the vendoring guide. All are linked in the relation graph.
 
-What changed since this plan was written: the launch-flag MVP (`--project` + `global: true`
+What changed since this plan was written: the launch-flag MVP (`--project` plus a `global: true`
 marker) was built and then removed in favor of declaring globals only in the consumer's
 `settings.json`. `path` now points directly at the global's `.archcore` directory (problem 5),
 `isGlobalPath` computes real path prefixes in absolute space (problem 1), `annotateSource`
 shares the same resolver (problem 2), `GlobalSource` is validated (problem 3), and the
-per-entry `required` flag was dropped — every declared global is now mandatory, enforced at
-scan time and at MCP startup (problem 4, see @.archcore/globals/globals-are-mandatory.adr.md).
-
----
+per-entry `required` flag was dropped, so every declared global is mandatory and enforced at
+scan time and at MCP startup (problem 4).
 
 ## Goal
 
-Исправить критические инженерные проблемы прототипа Mounted Global Sources,
-выявленные при ревью. Проблемы 1–4 реализуются одним PR; 5–6 — отдельные решения.
+Fix the engineering problems found during the review of the Mounted Global Sources prototype.
+Problems 1 to 4 ship in one PR; problems 5 and 6 need their own decisions.
 
-### Context
+## Context
 
-Прототип реализован в `internal/mcp/tools/`, `internal/config/config.go`,
-`templates/templates.go`. Fixture — `examples/07-local-overrides-global/` (с общим источником `examples/_global_/company-standards/`).
-RFC — см. `Mounted Global Sources.pdf` в корне проекта.
+The prototype lives in `@internal/mcp/tools/`, `@internal/config/config.go`, and
+`@templates/templates.go`. The fixture is `@examples/07-local-overrides-global/`, with the shared
+source `@examples/_global_/company-standards/`. The originating RFC is the file
+`Mounted Global Sources.pdf` in the project root.
 
----
+## Problems and fix plan
 
-## Проблемы и план исправления
+### Problem 1 — `isGlobalPath` worked only for the `.archcore/global/` convention (HIGH) ✅ resolved
 
-### Проблема 1 — `isGlobalPath` работает только для конвенции `.archcore/global/` (HIGH) ✅ РЕШЕНО
+`isGlobalPath` checked for the substring `.archcore/global/` in the path, so it did not fire for
+`gs.Path = "../company-repo"`. Implemented: `isGlobalPathAbs(baseDir, relPath, globals)` computes
+the real path prefixes from `gs.Path` in absolute space (`common.go`).
 
-`isGlobalPath` проверял наличие строки `.archcore/global/` в пути. Если `gs.Path = "../company-repo"` —
-охрана не срабатывала. **Реализовано**: `isGlobalPathAbs(baseDir, relPath, globals)` вычисляет
-реальные path-префиксы из `gs.Path` в абсолютном пространстве (`common.go`).
+### Problem 2 — `annotateSource` and `scanDocuments` used divergent logic (MEDIUM) ✅ resolved
 
-### Проблема 2 — `annotateSource` и `scanDocuments` — расходящаяся логика (MEDIUM) ✅ РЕШЕНО
+Implemented: `annotateSource` uses the same `resolveGlobalPath` resolver, which removes the divergence.
 
-**Реализовано**: `annotateSource` использует тот же `resolveGlobalPath` resolver — расхождение устранено.
+### Problem 3 — `GlobalSource` was not validated (MEDIUM) ✅ resolved
 
-### Проблема 3 — `GlobalSource` не валидируется (MEDIUM) ✅ РЕШЕНО
+Implemented: `Settings.Validate()` rejects an empty, malformed, reserved (`local`), or duplicate
+`id`, and an empty `path`. The `../` prohibition was dropped deliberately, because cross-project
+references are the intended use.
 
-**Реализовано**: `Settings.Validate()` проверяет пустой/битый/зарезервированный (`local`)/
-дублирующийся `id` и пустой `path`. (Запрет `../` снят сознательно — кросс-проектные ссылки штатны.)
+### Problem 4 — `required: true` was a dead field (LOW/MEDIUM) ✅ resolved
 
-### Проблема 4 — `required: true` — мёртвое поле (LOW/MEDIUM) ✅ РЕШЕНО
+Implemented, and later refined: the `required` field was removed, so every global is mandatory. A
+missing source is an error in `scanDocuments` at scan time and in `checkGlobals` at MCP server
+startup. The related ADR on mandatory globals records the decision.
 
-**Реализовано (позже уточнено)**: поле `required` в итоге удалено — все globals обязательны.
-Отсутствие источника — ошибка в `scanDocuments` (scan time) и в `checkGlobals` на старте
-MCP-сервера. См. @.archcore/globals/globals-are-mandatory.adr.md.
+### Problem 5 — Double nesting in `path` (DESIGN) ✅ resolved
 
-### Проблема 5 — Double-nesting в `path` (DESIGN) ✅ РЕШЕНО
+Decided and implemented: `path` points directly at the source's `.archcore` directory, with no
+auto-appended segment. Example: `path = "../company-standards/.archcore"`.
 
-**Решение принято и реализовано**: `path` указывает прямо на `.archcore`-каталог источника,
-без автодобавления сегмента. `path = "../company-standards/.archcore"`.
+### Problem 6 — No lifecycle management (OPERATIONAL) ⏳ deferred
 
-### Проблема 6 — Нет lifecycle management (OPERATIONAL) ⏳ ОТЛОЖЕНО
+A global has to be cloned and updated by hand. There is no `archcore globals pull`, no lockfile,
+no mounted-source reporting in `archcore status`, and no broken-global check in `archcore doctor`.
+Status: a separate milestone, not started. The interim manual distribution is described in the
+related vendoring guide.
 
-Globals нужно вручную клонировать и обновлять. Нет `archcore globals pull`, lockfile,
-`archcore status` для mounted sources, `archcore doctor` для broken globals.
-**Статус**: отдельный milestone, ещё не начат. Промежуточная ручная дистрибуция описана в
-@.archcore/globals/vendoring-a-global.guide.md.
+### Problem 7 — Version and plugin compatibility for globals (HIGH) 🔧 in progress
 
-### Проблема 7 — Версионная и плагинная совместимость globals (HIGH) 🔧 В РАБОТЕ
+`globals` lives in `settings.json`, and `Settings.UnmarshalJSON` used to reject unknown fields, so
+already released older CLIs hit `field "globals" is not allowed` and broke every config-loading
+path: `mcp`, `hooks`, `doctor`, and `status`. This hit users who received `globals` in the config
+but had not updated the CLI.
 
-`globals` живёт в `settings.json`, а `Settings.UnmarshalJSON` строго отвергает неизвестные
-поля → уже выпущенные «старые» CLI ловят `field "globals" is not allowed` и роняют каждый
-путь, грузящий конфиг (`mcp`/`hooks`/`doctor`/`status`). Бьёт по тем, кто получил `globals`
-в конфиге, но не обновил CLI.
+The asymmetry: a new CLI with an older plugin is safe, because the plugin is globals-agnostic and
+picks the feature up transparently. A new plugin with an older CLI breaks only in the "old CLI with
+`globals` in the config" cell, and the cause is the CLI and the config, not the plugin version.
 
-Асимметрия: **новый CLI + старый плагин — безопасно** (плагин globals-агностичен, получает
-фичу прозрачно); **новый плагин + старый CLI** ломается только в клетке «старый CLI ×
-`globals` в конфиге» — причина CLI+конфиг, не версия плагина.
-
-**Работа разнесена на два исполнительных плана** (отдельно CLI, отдельно plugin):
-
-- **CLI** → @.archcore/features/globals-cli-forward-compat.plan.md — soft-ignore парсинга
-  конфига + сиквенсинг релизов.
-- **Plugin** → @.archcore/features/globals-plugin-compat.plan.md — инвариант агностичности +
-  compatibility-advisory + grep-hygiene.
-
----
+The work is split into two execution plans, both linked to this document: the CLI plan for
+forward-compatible config parsing (soft-ignore plus release sequencing), and the plugin plan
+(agnosticism invariant, compatibility advisory, grep hygiene).
 
 ## Tasks
 
-- [x] Рефактор `isGlobalPath` → принимает `[]GlobalSource`, вычисляет реальные префиксы
-- [x] Унифицировать `annotateSource` с тем же resolver (устраняет проблему #2)
-- [x] Валидация `GlobalSource` в `Settings.Validate()` (проблема #3)
-- [x] Принять решение по `required` полю: поле удалено, все globals обязательны (проблема #4)
-- [x] Принять дизайн-решение по проблеме #5 (path указывает на `.archcore`-каталог)
-- [ ] Lifecycle management (`archcore globals pull` и др.) — отдельный milestone (проблема #6)
-- [ ] Версионная/плагинная совместимость — два отдельных плана (проблема #7): CLI и Plugin (см. ссылки выше)
+- [x] Refactor `isGlobalPath` to take `[]GlobalSource` and compute the real prefixes
+- [x] Unify `annotateSource` with the same resolver — problem 2
+- [x] Validate `GlobalSource` in `Settings.Validate()` — problem 3
+- [x] Decide on the `required` field: removed, every global is mandatory — problem 4
+- [x] Decide the design question in problem 5: `path` points at the `.archcore` directory
+- [ ] Lifecycle management (`archcore globals pull` and related) — separate milestone, problem 6
+- [ ] Version and plugin compatibility — two linked plans, problem 7
+
+## Acceptance Criteria
+
+- Problems 1 to 5 are closed in code and covered by tests. ✅
+- Problem 6 stays open and is addressed by a separate milestone.
+- Problem 7 stays open and is addressed by the two linked plans.
+
+## Dependencies
+
+- The settings.json declaration model — the related ADR.
+- Mandatory status for every declared source — the related ADR.
+- The CLI and plugin compatibility execution plans — the related plans.

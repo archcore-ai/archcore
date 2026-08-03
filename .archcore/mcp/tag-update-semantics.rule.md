@@ -7,21 +7,23 @@ tags:
 
 ## Rule
 
-The `update_document` MCP tool MUST maintain three-way semantics for the `tags` parameter:
-
-1. **Omitted** — existing tags are preserved unchanged.
-2. **Empty array `[]`** — all tags are cleared.
-3. **Array with values** — existing tags are fully replaced (not appended or merged).
-
-The distinction between "omitted" and "empty array" MUST be detected by checking argument presence in the raw request, NOT by checking for nil/empty on the parsed value.
-
-This three-way semantic MUST be maintained for any future frontmatter array field that follows the same pattern.
+1. WHEN a caller omits the `tags` argument, `update_document` MUST preserve the existing tags unchanged.
+2. WHEN a caller passes an empty array `[]` as `tags`, `update_document` MUST clear all tags.
+3. WHEN a caller passes a non-empty array as `tags`, `update_document` MUST replace the existing tags with that array, never append to them and never merge them.
+4. `update_document` MUST detect the difference between an omitted argument and an empty array by checking argument presence in the raw request, not by checking the parsed value for nil or zero length.
+5. WHEN a developer adds another frontmatter array field with the same update semantics, the developer MUST apply requirements 1 to 4 to that field.
 
 ## Rationale
 
-"User didn't mention tags" and "user wants to clear all tags" are semantically different operations. Many serialization formats and naive nil-checks collapse these two cases into one, silently clearing tags when the caller simply didn't intend to modify them.
+"The caller said nothing about tags" and "the caller wants no tags" are different operations. A nil check or a length check collapses them into one case, which silently clears tags that the caller never intended to touch.
 
-The implementation uses a `tagsProvided` boolean pattern in `internal/mcp/tools/update_document.go`:
+Only an explicit presence check on the raw argument map separates the two. The `tagsProvided` pattern in `@internal/mcp/tools/update_document.go` implements it.
+
+## Examples
+
+Non-normative examples.
+
+**Good** — check presence in the argument map:
 
 ```go
 var newTags []string
@@ -32,39 +34,27 @@ if _, ok := request.GetArguments()["tags"]; ok {
 }
 ```
 
-This explicit presence check is the only reliable way to distinguish omission from an empty array.
-
-## Examples
-
-**Good** — check argument map presence:
+**Bad** — check the parsed value; omission and clear become indistinguishable:
 
 ```go
-if _, ok := request.GetArguments()["tags"]; ok {
-    tagsProvided = true
+if tags != nil {  // an empty array [] parses to a non-nil empty slice — clear works
+    // BUT an omitted field also parses to nil — indistinguishable from "not provided"
 }
 ```
 
-**Bad** — check parsed value (breaks clear-vs-preserve):
+**Bad** — check the length; omission and clear collapse into one case:
 
 ```go
-if tags != nil {  // empty array [] becomes non-nil empty slice — clear works
-    // BUT: omitted field also becomes nil — indistinguishable from "not provided"
-}
-```
-
-**Bad** — check length (collapses omit and clear):
-
-```go
-if len(tags) > 0 {  // both omit and clear produce len 0
-    // clear case is silently ignored
+if len(tags) > 0 {  // both omission and clear produce len 0
+    // the clear case is silently ignored
 }
 ```
 
 ## Enforcement
 
-Test cases in `internal/mcp/tools/update_document_test.go` verify the distinction:
+Test cases in `@internal/mcp/tools/update_document_test.go` verify the distinction:
 
-- `TestHandleUpdateDocument_ClearTags` — empty array clears all tags
-- `TestHandleUpdateDocument_PreserveTags` — omitted tags are preserved
-- `TestHandleUpdateDocument_ReplaceTags` — provided tags fully replace existing
-- `TestHandleUpdateDocument_AddTags` — tags added to previously untagged document
+- `TestHandleUpdateDocument_ClearTags` — an empty array clears all tags
+- `TestHandleUpdateDocument_PreserveTags` — omitted tags stay unchanged
+- `TestHandleUpdateDocument_ReplaceTags` — provided tags fully replace the existing tags
+- `TestHandleUpdateDocument_AddTags` — tags are added to a previously untagged document

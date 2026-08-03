@@ -7,28 +7,28 @@ tags:
 
 ## Overview
 
-How to organize documents inside your `.archcore/` directory. The directory structure is free-form — you can use flat layouts, domain-based folders, team-based folders, or any nesting that fits your project.
+Organize documents inside a `.archcore/` directory. The layout is free-form: a flat directory, domain folders, team folders, or any nesting that fits the project.
 
-### Target Audience
+Intended readers:
 
-- Developers setting up `.archcore/` for a new project
-- Teams migrating from the old fixed `vision/`/`knowledge/`/`experience/` layout
+- A developer setting up `.archcore/` for a new project.
+- A team migrating from the old fixed `vision/`, `knowledge/`, and `experience/` layout.
 
-## Structure Basics
+## Structure basics
 
-The only requirement is the **filename convention**: `slug.type.md`. The type in the filename determines the document's virtual category. The directory path has no effect on categorization.
+The filename convention is the only requirement: `slug.type.md`. The type in the filename decides the document's virtual category. The directory path has no effect on categorization.
 
 ```
 .archcore/
-├── settings.json          # config (not a document)
-├── my-decision.adr.md     # category: knowledge (from type "adr")
+├── settings.json           # config (not a document)
+├── my-decision.adr.md      # category: knowledge (from type "adr")
 ├── feature/
-│   └── mvp-scope.prd.md   # category: vision (from type "prd")
+│   └── mvp-scope.prd.md    # category: vision (from type "prd")
 └── ops/
     └── deploy.task-type.md # category: experience (from type "task-type")
 ```
 
-## Type → Category Mapping
+## Type to category mapping
 
 | Type        | Category       |
 |-------------|----------------|
@@ -41,6 +41,7 @@ The only requirement is the **filename convention**: `slug.type.md`. The type in
 | `prd`       | vision         |
 | `idea`      | vision         |
 | `plan`      | vision         |
+| `rnd`       | vision         |
 | `mrd`       | vision         |
 | `brd`       | vision         |
 | `urd`       | vision         |
@@ -51,9 +52,11 @@ The only requirement is the **filename convention**: `slug.type.md`. The type in
 | `task-type` | experience     |
 | `cpat`      | experience     |
 
-## Example Layouts
+## Example layouts
 
-### Flat (small projects, <10 documents)
+Non-normative examples.
+
+### Flat, for a small project under 10 documents
 
 ```
 .archcore/
@@ -64,9 +67,9 @@ The only requirement is the **filename convention**: `slug.type.md`. The type in
 └── mvp-launch.plan.md
 ```
 
-Simple and easy to browse. Good starting point for any project.
+Simple to browse, and a good starting point for any project.
 
-### Domain-Based (medium to large projects)
+### Domain-based, for a medium or large project
 
 ```
 .archcore/
@@ -87,9 +90,9 @@ Simple and easy to browse. Good starting point for any project.
     └── v2-features.idea.md
 ```
 
-Group by feature or domain area. Useful when different domains have their own decisions, guides, and rules.
+Group by feature or domain area. This layout helps when each domain carries its own decisions, guides, and rules.
 
-### Team-Based
+### Team-based
 
 ```
 .archcore/
@@ -105,7 +108,7 @@ Group by feature or domain area. Useful when different domains have their own de
     └── monitoring-setup.guide.md
 ```
 
-### Old Layout (still works)
+### Old layout, still supported
 
 ```
 .archcore/
@@ -119,17 +122,12 @@ Group by feature or domain area. Useful when different domains have their own de
     └── deploy-checklist.task-type.md
 ```
 
-The old `vision/`, `knowledge/`, and `experience/` directories still work. They're treated as regular directories with no special meaning. No migration is needed.
+The `vision/`, `knowledge/`, and `experience/` directories still work. The scanner treats them as ordinary directories with no special meaning, so no migration is needed.
 
 ## Tips
 
-- **Start flat.** Only introduce directories when you have 10+ documents and navigating becomes difficult.
-- **Group by what you look up together.** If you often read auth decisions alongside auth guides, put them in `auth/`.
-- **Don't replicate categories as directories.** The category is already encoded in the type. A `knowledge/` directory adds no information.
-- **Nest sparingly.** One level of directories covers most use cases. Deep nesting makes paths long without adding clarity.
-- **Use `archcore status`** to check all documents, or **MCP `list_documents`** to see documents with their virtual categories, regardless of directory layout.
-
-## References
-
-- [ADR: Use Free-Form Directory Structure](./free-form-directory-structure.adr.md)
-- [Rule: Directory Structure and Document Naming Rules](./free-form-directory-rules.rule.md)
+- Start flat. Introduce directories once the project passes about 10 documents and navigation becomes difficult.
+- Group by what you look up together. WHEN you read auth decisions alongside auth guides, put both in `auth/`.
+- Do not replicate categories as directories. The type already encodes the category, so a `knowledge/` directory adds no information.
+- Nest sparingly. One level of directories covers most projects; deeper nesting lengthens paths without adding clarity.
+- Run `archcore status` to check every document, or call the MCP tool `list_documents` to see documents with their virtual categories, independent of the directory layout.

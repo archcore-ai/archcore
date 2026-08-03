@@ -7,24 +7,24 @@ tags:
 
 ## Overview
 
-Archcore hooks intercept AI agent lifecycle events to inject documentation context at session start. The only active hook event is **SessionStart**, which provides agents with a list of existing documents and available MCP tools.
+Archcore hooks intercept AI agent lifecycle events and inject documentation context at session start. SessionStart is the only active hook event. It gives the agent a list of existing documents and the available MCP tools.
 
-See also: [Supported AI Agents Registry](supported-ai-agents.doc.md) for agent-specific details, [Backup Invalid Configs](backup-invalid-configs.adr.md) for config file recovery behavior, [Disable Stop and Prompt Hooks ADR](disable-stop-and-prompt-hooks.adr.md) for why Stop/UserPromptSubmit hooks were removed.
+The related documents on the supported agent registry, on config-file backup behavior, and on the removal of the Stop and UserPromptSubmit hooks carry the neighboring detail.
 
 ## Commands
 
 ### `archcore hooks install`
 
-Installs hooks for all detected agents. Also triggers `archcore mcp install` for MCP config.
+Installs hooks for every detected agent, and triggers `archcore mcp install` for the MCP config.
 
 ```
-archcore hooks install              # auto-detect agents
+archcore hooks install                 # auto-detect agents
 archcore hooks install --agent cursor  # specific agent only
 ```
 
 ### `archcore hooks <agent> session-start`
 
-Handles the SessionStart hook event for an agent. These commands are invoked by the agent, not by users directly. They read JSON from stdin and write JSON to stdout.
+Handles the SessionStart hook event for one agent. The agent invokes these commands; a user does not run them directly. Each reads JSON from stdin and writes JSON to stdout.
 
 ```
 archcore hooks claude-code session-start
@@ -33,9 +33,9 @@ archcore hooks gemini-cli session-start
 archcore hooks copilot session-start
 ```
 
-## Hook Input (stdin JSON)
+## Hook input (stdin JSON)
 
-All hook commands read a JSON object from stdin.
+Every hook command reads one JSON object from stdin.
 
 | Field             | Type   | Description                   |
 | ----------------- | ------ | ----------------------------- |
@@ -44,11 +44,11 @@ All hook commands read a JSON object from stdin.
 | `hook_event_name` | string | Name of the hook event        |
 | `source`          | string | How the session was initiated |
 
-Source: `cmd/hooks_claude_code.go` (`hookInput` struct)
+Source: the `hookInput` struct in `@cmd/hooks_claude_code.go`.
 
-## Hook Output (stdout JSON)
+## Hook output (stdout JSON)
 
-### SessionStart Response
+### SessionStart response
 
 ```json
 {
@@ -59,21 +59,21 @@ Source: `cmd/hooks_claude_code.go` (`hookInput` struct)
 }
 ```
 
-Source: `cmd/hooks_claude_code.go` (`hookOutput` struct)
+Source: the `hookOutput` struct in `@cmd/hooks_claude_code.go`.
 
-## Session Context (SessionStart)
+## Session context (SessionStart)
 
-Built by `buildSessionContext()` in `cmd/hooks_common.go`. Injected at session start for all agents. Contains:
+`buildSessionContext()` in `@cmd/hooks_common.go` builds the injected text for every agent. It contains:
 
-1. **Header** — Identifies archcore and available MCP tools (list_documents, get_document, create_document, update_document, add_relation, remove_relation, list_relations)
-2. **Existing documents** — Grouped by category (`knowledge`, `vision`, `experience`) with filenames and titles
-3. **Tags** — Top tag frequencies (up to 30) when tags are present in any document
-4. **Document relations** — Summary count and available relation management tools
-5. **MCP referral** — Points to MCP server instructions for document types and workflow rules
+1. Header — identifies Archcore and the available MCP tools (`list_documents`, `get_document`, `create_document`, `update_document`, `add_relation`, `remove_relation`, `list_relations`).
+2. Existing documents — grouped by category (`knowledge`, `vision`, `experience`) with filenames and titles.
+3. Tags — the top tag frequencies, up to 30, when any document carries tags.
+4. Document relations — a summary count and the relation-management tools.
+5. MCP referral — points to the MCP server instructions for document types and workflow rules.
 
-## Per-Agent Event Mapping
+## Per-agent event mapping
 
-Each agent maps to a single hook event:
+Each agent maps to a single hook event.
 
 | Agent          | Hook Event   | Config File                   | Command                                    |
 | -------------- | ------------ | ----------------------------- | ------------------------------------------ |
@@ -82,11 +82,11 @@ Each agent maps to a single hook event:
 | Gemini CLI     | SessionStart | `.gemini/settings.json`       | `archcore hooks gemini-cli session-start`  |
 | GitHub Copilot | sessionStart | `.github/hooks/archcore.json` | `archcore hooks copilot session-start`     |
 
-## Removed Hooks (Historical)
+## Removed hooks (historical)
 
-Stop and UserPromptSubmit hooks were removed due to excessive false positives from keyword matching. See [disable-stop-and-prompt-hooks.adr.md](disable-stop-and-prompt-hooks.adr.md) for full rationale.
+The Stop and UserPromptSubmit hooks were removed because keyword matching produced too many false positives. The related ADR records the full rationale.
 
 Previously supported events:
 
-- **Stop** — Scanned assistant messages for keywords (e.g., "decided to", "root cause") and blocked the agent to suggest creating documents.
-- **UserPromptSubmit / BeforeSubmitPrompt / BeforeAgent** — Scanned user prompts for keywords (e.g., "should we use", "debug") and injected task-specific instructions.
+- Stop — scanned assistant messages for keywords such as "decided to" or "root cause", then blocked the agent to suggest creating a document.
+- UserPromptSubmit, BeforeSubmitPrompt, and BeforeAgent — scanned user prompts for keywords such as "should we use" or "debug", then injected task-specific instructions.

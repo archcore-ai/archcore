@@ -1,96 +1,144 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Read and follow `AGENTS.md` before creating or editing technical documentation, Archcore documents, CLI help, MCP tool descriptions, prompts, agent instructions, or user-facing Markdown.
+
+The writing policy in `AGENTS.md` uses:
+
+- an ASD-STE100-inspired profile for procedures, requirements, rules, specifications, CLI instructions, MCP contracts, and agent workflows;
+- ISO 24495-1-inspired plain-language principles for architecture explanations, ADRs, RFCs, README content, and product documents.
+
+Do not claim formal ASD-STE100 or ISO 24495-1 compliance.
 
 ## Search Priority
 
-When researching patterns, decisions, or conventions in this project, always search `.archcore/` documents FIRST (`list_documents` → `get_document`) before grepping the codebase or using external sources. See `.archcore/cli/archcore-first-search-priority.rule.md`.
+When researching patterns, decisions, or conventions in this project, always search `.archcore/` documents first (`list_documents` → `get_document`) before grepping the codebase or using external sources.
 
-The canonical architecture and how-to reference is `.archcore/cli-ui/building-the-cli.guide.md` — consult it before adding a command, document type, MCP tool, hook, or agent (it carries the step-by-step recipes this file only summarizes).
+The canonical architecture and how-to reference is `.archcore/cli-ui/building-the-cli.guide.md`. Consult it before adding a command, document type, MCP tool, hook, or agent.
 
-## Build & Test Commands
+## Archcore Operations
+
+Use Archcore MCP tools for all `.archcore/` document operations.
+
+- Create documents with `create_document`.
+- Update documents with `update_document`.
+- Remove documents with `remove_document`.
+- Read documents with `list_documents`, `search_documents`, and `get_document`.
+- Manage document relations with `add_relation`, `remove_relation`, and `list_relations`.
+
+Do not use direct file-writing tools to modify `.archcore/` documents.
+
+Before creating or updating an Archcore document:
+
+1. Search existing documents for relevant decisions, rules, specifications, and duplicates.
+2. Read the applicable document-type guidance.
+3. Apply the controlled technical writing policy in `AGENTS.md`.
+4. Preserve code identifiers, commands, flags, paths, MCP tool names, configuration keys, and literal values exactly.
+5. Mark unsupported technical claims with `[assumption]`.
+
+Treat mounted global documents as read-only. Do not edit them or create relations to them.
+
+## Managed Blocks
+
+Do not edit content inside an Archcore-managed block:
+
+```text
+<!-- archcore:start -->
+...
+<!-- archcore:end -->
+```
+
+Keep repository-specific instructions outside the managed block.
+
+## Build and Test Commands
 
 ```bash
-# Build (Go 1.25+)
+# Build
 go build -o archcore .
 
 # Run all tests
 go test ./...
 
-# Run tests for a specific package
+# Run tests for a package
 go test ./cmd/
 go test ./internal/mcp/...
 go test ./internal/config/
 go test ./templates/
 
-# Run a single test
+# Run one test
 go test ./cmd/ -run TestSetSettingsValue
 
 # Run tests with verbose output
 go test -v ./...
 ```
 
+Use Go 1.25 or newer.
+
 ## Architecture
 
-`archcore-cli` is a Go CLI — a git-native context layer for AI coding agents. It manages a local `.archcore/` directory of structured Markdown documents (YAML frontmatter: `title`, `status`, `tags`) and integrates with AI agents (Claude Code, Cursor, Gemini CLI, GitHub Copilot, and more) through two surfaces: an **MCP server** and **lifecycle hooks**.
+`archcore-cli` is a Go CLI and local stdio MCP server. It manages a local `.archcore/` directory of structured Markdown documents and integrates with coding agents through MCP and lifecycle hooks.
 
-The layout under `.archcore/` is **free-form** — organize by domain/feature/team. Documents are named `<slug>.<type>.md` (e.g. `use-postgres.adr.md`); the three **categories** (`vision`, `knowledge`, `experience`) are *virtual*, derived from the type suffix rather than physical directories. See `.archcore/dir/free-form-directory-structure.adr.md`.
+The `.archcore/` directory is free-form. Document files use the form `<slug>.<type>.md`. The category is derived from the type suffix.
 
-**Document management happens through the MCP server, not CLI subcommands.** There is no `create` command — agents create/update/remove documents and relations via MCP tools. CLI subcommands handle setup, health, sync, and updates.
+Document management happens through MCP tools. CLI subcommands handle setup, health, sync, host wiring, and updates.
 
-### Commands (`cmd/`, registered in `cmd/root.go`)
+### Commands
 
-- `init` — interactive setup wizard: scaffolds `.archcore/`, detects agents, installs hooks + MCP config, optionally writes usage-nudge instruction files.
-- `mcp` — runs the MCP server over stdio (the primary document interface for agents); `mcp install` wires it into an agent.
-- `status` — structural checks only (naming, frontmatter, categories).
-- `doctor` — health check: structure + settings + server connectivity.
-- `config` — view/modify `.archcore/settings.json` (`config get|set <key> [value]`).
-- `hooks` — install/manage SessionStart hooks per agent (`claude-code`, `cursor`, `gemini-cli`, `copilot`, plus `install`/`remove`).
-- `instructions` — install/remove per-agent usage-nudge files (`AGENTS.md` / `GEMINI.md` / `CLAUDE.md`).
-- `sync` — one-way push sync of `.archcore/` to a cloud/on-prem server.
-- `update` — self-update to the latest release.
+Commands are registered under `cmd/`.
 
-### Packages (`internal/`)
+- `init` initializes `.archcore/` and host integrations.
+- `mcp` runs the MCP server.
+- `status` checks document structure.
+- `doctor` checks project and integration health.
+- `config` reads and updates `.archcore/settings.json`.
+- `hooks` manages lifecycle hooks.
+- `instructions` manages agent instruction files.
+- `sync` pushes `.archcore/` state to a configured server.
+- `update` updates the CLI.
 
-- **`config/`** — `settings.json` load/validate and directory init. Sync mode (`none`/`cloud`/`on-prem`) drives which fields are allowed/required, enforced via custom JSON marshaling.
-- **`mcp/`** — MCP server (`server.go`), built on `mark3labs/mcp-go`. Starts even without an `.archcore/` dir (exposes `init_project`).
-  - `mcp/tools/` — 11 tools: `init_project`, `list_documents`, `get_document`, `search_documents`, `create_document`, `update_document`, `remove_document`, `add_relation`, `remove_relation`, `list_relations`, plus `install_host_config` (registered only when the cmd layer injects an executor via `mcpserver.WithHostWiring`). Shared helpers in `common.go`.
-  - `mcp/prompts/` — the five document-track cascades (product, sources, ISO 29148, architecture, standard).
-  - `mcp/integration/` — in-process MCP integration tests (Layer A of the E2E strategy).
-- **`agents/`** — registry of supported AI agents (Claude Code, Cursor, Gemini CLI, Copilot, Cline, Codex CLI, OpenCode, Roo Code). Each defines detection, MCP-config writing, hooks, and instruction targets; shared instruction upsert in `instructions.go`.
-- **`wiring/`** — host-wiring domain logic shared by `init --agent`, `hooks install`, `doctor --fix`, and the `install_host_config` MCP tool: hook-config surgery with the `archcore hooks ` ownership marker (`hooks_install.go`), per-agent installers, `Apply`/`EnsureProjectInitialized`, path/dedupe helpers. Cobra commands and MCP sanitization stay in `cmd/`.
-- **`sync/`** — sync internals: content hashing, manifest diffing, payload building (`hash.go`, `diff.go`, `manifest.go`, `payload.go`).
-- **`api/`** — HTTP client for the Archcore server (`/api/v1/status`, `/api/v1/projects`). Cloud URL: `https://app.archcore.ai`.
-- **`update/`** — self-update logic (release lookup, binary replacement).
-- **`git/`** — git origin URL detection (auto-fills `repo_url` on first sync).
-- **`display/`** — lipgloss terminal formatting (banners, status lines, key/value output).
+When adding a command:
 
-### Templates (`templates/`)
+1. Read `.archcore/cli-ui/building-the-cli.guide.md`.
+2. Use the constructor-command pattern.
+3. Keep command logic in testable functions.
+4. Add co-located tests.
+5. Update user-facing documentation when the command surface changes.
 
-`templates.go` defines 19 document types mapped to virtual categories:
+### Internal packages
 
-| Category | Types |
-|----------|-------|
-| `knowledge` | adr, rfc, rule, guide, doc, spec |
-| `vision` | prd, idea, plan, rnd, mrd, brd, urd, brs, strs, syrs, srs |
-| `experience` | task-type, cpat |
+- `internal/config/` manages settings and initialization.
+- `internal/mcp/` implements the MCP server.
+- `internal/mcp/tools/` implements MCP tools.
+- `internal/mcp/prompts/` implements document-track prompts.
+- `internal/mcp/integration/` contains in-process MCP integration tests.
+- `internal/agents/` defines supported agent integrations.
+- `internal/wiring/` implements host wiring.
+- `internal/sync/` implements sync state, hashing, and payload construction.
+- `internal/api/` implements the server API client.
+- `internal/update/` implements self-update.
+- `internal/git/` detects repository metadata.
+- `internal/display/` formats terminal output.
+- `templates/` defines document templates and document types.
 
-Vision types beyond prd/idea/plan include the requirement tracks (MRD/BRD/URD sources; ISO 29148 BRS/StRS/SyRS/SRS) plus `rnd`, a standalone research gate (not a track). See `.archcore/document-types/`.
+### Design constraints
 
-### Key Design Patterns
+Preserve these constraints:
 
-- **MCP-first document model** — CRUD and relations go through MCP tools; the CLI never edits documents directly.
-- **Sync modes drive validation** — `cloud` requires `project_id`; `on-prem` requires `project_id` + `archcore_url`; `none` forbids both. Lives in `internal/config/config.go`.
-- **Constructor commands** — each command is `newXxxCmd() *cobra.Command` with logic extracted into testable functions that take a base directory; version-needing commands receive the version from `NewRootCmd`.
-- **Shared SessionStart hook** — all hook-supporting agents use one `newSessionStartHookCmd` / `buildSessionContext` path, differing only in event name and config format. Only `SessionStart` is active.
-- **Optional settings omit defaults** — optional fields use `omitempty` with code-level defaults (e.g. `language` defaults to `"en"`).
-- **Safety invariants** — never expose absolute filesystem paths in MCP errors; validate all paths against traversal; store local relations in `.sync-state.json`.
-- **Co-located tests** — every package has adjacent `_test.go` using `t.TempDir()`, `httptest`, and table-driven `t.Run()` subtests; plus in-process MCP integration tests under `internal/mcp/integration/`.
+- MCP-first document management.
+- Free-form `.archcore/` directory layout.
+- Virtual document categories derived from type suffixes.
+- Path traversal protection.
+- No absolute filesystem paths in MCP errors.
+- Shared host-wiring logic in `internal/wiring/`.
+- Co-located table-driven Go tests.
+- Optional settings omit defaults where defined.
+- Global Archcore sources are read-only.
 
-### Out-of-scope directories
+## Out-of-scope Directories
 
-- `reference-materials/` — vendored third-party reference code (the `entireio` CLI) and ISO/IEC standards PDFs. **Not part of the build; exclude from code searches.**
-- `examples/` — sample `.archcore/` layouts (minimal, fullstack, monorepo, global sources) for documentation and manual testing.
+Exclude these directories from normal implementation searches unless the task explicitly concerns them:
+
+- `reference-materials/` — vendored references and standards material; not part of the build.
+- `examples/` — example project layouts and manual-test fixtures.
 
 <!-- archcore:start --> managed by `archcore init` — edit outside these markers
 ## Archcore — project context for this repo

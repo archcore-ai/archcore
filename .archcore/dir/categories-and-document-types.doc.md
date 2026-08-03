@@ -7,10 +7,14 @@ tags:
 
 ## Overview
 
-The full document-type reference — the per-type purpose tables, the "choosing the right type" matrix, and the requirements-track guidance — now lives in the `archcore` global source:
+This file is the CLI repository's entry point to the Archcore document-type model. The full reference lives in the `archcore` global source, and this document does not restate it.
 
-- `concepts/document-types-reference` — per-type tables + type-selection matrix + choosing a requirements track
-- `concepts/requirements-layers` — the Sources-vs-Specifications two-layer model and relation conventions
-- `concepts/core-concepts` / `concepts/document-tracks` — the high-level model and document flows
+- `concepts/document-types-reference` — per-type tables, the type-selection matrix, and how to choose a requirements track
+- `concepts/requirements-layers` — the Sources versus Specifications two-layer model and the relation conventions
+- `concepts/core-concepts` and `concepts/document-tracks` — the high-level model and the document flows
 
-This file is retained as the CLI's local entry point to that model. The CLI enforces it through the MCP server type-selection instructions and the templates in `@templates/templates.go`. The category is derived from the `.type` suffix in the filename, not from the directory.
+## How the CLI applies the model
+
+- The MCP server type-selection instructions carry the disambiguation rules that decide which type a new document gets.
+- `@templates/templates.go` registers every type with its template and its category mapping.
+- The category is derived from the `.type` suffix in the filename, never from the directory.

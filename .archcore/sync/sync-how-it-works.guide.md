@@ -5,18 +5,11 @@ tags:
   - "sync"
 ---
 
----
-title: How Sync Works in Archcore
-status: accepted
----
-
 ## Overview
 
 `archcore sync` pushes local `.archcore/` documents to a cloud or on-prem server for indexing, GraphRAG-based search, and cross-project knowledge retrieval.
 
-**Core principle:** `.archcore/` is the **source of truth**. Sync is a one-way push (local → server). The server is a read-only consumer — it never writes back to the local directory.
-
-Related: [ADR: One-Way Push Sync Strategy](./one-way-push-sync-strategy.adr.md)
+Core principle: `.archcore/` is the source of truth. Sync pushes in one direction, from local to server. The server consumes documents and never writes back to the local directory. The related ADR records that decision.
 
 ## Architecture
 
@@ -34,96 +27,87 @@ Related: [ADR: One-Way Push Sync Strategy](./one-way-push-sync-strategy.adr.md)
 └─────────────────┘                        └──────────────────────┘
 ```
 
-## Sync Modes
+## Sync modes
 
-Sync mode is configured in `.archcore/settings.json` via the `sync` field. It drives what fields are valid and where sync pushes to.
+The `sync` field in `.archcore/settings.json` sets the mode. The mode decides which fields are valid and where sync pushes to.
 
 | Mode      | `project_id` | `archcore_url` | Server URL                |
 | --------- | ------------ | -------------- | ------------------------- |
-| `none`    | forbidden    | forbidden      | N/A — sync disabled       |
+| `none`    | forbidden    | forbidden      | not applicable — sync off |
 | `cloud`   | optional     | forbidden      | `https://app.archcore.ai` |
 | `on-prem` | optional     | required       | custom `archcore_url`     |
 
-- **`none`** — sync is fully disabled. Running `archcore sync` prints a message and exits.
-- **`cloud`** — pushes to the Archcore cloud at `https://app.archcore.ai`.
-- **`on-prem`** — pushes to a self-hosted server at the URL specified in `archcore_url`.
+- `none` — sync is disabled. `archcore sync` prints a message and exits.
+- `cloud` — pushes to the Archcore cloud at `https://app.archcore.ai`.
+- `on-prem` — pushes to a self-hosted server at the URL in `archcore_url`.
 
-If `project_id` is not set, the server auto-creates a project on first sync using the directory name as `project_name`, and the CLI persists the returned ID to `settings.json`. During auto-creation, the CLI also sends `repo_url` if the directory is a git repository with an `origin` remote (auto-detected via `git remote get-url origin`).
+WHILE `project_id` is unset, the server auto-creates a project on the first sync, using the directory name as `project_name`, and the CLI persists the returned ID to `settings.json`. During auto-creation the CLI also sends `repo_url` when the directory is a git repository with an `origin` remote, detected via `git remote get-url origin`.
 
-## CLI Usage
+## CLI usage
 
 ```bash
-archcore sync              # interactive — shows diff, asks for confirmation
-archcore sync --dry-run    # preview what would be synced, no actual push
-archcore sync --force      # full re-sync, ignores manifest (treats all files as modified)
+archcore sync              # interactive — shows the diff, asks for confirmation
+archcore sync --dry-run    # preview what would be synced, no push
+archcore sync --force      # full re-sync, ignores the manifest (all files count as modified)
 archcore sync --ci         # non-interactive mode for CI/CD pipelines
 ```
 
 ### Flags
 
-| Flag        | Effect                                                      |
-| ----------- | ----------------------------------------------------------- |
-| `--dry-run` | Show diff summary without sending anything to the server    |
-| `--force`   | Ignore manifest — re-sync all files as if they were changed |
-| `--ci`      | Skip the interactive confirmation prompt                    |
+| Flag        | Effect                                                       |
+| ----------- | ------------------------------------------------------------ |
+| `--dry-run` | Show the diff summary without sending anything to the server |
+| `--force`   | Ignore the manifest and re-sync every file as changed        |
+| `--ci`      | Skip the interactive confirmation prompt                     |
 
-## Sync Pipeline (Step by Step)
+## What one sync run does
 
-When you run `archcore sync`, the following happens:
+This section describes current CLI behavior, not steps for the reader.
 
-### 1. Validate Preconditions
+### 1. Validate preconditions
 
-The command checks:
-- `.archcore/` directory exists
-- `settings.json` loads and passes validation
-- Sync mode is not `none`
-- Auth token is available (via `ARCHCORE_TOKEN` env var)
+The command checks that `.archcore/` exists, that `settings.json` loads and passes validation, that the sync mode is not `none`, and that an auth token is available through the `ARCHCORE_TOKEN` environment variable.
 
-### 2. Load Manifest
+### 2. Load the manifest
 
-The manifest file `.archcore/.sync-state.json` tracks what was last successfully synced. It maps relative file paths to their SHA-256 hashes at the time of last sync.
+`.archcore/.sync-state.json` records what the last successful sync sent. It maps a relative file path to the SHA-256 hash the file had at that moment.
 
-If the file doesn't exist (first sync), an empty manifest is created in memory.
+IF the file is absent, which is the case on a first sync, THEN the CLI creates an empty manifest in memory.
 
-### 3. Scan Files
+### 3. Scan the files
 
-Recursively walks the `.archcore/` directory and computes a SHA-256 hash for each `.md` file matching the `slug.type.md` naming convention. Directories can be nested to any depth. Hidden directories (`.`-prefixed) and meta files (`settings.json`, `.sync-state.json`) are skipped.
+The CLI walks `.archcore/` recursively and computes a SHA-256 hash for every `.md` file that follows the `slug.type.md` convention. Directories nest to any depth. The walk skips hidden directories, which are `.`-prefixed, and the meta files `settings.json` and `.sync-state.json`.
 
-### 4. Calculate Diff
+### 4. Calculate the diff
 
-Compares the current file scan against the manifest to produce four sets:
+The CLI compares the scan against the manifest and produces four sets.
 
-| Action        | Meaning                                           |
-| ------------- | ------------------------------------------------- |
-| **created**   | File exists on disk but not in manifest           |
-| **modified**  | File exists in both but SHA-256 hashes differ     |
-| **deleted**   | File in manifest but no longer exists on disk     |
-| **unchanged** | File exists in both and hashes match              |
+| Action        | Meaning                                       |
+| ------------- | --------------------------------------------- |
+| created       | The file exists on disk but not in the manifest |
+| modified      | The file exists in both and the hashes differ  |
+| deleted       | The file is in the manifest but not on disk    |
+| unchanged     | The file exists in both and the hashes match   |
 
-With `--force`, all existing files are marked as `modified` regardless of hash comparison (deletions are still detected normally).
+WITH `--force`, every existing file is marked `modified` regardless of its hash. Deletions are still detected normally.
 
-### 5. Display Diff Summary
+### 5. Display the diff summary
 
-Prints counts and file paths grouped by action. If there are no changes, prints "up to date" and exits.
+The CLI prints counts and file paths grouped by action. IF nothing changed, THEN it prints "up to date" and exits.
 
-### 6. Dry-Run Exit
+### 6. Exit on a dry run
 
-If `--dry-run` is set, the pipeline stops here. Nothing is sent to the server.
+IF `--dry-run` is set, THEN the run stops here and sends nothing to the server.
 
-### 7. Interactive Confirmation
+### 7. Ask for confirmation
 
-A `huh.NewConfirm` prompt asks the user to confirm. Skipped when `--ci` is set.
+A `huh.NewConfirm` prompt asks the user to confirm. The prompt is skipped WHILE `--ci` is set.
 
-### 8. Build Payload and Send
+### 8. Build the payload and send it
 
-For each created/modified file:
-- Reads full content from disk
-- Parses YAML frontmatter to extract `title` and `status`
-- Extracts `doc_type` from the filename (e.g., `adr` from `use-postgres.adr.md`)
-- Derives `category` from the document type (e.g., `adr` → `knowledge`)
-- Validates status against allowed values (`draft`, `accepted`, `rejected`)
+For each created or modified file, the CLI reads the full content from disk, parses the YAML frontmatter for `title` and `status`, extracts `doc_type` from the filename (`adr` from `use-postgres.adr.md`), derives `category` from the document type (`adr` maps to `knowledge`), and validates the status against `draft`, `accepted`, and `rejected`.
 
-Constructs a JSON payload:
+It then constructs the JSON payload:
 
 ```json
 {
@@ -134,7 +118,7 @@ Constructs a JSON payload:
 }
 ```
 
-When auto-creating a project (`project_id` not set), the payload includes `project_name` and optionally `repo_url`:
+WHILE `project_id` is unset, the payload carries `project_name`, and `repo_url` when one was detected:
 
 ```json
 {
@@ -144,29 +128,23 @@ When auto-creating a project (`project_id` not set), the payload includes `proje
 }
 ```
 
-Sends via `POST /api/v1/sync`.
+The CLI sends the payload with `POST /api/v1/sync`.
 
-### 9. Handle Response
+### 9. Handle the response
 
-The server responds with:
-- **200** — all files synced successfully
-- **201** — project auto-created; `project_id` returned and saved to `settings.json`
-- **207** — partial success; some files accepted, some had errors
+- `200` — every file synced.
+- `201` — the project was auto-created; the response carries `project_id`, which the CLI saves to `settings.json`.
+- `207` — partial success; some files were accepted and some returned errors.
 
-Per-file errors are reported to the user.
+The CLI reports per-file errors to the user.
 
-### 10. Update Manifest
+### 10. Update the manifest
 
-Only after a successful response, the manifest is updated:
-- Created/modified files → hash stored in manifest
-- Deleted files → removed from manifest
-- Unchanged files → untouched
+Only after a successful response, the CLI stores the hash of each created or modified file, removes each deleted file from the manifest, and leaves unchanged entries alone. It saves the manifest atomically: write to a temporary file, then rename.
 
-The manifest is saved atomically (write to temp file, then rename).
+## Manifest format
 
-## Manifest Format
-
-File: `.archcore/.sync-state.json` (gitignored)
+File: `.archcore/.sync-state.json`, gitignored.
 
 ```json
 {
@@ -178,66 +156,66 @@ File: `.archcore/.sync-state.json` (gitignored)
 }
 ```
 
-- `version` — always `1` (for future schema evolution)
-- `files` — flat map of relative path → SHA-256 hex digest (64 chars, lowercase)
+- `version` — always `1`, reserved for future schema evolution.
+- `files` — a flat map of relative path to SHA-256 hex digest, 64 lowercase characters.
 
-### Validation Rules
+### Validation rules
 
-- Max 10,000 files
-- Hashes must be valid SHA-256 (64 lowercase hex characters)
-- Paths must be relative with no `..` segments or absolute paths
-- No `null` values
+- At most 10,000 files.
+- Each hash is a valid SHA-256 digest: 64 lowercase hex characters.
+- Each path is relative, with no `..` segment and no absolute form.
+- No `null` values.
 
 ## Authentication
 
 ```bash
-# Set token via environment variable
+# Set the token through an environment variable
 export ARCHCORE_TOKEN=arc_xxxxx
 
 # CI/CD usage
 ARCHCORE_TOKEN=${{ secrets.ARCHCORE_TOKEN }} archcore sync --ci
 ```
 
-The token is passed as `Authorization: Bearer <token>` header on the API request. The `api.NewAuthenticatedClient()` uses a 30-second timeout (longer than default 10s to handle large payloads).
+The CLI passes the token in the `Authorization: Bearer <token>` header. `api.NewAuthenticatedClient()` uses a 30-second timeout, longer than the 10-second default, to carry large payloads.
 
-## Package Structure
+## Package structure
 
 ```
-internal/sync/          — imported as "archsync" (avoids stdlib sync conflict)
-├── manifest.go         — Manifest struct, load/save, validation
+internal/sync/          — imported as "archsync" (avoids the stdlib sync conflict)
+├── manifest.go         — Manifest struct, load and save, validation
 ├── hash.go             — SHA-256 hashing, file scanning
-├── diff.go             — Change detection (created/modified/deleted/unchanged)
-├── payload.go          — Sync payload construction, frontmatter parsing
-└── *_test.go           — Table-driven tests for each module
+├── diff.go             — change detection (created/modified/deleted/unchanged)
+├── payload.go          — payload construction, frontmatter parsing
+└── *_test.go           — table-driven tests per module
 
-internal/git/git.go     — DetectRepoURL() helper for origin remote detection
+internal/git/git.go     — DetectRepoURL() for origin remote detection
 internal/api/client.go  — Sync() method, authenticated client, response handling
-cmd/sync.go             — Cobra command, preconditions, pipeline orchestration
+cmd/sync.go             — cobra command, preconditions, pipeline orchestration
 ```
 
 ## Security
 
-- **Path traversal prevention:** `validateRelPath()` rejects `..` segments and absolute paths
-- **Manifest validation:** rejects malformed hashes, null values, file counts over 10,000
-- **Response size limit:** max 10 MB response body
-- **Error body limit:** max 512 bytes from error responses
-- **Atomic writes:** manifest saved via temp file + rename to prevent corruption
+- Path traversal prevention: `validateRelPath()` rejects `..` segments and absolute paths.
+- Manifest validation: rejects malformed hashes, `null` values, and file counts above 10,000.
+- Response size limit: 10 MB of response body.
+- Error body limit: 512 bytes from an error response.
+- Atomic writes: the manifest is saved through a temporary file and a rename, which prevents a corrupted file.
 
-## Error Recovery
+## Error recovery
 
-| Scenario                        | What happens                                                    |
-| ------------------------------- | --------------------------------------------------------------- |
-| Sync fails mid-request          | Manifest is NOT updated — next sync retries the same changes    |
-| `.sync-state.json` is corrupted | Error on load — delete the file and run `archcore sync --force` |
-| `.sync-state.json` is deleted   | Treated as first sync — all files marked as created             |
-| Server returns 207 (partial)    | Manifest updated only for accepted files; errors reported       |
-| Network timeout                 | Error returned — manifest unchanged, safe to retry              |
+| Scenario                        | What happens                                                     |
+| ------------------------------- | ---------------------------------------------------------------- |
+| Sync fails mid-request          | The manifest stays unchanged; the next sync retries the same changes |
+| `.sync-state.json` is corrupted | Load fails — delete the file and run `archcore sync --force`     |
+| `.sync-state.json` is deleted   | Treated as a first sync; every file counts as created            |
+| Server returns 207 (partial)    | The manifest is updated for accepted files only; errors reported |
+| Network timeout                 | An error is returned; the manifest is unchanged and a retry is safe |
 
-## MCP Integration
+## MCP integration
 
 Two MCP search layers coexist:
 
-- **Local MCP** (`archcore mcp`) — searches `.archcore/` files in the current project only
-- **Server MCP** — searches indexed documents across all synced projects via GraphRAG
+- Local MCP (`archcore mcp`) searches `.archcore/` files in the current project only.
+- Server MCP searches indexed documents across every synced project through GraphRAG.
 
-Claude Code can use both simultaneously: local for current project context, server for cross-project knowledge retrieval.
+Claude Code can use both at once: the local server for current-project context, the remote server for cross-project retrieval.

@@ -7,34 +7,33 @@ tags:
 
 ## Rule
 
-MCP `prompts` exposed by `archcore mcp` MUST orchestrate a multi-document track. A track is a sequence of two or more linked documents created together (e.g., `brs → strs → syrs → srs`, `adr → rule → guide`).
+A track is a sequence of two or more linked documents created together, for example `brs → strs → syrs → srs` or `adr → rule → guide`.
 
-A new prompt MAY be added only when ALL of the following hold:
+1. The Archcore MCP server MUST expose a prompt only when that prompt orchestrates a multi-document track.
+2. The developer MAY add a prompt only WHEN the workflow creates two or more documents in a defined sequence.
+3. The developer MAY add a prompt only WHEN the prompt itself links the documents with `implements`, `depends_on`, or `extends` relations.
+4. The developer MAY add a prompt only WHEN the flow needs user confirmation between steps.
+5. The developer MAY add a prompt only WHEN a single tool call plus instruction text cannot express the orchestration.
+6. The developer MUST NOT add a prompt for single-document creation, such as `write_brs` or `write_adr`. Templates and instructions cover that case.
+7. The developer MUST NOT add a prompt for read-only or one-shot reporting, such as `status`, `graph`, or `find_duplicates`. Tools cover that case.
+8. The developer MUST NOT add a prompt for a diagnostic or maintenance flow that follows no fixed multi-document cascade, such as `audit_health`, `actualize`, or `propose_relations`. Plugin skills cover that case.
+9. The developer MUST NOT add a prompt for onboarding, help, or tour content.
+10. The developer MUST NOT add a prompt for a capture or migration workflow, such as `capture_module` or `migrate_prd_to_iso`. Plugin skills currently own those workflows; a new ADR is required to move one into the MCP surface.
+11. IF a change adds a sixth prompt, THEN the developer MUST record a new ADR that amends the accepted track-only decision.
 
-1. The workflow creates two or more documents in a defined sequence.
-2. The documents are linked by `implements`, `depends_on`, or `extends` relations defined by the prompt.
-3. The flow benefits from user confirmation between steps (not a one-shot tool call).
-4. The orchestration cannot be expressed cleanly as a single tool plus instruction text.
-
-A new prompt MUST NOT be added for:
-
-- Single-document creation (`write_brs`, `write_adr`, etc.) — templates and instructions cover these.
-- Read-only or one-shot reporting (`status`, `graph`, `find_duplicates`) — use tools (or future resources).
-- Diagnostic or maintenance flows that don't follow a fixed multi-doc cascade (`audit_health`, `actualize`, `propose_relations`) — these belong in plugin skills or future tools.
-- Onboarding/help/tour content — instructions and external docs cover this.
-- Capture or migration workflows (`capture_module`, `migrate_prd_to_iso`) — currently scoped to plugin skills; reconsider only via a new ADR.
-
-The current authorized set is exactly: `iso_track`, `sources_track`, `product_track`, `standard_track`, `architecture_track` (per `mcp/mcp-prompts-for-tracks-only.adr.md`). Adding a sixth prompt requires a new ADR.
+The current authorized set is exactly `iso_track`, `sources_track`, `product_track`, `standard_track`, and `architecture_track`.
 
 ## Rationale
 
-- The MCP `tools` layer is intentionally CRUD-primitive (`mcp/no-auto-relations-on-create-document.adr.md` upholds the same principle for relations). Prompts are the canonical place to put orchestrated multi-step workflows so tools stay primitive.
-- Without a clear scope rule, the prompt list grows into "everything that could be a workflow," duplicating plugin skills and bloating the slash-menu.
-- Single-doc creation has zero orchestration value beyond what templates plus the existing `WHEN TO CREATE` instructions already provide. A `write_brs` prompt gives no measurable lift over calling `create_document(type="brs")` against the standard template.
-- Diagnostic flows (`audit_health`, `actualize`) need richer agent capabilities (`Read`, `Grep`, sub-agents) that headless MCP clients lack — they belong in plugin skills, not in the protocol-portable layer.
-- Restricting the surface keeps `prompts/list` payload small (token cost) and the user-facing slash-menu uncluttered.
+- The MCP `tools` layer stays CRUD-primitive on purpose. Prompts are the place for orchestrated multi-step workflows, which keeps the tools primitive.
+- Without a scope rule, the prompt list grows into "everything that could be a workflow", duplicates plugin skills, and fills the slash-menu.
+- Single-document creation gains nothing from a prompt: `create_document(type="brs")` against the standard template already produces the same result as a `write_brs` prompt would.
+- Diagnostic flows such as `audit_health` and `actualize` need agent capabilities that headless MCP clients lack (`Read`, `Grep`, sub-agents), so they belong in plugin skills rather than in the protocol-portable layer.
+- A small prompt surface keeps the `prompts/list` payload small, which lowers token cost.
 
 ## Examples
+
+Non-normative examples.
 
 ### Good — orchestrated multi-document track
 
@@ -58,7 +57,7 @@ func HandleISOTrack(ctx context.Context, req mcp.GetPromptRequest) (*mcp.GetProm
 }
 ```
 
-Why it qualifies: four documents, three `implements` edges, four confirmation points, cannot be a single tool call.
+It qualifies: four documents, three `implements` edges, four confirmation points, and no single-tool-call equivalent.
 
 ### Bad — single-document creation as a prompt
 
@@ -69,7 +68,7 @@ func NewWriteBRSPrompt() mcp.Prompt {
 }
 ```
 
-Why it fails: one document, no linking, no orchestration. Use `create_document(type="brs")` with the standard template instead.
+It fails: one document, no linking, no orchestration. Use `create_document(type="brs")` with the standard template.
 
 ### Bad — one-shot diagnostic as a prompt
 
@@ -80,7 +79,7 @@ func NewFindDuplicatesPrompt() mcp.Prompt {
 }
 ```
 
-Why it fails: one analysis pass, no document creation cascade. If needed, add a tool (e.g., `find_similar_documents`) — not a prompt.
+It fails: one analysis pass, no document cascade. IF the capability is needed, THEN add a tool such as `find_similar_documents`, not a prompt.
 
 ### Bad — onboarding tour as a prompt
 
@@ -89,11 +88,11 @@ Why it fails: one analysis pass, no document creation cascade. If needed, add a 
 func NewTourPrompt() mcp.Prompt { ... }
 ```
 
-Why it fails: no document orchestration. Belongs in `instructions` or external documentation.
+It fails: no document orchestration. This content belongs in `instructions` or external documentation.
 
 ## Enforcement
 
-- **Code review:** any new file in `internal/mcp/prompts/` must register a prompt that creates two or more documents and adds at least one relation in its message script. Reject PRs that add prompts violating the criteria above.
-- **ADR gate:** adding a sixth prompt (or any non-track prompt) requires a new ADR amending `mcp/mcp-prompts-for-tracks-only.adr.md`. Reviewers MUST block the PR if the ADR is missing.
-- **Lint check (manual):** during `/archcore:review`, audit `internal/mcp/prompts/` against the authorized set. Flag deviations.
-- **Description sanity:** every prompt's `WithPromptDescription` must mention the cascade chain (e.g., "BRS → StRS → SyRS → SRS"). A description that reads like a single action ("Write a BRS document") is a smell.
+- Code review: the reviewer MUST reject a new file in `internal/mcp/prompts/` unless the prompt creates two or more documents and adds at least one relation in its message script.
+- ADR gate: the reviewer MUST block a pull request that adds a sixth prompt, or any non-track prompt, while the amending ADR is missing.
+- Manual audit: during `/archcore:review`, the reviewer compares `internal/mcp/prompts/` against the authorized set and flags deviations.
+- Description check: every prompt's `WithPromptDescription` MUST name the cascade chain, for example "BRS → StRS → SyRS → SRS". A description that reads as a single action, such as "Write a BRS document", indicates a prompt that this rule forbids.

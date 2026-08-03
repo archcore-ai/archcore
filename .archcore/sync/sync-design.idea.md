@@ -5,67 +5,68 @@ tags:
   - "sync"
 ---
 
-## Context
+## Idea
 
-`.archcore/` is the source of truth at the project level. When a cloud or on-prem sync server is configured, we need a mechanism to push documents to it for indexing, GraphRAG-based search, and cross-project knowledge retrieval.
+Push `.archcore/` documents one way, from local to a cloud or on-prem server, and let the server
+index them for GraphRAG-based search across one project and across many.
 
-The sync server indexes documents and builds a graph for enhanced MCP search — both within a single project and across multiple projects.
-
-## Core Model: One-Way Push (Local → Server)
-
-Since `.archcore/` is the **source of truth**, sync is fundamentally a **push** operation. The server is a **read-only consumer** that indexes, builds GraphRAG, and exposes cross-project search via MCP.
+`.archcore/` is the source of truth at the project level, so sync is a push. The server is a
+read-only consumer: it indexes, builds the graph, and exposes cross-project search through MCP.
+Nothing is pulled back and nothing is merged, because the local files are authoritative.
 
 ```
 ┌─────────────────┐         push          ┌──────────────────────┐
 │  .archcore/     │ ──────────────────────▶│  Sync Server         │
 │  (source of     │   incremental diff     │  (cloud / on-prem)   │
 │   truth)        │                        │                      │
-│                 │                        │  ┌────────────────┐  │
-│  vision/        │                        │  │ Document Index  │  │
-│  knowledge/     │                        │  │ GraphRAG        │  │
-│  experience/    │                        │  │ Cross-project   │  │
-│                 │         MCP search     │  │ Search          │  │
-│  Claude Code ◀──│──────────────────────  │  └────────────────┘  │
-│  (MCP client)   │   enhanced retrieval   │                      │
+│  any dirs/      │                        │  ┌────────────────┐  │
+│  any nesting    │                        │  │ Document Index  │  │
+│                 │                        │  │ GraphRAG        │  │
+│                 │         MCP search     │  │ Cross-project   │  │
+│  Claude Code ◀──│──────────────────────  │  │ Search          │  │
+│  (MCP client)   │   enhanced retrieval   │  └────────────────┘  │
 └─────────────────┘                        └──────────────────────┘
 ```
 
-No pull/merge needed — local files are authoritative.
+## Status
 
-## Implementation Status: DONE
+The core sync path is implemented and tested; the related implementation plan tracks what shipped
+and where it differs from the original design. The `sync` command is currently gated: it is hidden
+and returns "sync is not available yet — this feature is coming soon".
 
-Core sync functionality is fully implemented and tested. See [Implementation Plan](./sync-command-implementation.plan.md) for details.
+## Value
 
-## Incremental Sync via Manifest
+- One authoritative copy removes merge conflicts, divergence states, and any question about which
+  version wins.
+- The server adds retrieval that a local scan cannot provide: a document graph and search across
+  every synced project.
+- An incremental diff keeps the transfer proportional to the change set rather than to the corpus size.
+- Authoring stays offline-capable and git-native; sync is an enhancement, not a dependency.
 
-Track state with a local manifest:
+## Possible Implementation
 
-**File:** `.archcore/.sync-state.json` (gitignored)
+### Incremental sync through a manifest
 
-```json
-{
-  "version": 1,
-  "files": {
-    "knowledge/use-postgres.adr.md": "a1b2c3d4e5f6...",
-    "vision/mvp-launch.plan.md": "d4e5f6a1b2c3..."
-  }
-}
-```
+File: `.archcore/.sync-state.json`, gitignored. It stores `version`, currently `1`, and a flat
+`files` map of relative path to SHA-256 hex digest. It carries no per-file timestamp and no server
+metadata. `@internal/sync/manifest.go` defines the structure and its validation.
 
-Manifest stores only `version` (currently 1) and a flat `files` map of relative paths → SHA-256 hex digests. No per-file timestamps or server metadata — keeping it minimal.
+Validation: at most 10,000 files; each hash a valid SHA-256 digest of 64 hex characters; each path
+relative with no `..` segment and no absolute form; no `null` values.
 
-**Validation:** max 10,000 files, valid SHA-256 hashes (64 hex chars), valid category paths, no null values.
+Diff algorithm:
 
-**Diff algorithm:**
+1. Walk `.archcore/` recursively and hash every `.md` file that follows the `slug.type.md` convention.
+2. Compare against the manifest and produce four sets: created, modified, deleted, unchanged.
+3. Push only the delta: created, modified, and deleted.
+4. Update the manifest after a successful response, and only for the files the server confirmed.
 
-1. Walk `vision/`, `knowledge/`, `experience/` — SHA-256 hash each `.md` file (flat scan, no subdirs)
-2. Compare against manifest → produce 4 sets: **created**, **modified**, **deleted**, **unchanged**
-3. Push only the delta to the server (created + modified + deleted)
-4. Update manifest on success — only for files confirmed by server response
+The manifest is written atomically through a temporary file and a rename, so a crash mid-write
+cannot corrupt it.
 
-**Atomic writes:** manifest saved via temp file + rename to prevent corruption on crash.
+### API protocol
 
-## API Protocol
+The wire contract is normative for both sides, so it is shown in full.
 
 ```
 POST /api/v1/sync
@@ -77,136 +78,118 @@ Content-Type: application/json
   "project_name": "my-project",
   "created": [
     {
-      "path": "knowledge/use-postgres.adr.md",
+      "path": "use-postgres.adr.md",
       "sha256": "a1b2c3...",
       "frontmatter": { "title": "Use PostgreSQL", "status": "accepted" },
       "content": "full markdown body..."
     }
   ],
-  "modified": [
-    {
-      "path": "vision/mvp-launch.plan.md",
-      "sha256": "d4e5f6...",
-      "frontmatter": { "title": "MVP Launch Plan", "status": "draft" },
-      "content": "full markdown body..."
-    }
-  ],
-  "deleted": [
-    "experience/old-workflow.task-type.md"
-  ]
+  "modified": [ { "path": "mvp-launch.plan.md", "sha256": "d4e5f6...", "frontmatter": {...}, "content": "..." } ],
+  "deleted": [ "old-workflow.task-type.md" ]
 }
 ```
 
-Key differences from initial design:
-- Endpoint is `POST /api/v1/sync` (project ID in body, not URL)
-- `project_id` is optional — if omitted with `project_name`, server auto-creates the project
-- Frontmatter (title + status) parsed from YAML and sent as structured data
-- Status field validated against allowed values (`draft`, `accepted`, `rejected`)
+Differences from the first sketch of this design:
 
-**Response:**
+- The endpoint is `POST /api/v1/sync`; the project id travels in the body, not in the URL.
+- `project_id` is optional. WHEN it is omitted and `project_name` is present, the server auto-creates the project.
+- Frontmatter `title` and `status` are parsed from the YAML block and sent as structured data.
+- `status` is validated against `draft`, `accepted`, and `rejected`.
+
+Response:
 
 ```json
 {
   "project_id": 42,
-  "accepted": [
-    { "path": "knowledge/use-postgres.adr.md", "action": "created" }
-  ],
-  "deleted": ["experience/old-workflow.task-type.md"],
-  "errors": [
-    { "path": "vision/bad.md", "message": "invalid frontmatter" }
-  ]
+  "accepted": [ { "path": "use-postgres.adr.md", "action": "created" } ],
+  "deleted": ["old-workflow.task-type.md"],
+  "errors": [ { "path": "bad.md", "message": "invalid frontmatter" } ]
 }
 ```
 
-**Status codes:**
-- `200` — all files synced successfully
-- `201` — project auto-created, `project_id` returned and saved to local `settings.json`
-- `207` — partial success (some files accepted, some errored)
+Status codes: `200` for a full success; `201` when the project was auto-created, with `project_id`
+returned and saved to the local `settings.json`; `207` for a partial success where some files were
+accepted and some returned errors.
 
-## CLI Commands
+### CLI commands
 
 ```bash
-# Push local changes to server
-archcore sync                    # interactive, shows diff summary, confirms
-archcore sync --ci               # non-interactive, CI mode
-archcore sync --dry-run          # show what would be synced, don't push
-archcore sync --force            # full re-sync, ignore manifest
+archcore sync                    # interactive: diff summary, then confirmation
+archcore sync --ci               # non-interactive, for CI
+archcore sync --dry-run          # show what would be synced, push nothing
+archcore sync --force            # full re-sync, ignore the manifest
 ```
 
-### Sync Flow
+Run flow:
 
-1. Validate preconditions (`.archcore/` exists, settings valid, sync not `none`, token present)
-2. Load manifest + scan files (SHA-256 hashing)
-3. Calculate diff (or mark all as modified if `--force`)
-4. Print diff summary (created/modified/deleted counts with paths)
-5. Exit early if `--dry-run`
-6. Interactive confirmation via `huh.NewConfirm` (skip if `--ci`)
-7. Build payload with file contents and parsed frontmatter
-8. Send via `POST /api/v1/sync`
-9. Handle response: update manifest for confirmed files, report errors
-10. If project auto-created (201), persist `project_id` to settings
+1. Validate the preconditions: `.archcore/` exists, settings are valid, the sync mode is not `none`.
+2. Load the manifest and scan the files with SHA-256 hashing.
+3. Calculate the diff, or mark everything modified under `--force`.
+4. Print the diff summary with counts and paths.
+5. Exit early under `--dry-run`.
+6. Confirm through `huh.NewConfirm`, skipped under `--ci`.
+7. Build the payload with file contents and parsed frontmatter.
+8. Send `POST /api/v1/sync`.
+9. Handle the response: update the manifest for confirmed files and report errors.
+10. WHEN the server auto-created the project (`201`), persist `project_id` to the settings.
 
-## Authentication
+### Authentication
+
+The token travels through the `ARCHCORE_TOKEN` environment variable:
 
 ```bash
-# Token via env var
 export ARCHCORE_TOKEN=arc_xxxxx
-
-# CI/CD — secret in pipeline
-ARCHCORE_TOKEN=${{ secrets.ARCHCORE_TOKEN }} archcore sync --ci
+ARCHCORE_TOKEN=${{ secrets.ARCHCORE_TOKEN }} archcore sync --ci   # CI/CD
 ```
 
-Token is passed via `ARCHCORE_TOKEN` env var. The `api.NewAuthenticatedClient()` sets `Authorization: Bearer <token>` header on all requests.
+`Client` in `@internal/api/client.go` sets the `Authorization: Bearer <token>` header from its
+`Token` field, and only while the token is non-empty.
 
-**Not yet implemented:** `archcore login`/`logout` commands, keychain storage, browser OAuth flow.
+### Settings integration
 
-## Settings Integration
+| Sync mode  | `project_id` | `archcore_url` | Server URL                |
+| ---------- | ------------ | -------------- | ------------------------- |
+| `none`     | forbidden    | forbidden      | not applicable — sync off |
+| `cloud`    | optional     | forbidden      | `https://app.archcore.ai` |
+| `on-prem`  | optional     | required       | value of `archcore_url`   |
 
-Sync mode in `settings.json` drives validation:
+WHILE `project_id` is unset, the server auto-creates a project from `project_name`, derived from
+the directory name, and the CLI persists the returned id.
 
-| Sync mode  | `project_id` | `archcore_url` | Server URL                    |
-| ---------- | ------------ | -------------- | ----------------------------- |
-| `none`     | forbidden    | forbidden      | N/A — sync disabled           |
-| `cloud`    | optional*    | forbidden      | `https://app.archcore.ai`     |
-| `on-prem`  | required     | required       | value of `archcore_url`       |
+### Package structure
 
-*If `project_id` is omitted in `cloud` mode, the server auto-creates a project using `project_name` (derived from directory name) and persists the returned ID.
+`internal/sync` is imported as `archsync`, which avoids the collision with the standard library `sync`.
 
-## Package Structure
+- `@internal/sync/manifest.go` — `Manifest` struct, load and save, validation
+- `@internal/sync/hash.go` — SHA-256 hashing, file scanning
+- `@internal/sync/diff.go` — change detection: created, modified, deleted, unchanged
+- `@internal/sync/payload.go` — payload construction, frontmatter parsing
+- `@internal/api/client.go` — sync client constructor, `applyAuth`, `Sync()`
+- `@cmd/sync.go` — cobra command, preconditions, flow orchestration
 
-```
-internal/sync/          — import as "archsync" (avoids stdlib sync conflict)
-├── manifest.go         — Manifest struct, load/save, validation
-├── hash.go             — SHA-256 hashing, file scanning
-├── diff.go             — Change detection (created/modified/deleted/unchanged)
-├── payload.go          — Sync request payload, frontmatter parsing
-└── *_test.go           — Comprehensive table-driven tests
+### Server to local: read-only enrichment through MCP
 
-internal/api/client.go  — NewAuthenticatedClient, applyAuth, Sync() method
-cmd/sync.go             — Cobra command, preconditions, flow orchestration
-```
+The server never writes into `.archcore/`. It enriches search instead:
 
-## Security
+- The local MCP server (`archcore mcp`) searches local `.archcore/` files only.
+- The server MCP layer searches indexed documents across every synced project through GraphRAG.
+- Claude Code can use both at once: local for this project, remote for cross-project knowledge.
 
-- **Path traversal prevention:** `validateRelPath()` rejects `..` segments and absolute paths in payload
-- **Manifest validation:** rejects malformed hashes, null values, excessive file counts
-- **Auth header:** only applied when token is non-empty
-- **Response size limits:** max 10 MB response body, 512 bytes for error context
+## Risks and Constraints
 
-## Server → Local: Read-Only Enrichment via MCP
+- Path traversal: `validateRelPath()` rejects `..` segments and absolute paths in the payload.
+- Manifest integrity: validation rejects malformed hashes, `null` values, and excessive file counts.
+- Auth header: applied only while the token is non-empty.
+- Response size: at most 10 MB of body, and 512 bytes of error context.
+- Read-only globals are never pushed as local documents; `ScanFiles` skips the reserved `global/`
+  tree and every declared global source.
 
-The server doesn't push back to `.archcore/`. Instead, it **enhances MCP search**:
+## Not implemented
 
-- **Local MCP tool** (`archcore mcp`) → searches local `.archcore/` files only (current behavior)
-- **Server MCP tool** → searches indexed documents across **all projects** via GraphRAG
-- Claude Code can use both simultaneously — local for this project, server for cross-project knowledge
-
-## Not Yet Implemented
-
-| Feature                   | Status  | Notes                                            |
-| ------------------------- | ------- | ------------------------------------------------ |
-| `archcore login`/`logout` | planned | Token via env var works today                    |
-| Keychain token storage    | planned | For local dev UX                                 |
-| Sync triggers (hooks)     | planned | `sync_trigger` setting, git post-commit hook     |
-| Chunked sync              | deferred| For very large repos (>10k files), pagination    |
-| Cross-project MCP search  | planned | Remote MCP endpoint for server-indexed documents |
+| Feature                   | Status   | Notes                                             |
+| ------------------------- | -------- | ------------------------------------------------- |
+| `archcore login`/`logout` | planned  | The token travels through `ARCHCORE_TOKEN` today  |
+| Keychain token storage    | planned  | For local development convenience                 |
+| Sync triggers (hooks)     | planned  | A `sync_trigger` setting and a git post-commit hook |
+| Chunked sync              | deferred | For a very large repository, above 10K files      |
+| Cross-project MCP search  | planned  | A remote MCP endpoint over the server-side index  |

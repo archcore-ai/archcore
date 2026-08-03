@@ -982,6 +982,96 @@
       "source": "integrations/host-cwd-misrouting.adr.md",
       "target": "mcp/install-host-config-tool-contract.adr.md",
       "type": "related"
+    },
+    {
+      "source": "docs-style/controlled-technical-writing.rule.md",
+      "target": "cli/archcore-first-search-priority.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "docs-style/controlled-technical-writing.rule.md",
+      "target": "document-types/writing-spec-documents.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "docs-style/controlled-technical-writing.rule.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "docs-style/controlled-technical-writing.rule.md",
+      "target": "document-types/spec-type-usage.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "dir/free-form-directory-rules.rule.md",
+      "target": "dir/free-form-directory-structure.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "dir/free-form-directory-rules.rule.md",
+      "target": "dir/archcore-directory-structure.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/sync-path-security.rule.md",
+      "target": "dir/free-form-directory-structure.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "sync/sync-path-security.rule.md",
+      "target": "globals/globals-are-read-only-everywhere.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "integrations/backup-invalid-configs.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/backup-invalid-configs.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/supported-ai-agents.doc.md",
+      "target": "integrations/disable-stop-and-prompt-hooks.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/vendoring-a-global.guide.md",
+      "target": "globals/global-sources-via-settings.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/vendoring-a-global.guide.md",
+      "target": "features/globals-prototype-fixes.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "release/how-to-release.guide.md",
+      "target": "features/globals-cli-forward-compat.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "dir/archcore-directory-structure.guide.md",
+      "target": "dir/free-form-directory-structure.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/one-way-push-sync-strategy.adr.md",
+      "target": "sync/temporarily-disable-sync.adr.md",
+      "type": "related"
     }
   ]
 }

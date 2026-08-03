@@ -7,27 +7,27 @@ tags:
 
 ## Rule
 
-- The CLI version **must** be set via `-ldflags -X` at build time, never hardcoded in source.
-- `main.go` declares two package-level variables with dev defaults:
-  ```go
-  var (
-      version = "dev"
-      commit  = "none"
-  )
-  ```
-- These are passed to `cmd.NewRootCmd(version, commit)` which sets cobra's `Version` field.
-- GoReleaser injects real values via `-X main.version={{.Version}} -X main.commit={{.Commit}}`.
-- The `--version` flag is handled by cobra automatically — do not add a separate `version` subcommand.
+1. The build MUST set the CLI version through `-ldflags -X` at build time.
+2. The developer MUST NOT hardcode a version string in source.
+3. `main.go` MUST declare the package-level variables `version` and `commit` with the development defaults `"dev"` and `"none"`.
+4. `main.go` MUST pass both variables to `cmd.NewRootCmd(version, commit)`, which sets cobra's `Version` field.
+5. The developer MUST NOT add a separate `version` subcommand.
+
+## Current behavior
+
+- GoReleaser injects the released values with `-X main.version={{.Version}} -X main.commit={{.Commit}}` (`@.goreleaser.yaml`).
+- Cobra serves `--version` from the `Version` field, so no command code handles the flag.
 
 ## Rationale
 
-- Single source of truth: the git tag drives the version everywhere (binary, GitHub release, install script).
-- Dev builds self-identify as `dev` so there is no confusion with released binaries.
-- Using cobra's built-in `Version` field avoids custom code and gives users the standard `--version` flag.
+The git tag drives the version everywhere: the binary, the GitHub release, and the install script read the same value. A development build reports `dev`, which keeps it distinguishable from a released binary.
 
 ## Examples
 
-**Good — dev defaults with ldflags injection:**
+Non-normative examples.
+
+**Good — development defaults with ldflags injection:**
+
 ```go
 // main.go
 var (
@@ -37,16 +37,18 @@ var (
 ```
 
 **Bad — hardcoded version string:**
+
 ```go
 const Version = "1.2.3"
 ```
 
 **Bad — separate version command:**
+
 ```go
 newVersionCmd() // cobra already provides --version
 ```
 
 ## Enforcement
 
-- `NewRootCmd` requires `(version, commit string)` parameters — compile error if omitted.
-- GoReleaser config (`.goreleaser.yaml`) defines the ldflags; changing the variable names without updating the config breaks the release.
+- `NewRootCmd` requires the `(version, commit string)` parameters, so an omission fails compilation.
+- `.goreleaser.yaml` defines the ldflags. IF a developer renames either variable without updating that file, THEN the release build stops injecting the version.

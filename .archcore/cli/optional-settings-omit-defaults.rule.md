@@ -7,18 +7,19 @@ tags:
 
 ## Rule
 
-- Optional settings fields (like `language`) MUST use the `json:"...,omitempty"` tag so they are omitted from `settings.json` when not explicitly set by the user.
-- Default values for optional fields MUST be resolved at read time in the command layer (e.g., `getSettingsValue` returns `"en"` when `Language` is empty), not by writing defaults into the JSON file.
-- The `init` command MUST NOT write optional fields with default values into `settings.json`. Only user-configured values appear in the file.
-- When adding a new optional field, it MUST be added to `allowedFields` for all sync types, but MUST NOT be added to `requiredFields`.
+1. The developer MUST tag every optional settings field with `json:"...,omitempty"`, so `settings.json` omits the field while the user has not set it.
+2. The command layer MUST resolve the default value of an optional field at read time. Example: `getSettingsValue` returns `"en"` while `Language` is empty.
+3. The `init` command MUST NOT write an optional field with its default value into `settings.json`.
+4. WHEN a developer adds an optional field, the developer MUST add it to `allowedFields` for every sync type.
+5. WHEN a developer adds an optional field, the developer MUST NOT add it to `requiredFields`.
 
 ## Rationale
 
-- Keeping `settings.json` minimal makes it clear which values the user has explicitly configured vs. which are defaults.
-- Avoids migration issues when defaults change — users who never set the field automatically get the new default.
-- Consistent with how `project_id` already works (omitted when nil).
+A minimal `settings.json` shows which values the user configured and which ones the code supplies. Resolving defaults in code also removes a migration step: when a default changes, every user who never set the field picks up the new value. `project_id` already behaves this way — it is omitted while nil.
 
 ## Examples
+
+Non-normative examples.
 
 ### Good
 
@@ -37,14 +38,14 @@ case "language":
 ### Bad
 
 ```go
-// Writing default into settings.json during init
+// Writing the default into settings.json during init
 settings := &config.Settings{Sync: "none", Language: "en"}
 
-// Struct field without omitempty (forces field into JSON even when empty)
+// Struct field without omitempty (forces the field into JSON even when empty)
 Language string `json:"language"`
 ```
 
 ## Enforcement
 
-- Code review: verify new optional fields follow this pattern.
-- Tests: roundtrip tests should confirm that unset optional fields do not appear in marshaled JSON.
+- Code review: the reviewer verifies that each new optional field follows this pattern.
+- Tests: a roundtrip test confirms that an unset optional field does not appear in the marshaled JSON.

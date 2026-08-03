@@ -9,80 +9,86 @@ tags:
 
 ## Goal
 
-Сделать разбор `.archcore/settings.json` **forward-compatible**: более старый `archcore`
-не должен крашиться и не должен терять функционал, встретив в конфиге поле, которого он не
-знает (добавленное более новым CLI). Свойство **field-agnostic** — применяется к любому
-неизвестному ключу единообразно, без привязки к конкретной фиче.
+Make `.archcore/settings.json` parsing forward-compatible: an older `archcore` binary must not
+crash and must not lose functionality when it meets a config field it does not know, added by a
+newer CLI. The property is field-agnostic — it applies to every unknown key uniformly, with no
+tie to a specific feature.
 
-> **Status (revised 2026-07-24): implemented, except one optional item.**
-> Implementation: `internal/config/config.go` (`Settings.Extra`, `knownFields`,
-> `UnmarshalJSON`, `MarshalJSON`, `UnknownFieldNames`), entry-point warnings
-> (`cmd/config_warn.go` + `cmd/mcp.go`/`config.go`/`doctor.go`/`sync.go`). The release
-> sequencing note landed in `how-to-release.guide` (2026-07-24). The only open item is
-> the optional `ARCHCORE_AUTO_UPDATE` — not started, low priority, deliberately deferred.
+## Status
 
-### Проблема
+Revised 2026-07-24: implemented, except one optional item.
 
-`Settings.UnmarshalJSON` (`internal/config/config.go`) строго отвергает любое неизвестное
-поле (`field %q is not allowed for sync type …`). Поэтому **любое** новое поле конфига
-роняет на старом CLI каждый путь, грузящий конфиг (`mcp`/`hooks`/`doctor`/`status`). Уже
-выпущенные строгие бинари переучить нельзя — лечится только терпимым парсером, выпущенным
-**впредь** (и как можно раньше).
+- Implementation: `@internal/config/config.go` (`Settings.Extra`, `knownFields`, `UnmarshalJSON`,
+  `MarshalJSON`, `UnknownFieldNames`), plus entry-point warnings in `@cmd/config_warn.go`,
+  `@cmd/mcp.go`, `@cmd/config.go`, `@cmd/doctor.go`, and `@cmd/sync.go`.
+- The release-sequencing note landed in the release guide on 2026-07-24.
+- Open item: the optional `ARCHCORE_AUTO_UPDATE` is not started. Low priority, deferred deliberately.
 
-## Решение
+## Problem
 
-### A. Soft-ignore неизвестных полей — три свойства (унифицированно, без условий)
+`Settings.UnmarshalJSON` in `@internal/config/config.go` used to reject every unknown field with
+`field %q is not allowed for sync type …`. Any new config field therefore broke every config-loading
+path on an older CLI: `mcp`, `hooks`, `doctor`, and `status`. Already released strict binaries
+cannot be taught otherwise, so the only fix is a tolerant parser shipped from now on, as early
+as possible.
 
-1. **Read-tolerant.** Неизвестный ключ → захватывается в `Settings.Extra`, не ошибка. Цикл
-   проверки полей различает три случая: allowed-for-mode → декод; известное-но-не-для-этого-
-   режима → прежняя жёсткая ошибка; неизвестное этому бинарю → в `Extra`.
-2. **Keep-serving.** После игнора конфиг догружается, известные поля заполняются как обычно.
-3. **Write-preserving.** При записи `settings.json` (`config set`) неизвестные ключи
-   **сохраняются** (merge-tail в `MarshalJSON`: пустой `Extra` → байт-в-байт как раньше;
-   непустой → объединение с raw-map), иначе терпимый-но-старый CLI молча сотрёт поле.
+## Decision
 
-Предупреждение печатается **в stderr только на user-facing командах** (`mcp` startup,
-`config`, `doctor`, `sync`) — `UnmarshalJSON`/`Load` молчат (горячие пути). **Валидация
-значений известных полей остаётся строгой**. Размен: теряется защита от опечатки в *имени*
-поля — осознанно, ради forward-compat (разворот строгости из `backup-invalid-configs.adr`).
+### A. Soft-ignore unknown fields — three properties, applied uniformly
 
-### B. Сиквенсинг релизов
+1. Read-tolerant. An unknown key is captured into `Settings.Extra` and is not an error. The
+   field-check loop distinguishes three cases: allowed for the mode — decode it; known but not
+   for this mode — keep the existing hard error; unknown to this binary — put it in `Extra`.
+2. Keep-serving. After the ignore, the config finishes loading and the known fields populate as usual.
+3. Write-preserving. WHEN the CLI writes `settings.json` through `config set`, it preserves the
+   unknown keys: the merge-tail in `MarshalJSON` produces byte-identical output while `Extra` is
+   empty, and merges with the raw map when it is not. Without this, a tolerant but older CLI would
+   silently erase the field.
 
-Терпимый парсер (A) должен выйти в релизе **не позже** того, что вводит новое поле конфига,
-и желательно раньше. Он **не чинит задним числом** уже выпущенные строгие бинари — те
-по-прежнему отвергают новый конфиг; для них смягчение — на стороне потребителя (нудж).
-Поэтому терпимость выкатывать как можно раньше, отдельным шагом.
+The warning prints to stderr on user-facing commands only — `mcp` startup, `config`, `doctor`,
+and `sync`. `UnmarshalJSON` and `Load` stay silent because they are hot paths. Value validation
+for known fields stays strict.
 
-### C. (опц.) ARCHCORE_AUTO_UPDATE — только opt-in
+Trade-off: protection against a typo in a field name is lost. This is a deliberate reversal of
+the strictness recorded in the related ADR on backing up invalid configs, taken for forward
+compatibility.
 
-`archcore update` уже умеет self-replace. Авто-запуск из любого хук-пути — НЕ по умолчанию:
-подмена глобального бинаря без спроса, не рестартит уже запущенный MCP (лечит лишь next
-session), падает в CI/офлайн/locked, ломает запиненные версии. Допустимо лишь под явным
-`ARCHCORE_AUTO_UPDATE=1`.
+### B. Release sequencing
+
+The tolerant parser from part A must ship no later than the release that introduces a new config
+field, and preferably earlier. It does not repair already released strict binaries: those keep
+rejecting the new config, and for them the mitigation sits on the consumer side as a nudge. The
+tolerance therefore ships as early as possible, as a separate step.
+
+### C. Optional: ARCHCORE_AUTO_UPDATE, opt-in only
+
+`archcore update` already performs a self-replace. Auto-running it from any hook path is rejected
+as a default: it replaces the global binary without asking, does not restart an already running
+MCP server (so it only helps the next session), fails in CI, offline, and on a locked file, and
+breaks pinned versions. It is acceptable only under an explicit `ARCHCORE_AUTO_UPDATE=1`.
 
 ## Tasks
 
-- [x] `config.UnmarshalJSON`: неизвестное поле → захват в `Extra` (не ошибка); known-wrong-mode
-  по-прежнему ошибка; строгая валидация значений известных полей сохранена
-- [x] `Settings.MarshalJSON`: round-trip-сохранение неизвестных полей (merge-tail, byte-identical при пустом `Extra`)
-- [x] Warning на entry-points в stderr (`cmd/config_warn.go`; `mcp`/`config`/`doctor`/`sync`)
-- [x] Тест: парсер на конфиге с неизвестным полем → не ошибка, известные поля заполнены, обслуживание проходит
-- [x] Тест: `config set <известное-поле>` не теряет нераспознанное поле (round-trip, e2e)
-- [x] Тест (regression): known-wrong-mode и битые значения известных полей по-прежнему ошибка
-- [x] Тест: MCP startup (`checkGlobals`) и in-process server терпят неизвестное поле
-- [x] Релиз-процесс: выпускать терпимый парсер не позже добавления нового поля конфига —
-  recorded in `how-to-release.guide` ("Sequencing Releases That Add settings.json Fields", 2026-07-24)
-- [ ] (опц.) `ARCHCORE_AUTO_UPDATE=1` opt-in self-heal, по умолчанию off — deferred, low priority
+- [x] `config.UnmarshalJSON`: an unknown field is captured into `Extra` instead of raising an error
+- [x] `config.UnmarshalJSON`: a known-but-wrong-mode field still errors, and value validation for known fields stays strict
+- [x] `Settings.MarshalJSON`: round-trip preservation of unknown fields (merge-tail; byte-identical while `Extra` is empty)
+- [x] Entry-point warning on stderr (`@cmd/config_warn.go`; `mcp`, `config`, `doctor`, `sync`)
+- [x] Test: the parser accepts a config with an unknown field, populates the known fields, and keeps serving
+- [x] Test: `config set <known-field>` does not drop an unrecognized field (round-trip, end-to-end)
+- [x] Test (regression): a known-wrong-mode field and a malformed value of a known field still error
+- [x] Test: MCP startup (`checkGlobals`) and the in-process server tolerate an unknown field
+- [x] Release process: ship the tolerant parser no later than the new config field — recorded in the release guide, section "Sequencing a release that adds a settings.json field" (2026-07-24)
+- [ ] Optional: `ARCHCORE_AUTO_UPDATE=1` opt-in self-heal, off by default — deferred, low priority
 
 ## Acceptance Criteria
 
-- Терпимый CLI на конфиге с неизвестными полями: ноль ошибок, известные поля работают, все
-  config-загружающие команды (`mcp`/`hooks`/`doctor`/`status`) выполняются. ✅
-- `config set` любым полем не удаляет нераспознанные поля из `settings.json`. ✅
-- Известные поля по-прежнему строго валидируются (битый `project_id` → ошибка). ✅
+- A tolerant CLI on a config with unknown fields: zero errors, known fields work, and every
+  config-loading command (`mcp`, `hooks`, `doctor`, `status`) runs. ✅
+- `config set` on any field leaves unrecognized fields in `settings.json` untouched. ✅
+- Known fields stay strictly validated: a malformed `project_id` errors. ✅
 
 ## Dependencies
 
-- **Сиквенсинг**: терпимый-парсер-релиз — не позже релиза с новым полем конфига.
-- Затрагивает `internal/config/config.go` (`UnmarshalJSON`, `MarshalJSON`, `allowedFields`,
-  `knownFields`) и релиз-процесс (`how-to-release.guide`).
+- Sequencing: the release with the tolerant parser ships no later than the release with a new config field.
+- Touches `@internal/config/config.go` (`UnmarshalJSON`, `MarshalJSON`, `allowedFields`,
+  `knownFields`) and the release process described in the related guide.

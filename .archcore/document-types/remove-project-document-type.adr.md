@@ -7,58 +7,56 @@ tags:
 
 ## Context
 
-The `project` document type was included in the initial set of archcore document types as a way to capture project overviews with architecture, components, and getting-started info.
+The `project` document type shipped in the initial set of Archcore document types. It was meant to capture a project overview: architecture, components, and getting-started information.
 
-### Current State
+### State at the time of the decision
 
-- The `project` type has never been used in any real `.archcore/` directory
-- Its purpose overlaps significantly with `doc` (reference material) and repository-level files like `README.md` or `CLAUDE.md`
-- The template content (architecture overview, getting started, project structure) is typically better served by existing documentation outside `.archcore/`
+- No real `.archcore/` directory used the `project` type.
+- Its purpose overlapped with `doc`, which already covers reference material, and with repository-level files such as `README.md` and `CLAUDE.md`.
+- Its template content — architecture overview, getting started, project structure — is normally served better by documentation outside `.archcore/`.
 
-### Problem Statement
+### Problem
 
-An unused document type adds cognitive overhead for users choosing between types and increases maintenance surface in the codebase without providing value.
+An unused document type adds a choice for every author and agent selecting a type, and it adds maintenance surface in the codebase without returning value.
 
 ## Decision
 
-Remove the `project` document type entirely from the CLI.
+Remove the `project` document type from the CLI.
 
 ### Rationale
 
-- **Zero adoption** — no known usage in any project
-- **Overlapping purpose** — `doc` type covers reference material; `README.md` and `CLAUDE.md` serve project overview needs better
-- **Simpler type selection** — fewer types means less disambiguation overhead for users and AI agents
-- **Maintenance cost** — removing unused code reduces the surface area for bugs and testing
+- No adoption: no known usage in any project.
+- Overlapping purpose: `doc` covers reference material, and `README.md` and `CLAUDE.md` serve the project overview.
+- Simpler type selection: fewer types mean less disambiguation for users and AI agents.
+- Maintenance cost: removing unused code removes the template, constants, mappings, and tests that went with it.
 
 ## Alternatives Considered
 
-### Alternative 1: Keep but deprecate
+### Keep the type but deprecate it
 
-- Mark as deprecated and remove later
-- Rejected: no adoption means no migration path is needed — immediate removal is cleaner
+Mark it deprecated and remove it later. Rejected: with no adoption there is no migration path to protect, so immediate removal is simpler.
 
-### Alternative 2: Merge into doc
+### Merge it into doc
 
-- Redirect `project` to `doc` type
-- Rejected: unnecessary complexity since no documents of this type exist
+Redirect `project` to `doc`. Rejected: no document of this type exists, so the redirect would add complexity with nothing to redirect.
 
 ## Consequences
 
 ### Positive
 
-- Cleaner type selection for users and AI agents
-- Less code to maintain (template, constants, mappings, tests)
-- Simpler MCP tool descriptions
+- Cleaner type selection for users and AI agents.
+- Less code to maintain: template, constants, mappings, and tests.
+- Shorter MCP tool descriptions.
 
 ### Negative
 
-- If someone later needs a project overview type, they'll use `doc` instead (acceptable trade-off)
+- A later need for a project-overview type is served by `doc` instead. This trade-off was accepted.
 
-### Changes Made
+### Changes made
 
-- Removed `TypeProject` constant and `categoryMap` entry from @templates/templates.go
-- Removed `generateProjectTemplate()` function
-- Removed `project` from `ValidTypes()` list
-- Removed `project` from MCP tool descriptions in @internal/mcp/server.go and @internal/mcp/tools/create_document.go
-- Removed related test cases from @templates/templates_test.go and @internal/mcp/tools/create_document_test.go
-- Updated categories-and-document-types.doc.md
+- Removed the `TypeProject` constant and its `categoryMap` entry from `@templates/templates.go`.
+- Removed `generateProjectTemplate()`.
+- Removed `project` from `ValidTypes()`.
+- Removed `project` from the MCP tool descriptions in `@internal/mcp/server.go` and `@internal/mcp/tools/create_document.go`.
+- Removed the related test cases from `@templates/templates_test.go` and `@internal/mcp/tools/create_document_test.go`.
+- Updated the related reference document on categories and document types.

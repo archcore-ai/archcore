@@ -5,28 +5,34 @@ tags:
   - "directory-structure"
 ---
 
-## Description
+## Purpose
 
-Rules governing directory structure and document naming inside `.archcore/`. These ensure consistent scanning, categorization, and sync behavior across all tools (CLI, MCP, server).
+State how directories and document filenames inside `.archcore/` must be formed, so that the CLI, the MCP server, and the server scan, categorize, and sync the same set of documents.
 
 ## Rule
 
-1. Any directory structure is allowed inside `.archcore/` — directories can be nested to any depth
-2. Document files must follow the `slug.type.md` naming convention:
-   - **slug**: lowercase alphanumeric characters and hyphens only (e.g., `use-postgres`, `login-flow`)
-   - **type**: one of the 19 valid document types: `adr`, `rfc`, `rule`, `guide`, `doc`, `spec`, `task-type`, `cpat`, `prd`, `idea`, `plan`, `rnd`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`
-   - **extension**: always `.md`
-3. Category (vision / knowledge / experience) is always derived from the document type, never from the directory path
-4. Hidden directories (`.`-prefixed, e.g., `.git/`) are ignored during scanning
-5. Meta files (`settings.json`, `.sync-state.json`) are not documents and are skipped during scanning, validation, and sync
-6. Documents without a recognized type segment in the filename default to category "knowledge"
-7. The directories `vision/`, `knowledge/`, and `experience/` are valid but have no special meaning — they are treated like any other directory
+1. The author MAY create any directory structure inside `.archcore/` and MAY nest directories to any depth.
+2. The author MUST name every document file `slug.type.md`.
+3. The author MUST write the slug in lowercase alphanumeric characters and hyphens only. Examples: `use-postgres`, `login-flow`.
+4. The author MUST use one of the 19 valid document types as the type segment: `adr`, `rfc`, `rule`, `guide`, `doc`, `spec`, `task-type`, `cpat`, `prd`, `idea`, `plan`, `rnd`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`.
+5. The author MUST use the `.md` extension.
+6. The CLI and the MCP server MUST derive the category (`vision`, `knowledge`, `experience`) from the document type, never from the directory path.
+7. WHEN a scan reaches a hidden directory (a `.`-prefixed directory such as `.git/`), the scanner MUST skip it.
+8. The scanner MUST treat `settings.json` and `.sync-state.json` as meta files, not documents, during scanning, validation, and sync.
+9. IF a filename carries no recognized type segment, THEN the scanner MUST categorize the document as `knowledge`.
+10. The scanner MUST treat the directories `vision/`, `knowledge/`, and `experience/` as ordinary directories with no special meaning.
+
+## Exceptions
+
+None. Every document file inside `.archcore/` follows these rules.
 
 ## Rationale
 
-Decoupling category from directory path allows teams to organize documents by domain, team, or feature while preserving virtual categories for filtering and display. The `slug.type.md` convention provides a single, unambiguous source of truth for both document type and category.
+Decoupling the category from the directory path lets a team organize documents by domain, team, or feature while the virtual categories stay available for filtering and display. The `slug.type.md` convention gives both the document type and the category one unambiguous source.
 
 ## Examples
+
+Non-normative examples.
 
 ### Good
 
@@ -59,27 +65,18 @@ Decoupling category from directory path allows teams to organize documents by do
 ### Bad
 
 ```
-# Missing type segment — will default to "knowledge" and may fail validation
-.archcore/my-document.md
+# Missing type segment — categorized as "knowledge" and may fail validation
+my-document.md
 
-# Invalid type — "decision" is not a valid type
-.archcore/use-postgres.decision.md
+# Invalid type — "decision" is not a valid document type
+use-postgres.decision.md
 
-# Uppercase in slug — slugs must be lowercase
-.archcore/Use-Postgres.adr.md
+# Uppercase in slug — slugs are lowercase
+Use-Postgres.adr.md
 ```
-
-## Exceptions
-
-- None. All document files inside `.archcore/` must follow these rules.
 
 ## Enforcement
 
-- `archcore status` checks filename format and type validity for all `.md` files
-- MCP `create_document` generates files with correct naming automatically
-- MCP `list_documents` uses `ExtractDocType()` and `CategoryForType()` to derive category from filename
-
-## References
-
-- [ADR: Use Free-Form Directory Structure](./free-form-directory-structure.adr.md)
-- [Guide: Organizing Your .archcore/ Directory](./archcore-directory-structure.guide.md)
+- `archcore status` checks the filename format and the type validity of every `.md` file.
+- The MCP tool `create_document` generates filenames that follow the convention.
+- The MCP tool `list_documents` derives the category with `ExtractDocType()` and `CategoryForType()`.

@@ -5,9 +5,13 @@ tags:
   - "cli-ui"
 ---
 
-## Problem
+## Idea
 
-When a project is deleted on the platform (cloud/on-prem) but the CLI still has `project_id` in `settings.json`, sync fails with a 404:
+Make removal of the `.archcore/` directory from the repository the only way to remove a project,
+and have the server use soft-delete semantics.
+
+The problem this addresses: WHEN a project is deleted on the platform (cloud or on-prem) while the
+CLI still holds `project_id` in `settings.json`, sync fails with a 404.
 
 ```
 ✗ Sync failed
@@ -15,45 +19,56 @@ When a project is deleted on the platform (cloud/on-prem) but the CLI still has 
     {"code":"PROJECT_NOT_FOUND","detail":"Project with identifier '32' was not found"}
 ```
 
-This creates a broken state where the local `.archcore/` directory exists with documents but has no server-side project to sync to. There's no recovery path — the user must manually fix settings or re-init.
+That leaves a broken state: the local `.archcore/` directory holds documents but has no
+server-side project to sync to, and there is no recovery path. The user has to edit settings by
+hand or re-initialize.
 
-## Proposal
+Proposed status: not implemented. This document records a proposal, not current behavior.
 
-**Project removal should only happen by removing the `.archcore/` directory from the repository.** The server should use soft-delete semantics.
+## Value
 
-### Rules
+- One source of truth: the `.archcore/` directory in the repository.
+- No accidental data loss from a click in the web interface.
+- Git history preserves everything, so restoring is a checkout.
+- The orphaned `project_id` state disappears.
+- A simpler mental model for users.
 
-1. **No delete button in the platform UI** — projects cannot be hard-deleted from the web interface
-2. **Remove project = remove `.archcore/` from repo** — this is the single source of truth
-3. **Server uses soft-delete** — when a project is "deleted", it's marked inactive but data is preserved
-4. **Sync detects orphaned project_id** — if the server returns `PROJECT_NOT_FOUND`, the CLI should offer to create a new project (re-use the existing documents) rather than just failing
+## Possible Implementation
 
-### Flow
+### Proposed rules
+
+1. The platform interface offers no delete button, so a project cannot be hard-deleted from the web.
+2. Removing a project means removing `.archcore/` from the repository.
+3. The server soft-deletes: a "deleted" project is marked inactive and its data is preserved.
+4. WHEN the server answers `PROJECT_NOT_FOUND`, the CLI offers to create a new project and reuse
+   the existing documents instead of failing.
+
+### Proposed flow
 
 ```
-User removes .archcore/ from repo
-  → No more syncs happen (no directory = no CLI operations)
-  → Server-side project becomes stale (no new syncs)
-  → Platform can auto-archive after N days of inactivity (soft-delete)
+User removes .archcore/ from the repo
+  → No further syncs happen (no directory means no CLI operations)
+  → The server-side project goes stale (no new syncs)
+  → The platform can auto-archive it after N days of inactivity (soft delete)
 
 User wants to restore:
-  → Re-run `archcore init` → fresh project created on next sync
+  → Re-run `archcore init` → a fresh project is created on the next sync
   → Or restore .archcore/ from git history
 ```
 
-### CLI Recovery for Orphaned project_id
+### Proposed CLI recovery for an orphaned project_id
 
-When sync gets a 404 `PROJECT_NOT_FOUND`, instead of failing:
+WHEN sync receives a 404 `PROJECT_NOT_FOUND`:
 
-1. Warn the user: "Project #32 not found on server"
-2. Offer: "Create a new project and re-sync all documents? (Y/n)"
-3. If yes: clear `project_id` from settings, re-run sync with `project_name` (auto-create flow)
-4. If no: exit with hint to check server or run `archcore config set project_id <new_id>`
+1. The CLI warns: "Project #32 not found on server".
+2. The CLI asks: "Create a new project and re-sync all documents? (Y/n)".
+3. IF the user accepts, THEN the CLI clears `project_id` from settings and re-runs sync with
+   `project_name`, which triggers the auto-create flow.
+4. IF the user declines, THEN the CLI exits with a hint to check the server or run
+   `archcore config set project_id <new_id>`.
 
-## Benefits
+## Risks and Constraints
 
-- Single source of truth: `.archcore/` directory in the repo
-- No accidental data loss from UI clicks
-- Git history preserves everything — easy to restore
-- Eliminates the orphaned project_id problem
-- Simpler mental model for users
+- Rules 1 and 3 need server-side work; the CLI alone cannot deliver them.
+- `N days of inactivity` for auto-archiving is unset. [LIMIT REQUIRED]
+- The `sync` command is currently gated, so any CLI-side recovery lands only after sync is enabled again.

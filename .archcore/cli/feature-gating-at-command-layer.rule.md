@@ -7,19 +7,27 @@ tags:
 
 ## Rule
 
-When temporarily disabling a CLI feature:
+WHEN the team temporarily disables a CLI feature:
 
-1. **Block at the cobra command handler level only.** Add guards in `RunE` that return early with a user-facing error message. Never delete or modify internal logic, helper functions, or packages.
-2. **Hide the command** using `Hidden: true` on the cobra command struct. Do not unregister it from the root command.
-3. **Preserve all tests.** Tests call internal functions directly (`runInit`, `doSync`, `getSettingsValue`, etc.), not through cobra handlers. Command-level guards must not break them.
-4. **Remove interactive prompts** that expose the disabled feature (e.g., sync type selector in `init`), replacing them with hardcoded defaults.
-5. **Block config writes for gated fields.** If a feature has associated config keys, add guards in the `set` subcommand handler to reject changes with a "not available yet" message. Allow read-only access to informational keys (e.g., `config get sync` returns `"none"`).
+1. The developer MUST block the feature in the cobra `RunE` handler and return a user-facing error.
+2. The developer MUST NOT delete or change the internal logic, helper functions, or packages of the gated feature.
+3. The developer MUST set `Hidden: true` on the cobra command struct.
+4. The developer MUST keep the command registered on the root command.
+5. The developer MUST keep the existing tests unchanged.
+6. The developer MUST remove each interactive prompt that exposes the gated feature.
+7. WHEN the developer removes such a prompt, the developer MUST replace it with a hardcoded default.
+8. IF the gated feature owns configuration keys, THEN the `config set` handler MUST reject changes to those keys with a "not available yet" message.
+9. The `config get` handler MUST keep read access to informational keys. Example: `config get sync` returns `"none"`.
+
+Tests call internal functions directly (`runInit`, `doSync`, `getSettingsValue`), not cobra handlers, so a handler-level guard leaves them passing.
 
 ## Rationale
 
-This approach keeps the codebase ready for re-enablement with minimal diff. Internal packages, validation logic, and tests remain exercised and correct. The only changes needed to re-enable are removing the guards and restoring the prompts — a small, reviewable diff.
+Gating at the command layer keeps the re-enablement diff small: the guards come out, the prompts come back, and nothing else moves. Internal packages, validation logic, and tests stay exercised while the feature is off.
 
 ## Examples
+
+Non-normative examples.
 
 ### Good
 
@@ -49,12 +57,12 @@ case "set":
 // BAD: breaks tests, large re-enablement diff
 
 // Commenting out command registration in root.go
-// BAD: makes the command completely unreachable, even for testing
+// BAD: makes the command unreachable, even for testing
 
 // Modifying internal validation logic to reject sync modes
-// BAD: breaks unit tests that test internal functions directly
+// BAD: breaks unit tests that call internal functions directly
 ```
 
 ## Enforcement
 
-Code review. When a feature is gated, verify that `go test ./...` passes with no changes to test files.
+Code review. WHEN a feature is gated, the reviewer verifies that `go test ./...` passes with no change to any test file.

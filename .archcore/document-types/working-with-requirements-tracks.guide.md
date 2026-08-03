@@ -7,71 +7,62 @@ tags:
 
 ## Overview
 
-How to choose and use Archcore's three requirements engineering tracks: **Product** (PRD), **Sources** (MRD → BRD → URD), and **ISO** (BRS → StRS → SyRS → SRS). Each track serves a different level of project complexity and formality.
+Choose and use one of Archcore's three requirements tracks: Product (`prd`), Sources (`mrd` → `brd` → `urd`), and ISO (`brs` → `strs` → `syrs` → `srs`). Each track serves a different level of project complexity and formality.
 
-### Target Audience
+Intended readers:
 
-- Product managers and engineers creating requirements documents
-- AI agents deciding which document types to create for a project
-
-### Time Estimate
-
-- 5 minutes to choose a track
-- 10-30 minutes to set up initial documents per track
+- A product manager or engineer creating requirements documents.
+- An AI agent deciding which document types a project needs.
 
 ## Prerequisites
 
-### Required Knowledge
+- Familiarity with the Archcore document types. The related reference document on categories and document types covers them.
+- Knowledge of the project's complexity, team size, and regulatory needs.
 
-- Familiarity with archcore document types (see .archcore/dir/categories-and-document-types.doc.md)
-- Understanding of your project's complexity, team size, and regulatory needs
+## Inputs
 
-### Before You Start
+- The list of existing requirements documents: run `list_documents` before you start.
+- A decision on whether the project needs discovery, specification, or both.
 
-- Run `list_documents` to see existing requirements documents in the project
-- Assess whether you need discovery, specification, or both
+## Procedure
 
-## Steps
+### 1. Choose the track
 
-### Step 1: Choose Your Track
-
-Use these signals to pick the right track:
-
-| Signal | Recommended Track |
+| Signal | Recommended track |
 |--------|-------------------|
-| Single team, internal tool, quick feature | **Product** (prd) |
-| Need stakeholder alignment, doing product discovery | **Sources** (mrd → brd → urd) |
-| Regulated system, formal traceability required | **ISO** (brs → strs → syrs → srs) |
-| Complex project needing both discovery AND formal specs | **Sources + ISO** combined |
+| Single team, internal tool, quick feature | Product (`prd`) |
+| Stakeholder alignment needed, product discovery under way | Sources (`mrd` → `brd` → `urd`) |
+| Regulated system, formal traceability required | ISO (`brs` → `strs` → `syrs` → `srs`) |
+| Complex project that needs discovery and formal specifications | Sources and ISO combined |
 
-**Default to Product track (PRD)** — upgrade to Sources or ISO only when the project signals demand it.
+Default to the Product track. Move to Sources or ISO only when a signal above demands it.
 
-### Step 2: Create Documents for Your Track
+### 2. Create the documents for the chosen track
 
-**Product track** — create one document:
+Product track — one document:
 
 ```
 create_document type=prd filename=my-feature
 ```
 
-**Sources track** — create in discovery order:
+Sources track — in discovery order:
 
 ```
-create_document type=mrd filename=market-analysis       # 1. Market landscape
-create_document type=brd filename=business-case          # 2. Business justification
-create_document type=urd filename=user-needs              # 3. User requirements
+create_document type=mrd filename=market-analysis          # 1. Market landscape
+create_document type=brd filename=business-case            # 2. Business justification
+create_document type=urd filename=user-needs               # 3. User requirements
 ```
 
-**ISO track** — create in cascade order:
+ISO track — in cascade order:
 
 ```
-create_document type=brs filename=business-requirements   # 1. Business mission/goals
+create_document type=brs filename=business-requirements     # 1. Business mission and goals
 create_document type=strs filename=stakeholder-requirements # 2. Stakeholder needs
-create_document type=syrs filename=system-requirements     # 3. System boundary/interfaces
-create_document type=srs filename=software-requirements    # 4. Per-function specs
+create_document type=syrs filename=system-requirements      # 3. System boundary and interfaces
+create_document type=srs filename=software-requirements     # 4. Per-function specifications
 ```
 
-**Combined (Sources + ISO)** — create sources first, then formalize:
+Combined — create the sources first, then formalize:
 
 ```
 # Discovery phase
@@ -84,16 +75,16 @@ create_document type=brs filename=business-requirements
 create_document type=strs filename=stakeholder-requirements
 ```
 
-### Step 3: Link Documents with Relations
+### 3. Link the documents with relations
 
-**Same-track peers** — use `related`:
+Same-track peers use `related`:
 
 ```
 add_relation source=mrd-file target=brd-file type=related
 add_relation source=brd-file target=urd-file type=related
 ```
 
-**Sources → Specifications** — use `implements` (spec is source, source doc is target):
+A specification links to its source with `implements`; the specification is the relation source:
 
 ```
 add_relation source=brs-file target=mrd-file type=implements   # BRS formalizes MRD
@@ -101,7 +92,7 @@ add_relation source=brs-file target=brd-file type=implements   # BRS formalizes 
 add_relation source=strs-file target=urd-file type=implements  # StRS formalizes URD
 ```
 
-**ISO cascade** — use `implements`:
+The ISO cascade uses `implements`:
 
 ```
 add_relation source=strs-file target=brs-file type=implements  # StRS decomposes BRS
@@ -109,68 +100,62 @@ add_relation source=syrs-file target=strs-file type=implements # SyRS decomposes
 add_relation source=srs-file target=syrs-file type=implements  # SRS decomposes SyRS
 ```
 
-**PRD to ISO types** — use `related` (PRD is an alternative path):
+A PRD links to an ISO type with `related`, because the PRD is an alternative path:
 
 ```
 add_relation source=prd-file target=brs-file type=related
 ```
 
-### Step 4: Evolve Requirements Over Time
+### 4. Evolve the requirements over time
 
-Requirements tracks are not static. Common evolution patterns:
+A track is not static. These patterns recur:
 
-- **Start simple, grow later**: Begin with a PRD. When complexity grows, decompose into ISO types. Link the PRD via `related` to the new specs.
-- **Add sources retroactively**: Already have ISO specs? Create MRD/BRD/URD to document where requirements came from and link with `implements`.
-- **Use partial cascades**: Not every project needs all four ISO levels. BRS + SRS (skipping StRS/SyRS) is valid when intermediate levels add no value. Use `srs implements brs` directly.
-- **Mix tracks per feature**: Some features use PRD, others use full Sources + ISO. This is fine — tracks coexist within a project.
+- Start simple, grow later. Begin with a PRD. WHEN complexity grows, decompose into ISO types and link the PRD to the new specifications with `related`.
+- Add sources retroactively. WHEN ISO specifications already exist, create the MRD, BRD, and URD that record where the requirements came from, and link them with `implements`.
+- Use a partial cascade. Not every project needs all four ISO levels. BRS plus SRS, skipping StRS and SyRS, is valid when the intermediate levels add nothing; use `srs implements brs` directly.
+- Mix tracks per feature. Some features use a PRD while others use the full Sources and ISO chain. Tracks coexist within one project.
 
-### Step 5: Verify Traceability
+### 5. Verify traceability
 
-Run `list_relations` and check:
+Run `list_relations` and check the graph.
 
-- Every specification traces back to at least one source (via `implements`)
-- ISO cascade relations flow correctly (brs → strs → syrs → srs)
-- Same-layer documents are connected (via `related`)
-- No orphaned requirements documents without any relations
+Expected result:
+
+- Every specification traces back to at least one source through `implements`.
+- The ISO cascade flows `brs` → `strs` → `syrs` → `srs`.
+- Same-layer documents are connected through `related`.
+- No requirements document is left without a relation.
 
 ## Verification
 
-- [ ] Each requirements document has the correct type for its purpose
-- [ ] Relations connect sources to specifications via `implements`
-- [ ] ISO cascade relations flow in the right direction
-- [ ] No source document (mrd/brd/urd) contains formal ISO-structured content
-- [ ] PRD is used only for simple projects or as an alternative to the full cascade
+- Each requirements document carries the correct type for its purpose.
+- Relations connect sources to specifications through `implements`.
+- The ISO cascade relations point in the documented direction.
+- No source document (`mrd`, `brd`, `urd`) carries formal ISO-structured content.
+- A PRD is used for a simple project, or as an alternative to the full cascade.
 
-## Common Issues
+## Troubleshooting
 
-### Over-engineering simple projects
+### Over-engineering a simple project
 
-**Symptom**: Creating MRD + BRD + URD + BRS + StRS + SyRS + SRS for a small internal feature.
-**Cause**: Defaulting to the most comprehensive track instead of assessing actual needs.
-**Solution**: Start with a single PRD. Add Sources or ISO only when the project signals demand it (multiple stakeholders, regulation, formal traceability).
+Symptom: MRD, BRD, URD, BRS, StRS, SyRS, and SRS all created for a small internal feature.
+Cause: defaulting to the most comprehensive track instead of assessing the actual need.
+Solution: start with one PRD. Add Sources or ISO only when the project signals demand it — multiple stakeholders, regulation, or formal traceability.
 
 ### Mixing sources and specifications
 
-**Symptom**: BRD contains formal ISO-structured requirements (mission statements, operational concepts, ConOps).
-**Cause**: Writing specification content in a source document.
-**Solution**: Keep sources informal and discovery-oriented. Create BRS/StRS when you need to formalize. See rule: sources-are-not-specifications.
+Symptom: a BRD carries formal ISO-structured requirements such as mission statements, operational concepts, or ConOps.
+Cause: specification content written into a source document.
+Solution: keep sources informal and discovery-oriented. Create a BRS or StRS when formalization is needed. The related rule on sources not being specifications states the constraint.
 
 ### Missing relations between layers
 
-**Symptom**: BRS exists alongside MRD but no `implements` relation connects them.
-**Cause**: Creating specification documents without linking them to their sources.
-**Solution**: Always add `implements` relation from spec to source immediately after creating. See rule: source-to-specification-relations.
+Symptom: a BRS exists alongside an MRD with no `implements` relation between them.
+Cause: a specification created without a link to its source.
+Solution: add the `implements` relation from the specification to the source immediately after creating the specification. The related rule on source-to-specification relations states the convention.
 
 ### Wrong relation direction
 
-**Symptom**: `mrd implements brs` instead of `brs implements mrd`.
-**Cause**: Confusion about which document is the source of the relation.
-**Solution**: The MORE SPECIFIC document (specification) is always the source of `implements`. It reads: "BRS implements what MRD describes."
-
-## Related Resources
-
-- .archcore/dir/categories-and-document-types.doc.md — full type reference and disambiguation rules
-- .archcore/document-types/source-to-specification-relations.rule.md — relation conventions
-- .archcore/document-types/sources-are-not-specifications.rule.md — layer separation rule
-- .archcore/document-types/writing-spec-documents.guide.md — guide for the `spec` type
-- .archcore/document-types/spec-type-usage.rule.md — when to use `spec` vs other types
+Symptom: `mrd implements brs` instead of `brs implements mrd`.
+Cause: confusion about which document is the relation source.
+Solution: the more specific document, the specification, is always the relation source. The edge reads "BRS implements what MRD describes".
