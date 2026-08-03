@@ -10,24 +10,39 @@ import (
 )
 
 // pluginCacheFragments are path fragments that identify an AI-host plugin
-// install cache. Hosts (notably Cursor — forum #99215) have been observed
-// spawning agent processes with cwd inside the plugin cache instead of the
-// user's workspace; treating such a directory as the project root would read
-// the plugin's own bundled files as if they were the user's project
-// (cursor-mcp-architecture ADR). The guard keys on install-cache path
-// fragments only — a plugin *developer* repo, whose root merely contains
-// .claude-plugin/ or .cursor-plugin/ manifests, is a perfectly valid project.
+// install cache. Hosts have been observed spawning agent processes with cwd
+// inside the plugin cache instead of the user's workspace: Cursor for stdio
+// hooks (forum #99215), and Copilot for a plugin's auto-discovered MCP
+// children — launched in the install root with no project path passed
+// (github/copilot-cli#4234). See host-cwd-misrouting.adr. Treating such a
+// directory as the project root would read the plugin's own bundled files as
+// the user's project, or worse, write the user's documents into the cache
+// where no git repository will see them.
+//
+// The guard keys on install-cache path fragments only — a plugin *developer*
+// repo, whose root merely contains .claude-plugin/ or .cursor-plugin/
+// manifests, is a perfectly valid project.
+//
+// Each fragment must be lowercase and delimited by "/" at both ends:
+// isPluginCachePath lowers the candidate and appends a trailing separator,
+// and filepath.Abs always returns a Cleaned absolute path, so a real cache
+// hit always carries a separator before the fragment. The leading "/" costs
+// no detection and keeps a user project living at, say,
+// ".../my.copilot/installed-plugins/app" from being refused.
 var pluginCacheFragments = []string{
-	".cursor/plugins/",
-	".claude/plugins/",
-	".codex/plugins/",
-	"plugins/cache/",
+	"/.cursor/plugins/",
+	"/.claude/plugins/",
+	"/.codex/plugins/",
+	"/.copilot/installed-plugins/",
+	"/plugins/cache/",
 }
 
 // isPluginCachePath reports whether abs sits inside a plugin install cache.
 // Matching is done case-insensitively (macOS/Windows filesystems are
 // case-insensitive) on the slash-normalized path with a trailing separator
 // appended, so a root that IS the cache directory itself also matches.
+// Fragments are separator-delimited on both ends, so they match whole path
+// segments and never a suffix of a longer segment name.
 // Symlinks are not resolved — this is a heuristic against host cwd
 // misrouting, not a security boundary.
 func isPluginCachePath(abs string) bool {
@@ -77,7 +92,7 @@ func resolveProjectRoot(flagValue, envValue string) (string, error) {
 
 	if !explicit && isPluginCachePath(abs) {
 		return "", fmt.Errorf(
-			"refusing project root %q: path is inside an AI-host plugin install cache, not a user project (the host likely misrouted the working directory — pass --project to the real project root)", abs)
+			"refusing project root %q: path is inside an AI-host plugin install cache, not a user project (the host likely misrouted the working directory — pass --project to the real project root, or register a project-level server: archcore init --agent <agent> --project <path>)", abs)
 	}
 
 	info, err := os.Stat(abs)

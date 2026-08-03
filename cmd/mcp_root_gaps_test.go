@@ -1,18 +1,11 @@
 package cmd
 
-// Coverage-gap closures and TDD specs for resolveProjectRoot, motivated by the
-// cwd-independence invariant: hosts (notably Cursor) do not guarantee the
-// working directory of agent-spawned processes, so the resolver's flag/env
-// precedence and its (planned) plugin-cache rejection are the safety net that
-// makes host cwd behavior irrelevant.
-//
-// Runnable now: TestResolveProjectRoot_RelativeEnvValue,
-// TestResolveProjectRoot_EnvNonexistentErrors,
-// TestResolveProjectRoot_FlagWinsOverNonexistentEnv,
-// TestResolveProjectRoot_AcceptsPluginDeveloperRepo.
-//
-// TDD spec (skipped until the guard lands):
-// TestResolveProjectRoot_RejectsPluginCachePaths_Spec.
+// Coverage-gap closures and behavior pins for resolveProjectRoot, motivated by
+// the cwd-independence invariant: hosts do not guarantee the working directory
+// of agent-spawned processes (Cursor — forum #99215; Copilot launches plugin
+// MCP children in the install root — github/copilot-cli#4234), so the
+// resolver's flag/env precedence and its plugin-cache rejection are the safety
+// net that makes host cwd behavior irrelevant.
 
 import (
 	"os"
@@ -20,6 +13,18 @@ import (
 	"strings"
 	"testing"
 )
+
+// mustCacheDir creates the slash-separated relative path rel under a fresh
+// temp directory and returns the absolute result — the fixture every
+// plugin-cache guard test needs.
+func mustCacheDir(t *testing.T, rel string) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), filepath.FromSlash(rel))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("os.MkdirAll(%q): %v", dir, err)
+	}
+	return dir
+}
 
 // TestResolveProjectRoot_RelativeEnvValue verifies that a relative
 // ARCHCORE_PROJECT_ROOT value is resolved against the current working
@@ -91,12 +96,12 @@ func TestResolveProjectRoot_FlagWinsOverNonexistentEnv(t *testing.T) {
 	}
 }
 
-// TestResolveProjectRoot_AcceptsPluginDeveloperRepo pins — already true today
-// and required to STAY true once the planned plugin-cache rejection lands —
-// that a plugin *developer* repo (root carries .claude-plugin/marketplace.json
-// or .cursor-plugin/plugin.json manifests) is a perfectly valid project root.
-// The planned cache guard must key on install-cache path fragments, not on the
-// mere presence of plugin manifests.
+// TestResolveProjectRoot_AcceptsPluginDeveloperRepo pins — true today and
+// required to STAY true alongside the plugin-cache rejection — that a plugin
+// *developer* repo (root carries .claude-plugin/marketplace.json or
+// .cursor-plugin/plugin.json manifests) is a perfectly valid project root.
+// The cache guard keys on install-cache path fragments, not on the mere
+// presence of plugin manifests.
 func TestResolveProjectRoot_AcceptsPluginDeveloperRepo(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -138,45 +143,53 @@ func TestResolveProjectRoot_AcceptsPluginDeveloperRepo(t *testing.T) {
 // case-insensitive, so `.Cursor/Plugins/…` must not bypass the guard.
 func TestResolveProjectRoot_PluginCacheGuardIsCaseInsensitive(t *testing.T) {
 	t.Parallel()
-	root := filepath.Join(t.TempDir(), filepath.FromSlash(".Cursor/Plugins/cache/archcore"))
-	if err := os.MkdirAll(root, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	for _, p := range []string{
+		".Cursor/Plugins/cache/archcore",
+		".Copilot/Installed-Plugins/_direct/archcore",
+	} {
+		t.Run(p, func(t *testing.T) {
+			t.Parallel()
+			root := mustCacheDir(t, p)
 
-	if _, err := resolveProjectRoot("", root); err == nil {
-		t.Errorf("mixed-case plugin-cache path %q must be rejected for implicit sources", root)
+			if _, err := resolveProjectRoot("", root); err == nil {
+				t.Errorf("mixed-case plugin-cache path %q must be rejected for implicit sources", root)
+			}
+		})
 	}
 }
 
-// TestResolveProjectRoot_RejectsPluginCachePaths_Spec is a TDD spec for the
-// planned plugin-install-cache guard. Cursor has been observed launching
-// agent-spawned processes with cwd inside ~/.cursor/plugins/cache/…, which
-// once made the resolver treat the plugin cache as the user's project and
-// leak the plugin's bundled .archcore/. The guard must reject any resolved
-// root whose path contains an install-cache fragment:
+// TestResolveProjectRoot_RejectsPluginCachePaths_Spec pins the
+// plugin-install-cache guard. Cursor has been observed launching
+// agent-spawned processes with cwd inside ~/.cursor/plugins/cache/…, and
+// Copilot launches a plugin's MCP children inside
+// ~/.copilot/installed-plugins/… (github/copilot-cli#4234) — either would
+// make the resolver treat the plugin cache as the user's project and write
+// the user's documents where no git repository will ever see them. The guard
+// rejects any resolved root containing an install-cache fragment as a whole
+// path segment:
 //
-//	.cursor/plugins/   .claude/plugins/   .codex/plugins/   plugins/cache/
+//	/.cursor/plugins/   /.claude/plugins/   /.codex/plugins/
+//	/.copilot/installed-plugins/   /plugins/cache/
 //
-// Implemented: isPluginCachePath (mcp_root.go) rejects these fragments on the
+// isPluginCachePath (mcp_root.go) rejects these fragments on the
 // slash-normalized absolute path; each subtest produces an error naming the
 // offending path. The guard applies to implicit sources only (env, cwd) —
 // an explicit --project flag is trusted user intent and bypasses it.
 func TestResolveProjectRoot_RejectsPluginCachePaths_Spec(t *testing.T) {
 	t.Parallel()
 	fragments := []string{
-		filepath.FromSlash(".cursor/plugins/cache/archcore/abc123"),
-		filepath.FromSlash(".claude/plugins/cache/archcore"),
-		filepath.FromSlash(".codex/plugins/archcore"),
-		filepath.FromSlash("plugins/cache/archcore"),
+		".cursor/plugins/cache/archcore/abc123",
+		".claude/plugins/cache/archcore",
+		".codex/plugins/archcore",
+		"plugins/cache/archcore",
+		".copilot/installed-plugins/archcore",
+		".copilot/installed-plugins/_direct/archcore-ai--plugin--plugins-archcore",
 	}
 	for _, frag := range fragments {
 		t.Run(frag, func(t *testing.T) {
 			t.Parallel()
 			// Arrange: a real directory whose path contains the cache fragment.
-			root := filepath.Join(t.TempDir(), frag)
-			if err := os.MkdirAll(root, 0o755); err != nil {
-				t.Fatal(err)
-			}
+			root := mustCacheDir(t, frag)
 
 			// Act: resolve via the implicit source a host can poison (env; the
 			// cwd fallback shares the code path). The explicit --project flag
@@ -197,5 +210,70 @@ func TestResolveProjectRoot_RejectsPluginCachePaths_Spec(t *testing.T) {
 				t.Errorf("flag source: got %q, want %q", flagGot, root)
 			}
 		})
+	}
+}
+
+// The cache directory itself — not just paths under it — must be rejected:
+// isPluginCachePath appends a trailing separator before matching, and Copilot
+// (github/copilot-cli#4234) launches a plugin's MCP child with cwd set to the
+// install root, i.e. exactly this directory.
+func TestResolveProjectRoot_CopilotCacheRootItself(t *testing.T) {
+	t.Parallel()
+	root := mustCacheDir(t, ".copilot/installed-plugins")
+
+	if _, err := resolveProjectRoot("", root); err == nil {
+		t.Errorf("the copilot install-cache directory itself %q must be rejected for implicit sources", root)
+	}
+}
+
+// A user project whose path merely CONTAINS a fragment as a substring
+// ("…/my.copilot/installed-plugins/app") is NOT a cache and must resolve
+// normally. Fragments are delimited by "/" at both ends, so ".copilot/" only
+// matches a whole segment — "my.copilot" does not qualify. Anchoring costs no
+// real detection: filepath.Abs returns a Cleaned absolute path, so a genuine
+// cache hit always has a separator before the fragment. Both sources are
+// asserted because the implicit arm is the one the anchoring buys.
+func TestResolveProjectRoot_CopilotLookalikeUserPath_NotRejected(t *testing.T) {
+	t.Parallel()
+	root := mustCacheDir(t, "my.copilot/installed-plugins/app")
+
+	for _, tt := range []struct {
+		name      string
+		flag, env string
+	}{
+		{"implicit env source", "", root},
+		{"explicit --project", root, ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := resolveProjectRoot(tt.flag, tt.env)
+			if err != nil {
+				t.Fatalf("lookalike path %q must not be mistaken for a plugin cache: %v", root, err)
+			}
+			if got != root {
+				t.Errorf("resolveProjectRoot(%q, %q) = %q, want %q", tt.flag, tt.env, got, root)
+			}
+		})
+	}
+}
+
+// The guard error is all a user sees when a host misroutes cwd — it must name
+// both recovery paths: --project for direct invocations, and project-level
+// wiring (archcore init --agent) for hosts like Copilot that auto-discover a
+// plugin-root .mcp.json and spawn the server from the cache, where no flag
+// can be edited.
+func TestResolveProjectRoot_GuardErrorNamesRecovery(t *testing.T) {
+	t.Parallel()
+	root := mustCacheDir(t, ".copilot/installed-plugins/_direct/x")
+
+	_, err := resolveProjectRoot("", root)
+
+	if err == nil {
+		t.Fatal("expected plugin-cache rejection")
+	}
+	for _, want := range []string{"--project", "archcore init --agent"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("guard error %q should carry the recovery hint %q", err.Error(), want)
+		}
 	}
 }

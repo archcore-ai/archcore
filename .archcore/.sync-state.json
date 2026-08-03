@@ -972,6 +972,16 @@
       "source": "release/release-infrastructure.doc.md",
       "target": "update/resolve-latest-via-github-redirect.adr.md",
       "type": "related"
+    },
+    {
+      "source": "integrations/host-cwd-misrouting.adr.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/host-cwd-misrouting.adr.md",
+      "target": "mcp/install-host-config-tool-contract.adr.md",
+      "type": "related"
     }
   ]
 }

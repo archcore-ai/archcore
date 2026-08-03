@@ -130,10 +130,11 @@ var (
 	}
 	// cursorMCPEntry passes the project root explicitly via
 	// `--project ${workspaceFolder}`: Cursor does not guarantee the cwd it
-	// spawns stdio MCP servers with (forum #99215, cursor-mcp-architecture
-	// ADR), and it documents ${workspaceFolder} interpolation in
-	// project-level `args`. resolveProjectRoot gives --project top
-	// precedence, so the server root no longer depends on spawn cwd.
+	// spawns stdio MCP servers with (forum #99215; see
+	// host-cwd-misrouting.adr), and it documents ${workspaceFolder}
+	// interpolation in project-level `args`. resolveProjectRoot gives
+	// --project top precedence, so the server root no longer depends on
+	// spawn cwd.
 	cursorMCPEntry = mcpServerEntry{
 		Command: "archcore",
 		Args:    []string{"mcp", "--project", "${workspaceFolder}"},
