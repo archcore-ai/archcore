@@ -13,7 +13,7 @@ Define the contract for the hook-based validation, freshness detection, and cont
 
 ## Scope
 
-This specification covers all hook entries the plugin ships, across every host config (`hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`, `hooks/copilot.hooks.json`): the SessionStart hook (via `bin/session-start` wrapper with staleness check), two PreToolUse hooks on source mutations (blocking direct writes to `.archcore/*.md` and injecting context for source edits), the PostToolUse hook for validation after MCP document operations, the PostToolUse hook for cascade detection after document updates, and the PostToolUse hook for precision checks.
+This specification covers all hook entries the plugin ships, across every host config (`hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`, `hooks/copilot.hooks.json`): the SessionStart hook (via `bin/session-start` wrapper with staleness check), the PreToolUse hooks on source mutations (blocking direct writes to `.archcore/*.md` and, on hosts whose pre-mutation event carries context, injecting context for source edits), the PostToolUse hook for validation after MCP document operations, the PostToolUse hook for cascade detection after document updates, and the PostToolUse hook for precision checks.
 
 Claude Code's `hooks/hooks.json` is used below as the reference shape because it is the most explicit; per-host divergences are called out where they change behavior rather than only syntax. The canonical event/matcher matrix lives in `plugin-architecture.spec.md`; blocking-semantics translation per host lives in `host-adapter-contract.spec.md`.
 
@@ -21,11 +21,11 @@ It does not cover the MCP server itself, the Archcore CLI lifecycle (the CLI is 
 
 ## Authority
 
-This specification is the authoritative reference for the plugin's hook configuration. The Always Use MCP Tools ADR provides the architectural rationale for the blocking behavior. The Actualize System ADR and Specification provide the rationale and contract for staleness detection (Layers 1 and 2). The Pre-Code Context Injection idea and its implementation plan provide the rationale for the source-edit context-injection hook. The Host-Wiring Parity ADR governs the dual-naming matcher requirement and the SessionStart dedup/advisory additions. `host-probe-protocol.spec.md` governs how the behaviors specified here are verified on a live host.
+This specification is the authoritative reference for the plugin's hook configuration. The Always Use MCP Tools ADR provides the architectural rationale for the blocking behavior. The Actualize System ADR and Specification provide the rationale and contract for staleness detection (Layers 1 and 2). The Pre-Code Context Injection idea and its implementation plan provide the rationale for the source-edit context-injection hook. The Host-Wiring Parity ADR governs the dual-naming matcher requirement and the SessionStart dedup/advisory additions. `copilot-mcp-architecture.adr.md` governs why Copilot has no plugin-shipped MCP and therefore needs the wiring advisory. `host-probe-protocol.spec.md` governs how the behaviors specified here are verified on a live host.
 
 ## Subject
 
-The hooks system consists of event handlers registered in each host's hooks config that respond to that host's lifecycle events. Three event types with six hook entries enforce quality, the MCP-only principle, documentation freshness, source-edit context alignment, and precision after document mutations. The event *names* differ per host (PascalCase on Claude Code and Codex, camelCase on Cursor and Copilot) and so do the entry shapes; the six behaviors do not.
+The hooks system consists of event handlers registered in each host's hooks config that respond to that host's lifecycle events. Three event types enforce quality, the MCP-only principle, documentation freshness, source-edit context alignment, and precision after document mutations. The event *names* differ per host (PascalCase on Claude Code and Codex, camelCase on Cursor and Copilot) and so do the entry shapes. The behaviors are the same everywhere with one declared exception: Copilot registers five entries rather than six, because its pre-mutation event cannot carry context (Hook 3 below).
 
 ## Contract Surface
 
@@ -85,25 +85,40 @@ Matchers and scripts solve different halves of the same problem, and the split m
 
 Historical note: a prior revision included a PostToolUse `Write|Edit` matcher invoking `validate-archcore` as defense-in-depth. The hook was dead in practice — PreToolUse blocks all Write/Edit to `.archcore/*.md` before they reach PostToolUse (PostToolUse fires only on success per Claude Code hooks semantics), and `.archcore/settings.json` / `.archcore/.sync-state.json` are allowlisted, so `validate-archcore` never had an edge case to handle through that path. It was removed to eliminate a per-Write/Edit shell fork across the entire repository. The MCP matcher below remains the single validation entry point.
 
-The two PreToolUse entries on `Write|Edit` are deliberately coupled: `check-archcore-write` short-circuits on `.archcore/*.md` and denies; `check-code-alignment` short-circuits on everything INSIDE `.archcore/` with exit 0 (silent). On any source path only the alignment hook does real work. The order matters for fast exit on blocks but does not affect correctness — the two run as independent entries with independent budgets on every host.
+The two PreToolUse entries on `Write|Edit` are deliberately coupled: `check-archcore-write` short-circuits on `.archcore/*.md` and denies; `check-code-alignment` short-circuits on everything INSIDE `.archcore/` with exit 0 (silent). On any source path only the alignment hook does real work. The order matters for fast exit on blocks but does not affect correctness — the two run as independent entries with independent budgets on every host that registers both.
+
+### The Copilot output channel
+
+Copilot's stdout contract is not "the host reads what it recognizes and ignores the rest". Per the [hooks reference](https://docs.github.com/en/copilot/reference/hooks-reference), a line that is a single complete JSON object with `"type":"progress"` is consumed as a progress event and **removed** from the stream; every other line — blank lines, plain text, and JSON objects that are not progress messages — is preserved verbatim. On exit the preserved lines are concatenated, trimmed, and parsed with **one** `JSON.parse`; if that fails, the hook is treated as having produced **no output at all**.
+
+Two consequences drive the design of every Copilot emission in this specification:
+
+1. **A hook on this host may emit at most one JSON document.** Plain text appended after a JSON payload does not add a note — it discards the payload, the ~9 KB of Archcore context included, along with the note itself. `bin/session-start` therefore buffers every advisory and folds them into the CLI hook's document at the end (phase 7). Emitting them as trailing plain text was the behavior through plugin 0.6.1 and cost the whole session's context whenever any advisory fired.
+2. **Output fields are per-event, and `additionalContext` is not universal.** `sessionStart`, `postToolUse`, `postToolUseFailure`, `notification` and `subagentStart` accept it; `preToolUse` accepts only `permissionDecision`, `permissionDecisionReason` and `modifiedArgs`. A context-only hook on `preToolUse` can therefore never deliver anything on this host — see Hook 3.
+
+Hosts other than Copilot are unaffected by both points, and their byte-level output is pinned by `test/unit/session-start-goldens.bats` so that a change made for Copilot cannot move theirs.
 
 ### Hook 1: SessionStart (Context Loading + Staleness Check)
 
 **Event**: SessionStart / `sessionStart` (fires when a session begins or resumes)
 **Matcher**: empty (matches all session sources: startup, resume, clear, compact)
 **Handler**: `${CLAUDE_PLUGIN_ROOT}/bin/session-start` (per-host plugin-root variable; on Copilot, the candidate chain)
-**Behavior**: pipeline of phases:
+**Behavior**: pipeline of phases, in this order:
 
-0. **Plugin-install-dir guard.** Exit 0 silently when `$PWD` contains an install-cache path fragment (`.cursor/plugins/`, `.claude/plugins/`, `.codex/plugins/`, `plugins/cache/`) or when a bounded upward walk finds a `.cursor-plugin/`, `.claude-plugin/`, `.codex-plugin/`, or `.plugin/` manifest — a cwd misrouted into a plugin install (at any depth) must never surface the plugin's own bundled files as the user's knowledge base (`cursor-mcp-architecture.adr.md`, extended per `host-wiring-parity.adr.md`).
-1. **CLI availability check.** If `archcore` is not on PATH, emit an install message pointing at https://docs.archcore.ai/cli/install/ and exit 0. No further phases run. Installing the CLI mid-session does NOT reconnect a Claude Code MCP server that failed to register at session start — users must restart the host after a fresh install.
-2. **Project check.** If `.archcore/` does not exist, emit context instructing the agent to call `mcp__archcore__init_project` on first Archcore operation, then exit 0.
-3. **Context loading + staleness.** If `.archcore/` exists, pipe stdin into `archcore hooks <host> session-start`; swallow any non-zero exit so SessionStart remains non-blocking. The CLI-side handler dedupes duplicate SessionStart emissions per `session_id`+`source` (Cursor: `conversation_id`) via short-window XDG-state stamps, fail-open — so a project-level hook installed by `archcore init --agent` coexisting with this plugin hook emits context once, for any plugin/CLI version combination. It also emits the response in that host's shape (CLI ≥ v0.6.4 knows Copilot's bare `additionalContext`). Then call `bin/check-staleness` to detect code-doc drift via git, emit findings via the info helper.
-4. **Outdated-CLI advisory.** Run `archcore update --check` (24h-cached, ~500ms-bounded, silent on any failure, exit 0 always; an older CLI without the flag degrades silently). When it reports a newer version and the advisory's own 24h rate-limit stamp is due, emit a one-line plain-text nudge naming `archcore update`. Exit 0.
+0. **Plugin-install-dir guard.** Exit 0 silently when `$PWD` contains an install-cache path fragment (`.cursor/plugins/`, `.claude/plugins/`, `.codex/plugins/`, `.copilot/installed-plugins/`, `plugins/cache/`) or when a bounded upward walk finds a `.cursor-plugin/`, `.claude-plugin/`, `.codex-plugin/`, or `.plugin/` manifest — a cwd misrouted into a plugin install (at any depth) must never surface the plugin's own bundled files as the user's knowledge base (`cursor-mcp-architecture.adr.md`, extended per `host-wiring-parity.adr.md`).
+1. **CLI availability check.** If `archcore` is not on PATH, emit an install message pointing at https://docs.archcore.ai/cli/install/ and exit 0 (on Copilot the message additionally names the mandatory next step — `archcore init --agent copilot --project "$PWD"` — because installing the CLI alone still leaves that host without document tools). No further phases run. Installing the CLI mid-session does NOT reconnect a Claude Code MCP server that failed to register at session start — users must restart the host after a fresh install.
+2. **Project check.** If `.archcore/` does not exist, emit context instructing the agent to call `mcp__archcore__init_project` on first Archcore operation, then exit 0. On Copilot that tool does not exist day-one (no plugin-shipped MCP — `copilot-mcp-architecture.adr.md`), so the instruction body is forked to the CLI wiring command `archcore init --agent copilot --project "$PWD"`; the `/archcore:init` suffix sentence stays shared byte-for-byte across hosts.
+3. **Context loading.** If `.archcore/` exists, pipe stdin into `archcore hooks <host> session-start`; swallow any non-zero exit so SessionStart remains non-blocking. The CLI-side handler dedupes duplicate SessionStart emissions per `session_id`+`source` (Cursor: `conversation_id`) via short-window XDG-state stamps, fail-open — so a project-level hook installed by `archcore init --agent` coexisting with this plugin hook emits context once, for any plugin/CLI version combination. It also emits the response in that host's shape (CLI ≥ v0.6.4 knows Copilot's bare `additionalContext`). On Copilot this payload is **captured rather than streamed**, because phase 7 must join it with anything the phases below produce; on every other host it streams straight through as before.
+4. **Empty-state nudge.** When `.archcore/` exists but carries no substantive documents, emit a nudge pointing at `/archcore:init`. Suppress with `ARCHCORE_HIDE_EMPTY_NUDGE=1`.
+5. **Copilot wiring advisory.** Copilot only: when the CLI is present, `.archcore/` exists, and no archcore server is wired, emit a nudge naming `archcore init --agent copilot --project "$PWD"`. Detection mirrors the host's own discovery, measured on Copilot CLI 1.0.76: a config is read from **every** directory between the working directory and the git root — not merely those two ends — and within each directory `.mcp.json` wins, with `.github/mcp.json` consulted only where the first is absent. User-level `${COPILOT_HOME:-~/.copilot}/mcp-config.json` also counts. Checking fewer places nags a project that works; treating the two filenames as a union stays silent for a project that does not, which is the failure this advisory exists to prevent. Rate-limited per project (stamp keyed by `cksum` of the project root — a global stamp would let one repo silence another's mandatory step); suppress with `ARCHCORE_HIDE_WIRING_NUDGE=1`. Detection is pure stat/grep plus one `git rev-parse`; the other hosts never reach this phase.
+6. **Staleness check.** Call `bin/check-staleness` to detect code-doc drift via git and emit findings.
+7. **Outdated-CLI advisory.** Run `archcore update --check` (24h-cached, ~500ms-bounded, silent on any failure, exit 0 always; an older CLI without the flag degrades silently). When it reports a newer version and the advisory's own 24h rate-limit stamp is due, emit a one-line nudge naming `archcore update`.
+8. **Copilot flush.** Copilot only: everything phases 4–7 buffered leaves as a single JSON document, spliced into the payload captured in phase 3. The splice fires only on the exact `{"additionalContext":"…"}` shape it can take apart; an unrecognized payload passes through untouched and the advisories fall back to `progress` lines, which the host strips before parsing. Both branches satisfy the one-document rule; corrupting the host's context payload would be a worse failure than delivering an advisory through a lesser channel. A no-op on every other host, where phases 4–7 have already printed their lines.
 
-Staleness and the advisory are additive — if either fails or produces no output, the preceding phases are unaffected.
+Phases 4–7 are additive — if any fails or produces no output, the preceding phases are unaffected.
 
 **Input**: JSON on stdin with `session_id`, `cwd`, `hook_event_name` (host-specific field names, normalized by `bin/lib/normalize-stdin.sh`)
-**Output**: the host's context envelope — `hookSpecificOutput.additionalContext` (Claude Code, Codex), top-level `additionalContext` (Copilot), `additional_context` (Cursor), plain text (OpenCode)
+**Output**: the host's context envelope — `hookSpecificOutput.additionalContext` (Claude Code, Codex), top-level `additionalContext` (Copilot, exactly one document), `additional_context` (Cursor), plain text (OpenCode)
 
 ### Hook 2: PreToolUse — Block Direct Writes
 
@@ -120,7 +135,7 @@ Staleness and the advisory are additive — if either fails or produces no outpu
 3. If NO match: exit 0 with empty output (allow the operation)
 4. If MATCH: deny, using the mechanism the host honors
 
-**Deny mechanism is host-specific.** On Claude Code, Codex and Cursor, exit code 2 is a blocking error — stderr goes to the model as feedback and the tool call is blocked. On Copilot the guard writes `{"permissionDecision":"deny","permissionDecisionReason":"…"}` to stdout with exit 0 instead, and the reason is why: **every** non-zero exit denies there — exit 2 explicitly (its stdout JSON merged with the deny), any other non-zero exit as `Denied by preToolUse hook (hook errored)` — but only the JSON form carries reason text back to the user (hooks-reference, re-read 2026-07-27). The branch lives in the shared script keyed on `ARCHCORE_HOST`; see `host-adapter-contract.spec.md` for the full translation table.
+**Deny mechanism is host-specific.** On Claude Code, Codex and Cursor, exit code 2 is a blocking error — stderr goes to the model as feedback and the tool call is blocked. On Copilot the guard writes `{"permissionDecision":"deny","permissionDecisionReason":"…"}` to stdout with exit 0 instead, and the reason is why: **every** non-zero exit denies there — exit 2 explicitly (its stdout JSON merged with the deny), any other non-zero exit as `Denied by preToolUse hook (hook errored)` — but only the JSON form carries reason text back to the user (hooks-reference, re-read 2026-07-27). Those two fields are also among the only three the event accepts, which is what makes this hook viable on Copilot where Hook 3 is not. The branch lives in the shared script keyed on `ARCHCORE_HOST`; see `host-adapter-contract.spec.md` for the full translation table.
 
 **On that host the failure mode inverts.** Where exit 2 is the deny channel, a guard that cannot start degrades to no enforcement. Where every non-zero exit denies, it degrades to refusing every matched tool call — and the host cannot tell the two apart. This is why hook bootstrap on Copilot is specified below as a correctness requirement rather than left to the adapter, and why `hooks/copilot.hooks.json` exits 0 when it cannot locate a script.
 
@@ -145,6 +160,7 @@ This ensures validation, templates, and the sync manifest stay consistent.
 **Matcher**: same as Hook 2, per host
 **Handler**: `${CLAUDE_PLUGIN_ROOT}/bin/check-code-alignment`
 **Timeout**: 1 second
+**Registered on**: Claude Code, Cursor, Codex. **Not registered on Copilot** — that host's `preToolUse` accepts only `permissionDecision`, `permissionDecisionReason` and `modifiedArgs`, so a hook whose entire product is context could only fork a process per edit and emit into a channel the host discards. The omission is declared, not silent: `test/structure/copilot-plugin.bats` asserts its absence there, `test/structure/hooks.bats` and `test/structure/host-coverage-matrix.bats` carve it out by name so that no other host can drop any other script quietly, and a negative-control test asserts it is still present in the other three configs. If Copilot adds context to `preToolUse`, re-registering the entry is the whole change.
 **Input**: JSON on stdin containing the tool call details including the target path
 
 **Behavior**:
@@ -165,8 +181,8 @@ This ensures validation, templates, and the sync manifest stay consistent.
    Output capped at 2 KB.
 9. Emit the host's context envelope:
    - Claude Code / Codex: `{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"..."}}`
-   - Copilot: `{"additionalContext":"..."}` — top-level, no wrapper; Claude's shape is ignored wholesale there
    - Cursor: `{"additional_context":"..."}` (may be ignored by current Cursor — graceful degradation, documented limitation)
+   - Copilot: the helper retains a top-level `{"additionalContext":"..."}` arm so no host falls through the emit matrix silently, but on that host the arm is unreachable in practice because no Copilot hook registers this script.
 
 **Non-blocking by design**: exit code is always 0. Any error in the pipeline (missing tools, malformed JSON, empty matches) results in a silent pass. Injection is strictly additive and must never prevent a write.
 
@@ -174,7 +190,7 @@ This ensures validation, templates, and the sync manifest stay consistent.
 
 **Escape hatch**: set environment variable `ARCHCORE_DISABLE_INJECTION=1` to disable injection globally for a session.
 
-**Relationship to Hook 2**: both hooks fire on the same matcher. Hook 2 handles `.archcore/*.md` paths (blocks). Hook 3 handles source paths (injects). Their active path sets are disjoint by construction. They are separate hook entries with separate budgets, so a slow Hook 3 cannot consume Hook 2's.
+**Relationship to Hook 2**: where both are registered, both fire on the same matcher. Hook 2 handles `.archcore/*.md` paths (blocks). Hook 3 handles source paths (injects). Their active path sets are disjoint by construction. They are separate hook entries with separate budgets, so a slow Hook 3 cannot consume Hook 2's.
 
 #### Sub-agent tool invocations (delegated)
 
@@ -184,7 +200,7 @@ Scope clarifications:
 
 - **Archcore's own sub-agents** (`archcore-assistant`, `archcore-auditor`) do NOT have `Write` or `Edit` in their tools allowlist (see `agent-system.spec.md` Tool Access Matrix). They cannot trigger Hooks 2 or 3 by definition. The sub-agent coverage discussion concerns general-purpose and third-party agents dispatched by the user for code work.
 - **Claude Code**: hook coverage for delegated Write/Edit holds by the host's PreToolUse contract.
-- **Copilot**: has a delegation surface (`subagentStart` / `subagentStop`), so the same question is answerable there.
+- **Copilot**: has a delegation surface (`subagentStart` / `subagentStop`), so the same question is answerable there. Note that `subagentStart` does accept `additionalContext`, unlike `preToolUse`.
 - **Cursor**: the PreToolUse matcher in `cursor.hooks.json` is `Write` only, not `Write|Edit` — a pre-existing multi-host asymmetry, independent of the sub-agent question. Sub-agent-originated Edit calls on Cursor go unhooked for the same reason main-session Edit calls do.
 
 This is probe A-d in `host-probe-protocol.spec.md`, which is where the per-host result is recorded. A specification claim about delegated coverage is not evidence; the record is.
@@ -280,14 +296,16 @@ The scripts never build these by hand; the output helpers in `bin/lib/normalize-
 | Claude Code | `hookSpecificOutput.additionalContext` | exit 2 + stderr |
 | Codex CLI | `hookSpecificOutput.additionalContext` | exit 2 + stderr |
 | Cursor | `additional_context` (flat) | exit 2 + stderr |
-| GitHub Copilot CLI | `additionalContext` (flat, top level) | stdout `{"permissionDecision":"deny",…}`, exit 0 |
+| GitHub Copilot CLI | `additionalContext` (flat, top level) — at most one document per hook invocation | stdout `{"permissionDecision":"deny",…}`, exit 0 |
 | OpenCode | plain message, no JSON | bridge throws `Error(reason)` |
+
+On Copilot the envelope is accepted on `sessionStart`, `postToolUse`, `postToolUseFailure`, `notification` and `subagentStart`, and **not** on `preToolUse`. A script whose only product is context must therefore be registered on an event that carries it, or not registered at all.
 
 ### Exit Code Semantics
 
 | Hook | Exit 0 | Exit 2 |
 |------|--------|--------|
-| SessionStart | Always (output = install msg / init msg / context + staleness + advisory) | N/A |
+| SessionStart | Always (output = install msg / init msg / context + nudges + staleness + advisories) | N/A |
 | PreToolUse block (Hook 2, allow) | Empty output, operation proceeds | N/A |
 | PreToolUse block (Hook 2, block) | Copilot only: deny JSON on stdout | Claude Code / Codex / Cursor: stderr → model feedback, operation blocked |
 | PreToolUse inject (Hook 3) | Always (no match → empty; match → context) | N/A |
@@ -303,7 +321,7 @@ Six executable hook scripts in `bin/`, plus the stdin normalization library. The
 
 #### `bin/session-start`
 
-Shell script that handles SessionStart pipeline (install-dir guard + CLI check + project check + context loading + staleness + update advisory).
+Shell script that handles the SessionStart pipeline (install-dir guard, CLI check, project check, context loading, empty-state nudge, Copilot wiring advisory, staleness, update advisory, Copilot flush).
 
 Requirements:
 
@@ -311,9 +329,11 @@ Requirements:
 - Sources `bin/lib/normalize-stdin.sh`
 - Exits 0 in all cases
 - Exits silently when run from inside a plugin install — cache path fragments in `$PWD` or a manifest found by the bounded upward walk
-- When `archcore` is not on PATH: emits an install message pointing at https://docs.archcore.ai/cli/install/ and exits 0
-- When `.archcore/` is absent: emits context pointing at `mcp__archcore__init_project`
-- Otherwise: invokes `archcore hooks <host> session-start` and discards any non-zero exit, then calls `bin/check-staleness`, then runs the `archcore update --check`-backed advisory (own 24h rate-limit stamp; silent when the CLI is current, the flag is unsupported, or the network is unavailable)
+- When `archcore` is not on PATH: emits an install message pointing at https://docs.archcore.ai/cli/install/ and exits 0. On Copilot the message additionally names `archcore init --agent copilot --project "$PWD"`, because the CLI alone does not give that host document tools
+- When `.archcore/` is absent: emits context pointing at `mcp__archcore__init_project` (copilot: at `archcore init --agent copilot`, since no plugin MCP exists there)
+- Otherwise, in this order: invokes `archcore hooks <host> session-start` and discards any non-zero exit; emits the empty-state nudge when `.archcore/` holds nothing substantive; on Copilot only, emits the wiring advisory when no archcore server is discoverable from any directory between cwd and the git root (either `.mcp.json` or, where that is absent, `.github/mcp.json`) nor at user level; calls `bin/check-staleness`; runs the `archcore update --check`-backed advisory (own 24h rate-limit stamp; silent when the CLI is current, the flag is unsupported, or the network is unavailable)
+- On Copilot: emits **exactly one JSON document** on stdout. The CLI payload is captured rather than streamed, the four advisories above are buffered, and the flush folds them together — with an unrecognized payload passing through untouched and its advisories degrading to `progress` lines. On every other host the same advisories print as plain text, byte-identically to prior releases
+- Keeps `"$PWD"` literal in any command it prints, so no path or environment value leaks into hook output
 - Invokes only allowlisted CLI subcommands: `hooks`, `update` (as `update --check` only), `--version`
 - Degrades gracefully — never errors, just warns
 
@@ -339,6 +359,7 @@ Requirements:
 - Emits at most 3 matches, capped at 2 KB total output
 - Completes within 1 second, and its cost MUST NOT scale with the number of matching documents — process spawns are bounded by the token count, not the match count
 - Emits the host's context envelope (see the table above)
+- Is registered only on hosts whose pre-mutation event carries context; see Hook 3
 
 #### `bin/validate-archcore`
 
@@ -391,6 +412,7 @@ PostToolUse handler running the precision lexicon, mandatory-sections, frontmatt
 - The PreToolUse injection hook MUST rank matches by specificity first (longest matching directory prefix wins), type priority second, and MUST restrict eligible types to `rule`, `cpat`, `adr`, `spec`, `guide`.
 - The PreToolUse injection hook MUST cap output at 3 documents and 2 KB.
 - The PreToolUse injection hook MUST honor the `ARCHCORE_DISABLE_INJECTION=1` environment variable as an unconditional off-switch.
+- WHERE a host's pre-mutation event does not accept a context field, a context-only hook MUST NOT be registered on it, and its absence MUST be asserted by name rather than left to a loosened parity check.
 - Both PreToolUse hooks MUST complete far enough inside their 1 s budget that a timeout is unreachable on realistic knowledge bases. On Copilot a `preToolUse` timeout fails OPEN, which turns latency into a correctness property rather than a comfort one.
 - The PreToolUse hooks MUST treat delegated Write/Edit tool calls identically to main-session calls — no special-casing, no skipping.
 - Every PostToolUse matcher MUST list each archcore tool under both namings (`mcp__archcore__X|mcp__plugin_archcore_archcore__X`) — Claude Code matchers are exact-match, and the two MCP registration paths (project `.mcp.json` vs plugin-bundled server) yield different tool names.
@@ -403,10 +425,14 @@ PostToolUse handler running the precision lexicon, mandatory-sections, frontmatt
 - The PostToolUse cascade hook MUST only flag documents connected via `implements`, `depends_on`, or `extends` (not `related`).
 - The SessionStart hook MUST exit silently when run from inside a plugin install (cache path fragments or upward-walk manifest hit).
 - The SessionStart hook MUST emit the install message when `archcore` is not on PATH and MUST NOT block the session in that case.
-- The SessionStart staleness check MUST run after context loading, not before.
+- The SessionStart staleness check MUST run after context loading, and after the empty-state and wiring nudges.
 - The SessionStart staleness check output MUST NOT exceed 2 KB.
 - The SessionStart staleness check MUST rate-limit itself to once per 24h via a persistent timestamp file.
 - The SessionStart update advisory MUST be backed by `archcore update --check`, MUST rate-limit itself to once per 24h via its own stamp, and MUST stay silent on any failure (including an older CLI without the flag).
+- WHERE a host parses a hook's entire stdout with a single JSON parse, SessionStart MUST emit exactly one JSON document — every nudge, advisory and finding folded into it, never appended after it. A payload the plugin cannot safely rewrite MUST be passed through unmodified, with its accompanying messages routed to a channel the host strips before parsing.
+- The Copilot wiring advisory MUST mirror the host's discovery: every directory from the working directory to the git root, `.mcp.json` per directory with `.github/mcp.json` only where the first is absent, plus the user-level config. It MUST NOT treat the two filenames as a union.
+- The Copilot wiring advisory MUST be rate-limited per project, keyed on the project root, and MUST be suppressible by `ARCHCORE_HIDE_WIRING_NUDGE=1`.
+- Changes made for one host MUST NOT alter another host's byte-level output; `test/unit/session-start-goldens.bats` is the pin.
 - Hook scripts that invoke the CLI MUST call `archcore <subcmd>` directly (resolved via PATH); the plugin does NOT ship any launcher wrapper, version pin, or cache directory. Reintroducing a `bin/archcore*` launcher or `bin/CLI_VERSION` requires a fresh ADR per `stack-and-tooling.rule`.
 - Hook scripts that invoke the CLI MUST only pass subcommands in the canonical surface (`config|doctor|help|hooks|init|mcp|status|update`); the contract is enforced by `test/structure/readme-cli-references.bats` and per-script invocation-log assertions.
 - All hooks MUST be idempotent.
@@ -428,6 +454,7 @@ PostToolUse handler running the precision lexicon, mandatory-sections, frontmatt
 - The PreToolUse block hook never blocks writes outside `.archcore/`.
 - The PreToolUse injection hook never blocks any edit, regardless of result or error mode.
 - The PreToolUse injection hook and the PreToolUse block hook act on disjoint path sets — the injection hook is silent for every path the block hook acts on.
+- No hook is registered on an event that cannot carry its only output.
 - Delegated Write/Edit tool calls are subject to the same PreToolUse behavior as main-session calls; there is no dispatcher-based bypass.
 - The PostToolUse hooks never modify files — they only report.
 - Every PostToolUse matcher covers both archcore tool namings — no hook silently dies when the MCP registration path changes.
@@ -435,10 +462,11 @@ PostToolUse handler running the precision lexicon, mandatory-sections, frontmatt
 - No hook denies a tool call for a reason unrelated to its own verdict. On a host where any non-zero exit denies, an unlocatable script yields exit 0 and a stderr warning.
 - Hook 4 (validation) and Hook 5 (cascade) fire independently on `update_document` — neither depends on the other.
 - SessionStart and PostToolUse hooks exit 0 regardless of outcome.
+- On a single-parse host, SessionStart's stdout is exactly one JSON document after progress lines are removed — in every combination of nudges and advisories, including all of them at once.
 - The PreToolUse block hook exits 0 (allow, or Copilot deny-JSON) or 2 (block) — never other codes.
 - The PreToolUse injection hook exits 0 — never other codes.
 - SessionStart never initiates a binary download (the plugin no longer has download logic; CLI lifecycle is the user's responsibility).
-- SessionStart emits the staleness warning at most once per 24h per project, and the update advisory at most once per 24h.
+- SessionStart emits the staleness warning at most once per 24h per project, the update advisory at most once per 24h, and the wiring advisory at most once per 24h per project.
 
 ## Error Handling
 
@@ -449,6 +477,8 @@ PostToolUse handler running the precision lexicon, mandatory-sections, frontmatt
 - If relation graph is empty for cascade check: produce no output (no cascade possible).
 - If the staleness timestamp file is missing, empty, or contains non-numeric data: treat as "never emitted" and run the check normally.
 - If `archcore update --check` fails, is unsupported, or the network is down: the advisory stays silent; no retry, no error surface.
+- If the CLI session-start payload is empty on a single-parse host: the buffered advisories become the document on their own.
+- If that payload is present but in a shape the flush cannot take apart: emit it unchanged and route the advisories to `progress` lines. Losing an advisory is recoverable; corrupting the session's context is not.
 - If the injection hook encounters any error (grep failure, malformed frontmatter, I/O error): exit 0 with empty output.
 - If a hook command cannot locate its script under any candidate plugin root: exit 0 with a stderr warning naming the script. Enforcement is off for that session, and the warning is the only thing distinguishing it from a clean one.
 - If a host's pre-mutation hook times out: on Copilot the write proceeds (fail-open) — mitigated by keeping both guards far inside budget rather than by relying on the host. Elsewhere the host's own timeout semantics apply. Observed per host as probe D in `host-probe-protocol.spec.md`.
@@ -457,8 +487,8 @@ PostToolUse handler running the precision lexicon, mandatory-sections, frontmatt
 
 The hooks system conforms to this specification if:
 
-1. Every host hooks config (`hooks.json`, `cursor.hooks.json`, `codex.hooks.json`, `copilot.hooks.json`) registers the six behaviors its host's event set supports, with dual tool naming wherever the host uses matchers. Documented per-host gaps (Cursor's `Write`-only matcher and absent postToolUse) are declared, not silent.
-2. `bin/session-start` guards against plugin-install cwd at any depth, emits an install message when `archcore` is missing, emits init guidance when `.archcore/` is missing, otherwise delegates to `archcore hooks`, then calls `bin/check-staleness` and the rate-limited update advisory.
+1. Every host hooks config (`hooks.json`, `cursor.hooks.json`, `codex.hooks.json`, `copilot.hooks.json`) registers the behaviors its host's event set supports, with dual tool naming wherever the host uses matchers. Documented per-host gaps (Cursor's `Write`-only matcher and absent postToolUse; Copilot's omitted context-only preToolUse entry) are declared and asserted by name, not silent.
+2. `bin/session-start` guards against plugin-install cwd at any depth, emits an install message when `archcore` is missing, emits init guidance when `.archcore/` is missing, otherwise delegates to `archcore hooks` and then runs, in order, the empty-state nudge, the Copilot wiring advisory, `bin/check-staleness`, the rate-limited update advisory, and the Copilot flush.
 3. `bin/check-archcore-write` blocks `.archcore/**/*.md` writes through each host's honored deny mechanism and allows everything else.
 4. `bin/check-code-alignment` injects top-ranked `.archcore/` context for source-file edits inside configured source roots, exits 0 on every code path, honors the `ARCHCORE_DISABLE_INJECTION=1` escape hatch, and keeps its cost independent of the match count.
 5. `bin/validate-archcore` runs `archcore doctor` directly (no launcher wrapper) for archcore MCP tool calls and is covered by the Test Contract above.
@@ -469,6 +499,7 @@ The hooks system conforms to this specification if:
 10. PostToolUse hooks complete within 3 seconds.
 11. SessionStart never initiates a binary download — the plugin contains no fetcher.
 12. Output formats follow each host's documented shape — `hookSpecificOutput` for Claude Code and Codex, flat `additional_context` for Cursor, top-level `additionalContext` and `permissionDecision` deny JSON for Copilot, plain text for OpenCode — all produced by the shared output helpers rather than by per-script string building.
-13. Delegated tool invocations are covered by Hooks 2 and 3 identically to main-session calls; no committed code contains a probe line (the harness in `test/probe/` wraps a copy — see `host-probe-protocol.spec.md`).
-14. Every script that invokes `archcore` passes only allowlisted subcommands; the contract is enforced by `test/structure/readme-cli-references.bats` and per-script invocation-log assertions.
-15. Each host's hook commands resolve their scripts under that host's documented load paths, verified by executing the command rather than by inspecting it — `test/structure/copilot-plugin.bats` runs Copilot's under `env -u` for the unresolved, single-candidate, and dead-candidate cases.
+13. On Copilot, SessionStart stdout parses as one JSON document after progress-line removal in every advisory combination, pinned by `test/unit/session-start-emit-matrix.bats`; non-copilot output is unchanged byte for byte, pinned by `test/unit/session-start-goldens.bats`.
+14. Delegated tool invocations are covered by Hooks 2 and 3 identically to main-session calls; no committed code contains a probe line (the harness in `test/probe/` wraps a copy — see `host-probe-protocol.spec.md`).
+15. Every script that invokes `archcore` passes only allowlisted subcommands; the contract is enforced by `test/structure/readme-cli-references.bats` and per-script invocation-log assertions.
+16. Each host's hook commands resolve their scripts under that host's documented load paths, verified by executing the command rather than by inspecting it — `test/structure/copilot-plugin.bats` runs Copilot's under `env -u` for the unresolved, single-candidate, and dead-candidate cases.

@@ -155,3 +155,24 @@ EOF
   assert_success
   assert_output --partial "impl.plan.md"
 }
+
+# --- Scratch file hygiene ---
+
+@test "leaves no scratch file behind in TMPDIR" {
+  # The relation loop is the right-hand side of a pipe, so its findings are
+  # staged in a file rather than a variable (a `case` inside `$( )` is a hard
+  # syntax error on macOS /bin/sh). A trap removes it — including on the
+  # SIGTERM a host sends when the 3s hook budget runs out. Without the trap
+  # every cascade left a file in /tmp for the life of the machine.
+  local scratch="$BATS_TEST_TMPDIR/scratch"
+  mkdir -p "$scratch"
+  create_sync_state '{"source":"impl.plan.md","target":"my.adr.md","type":"implements"}'
+
+  run sh -c "cd '$WORK_DIR' && printf '%s' '{\"tool_name\":\"mcp__archcore__update_document\",\"tool_input\":{\"path\":\"my.adr.md\"}}' | TMPDIR='$scratch' '${PLUGIN_ROOT}/bin/check-cascade'"
+  assert_success
+  assert_output --partial "impl.plan.md"
+
+  local leftovers
+  leftovers=$(find "$scratch" -name 'archcore_cascade_*' 2>/dev/null)
+  [ -z "$leftovers" ] || fail "check-cascade left scratch files behind: $leftovers"
+}

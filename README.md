@@ -61,19 +61,19 @@ codex
 # then run /plugins, open Archcore, select Install plugin
 ```
 
-**GitHub Copilot CLI** — installs straight from this repo's plugin subdirectory.
+**GitHub Copilot CLI** — two steps, both required. The plugin brings skills, commands, agents and hooks — but on Copilot it **cannot** bring the MCP server, so a project that skips step 2 has no document tools at all.
 
 ```bash
+# 1. Install the plugin (from this repo's plugin subdirectory)
 copilot plugin install archcore-ai/plugin:plugins/archcore
+
+# 2. Wire your project (registers the MCP server; run once per repo, commit the result)
+archcore init --agent copilot --project "$PWD"
 ```
 
 Copilot **CLI** only: VS Code agent mode has no self-serve plugin install, and cloud-agent sandboxes do not load plugin hooks.
 
-On Copilot the plugin brings skills, commands, agents and hooks — but not the MCP server. Copilot launches a plugin's MCP in the plugin's own directory rather than your project ([github/copilot-cli#4234](https://github.com/github/copilot-cli/issues/4234)), so documents would land in the plugin cache. Register it per project instead:
-
-```bash
-archcore init --agent copilot --project "$PWD"
-```
+Why step 2 is not optional: a plugin's MCP server is launched in the plugin install directory with no project path ([github/copilot-cli#4234](https://github.com/github/copilot-cli/issues/4234)), so it would serve the plugin cache rather than your repo. The plugin therefore ships no MCP server to Copilot at all, and the project-level one from step 2 is the only source of document tools. Archcore CLI ≥ v0.6.7 refuses to serve from a plugin cache by design, so the failure mode is loud rather than silent.
 
 <details>
 <summary>Local development & team rollouts</summary>

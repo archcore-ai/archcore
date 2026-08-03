@@ -97,7 +97,9 @@ make_fake_plugin() {
   # paths — e.g. a partially-extracted or foreign plugin's cache dir.
   mock_archcore "SHOULD-NOT-APPEAR"
   local fragment
-  for fragment in ".cursor/plugins" ".claude/plugins" ".codex/plugins" "plugins/cache"; do
+  for fragment in ".cursor/plugins" ".claude/plugins" ".codex/plugins" \
+    ".copilot/installed-plugins" ".copilot/installed-plugins/_direct" \
+    "plugins/cache"; do
     local dir="$BATS_TEST_TMPDIR/home/$fragment/some-plugin/abc123/deep/deeper"
     mkdir -p "$dir"
     cd "$dir"
@@ -106,6 +108,41 @@ make_fake_plugin() {
     [ -z "$output" ] \
       || fail "fragment '$fragment': expected silent exit, got: '$output'"
   done
+}
+
+@test "guard: custom COPILOT_HOME install is caught by layer 2, not layer 1" {
+  # A user who sets COPILOT_HOME moves the install cache outside every
+  # fragment path (no '.copilot/' in it). The manifest walk is what still
+  # covers hooks there — pinned so a walk regression can't hide behind the
+  # new fragment. (The CLI-side guard has no walk: that asymmetry is an
+  # accepted limitation recorded in copilot-mcp-architecture.adr.)
+  mock_archcore "SHOULD-NOT-APPEAR"
+  local root="$BATS_TEST_TMPDIR/copilot-home/installed-plugins/_direct/some-plugin"
+  mkdir -p "$root/.plugin" "$root/skills/init"
+  echo '{"name":"fake"}' > "$root/.plugin/plugin.json"
+  cd "$root/skills/init"
+
+  run sh -c "printf '%s' '{}' | ARCHCORE_HOST=copilot '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  [ -z "$output" ] || fail "expected layer-2 silent exit under custom COPILOT_HOME, got: '$output'"
+}
+
+@test "guard: dev-repo root with only a marketplace.json is NOT silenced" {
+  # Negative control for the walk's keying: it looks for plugin.json
+  # manifests specifically. A repo root that carries only a
+  # .claude-plugin/marketplace.json (this repo's own root layout) is a
+  # plugin DEVELOPER project and must keep its session context.
+  mock_archcore "CONTEXT-EMITTED"
+  local root="$BATS_TEST_TMPDIR/dev-repo"
+  mkdir -p "$root/.claude-plugin" "$root/.archcore"
+  echo '{"name":"catalog"}' > "$root/.claude-plugin/marketplace.json"
+  echo "x" > "$root/.archcore/keep"
+  cd "$root"
+
+  run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  [[ "$output" == *"CONTEXT-EMITTED"* ]] \
+    || fail "expected session context in a marketplace-only dev repo, got: '$output'"
 }
 
 @test "layer 2: manifest 11 levels above cwd is still caught by the walk" {

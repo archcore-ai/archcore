@@ -58,16 +58,21 @@ HOOKS_REL="hooks/copilot.hooks.json"
 # report success while documents land in ~/.copilot/installed-plugins/. MCP for
 # Copilot therefore comes from the project's own .mcp.json (written by
 # `archcore init --agent copilot`) or ~/.copilot/mcp-config.json — never from
-# this manifest. Same class of defect as cursor-mcp-architecture.adr; the
+# this plugin. Same class of defect as cursor-mcp-architecture.adr; the
 # reasoning lives in copilot-mcp-architecture.adr.
-@test "Copilot manifest does NOT ship plugin MCP" {
+#
+# Note what this test does NOT assert. Omitting the key was the original
+# defense and it does not work: with the key absent Copilot falls back to
+# reading .claude-plugin/plugin.json, and picks up the Claude-only server from
+# there. An empty declaration is the thing that stops the fallback. The full
+# three-part contract and the measurements behind it live in
+# test/structure/plugin-mcp-isolation.bats.
+@test "Copilot manifest ships no MCP servers of its own" {
   local manifest="$PLUGIN_ROOT/$MANIFEST_REL"
-  jq -e 'has("mcpServers") | not' "$manifest" > /dev/null \
-    || fail "mcpServers is back in the Copilot manifest — see github/copilot-cli#4234"
-
-  # The file itself must stay: Claude Code discovers plugin-root .mcp.json with
-  # no manifest key, and it is the same file archcore init writes into a repo.
-  [ -f "$PLUGIN_ROOT/.mcp.json" ]
+  jq -e 'has("mcpServers")' "$manifest" > /dev/null \
+    || fail "mcpServers is absent from the Copilot manifest — Copilot then reads .claude-plugin/plugin.json and adopts the Claude server"
+  [ "$(jq -r '.mcpServers | length' "$manifest")" = "0" ] \
+    || fail "the Copilot manifest contributes MCP servers — see github/copilot-cli#4234"
 }
 
 @test "every './'-relative path in the Copilot manifest resolves" {
@@ -138,7 +143,7 @@ HOOKS_REL="hooks/copilot.hooks.json"
 @test "every Copilot hook entry sets deterministic host detection" {
   local hooks="$PLUGIN_ROOT/$HOOKS_REL"
   jq -e '
-    ([.hooks[][]] | length) == 6 and
+    ([.hooks[][]] | length) == 5 and
     all(.hooks[][]; .type == "command" and .env.ARCHCORE_HOST == "copilot")
   ' "$hooks" > /dev/null
 }
@@ -195,13 +200,15 @@ command_script() {
   done < <(hook_commands)
 }
 
+# check-code-alignment is deliberately absent: its only output channel on this
+# host (preToolUse additionalContext) is not a field Copilot reads. See the
+# preToolUse tests below.
 @test "Copilot hook commands cover the shared bin scripts and nothing else" {
   local actual expected
   actual=$(hook_commands | grep -o 'bin/[a-z0-9_-]*' | sort -u)
   expected=$(printf '%s\n' \
     'bin/check-archcore-write' \
     'bin/check-cascade' \
-    'bin/check-code-alignment' \
     'bin/check-precision' \
     'bin/session-start' \
     'bin/validate-archcore' | sort)
@@ -275,17 +282,47 @@ command_script() {
   done < <(hook_commands)
 }
 
-@test "Copilot preToolUse covers every native mutation tool" {
+# Copilot's preToolUse accepts exactly three output fields — permissionDecision,
+# permissionDecisionReason and modifiedArgs (docs.github.com/en/copilot/
+# reference/hooks-reference). additionalContext is NOT among them, so a
+# preToolUse hook on this host can decide, but it cannot inform.
+#
+# check-archcore-write decides, and belongs here. check-code-alignment only
+# ever calls archcore_hook_pretool_info and returns 0 — on Copilot that output
+# is discarded by the host, so registering it would fork a process on every
+# single edit to produce nothing at all. It stays registered on hosts whose
+# preToolUse does carry context (see hooks/hooks.json, cursor, codex).
+#
+# If Copilot ever adds additionalContext to preToolUse, re-registering it here
+# is the whole change.
+@test "Copilot preToolUse registers only the hook that can act on this host" {
   local hooks="$PLUGIN_ROOT/$HOOKS_REL"
   local matcher="create|edit|str_replace_editor|apply_patch"
   jq -e --arg matcher "$matcher" '
-    (.hooks.preToolUse | length) == 2 and
+    (.hooks.preToolUse | length) == 1 and
     all(.hooks.preToolUse[];
       .matcher == $matcher and
       .timeoutSec == 1 and
-      (.bash | test("bin/check-(archcore-write|code-alignment)"))
+      (.bash | test("bin/check-archcore-write"))
     )
   ' "$hooks" > /dev/null
+}
+
+@test "Copilot does not register the context-only preToolUse hook" {
+  local hooks="$PLUGIN_ROOT/$HOOKS_REL"
+  ! jq -e '.hooks.preToolUse[]? | select(.bash | test("bin/check-code-alignment"))' "$hooks" > /dev/null \
+    || fail "check-code-alignment is registered on Copilot preToolUse, where its additionalContext output is discarded by the host"
+}
+
+@test "the context-only preToolUse hook stays registered on hosts that carry context" {
+  # Negative control for the test above: the removal must be Copilot-specific,
+  # not a quiet deletion of the feature everywhere.
+  local f
+  for f in hooks.json cursor.hooks.json codex.hooks.json; do
+    jq -e '[.. | strings | select(test("check-code-alignment"))] | length > 0' \
+      "$PLUGIN_ROOT/hooks/$f" > /dev/null \
+      || fail "check-code-alignment vanished from hooks/$f"
+  done
 }
 
 @test "Copilot postToolUse self-filters through all shared validation scripts" {

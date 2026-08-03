@@ -78,9 +78,13 @@ case "$ARCHCORE_HOST" in
     _event=$(_archcore_json_val "hook_event_name")
     _raw_tool=$(_archcore_json_val "tool_name")
     case "$_event" in
-      afterMCPExecution|beforeMCPExecution)
+      afterMCPExecution)
         # MCP events have bare tool names (create_document, update_document).
         # Normalize to mcp__archcore__ prefix so bin scripts work unchanged.
+        # Only afterMCPExecution is listed: hooks/cursor.hooks.json registers
+        # exactly sessionStart/preToolUse/afterMCPExecution (pinned by
+        # test/structure/hooks.bats), so no other MCP event can reach these
+        # scripts. Registering beforeMCPExecution means adding it here too.
         ARCHCORE_TOOL_NAME="mcp__archcore__${_raw_tool}"
         ;;
       *)
@@ -242,9 +246,19 @@ archcore_hook_pretool_info() {
       printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"%s"}}' "$_escaped"
       ;;
     copilot)
-      # preToolUse additionalContext is undocumented on Copilot; shape kept
-      # identical to the postToolUse arm so the entry can move events in the
-      # hooks config without a core change (contingency A in the plan).
+      # Copilot's preToolUse accepts exactly permissionDecision,
+      # permissionDecisionReason and modifiedArgs — additionalContext is not
+      # among them, so this output is inert on that host. It is no longer a
+      # guess: the hooks reference lists the supported fields per event.
+      #
+      # The shape is kept anyway, and stays identical to the postToolUse arm,
+      # for two reasons: the emit matrix requires every host to produce
+      # host-shaped output rather than fall through silently, and if Copilot
+      # ever accepts context here the only change needed is re-registering the
+      # hook. What changed instead is upstream of this function — no Copilot
+      # hook registers a context-only preToolUse script any more, so on that
+      # host this arm is unreachable in practice (see
+      # hooks/copilot.hooks.json and test/structure/copilot-plugin.bats).
       printf '{"additionalContext":"%s"}' "$_escaped"
       ;;
     cursor)

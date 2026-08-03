@@ -126,10 +126,14 @@ setup() {
   assert_line "TOOL=mcp__archcore__create_document"
 }
 
-@test "cursor beforeMCPExecution: bare tool gets mcp__archcore__ prefix" {
+@test "cursor: a non-registered MCP event leaves the bare tool name alone" {
+  # cursor.hooks.json registers afterMCPExecution and nothing else, so an
+  # event the config never asks for cannot reach a guard — and the normalizer
+  # does not pretend otherwise. If beforeMCPExecution is ever registered, the
+  # case arm in normalize-stdin.sh must list it and this test flips.
   run_normalizer '{"conversation_id":"x","hook_event_name":"beforeMCPExecution","tool_name":"update_document"}'
   assert_success
-  assert_line "TOOL=mcp__archcore__update_document"
+  assert_line "TOOL=update_document"
 }
 
 @test "cursor afterMCPExecution: extracts path from escaped tool_input" {

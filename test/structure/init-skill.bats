@@ -246,6 +246,30 @@ setup() {
     || fail "SKILL.md must keep the __UNKNOWN__ fallback the Copilot path depends on"
 }
 
+@test "init tells a copilot user to restart the session after wiring" {
+  # Wiring writes .mcp.json, which Copilot reads only at session start — so the
+  # session that just wired the repo still has no document tools. Told nothing,
+  # the user reads a green wiring report followed by an agent that cannot touch
+  # a single document as a broken plugin rather than a pending restart. No other
+  # host has this gap: their tools come from the plugin's own MCP server.
+  grep -qi 'restart the Copilot session' "$SKILL" \
+    || fail "SKILL.md closing message must tell a copilot user to restart the session after wiring"
+  # Same instruction, other channel. If session-start ever drops it, the two
+  # voices have diverged and this test says which one moved.
+  grep -qi 'restart the session' "$PLUGIN_ROOT/bin/session-start" \
+    || fail "bin/session-start no longer tells copilot users to restart — SKILL.md is now the only voice saying so"
+}
+
+@test "init verifies copilot wiring landed instead of trusting the cascade" {
+  # A wiring failure is a convenience loss everywhere else and a total loss of
+  # document tools here, discovered one session later. The skill therefore reads
+  # the artifact back rather than believing an exit code.
+  grep -qi 'verify the result instead of assuming' "$SKILL" \
+    || fail "SKILL.md Phase E must require reading copilot wiring back from disk"
+  grep -qF '<root>/.mcp.json' "$SKILL" \
+    || fail "SKILL.md must name the artifact the copilot check reads (<root>/.mcp.json)"
+}
+
 # The four hosts detect-host CAN return must stay in lockstep between the script's
 # contract and the skill's prose — a token added to one and not the other silently
 # routes a real session into the ask-fallback (or worse, an unmapped id).

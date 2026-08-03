@@ -65,8 +65,18 @@ script_basenames() {
       "$PLUGIN_ROOT/$file")
     echo "$entry_cmds" | grep -q 'bin/check-archcore-write' \
       || fail "$file: '$guard_event' must invoke bin/check-archcore-write; got: $entry_cmds"
-    echo "$entry_cmds" | grep -q 'bin/check-code-alignment' \
-      || fail "$file: '$guard_event' must invoke bin/check-code-alignment; got: $entry_cmds"
+    # check-code-alignment is context injection, not a guard, and Copilot's
+    # preToolUse has no field that carries context (only permissionDecision,
+    # permissionDecisionReason, modifiedArgs). Registering it there would fork
+    # per edit and emit into a channel the host discards, so that one host is
+    # exempt — by name, so no other host can lose it quietly.
+    if [ "$file" != "hooks/copilot.hooks.json" ]; then
+      echo "$entry_cmds" | grep -q 'bin/check-code-alignment' \
+        || fail "$file: '$guard_event' must invoke bin/check-code-alignment; got: $entry_cmds"
+    else
+      ! echo "$entry_cmds" | grep -q 'bin/check-code-alignment' \
+        || fail "$file: registers bin/check-code-alignment, whose output Copilot's preToolUse discards"
+    fi
     # The guard entry's matcher must cover every mutation tool of that host.
     guard_matcher=$(jq -r --arg e "$guard_event" \
       '.hooks[$e][] |
@@ -83,13 +93,21 @@ script_basenames() {
 }
 
 @test "host matrix: script-set parity with hooks.json" {
-  local canonical file actual
+  # One named exemption, for the reason spelled out in the write-guard test
+  # above: Copilot's preToolUse carries no context field, so the context-only
+  # script is not registered there. Every other difference on every other host
+  # still fails.
+  local canonical file actual expected
   canonical=$(script_basenames "$PLUGIN_ROOT/hooks/hooks.json")
   while IFS='|' read -r file _ _ _ _; do
     [ -z "$file" ] && continue
     actual=$(script_basenames "$PLUGIN_ROOT/$file")
-    [ "$actual" = "$canonical" ] || {
-      echo "canonical (hooks.json): $canonical"
+    expected="$canonical"
+    if [ "$file" = "hooks/copilot.hooks.json" ]; then
+      expected=$(printf '%s\n' "$canonical" | grep -v '^check-code-alignment$')
+    fi
+    [ "$actual" = "$expected" ] || {
+      echo "expected for $file: $expected"
       echo "$file: $actual"
       fail "$file references a different script set than hooks.json"
     }

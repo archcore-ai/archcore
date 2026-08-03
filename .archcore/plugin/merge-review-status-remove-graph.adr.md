@@ -1,6 +1,11 @@
 ---
 title: "Merge /archcore:status into /archcore:review and Remove /archcore:graph"
 status: accepted
+tags:
+  - "architecture"
+  - "commands"
+  - "plugin"
+  - "skills"
 ---
 
 ## Context

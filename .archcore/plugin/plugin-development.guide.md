@@ -163,7 +163,7 @@ See `plugin-testing.guide.md` for detailed testing instructions.
 - MCP availability: ensure `archcore` is on PATH and `archcore --version` works
 - For Codex: from a directory **outside** the plugin source repo (e.g., `cd $(mktemp -d)`), call any `mcp__archcore__*` tool and verify the MCP starts.
 - For Cursor: after copying `docs/cursor.mcp.example.json` into `.cursor/mcp.json`, open an empty project. `list_documents` should return empty (not the plugin's own dev docs). If it returns dev docs, the plugin-install-dir guards regressed — file an issue against this repo and `archcore-ai/cli`.
-- For Copilot: `copilot mcp list` must NOT show an `archcore` server contributed by the plugin. If it does, the manifest regressed or the host auto-discovers plugin-root `.mcp.json` — either way, capture it, because that question is unresolved from GitHub's own documentation (see `copilot-mcp-architecture.adr.md`).
+- For Copilot: `copilot mcp list` WILL show a plugin-contributed `archcore` server — settled 2026-08-03: the host auto-discovers plugin-root `.mcp.json` regardless of the manifest (see `copilot-mcp-architecture.adr.md`, update). Verify instead that this server **fails to start** with the plugin-cache guard error (CLI >= v0.6.7) and that the project-wired server from `.mcp.json` at the repo root is the one serving tools. A plugin server that starts and serves is the regression.
 - For Copilot: session start must NOT print `archcore: plugin root unresolved`. If it does, no candidate variable was injected and **every guard is silently disabled** for that session — capture which load path produced it, because that is the open question in `copilot-adapter-design.adr.md`.
 - Integrity check: `make verify`
 

@@ -197,15 +197,29 @@ hook_root_vars() {
   # The portable core is one set of scripts; a host that wires up a subset is a
   # host where some guard silently does not run. Paths are compared with the
   # plugin root resolved, so all four configs are directly comparable.
-  local host config vars scripts reference="" ref_host=""
+  #
+  # ONE exception is allowed, and only this one: Copilot omits
+  # bin/check-code-alignment. That script's entire job is to inject context from
+  # a preToolUse hook, and Copilot's preToolUse reads only permissionDecision,
+  # permissionDecisionReason and modifiedArgs — additionalContext is not a field
+  # it accepts, so the script could only ever fork and produce nothing. It is
+  # spelled out here rather than loosening the comparison, so any OTHER host
+  # dropping any OTHER script still fails loudly.
+  local host config vars scripts reference="" ref_host="" expected
   while IFS='|' read -r host config vars; do
     [ -n "$host" ] || continue
     scripts=$(hook_scripts "$config" | sort -u)
     if [ -z "$reference" ]; then
       reference="$scripts"
       ref_host="$host"
-    elif [ "$scripts" != "$reference" ]; then
-      echo "$ref_host scripts:"; echo "$reference"
+      continue
+    fi
+    expected="$reference"
+    if [ "$host" = copilot ]; then
+      expected=$(printf '%s\n' "$reference" | grep -v '/bin/check-code-alignment$')
+    fi
+    if [ "$scripts" != "$expected" ]; then
+      echo "expected for $host:"; echo "$expected"
       echo "$host scripts:"; echo "$scripts"
       fail "script sets differ between $ref_host and $host"
     fi

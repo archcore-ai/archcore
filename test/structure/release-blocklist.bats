@@ -80,7 +80,7 @@ is_stripped() {
 }
 
 @test "release.yml does not strip top-level MCP configs" {
-  ! is_stripped '\.mcp\.json' || fail ".mcp.json is in blocklist"
+  ! is_stripped '\.claude\.mcp\.json' || fail ".claude.mcp.json is in blocklist"
   ! is_stripped '\.codex\.mcp\.json' || fail ".codex.mcp.json is in blocklist"
 }
 

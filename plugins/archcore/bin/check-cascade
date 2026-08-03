@@ -30,6 +30,15 @@ RELATIONS=$(printf '%s' "$COMPACT" | grep -o '"source":"[^"]*","target":"[^"]*",
 
 [ -z "$RELATIONS" ] && exit 0
 
+# The loop runs in a subshell (right-hand side of a pipe), so its findings
+# come back through a file rather than a variable. Command substitution would
+# be the obvious replacement, but the loop body carries a `case`, and macOS
+# /bin/sh (bash 3.2) mis-parses a case pattern's `)` inside `$( )` as the end
+# of the substitution — the suite catches it as a hard syntax error. So: a
+# real temp file, under TMPDIR, removed by a trap that also fires when the
+# host kills the hook on a timeout.
+_CASCADE_TMP="${TMPDIR:-/tmp}/archcore_cascade_$$"
+trap 'rm -f "$_CASCADE_TMP"' EXIT INT TERM
 printf '%s\n' "$RELATIONS" | while IFS= read -r REL; do
   # Extract target
   TARGET=$(printf '%s' "$REL" | grep -o '"target"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"target"[[:space:]]*:[[:space:]]*"//;s/"$//')
@@ -48,10 +57,9 @@ printf '%s\n' "$RELATIONS" | while IFS= read -r REL; do
   SOURCE=$(printf '%s' "$REL" | grep -o '"source"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"source"[[:space:]]*:[[:space:]]*"//;s/"$//')
 
   printf '  → %s (%s this document)\n' "$SOURCE" "$TYPE"
-done > /tmp/archcore_cascade_$$ 2>/dev/null
+done > "$_CASCADE_TMP" 2>/dev/null
 
-AFFECTED=$(cat /tmp/archcore_cascade_$$ 2>/dev/null)
-rm -f /tmp/archcore_cascade_$$ 2>/dev/null
+AFFECTED=$(cat "$_CASCADE_TMP" 2>/dev/null)
 
 [ -z "$AFFECTED" ] && exit 0
 

@@ -11,7 +11,7 @@ JSON_FILES := .agents/plugins/marketplace.json .claude-plugin/marketplace.json .
               $(PLUGIN_REL)/.codex-plugin/plugin.json $(PLUGIN_REL)/.plugin/plugin.json $(PLUGIN_REL)/.codex.mcp.json \
               $(PLUGIN_REL)/hooks/hooks.json $(PLUGIN_REL)/hooks/cursor.hooks.json $(PLUGIN_REL)/hooks/codex.hooks.json \
               $(PLUGIN_REL)/hooks/copilot.hooks.json \
-              $(PLUGIN_REL)/.mcp.json docs/cursor.mcp.example.json
+              $(PLUGIN_REL)/.claude.mcp.json docs/cursor.mcp.example.json
 
 .PHONY: test test-unit test-structure test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
 

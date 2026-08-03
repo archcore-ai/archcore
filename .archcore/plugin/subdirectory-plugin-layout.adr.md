@@ -1,6 +1,10 @@
 ---
 title: "Plugin Content Relocated to plugins/archcore/ for Multi-Host Marketplace Discovery"
 status: accepted
+tags:
+  - "architecture"
+  - "multi-host"
+  - "plugin"
 ---
 
 ## Context

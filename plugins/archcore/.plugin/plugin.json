@@ -1,7 +1,7 @@
 {
   "name": "archcore",
   "description": "Make your AI agent code with your project's architecture, rules, and decisions.",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "author": {
     "name": "Archcore"
   },
@@ -10,5 +10,6 @@
   "hooks": "./hooks/copilot.hooks.json",
   "skills": "./skills/",
   "agents": "./copilot-agents/",
-  "commands": "./commands/"
+  "commands": "./commands/",
+  "mcpServers": {}
 }

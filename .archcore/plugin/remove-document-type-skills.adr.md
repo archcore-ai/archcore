@@ -1,6 +1,10 @@
 ---
 title: "Remove Document-Type Skills — Collapse Layer 3 into Intent and Track Skills"
 status: accepted
+tags:
+  - "architecture"
+  - "plugin"
+  - "skills"
 ---
 
 ## Context

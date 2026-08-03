@@ -3411,6 +3411,26 @@
       "source": "plugin/host-probe-protocol.spec.md",
       "target": "plugin/plugin-testing.guide.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/copilot-mcp-architecture.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/plugin-development.guide.md",
+      "target": "plugin/copilot-mcp-architecture.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/hooks-validation-system.spec.md",
+      "target": "plugin/precision-over-coverage.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/multi-host-implementation.plan.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "implements"
     }
   ]
 }

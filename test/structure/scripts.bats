@@ -58,17 +58,10 @@ setup() {
 }
 
 
-@test ".mcp.json ships at plugin root" {
-  [ -f "$PLUGIN_ROOT/.mcp.json" ]
-  grep -q '"archcore"' "$PLUGIN_ROOT/.mcp.json"
-}
-
-@test ".mcp.json command and args are correct" {
-  local file="$PLUGIN_ROOT/.mcp.json"
-  [ "$(jq -r '.mcpServers.archcore.command' < "$file")" = "archcore" ]
-  [ "$(jq -r '.mcpServers.archcore.args[0]' < "$file")" = "mcp" ]
-  [ "$(jq -r '.mcpServers.archcore.args | length' < "$file")" = "1" ]
-}
+# The Claude MCP config (.claude.mcp.json) and the manifest keys that keep it
+# reachable from Claude Code without leaking into Copilot are asserted in
+# test/structure/plugin-mcp-isolation.bats, which owns the whole three-part
+# contract and the host measurements behind it.
 
 @test ".codex.mcp.json command and args use direct server map" {
   local file="$PLUGIN_ROOT/.codex.mcp.json"

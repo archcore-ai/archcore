@@ -51,7 +51,8 @@ MOCK
   chmod +x "$MOCK_BIN/archcore"
 }
 
-# Create a mock archcore CLI that handles subcommands.
+# Create a mock archcore CLI that handles subcommands. `hooks` answers with
+# MOCK_HOOKS_OUTPUT; every other subcommand exits 0 silently.
 # If MOCK_ARCHCORE_LOG is set in the test, every invocation appends the FULL
 # argument list ("$*") to that file. Lets tests assert exactly how archcore
 # was called — subcommand AND flags (e.g. `update --check` vs a bare
@@ -61,7 +62,6 @@ mock_archcore_multi() {
 #!/bin/sh
 [ -n "$MOCK_ARCHCORE_LOG" ] && printf '%s\n' "$*" >> "$MOCK_ARCHCORE_LOG"
 case "$1" in
-  doctor) printf '%s\n' "$MOCK_DOCTOR_OUTPUT"; exit "${MOCK_DOCTOR_EXIT:-0}" ;;
   hooks)  printf '%s\n' "$MOCK_HOOKS_OUTPUT"; exit 0 ;;
   *)      exit 0 ;;
 esac

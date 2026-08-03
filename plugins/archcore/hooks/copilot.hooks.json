@@ -21,16 +21,6 @@
           "ARCHCORE_HOST": "copilot"
         },
         "timeoutSec": 1
-      },
-      {
-        "type": "command",
-        "matcher": "create|edit|str_replace_editor|apply_patch",
-        "cwd": ".",
-        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/check-code-alignment\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/check-code-alignment\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/check-code-alignment\" ] && exec \"$PLUGIN_ROOT/bin/check-code-alignment\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/check-code-alignment\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/check-code-alignment\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/check-code-alignment\" >&2; exit 0",
-        "env": {
-          "ARCHCORE_HOST": "copilot"
-        },
-        "timeoutSec": 1
       }
     ],
     "postToolUse": [

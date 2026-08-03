@@ -91,6 +91,92 @@ setup() {
   refute_output --partial "hookSpecificOutput"
 }
 
+@test "init nudge: copilot instructs project wiring, not the phantom MCP tool" {
+  # Day-one Copilot sessions have NO archcore MCP tools (the plugin cannot
+  # ship them there — copilot-mcp-architecture.adr), so pointing the agent at
+  # mcp__archcore__init_project is a dead instruction on exactly the host
+  # that needs the nudge most.
+  mock_archcore ""
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "printf '%s' '{}' | ARCHCORE_HOST=copilot '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "archcore init --agent copilot --project"
+  refute_output --partial "mcp__archcore__init_project"
+}
+
+@test "init nudge: copilot keeps the /archcore:init suffix and hide-nudge switch" {
+  # The suffix sentence is shared with every other host byte-for-byte — it is
+  # what skills/init/SKILL.md mirrors. The copilot fork replaces only the
+  # instruction body.
+  mock_archcore ""
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "printf '%s' '{}' | ARCHCORE_HOST=copilot '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "/archcore:init"
+
+  run sh -c "printf '%s' '{}' | ARCHCORE_HOST=copilot ARCHCORE_HIDE_EMPTY_NUDGE=1 '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "no .archcore/ directory"
+  refute_output --partial "/archcore:init"
+}
+
+@test "init nudge: copilot payload is one valid JSON document with the quoted wiring step" {
+  mock_archcore ""
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "printf '%s' '{}' | ARCHCORE_HOST=copilot '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  local decoded
+  decoded=$(printf '%s' "$output" | jq -re '.additionalContext') \
+    || fail "copilot init-nudge payload is not a single valid JSON document: '$output'"
+  [[ "$decoded" == *'archcore init --agent copilot --project "$PWD"'* ]] \
+    || fail "decoded additionalContext lost the quoted wiring step: '$decoded'"
+}
+
+@test "CLI-missing notice: copilot names the mandatory wiring step" {
+  # On Copilot the plugin ships no MCP server (copilot-mcp-architecture.adr),
+  # so installing the CLI alone is not enough — the notice must carry the
+  # project-wiring command or the user lands right back in a toolless session.
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "PATH='/usr/bin:/bin'; export PATH; ARCHCORE_HOST=copilot; export ARCHCORE_HOST; printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "archcore init --agent copilot --project"
+  assert_output --partial "restart the session"
+}
+
+@test "CLI-missing notice: copilot payload is one valid JSON document with the wiring step intact" {
+  # First escaping test of this arm: the wiring line carries literal double
+  # quotes ('--project "$PWD"', unexpanded by design — no env value leaks
+  # into the message), which MUST survive the inline JSON escaping.
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "PATH='/usr/bin:/bin'; export PATH; ARCHCORE_HOST=copilot; export ARCHCORE_HOST; printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  local decoded
+  decoded=$(printf '%s' "$output" | jq -re '.additionalContext') \
+    || fail "copilot CLI-missing payload is not a single valid JSON document: '$output'"
+  [[ "$decoded" == *'archcore init --agent copilot --project "$PWD"'* ]] \
+    || fail "decoded additionalContext lost the quoted wiring step: '$decoded'"
+}
+
+@test "CLI-missing notice: claude-code payload is one valid JSON document" {
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "PATH='/usr/bin:/bin'; export PATH; printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  printf '%s' "$output" | jq -e '.hookSpecificOutput.additionalContext' > /dev/null \
+    || fail "claude-code CLI-missing payload is not a single valid JSON document: '$output'"
+}
+
+@test "CLI-missing notice: copilot JSON stays valid from a hostile cwd" {
+  # The message is static, but the harness must not wobble when cwd carries
+  # quotes, spaces, percent signs, or non-ASCII.
+  local d="$BATS_TEST_TMPDIR/we\"ird %s тест dir"
+  mkdir -p "$d"
+  cd "$d"
+  run sh -c "PATH='/usr/bin:/bin'; export PATH; ARCHCORE_HOST=copilot; export ARCHCORE_HOST; printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  printf '%s' "$output" | jq -e '.additionalContext' > /dev/null \
+    || fail "copilot CLI-missing payload broke in a hostile cwd: '$output'"
+}
+
 @test "copilot: passes host arg to archcore hooks" {
   cat > "$MOCK_BIN/archcore" <<'MOCK'
 #!/bin/sh

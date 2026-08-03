@@ -1,6 +1,10 @@
 ---
 title: "Pre-Code Context Injection Hook Implementation Plan"
 status: accepted
+tags:
+  - "hooks"
+  - "plugin"
+  - "roadmap"
 ---
 
 ## Status — Realized (Phase 1, MVP)
