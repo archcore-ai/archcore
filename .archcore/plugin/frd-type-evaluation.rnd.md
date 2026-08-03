@@ -8,31 +8,31 @@ tags:
 
 ## Goal
 
-Test the hypothesis "prd is broad; smaller features would fit an frd (feature requirements document)" — maximally critically, with the null hypothesis "a new frd type is NOT justified".
+Test the hypothesis that `prd` is broad and that a smaller `frd` — a feature requirements document — would fit a smaller feature, as critically as possible, against the null hypothesis that a new `frd` type is not justified.
 
 ## Questions
 
 1. Is FRD an established artifact in any requirements standard or named practice?
-2. How do modern orgs and AI spec tools document small features vs full products?
-3. What would frd overlap with in Archcore's existing taxonomy, and what new failure modes would it introduce?
+2. How do organizations and AI spec tools document a small feature today, as opposed to a full product?
+3. What would `frd` overlap with in Archcore's existing taxonomy, and what new failure modes would it introduce?
 
 ## Approach
 
-Deep-research workflow (2026-07-08): 5 angles including a dedicated skeptical/term-legitimacy angle, 19 sources, 89 claims extracted, 25 verified with 3 adversarial votes — 20 confirmed unanimously (3-0), 5 refuted. Primary sources: IEEE 830 / ISO 29148 standard pages, IIBA Business Analysis Standard, SVPG (Cagan) essays, Shape Up, Linear, kiro.dev, github/spec-kit.
+Deep-research workflow on 2026-07-08 across 5 angles, one of them dedicated to skepticism and term legitimacy. It fetched 19 sources, extracted 89 claims, and verified 25 with 3 adversarial votes each: 20 were confirmed unanimously and 5 refuted. Primary sources were the IEEE 830 and ISO 29148 standard pages, the IIBA Business Analysis Standard, the SVPG essays by Cagan, Shape Up, Linear, kiro.dev, and github/spec-kit.
 
 ## Findings
 
-- **FRD exists in no standard.** IEEE 830's artifact is the SRS (functional requirements are a section inside it); its successor ISO 29148 defines exactly BRS/StRS/SyRS/SRS — the cascade Archcore already has. BABOK treats "functional requirements" as a classification, not a document, and names no FRD/PRD/BRD artifacts.
-- **No stable PRD-vs-FRD boundary to route on.** Cagan (primary source): PRD/MRD/BRD/FSD distinctions "merged and morphed and lost many of their original distinctions". Historical "FRD" = *Functional* Requirements Document — the waterfall functional-spec role that `spec`/`srs` already occupy.
-- **Industry solves "small feature" by varying scope and process weight of ONE artifact, never by a size-based type**: Kiro Quick Plan (same three files, no approval gates), Linear (scope threshold on one 1-2 page spec; below it, no artifact), Shape Up (pitch bounded by appetite — the structural inverse of an FRD).
-- **Overlap analysis — zero residual sections**: vs prd ~85-90% (delta is size only), vs spec ~50-60%, vs srs ~40% (a feature-scoped srs IS the ISO-track "frd"), vs plan ~30%, vs urd ~25-30%, vs idea ~15%.
-- **New failure modes if added**: prd-vs-frd routing hesitation (feature size is continuous), ISO-cascade confusion, split-brain requirements when a feature outgrows its frd, permanent token cost of one more type in every agent's routing context.
-- Honest counterpoint: Kiro/Spec Kit unify stories + requirements + acceptance criteria in one per-feature file where Archcore composes prd→spec→plan — a flow-composition question, not a type gap.
+- **FRD exists in no standard.** IEEE 830's artifact is the SRS, in which functional requirements are a section. Its successor ISO 29148 defines exactly the BRS, StRS, SyRS, and SRS cascade that Archcore already carries. BABOK treats functional requirements as a classification rather than a document, and names no FRD, PRD, or BRD artifact.
+- **No stable PRD-versus-FRD boundary exists to route on.** Cagan states as a primary source that the PRD, MRD, BRD, and FSD distinctions "merged and morphed and lost many of their original distinctions". The historical FRD is the *Functional* Requirements Document — the waterfall functional-spec role that `spec` and `srs` already occupy.
+- **Industry handles a small feature by varying the scope and process weight of one artifact, never by adding a size-based type.** Kiro's Quick Plan keeps the same three files and drops the approval gates. Linear applies a scope threshold to one spec of 1–2 pages and produces no artifact below it. Shape Up bounds a pitch by appetite, which is the structural inverse of an FRD.
+- **Overlap analysis leaves zero residual sections.** Against `prd` the overlap is roughly 85–90%, where the delta is size alone; against `spec` roughly 50–60%; against `srs` roughly 40%, since a feature-scoped `srs` *is* the ISO-track equivalent; against `plan` roughly 30%; against `urd` roughly 25–30%; and against `idea` roughly 15%.
+- **Adding the type would introduce four new failure modes:** routing hesitation between `prd` and `frd`, because feature size is continuous; confusion with the ISO cascade; split-brain requirements once a feature outgrows its `frd`; and the permanent token cost of one more type in every agent's routing context.
+- **Honest counterpoint.** Kiro and Spec Kit unify stories, requirements, and acceptance criteria in one per-feature file where Archcore composes `prd → spec → plan`. That is a flow-composition question rather than a type gap.
 
 ## Recommendation
 
-Do not add `frd` (high confidence, 20/20 unanimous claims). Instead: a scope rule on `prd` — size never changes type; a prd may cover a whole product or a single feature; compress (target ≤ 40 lines) rather than switch types; product-level prd links feature prds via relations — plus a feature-flow compression note ("vary the weight, never the types").
+Do not add `frd`, at high confidence on 20 of 20 unanimous claims. Encode granularity instead as a scope rule on `prd`: size never changes type; a `prd` may cover a whole product or a single feature; a feature-scoped `prd` compresses to a target of 40 lines or fewer rather than switching types; and a product-level `prd` links its feature-level children through relations. Add a feature-flow compression note stating that the weight varies and the types do not.
 
 ## Next Action
 
-Implemented: scope rule added to `skills/plan/references/product-flow.md` and `feature-flow.md`. Revisit only if dogfooding shows agents producing product-weight prds for small features despite the rule.
+Implemented. The scope rule was added to `skills/plan/references/product-flow.md` and `skills/plan/references/feature-flow.md`. Revisit only if dogfooding shows agents producing product-weight PRDs for small features despite the rule.

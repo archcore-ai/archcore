@@ -10,32 +10,25 @@ tags:
 
 ## Idea
 
-Promote OpenAI Codex CLI from "P2 / Future / TBD" to a first-class implemented host with Codex-native packaging: plugin-shipped MCP, hooks config, skills, slash command wrappers, and read-only auditor TOML.
+Promote OpenAI Codex CLI from "P2 / future / TBD" to a first-class implemented host with Codex-native packaging: plugin-shipped MCP, a hooks config, skills, slash-command wrappers, and a read-only auditor in TOML.
 
-Codex CLI v0.117.0+ (March 2026) introduced a plugin system with near 1:1 surface to Claude Code:
-
-- `.codex-plugin/plugin.json` manifest with component pointers (`skills`, `mcpServers`, `hooks`)
-- 6 hook events (SessionStart, PreToolUse, PermissionRequest, PostToolUse, UserPromptSubmit, Stop) — runtime execution uses `[features].hooks` (the old `codex_hooks` key is only a deprecated alias) and plugin hooks require user trust
-- MCP servers via plugin-shipped `.codex.mcp.json` referenced from the manifest (`mcpServers: "./.codex.mcp.json"`)
-- Skills as `skills/<name>/SKILL.md` directories — **already compatible with our SKILL.md files**
-- Subagents in TOML format with `sandbox_mode`, `developer_instructions`, `disabled_tools[]`
-- Marketplace install via `.agents/plugins/marketplace.json`
+Codex CLI v0.117.0, released in March 2026, introduced a plugin system with a near one-to-one surface to Claude Code: a `.codex-plugin/plugin.json` manifest with `skills`, `mcpServers`, and `hooks` pointers; six hook events — SessionStart, PreToolUse, PermissionRequest, PostToolUse, UserPromptSubmit, and Stop — whose runtime execution uses `[features].hooks`, with the older `codex_hooks` key surviving only as a deprecated alias, and whose plugin hooks require user trust; MCP servers through a plugin-shipped `.codex.mcp.json` referenced from the manifest; skills as `skills/<name>/SKILL.md` directories, already compatible with the plugin's existing files; subagents in TOML with `sandbox_mode`, `developer_instructions`, and `disabled_tools[]`; and marketplace install through `.agents/plugins/marketplace.json`.
 
 ## Value
 
-**Audience reach.** Codex CLI is the third major AI coding host. Adding it captures users who otherwise cannot install Archcore.
+**Audience reach.** Codex CLI was the third major AI coding host, so adding it captured users who otherwise could not install Archcore.
 
-**Architectural ROI.** The Multi-Host Plugin Architecture ADR was designed for exactly this: shared core (skills, agents, bin/) + per-host adapter layer (manifest, hooks, MCP). Codex reuses 100% of shared core; per-host adapter cost was ~5 small config files plus 16 thin `commands/*.md` slash command wrappers.
+**Architectural return.** `multi-host-plugin-architecture.adr` was designed for exactly this shape — a shared core of skills, agents, and `bin/` plus a per-host adapter of manifest, hooks, and MCP. Codex reused the entire shared core, and the adapter cost was about five small config files plus the thin `commands/*.md` wrappers.
 
-**Validates the multi-host investment.** Phases 1–5 of `multi-host-implementation.plan` paid off if adding the third host costs ~5 dev-days vs. weeks. Codex was the first real test of "low per-host cost" — port shipped in roughly that envelope.
+**Validation of the multi-host investment.** The earlier phases of `multi-host-implementation.plan` paid off only if a third host cost about 5 developer-days rather than weeks. Codex was the first real test of the low-per-host-cost claim, and the port shipped inside that envelope.
 
-## Outcome
+## Possible Implementation
 
-Shipped. Current Codex packaging is documented in:
+Shipped. The current packaging is documented in `codex-host-support.prd` for the functional requirements, `codex-host-support.plan` for the implementation phases, `codex-local-plugin-testing.guide` for the current contract covering `.codex.mcp.json`, `.codex-plugin/plugin.json`, `hooks/codex.hooks.json`, the command wrappers, and the marketplace, and `component-registry.doc` for the per-host config table.
 
-- `codex-host-support.prd` — functional requirements (F1–F10)
-- `codex-host-support.plan` — implementation phases
-- `codex-local-plugin-testing.guide` — current contract for `.codex.mcp.json`, `.codex-plugin/plugin.json`, `hooks/codex.hooks.json`, `commands/*.md`, marketplace
-- `component-registry.doc` — current per-host config table
+Two facts have moved since this idea was written. The wrapper count was 16 at the time and is 7 now, after `skill-surface-collapse.adr` collapsed the palette. And the MCP wiring went through two iterations: first the bundled launcher, with `./bin/archcore`, `cwd: "."`, and `env_vars: ["ARCHCORE_CWD"]`, then the simpler `command: "archcore"` resolved from PATH once the launcher was removed in v0.4.0. The current shape needs no `$CODEX_PLUGIN_DATA` cache extension, no plugin-relative path, and no shell wrapper.
 
-**CLI lifecycle note.** Codex MCP wiring went through two iterations: first via the bundled launcher (`./bin/archcore` with `cwd: "."` + `env_vars: ["ARCHCORE_CWD"]`), then simplified to `command: "archcore"` resolved via PATH when the launcher was removed in v0.4.0 (see `remove-bundled-launcher-global-cli.idea`). The current shape is the simpler PATH resolution — no `$CODEX_PLUGIN_DATA` cache extension, no plugin-relative paths, no shell wrapper.
+## Risks
+
+- Codex plugin hooks require per-hook user trust, so a hook can be present and silently inactive. `codex-local-plugin-testing.guide` documents `codex features enable plugin_hooks` as the diagnosis step.
+- [assumption] The near one-to-one surface with Claude Code could diverge in a future Codex release, which would raise the per-host adapter cost that this idea used to justify the port.

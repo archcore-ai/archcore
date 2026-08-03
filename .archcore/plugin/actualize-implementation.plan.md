@@ -8,152 +8,64 @@ tags:
   - "skills"
 ---
 
-> **Outcome (2026-05-15):** Plan executed. Layer 1 (`bin/check-staleness`) and Layer 2 (`bin/check-cascade`) shipped as designed. Layer 3 (deep analysis) shipped as the `--drift` mode of `/archcore:audit` rather than as a standalone `/archcore:actualize` intent skill, per `skill-surface-collapse.adr.md`. The drift-mode protocol lives at `skills/audit/lib/drift-detection.md`. All acceptance criteria below are met under the new naming.
+**Outcome (2026-05-15).** The plan was executed. Layer 1 as `bin/check-staleness` and Layer 2 as `bin/check-cascade` shipped as designed. Layer 3, the deep analysis, shipped as the `--drift` mode of `/archcore:audit` rather than as a standalone intent skill, per `skill-surface-collapse.adr`, with its protocol at `skills/audit/lib/drift-detection.md`. Every acceptance criterion below is met under that naming.
 
 ## Goal
 
-Implement the 3-layer Actualize system for documentation freshness detection as specified in the Actualize System ADR and Specification. Deliver all components: two new bin scripts (check-staleness, check-cascade), updated session-start script, updated hook configs, deep-analysis mode in the appropriate audit/inspection skill, and updated `/archcore:help` skill.
+Implement the three-layer freshness detection system specified by `actualize-system.adr` and `actualize-system.spec`, delivering two new bin scripts, an updated session-start script, updated hook configs, the deep-analysis mode inside the inspection skill, and an updated help skill.
 
 ## Tasks
 
-### Phase 1: Layer 1 — Passive Detection (SessionStart)
+### Phase 1 — Layer 1, passive detection at SessionStart
 
-**1.1 Create `bin/check-staleness`**
+**1.1 Create `bin/check-staleness`**, a POSIX shell script of roughly 50 lines that detects code-document drift through git. It checks that the working directory is a git repository; finds the last `.archcore/` commit and exits 0 when there is none, because the documents were never committed; diffs the non-`.archcore/` paths from that commit to HEAD and exits 0 when nothing changed; counts the changed files; greps each document for a directory reference from the changed set; and emits a formatted warning capped at 2 KB, rate-limited to once per 24 hours.
 
-New POSIX shell script that detects code-document drift via git.
+**1.2 Extend `bin/session-start`** by roughly 5 lines, calling `bin/check-staleness` after the successful `archcore hooks <host> session-start` line, so the staleness output is appended to the session context.
 
-Logic:
+### Phase 2 — Layer 2, reactive cascade detection at PostToolUse
 
-1. Check if in a git repo (`git rev-parse --git-dir`)
-2. Find last `.archcore/` commit: `git log -1 --format=%H -- .archcore/`
-3. If no commit → exit 0 (docs never committed)
-4. Find changed code files: `git diff --name-only $COMMIT..HEAD -- ':(exclude).archcore/'`
-5. If no changes → exit 0
-6. Count changed files
-7. For each `.archcore/*.md` document: grep for directory references from changed files
-8. Output formatted warning (max 2KB), rate-limited to once per 24 hours
+**2.1 Create `bin/check-cascade`**, a POSIX shell script of roughly 60 lines. It reads JSON from stdin; extracts the updated document path and exits 0 when extraction fails; queries the relation graph in `.archcore/.sync-state.json` for relations whose target matches that path and whose type is `implements`, `depends_on`, or `extends`; exits 0 when none match; extracts the document title from the tool result or the path; and emits the host context envelope listing the affected documents.
 
-Files: `bin/check-staleness` (new, ~50 lines)
+**2.2 Update the hook configs** by adding one post-mutation entry per host, matching `mcp__archcore__update_document` and invoking `bin/check-cascade` under the plugin-root variable with a 3-second timeout, in each host's hooks config.
 
-**1.2 Extend `bin/session-start`**
+### Phase 3 — Layer 3, deep analysis as the drift mode
 
-Add call to `bin/check-staleness` after the successful `archcore hooks <host> session-start` line. The staleness output is appended to the session context.
+**3.1 Move the drift protocol into the inspection skill.** Per `skill-surface-collapse.adr`, Layer 3 ships as `--drift`. The phase was originally scoped to a standalone skill; the same content — the routing table, the three-dimension analysis, and the assisted-fix flow — now lives at `skills/audit/lib/drift-detection.md` and loads on the flag.
 
-Files: `bin/session-start` (edit, ~5 lines added)
+The `audit` frontmatter carries `name: audit`, an argument hint of `[--deep] [--drift] [category, tag, or scope]`, and a description naming the dashboard, the deep coverage audit, and drift detection. The skill body carries the title and one-liner, a When to Use section with explicit anti-triggers for `capture` and `decide`, a routing table across the three modes, the per-mode execution, and the result. The drift steps load from the lib file and run in order: gather through `list_documents`, `list_relations`, and `git log`; apply the scope filter from the argument; analyze code-to-doc drift; analyze doc-to-doc cascade; analyze temporal staleness; report grouped by severity as critical, cascade, and temporal; and offer an assisted fix through `update_document`, one finding at a time.
 
-### Phase 2: Layer 2 — Reactive Cascade Detection (PostToolUse)
+### Phase 4 — integration updates
 
-**2.1 Create `bin/check-cascade`**
+**4.1** Update the help skill to document the three modes of `audit`.
 
-New POSIX shell script that detects cascade staleness after `update_document`.
+**4.2** Add a sixth audit dimension, code-document correlation, to the auditor agent, so the background auditor checks whether a document references a code path that has changed.
 
-Logic:
+### Phase 5 — validation
 
-1. Read JSON from stdin
-2. Extract `tool_input.path` (the updated document path)
-3. If extraction fails → exit 0
-4. Query relation graph via `.archcore/.sync-state.json`: find relations where target matches updated path and type is `implements`, `depends_on`, or `extends`
-5. If no matching relations → exit 0
-6. Extract document title from tool result or path
-7. Output JSON with `hookSpecificOutput.additionalContext` listing affected documents
+**5.1 Structural.** Verify that both new bin scripts are executable, that every host hook config carries the cascade matcher, that the drift lib file exists and is loaded by the audit skill, and that the skill count at plan completion is 7.
 
-Files: `bin/check-cascade` (new, ~60 lines)
+**5.2 Content.** Verify that `bin/check-staleness` exits 0 in every case, keeps output under 2 KB, and works without git; that `bin/check-cascade` exits 0 in every case, reads the sync state correctly, and emits valid JSON; that the audit skill carries all five sections and routes its three modes deterministically; and that the help skill lists all 7 commands.
 
-**2.2 Update hook configs**
-
-Add new PostToolUse entry for cascade detection across all hosts:
-
-```json
-{
-  "matcher": "mcp__archcore__update_document",
-  "hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/bin/check-cascade", "timeout": 3}]
-}
-```
-
-Files: `hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json` (edit)
-
-### Phase 3: Layer 3 — Deep Analysis (drift mode of audit)
-
-**3.1 Move drift protocol into the audit skill**
-
-Per `skill-surface-collapse.adr.md`, Layer 3 ships as the `--drift` mode of `/archcore:audit`. Originally this phase was scoped to a new `skills/actualize/SKILL.md`; the same content (routing table, 3-dimension analysis, assisted-fix flow) now lives at `skills/audit/lib/drift-detection.md` and is loaded by `skills/audit/SKILL.md` on `--drift`.
-
-Frontmatter for `audit`:
-
-- `name: audit`
-- `argument-hint: "[--deep] [--drift] [category, tag, or scope]"`
-- `description: "Audit Archcore docs: dashboard (counts, status, relations, orphans), deep coverage audit, or drift detection (code/cascade/temporal staleness)."`
-
-Content structure for the `audit` skill (drift portion):
-
-1. Title + one-liner
-2. When to Use (with explicit anti-trigger for capture / decide)
-3. Routing Table (default short / `--deep` / `--drift`)
-4. Execution (per mode) — drift mode steps loaded from `lib/drift-detection.md`:
-   - Step 1: Gather (list_documents + list_relations + git log)
-   - Step 2: Apply scope filter from $ARGUMENTS
-   - Step 3: Analyze Code→Doc drift
-   - Step 4: Analyze Doc→Doc cascade
-   - Step 5: Analyze Temporal
-   - Step 6: Report (grouped by severity: critical, cascade, temporal)
-   - Step 7: Assisted fix (offer update_document per finding, one at a time)
-5. Result
-
-Files: `skills/audit/SKILL.md`, `skills/audit/lib/drift-detection.md` (the latter holds what would have been Phase 3.1's standalone SKILL.md).
-
-### Phase 4: Integration Updates
-
-**4.1 Update `skills/help/SKILL.md`**
-
-Document the `audit` skill's three modes (default short, `--deep`, `--drift`).
-
-**4.2 Update `agents/archcore-auditor.md`**
-
-Add a 6th audit dimension: "Code-Document Correlation" — check if documents reference code paths that have changed. This enhances the background auditor to include drift detection when spawned.
-
-### Phase 5: Validation
-
-**5.1 Structural validation**
-
-- Verify `bin/check-staleness` and `bin/check-cascade` are executable
-- Verify every host hook config has the cascade matcher
-- Verify `skills/audit/lib/drift-detection.md` exists and is loaded by `skills/audit/SKILL.md`
-- Count at plan completion (under `skill-surface-collapse.adr.md`): 7 skills total (`init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`)
-
-**5.2 Content validation**
-
-- `bin/check-staleness`: exits 0 in all cases, output < 2KB, works without git
-- `bin/check-cascade`: exits 0 in all cases, reads sync-state.json correctly, outputs valid JSON
-- `skills/audit/SKILL.md`: has all 5 sections, three modes routed deterministically
-- `skills/help/SKILL.md`: lists all 7 commands
-
-**5.3 Integration validation**
-
-- `bin/session-start` calls `bin/check-staleness` after context loading
-- Every host hook config's cascade matcher fires only on `update_document`
-- No existing hook behavior is broken
+**5.3 Integration.** Verify that `bin/session-start` calls the staleness check after context loading, that each host's cascade matcher fires only on `update_document`, and that no existing hook behavior breaks.
 
 ## Acceptance Criteria
 
-- [x] `bin/check-staleness` produces code-drift warnings when `.archcore/` is behind code changes
-- [x] `bin/check-staleness` exits cleanly with no output when no drift or git unavailable
-- [x] `bin/session-start` includes staleness check output in session context
-- [x] `bin/check-cascade` produces cascade warnings after `update_document` when dependents exist
-- [x] `bin/check-cascade` exits cleanly with no output when no cascade
-- [x] Every host hook config registers `check-cascade` on `update_document`
-- [x] `/archcore:audit --drift` exists with routing, 3-dimension analysis, and assisted fix
-- [x] `/archcore:help` lists all 7 primary commands including `audit`
-- [x] `archcore-auditor` includes code-doc correlation dimension
-- [x] All bin scripts are POSIX shell compatible and exit 0
-- [x] All bin scripts degrade gracefully when git or CLI is unavailable
-- [x] Total skill directory count at plan completion: 7 (per `skill-surface-collapse.adr.md`)
+- [x] `bin/check-staleness` produces a code-drift warning when `.archcore/` is behind the code changes.
+- [x] `bin/check-staleness` exits cleanly with no output when there is no drift or git is unavailable.
+- [x] `bin/session-start` includes the staleness output in the session context.
+- [x] `bin/check-cascade` produces a cascade warning after `update_document` when a dependent exists.
+- [x] `bin/check-cascade` exits cleanly with no output when there is no cascade.
+- [x] Every host hook config registers the cascade script on `update_document`.
+- [x] `/archcore:audit --drift` exists with routing, the three-dimension analysis, and the assisted fix.
+- [x] The help skill lists all 7 primary commands, including `audit`.
+- [x] The auditor agent includes the code-document correlation dimension.
+- [x] Every bin script is POSIX shell compatible and exits 0.
+- [x] Every bin script degrades gracefully when git or the CLI is unavailable.
+- [x] The skill directory count at plan completion is 7.
 
 ## Dependencies
 
-- Actualize System ADR (accepted) — architectural decision
-- Actualize System Specification (accepted) — detailed contract
-- Hooks and Validation System Specification — extended hook contract
-- Plugin Architecture Specification — intent skills, hooks
-- Skills System Specification — intent skills
-- Commands System Specification — `audit` in the 7-command surface
-- `skill-surface-collapse.adr.md` — the decision that folded Layer 3 into the `audit` skill as `--drift`
+- `actualize-system.adr` for the architectural decision and `actualize-system.spec` for the detailed contract.
+- `hooks-validation-system.spec` for the extended hook contract.
+- `plugin-architecture.spec`, `skills-system.spec`, and `commands-system.spec` for the intent skills, the hooks, and the command surface.
+- `skill-surface-collapse.adr`, the decision that folded Layer 3 into the audit skill.

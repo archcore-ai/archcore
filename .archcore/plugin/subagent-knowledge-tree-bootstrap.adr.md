@@ -9,80 +9,58 @@ tags:
 
 ## Context
 
-Sub-agents (`archcore-assistant`, `archcore-auditor`) are spawned via the Task tool and do NOT receive the `SessionStart` additional context that the main conversation gets. The main session starts with a loaded knowledge tree (document inventory, tags, relation count) injected by the session-start hook; sub-agents start blind.
+Sub-agents (`archcore-assistant`, `archcore-auditor`) are spawned through the Task tool and do not receive the `SessionStart` additional context the main conversation gets, so the main session starts with a loaded knowledge tree — document inventory, tags, relation count — while a sub-agent starts blind. Before this decision nothing in either agent's system prompt made loading that tree a mandatory first step: a well-behaved agent often called `list_documents` early, but that was emergent behavior rather than contract. The JTBD-versus-implementation audit in `jtbd-alignment-analysis.idea` identified the gap as the cheapest lever on the critical path of JTBD #1, making a feature without breaking the repository's logic, and JTBD #2, continuing work without re-explaining the project, whenever work is delegated.
 
-Before this decision, nothing in either agent's system prompt made loading the knowledge tree a mandatory first step. A well-behaved agent would often call `list_documents` early, but this was emergent behavior, not contract. Consequences observed or predicted:
+## Observed and predicted gaps
 
-- Near-duplicate documents when the sub-agent proposes creating an ADR/spec that already exists
-- Orphaned documents when the sub-agent creates new content without linking to existing related docs
-- Per-document audits from `archcore-auditor` that miss graph-level problems (orphans, broken chains, coverage gaps)
+- Near-duplicate documents, when a sub-agent proposes an ADR or spec that already exists.
+- Orphaned documents, when a sub-agent creates content without linking it to existing related documents.
+- Per-document audits from `archcore-auditor` that miss graph-level problems — orphans, broken chains, coverage gaps.
 
-The JTBD-vs-implementation audit in `jtbd-alignment-analysis.idea` identified this as the cheapest lever on the critical path of JTBD #1 ("make a feature without breaking the repo's logic") and JTBD #2 ("continue work without re-explaining the project") whenever work is delegated to a sub-agent.
-
-A complicating factor: `remove-skill-verify-mcp-preamble.cpat` (accepted) explicitly removed a similar-looking "Step 0: Verify MCP" preamble from every SKILL.md file because MCP is always available under the bundled CLI launcher and the block was dead code. A future cleanup pass could read the new sub-agent preamble and delete it by analogy, re-introducing the original problem. The decision record here must establish the boundary explicitly.
+A complicating factor shaped the record itself: `remove-skill-verify-mcp-preamble.cpat` removed a similar-looking "Step 0: Verify MCP" preamble from every `SKILL.md`, so a future cleanup pass could read the new sub-agent preamble and delete it by analogy, reintroducing the original problem. This decision therefore states the boundary explicitly.
 
 ## Decision
 
-Every sub-agent invocation MUST bootstrap the knowledge tree as its first action. Both `agents/archcore-assistant.md` and `agents/archcore-auditor.md` carry a `# First Step — Bootstrap Knowledge Tree` section at the top of the system prompt that mandates parallel calls to `list_documents` and `list_relations` before any domain action.
+Every sub-agent invocation MUST bootstrap the knowledge tree first: both `agents/archcore-assistant.md` and `agents/archcore-auditor.md` carry a `# First Step — Bootstrap Knowledge Tree` section at the top of the system prompt mandating parallel `list_documents` and `list_relations` calls before any domain action, followed immediately by a synthesis of the categories present, the most common tags, recent accepted decisions, and any draft plans.
 
-Immediately after the bootstrap calls return, the sub-agent MUST note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding with the user's task. This synthesis step is advisory output-shaping — it uses only data already returned by the two bootstrap calls and adds no new tool calls. It mirrors the situational summary the main session receives from `SessionStart`.
+The synthesis step is output-shaping: it uses only data the two bootstrap calls already returned and adds no tool call, mirroring the situational summary the main session receives from `SessionStart`. The implementation is Option A from `subagent-knowledge-tree-preload.idea` — a prompt preamble — chosen because it is host-portable, ships in a small diff, and keeps the agent's view live with no cache-staleness concern.
 
-Implementation: Option A from `subagent-knowledge-tree-preload.idea` — prompt preamble. Not Option B (snapshot injection) because that requires host-specific plumbing (no sub-agent-start hook exists on Claude Code; Cursor's surface differs) and couples invocation logic to host capabilities. Option A is host-portable, ships in a small diff, and keeps the agent's view live (no cache-staleness concern).
+Scope of the mandate: `archcore-assistant` requires both calls, with a narrow exception for a strictly single-document read at an explicit path, where `get_document` alone is acceptable; `archcore-auditor` requires both calls with no exception, because an audit without the full graph produces incomplete findings.
 
-Scope of the mandate:
-
-- **archcore-assistant**: both calls required; narrow exception for strictly single-document reads with explicit paths (e.g., "show me `.archcore/auth/jwt.adr.md`") where `get_document` alone is acceptable.
-- **archcore-auditor**: both calls required, no exceptions — audits without the full graph produce incomplete findings.
-
-Enforcement: `test/structure/agents.bats` asserts the preamble section, both tool names, the cross-reference to this ADR, and the synthesis directive anchor are present in both agent files.
-
-This decision is distinct from, and does not conflict with, `remove-skill-verify-mcp-preamble.cpat`. The cpat removed an *availability check* preamble from SKILL.md files used inside the main session (where MCP is always available and `SessionStart` already loaded the tree). This ADR adds a *knowledge bootstrap* preamble to agent files used in sub-agent sessions (where MCP is still available, but the tree has not been loaded because `SessionStart` did not fire for the sub-agent). Different surface, different problem, different rationale — the two are not redundant and the sub-agent preamble must not be removed by analogy.
+This decision does not conflict with `remove-skill-verify-mcp-preamble.cpat`. That pattern removed an *availability check* from `SKILL.md` files used inside the main session, where MCP is always available and `SessionStart` already loaded the tree. This one adds a *knowledge bootstrap* to agent files used in sub-agent sessions, where MCP is still available but the tree was never loaded because `SessionStart` did not fire. Different surface, different problem, different rationale — and the sub-agent preamble must not be removed by analogy.
 
 ## Alternatives Considered
 
-### Option B — Snapshot injection at Task dispatch time
-
-Extend `archcore hooks <host>` with a `subagent-start` sub-command that emits the same payload as `session-start`, and wrap Task-tool invocation so the snapshot is prepended to the sub-agent's system prompt. Zero tool-calls overhead at runtime.
-
-Rejected as the initial implementation because Claude Code has no documented sub-agent-start hook surface; any injection mechanism would require either a plugin-level wrapper (brittle) or upstream host changes (uncontrolled). Cursor's sub-agent lifecycle is distinct and would need its own adapter. The cost of correctness across hosts exceeds the value for a problem that Option A solves adequately. Kept on the table as a future optimization if tool-call overhead from Option A becomes a measurable issue at scale.
-
-### Option C — Hybrid
-
-Ship Option A now; add Option B later once host support matures. Formally adopted as the rollout strategy — this ADR implements the "A" portion, with "B" deferred until a sub-agent lifecycle hook exists on at least Claude Code.
-
-### Status quo — rely on emergent behavior
-
-Rejected. The JTBD audit showed concrete gaps where sub-agents produce worse outcomes than the main session because of the missing context. Emergent behavior is not a contract and cannot be enforced by tests.
-
-### Cache the snapshot as a file, have sub-agents Read it
-
-Rejected. File-based caching introduces invalidation problems when the main session mutates the tree during the sub-agent's lifetime. Option A sidesteps this because `list_documents` and `list_relations` are always live.
+1. **Option B — snapshot injection at Task dispatch time**, extending `archcore hooks <host>` with a `subagent-start` sub-command emitting the same payload as `session-start`, and wrapping the Task tool so the snapshot is prepended to the sub-agent's system prompt at zero runtime tool-call cost — rejected as the initial implementation because Claude Code documents no sub-agent-start hook surface, so any injection would need a brittle plugin-level wrapper or uncontrolled upstream host changes, and Cursor's distinct sub-agent lifecycle would need its own adapter. Kept on the table as a future optimization.
+2. **Option C — hybrid**, shipping Option A now and adding Option B once host support matures — formally adopted as the rollout strategy. This decision implements the A portion, with B deferred until a sub-agent lifecycle hook exists on at least Claude Code.
+3. **Status quo, relying on emergent behavior** — rejected because the JTBD audit showed concrete gaps where sub-agents produce worse outcomes than the main session, and emergent behavior is neither a contract nor testable.
+4. **Cache the snapshot as a file and have sub-agents read it** — rejected because file-based caching introduces invalidation problems when the main session mutates the tree during the sub-agent's lifetime, which Option A sidesteps because both calls are always live.
 
 ## Consequences
 
-### Positive
+- Sub-agents start from the same baseline as the main session, removing the asymmetry where delegated work produced worse outcomes than direct work.
+- [expected] Near-duplicate document risk drops, because the sub-agent sees existing documents on turn one.
+- [expected] The orphaned-document rate drops, because the sub-agent sees the relation graph and can link new content to existing nodes.
+- `archcore-auditor` findings gain graph-level coverage — orphans, broken chains, coverage gaps — without changing the audit dimensions.
+- The `pre-code-context-injection.idea` rollout is unblocked, because that hook's value in a sub-agent session depends on the sub-agent already holding the tree structure that contextualizes each injection.
+- The synthesis directive closes the remaining asymmetry: the main session receives a pre-distilled SessionStart summary, and sub-agents now derive the equivalent from their bootstrap calls.
+- Tradeoff: two additional tool calls open every sub-agent invocation. For a narrow single-read task this is overhead, partially mitigated by the `archcore-assistant` exception.
+- Tradeoff: the preamble adds about 20 lines to each system prompt.
+- Tradeoff: bootstrap token cost scales with knowledge-base size. At the repository's state when this was decided — about 35 documents and 646 relations — the payload is small; at 10× scale it could be meaningful, and the mitigation path is Option B.
+- Tradeoff: the synthesis directive relies on model compliance. Structural tests verify only that the prompt text is present, not that the agent produces the summary. The escalation path is a richer template or the Option B snapshot.
+- Tradeoff: a future cleanup could remove the preamble by analogy with the CPAT. Mitigated by the explicit cross-reference in both the preamble text and this record.
 
-- Sub-agents start with the same baseline the main session has, eliminating the asymmetry where delegated work produces worse outcomes than direct work.
-- Near-duplicate document risk drops because the sub-agent sees existing documents on turn one.
-- Orphaned-document rate drops because the sub-agent sees the relation graph and can link new content to existing nodes.
-- `archcore-auditor` findings gain graph-level coverage (orphans, broken chains, coverage gaps) without changing the auditor's audit dimensions.
-- Unblocks the `pre-code-context-injection.idea` rollout — that hook injects per-edit constraints, but its value in sub-agent sessions depends on the sub-agent already having the tree structure to contextualize each injection.
-- Synthesis directive closes the remaining asymmetry versus the main session: the main session receives a pre-distilled SessionStart summary; sub-agents now synthesize the equivalent from their bootstrap calls.
+## Constraints
 
-### Negative
+1. Both agent files MUST carry a `# First Step — Bootstrap Knowledge Tree` section as the first content section after the YAML frontmatter.
+2. That section MUST name both `list_documents` and `list_relations`.
+3. That section MUST direct the agent to note categories, common tags, recent accepted decisions, and draft plans after the two calls return, with the anchor literal `recent accepted decisions` present in both files.
+4. That section MUST cross-reference `remove-skill-verify-mcp-preamble.cpat`, explaining why removal by analogy is wrong.
+5. That section MUST cross-reference this decision.
+6. `@test/structure/agents.bats` MUST assert all five strings — `First Step — Bootstrap Knowledge Tree`, `list_documents`, `list_relations`, `subagent-knowledge-tree-bootstrap.adr`, and `recent accepted decisions` — in both agent files.
+7. A removal or structural change to the preamble MUST go through an update to this record rather than an ad-hoc edit.
 
-- Two additional tool calls at the start of every sub-agent invocation. For narrow tasks (single read) this is overhead; the explicit exception for `archcore-assistant` partially mitigates.
-- The preamble adds ~20 lines to each agent's system prompt. Negligible token cost; trivial maintenance.
-- Token cost of the bootstrap scales with knowledge-base size. At ~35 documents and 646 relations in this repo (current state), the payload is small. At 10× scale the payload could be meaningful — mitigation path: switch to Option B at that point.
-- Synthesis directive relies on LLM compliance; structural tests only verify the prompt text is present, not that the agent actually produces the summary. Escalation path (richer template or Option B snapshot) is available if drift is observed.
-- Future risk of cleanup-by-analogy with `remove-skill-verify-mcp-preamble.cpat`. Mitigated by explicit cross-reference in both the preamble text and in this ADR.
+## Superseded when
 
-### Constraints
-
-- Both agent files MUST carry a `# First Step — Bootstrap Knowledge Tree` section as the first content section after the YAML frontmatter.
-- The section MUST reference both `list_documents` and `list_relations` by name.
-- The section MUST include a directive to note categories, common tags, recent accepted decisions, and draft plans after the two bootstrap calls return. The anchor literal `recent accepted decisions` must appear in both agent files.
-- The section MUST include a cross-reference to `remove-skill-verify-mcp-preamble.cpat` explaining why removal by analogy is wrong.
-- The section MUST include a cross-reference to this ADR.
-- `test/structure/agents.bats` MUST assert all five strings (`First Step — Bootstrap Knowledge Tree`, `list_documents`, `list_relations`, `subagent-knowledge-tree-bootstrap.adr`, `recent accepted decisions`) are present in both agent files.
-- Removal or structural changes to the preamble MUST go through an ADR update, not an ad-hoc edit.
+- Claude Code ships a documented sub-agent-start hook surface, which would make Option B implementable and remove the two runtime tool calls.
+- Bootstrap payload size measured on a real knowledge base exceeds the sub-agent's useful context budget, which would force Option B regardless of host support.

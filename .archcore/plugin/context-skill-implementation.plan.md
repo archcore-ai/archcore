@@ -8,154 +8,73 @@ tags:
   - "skills"
 ---
 
-## Status — Realized (Phase 1)
+**Status — realized, Phase 1.** Shipped in commit `3dccbd5` at plugin version 0.3.0. Delivered: `skills/context/SKILL.md` as the pull-mode skill with its scope classifier across path, topic, and pickup, plus guide routing, a top-5 cap per group, and a classification footer; anti-trigger bullets in the sibling skills; README hero copy aligned with a `/context` demo prompt added; and the CLI `search_documents` MCP tool consumed by the skill, having shipped earlier in CLI 0.1.7. The push counterpart shipped separately and is recorded in `pre-code-hook-implementation.plan`; together they close the JTBD #1 repo-alignment gap.
 
-> **Outcome (2026-05-15):** Shipped. The `context` skill survived the subsequent `skill-surface-collapse.adr.md` consolidation and remains one of the 7 visible commands. The sibling anti-trigger updates below were obsoleted when those siblings were merged or removed: `review` and `actualize` merged into `audit`; `standard` merged into `decide`'s continuation chain; `bootstrap` renamed to `init`.
+**Naming note.** The `context` skill survived the later `skill-surface-collapse.adr` consolidation and remains one of the 7 visible commands, but several siblings did not. Read every `/archcore:review` below as `/archcore:audit`, `/archcore:review --deep` as `/archcore:audit --deep`, `/archcore:actualize` as `/archcore:audit --drift`, `/archcore:standard` as `/archcore:decide`, and `/archcore:bootstrap` as `/archcore:init`. `/archcore:status` had already become the default short mode of the inspection skill and `/archcore:graph` had already been removed by `merge-review-status-remove-graph.adr`.
 
-Shipped in commit `3dccbd5` (feat: new skill context), plugin version 0.3.0.
+**Reference-section note (2026-05-20).** Step 3 grouping in the skill gained a **Reference** section surfacing `doc`, `rfc`, and any orphan `guide` — a guide present in the search results but not inlined under a rule, ADR, or spec by the Step 4 routing. This closed a gap where the most relevant content match could be dropped silently because its type was outside the original allow-list, which was observed when a `doc` topped relevance for a topic query and never reached the output. Read the acceptance criterion naming the rule, adr, spec, and cpat groups as including a Reference group as well.
 
-Delivered:
-
-- `skills/context/SKILL.md` — pull-mode skill with scope classifier (path / topic / pickup), guide-routing, top-5 per group, classification footer.
-- Anti-trigger bullets added to sibling skills (capture, decide, plan, audit) — original list of 6 has been consolidated as those skills merged.
-- README hero copy aligned; `/context` demo prompt added to "Try these 3 prompts first".
-- CLI `search_documents` MCP tool consumed by the skill (shipped earlier in CLI 0.1.7).
-
-The push counterpart (`bin/check-code-alignment`) shipped separately in commit `87d384c` — see `pre-code-hook-implementation.plan.md`. Together they close the JTBD #1 repo-alignment gap (pull + push).
-
-Deferred (non-blocking, tracked here for follow-up):
-
-- Snapshot tests with fixture `.archcore/` repos under `tests/fixtures/context/`.
-- CLI MCP-instructions nudge to steer models toward the skill when appropriate.
-- `/archcore:align` push-mode command — **superseded** by the shipped hook + /context skill. See `code-alignment-intent-skill.idea.md` (rejected).
-
-> **Note (post-merge cleanup, 2026-05-07):** This plan originally referenced `/archcore:status` and `/archcore:graph` in its routing matrix and anti-regression checklist. Both were removed/merged (see `merge-review-status-remove-graph.adr.md`): `/archcore:status` became the default short mode of `/archcore:review`; `/archcore:graph` was deleted entirely.
-
-> **Note (skill-surface-collapse cleanup, 2026-05-15):** `/archcore:review` was subsequently merged into `/archcore:audit` and `/archcore:actualize` was folded into `/archcore:audit --drift` (see `skill-surface-collapse.adr.md`). References below to `/archcore:review`, `/archcore:review --deep`, `/archcore:actualize`, `/archcore:standard`, and `/archcore:bootstrap` should be read as their successors: `audit` (default), `audit --deep`, `audit --drift`, `decide`, and `init` respectively.
-
-> **Note (Reference section, 2026-05-20):** Step 3 grouping in `skills/context/SKILL.md` extended with a **Reference** section that surfaces `doc`, `rfc`, and orphan `guide` (any guide present in search results but not inlined under a rule/ADR/spec via Step 4's `implements`/`related` routing). This closes a gap where the most relevant content match could be silently dropped because its type wasn't in the original allow-list — observed when a `doc` topped relevance for a topic query but never reached the rendered output. Acceptance criterion below ("rule+adr+spec+cpat groups") should be read as including a Reference group in addition; post-merge smoke tests gained a `doc`/`rfc`/orphan-guide repro.
+**Deferred and non-blocking.** Snapshot tests with fixture repositories under `tests/fixtures/context/`; a CLI MCP-instructions nudge steering models toward the skill; and the `/archcore:align` push command, which is superseded by the shipped hook and this skill, recorded as rejected in `code-alignment-intent-skill.idea`.
 
 ## Goal
 
-Ship `/archcore:context` as the user-facing pull-mode entry point for JTBD #1 ("repo-alignment at coding time"), backed by the CLI's `search_documents` MCP tool. Close the JTBD-implementation gap for on-demand code-area lookup and session pickup, without touching PreToolUse hooks (deferred to Phase 2).
+Ship `/archcore:context` as the user-facing pull-mode entry point for JTBD #1, repo alignment at coding time, backed by the CLI's `search_documents` MCP tool. Close the implementation gap for on-demand code-area lookup and session pickup without touching the pre-mutation hooks, which are deferred to Phase 2.
 
-Scope: plugin repo only. CLI side is complete (`search_documents` tool landed with 27 green tests — path_ref/content filters, sort="relevance"|"mtime" in Go, manifest relation enrichment, lazy body load, UTF-8 safe excerpts, URL-reject regex heuristic).
+Scope is the plugin repository only. The CLI side is complete: the `search_documents` tool landed with 27 green tests covering the path and content filters, relevance and mtime sorting in Go, manifest relation enrichment, lazy body loading, UTF-8-safe excerpts, and the URL-reject heuristic.
 
-## Architecture — Alternative C (search primitive + markdown skill)
+## Architecture
 
-- CLI: generic `search_documents` primitive (filters + ranking in Go, body scan, manifest enrichment). Reusable by hooks, sub-agents, future push skills.
-- Plugin: `/archcore:context` skill is pure markdown — classifies scope, calls the primitive, groups/renders results.
-- Separation: "what to search" lives in Go (stable, testable). "How to show" lives in markdown (evolves without CLI release).
-- Ranking stays deterministic (Go), so the skill does not re-sort — it groups by type, truncates top-5, renders.
+The chosen shape is a search primitive plus a markdown skill. The CLI owns a generic `search_documents` primitive — filters and ranking in Go, body scan, manifest enrichment — reusable by hooks, sub-agents, and future push skills. The plugin owns the `context` skill as pure markdown that classifies scope, calls the primitive, and groups and renders the results. The separation is that what to search lives in Go, where it is stable and testable, while how to show it lives in markdown, where it evolves without a CLI release. Ranking stays deterministic in Go, so the skill does not re-sort — it groups by type, truncates to the top 5, and renders.
 
 ## Tasks
 
-### Phase 1 — Ship (blocking for release)
+### Phase 1 — ship, blocking for release
 
-**1. Create `skills/context/SKILL.md`**
+**1. Create `skills/context/SKILL.md`.** Its frontmatter carries `name: context`, an argument hint of `[file, directory, or topic; leave empty for current-focus pickup]`, and a description whose triggers include "what rules apply to X", "before I refactor Z", "pick up where we left off", and "show me the decisions for X", with a do-not list routing creation, planning, and audits away.
 
-Frontmatter:
+Its body classifies scope — empty input means pickup, input containing a slash or naming an existing directory means path, and anything else means topic. Path mode calls the primitive with `path_ref`, a limit of 50, and relevance sorting, then groups by type and truncates each section to the top 5. Topic mode does the same with `content`. Pickup mode makes two primitive calls, one for drafts and one for recent accepted documents with a 30-day window falling back to 90, rendering In Progress, Recent Decisions, and Recent Rules. Guide routing checks each top-5 rule, ADR, and spec for an incoming `guide` linked by `implements` or `related` and inlines it as an indented bullet, tracking the inlined set so a non-inlined guide lands in Reference rather than being dropped. An empty section emits no header. A classification footer records the mode for observability. And a disambiguation note states that the skill is unrelated to the AI context window or session state, so it is not mis-invoked for chat-memory topics.
 
-- `name: context`
-- `argument-hint: "[file, directory, or topic; leave empty for current-focus pickup]"`
-- `description`: trigger phrases include "what rules apply to X", "before I refactor Z", "pick up where we left off", "where is the payments work right now", "what was I working on in X", "show me the decisions/rules/specs for X". DO-NOT list routes creation/planning/audits away.
+**2. Add anti-trigger bullets to the sibling skills.** Two bullets go into each "Not X" list: reading applicable rules, ADRs, and specs before coding routes to `context`, and picking up where work left off routes to `context`. The original list covered 6 siblings; under the current surface it covers 4. The purpose is to stop those skills catching pull-intent phrasing.
 
-Body sections:
-- **Classify scope** — empty/whitespace → pickup; contains `/` OR is an existing repo directory → path; otherwise → topic.
-- **Path mode** — `search_documents(path_ref, limit=50, sort="relevance")`, group by type (rule/adr/spec/cpat/plan-draft/idea-draft), truncate each section to top-5, render. _(2026-05-20: Reference section added — see top-of-doc note.)_
-- **Topic mode** — same but `content="<scope>"`.
-- **Pickup mode** — two primitive calls: drafts + recent-accepted (30d → fallback 90d). Render as In Progress / Recent Decisions / Recent Rules.
-- **Guide routing** — for each rule/adr/spec top-5, check `incoming_relations` for a `guide` linked via `implements`/`related`; inline as indented bullet. _(2026-05-20: track the inlined set so non-inlined guides land in Reference rather than being dropped.)_
-- **Empty-header suppression** — do NOT emit a section header if its array is empty.
-- **Classification footer** — `_Classified as: <mode>._` for observability.
-- **Disambiguation note** — "Not related to the AI context window or session state" in body, so the skill does not get mis-invoked for chat memory topics.
+**3. Align the README copy.** Add a `/context` demo prompt to the try-these section, and soften the hero claim of "on every request, across sessions" to language matching the Phase 1 delivery.
 
-**2. Anti-trigger bullets in sibling skills**
+### Phase 1.5 — follow-up, non-blocking
 
-Add to each "Not X:" list in the sibling intent skills. Original list referenced 6 skills (capture, decide, standard, plan, review, actualize); under the current 7-skill surface this becomes 4 (capture, decide, plan, audit).
+**4.** Extend the `search_documents` paragraph in the MCP server instructions to prefer the plugin skill for an interactive user-facing code-area summary.
 
-The two bullets:
-- Reading applicable rules/ADRs/specs before coding → `/archcore:context`
-- Picking up where work left off → `/archcore:context`
+**5.** Add two or three fixture repositories under `tests/fixtures/context/`, run the skill in a harness, and assert the markdown against a snapshot.
 
-Purpose: stop these skills from catching "pull"-intent phrases.
+### Phase 2 — deferred
 
-**3. README.md copy alignment**
-
-- Add a `/context` demo-prompt to "Try these 3 prompts first" (now 4 prompts, or replace #1 since it's vague).
-- Soften "on every request, across sessions" in the hero section — replace with language that matches the Phase 1 delivery.
-
-### Phase 1.5 — Follow-up (non-blocking)
-
-**4. CLI MCP instructions nudge**
-
-In `internal/mcp/server.go`, extend the `search_documents` paragraph with: "For an interactive user-facing code-area summary, prefer the `/archcore:context` plugin skill which composes `search_documents` with sensible defaults."
-
-**5. Snapshot tests**
-
-Two or three fixture `.archcore/` repos under `tests/fixtures/context/`. Run the skill in a harness and assert markdown matches a snapshot.
-
-### Phase 2 — Deferred (tracked as separate idea/plan)
-
-- PreToolUse hook for source-file edits — push-mode context injection. See `pre-code-context-injection.idea.md`. Will reuse `search_documents` directly (no skill).
+The pre-mutation hook for source-file edits, which is push-mode context injection, is tracked in `pre-code-context-injection.idea` and reuses the search primitive directly with no skill.
 
 ## Acceptance Criteria
 
-**SKILL.md**
-- `skills/context/SKILL.md` exists, picked up by plugin auto-discovery.
-- `/archcore:context src/payments/` returns rule+adr+spec+cpat groups (and a Reference group for `doc`/`rfc`/orphan `guide`) sorted by specificity→type→mtime, top-5 per section.
-- `/archcore:context "money rounding"` returns content-match groups with title/body excerpts; `doc`/`rfc` matches surface in Reference rather than being dropped.
-- `/archcore:context` (no argument) returns In Progress + Recent Decisions + Recent Rules, with 30d→90d fallback when first pass is empty.
-- Guide routing: when a rule/adr/spec has an incoming `guide` via `implements` or `related`, guide appears as an indented bullet below the parent; an orphan `guide` (no such relation) appears in the Reference section instead of being dropped.
-- No section header is rendered when its group is empty.
-- Classification footer is always present.
+**The skill.** `skills/context/SKILL.md` exists and is picked up by plugin auto-discovery. A path query returns the rule, adr, spec, and cpat groups plus a Reference group for `doc`, `rfc`, and any orphan guide, sorted by specificity then type then mtime, at 5 per section. A topic query returns content-match groups with title and body excerpts, with `doc` and `rfc` matches surfacing in Reference rather than being dropped. An argument-free invocation returns In Progress, Recent Decisions, and Recent Rules, with the 30-day to 90-day fallback when the first pass is empty. Guide routing inlines a guide under its parent where the relation exists and places an orphan guide in Reference. No header renders for an empty group, and the classification footer is always present.
 
-**Routing precision (manual test matrix)** — historical list referenced removed skills; under the current surface the disambiguation map is:
-- "what rules apply to src/payments/" → `/archcore:context` path mode
-- "before I touch the billing flow" → `/archcore:context` path or topic
-- "pick up where I left off" → `/archcore:context` pickup mode
-- "show me the decisions for src/payments/" → `/archcore:context` path
-- "how many docs do we have" → `/archcore:audit` (default short mode)
-- "audit docs health" → `/archcore:audit --deep`
-- "check for stale docs" → `/archcore:audit --drift`
-- "document the auth module" → `/archcore:capture`
-- "we decided on PostgreSQL" → `/archcore:decide`
-- "plan the auth redesign" → `/archcore:plan`
-- "establish a standard" → `/archcore:decide` (ADR + rule + guide continuation)
-- "context window" / "session state" → no activation (disambig note)
+**Routing precision.** "What rules apply to `src/payments/`" reaches path mode; "before I touch the billing flow" reaches path or topic; "pick up where I left off" reaches pickup; "show me the decisions for `src/payments/`" reaches path; "how many docs do we have" reaches the audit dashboard; "audit docs health" reaches `--deep`; "check for stale docs" reaches `--drift`; "document the auth module" reaches `capture`; "we decided on PostgreSQL" reaches `decide`; "plan the auth redesign" reaches `plan`; "establish a standard" reaches the `decide` continuation; and "context window" or "session state" activates nothing, per the disambiguation note.
 
-**Sibling anti-trigger**
-- Each sibling intent skill lists the 2 new "Not X:" bullets referencing `/archcore:context`.
-
-**README**
-- "Try these" section includes a `/context` demo-prompt.
-- Hero overclaim softened to match Phase 1 delivery; PreToolUse auto-injection marked as upcoming.
+**Siblings and README.** Each sibling intent skill lists the two new anti-trigger bullets, the try-these section includes the `/context` demo prompt, and the hero claim matches the Phase 1 delivery with automatic injection marked as upcoming.
 
 ## Dependencies
 
-- CLI `search_documents` tool — SHIPPED.
+- The CLI `search_documents` tool, shipped.
 - No new plugin manifest entries.
-- No new hooks (Phase 1).
+- No new hooks in Phase 1.
 
-## Pre-merge validity checklist
+## Pre-merge checklist
 
-1. `skills/context/SKILL.md` present, frontmatter parses.
-2. No YAML frontmatter errors across all modified SKILL.md files.
-3. Manual routing test — confirm activation / non-activation matches expectations.
-4. Manual skill execution — verify output shape on a non-trivial `.archcore/` repo.
-5. Anti-regression — run sibling intent skills to confirm they still work.
-6. README renders cleanly on GitHub.
-7. Plan doc (this file) links in the graph.
-8. No direct writes to `.archcore/` — all doc ops via MCP.
-9. Plugin version bumped.
-10. Commit messages follow existing style.
+1. The skill file is present and its frontmatter parses.
+2. No YAML frontmatter error exists across the modified skill files.
+3. A manual routing test confirms activation and non-activation match expectations.
+4. A manual execution verifies the output shape on a non-trivial repository.
+5. An anti-regression pass confirms the sibling intent skills still work.
+6. The README renders cleanly on GitHub.
+7. This plan is linked in the relation graph.
+8. No direct write to `.archcore/` occurs; every document operation goes through MCP.
+9. The plugin version is bumped.
+10. The commit messages follow the existing style.
 
-## Post-merge smoke tests (this repo)
+## Post-merge smoke tests
 
-Run in Claude Code against this plugin repo:
-
-- `/archcore:context skills/` — should surface skill-system-related rules/adrs/specs.
-- `/archcore:context rules/` — should surface mcp-only-operations.rule, skill-file-structure.rule.
-- `/archcore:context "intent-based skill"` — should find intent-based-skill-architecture.adr.
-- `/archcore:context` with no argument — should show draft plans + recent accepted rules/ADRs.
-- _(2026-05-20)_ In a repo with a top-relevance `doc` for the queried topic, confirm it now appears in a **Reference** section rather than being filtered out. Same for a `rfc` covering the topic and a `guide` not linked via `implements`/`related` to any rule/ADR/spec.
+Run these against this repository. `/archcore:context skills/` should surface the skill-system rules, ADRs, and specs. `/archcore:context rules/` should surface `mcp-only-operations.rule` and `skill-file-structure.rule`. `/archcore:context "intent-based skill"` should find the intent-based skill architecture ADR. An argument-free invocation should show the draft plans plus the recent accepted rules and ADRs. And in a repository where a `doc` tops relevance for the queried topic, confirm it appears in the Reference section rather than being filtered out, repeating for an `rfc` covering the topic and for a `guide` linked to no rule, ADR, or spec.

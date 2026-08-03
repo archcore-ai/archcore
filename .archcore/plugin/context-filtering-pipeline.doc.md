@@ -9,34 +9,17 @@ tags:
 
 ## Overview
 
-This document describes which documents `/archcore:context` surfaces and which it drops, across the two layers of the pipeline. Use it as a lookup when:
+This document records which documents `/archcore:context` surfaces and which it drops, across the two layers of its pipeline. Use it as a lookup when a relevant document does not appear in `/context` output and you want to know why, when you are tuning the skill or adding a document type, or when you are debugging an unexpected ordering of results.
 
-- a relevant document doesn't appear in `/context` output and you want to know why,
-- you're tuning the skill or adding a new document type,
-- you're debugging an unexpected ordering of results.
-
-Source of truth: `cli/internal/mcp/tools/search_documents.go` (Layer 1) and `plugin/skills/context/SKILL.md` (Layer 2). The skill markdown is canonical for rendering decisions.
+Sources of truth: `internal/mcp/tools/search_documents.go` in the `archcore-ai/cli` repository for Layer 1, and `@plugins/archcore/skills/context/SKILL.md` for Layer 2. The skill markdown is canonical for every rendering decision.
 
 ## Pipeline
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ Layer 1 — MCP search_documents (cli/internal/mcp/tools/...)     │
-│ Returns ALL document types. /context passes no `types` filter.  │
-│ Sorts by relevance: max_specificity DESC → typeRank ASC →       │
-│ mtime DESC. Default limit 50.                                   │
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ Layer 2 — /archcore:context Step 3-4 grouping (markdown skill)  │
-│ Applies a type allow-list (path & topic modes); pickup mode has │
-│ its own fixed sections. Top 5 per section.                      │
-└─────────────────────────────────────────────────────────────────┘
-                            ↓
-                  rendered markdown surface
-```
+**Layer 1 — MCP `search_documents`, in the CLI.** Returns every document type, because `/context` passes no `types` filter. Sorts by relevance — `max_specificity` descending, then `typeRank` ascending, then `mtime` descending — with a default limit of 50.
 
-## Layer 1 — MCP `search_documents` (CLI)
+**Layer 2 — `/archcore:context` steps 3 and 4, in the markdown skill.** Applies a type allow-list in path and topic modes, caps each section at the top 5, and renders the markdown surface. Pickup mode bypasses the allow-list and uses its own fixed sections.
+
+## Layer 1 — MCP `search_documents`
 
 ### Inputs the skill passes
 
@@ -46,22 +29,15 @@ Source of truth: `cli/internal/mcp/tools/search_documents.go` (Layer 1) and `plu
 | topic | `content="<argument>"`, `limit=50`, `sort="relevance"` |
 | pickup | drafts: `types=["plan","idea"]`, `status="draft"`, `sort="mtime"`; recent-accepted: `types=["adr","rule"]`, `status="accepted"`, `mtime_after="30d"` (fallback `90d`) |
 
-Notes:
-- Content search is strict substring — no stemming, no fuzzy matching. The skill retries once with a shorter or alternate phrasing if the first call returns empty.
-- Path mode normalizes `\` → `/` and strips trailing `/` before sending.
+Content search is a strict substring match, with no stemming and no fuzzy matching; the skill retries once with shorter or alternate phrasing when the first call returns empty. Path mode normalizes `\` to `/` and strips a trailing `/` before sending.
 
-### Sort keys (relevance mode)
+### Sort keys in relevance mode
 
-Ordering, in priority:
+1. `max_specificity` descending. A content match in the title scores `3`; a content match in the body only scores `1`; a `path_ref` match scores the number of `/`-separated segments shared between the reference and the query, so `src/payments/stripe.ts` against `src/payments/` scores `2`.
+2. `typeRank` ascending, per the table below.
+3. `mtime` descending.
 
-1. **`max_specificity` DESC.**
-   - Content match in title → `3`.
-   - Content match in body only → `1`.
-   - `path_ref` match → number of `/`-separated segments shared between the reference and the query (e.g. `src/payments/stripe.ts` ↔ `src/payments/` → `2`).
-2. **`typeRank` ASC** (table below).
-3. **`mtime` DESC.**
-
-`typeRank` is only a tiebreaker — it never filters anything out by itself.
+`typeRank` is a tiebreaker only. It never filters anything out by itself.
 
 ### Type priority (`typeRank`)
 
@@ -81,7 +57,7 @@ Ordering, in priority:
 | 18 | `task-type` | |
 | 100 | (any unknown) | `typePriorityDefault` |
 
-## Layer 2 — Step 3 grouping (path / topic modes)
+## Layer 2 — Step 3 grouping, in path and topic modes
 
 The skill takes the relevance-sorted list and slots each document into a section:
 
@@ -94,26 +70,22 @@ The skill takes the relevance-sorted list and slots each document into a section
 | Reference | `doc`, `rfc`, orphan `guide` (see Step 4) | top 5 |
 | In Progress | `plan` / `idea` with `status=draft` | top 5 |
 
-**Dropped types** (never rendered in path/topic mode):
+Three groups are never rendered in path or topic mode: an accepted `plan` or `idea`, because once shipped they leave the surface; `task-type`, which is experiential and out of scope for "before you touch code" context; and the vision and requirements types `prd`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, and `srs`, which describe intent rather than normative knowledge.
 
-- accepted `plan` / `idea` — once shipped they exit the surface,
-- `task-type` — experiential, not in scope for "before you touch code" context,
-- vision/requirements: `prd`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs` — they describe intent, not normative knowledge.
+An empty section is suppressed: no header is rendered when its array is empty.
 
-Empty sections are suppressed: no header is rendered if its array is empty.
+## Layer 2 — Step 4 guide routing and the orphan-guide concept
 
-## Layer 2 — Step 4 guide routing & orphan-guide concept
+`guide` is handled in two passes.
 
-`guide` is handled in two passes:
+1. **Inlined guide.** For each item in the Rules, Decisions, and Specs sections, the skill walks its `incoming_relations`. A `guide` pointing at that item through `implements` or `related` is rendered as an indented bullet under the parent, marked 📖. The skill tracks the set of inlined guide paths to avoid double-counting.
+2. **Orphan guide.** Any `guide` returned by `search_documents` and absent from the inlined set falls through to the Reference section.
 
-1. **Inlined guide.** For each item in the Rules / Decisions / Specs sections, walk its `incoming_relations`. If a `guide` points at it via `implements` or `related`, the guide is rendered as an indented bullet under the parent (📖). The skill tracks the set of inlined guide paths to avoid double-counting.
-2. **Orphan guide.** Any `guide` returned by `search_documents` but **not** in the inlined set falls through to the **Reference** section.
+The effect is that a guide whose normative parent matched the same query stays attached to it, while a standalone guide still surfaces — lower in the output — instead of being dropped silently, which was the behavior before 2026-05-20.
 
-Effect: a guide whose normative parent matched the same query stays attached to it; a standalone guide still surfaces (just lower in the output) instead of being silently dropped, which was the pre-2026-05-20 behavior.
+## Pickup mode, invoked with no argument
 
-## Pickup mode (no argument)
-
-Pickup has its own fixed sections and does NOT use the Step 3 allow-list. Two `search_documents` calls in parallel:
+Pickup uses its own fixed sections rather than the Step 3 allow-list, driven by two parallel `search_documents` calls:
 
 | Section | Source call |
 |---|---|
@@ -121,38 +93,19 @@ Pickup has its own fixed sections and does NOT use the Step 3 allow-list. Two `s
 | Recent Decisions | `types=["adr"]` from the recent-accepted call (30d → 90d fallback) |
 | Recent Rules | `types=["rule"]` from the same call |
 
-So `doc` / `rfc` / orphan-guide are not surfaced by pickup — that's intentional. Pickup answers "what work is current?", not "what knowledge applies?".
+Pickup therefore surfaces no `doc`, `rfc`, or orphan guide, which is intentional: it answers "what work is current?" rather than "what knowledge applies?".
 
 ## Examples
 
-### Example 1 — topic query "recaptcha" (post-fix)
+The three examples below are non-normative illustrations of the tables above.
 
-`search_documents(content="recaptcha")` returns, ordered:
+**Topic query `recaptcha`.** `search_documents(content="recaptcha")` returns, in order: `recaptcha-handling.doc.md` on a title match with `specificity=3` and `typeRank=17`; `error-handling.rule.md` on a body match with `specificity=1` and `typeRank=1`; `auth-popup-unit-coverage.plan.md` on a body match with `specificity=1`, `typeRank=7`, and `status=draft`; and `auth-provider-decomposition.idea.md` on a body match with `specificity=1`, `typeRank=8`, and `status=draft`. After Step 3 the surface reads: Rules holds `error-handling.rule.md`; Reference holds `recaptcha-handling.doc.md`; In Progress holds the plan and the idea. Before 2026-05-20 the Reference section did not exist and `recaptcha-handling.doc.md` was dropped silently despite being the top relevance hit.
 
-1. `recaptcha-handling.doc.md` — title match → `specificity=3`, `typeRank=17`.
-2. `error-handling.rule.md` — body match → `specificity=1`, `typeRank=1`.
-3. `auth-popup-unit-coverage.plan.md` — body match → `specificity=1`, `typeRank=7`, `status=draft`.
-4. `auth-provider-decomposition.idea.md` — body match → `specificity=1`, `typeRank=8`, `status=draft`.
+**Path query `src/auth/popup/`.** The same allow-list applies. A `doc` referencing that path, through `@src/auth/popup/...` or a qualified bare mention, lands in Reference, while rules and ADRs go to their normative sections.
 
-After Step 3:
-
-```
-## Rules (1)        — error-handling.rule.md
-## Reference (1)    — recaptcha-handling.doc.md
-## In Progress (2)  — auth-popup-unit-coverage.plan.md, auth-provider-decomposition.idea.md
-```
-
-Pre-2026-05-20: Reference did not exist and `recaptcha-handling.doc.md` was silently dropped despite being the top relevance hit.
-
-### Example 2 — path query `src/auth/popup/`
-
-Same allow-list applies. `doc` files referencing that path (via `@src/auth/popup/...` or qualified bare mentions) land in Reference; rules / ADRs go to their normative sections.
-
-### Example 3 — accepted `plan` for the same topic
-
-Dropped at Step 3. Rationale: `/context` is "what knowledge applies to this code area", not "what was done about it". An accepted plan is historical record — discoverable via `/audit` or `list_documents`.
+**An accepted `plan` on the same topic.** Dropped at Step 3, because `/context` answers what knowledge applies to a code area rather than what was done about it. An accepted plan is a historical record, discoverable through `/archcore:audit` or `list_documents`.
 
 ## Maintenance hooks
 
-- **Adding a new document type** (CLI side): set its `typePriority` in `search_documents.go` for deterministic tie-break, and decide its Layer 2 fate in `skills/context/SKILL.md` Step 3 (allow-list, Reference, or drop).
-- **Changing what `/context` surfaces** is a skill-only change (markdown) — no CLI release required. Update Step 3 table, Step 5 render template, and the README Commands-table copy together; see `context-skill-implementation.plan.md` post-merge notes for the audit trail.
+- **Adding a document type on the CLI side.** Set its `typePriority` in `search_documents.go` for a deterministic tiebreak, then decide its Layer 2 fate in the skill's Step 3 — allow-list, Reference, or drop.
+- **Changing what `/context` surfaces** is a skill-only change in markdown and needs no CLI release. Update the Step 3 table, the Step 5 render template, and the README commands-table copy together; the post-merge notes in `context-skill-implementation.plan` hold the audit trail.

@@ -7,92 +7,55 @@ tags:
   - "skills"
 ---
 
+**Surface note.** The matrices below describe intermediate states. The current palette is 7 auto-invocable skills, fixed by `skill-surface-collapse.adr`, which retired the track tier and the `verify` utility. What survives from this decision is its core rule: a skill that routes user intent is auto-invocable, and its description carries explicit trigger and anti-trigger phrasing as the routing signal.
+
 ## Context
 
-The intent-based skill architecture (`intent-based-skill-architecture.adr.md`) established four layers but configured `disable-model-invocation: true` on intent and track skills — making them user-only — while leaving all 18 document-type skills model-invocable.
+`intent-based-skill-architecture.adr` established four layers but set `disable-model-invocation: true` on the intent and track skills, making them user-only, while leaving all 18 document-type skills model-invocable. That configuration inverted the architecture's own routing intent: when a user said "record the decision to use PostgreSQL", the model auto-invoked the type skill directly, so the intent layer never ran and its duplicate check, relation suggestion, rule and guide follow-up, and contextual disambiguation were all bypassed. The intent layer was architecturally clean and operationally dead — a user had to type the intent command explicitly to benefit from it, and very few did.
 
-In practice this inverted the routing intent of the architecture:
-
-- When a user said "record the decision to use PostgreSQL", Claude auto-invoked `/archcore:adr` directly because the type skill was model-invocable. The intent layer (`/archcore:decide`) never ran.
-- The duplicate check (`list_documents` before `create_document`), relation-suggestion, rule+guide follow-up, and contextual disambiguation — all built into `decide`, `capture`, `plan`, `standard` — were bypassed.
-- The intent layer was architecturally clean but operationally dead. Users had to explicitly type `/archcore:decide` to benefit from it; very few did.
-
-Two further facts became actionable since the original ADR:
-
-1. Claude Code's SKILL.md frontmatter now exposes `user-invocable: false` — a flag that hides a skill from the `/` menu while keeping its description in the model's context. This unlocks a configuration that was not possible before.
-2. Cognitive-load analysis showed that 7 of the 18 document-type skills (`mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`) are niche — required for specific discovery and ISO 29148 workflows, but irrelevant to 90%+ of users. They occupied prominent slots in `/` autocomplete despite rarely being useful directly.
+Two further facts became actionable after that original record. Claude Code's `SKILL.md` frontmatter began exposing `user-invocable: false`, a flag that hides a skill from the `/` menu while keeping its description in the model's context, unlocking a configuration that had not been possible before. And cognitive-load analysis showed that 7 of the 18 document-type skills — `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs` — are niche, required for specific discovery and ISO 29148 workflows but irrelevant to more than 90% of users, while occupying prominent slots in `/` autocomplete.
 
 ## Decision
 
-Invert the invocation policy across the skill catalog.
+Invert the invocation policy across the skill catalog: a skill that routes user intent is auto-invocable and carries no invocation-restricting flag, while a maintenance-only utility stays user-only through `disable-model-invocation: true`.
 
-### New matrix (current — post-supersession)
+| Layer | Skills | `disable-model-invocation` | `user-invocable` | In `/` menu | Model auto-invokes |
+| --- | --- | --- | --- | --- | --- |
+| Intent | bootstrap, capture, plan, decide, standard, review, actualize, help, context | — (removed) | default (`true`) | ✓ | ✓ |
+| Track | product-track, architecture-track, standard-track, feature-track, sources-track, iso-track | — (removed) | default (`true`) | ✓ | ✓ |
+| Utility | verify | `true` (unchanged) | default (`true`) | ✓ | ✗ |
 
-| Layer     | Skills                                                                            | `disable-model-invocation` | `user-invocable` | In `/` menu | Model auto-invokes |
-| --------- | --------------------------------------------------------------------------------- | -------------------------- | ---------------- | ----------- | ------------------ |
-| Intent    | bootstrap, capture, plan, decide, standard, review, actualize, help, context      | — (removed)                | default (`true`) | ✓           | ✓                  |
-| Track     | product-track, architecture-track, standard-track, feature-track, sources-track, iso-track | — (removed)                | default (`true`) | ✓           | ✓                  |
-| Utility   | verify                                                                            | `true` (unchanged)         | default (`true`) | ✓           | ✗                  |
+The type-skill rows of the original matrix — mainstream types carrying `disable-model-invocation: true` and niche types carrying `user-invocable: false` — are historical. `remove-document-type-skills.adr` deleted those skills from disk and moved their per-type elicitation inline into the intent and track skills, citing content duplication, multi-host flag inconsistency, and cognitive load. `merge-review-status-remove-graph.adr` then merged `status` into `review` and removed `graph`, and is the source of truth for the intent inventory of that period.
 
-**Historical matrix (type-skill rows, now superseded by `remove-document-type-skills.adr.md`):**
-
-| Layer             | Skills                                                       | `disable-model-invocation` | `user-invocable` |
-| ----------------- | ------------------------------------------------------------ | -------------------------- | ---------------- |
-| Type — mainstream | adr, prd, rfc, rule, guide, doc, spec, idea, task-type, cpat | **`true`**                 | default          |
-| Type — niche      | mrd, brd, urd, brs, strs, syrs, srs                          | — (default)                | **`false`**      |
-
-Type skills no longer exist on disk. Their per-type elicitation moved inline into intent and track skills. See `remove-document-type-skills.adr.md` for the removal rationale (content duplication with intents/tracks; multi-host flag inconsistency; cognitive-load reduction).
-
-The `status` and `graph` intents were merged into `review` and removed respectively per `merge-review-status-remove-graph.adr.md` — that ADR is the source of truth for the current intent inventory.
-
-### Rationale per remaining class
-
-- **Intent and track skills are auto-invocable** so the model routes user intent through them. Their descriptions carry explicit "Activate when X. Do NOT activate for Y (use /archcore:other)." guidance as the routing signal.
-- **Utility (`verify`) stays user-only** — it is a maintenance skill for plugin developers, not for end users, and should not auto-activate.
-
-Post-merge visible `/` menu: 9 intent + 6 track + 1 utility = **16 commands**. No hidden surface.
+Intent and track skills are auto-invocable so that the model routes user intent through them, with their descriptions carrying explicit `Activate when X. Do NOT activate for Y.` guidance as the routing signal. The `verify` utility stays user-only, because it is a maintenance skill for plugin developers rather than for end users and should not auto-activate. The post-merge visible menu was 9 intent, 6 track, and 1 utility, totaling 16 commands, with no hidden surface.
 
 ## Alternatives Considered
 
-### Keep the status-quo user-only intent/track policy
-
-Rejected. The intent layer is the primary UX promise of the plugin ("describe what you need, the system picks the type"), and it was operationally bypassed. Keeping the old policy would require users to memorize intent commands — negating the promise.
-
-### Remove type skills entirely, route everything through intent (original alternative — now adopted)
-
-Originally rejected as "loss of productive path for power users". **This alternative was later adopted** via `remove-document-type-skills.adr.md` after evidence showed that (a) type-skill content was already duplicated inline in intent/track skills, (b) the `disable-model-invocation` / `user-invocable` flags were not portable across Cursor and Codex, and (c) every document type remained reachable through intent/track skills or direct MCP calls.
-
-### Make niche types user-hidden AND model-hidden (`disable-model-invocation: true`)
-
-Rejected at the time. If the model could not see `brs/strs/syrs/srs` descriptions, `iso-track` had no programmatic way to invoke them. This concern became moot when type skills were removed entirely — tracks now inline per-type elicitation directly.
-
-### Split niche types into a separate sub-plugin
-
-Deferred. Superseded by the decision to remove type skills entirely — niche types are reachable via `/archcore:iso-track` and `/archcore:sources-track`, and directly via MCP.
+1. **Keep the status-quo user-only intent and track policy** — rejected because the intent layer is the plugin's primary UX promise, that a user describes what they need and the system picks the type, and it was being bypassed operationally; keeping the old policy would require users to memorize intent commands, which negates the promise.
+2. **Remove type skills entirely and route everything through intent** — originally rejected as a loss of the productive path for power users, and later adopted by `remove-document-type-skills.adr` once evidence showed that type-skill content was already duplicated inline, that the invocation flags were not portable across Cursor and Codex, and that every document type stayed reachable through an intent or track skill or a direct MCP call.
+3. **Make niche types both user-hidden and model-hidden with `disable-model-invocation: true`** — rejected at the time, because a model that could not see the `brs`, `strs`, `syrs`, and `srs` descriptions left `iso-track` no programmatic way to invoke them. The concern became moot once type skills were removed and tracks inlined the per-type elicitation directly.
+4. **Split the niche types into a separate sub-plugin** — deferred, then superseded by the removal of type skills, since niche types became reachable as track steps and directly through MCP.
 
 ## Consequences
 
-### Positive
+- Intent routing became load-bearing: duplicate checks, relation suggestions, and multi-document follow-up execute for auto-invoked flows rather than only for explicit `/` invocations.
+- The visible menu went from 32 entries to 25 at the inversion, to 26 after `graph` was added, to 18 after type skills were removed, and to 16 after `status` merged into `review` and `graph` was removed.
+- The model's initial context stopped carrying per-type-skill descriptions, saving tokens on every session start and leaving more budget for precise intent descriptions.
+- Cross-host parity improved: the intent, track, and utility policy relies only on the absence of a flag or on `disable-model-invocation: true`, both of which behave consistently in Claude Code, and the more brittle `user-invocable: false` field — unsupported in Cursor and Codex — is no longer relied on.
+- Tradeoff: this supersedes principle 4, "user-only invocation", of `intent-based-skill-architecture.adr`, and that record's four-layer decomposition was reduced to three effective layers plus MCP primitives once type skills were removed.
+- Tradeoff: intent and track skill descriptions became the single source of routing truth, so an imprecise description causes mis-routing. The mandated `Activate when X. Do NOT activate for Y.` format is the mitigation.
 
-- Intent routing is load-bearing — duplicate checks, relation suggestions, and multi-document follow-up execute for auto-invoked flows, not just explicit `/` invocations.
-- Visible `/` menu went from 32 to 25 at the time of the inversion, to 26 after the `graph` intent was added, to **18** after type skills were removed (`remove-document-type-skills.adr.md`), and to **16** after `status` was merged into `review` and `graph` was removed (`merge-review-status-remove-graph.adr.md`).
-- Model's initial context no longer carries per-type-skill descriptions — token savings on every session start and more budget for intent descriptions to be precise.
-- Cross-host parity: the intent/track/utility policy uses only "no flag" / `disable-model-invocation: true`, both of which work consistently in Claude Code. The more brittle `user-invocable: false` field (not supported in Cursor/Codex) is no longer relied upon because type skills have been removed.
+## Constraints
 
-### Negative
+1. An intent skill description MUST enumerate its trigger phrases.
+2. An intent skill description MUST enumerate its anti-triggers, naming the skill to use instead.
+3. A utility skill MUST carry `disable-model-invocation: true`.
+4. A track skill MUST remain auto-invocable, so a user reaches a multi-document flow through natural language.
+5. `/archcore:help` MUST document direct-MCP access for any document type, because no type-skill surface exists.
 
-- Supersedes principle 4 ("User-only invocation") of `intent-based-skill-architecture.adr.md`. The 4-layer structural decomposition from that ADR has also been reduced to 3 effective layers (intent, track, utility) + MCP primitives after type skills were removed.
-- Intent and track skill descriptions become the single source of routing truth. Imprecise descriptions lead to mis-routing. Mitigated by the description-rewrite enforcing the "Activate when X. Do NOT activate for Y." format.
+Three constraints from the original record no longer apply, because type skills no longer exist: that a mainstream type skill carry `disable-model-invocation: true`, that a niche type skill carry `user-invocable: false`, and that a track orchestrating niche types remain auto-invocable to reach them. Constraint 4 survives in its own right, and `skill-surface-collapse.adr` later retired the track tier entirely.
 
-### Constraints
+## Superseded when
 
-- Intent and track skill descriptions MUST explicitly enumerate trigger phrases and anti-triggers (use /archcore:other references).
-- Utility skills MUST carry `disable-model-invocation: true`.
-- Tracks MUST remain auto-invocable so users can reach multi-document flows via natural-language requests.
-- `/archcore:help` MUST document direct-MCP access for any document type (since there is no type-skill surface).
-
-**Superseded constraints** (no longer apply — see `remove-document-type-skills.adr.md`):
-
-- ~~Mainstream type skills MUST carry `disable-model-invocation: true`.~~ Type skills no longer exist.
-- ~~Niche type skills MUST carry `user-invocable: false`.~~ Type skills no longer exist.
-- ~~Tracks that orchestrate niche types MUST remain auto-invocable so users can reach niche types via natural-language requests.~~ Tracks now inline per-type elicitation; niche types are reached as track steps, not via orchestration of separate skills.
+- A host ships a portable, standardized invocation-control field that every supported host honors, which would reopen the hidden-surface options rejected here.
+- Routing measurement shows the trigger and anti-trigger format failing to disambiguate adjacent intents, which would call for a different routing signal.

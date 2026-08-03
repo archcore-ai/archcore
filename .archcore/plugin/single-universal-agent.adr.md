@@ -9,62 +9,30 @@ tags:
 
 ## Context
 
-The plugin needs subagent capabilities for complex documentation tasks that go beyond what skills and commands can handle — multi-document creation, requirements engineering cascades, documentation audits, and relation graph management.
-
-Claude Code agents support custom system prompts, tool restrictions, and model settings. The question is whether to create multiple specialized agents (requirements-engineer, decision-recorder, documentation-reviewer) or a single universal agent.
+The plugin needs subagent capability for documentation tasks that exceed what a skill or command can carry — multi-document creation, requirements engineering cascades, documentation audits, and relation graph management. Claude Code agents support a custom system prompt, tool restrictions, and model settings, so the open question was whether to ship several specialized agents (requirements-engineer, decision-recorder, documentation-reviewer) or one universal agent.
 
 ## Decision
 
-The plugin provides one universal agent: `archcore-assistant`.
+Ship one universal agent, **`archcore-assistant`**, defined in `@plugins/archcore/agents/archcore-assistant.md`, carrying knowledge of all 18 document types, the three requirements-engineering tracks, and the four relation types, and restricted to the archcore MCP tools plus the read-only file tools Read, Grep, and Glob, with no Write, Edit, or Bash access to `.archcore/` files.
 
-This agent has:
-
-- **Full knowledge of all 18 document types** — templates, required sections, when to use each type
-- **Requirements engineering expertise** — product track (prd, idea, plan), sources track (mrd, brd, urd), ISO 29148 cascade (brs, strs, syrs, srs)
-- **Relation pattern knowledge** — when to use implements, extends, depends_on, related; common flows (idea → prd → plan, mrd → brs → strs → syrs → srs)
-- **Documentation review capability** — identify gaps, staleness, missing relations, orphaned documents, inconsistent statuses
-- **Tool restrictions**: only archcore MCP tools (`list_documents`, `get_document`, `create_document`, `update_document`, `remove_document`, `add_relation`, `remove_relation`, `list_relations`) plus read-only file tools (Read, Grep, Glob). No Write, Edit, or Bash access to `.archcore/` files.
-
-The agent is defined in `agents/archcore-assistant.md` with frontmatter specifying name, description, tools, and disallowedTools.
+Its knowledge covers each document type's template, required sections, and selection criteria; the product track (`prd`, `idea`, `plan`), the sources track (`mrd`, `brd`, `urd`), and the ISO 29148 cascade (`brs`, `strs`, `syrs`, `srs`); when to use `implements`, `extends`, `depends_on`, and `related`, along with the common flows; and documentation review — gaps, staleness, missing relations, orphaned documents, and inconsistent statuses.
 
 ## Alternatives Considered
 
-### Multiple specialized agents (3+)
-
-Separate agents for requirements engineering, decision recording, and documentation review. Rejected because:
-
-- Higher maintenance burden — each agent's system prompt must be kept in sync with Archcore's evolving type system
-- Users must know which agent to pick or Claude must route correctly
-- Overlap between agents (e.g., requirements-engineer and decision-recorder both need to understand relations)
-- Simpler to maintain one comprehensive agent
-
-### No agents, skills only
-
-Rely entirely on skills for guidance and commands for actions. Rejected because:
-
-- Complex multi-step workflows (create a PRD, then decompose into BRS → StRS → SyRS → SRS with relations) benefit from agentic orchestration
-- Skills provide knowledge but not sustained focus on a multi-document task
-- Documentation audits require iterating over all documents — better suited for an agent loop
-
-### Multiple agents with shared base prompt
-
-A base prompt included in all agents, with specialization layers. Rejected because:
-
-- Added complexity without clear benefit over one agent
-- Claude Code doesn't natively support prompt composition for agents
+1. **Three or more specialized agents, split by requirements engineering, decision recording, and documentation review** — rejected because each system prompt would have to stay in sync with the evolving type system, because the user or the model would have to route correctly between them, and because the agents overlap heavily, since both a requirements engineer and a decision recorder need the same relation knowledge.
+2. **No agents, relying on skills and commands alone** — rejected because a complex multi-step workflow, such as creating a PRD and decomposing it into a `brs → strs → syrs → srs` cascade with relations, benefits from agentic orchestration that skills cannot sustain, and because a documentation audit iterates over every document, which suits an agent loop.
+3. **Several agents sharing a base prompt with specialization layers** — ruled out because it adds composition complexity without a clear benefit over one agent, and Claude Code supports no native prompt composition for agents.
 
 ## Consequences
 
-### Positive
+- One system prompt and one set of tool restrictions to maintain, covering the full spectrum of documentation tasks.
+- The user never chooses between agents, and the host can invoke this one whenever a documentation task exceeds skill-level complexity.
+- Tool restrictions enforce the MCP-only principle inside agentic mode as well as inside skills.
+- Tradeoff: the system prompt grows as it covers all 18 types plus the engineering patterns.
+- Tradeoff: no domain specialization. [assumption] A dedicated requirements engineer might produce better ISO 29148 cascades; this has not been measured.
+- Extended rather than replaced by `add-read-only-auditor-agent.adr`, which added `archcore-auditor` for read-only audit work while leaving this agent's role unchanged.
 
-- Single agent to maintain — one system prompt, one set of tool restrictions
-- Agent covers the full spectrum of documentation tasks
-- Users don't need to choose between agents
-- Claude can invoke the agent whenever a documentation task exceeds skill-level complexity
-- Tool restrictions ensure the MCP-only principle is enforced even in agentic mode
+## Superseded when
 
-### Negative
-
-- System prompt may become long as it covers all 18 types plus engineering patterns
-- No domain specialization — a dedicated requirements-engineer might produce slightly better output for ISO 29148 cascades
-- If the agent's scope grows too large, may need to revisit this decision and split
+- The system prompt exceeds the 2000-line constraint recorded in `agent-system.spec`, which would force a split by domain.
+- A measured comparison shows a specialized requirements agent producing materially better ISO 29148 cascades than the universal agent.

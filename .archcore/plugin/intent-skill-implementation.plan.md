@@ -7,84 +7,63 @@ tags:
   - "skills"
 ---
 
-> **Outcome (2026-05-15):** Plan executed in stages. The 4-layer model proposed here was simplified twice: first by `remove-document-type-skills.adr.md` (Layer 3 removed → 18 skills), then by `skill-surface-collapse.adr.md` (Layer 2 collapsed into the surviving intents → 7 skills total). The "Migrate from a flat surface to a tiered hierarchy" goal was met and then deliberately re-flattened once the tiering created more friction than it removed. Current surface is `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`.
+**Outcome (2026-05-15).** The plan was executed in stages, and the four-layer model it implemented was simplified twice: first by `remove-document-type-skills.adr`, which removed Layer 3 and left 18 skills, then by `skill-surface-collapse.adr`, which collapsed Layer 2 into the surviving intents and left 7. The goal of migrating from a flat surface to a tiered hierarchy was met and then deliberately re-flattened, once the tiering created more friction than it removed. The current surface is `init`, `capture`, `decide`, `plan`, `audit`, `context`, and `help`.
 
 ## Goal
 
-Migrate the Archcore Plugin from a flat 27-skill surface to the 4-layer intent-based command hierarchy defined in `intent-based-skill-architecture.adr.md`. After this plan is complete, users see 8 primary intent commands, with track and type skills properly tiered.
+Migrate the plugin from a flat 27-skill surface to the four-layer intent-based command hierarchy defined in `intent-based-skill-architecture.adr`. On completion, users see 8 primary intent commands, with the track and type skills tiered beneath them.
 
-> **Subsequent additions (post-plan)**: the `graph` intent skill was added later, bringing intent count to 9; the `context` and `bootstrap` intents were added after that (intent count → 11); the `verify` utility skill was added separately. Total skill directories at the 33-skill peak: 33 (9 intent + 6 track + 17 type + 1 utility).
-> **Post `remove-document-type-skills.adr.md`**: 18 skill directories (11 intent + 6 track + 1 utility) — type skills were removed after evidence showed their per-type content was already duplicated in intent/track skills.
-> **Post `merge-review-status-remove-graph.adr.md`**: 16 skill directories (9 intent + 6 track + 1 utility) — `status` merged into `review`, `graph` removed.
-> **Post `skill-surface-collapse.adr.md` (current)**: **7 skill directories** total. `bootstrap` renamed to `init`. `review` + `actualize` merged into `audit` (with `--deep` and `--drift` modes). All track skills folded into `plan` as references under `skills/plan/references/`. `standard` folded into `decide`'s continuation chain. `verify` removed in favor of `make verify`.
-
-See `component-registry.doc.md` for the current inventory.
+**Surface history.** After the plan, the `graph` intent was added, taking the intent count to 9, then `context` and `bootstrap` took it to 11, and the `verify` utility was added separately, peaking at 33 skill directories — 9 intent, 6 track, 17 type, 1 utility. Removing the type skills left 18 directories. Merging `status` into `review` and removing `graph` left 16. The final collapse left **7**: `bootstrap` renamed to `init`; `review` and `actualize` merged into `audit` with its `--deep` and `--drift` modes; every track folded into `plan` as a reference; `standard` folded into the `decide` continuation chain; and `verify` removed in favor of `make verify`. `component-registry.doc` holds the current inventory.
 
 ## Tasks
 
-### Phase 1: Create Intent Skills (Layer 1) — DONE
+**Phase 1 — create the intent skills.** Done. Seven intent skills were created in the five-section structure of title with one-liner, When to Use, Routing Table, Execution, and Result.
 
-Created 7 intent skills following the 5-section structure: title+one-liner, When to Use, Routing Table, Execution, Result.
+- [x] `skills/capture/SKILL.md`, new, absorbing the create wizard and routing to adr, spec, doc, or guide.
+- [x] `skills/plan/SKILL.md`, rewritten to absorb the plan type skill and, after the collapse, to route to per-flow references.
+- [x] `skills/decide/SKILL.md`, new, creating an adr or rfc and offering the rule and guide follow-up.
+- [x] `skills/standard/SKILL.md`, new, routing into the standard track. Later merged into `decide`.
+- [x] `skills/review/SKILL.md`, rewritten. Later merged into `audit`.
+- [x] `skills/status/SKILL.md`, rewritten. Later merged into `review`, then into `audit`.
+- [x] `skills/help/SKILL.md`, new, carrying the command guide.
 
-- [x] `skills/capture/SKILL.md` — NEW. Absorbs create wizard. Routes to adr/spec/doc/guide.
-- [x] `skills/plan/SKILL.md` — REWRITE. Absorbs plan type skill. Routes to per-flow references (post `skill-surface-collapse.adr.md`).
-- [x] `skills/decide/SKILL.md` — NEW. Creates adr or rfc; offers rule+guide follow-up.
-- [x] `skills/standard/SKILL.md` — NEW. Routes to standard-track. **Later merged into `decide`** per `skill-surface-collapse.adr.md`.
-- [x] `skills/review/SKILL.md` — REWRITE. **Later merged into `audit`** per `skill-surface-collapse.adr.md`.
-- [x] `skills/status/SKILL.md` — REWRITE. **Later merged into `review`** per `merge-review-status-remove-graph.adr.md`, then into `audit`.
-- [x] `skills/help/SKILL.md` — NEW. Command guide.
+**Phase 1b — the actualize intent skill.** Done, added once the actualize decision and specification were complete.
 
-### Phase 1b: Actualize Intent Skill — DONE
+- [x] `skills/actualize/SKILL.md`, new, detecting stale documents. Later merged into `audit --drift`.
 
-Added after the Actualize System ADR and Specification were completed:
+**Phase 2 — remove the absorbed skills.** Done.
 
-- [x] `skills/actualize/SKILL.md` — NEW. Detects stale docs. **Later merged into `audit --drift`** per `skill-surface-collapse.adr.md`.
+- [x] Delete the `skills/create/` directory.
 
-### Phase 2: Remove Absorbed Skills — DONE
+**Phase 3 — update the track descriptions.** Done, then undone. The track skills received the "Advanced —" prefix as planned, and all six were later removed entirely, with their flow content moving to the four `skills/plan/references/*-flow.md` files plus the continuation logic under `skills/decide/references/`.
 
-- [x] Deleted `skills/create/` directory.
+**Phase 4 — update the type descriptions.** Done, then undone. This is historical: the type skills were later removed entirely, so the tier-prefix work applied only while they existed.
 
-### Phase 3: Update Track Skill Descriptions (Layer 2) — DONE, THEN UNDONE
+**Phase 5 — trim the assistant agent.** Done.
 
-Track skills received the "Advanced —" prefix as planned. **Later, all 6 track skills were removed entirely** per `skill-surface-collapse.adr.md` and their flow content moved to `skills/plan/references/{product,sources,iso,feature}-flow.md` plus continuation logic in `skills/decide/references/continuations.md`.
+- [x] Remove the 18-type taxonomy and the relation semantics from the assistant definition, replacing them with a reference to the MCP server instructions plus focus areas.
 
-### Phase 4: Update Type Skill Descriptions (Layer 3) — DONE, THEN UNDONE
+**Phase 6 — validate.** Done.
 
-**Historical.** Type skills were later removed entirely (see `remove-document-type-skills.adr.md`). Tier-prefix work described below was relevant only while type skills existed.
-
-### Phase 5: Trim Assistant Agent — DONE
-
-- [x] Removed 18-type taxonomy and relation semantics from `agents/archcore-assistant.md`. Replaced with reference to MCP server instructions + focus areas.
-
-### Phase 6: Validate — DONE
-
-- [x] All intent skills existed with `disable-model-invocation: true` (note: this flag was later REMOVED by the Inverted Invocation Policy ADR — intent skills are now auto-invocable; the policy is reaffirmed by `skill-surface-collapse.adr.md`).
-- [x] All track descriptions started with "Advanced —" (moot after track removal).
-- [x] All non-high-freq type descriptions started with "Expert —" (moot after type-skill removal).
-- [x] `skills/create/` removed.
-- [x] Agent trimmed — no duplicate taxonomy.
-- [x] Total at plan completion: 31 skill directories (8 intent + 6 track + 17 type). Current: 7.
+- [x] Every intent skill carried `disable-model-invocation: true`. That flag was later removed by `inverted-invocation-policy.adr`, so intent skills now auto-invoke, a policy `skill-surface-collapse.adr` reaffirms.
+- [x] Every track description began with "Advanced —", which became moot after the track removal.
+- [x] Every non-high-frequency type description began with "Expert —", which became moot after the type-skill removal.
+- [x] `skills/create/` was removed.
+- [x] The agent was trimmed, with no duplicate taxonomy.
+- [x] The total at plan completion was 31 skill directories: 8 intent, 6 track, 17 type.
 
 ## Acceptance Criteria
 
-All met at plan completion. The `plan` type skill was absorbed into the `/archcore:plan` intent skill. The `actualize` intent skill was added in Phase 1b. Total at completion: 31 = 8 + 6 + 17.
+All criteria were met at plan completion. The plan type skill was absorbed into the plan intent skill, the actualize intent skill was added in Phase 1b, and the total at completion was 31.
 
-Note: Subsequent work added the `graph`, `context`, and `bootstrap` intent skills and the `verify` utility skill. At peak, total on disk was 33–34. Invocation flags were then re-tuned by the Inverted Invocation Policy ADR.
-
-**Then** the surface was consolidated in three further steps:
-
-1. **Type skills removed entirely** by `remove-document-type-skills.adr.md` → 18 skills.
-2. **`status` merged into `review`, `graph` removed** by `merge-review-status-remove-graph.adr.md` → 16 skills.
-3. **Tracks collapsed into `plan` references; `review`+`actualize` merged into `audit`; `bootstrap` renamed to `init`; `standard` folded into `decide`; `verify` removed** by `skill-surface-collapse.adr.md` → **7 skills (current)**.
+Subsequent work added the `graph`, `context`, and `bootstrap` intents plus the `verify` utility, peaking at 33 to 34 directories on disk, after which the invocation flags were re-tuned. The surface then consolidated in three further steps: the type skills were removed entirely, leaving 18; `status` merged into `review` and `graph` was removed, leaving 16; and the final collapse left 7.
 
 ## Dependencies
 
-- `intent-based-skill-architecture.adr.md` — the decision being implemented (structural decomposition still stands; Layer 2 and Layer 3 have both been collapsed) ✓
-- `inverted-invocation-policy.adr.md` — superseded the per-class invocation flags decided here (added after plan completion).
-- `remove-document-type-skills.adr.md` — removed the entire Type Skill (Layer 3) surface.
-- `merge-review-status-remove-graph.adr.md` — merged `status` into `review`, removed `graph`.
-- `skill-surface-collapse.adr.md` — final consolidation to 7 skills.
-- `skills-system.spec.md` — defines the current skill structure ✓
-- `commands-system.spec.md` — defines the visible command surface ✓
-- `plugin-architecture.spec.md` — defines the overall architecture ✓
-- `actualize-system.adr.md` — decision for the actualize intent skill (later folded into `audit`) ✓
+- `intent-based-skill-architecture.adr` — the decision this plan implements. Its structural decomposition still stands, though Layers 2 and 3 have both been collapsed.
+- `inverted-invocation-policy.adr` — superseded the per-class invocation flags decided here, and was added after plan completion.
+- `remove-document-type-skills.adr` — removed the entire type-skill layer.
+- `merge-review-status-remove-graph.adr` — merged `status` into `review` and removed `graph`.
+- `skill-surface-collapse.adr` — the final consolidation to 7 skills.
+- `skills-system.spec`, `commands-system.spec`, and `plugin-architecture.spec` — define the current skill structure, the visible command surface, and the overall architecture.
+- `actualize-system.adr` — the decision behind the actualize intent, later folded into `audit`.

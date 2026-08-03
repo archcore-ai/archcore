@@ -6,23 +6,13 @@ tags:
   - "plugin"
 ---
 
-## Purpose
+## Purpose & Scope
 
-Define the contract for user-invoked skills: their discoverability, naming, argument handling, and behavior when users invoke them via slash commands. The current surface is **7 commands**, all auto-invocable, governed by `skill-surface-collapse.adr.md`. The prior tiered structure (intent/track/utility) is superseded — every remaining skill is intent-class.
+This spec defines the contract for user-invoked skills: discoverability, naming, argument handling, and behavior when a user invokes them as slash commands. The current surface is **7 commands**, all auto-invocable, fixed by `skill-surface-collapse.adr`. Normative for the external-facing command surface; `skills-system.spec` remains normative for internal skill structure. Depended on by users of the `/` menu on all four hosts and by the `commands/*.md` wrappers. Out of scope: MCP tools, and the prior tiered intent/track/utility structure, which is superseded — every remaining skill is intent-class.
 
-Note: Claude Code and Cursor surface user-invoked workflows directly from skills. Codex CLI requires `commands/*.md` wrappers — thin host-adapter shims that delegate to `skills/<name>/SKILL.md`. GitHub Copilot CLI surfaces skills directly too, but its manifest gives the `commands` field no default path, so `.plugin/plugin.json` names `./commands/` explicitly; without that pointer the wrappers simply do not load there. On Copilot a skill takes precedence over a command of the same name, so the wrappers act as a fallback surface rather than the primary one. The skill file remains the single behavioral source of truth on every host.
+Host surfacing differs. Claude Code and Cursor surface user-invoked workflows directly from skills. Codex CLI requires `commands/*.md` wrappers — thin host-adapter shims that delegate to `skills/<name>/SKILL.md`. GitHub Copilot CLI surfaces skills directly, but its manifest gives the `commands` field no default path, so `.plugin/plugin.json` names `./commands/` explicitly; without that pointer the wrappers do not load there. On Copilot a skill takes precedence over a command of the same name, so a wrapper is a fallback surface rather than the primary one. The skill file is the single behavioral source of truth on every host.
 
-## Scope
-
-This specification covers the user-invoked surface of the plugin: how users discover, invoke, and interact with the 7 skills that appear in the `/` menu. It does not cover MCP tools.
-
-## Authority
-
-This specification is the authoritative reference for user-invoked skill behavior. `skills-system.spec.md` defines internal skill structure; this spec defines the external-facing contract.
-
-## Subject
-
-### Visible `/` palette (7 commands)
+## Surface
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -38,15 +28,11 @@ This specification is the authoritative reference for user-invoked skill behavio
 └──────────────────────────────────────────────────────┘
 ```
 
-Total visible: **7 commands**. Total skills on disk: **7**. No hidden surface, no utility-only flag.
-
-### Command reference
-
-All commands are auto-invocable. The user describes intent in natural language and the model routes; an explicit `/archcore:<name>` invocation works identically.
+Total visible: **7 commands**. Total skills on disk: **7**. No hidden surface, no utility-only flag. A user describes intent in natural language and the model routes; an explicit `/archcore:<name>` invocation behaves identically.
 
 | Command | Description (in skill picker) | Argument | Behavior |
 |---|---|---|---|
-| `/archcore:init` | First-time onboarding — detect scale + shape, compose a full first-day seed (stack rule, run guide, data-model, integrations, config, entry points, architecture overview, hotspot specs) and import agent files | `[--mode=small\|medium\|large] [--domain=<slug>] [--refresh]` | Detect → compose → one preview → single `confirm` → create + wire relations. Nothing written before confirm. Idempotent (skip-on-exists). Also installs host wiring (project MCP config, SessionStart hook, usage hint) matching `archcore init` — see `host-wiring-parity.adr.md`. See `magic-first-day-init.adr.md`. |
+| `/archcore:init` | First-time onboarding — detect scale + shape, compose a full first-day seed (stack rule, run guide, data-model, integrations, config, entry points, architecture overview, hotspot specs) and import agent files | `[--mode=small\|medium\|large] [--domain=<slug>] [--refresh]` | Detect → compose → one preview → single `confirm` → create + wire relations. Nothing written before confirm. Idempotent (skip-on-exists). Also installs host wiring (project MCP config, SessionStart hook, usage hint) matching `archcore init` — see `host-wiring-parity.adr`. See `magic-first-day-init.adr`. |
 | `/archcore:capture` | Document a module / component / system | `[topic]` | Routes to adr / spec / doc / guide based on context |
 | `/archcore:decide` | Record a decision (ADR) or draft a proposal (RFC); optional standard cascade | `[topic]` | Creates adr or rfc; offers optional CPAT → rule → guide continuation |
 | `/archcore:plan` | Plan a feature or initiative end-to-end | `[topic] [--product\|--sources\|--iso\|--feature]` | Routes to single plan, or one of four flows: product (idea→prd→plan), sources (mrd→brd→urd), iso (brs→strs→syrs→srs), feature (prd→spec→plan→task-type) |
@@ -54,55 +40,27 @@ All commands are auto-invocable. The user describes intent in natural language a
 | `/archcore:context` | Surface rules / decisions for a code area or pickup | `[path, topic, --git-changes]` | search_documents-backed grouped markdown; `--git-changes` derives scope from the working tree |
 | `/archcore:help` | Guide to Archcore commands and capabilities | — | Command catalogue, onboarding cues |
 
-### Document-type access
+**Document-type access.** Every Archcore document type is reachable through an intent skill that inlines its creation, or through a direct `mcp__archcore__create_document(type=<any>)` call:
 
-Every Archcore document type is reachable via:
+- `adr`, `rule`, `guide`, `cpat`, `rfc` → `/archcore:decide`
+- `adr`, `spec`, `doc`, `guide` → `/archcore:capture`
+- `idea`, `prd`, `plan`, `task-type` → `/archcore:plan` (product and feature flows)
+- `mrd`, `brd`, `urd` → `/archcore:plan --sources`
+- `brs`, `strs`, `syrs`, `srs` → `/archcore:plan --iso`
+- `rule`, `spec`, `doc` → `/archcore:init` also composes these in the first-day seed; it is the only skill that seeds documents in bulk, behind a single preview and confirm
 
-1. An intent skill that inlines its creation:
-   - `adr`, `rule`, `guide`, `cpat`, `rfc` → `/archcore:decide`
-   - `adr`, `spec`, `doc`, `guide` → `/archcore:capture`
-   - `idea`, `prd`, `plan`, `task-type` → `/archcore:plan` (product/feature flows)
-   - `mrd`, `brd`, `urd` → `/archcore:plan --sources`
-   - `brs`, `strs`, `syrs`, `srs` → `/archcore:plan --iso`
-   - `rule`, `spec`, `doc` → `/archcore:init` also composes these as part of the first-day seed (the only skill that seeds documents in bulk, behind a single preview/confirm)
-2. A direct MCP call — `mcp__archcore__create_document(type=<any>)`.
+The full mapping lives in `skills-system.spec` under "Document-type coverage".
 
-The full mapping is in `skills-system.spec.md` → "Document-type coverage".
+**Naming.** Every command carries the `archcore:` plugin prefix and an action verb or a clear noun: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. There are no sub-namespaces — Claude Code uses a single colon as the plugin separator.
 
-## Contract Surface
+**Arguments.** Every command accepts the arguments documented in its `argument-hint:` frontmatter. With an argument (`/archcore:plan auth-redesign`) the topic arrives as `$ARGUMENTS` and scopes the work and the duplicate check; without one the skill asks an initial question to establish topic and scope. Mode flags (`--deep`, `--drift`, `--product`, `--sources`, `--iso`, `--feature`, `--git-changes`, `--mode`, `--domain`, `--refresh`) select a mode inside a single skill.
 
-### Naming Conventions
+- `/archcore:audit` treats a non-flag argument as a scope filter (tag, category, type) for `--deep` and `--drift`. The default short mode is project-wide and ignores filters by design.
+- `/archcore:plan` treats `--product`, `--sources`, `--iso`, and `--feature` as flow selectors, and uses the topic argument to scope the documents.
+- `/archcore:context` additionally accepts `--git-changes` — working-tree scope (staged, unstaged, and untracked against HEAD, minus `.archcore/`) — which replaces path and topic classification with a git-derived path set: one `search_documents` call per changed directory, deduped and capped. It short-circuits to an empty state when git is unavailable. The agent MAY invoke `--git-changes` proactively, but only once per task over a dirty working tree.
+- `/archcore:init` accepts `--mode=small|medium|large` to force the detected scale, `--domain=<slug>` for a large-repo re-run scoped to one domain, and `--refresh` to top up an already-seeded repository with facts that appeared since.
 
-- All commands use the `archcore:` plugin prefix.
-- Commands use **action verbs or clear nouns**: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`.
-- No sub-namespaces (no `archcore:flow:iso` or similar) — Claude Code uses a single colon as plugin separator.
-
-### Argument Handling
-
-All commands accept arguments documented in their `argument-hint:` frontmatter.
-
-- **With argument**: `/archcore:plan auth-redesign` — the topic is passed as `$ARGUMENTS`, skill uses it to scope work and check for duplicates.
-- **Without argument**: `/archcore:plan` — skill asks an initial question to establish topic/scope.
-
-Mode flags (`--deep`, `--drift`, `--product`, `--sources`, `--iso`, `--feature`, `--git-changes`, `--mode`, `--domain`, `--refresh`) select between modes within a single skill.
-
-The `/archcore:audit` command treats a non-flag argument as a **scope filter** (tag, category, type) for `--deep` and `--drift` modes. The default short mode is project-wide and ignores filters by design.
-
-The `/archcore:plan` command treats a flag argument (`--product`, `--sources`, `--iso`, `--feature`) as a flow selector and uses the topic argument to scope the documents.
-
-The `/archcore:context` command additionally accepts `--git-changes` (working-tree scope: staged + unstaged + untracked vs HEAD, minus `.archcore/`) as a scope flag that replaces path/topic classification with a git-derived path set (one `search_documents` call per changed directory, deduped and capped). It short-circuits to an empty state when git is unavailable. The agent MAY also invoke `--git-changes` proactively, but only once per task over a dirty working tree (not after every edit).
-
-The `/archcore:init` command accepts `--mode=small|medium|large` (force the detected scale), `--domain=<slug>` (large-repo re-run scoped to one domain), and `--refresh` (top up an already-seeded repo with facts that appeared since). Its flow is deterministic: detect → compose → one preview → single `confirm` → create + wire relations.
-
-### Discoverability
-
-All four hosts — Claude Code, Cursor, Codex CLI, GitHub Copilot CLI — show the 7 skills in a flat list. Discoverability is supported by:
-
-1. **`/archcore:help`** — explains the active surface and routes users to the right command.
-2. **SessionStart empty-state nudge** — on fresh repos, the session-start hook points users at `/archcore:init` so onboarding is self-routing.
-3. **Natural conversation** — every skill is auto-invocable. The model picks the right one from user phrasing without an explicit `/` invocation.
-
-The `/archcore:help` output structure:
+**Discoverability.** All four hosts show the 7 skills in a flat list, supported by `/archcore:help`, by the SessionStart empty-state nudge that points a fresh repository at `/archcore:init`, and by auto-invocation from natural phrasing. The `/archcore:help` output structure:
 
 ```
 ## Quick Start (most users start here)
@@ -123,48 +81,50 @@ The right skill auto-invokes from the phrasing.
 
 ## Normative Behavior
 
-- All commands MUST be invokable without knowledge of Archcore internals.
-- All commands MUST route to the correct types/flows/analysis without forcing the user to pick a document type.
-- Creation commands MUST be self-contained with inline creation recipes per document type they produce (check duplicates → ask questions → create → suggest relations).
-- The `plan` skill MUST hold per-flow logic in `skills/plan/references/<flow>.md` rather than spawning new top-level skills.
-- All creation commands MUST call `list_documents` before `create_document` to prevent duplicates.
-- All creation commands MUST suggest `add_relation` calls after document creation.
-- Analysis commands (`audit`, `context`) MUST use MCP read tools for data gathering.
-- `/archcore:audit` MUST default to the short dashboard when invoked without arguments and switch modes when `--deep` or `--drift` is present.
-- `/archcore:init` MUST write no document before the user confirms the preview, and MUST be idempotent: every already-present artifact is skipped (skip-on-exists shown in the preview), and a fully-seeded repo early-exits unless `--refresh` or `--domain` is passed. Its host-wiring writes (files outside `.archcore/`) are equally confirm-gated (`host-wiring-parity.adr.md`).
+1. A command MUST be invokable without knowledge of Archcore internals.
+2. A command MUST route to the correct type, flow, or analysis without asking the user to pick a document type.
+3. A creation command MUST carry an inline creation recipe for each document type it produces.
+4. WHEN a creation command runs, the command MUST call `list_documents` before `create_document`.
+5. WHEN a creation command has created a document, the command MUST suggest `add_relation` calls.
+6. An analysis command (`audit`, `context`) MUST gather its data through MCP read tools.
+7. The `plan` skill MUST hold its per-flow logic in `skills/plan/references/<flow>.md`.
+8. WHEN the user invokes `/archcore:audit` without an argument, the skill MUST produce the short dashboard.
+9. WHEN the user invokes `/archcore:audit` with `--deep` or `--drift`, the skill MUST switch to that mode.
+10. WHILE `/archcore:init` awaits the user's confirmation, the skill MUST NOT create a document.
+11. WHILE `/archcore:init` awaits the user's confirmation, the skill MUST NOT write a host-wiring file outside `.archcore/`.
+12. WHEN `/archcore:init` finds an artifact already present, the skill MUST skip it and show that skip in the preview.
+13. WHEN `/archcore:init` runs on a fully seeded repository without `--refresh` and without `--domain`, the skill MUST exit early.
 
-## Constraints
+## Constraints & Invariants
 
-- No sub-namespaces. All commands are `archcore:<name>`.
-- The visible palette MUST be exactly 7 commands. Adding an eighth skill requires a new ADR.
-- Commands ask at most one scope-confirmation question before starting execution (`/archcore:init` is the exception: it presents one preview manifest and proceeds on a single `confirm` / `edit` / `cancel`).
-- Flow steps within `plan` ask at most 1–2 content questions per document step.
-- Every host that needs the `commands/` wrappers MUST point at them from its manifest where the host provides no default (Copilot); a missing pointer removes the entire `/archcore:*` surface on that host and is pinned by `test/structure/copilot-plugin.bats`.
+- Constraint: the visible palette MUST hold exactly 7 commands. An eighth skill requires a new ADR.
+- Constraint: every command is `archcore:<name>`; sub-namespaces are unavailable because Claude Code uses a single colon as the plugin separator.
+- Constraint: a command asks at most one scope-confirmation question before execution. `/archcore:init` is the exception: it presents one preview manifest and proceeds on a single `confirm`, `edit`, or `cancel`.
+- Constraint: a flow step inside `plan` asks at most 1–2 content questions per document step.
+- Constraint: a host that provides no default `commands/` path MUST point at the wrappers from its manifest. On Copilot a missing pointer removes the entire `/archcore:*` surface, which `@test/structure/copilot-plugin.bats` pins.
+- Invariant: every skill in the palette is auto-invocable, carrying no `disable-model-invocation`.
+- Invariant: every skill description enumerates trigger phrases and anti-triggers in the `Activate when X. Do NOT activate for Y.` format.
+- Invariant: every creation command checks duplicates first and suggests relations afterwards.
+- Invariant: every analysis command gathers data through MCP read tools before producing output.
+- Invariant: `help` reflects the current 7-command surface and names direct-MCP access for any document type.
+- Invariant: every Archcore document type has at least one intent path that can create it.
+- Invariant: the set of `commands/*.md` wrappers matches the set of `skills/<name>/` directories exactly. A wrapper naming a removed skill would surface a `/archcore:<name>` entry that dead-ends.
 
-## Invariants
+## Failure Behavior
 
-- Every skill in the palette is auto-invocable (no `disable-model-invocation`).
-- Every skill description enumerates trigger phrases and anti-triggers using the "Activate when X. Do NOT activate for Y." format.
-- Every creation command checks for duplicates first and suggests relations after.
-- Every analysis command gathers data via MCP read tools before producing output.
-- The `help` command accurately reflects the current 7-command surface and notes direct-MCP access for any document type.
-- Every Archcore document type has at least one intent path that can create it.
-- The set of `commands/*.md` wrappers matches the set of `skills/<name>/` directories exactly — a wrapper naming a removed skill would surface a `/archcore:<name>` entry that dead-ends.
-
-## Error Handling
-
-- If MCP server is unavailable, inform user with install/init instructions.
-- If `create_document` fails due to duplicate filename, suggest an alternative slug.
-- If intent routing is ambiguous, ask one scope question. If still ambiguous, default to `/archcore:capture` behavior.
-- If git is unavailable for `/archcore:audit --drift`, skip code-drift analysis and perform cascade + temporal only.
+1. IF the MCP server is unavailable, THEN the command MUST inform the user with install and init instructions.
+2. IF `create_document` fails on a duplicate filename, THEN the command MUST suggest an alternative slug.
+3. IF intent routing is ambiguous, THEN the command MUST ask one scope question.
+4. IF routing stays ambiguous after that question, THEN the command MUST fall back to `/archcore:capture` behavior.
+5. IF git is unavailable during `/archcore:audit --drift`, THEN the skill MUST skip code-drift analysis and run the cascade and temporal analyses only.
 
 ## Conformance
 
-A user-invoked skill or its command wrapper conforms to this specification if:
+A user-invoked skill or its command wrapper is conformant when:
 
-1. Its behavior resides at `skills/<name>/SKILL.md` and `<name>` is one of: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. Codex and Copilot may also expose a matching `commands/<name>.md` wrapper — required on Codex, which does not surface skills directly, and a fallback on Copilot, which does.
-2. Its description uses the "Activate when X. Do NOT activate for Y." trigger format.
-3. It uses MCP tools exclusively for document operations.
-4. Creation commands check for duplicates before creation and suggest relations after.
-5. Analysis commands gather data via MCP read tools.
+1. Its behavior resides at `skills/<name>/SKILL.md`, and `<name>` is one of `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. Codex and Copilot may also expose a matching `commands/<name>.md` wrapper — required on Codex, which does not surface skills directly, and a fallback on Copilot, which does.
+2. Its description uses the `Activate when X. Do NOT activate for Y.` trigger format.
+3. It performs document operations through MCP tools only.
+4. It checks duplicates before creation and suggests relations afterwards, where it is a creation command.
+5. It gathers data through MCP read tools, where it is an analysis command.
 6. Its argument handling matches its `argument-hint:` frontmatter.

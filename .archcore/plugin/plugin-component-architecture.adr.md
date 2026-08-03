@@ -8,100 +8,39 @@ tags:
 
 ## Context
 
-Claude Code plugins support multiple component types: skills (model-invoked), commands (user-invoked slash commands), agents (subagents with restricted tools), hooks (event handlers), bin (executables), and settings. We need to decide how to map Archcore's needs to these capabilities, creating a clear separation of concerns.
-
-The plugin must cover: document type guidance, workflow acceleration, complex documentation assistance, and quality enforcement.
+A host plugin system supports several component types — skills that the model invokes, commands the user invokes, agents with restricted tools, hooks that handle events, executables, and settings — and Archcore had to map its needs onto them with a clear separation of concerns. The plugin must cover four capabilities: document type guidance, workflow acceleration, complex documentation assistance, and quality enforcement.
 
 ## Decision
 
-Each plugin capability maps to a specific Claude Code component type based on its invocation model and complexity:
+Map each plugin capability to the component type whose invocation model matches it: skills route intent, command wrappers surface skills on hosts that need them, agents orchestrate complex work, hooks guard quality, and the MCP server provides document operations.
 
-### Skills (model-invoked, context-aware)
+**Skills — model-invoked and context-aware.** They translate user intent and orchestrate multi-document flows, living at `skills/<skill-name>/SKILL.md`. Every skill is auto-invocable, so the model picks the right one from user phrasing, and each inlines its per-type elicitation — questions, sections, MCP calls, relation suggestions — with per-flow logic loaded on demand from `skills/<name>/references/` or `skills/audit/lib/`. There are **7**: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`, per `skill-surface-collapse.adr`. There are no per-document-type skills, no track skills, and no utility skills.
 
-- **Purpose**: Translate user intent and orchestrate multi-document flows.
-- **Location**: `skills/<skill-name>/SKILL.md`
-- **Behavior**: Every skill is auto-invocable — Claude picks the right one from user phrasing. Skills inline per-type elicitation (questions + sections + MCP calls + relation suggestions). Per-flow logic lives as references loaded on demand under `skills/<name>/references/` or `skills/audit/lib/`.
-- **Count**: **7 skills** — `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help` (per `skill-surface-collapse.adr.md`). No per-document-type skills, no track skills, no utility skills.
+**Commands — user-invoked slash commands.** Claude Code, Cursor, and Copilot CLI surface user-invoked workflows directly from skills. Codex CLI does not, and discovers slash commands from `commands/*.md` wrappers — host-adapter shims carrying only `description:` frontmatter and a delegate instruction. A wrapper MUST NOT duplicate workflow logic; the skill stays the single behavioral source of truth on every host. Copilot loads the same wrappers behind its skills. The user-facing palette is the 7 commands `/archcore:init`, `/archcore:capture`, `/archcore:decide`, `/archcore:plan`, `/archcore:audit`, `/archcore:context`, and `/archcore:help`.
 
-### Commands (user-invoked slash commands)
+**Agents — subagents.** They handle complex multi-document tasks needing domain expertise, at `agents/archcore-assistant.md` and `agents/archcore-auditor.md`. The assistant covers requirements engineering, decision recording, documentation review, and relation management, restricted to MCP tools plus read-only file access; the auditor is its read-only counterpart.
 
-- **Purpose**: Accelerate common workflows with explicit user intent.
-- **Note**: Claude Code and Cursor surface user-invoked workflows directly from skills. Codex CLI does not — it discovers slash commands from root-level `commands/*.md` wrappers, host-adapter shims that delegate to the matching `skills/<name>/SKILL.md`. Wrappers carry only `description:` frontmatter and a delegate instruction; they MUST NOT duplicate workflow logic. The skill remains the single behavioral source of truth across all three hosts.
-- **User-facing palette (7 commands)**:
-  - `/archcore:init` — First-time onboarding
-  - `/archcore:capture` — Document a module/component
-  - `/archcore:decide` — Record a decision (ADR/RFC); optional standard cascade
-  - `/archcore:plan` — Plan a feature; pick a flow (single plan / product / sources / iso / feature)
-  - `/archcore:audit` — Dashboard (default), `--deep` audit, or `--drift` detection
-  - `/archcore:context` — Surface rules/decisions for a code area
-  - `/archcore:help` — Command guide
+**Hooks — event-driven validation.** They enforce quality and the MCP-only principle, configured in `hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`, and `hooks/copilot.hooks.json`. SessionStart loads project context and runs the staleness check; PreToolUse blocks a direct `.archcore/` write and injects code-aligned context for a source-file edit; PostToolUse validates after an MCP mutation, detects cascade after `update_document`, and emits precision warnings.
 
-### Agents (subagents)
-
-- **Purpose**: Handle complex multi-document tasks requiring domain expertise.
-- **Location**: `agents/archcore-assistant.md`, `agents/archcore-auditor.md`.
-- **Behavior**: `archcore-assistant` covers all scenarios — requirements engineering, decision recording, documentation review, relation management. Restricted to MCP tools + read-only file access. `archcore-auditor` is the read-only auditor.
-
-### Hooks (event-driven validation)
-
-- **Purpose**: Enforce quality and the MCP-only principle.
-- **Location**: `hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`.
-- **Events**:
-  - SessionStart — load project context, run staleness check
-  - PreToolUse (Write|Edit) — block direct `.archcore/` writes; inject code-aligned context for source-file edits
-  - PostToolUse — validate after MCP mutations; detect cascade after `update_document`; emit precision warnings
-
-### MCP Server
-
-- **Purpose**: Provide document CRUD and relation management tools.
-- **Provider**: Archcore CLI (`archcore mcp`).
-- **Registration**: shipped as `.mcp.json` (Claude Code) and `.codex.mcp.json` (Codex CLI). For Cursor, users copy `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` or `.cursor/mcp.json` (the plugin deliberately does not ship a Cursor plugin-MCP — see `cursor-mcp-architecture.adr.md`).
+**MCP server.** It provides document CRUD and relation management, supplied by the Archcore CLI through `archcore mcp`. Registration is plugin-shipped for Claude Code through the manifest key pointing at `.claude.mcp.json`, and for Codex CLI through `.codex-plugin/plugin.json` pointing at `.codex.mcp.json`. Cursor and Copilot get no plugin-shipped MCP: `cursor-mcp-architecture.adr` and `copilot-mcp-architecture.adr` record why, and their users register the server per project or per user.
 
 ## Alternatives Considered
 
-### Everything as commands
-
-All functionality exposed as slash commands. Rejected because:
-
-- Misses context-aware invocation — Claude wouldn't automatically know about document types.
-- Users must remember and invoke every command manually.
-- No model-invoked guidance.
-
-### Everything as agents
-
-Multiple specialized agents for each concern. Rejected because:
-
-- Overhead for simple tasks (creating a single document doesn't need an agent).
-- Agent switching adds latency and cognitive load.
-- Skills handle the "teach Claude about types" use case more efficiently.
-
-### Skills only, no commands
-
-Rely entirely on model-invoked skills. Rejected because:
-
-- Users sometimes want explicit control (e.g., "show the documentation dashboard now").
-- Explicit modes (`--deep`, `--drift`) are easier as arguments to a slash command than as inferred intent.
-
-### Ship MCP config inside the plugin (Cursor case)
-
-Bundle a Cursor plugin-MCP for zero-config MCP after install. Rejected because:
-
-- Cursor 2.5+ spawns plugin-MCPs from the plugin install dir, leaking bundled state instead of the user's workspace.
-- Cursor's MCP stdio schema has no `cwd` field, so there is no way to redirect the server to the workspace from a plugin-MCP config.
-- The workaround (copying `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` with `--project ${workspaceFolder}`) is documented in `plugin-development.guide.md` and `cursor-mcp-architecture.adr.md`.
+1. **Expose everything as commands** — rejected because it misses context-aware invocation, so the model would not know about document types on its own, users would have to remember and invoke every command manually, and no model-invoked guidance would exist.
+2. **Expose everything as agents, one specialized agent per concern** — rejected because it adds overhead for simple tasks, since creating a single document needs no agent, because agent switching adds latency and cognitive load, and because skills handle the "teach the model about types" case more directly.
+3. **Ship skills only, with no command wrappers** — rejected because users sometimes want explicit control, and because an explicit mode such as `--deep` or `--drift` reads more clearly as a slash-command argument than as inferred intent. Codex additionally has no other way to surface a skill in its `/` menu.
+4. **Ship an MCP config inside the plugin for Cursor** — rejected because Cursor 2.5 and later spawn a plugin MCP from the plugin install directory, leaking bundled state instead of the user's workspace, and because Cursor's MCP stdio schema has no `cwd` field, so nothing can redirect the server to the workspace from a plugin-MCP config. The documented path is the user- or project-level config carrying `--project ${workspaceFolder}`.
 
 ## Consequences
 
-### Positive
+- Responsibilities separate cleanly: skills route intent, agents orchestrate, hooks guard, and MCP performs operations.
+- Each component type is used for the invocation model it was designed for.
+- A single 7-skill surface is quick to learn and to teach, and all four hosts see the same 7 commands.
+- Tradeoff: 7 `SKILL.md` files plus the per-flow references and lib files require maintenance, and consistency must hold between the skills, those references, and the agent system prompts.
+- Tradeoff: Codex CLI requires 7 thin wrappers in `commands/` to surface the skills, which is mechanical parity rather than logic duplication, and Copilot needs the same wrappers plus an explicit manifest pointer.
+- Tradeoff: Cursor and Copilot users must register MCP separately. `bin/session-start` mitigates this with actionable guidance when the server is unreachable, and `host-wiring-parity.adr` reduces it to a confirmed step inside `/archcore:init`.
 
-- Clear separation: skills route intent, agents orchestrate, hooks guard.
-- Each component type used for its natural invocation model.
-- Single 7-skill surface is easy to learn and easy to teach.
-- All three hosts see the same 7 commands.
+## Superseded when
 
-### Negative
-
-- 7 SKILL.md files plus per-flow references and lib files to maintain.
-- Codex CLI requires 7 thin slash-command wrappers in `commands/` to surface skills in the `/` menu (mechanical parity, no logic duplication).
-- Must ensure consistency between skills, references, and agent system prompt.
-- Cursor users must register MCP separately (one-time copy); `bin/session-start` mitigates with actionable guidance when the server is unreachable.
+- Every supported host surfaces skills directly in its `/` menu, which would remove the `commands/` wrapper layer entirely.
+- Every supported host launches a plugin-shipped MCP server in the user's project, which would let the plugin ship one registration for all four.

@@ -7,94 +7,56 @@ tags:
   - "skills"
 ---
 
+**Surface note.** The counts below describe the state at this decision — 18 skills on disk. `merge-review-status-remove-graph.adr` then took the palette to 16, and `skill-surface-collapse.adr` to the current 7. What survives is the rule this record established: per-type elicitation lives inline inside the skills that create documents, and no new per-type skill is added.
+
 ## Context
 
-Three facts made the per-document-type skill layer (formerly "Layer 3" in `intent-based-skill-architecture.adr.md`) obsolete:
+Three facts made the per-document-type skill layer — formerly Layer 3 of `intent-based-skill-architecture.adr` — obsolete. Every creation-oriented intent skill and every track skill already inlined the same per-type questions, section lists, and MCP calls that the type skills carried, leaving each type skill's unique contribution at a 5-line relations table and a 2-line disambiguation block. The cross-host invocation flags that the tiered palette depended on were not portable. And the palette had grown to 26 visible entries dominated by internal-taxonomy names — ADR, RFC, StRS, SRS, CPAT, MRD, BRD — rather than intent-based actions.
 
-**1. Content duplication.** Every creation-oriented intent skill (`decide`, `capture`, `standard`, `plan`) and every track skill inlines per-type elicitation — the same questions, section lists, and MCP calls that type-skill `Quick Create` sections already carried. The inline line "Ask: What was the decision? What alternatives were considered? Compose content covering Context, Decision, Alternatives Considered, Consequences" appeared verbatim in both `skills/adr/SKILL.md` and `skills/decide/SKILL.md` Step 3. Track skills (iso-track, sources-track, architecture-track, standard-track, feature-track, product-track) contain the full per-type question-and-section flow for every document they create. The type skill's unique contribution had shrunk to a 5-line Relations table and a 2-line "When to use / Not X" disambiguation block.
+## Findings
 
-**2. Cross-host invocation flags are not portable.** The Inverted Invocation Policy used `disable-model-invocation: true` (mainstream types) and `user-invocable: false` (niche types) to stratify the `/` palette. Neither field is in the agentskills.io open standard:
+1. **Content duplication.** The line "Ask: What was the decision? What alternatives were considered? Compose content covering Context, Decision, Alternatives Considered, Consequences" appeared verbatim in both `skills/adr/SKILL.md` and Step 3 of `skills/decide/SKILL.md`. The track skills contained the full per-type question-and-section flow for every document they created.
+2. **Invocation flags are not portable.** Neither `disable-model-invocation` nor `user-invocable` is in the agentskills.io open standard. Claude Code supported both, with implementation quirks in issues #19141 and #26251. Cursor had a confirmed bug where `disable-model-invocation: true` on a plugin-delivered skill hid it from `/` entirely — acknowledged by Cursor support on 2026-03-24, escalated, and auto-closed on 2026-04-17 without a fix — and does not document `user-invocable`, so mainstream type skills were invisible there and the niche flag was ignored. Codex supported neither field in `SKILL.md`, keeping invocation control in a separate `agents/openai.yaml` under `policy.allow_implicit_invocation`, so every type skill stayed auto-invocable there and the inversion reverted. Qoder and Kiro supported neither. The tiered policy therefore worked only in Claude Code, and the cross-host parity goal of `multi-host-plugin-architecture.adr` was silently broken.
+3. **Cognitive load.** At inversion time the Claude Code palette held 26 visible entries: 9 intent, 6 track, 10 mainstream type, and 1 utility.
 
-- **Claude Code**: both fields supported (with known implementation quirks in issues #19141 and #26251).
-- **Cursor**: has a confirmed bug where `disable-model-invocation: true` on plugin-delivered skills hides them from `/` entirely — acknowledged by Cursor support 2026-03-24, escalated, thread auto-closed 2026-04-17 without a fix. The `user-invocable` field is not documented in Cursor. Effect in Cursor: mainstream type skills were invisible; niche-type flag ignored.
-- **Codex (OpenAI)**: neither field supported in SKILL.md. Invocation control lives in a separate `agents/openai.yaml` with `policy.allow_implicit_invocation`. Effect: all type skills auto-invocable in Codex, reverting the inversion.
-- **Qoder, Kiro**: neither field supported.
-
-The carefully tiered invocation policy worked only in Claude Code. Cross-host parity — a stated architectural goal per `multi-host-plugin-architecture.adr.md` — was silently broken.
-
-**3. Cognitive load.** At inversion time the Claude Code `/` palette had 26 visible entries (9 intent + 6 track + 10 mainstream type + 1 utility). Users scanning `/archcore:` saw a long list dominated by internal-taxonomy names (ADR, RFC, StRS, SRS, CPAT, MRD, BRD, …) rather than intent-based actions.
-
-### What was reverified before this decision
-
-- Every Archcore document type is reachable through at least one existing intent or track skill, with the exception of `rfc` (covered in `/archcore:decide` only as a redirect) and `cpat` (no track or intent covered it). These two gaps had concrete absorption targets.
-- `mcp__archcore__create_document(type=<any>)` accepts every Archcore document type with or without content. No skill is required to create any document.
-- Deleting type skills has no functional regression for adr/rule/guide/doc/spec/prd/idea/task-type/niche types — their elicitation already lives in intent/track skills.
+Three things were reverified before deciding: every Archcore document type was reachable through at least one intent or track skill, except `rfc`, covered in `decide` only as a redirect, and `cpat`, covered nowhere; `mcp__archcore__create_document(type=<any>)` accepts every type with or without content, so no skill is required to create any document; and deleting the type skills carried no functional regression for the types whose elicitation already lived in an intent or track skill.
 
 ## Decision
 
-**Delete all 17 document-type skills. Collapse Layer 3. Keep only intent (11), track (6), and utility (1) skills — 18 total on disk, all visible in `/`.**
+Delete all 17 document-type skills and collapse Layer 3, keeping only intent, track, and utility skills — 18 on disk at the time, all visible in `/` — while absorbing the two uncovered types into existing skills.
 
-Concrete migrations to close the two gaps:
+`rfc` was absorbed into `decide`, which gained a branch: when the user's language is "proposing", "should we", or "thinking about", or explicitly names an RFC, the skill confirms "Draft an RFC for team review?" and runs the RFC recipe of Summary, Motivation, Detailed Design, Drawbacks, and Alternatives, leaving the finalized-decision branch unchanged. `cpat` was absorbed into `standard-track` as an optional Step 3b between ADR creation and rule creation, asking what pattern changed and composing What Changed, Why, Before, After, and Scope, with `cpat implements adr` and `rule related cpat`, so the flow became adr → optional cpat → rule → guide.
 
-1. **RFC absorbed into `/archcore:decide`.** The `decide` skill gains a branch: if the user's language is "proposing", "should we", "thinking about", or explicitly mentions an RFC, confirm "Draft an RFC for team review?" and run the RFC creation recipe (Summary, Motivation, Detailed Design, Drawbacks, Alternatives). The finalized-decision branch (ADR + optional rule+guide continuation) remains unchanged. `decide`'s description and routing table are broadened to enumerate both paths.
-
-2. **CPAT absorbed into `/archcore:standard-track`.** A new optional Step 3b is inserted between ADR creation and rule creation: "If the decision represents a code-pattern change (before/after), offer a CPAT. Ask 'What pattern changed? Show before/after.' Compose What Changed / Why / Before / After / Scope. Relations: cpat `implements` adr; rule `related` cpat if cpat was created." The flow becomes adr → (optional cpat) → rule → guide.
-
-3. **17 type-skill directories deleted**: `skills/{adr,rfc,rule,guide,doc,spec,prd,idea,task-type,cpat,mrd,brd,urd,brs,strs,syrs,srs}/`.
-
-4. **Count invariants updated** in `README.md` (35 → 18), `test/structure/skills.bats` (`>= 32` → `>= 18`), and every `.archcore/plugin/` document referencing skill counts.
-
-5. **Obsolete lifecycle docs deleted** (user-selected "Delete entirely"): `adding-document-type-skill.guide.md`, `creating-skill-batch.task-type.md`, `keep-document-type-skills.adr.md`.
-
-6. **Per-class invocation flags become simpler**: intent and track skills remain auto-invocable with no flag; utility (`verify`) keeps `disable-model-invocation: true`. No skill uses `user-invocable: false`. This removes reliance on the field that Cursor and Codex do not support portably.
+Alongside those absorptions: the 17 type-skill directories were deleted; the count invariants were updated in `README.md`, `@test/structure/skills.bats`, and every `.archcore/` document referencing skill counts; three obsolete lifecycle documents were deleted at the user's direction; and the per-class invocation flags simplified to no flag for intent and track skills and `disable-model-invocation: true` for the utility, removing all reliance on the field that Cursor and Codex do not support.
 
 ## Alternatives Considered
 
-### Keep type skills, hide mainstream types from `/` via `user-invocable: false`
-
-Considered first. Would reduce Claude-Code `/` palette from 26 to 16 visible entries while preserving type skills on disk for model orchestration. **Rejected** for two reasons: (a) it is a Claude-Code-only fix — Cursor ignores the field, Codex doesn't support it, and the existing Cursor `disable-model-invocation` bug already breaks the mainstream-type tier in that host; (b) it does not address the underlying content duplication between intents/tracks and type skills, which was the deeper quality problem.
-
-### Move per-type knowledge into MCP (rich `create_document` schema or `get_type_schema` tool)
-
-Strategically the cleanest endpoint — MCP is the only host-agnostic layer, and moving elicitation there would give Cursor/Codex the same authoring quality without duplicating skills. **Deferred**, not adopted in this change. Reasons: (a) requires CLI/MCP-server changes, out of scope for a plugin-only change; (b) intent/track skills already inline the elicitation, so there is no immediate regression from deletion; (c) the MCP route can be adopted later as a Phase 2 without blocking this cleanup.
-
-### Keep status quo (post-inversion)
-
-**Rejected.** Content duplication persists. Cross-host parity remains broken. Every subsequent type-skill edit would need to be mirrored in intent and track skills — the spec's "Intent skills must not duplicate content from type skills" invariant was already aspirational and violated in practice.
-
-### Kill type skills without absorbing RFC and CPAT
-
-**Rejected.** Leaving RFC and CPAT unreachable through any intent/track skill would degrade the creation path for two types. Absorbing both (RFC into `decide`, CPAT into `standard-track`) closes those gaps with small additions to existing skills.
-
-### Keep niche type skills (brs, strs, syrs, srs, mrd, brd, urd), delete only mainstream
-
-**Rejected.** Niche types are already fully inlined inside `iso-track` and `sources-track` — those track skills contain the question, section list, `create_document`, and `add_relation` calls per niche type. The niche SKILL.md files were kept historically so tracks could "programmatically invoke" them, but the tracks never did — they inline the flow directly. Keeping them added no value and prevented the palette-unification story.
+1. **Keep the type skills and hide mainstream types from `/` through `user-invocable: false`** — considered first, and rejected because it is a Claude-Code-only fix that Cursor ignores and Codex does not support, on top of the existing Cursor bug that already broke the mainstream tier there, and because it leaves the underlying content duplication — the deeper quality problem — untouched.
+2. **Move per-type knowledge into MCP, through a rich `create_document` schema or a `get_type_schema` tool** — strategically the cleanest endpoint, since MCP is the only host-agnostic layer, and deferred rather than adopted because it requires CLI and MCP-server changes outside a plugin-only change, because intent and track skills already inline the elicitation so deletion causes no regression, and because the MCP route can follow later without blocking this cleanup.
+3. **Keep the status quo after the inversion** — rejected because content duplication persists, cross-host parity stays broken, and every subsequent type-skill edit would need mirroring into the intent and track skills, so the "intent skills must not duplicate type-skill content" invariant would stay violated in practice.
+4. **Delete the type skills without absorbing `rfc` and `cpat`** — rejected because it would leave two types unreachable through any skill, degrading their creation path; absorbing both closes the gaps with small additions to existing skills.
+5. **Keep the niche type skills and delete only the mainstream ones** — rejected because the niche types were already fully inlined inside `iso-track` and `sources-track`, which carry the question, section list, `create_document`, and `add_relation` calls per type. The niche files were retained historically so tracks could invoke them programmatically, which the tracks never did.
 
 ## Consequences
 
-### Positive
+- The visible palette dropped from 26 entries to 18, and every remaining skill used only the portable invocation flag.
+- Multi-host parity was restored, with Cursor and Codex seeing the same skills as Claude Code under identical invocation semantics.
+- Content duplication was eliminated at the skill boundary, and the previously violated no-duplication invariant was replaced by an explicit acknowledgement: an inline recipe inside an intent or track skill is not duplication but that entry point's self-containment.
+- The session-start token budget freed the 17 type-skill descriptions.
+- Every Archcore document type stayed creatable, through an intent, through a track, or directly through `mcp__archcore__create_document(type=<any>)`.
+- Tradeoff: the `/archcore:<type> <topic>` power-user shortcut was lost. A user wanting a specific type now goes through the matching intent or calls MCP directly, and `/archcore:help` documents both.
+- Tradeoff: the teaching role the type skills served — explaining what an ADR is in Archcore — moved to the Archcore CLI documentation outside this plugin, which the README references.
+- Tradeoff: a change to one of the inlined recipes has no per-type skill to edit and must be edited inside each intent or track that uses it. This is the duplication cost accepted in exchange for self-containment, and when it grows heavy the deferred MCP-schema alternative becomes attractive.
+- This decision supersedes `keep-document-type-skills.adr`, deleted in this change with its reasoning preserved above; the type-skill portion of `inverted-invocation-policy.adr`, whose intent, track, and utility policy remains in force; and Layer 3 of `intent-based-skill-architecture.adr`, whose four-layer decomposition remains as historical framing.
 
-- Visible `/` palette drops from 26 to **18** (11 intent + 6 track + 1 utility). All remaining skills use only the portable invocation flag (`disable-model-invocation: true` for utility, none for intent/track).
-- Multi-host parity is restored: no reliance on the Claude-Code-specific `user-invocable: false` field. Cursor and Codex now see the same 18 skills that Claude Code does, with identical invocation semantics (auto for intent/track, user-only for utility).
-- Content duplication is eliminated at the skill boundary. Intent and track skills are the single home for per-type elicitation within the plugin. The spec's previously-violated "no duplication" invariant is replaced by an explicit acknowledgement: inline recipes inside intent/track skills are not duplication, they are each entry point's self-containment.
-- Session-start token budget is freed: the model no longer loads 17 type-skill descriptions on every session.
-- Every Archcore document type remains creatable: via intent (adr/rule/guide/doc/spec/prd/idea), via track (niche types, task-type, plan, cpat inside standard-track, rfc inside decide), or directly via `mcp__archcore__create_document(type=<any>)`.
+## Constraints
 
-### Negative
+1. An intent skill MUST inline the per-type elicitation for every document type it creates.
+2. A track skill MUST inline the per-type elicitation for every step.
+3. The author MUST NOT add a new per-type `SKILL.md`. A new type is added by extending the matching intent or track.
+4. `/archcore:help` MUST document direct-MCP access for any document type, as the fallback for a type no user-facing skill covers.
 
-- Loss of the `/archcore:<type> <topic>` power-user shortcut (e.g., `/archcore:adr`). Users who want to create a specific type now go through the matching intent or call MCP directly. The documented migration path in `/archcore:help` covers both options.
-- Teaching role that type skills served ("what is an ADR in Archcore?") moves to the Archcore CLI documentation outside this plugin. README references Archcore documentation for per-type reference.
-- Skill count stability: future changes to the 17 inlined recipes have no per-type skill to edit — they must be edited inside each intent/track that uses them. This is the duplication cost accepted in exchange for self-containment. When this cost becomes heavy, the MCP-schema alternative (deferred above) becomes attractive.
+## Superseded when
 
-### Supersedes
-
-- `keep-document-type-skills.adr.md` — the ADR that justified keeping the type-skill layer. Deleted in this change; reasoning preserved in this ADR's Context section.
-- Type-skill portion of `inverted-invocation-policy.adr.md`. The intent/track/utility policy from that ADR remains in force; the mainstream/niche type rows are marked historical.
-- `Layer 3` in `intent-based-skill-architecture.adr.md`. The 4-layer decomposition remains as a historical framing; the effective runtime layering is now 3 (intent, track, utility) + MCP primitives.
-
-### Constraints (new)
-
-- Intent skills MUST inline per-type elicitation for every document type they create.
-- Track skills MUST inline per-type elicitation for every step.
-- No new per-type SKILL.md MUST be added. New types are added by extending the matching intent or track, not by creating a new skill.
-- `/archcore:help` MUST document direct-MCP access for any document type (as the fallback path for types not covered by a user-facing intent/track).
+- The deferred MCP-schema alternative ships, moving per-type elicitation into the host-agnostic layer, which would remove constraints 1 and 2.
+- The cost of editing an inlined recipe across several skills is measured to exceed the cost of maintaining a per-type surface, which would reopen alternative 5.

@@ -109,6 +109,19 @@ is_stripped() {
   is_stripped 'reference-materials' || fail "reference-materials/ MUST be stripped"
 }
 
+@test "release.yml strips AGENTS.md and CLAUDE.md" {
+  # A host reads a root AGENTS.md / CLAUDE.md as instructions. Shipping ours
+  # would apply plugin-contributor writing rules to the user's own project.
+  is_stripped 'AGENTS\.md' || fail "AGENTS.md MUST be stripped — see docs/release.md"
+  is_stripped 'CLAUDE\.md' || fail "CLAUDE.md MUST be stripped — see docs/release.md"
+}
+
+@test "release.yml strips the dev-only root .mcp.json" {
+  # Dev wiring that makes this repo an Archcore project for its own
+  # contributors. The shipped configs live under plugins/archcore/.
+  is_stripped '\.mcp\.json' || fail "root .mcp.json MUST be stripped — see docs/release.md"
+}
+
 # --- docs/release.md mirrors workflow contract -----------------------------
 
 @test "docs/release.md mentions assets/ in the ships list" {
@@ -121,4 +134,11 @@ is_stripped() {
 @test "docs/release.md mentions docs/TERMS.md in the ships list" {
   grep -q 'docs/TERMS\.md' "$REPO_ROOT/docs/release.md" \
     || fail "docs/release.md must mention docs/TERMS.md in the 'Everything else ships' section"
+}
+
+@test "docs/release.md documents the dev-only instruction and MCP strips" {
+  local doc="$REPO_ROOT/docs/release.md"
+  grep -q '`AGENTS\.md`' "$doc" || fail "docs/release.md must list AGENTS.md in the blocklist table"
+  grep -q '`CLAUDE\.md`' "$doc" || fail "docs/release.md must list CLAUDE.md in the blocklist table"
+  grep -q '`\.mcp\.json`' "$doc" || fail "docs/release.md must list .mcp.json in the blocklist table"
 }

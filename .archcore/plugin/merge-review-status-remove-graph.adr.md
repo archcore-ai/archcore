@@ -8,80 +8,53 @@ tags:
   - "skills"
 ---
 
+**Naming note.** This decision merged `status` into a skill then called `/archcore:review`. `skill-surface-collapse.adr` later renamed that skill to `/archcore:audit` and removed the track tier, so the counts recorded here — 16 visible commands, 9 intent skills — describe the surface at the time of this decision, not the current 7-skill palette. The merge itself, and the short-versus-deep mode split, survived the rename intact and now live as the default dashboard and `--deep` modes of `/archcore:audit`.
+
 ## Context
 
-After `remove-document-type-skills.adr.md` collapsed the per-type skill layer (Phase 7), the visible `/archcore:` palette stabilized at 18 commands: 11 intent + 6 track + 1 utility. Three of those intents — `status`, `review`, and `graph` — all sit in the "inspect documentation health" problem space. Concrete observations after running with that surface:
+After `remove-document-type-skills.adr` collapsed the per-type skill layer, the visible `/archcore:` palette stabilized at 18 commands — 11 intent, 6 track, 1 utility — of which three intents (`status`, `review`, `graph`) all sat in the "inspect documentation health" problem space. Running with that surface produced three concrete observations: the two analysis skills overlapped structurally, the split forced the model to disambiguate adjacent intents on every session, and the third skill went effectively unused.
 
-**1. `status` and `review` overlap structurally.** Both call `mcp__archcore__list_documents` and `mcp__archcore__list_relations` and operate on the full project. `status` formats four counting tables (by category / status / type / relation) plus a one-line issues summary. `review` produces those same totals as its "Overview" section, then extends with coverage gaps, staleness, orphans, and prioritized recommendations. The split is depth, not topic — a flag (`--deep`) expresses the depth difference more honestly than two separate intents that the model has to pick between.
+## Observations
 
-**2. The split forces the model to disambiguate adjacent intents.** Every intent skill carries explicit "Activate when X. Do NOT activate for Y (use /archcore:other)." guidance per the Inverted Invocation Policy. Three skills mutually disambiguating on the same topic produces brittle routing — "show docs status" could plausibly land on either `status` (counts) or `review` (analysis), and several sibling skills (`actualize`, `bootstrap`, `context`) carry anti-trigger lines pointing away from both, multiplying the surface that has to stay consistent on every edit.
-
-**3. `graph` is unused in practice.** The `/archcore:graph` intent produces a Mermaid flowchart of the relation graph. In sessions across 2026-04 to 2026-05 we observed ~zero invocations: the dashboard (`status`) and the audit (`review`) carried the analytical load, the actual visualization step was redundant once relation health and orphan lists were already surfaced inside `review`. Mermaid output also doesn't render in every host (Codex/CLI cases), so the value-per-token of the skill is lower than its description-cost on every session start.
+1. **`status` and `review` overlap structurally.** Both call `list_documents` and `list_relations` and operate on the full project. `status` formats four counting tables — by category, status, type, and relation — plus a one-line issues summary; `review` produces those same totals as its Overview section and then extends with coverage gaps, staleness, orphans, and prioritized recommendations. The split is depth rather than topic, and a `--deep` flag expresses depth more honestly than two intents the model must choose between.
+2. **The split forced cross-skill disambiguation.** Every intent skill carries explicit `Activate when X. Do NOT activate for Y.` guidance, and three skills mutually disambiguating on one topic produces brittle routing: "show docs status" could plausibly land on either. Several sibling skills — `actualize`, `bootstrap`, `context` — carried anti-trigger lines pointing away from both, multiplying the surface that had to stay consistent on every edit.
+3. **`graph` was unused in practice.** The skill produced a Mermaid flowchart of the relation graph, and sessions from 2026-04 through 2026-05 showed approximately zero invocations: the dashboard and the audit carried the analytical load, and the visualization step was redundant once relation health and orphan lists already appeared inside the audit. Mermaid output also does not render in every host, including Codex CLI cases, so the value per token was lower than the skill's description cost on every session start.
 
 ## Decision
 
-**Merge `status` into `review` as the default short mode. Remove `graph` entirely. Result: 9 intent skills (down from 11) and 16 total visible commands (down from 18).**
+Merge `status` into the inspection skill as its default short mode, and remove `graph` entirely — taking the palette from 18 commands and 11 intent skills to 16 and 9.
 
-Concrete changes:
+The inspection skill gains two modes. Its **default short mode**, invoked with no arguments, outputs the four counting tables and the one-line issues summary that `status` produced, project-wide and without filters. Its **deep mode**, triggered by `--deep` or by any non-flag argument used as a category, tag, or type filter, outputs the full audit body: Overview, Gaps, Staleness, Orphans, Actions. The routing rule is that any non-flag argument routes to deep mode and an empty invocation routes to short mode, so both user phrasings — "dashboard" or "how many docs" for short, "audit" or "documentation gaps" for deep — resolve inside one skill.
 
-1. **`/archcore:review` becomes the single inspection skill** with two modes:
-   - **Default short mode** — no arguments. Outputs the four counting tables + one-line issues summary that `status` produced. Project-wide; does not take filters.
-   - **Deep mode** — triggered by `--deep` or any non-flag argument (category/tag/type filter). Outputs the current `review` body: Overview, Gaps, Staleness, Orphans, Actions. Filters apply only in deep mode.
-
-2. **Routing rule** for `/archcore:review`: any non-flag argument routes to deep mode. Empty invocation routes to short mode. The model picks the mode from user phrasing ("dashboard" / "how many docs" → short; "audit" / "documentation gaps" → deep) — both phrasings now resolve to a single skill, eliminating the cross-skill disambiguation noise.
-
-3. **`skills/status/` and `skills/graph/` deleted on disk.**
-
-4. **Sibling-skill anti-trigger lines updated** in `skills/actualize/`, `skills/bootstrap/`, `skills/context/` — they no longer reference `/archcore:status` or `/archcore:graph`. Where they pointed at `status` for "quick counts", they now point at `/archcore:review` (with a note that the default mode is the short dashboard).
-
-5. **Count invariants updated**:
-   - `README.md`: 18 → 16, 11 intent → 9 intent.
-   - `test/structure/skills.bats`: `>= 18` → `>= 16`.
-   - `.archcore/plugin/skills-system.spec.md`, `commands-system.spec.md`, `plugin-architecture.spec.md`, `component-registry.doc.md`, `claude-plugin.prd.md`, `plugin-component-architecture.adr.md`, `inverted-invocation-policy.adr.md`, `precision-over-coverage.adr.md`, `development-roadmap.plan.md` — totals + intent inventory + visible palette diagrams.
-
-6. **Help skill** (`skills/help/SKILL.md`) — Quick Start table loses the `status` and `graph` rows; the `review` row now describes both modes.
+`skills/status/` and `skills/graph/` were deleted from disk; sibling anti-trigger lines in `skills/actualize/`, `skills/bootstrap/`, and `skills/context/` were repointed at the merged skill with a note that its default mode is the short dashboard; the help skill's Quick Start table lost the two rows and gained a two-mode description; and the count invariants were updated across `README.md`, `@test/structure/skills.bats`, and the affected `.archcore/` documents.
 
 ## Alternatives Considered
 
-### Keep three separate inspection intents
-
-**Rejected.** The original "one skill per output shape" framing produced the duplication described in Context #1. Maintaining three skills required mirroring the totals/relation-counting code path between `status` and `review` (already present today) and propagating disambiguation logic across at least five sibling skills. The cost was paid every time any one of them was edited.
-
-### Merge `status` + `review` but keep `graph`
-
-**Considered.** Graph is the most divergent of the three (it produces a Mermaid block, not a narrative or a counts table). However, observed near-zero invocation made it dead weight in the palette. The orphan list and relation-by-type counts that `graph` carried as a footer are already inside `review` (orphans section + relation counts in the dashboard). For users who actually want the Mermaid diagram, MCP `list_documents` + `list_relations` plus an ad-hoc Mermaid request remains a one-prompt path; keeping a skill for it is overhead for a feature few use.
-
-### Keep `graph` but hide it via `disable-model-invocation: true`
-
-**Rejected.** Same multi-host portability problem that motivated `remove-document-type-skills.adr.md` — `disable-model-invocation` works in Claude Code but is inconsistent in Cursor/Codex. Hiding the skill in only one host while it stays visible in others reintroduces cross-host divergence.
-
-### Make `--deep` explicit-only (don't auto-route filters to deep)
-
-**Rejected.** The dashboard (short mode) is project-wide by design and doesn't take a filter. If the user passes a filter, they want analysis of that scope, not "the dashboard but filtered." Routing any non-flag argument to deep mode keeps the surface intuitive and removes one error case ("filter passed but ignored").
+1. **Keep three separate inspection intents** — rejected because the "one skill per output shape" framing produced the duplication in observation 1: maintaining three skills required mirroring the totals and relation-counting path between two of them and propagating disambiguation logic across at least five siblings, a cost paid on every edit to any one of them.
+2. **Merge `status` and `review` but keep `graph`** — considered seriously, because `graph` is the most divergent of the three, producing a Mermaid block rather than a narrative or a counts table. Rejected because observed near-zero invocation made it dead weight, and because the orphan list and relation-by-type counts it carried as a footer already appear inside the audit. A user who wants the diagram still has a one-prompt path through `list_documents` plus `list_relations` and an ad-hoc Mermaid request.
+3. **Keep `graph` but hide it behind `disable-model-invocation: true`** — rejected because of the multi-host portability problem that motivated `remove-document-type-skills.adr`: the flag works in Claude Code but behaves inconsistently in Cursor and Codex, so hiding the skill on one host while it stays visible on others reintroduces cross-host divergence.
+4. **Make `--deep` explicit-only, so a filter does not auto-route to deep mode** — rejected because the dashboard is project-wide by design and takes no filter, so a user passing a filter wants analysis of that scope rather than a filtered dashboard. Auto-routing removes the "filter passed but ignored" error case.
 
 ## Consequences
 
-### Positive
+- Two fewer skills load on every session start.
+- One source of truth for documentation health, with no cross-skill disambiguation and a flag that expresses depth honestly.
+- Sibling skills carry shorter anti-trigger lines.
+- The Mermaid-output skill that did not work uniformly across hosts is gone, removing one host-fragility surface.
+- Tradeoff: users who memorized `/archcore:status` had to learn the short-mode invocation of the merged skill. The skill description leads with the "show status" and "how many docs" triggers, and the help skill documents the merge.
+- Tradeoff: users who want a Mermaid diagram of the graph lose the dedicated path and fall back to asking the model to render Mermaid from `list_relations` output. Observed usage was approximately zero.
+- Tradeoff: the merged `SKILL.md` gains a two-mode routing table, making it larger than either predecessor individually though smaller than their sum.
+- This decision supersedes the `status`, `review`, and `graph` intent rows of `inverted-invocation-policy.adr`, while that record's intent, track, and utility class rules remain in force, and it supersedes the Phase 7 acceptance criteria in `development-roadmap.plan` that referenced 11 intent skills and 18 commands.
 
-- Visible `/` palette: **16 commands** (9 intent + 6 track + 1 utility). Two fewer skills to load on every session start.
-- One source of truth for "documentation health" — no more cross-skill disambiguation between `status` and `review`. The `--deep` flag expresses depth honestly.
-- Sibling skills (`actualize`, `bootstrap`, `context`) carry shorter anti-trigger lines.
-- The Mermaid-output skill that did not work uniformly across hosts is gone — one less host-fragility surface.
+## Constraints
 
-### Negative
+1. The inspection skill MUST default to short mode when invoked with no argument.
+2. The inspection skill MUST route `--deep` to the full audit.
+3. The inspection skill MUST route a non-flag filter argument to the full audit.
+4. Short mode MUST NOT accept a filter, because the dashboard is project-wide by design.
+5. A new inspection-flavored intent SHOULD NOT be added before checking whether it can be a mode of the existing inspection skill.
 
-- Users who memorized `/archcore:status` need to learn the new short-mode invocation of `/archcore:review`. The change is small (the skill description now leads with "show status / how many docs" triggers) and `/archcore:help` documents the merge.
-- Users who want a Mermaid diagram of the graph lose the dedicated path. Workaround: ask the model to render Mermaid from `list_relations` output. Lost ergonomics, but observed usage was ~zero.
-- The `review` SKILL.md gains a routing table for two modes — slightly larger than either of the two it replaced individually, but smaller than their sum.
+## Superseded when
 
-### Supersedes
-
-- Three rows of `inverted-invocation-policy.adr.md` (the `status`, `review`, `graph` intent rows in the post-supersession matrix). The intent/track/utility class rules from that ADR remain in force.
-- Phase 7 acceptance criteria in `development-roadmap.plan.md` referencing 11 intent skills and 18 commands. Updated counts are recorded in a new Phase 8 entry.
-
-### Constraints (new)
-
-- `/archcore:review` MUST default to short mode when invoked without arguments.
-- `/archcore:review --deep` and `/archcore:review <filter>` MUST route to the full audit.
-- Short mode MUST NOT take a filter (the dashboard is project-wide by design).
-- No new inspection-flavored intent SHOULD be added without first checking whether it can be a mode of `/archcore:review`.
+- A measured session sample shows users invoking deep mode with a filter more often than the project-wide dashboard, which would argue for reversing the default.
+- Mermaid rendering becomes uniform across all supported hosts, which would reopen the case for a dedicated graph surface.

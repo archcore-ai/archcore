@@ -9,92 +9,61 @@ tags:
 
 ## Context
 
-After the prior consolidation steps — `intent-based-skill-architecture.adr.md` (4-layer model), `remove-document-type-skills.adr.md` (collapse Layer 3 → 18 visible skills), `merge-review-status-remove-graph.adr.md` (merge status into review → 16 visible skills), and `inverted-invocation-policy.adr.md` — the visible `/` palette stabilized at 16 skills: 9 intent + 6 track + 1 utility. In practice three further frictions surfaced:
+After the prior consolidation steps — `intent-based-skill-architecture.adr` establishing the four-layer model, `remove-document-type-skills.adr` collapsing Layer 3 to 18 visible skills, `merge-review-status-remove-graph.adr` merging status into review at 16, and `inverted-invocation-policy.adr` — the visible `/` palette stabilized at 16 skills: 9 intent, 6 track, and 1 utility. Three further frictions then surfaced in practice: the track skills duplicated plan-skill logic, the `actualize` skill was a one-mode peer to `review`, and `standard` and `verify` carried palette weight disproportionate to their surface.
 
-**1. Track skills duplicated plan-skill logic.** All six track skills (`product-track`, `sources-track`, `iso-track`, `architecture-track`, `standard-track`, `feature-track`) orchestrated multi-document flows that ended in (or composed) a `plan` document. The orchestration logic was already inside `skills/plan/SKILL.md`; the track skills mostly added a slightly different routing table and per-flow questions. Each track-flow was effectively a `plan` mode parameterized by which preceding documents to create.
+## Observations
 
-**2. The `actualize` skill was a one-mode peer to `review`.** Both intents loaded the same data (`list_documents`, `list_relations`), both produced findings tables, and both were called from the same "is documentation healthy?" intent space. `review` already had two modes (default short, `--deep`); adding `--drift` as a third mode is structurally identical to how the `status` → `review` merge already worked.
-
-**3. `standard` and `verify` carried weight disproportionate to their surface.** `standard` was a one-skill router into `standard-track`. `verify` was a maintenance-only utility that re-invoked `make verify` — accessible directly via the shell. Both were palette real estate for thin shims.
+1. **Track skills duplicated plan-skill logic.** All six — `product-track`, `sources-track`, `iso-track`, `architecture-track`, `standard-track`, `feature-track` — orchestrated multi-document flows ending in or composing a `plan` document, and that orchestration already lived inside `skills/plan/SKILL.md`. Each track added little beyond a slightly different routing table and per-flow questions, making it a `plan` mode parameterized by which preceding documents to create.
+2. **`actualize` was a one-mode peer to `review`.** Both loaded the same data through `list_documents` and `list_relations`, both produced findings tables, and both answered the same "is documentation healthy?" intent. `review` already had a default short mode and `--deep`, so adding `--drift` as a third mode is structurally identical to the earlier `status` into `review` merge.
+3. **`standard` and `verify` were thin shims.** `standard` was a one-skill router into `standard-track`. `verify` was a maintenance-only utility that re-invoked `make verify`, which the shell already reaches directly.
 
 ## Decision
 
-**Collapse the visible `/` palette from 16 skills to 7. Track skills, standard, verify, and actualize are removed as standalone skills; their behavior is folded into the remaining intents.**
-
-### Final surface (7 skills, 7 commands)
+Collapse the visible `/` palette from 16 skills to **7** — `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help` — removing the track skills, `standard`, `verify`, and `actualize` as standalone skills and folding their behavior into the remaining intents.
 
 | Skill | What it does | Absorbed |
 |---|---|---|
-| `init` | First-time onboarding — seed `.archcore/` with scale-appropriate docs | renamed from `bootstrap` |
-| `capture` | Document a module/component → routes to adr/spec/doc/guide | unchanged |
-| `decide` | Record a decision (ADR) or draft a proposal (RFC); optional rule+guide continuation | also covers former `standard` (continuation chain → adr → optional rule → guide) |
-| `plan` | Plan a feature or initiative end-to-end; route to product/sources/iso/feature flow as needed | absorbs all six former track skills via flow references under `skills/plan/references/` |
-| `audit` | Documentation health: dashboard (default), deep audit (`--deep`), or drift detection (`--drift`) | absorbs former `review` (short + deep) and `actualize` (`--drift`) |
-| `context` | Surface rules/decisions for a code area or pickup | unchanged |
+| `init` | First-time onboarding — seed `.archcore/` with documents sized to the detected scale | renamed from `bootstrap` |
+| `capture` | Document a module or component; routes to adr, spec, doc, or guide | unchanged |
+| `decide` | Record a decision (ADR) or draft a proposal (RFC); optional rule and guide continuation | also covers the former `standard` continuation chain |
+| `plan` | Plan a feature or initiative end to end; route to the product, sources, iso, or feature flow | absorbs all six former track skills as flow references under `skills/plan/references/` |
+| `audit` | Documentation health: dashboard by default, `--deep` audit, or `--drift` detection | absorbs the former `review` short and deep modes and `actualize` as `--drift` |
+| `context` | Surface rules and decisions for a code area or pickup | unchanged |
 | `help` | Layer navigation and onboarding | unchanged |
 
-### Concrete migrations
-
-1. **`bootstrap` → `init`.** Skill directory `skills/bootstrap/` renamed to `skills/init/` (all `lib/*.md` sub-references move with it). Command `/archcore:bootstrap` renamed to `/archcore:init`. The seeding behavior is unchanged.
-
-2. **`review` + `actualize` → `audit`.** The new `audit` skill carries three modes via `[--deep] [--drift] [filter]`. Drift-detection logic moves to `skills/audit/lib/drift-detection.md` (formerly `skills/actualize/SKILL.md`). Short and deep modes preserve the behavior from the merged-`review` skill.
-
-3. **Six track skills → `plan` references.** `skills/plan/references/{product-flow,sources-flow,iso-flow,feature-flow}.md` hold the per-flow content. The `architecture-track` ADR→spec→plan chain is reachable through `decide` (which already offers spec+plan continuation) and `plan` (which can implement an existing ADR). The `standard-track` ADR→(cpat)→rule→guide chain is reachable through `decide` with its rule+guide continuation; the optional CPAT step lives in `decide`'s continuation logic.
-
-4. **`standard` removed.** Its only behavior was routing into `standard-track`. Users say "establish a standard" → `decide` picks up the ADR + rule + guide cascade directly.
-
-5. **`verify` removed.** No replacement skill — `make verify` from the plugin root is the canonical way to run plugin integrity checks. Removing the skill recovers a palette slot for the more common audit invocation.
-
-6. **Codex `commands/*.md` wrappers updated**: 7 wrappers (`init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`). Old wrappers (`bootstrap`, `review`, `actualize`, `standard`, `verify`, six `*-track`) deleted. Wrappers remain thin host-adapter shims that delegate to `skills/<name>/SKILL.md`.
-
-7. **Count invariants updated** in `README.md`, structure tests (`test/structure/skills.bats`, `test/structure/codex-plugin.bats`), and `.archcore/plugin/` foundational docs (`commands-system.spec.md`, `skills-system.spec.md`, `component-registry.doc.md`, `plugin-architecture.spec.md`, `claude-plugin.prd.md`, `plugin-component-architecture.adr.md`).
+The concrete migrations were: `skills/bootstrap/` renamed to `skills/init/` with its `lib/*.md` sub-references, and the command renamed accordingly, with the seeding behavior unchanged; `review` and `actualize` merged into `audit` with three modes via `[--deep] [--drift] [filter]`, the drift logic moving to `skills/audit/lib/drift-detection.md`; the six track skills becoming `skills/plan/references/{product-flow,sources-flow,iso-flow,feature-flow}.md`, with the `architecture-track` chain reachable through `decide` and `plan` and the `standard-track` chain through `decide`'s rule and guide continuation, whose optional CPAT step lives in that continuation logic; `standard` removed, because "establish a standard" lands on `decide` directly; `verify` removed with no replacement, since `make verify` from the repository root is the canonical integrity check; the Codex `commands/*.md` wrappers reduced to 7; and the count invariants updated across `README.md`, the structure tests, and the foundational `.archcore/` documents.
 
 ## Alternatives Considered
 
-### Keep tracks as standalone skills
-
-**Rejected.** Each track is effectively a `plan` mode parameterized by which preceding documents to create. Keeping six standalone tracks meant the model had to disambiguate "plan a feature" between `/archcore:plan`, `/archcore:product-track`, and `/archcore:feature-track` on every invocation — repeating the routing-overlap problem that `merge-review-status-remove-graph.adr.md` already solved for inspection skills.
-
-### Keep `actualize` as a standalone intent, keep `review` as a standalone intent
-
-**Rejected.** Both are pure analysis skills over the same data source. The `--mode` flag (default / `--deep` / `--drift`) expresses the depth/topic distinction more honestly than three peer intents that all anti-trigger each other. Same argument that retired `status` and `graph` as peers of `review`.
-
-### Keep `standard` as a router into the `decide` ADR + rule + guide chain
-
-**Considered.** Would preserve the explicit "establish a standard" entry phrase. **Rejected** because `decide` already enumerates "Activate when user says 'we decided'" plus continuation prompts for rule and guide; one more anti-trigger surface to maintain wasn't worth the explicitness gain.
-
-### Keep `verify` because it surfaces a useful action
-
-**Rejected.** `verify` was always thin (forward to `make verify`). Plugin developers can run `make verify` directly. Keeping a palette entry for a one-line passthrough cost more cognitive load than it saved.
+1. **Keep the tracks as standalone skills** — rejected because each track is a `plan` mode parameterized by which preceding documents to create, so keeping six standalone tracks forced the model to disambiguate "plan a feature" between `/archcore:plan`, `/archcore:product-track`, and `/archcore:feature-track` on every invocation, repeating the routing-overlap problem that `merge-review-status-remove-graph.adr` had already solved for inspection skills.
+2. **Keep `actualize` and `review` as separate standalone intents** — rejected because both are pure analysis over the same data source, and a mode flag expresses the depth and topic distinction more honestly than three peer intents that all anti-trigger one another. This is the same argument that retired `status` and `graph`.
+3. **Keep `standard` as a router into the `decide` cascade** — considered, because it would preserve the explicit "establish a standard" entry phrase, and rejected because `decide` already enumerates the "we decided" trigger plus continuation prompts for rule and guide; one more anti-trigger surface to maintain was not worth the explicitness.
+4. **Keep `verify` because it surfaces a useful action** — rejected because it was always a one-line passthrough to `make verify`, and a palette entry for a passthrough costs more cognitive load than it saves.
 
 ## Consequences
 
-### Positive
+- The visible palette drops to 7 commands from 16, and each skill maps to a distinct user intent, so no two skills anti-trigger each other.
+- One source of truth per concern: `plan` for any forward-looking flow, `audit` for any health check, `decide` for any standards or decision cascade.
+- Track flows stay reachable as references under `skills/plan/references/`, so adding a flow is a new markdown file rather than a new skill.
+- Drift detection sits beside the other audit modes, which makes the modes easier to keep consistent.
+- The session-start token budget shrinks from 16 skill descriptions to 7.
+- Cross-host parity holds: every remaining skill is auto-invocable in Claude Code, Cursor, and Codex through the matching wrapper.
+- Tradeoff: users who memorized `/archcore:bootstrap`, `/archcore:review`, `/archcore:actualize`, `/archcore:standard`, `/archcore:verify`, or any `*-track` invocation must learn the new mapping. `/archcore:help` documents the migration and the README explains the active surface.
+- Tradeoff: track-flow discoverability shifts. A user who would have typed `/archcore:iso-track` now types `/archcore:plan` and either describes the cascade or passes `--iso`, which the plan routing table makes deterministic but which costs one extra step of phrasing.
+- Tradeoff: the `plan` skill grows, holding the routing logic for all four flows. The references directory absorbs the per-flow content so `SKILL.md` stays inside its line budget.
+- Tradeoff: `verify` was the only in-session integrity path. Its replacement runs from the repository root rather than the plugin root, because the `Makefile` stays at the repository root while the plugin lives in `plugins/archcore/` per `subdirectory-plugin-layout.adr`.
+- This decision supersedes the Layer 2 track tier of `intent-based-skill-architecture.adr`, whose intent-versus-utility classification remains; the 16-command palette of `merge-review-status-remove-graph.adr`, whose intent-merge pattern is extended here; and the standalone `standard` and `verify` intents in `commands-system.spec`. The mainstream and niche distinction of `inverted-invocation-policy.adr` had already been retired by `remove-document-type-skills.adr`, and this change additionally retires the auto-invocable track tier.
 
-- Visible `/` palette: **7 commands** (down from 16). Each skill maps to a clearly distinct user intent — no two skills anti-trigger each other.
-- One source of truth per concern: `plan` for any forward-looking flow, `audit` for any health check, `decide` for any standards/decision cascade.
-- Track flows are still reachable, but as references under `skills/plan/references/` rather than top-level skills. Adding a new flow is a new markdown file, not a new skill.
-- Drift detection lives next to the other audit modes — easier to keep modes consistent.
-- Session-start token budget shrinks: 7 skill descriptions instead of 16.
-- Cross-host parity is maintained: every remaining skill is auto-invocable in Claude Code, Cursor, and Codex via the matching `commands/*.md` wrapper.
+## Constraints
 
-### Negative
+1. The visible `/` palette MUST hold exactly 7 commands: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`.
+2. An eighth skill MUST NOT be added without a new ADR.
+3. `audit` MUST support three modes: default short, `--deep`, and `--drift`, with the drift protocol at `skills/audit/lib/drift-detection.md`.
+4. `plan` MUST hold its per-flow logic in `skills/plan/references/*.md` rather than spawning a top-level skill.
+5. `decide` MUST own the standard and decision cascade: ADR, then optional CPAT for a code-pattern change, then optional rule, then optional guide.
+6. A skill MUST NOT carry `disable-model-invocation: true`. Where a utility need re-emerges, the author SHOULD prefer a `make` target or a CLI command over a hidden skill.
 
-- Users who memorized `/archcore:bootstrap`, `/archcore:review`, `/archcore:actualize`, `/archcore:standard`, `/archcore:verify`, or any `*-track` invocation need to learn the new mapping. `/archcore:help` documents the migration; the README explains the active surface.
-- Track-flow discoverability shifts: users who would have typed `/archcore:iso-track` now type `/archcore:plan` and either describe the cascade or pass `--iso`. The plan-skill routing table makes this deterministic, but the action requires one extra step of phrasing for users who used to invoke the track directly.
-- The `plan` skill grows: it now holds the routing logic for all four flows previously split across tracks. The references directory absorbs the per-flow content so the SKILL.md itself stays under the 200-line budget.
+## Superseded when
 
-### Supersedes
-
-- The Layer 2 "track skills" tier in `intent-based-skill-architecture.adr.md`. The intent-vs-utility classification remains; the per-track stratification is removed.
-- The 16-command palette in `merge-review-status-remove-graph.adr.md`. The intent-merge pattern from that ADR is extended here to absorb `actualize` into `audit`.
-- The mainstream/niche distinction in `inverted-invocation-policy.adr.md` was already retired by `remove-document-type-skills.adr.md`; this change additionally retires the auto-invocable track tier.
-- The standalone `standard` and `verify` intents from `commands-system.spec.md` — both are removed.
-
-### Constraints (new)
-
-- The visible `/` palette MUST be exactly 7 commands: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. Adding an eighth skill requires a new ADR.
-- `audit` MUST support three modes: default short, `--deep`, `--drift`. The drift protocol lives at `skills/audit/lib/drift-detection.md`.
-- `plan` MUST hold per-flow logic in `skills/plan/references/*.md` rather than spawning new top-level skills. Adding a flow is a new reference file.
-- `decide` MUST own the standard/decision cascade: ADR → optional CPAT (for code-pattern changes) → optional rule → optional guide.
-- No skill MAY have `disable-model-invocation: true` going forward — every remaining skill is intent-class and auto-invocable. If a utility need re-emerges, prefer a `make` target or CLI command over reintroducing a hidden skill.
+- A measured session sample shows users routinely failing to reach a former track flow through `plan`, which would argue for restoring an explicit entry point.
+- An eighth genuinely distinct user intent appears that no existing skill can absorb as a mode, which would require the new ADR that constraint 2 mandates.

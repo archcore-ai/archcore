@@ -8,33 +8,15 @@ tags:
   - "validation"
 ---
 
----
+## Purpose & Scope
 
-> **Outcome (2026-05-15):** The Actualize system shipped, but as the `--drift` mode of the unified `/archcore:audit` skill rather than as a standalone `/archcore:actualize` skill. Layer 1 and Layer 2 (the `bin/check-staleness` SessionStart hook and the `bin/check-cascade` PostToolUse hook) shipped as designed. Layer 3 was folded into `audit` per `skill-surface-collapse.adr.md`. The detection protocol now lives at `skills/audit/lib/drift-detection.md`. This spec is preserved for historical context; the active contract is the `--drift` mode in `commands-system.spec.md` and `plugin-architecture.spec.md`.
+**Outcome (2026-05-15):** the Actualize system shipped, but as the `--drift` mode of the unified `/archcore:audit` skill rather than as a standalone `/archcore:actualize` skill. Layer 1 and Layer 2 — the `bin/check-staleness` SessionStart hook and the `bin/check-cascade` PostToolUse hook — shipped as designed. Layer 3 was folded into `audit` by `skill-surface-collapse.adr`, and the detection protocol now lives at `skills/audit/lib/drift-detection.md`. This document remains normative for the three detection layers themselves; the user-facing command contract lives in `commands-system.spec` and `plugin-architecture.spec`.
 
-## Purpose
+This spec defines the contract for documentation freshness detection: the SessionStart staleness check (Layer 1), the PostToolUse cascade detection (Layer 2), and the drift analysis mode of `/archcore:audit` (Layer 3) — their triggers, detection logic, output formats, and interaction with the existing hooks and MCP tools. Normative for `@plugins/archcore/bin/check-staleness`, `@plugins/archcore/bin/check-cascade`, and the four host hook configs. `actualize-system.adr` records the architectural rationale, and `hooks-validation-system.spec` defines the hook execution model this system extends. Out of scope: structural validation (`archcore doctor`), the dashboard and `--deep` modes of `/archcore:audit`, and the `archcore-auditor` agent.
 
-Define the contract for the Actualize system — a 3-layer documentation freshness detection mechanism that identifies stale `.archcore/` documents through passive session-start checks, reactive cascade detection after document updates, and deep on-demand analysis. Layer 3, originally planned as a standalone `/archcore:actualize` skill, ships as the `--drift` mode of `/archcore:audit`.
+## Surface
 
-## Scope
-
-This specification covers: the SessionStart staleness check (Layer 1), the PostToolUse cascade detection (Layer 2), and the deep analysis mode of `/archcore:audit` (Layer 3, originally Layer 3 of the now-merged Actualize skill). It defines their triggers, detection logic, output formats, and interaction with existing hooks and MCP tools.
-
-It does not cover: structural validation (`archcore doctor`), the dashboard or `--deep` modes of `/archcore:audit`, or the archcore-auditor agent. Those are complementary but separate.
-
-## Authority
-
-This specification is the authoritative reference for staleness detection behavior in the plugin. The Actualize System ADR provides the architectural rationale. `skill-surface-collapse.adr.md` superseded the standalone Layer 3 skill in favor of an `--drift` mode on the merged `audit` intent. The Hooks Validation System Specification defines the hook execution model this system extends.
-
-## Subject
-
-The Actualize system detects three types of documentation staleness:
-
-1. **Code→Doc drift** — source code changes that invalidate documentation content
-2. **Doc→Doc cascade** — document updates that make related documents stale
-3. **Temporal staleness** — documents stuck in inappropriate statuses over time
-
-Detection operates at three depths:
+The system detects three kinds of staleness: **code→doc drift** (source changes that invalidate documentation), **doc→doc cascade** (a document update that leaves related documents behind), and **temporal staleness** (a document left in one status longer than expected). Detection runs at three depths.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -58,30 +40,7 @@ Detection operates at three depths:
 └─────────────────────────────────────────────────────────┘
 ```
 
-## Contract Surface
-
-### Layer 1: Passive Detection (SessionStart Enhancement)
-
-#### Trigger
-
-SessionStart hook, executed as part of the existing `bin/session-start` pipeline. Runs after the CLI availability check and project context loading.
-
-#### Handler
-
-`bin/check-staleness`, called from `bin/session-start` after the normal context loading succeeds.
-
-#### Detection Logic
-
-```
-1. LAST_DOC_COMMIT = git log -1 --format=%H -- .archcore/
-2. If no commit found → skip
-3. CHANGED_FILES = git diff --name-only $LAST_DOC_COMMIT..HEAD -- ':(exclude).archcore/'
-4. If CHANGED_FILES is empty → skip
-5. For each .archcore/**/*.md document, match directory references against CHANGED_FILES
-6. Output warning with AFFECTED documents
-```
-
-#### Output Format
+**Layer 1 — `bin/check-staleness`.** Called from `bin/session-start` after the CLI availability check and context loading succeed. It resolves the last `.archcore/` commit, diffs non-`.archcore/` paths from there to HEAD, matches each document's directory references against the changed set, and emits plain text as SessionStart additional context, rate-limited to once per 24 hours through a timestamp file at `$CLAUDE_PLUGIN_DATA/archcore/last-staleness`, with XDG and HOME fallbacks.
 
 ```
 [Archcore Staleness] {N} source files changed since last documentation update.
@@ -90,51 +49,7 @@ Potentially affected documents:
 Run /archcore:audit --drift for detailed analysis.
 ```
 
-Output is plain text, injected as SessionStart additional context, rate-limited to once per 24 hours.
-
-#### Constraints
-
-- Must complete within 3 seconds
-- Output must not exceed 2KB
-- Must degrade gracefully when git is unavailable or `.archcore/` has no commits
-- Must not block session start — always exit 0
-- POSIX shell compatible
-
-### Layer 2: Reactive Cascade Detection (PostToolUse Enhancement)
-
-#### Trigger
-
-PostToolUse hook, fires after `mcp__archcore__update_document` succeeds. Does NOT fire on `create_document` or `remove_document`.
-
-#### Handler
-
-`bin/check-cascade`, registered as a PostToolUse hook entry in all four host hook configs (`hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`, `hooks/copilot.hooks.json`).
-
-#### Detection Logic
-
-```
-1. Parse tool_input from stdin JSON
-2. Extract updated document path
-3. Query .archcore/.sync-state.json for relations where target = updated path
-   and type ∈ {implements, depends_on, extends}
-4. AFFECTED = source documents from filtered relations
-5. If empty → exit 0; otherwise output cascade warning
-```
-
-#### Output Format
-
-```json
-{
-  "hookSpecificOutput": {
-    "hookEventName": "PostToolUse",
-    "additionalContext": "[Archcore Cascade] Updated \"{document-title}\".\nDocuments that may need review:\n  → {path} ({relation-type} this document)\nRun /archcore:audit --drift for detailed analysis."
-  }
-}
-```
-
-The wrapper above is Claude Code's and Codex's. Cursor takes `additional_context`, Copilot a bare top-level `additionalContext`, and OpenCode the plain message — the script never builds these by hand; `bin/lib/normalize-stdin.sh` output helpers pick the shape from `ARCHCORE_HOST`.
-
-#### Relation Direction Table
+**Layer 2 — `bin/check-cascade`.** Registered as a PostToolUse entry in all four host hook configs (`hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`, `hooks/copilot.hooks.json`). It parses the updated document path from stdin, queries `.archcore/.sync-state.json` for relations whose target is that path and whose type is `implements`, `depends_on`, or `extends`, and reports the source documents of those relations.
 
 | Relation in graph | Updated doc role | Potentially stale doc | Why |
 |---|---|---|---|
@@ -142,22 +57,20 @@ The wrapper above is Claude Code's and Codex's. Cursor takes `additional_context
 | B `depends_on` A | A (target) | B (source) | B depends on changed dependency |
 | B `extends` A | A (target) | B (source) | B extends changed base |
 
-`related` relations are excluded to reduce noise.
+`related` relations are excluded to reduce noise. The envelope differs per host — Claude Code and Codex take `hookSpecificOutput.additionalContext`, Cursor takes `additional_context`, Copilot a bare top-level `additionalContext`, and OpenCode the plain message. The script never builds these by hand; the output helpers in `@plugins/archcore/bin/lib/normalize-stdin.sh` select the shape from `ARCHCORE_HOST`.
 
-#### Constraints
+**Host hook wiring.** Claude Code, Cursor, and Codex share one shape, differing only in the plugin-root variable:
 
-- Must complete within 3 seconds (PostToolUse timeout)
-- Fires only on `update_document`
-- Must not block the operation — always exit 0
-- POSIX shell compatible
+```json
+{
+  "matcher": "mcp__archcore__update_document",
+  "hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/bin/check-cascade", "timeout": 3}]
+}
+```
 
-### Layer 3: Deep Analysis — /archcore:audit --drift
+Copilot's entry is structurally different and cannot be produced by substituting that variable. It is a flat object carrying `bash` instead of `command`, `timeoutSec` instead of `timeout`, `cwd: "."`, `env.ARCHCORE_HOST=copilot`, and **no matcher**, because Copilot's `postToolUse` accepts none — the script self-filters there on the normalized tool name. Its `bash` value probes `$COPILOT_PLUGIN_ROOT`, `$PLUGIN_ROOT`, and `$CLAUDE_PLUGIN_ROOT` in turn with `-x`, execs the first that holds `bin/check-cascade`, and otherwise warns on stderr and exits 0. Until 2026-07-27 it was the one-liner `"${COPILOT_PLUGIN_ROOT}"/bin/check-cascade`, which resolved to the literal path `/bin/check-cascade` whenever that undocumented variable was unset. The live config is `@plugins/archcore/hooks/copilot.hooks.json`; the reasoning is in `copilot-adapter-design.adr`.
 
-#### Classification
-
-Mode of the `/archcore:audit` intent skill. Activated by the `--drift` flag or by drift-related phrasing ("are any docs stale?", "check if docs match code"). The skill is auto-invocable per `skill-surface-collapse.adr.md`.
-
-#### Routing Table (for the `audit` skill)
+**Layer 3 — `/archcore:audit --drift`.** A mode of the `audit` intent skill, activated by the `--drift` flag or by drift phrasing such as "are any docs stale?". Drift mode loads `skills/audit/lib/drift-detection.md` for the protocol, then gathers (`list_documents`, `list_relations`, `git log`), analyses code→doc drift, doc→doc cascade, and temporal staleness, reports findings grouped by severity, and offers an assisted fix one document at a time.
 
 | Signal | Mode | Scope |
 |---|---|---|
@@ -167,105 +80,62 @@ Mode of the `/archcore:audit` intent skill. Activated by the `--drift` flag or b
 | `--drift` | → drift detection | All documents |
 | `--drift <filter>` | → drift detection, filtered | Filter applied |
 
-Drift mode loads `skills/audit/lib/drift-detection.md` for the detailed protocol.
-
-#### Execution Flow (drift mode)
-
-1. **Gather**: `list_documents` (with optional filters), `list_relations`, `git log`.
-2. **Analyze — Code→Doc drift**: cross-reference document content against `git diff --name-only` since the document was last modified.
-3. **Analyze — Doc→Doc cascade**: walk the relation graph; flag sources whose targets were modified after them.
-4. **Analyze — Temporal**: long-running drafts, accepted docs with TODO markers, rejected docs still referenced as active.
-5. **Report**: severity-grouped findings (critical / cascade / temporal).
-6. **Assisted fix** (interactive): offer to update findings one at a time via `update_document`; never modify without confirmation.
-
-#### Constraints
-
-- Must verify MCP availability before analysis
-- Must not modify documents without explicit user confirmation
-- Report must be concise — findings and actions, not verbose analysis
-- Must handle projects with no git history (skip code-drift analysis, still do cascade and temporal)
-
-### hooks configuration
-
-The cascade PostToolUse entry is shipped in all four host hook configs. Claude Code, Cursor and Codex share this shape (the plugin-root variable differs per host):
-
-```json
-{
-  "matcher": "mcp__archcore__update_document",
-  "hooks": [{"type": "command", "command": "${PLUGIN_ROOT}/bin/check-cascade", "timeout": 3}]
-}
-```
-
-Copilot's entry is structurally different and cannot be produced by search-and-replacing the variable. It is a flat object carrying `bash` instead of `command`, `timeoutSec` instead of `timeout`, `cwd: "."`, `env.ARCHCORE_HOST=copilot`, and **no matcher at all**, because Copilot's `postToolUse` does not take one — the script self-filters there on the normalized tool name.
-
-Its `bash` value is also not a single substitution, so it is described here rather than pasted: it probes `$COPILOT_PLUGIN_ROOT`, `$PLUGIN_ROOT` and `$CLAUDE_PLUGIN_ROOT` in turn with `-x`, execs the first that holds `bin/check-cascade`, and otherwise warns on stderr and exits 0. Until 2026-07-27 it was the one-liner `"${COPILOT_PLUGIN_ROOT}"/bin/check-cascade`, which resolved to the literal path `/bin/check-cascade` whenever that undocumented variable was unset. The live config is `hooks/copilot.hooks.json`; the reasoning is in `copilot-adapter-design.adr.md`.
-
-SessionStart hook calls `bin/check-staleness` internally as part of `bin/session-start`.
-
-### bin/ Scripts
-
-#### bin/check-staleness
-
-Called from `bin/session-start` after normal context loading. Performs git-based code-doc drift detection. Rate-limited to once per 24 hours via a timestamp file (`$CLAUDE_PLUGIN_DATA/archcore/last-staleness`, with XDG/HOME fallbacks).
-
-Requirements: executable, exits 0, completes within 3 seconds, POSIX shell, degrades gracefully without git.
-
-#### bin/check-cascade
-
-PostToolUse handler for cascade detection after `update_document`.
-
-Requirements: executable, exits 0, reads JSON from stdin, outputs the host-shaped context envelope when cascade detected, POSIX shell.
-
 ## Normative Behavior
 
-- Layer 1 MUST run at every session start when git is available and `.archcore/` has commits.
-- Layer 1 MUST NOT block session start regardless of findings.
-- Layer 1 output MUST NOT exceed 2KB.
-- Layer 2 MUST fire only after `update_document`, not after `create_document` or `remove_document`.
-- Layer 2 MUST only flag documents connected via `implements`, `depends_on`, or `extends` (not `related`).
-- Layer 2 MUST NOT block the update operation.
-- WHERE a host's PostToolUse event accepts no matcher, `bin/check-cascade` MUST reach the same decision by filtering on the normalized tool name — the set of updates that trigger a cascade warning MUST NOT differ by host.
-- WHERE a host's hook command cannot resolve `bin/check-cascade`, it MUST exit 0 rather than fail; a post-mutation hook has no verdict to deliver and MUST NOT turn a resolution failure into one.
-- Layer 3 (`/archcore:audit --drift`) MUST verify MCP availability before analysis.
-- Layer 3 MUST NOT modify documents without explicit user confirmation per document.
-- Layer 3 MUST present findings grouped by severity (critical, cascade, temporal).
-- All three layers MUST degrade gracefully when git is unavailable.
-- All hooks MUST be POSIX shell compatible.
-- All hooks MUST exit 0 (never block).
+1. WHEN a session starts and git is available and `.archcore/` has commits, Layer 1 MUST run.
+2. Layer 1 MUST NOT block session start.
+3. Layer 1 MUST keep its output at or below 2 KB.
+4. WHEN `update_document` succeeds, Layer 2 MUST fire.
+5. Layer 2 MUST NOT fire after `create_document` or `remove_document`.
+6. Layer 2 MUST flag only documents connected by `implements`, `depends_on`, or `extends`.
+7. Layer 2 MUST NOT block the update operation.
+8. IF a host's PostToolUse event accepts no matcher, THEN `bin/check-cascade` MUST reach the same decision by filtering on the normalized tool name.
+9. The set of updates that trigger a cascade warning MUST NOT differ by host.
+10. IF a host's hook command cannot resolve `bin/check-cascade`, THEN the command MUST exit 0 rather than fail.
+11. A post-mutation hook MUST NOT turn a resolution failure into a verdict, because it carries no verdict to deliver.
+12. WHEN Layer 3 starts, it MUST verify MCP availability before any analysis.
+13. Layer 3 MUST NOT modify a document without explicit user confirmation for that document.
+14. Layer 3 MUST group its findings by severity: critical, cascade, temporal.
+15. Each layer MUST degrade to a skip when git is unavailable.
+16. Each hook MUST be POSIX shell compatible.
+17. Each hook MUST exit 0.
 
-## Constraints
+## Constraints & Invariants
 
-- Layer 1: max 3 seconds execution, max 2KB output.
-- Layer 2: max 3 seconds execution (PostToolUse timeout).
-- Drift-mode reference (`skills/audit/lib/drift-detection.md`): max 200 lines.
-- `bin/check-staleness` and `bin/check-cascade`: POSIX shell, no network access, no file modifications.
+- Constraint: Layer 1 MUST complete within 3 seconds, because it runs inside session start.
+- Constraint: Layer 2 MUST complete within 3 seconds, which is the PostToolUse timeout.
+- Constraint: the drift-mode reference `skills/audit/lib/drift-detection.md` MUST NOT exceed 200 lines.
+- Constraint: `bin/check-staleness` and `bin/check-cascade` MUST make no network access.
+- Constraint: `bin/check-staleness` and `bin/check-cascade` MUST modify no file.
+- Constraint: Layer 3 keeps its report to findings and actions rather than narrated analysis, because the report is read inside a session turn.
+- Invariant: SessionStart loads context even when the staleness check fails or is skipped.
+- Invariant: PostToolUse validation (`archcore doctor`) and cascade detection run independently; both fire, neither depends on the other.
+- Invariant: drift mode reads `.archcore/` content through MCP tools, never through direct file reads.
+- Invariant: cascade detection never fires on `create_document`.
+- Invariant: no layer modifies a document autonomously; Layer 3 requires user confirmation.
 
-## Invariants
+## Failure Behavior
 
-- SessionStart always loads context even if staleness check fails or is skipped.
-- PostToolUse validation (`archcore doctor`) runs independently of cascade detection — both fire, neither depends on the other.
-- The drift mode reads documents via MCP tools, never via direct file reads for `.archcore/` content.
-- Cascade detection never fires on `create_document` — only `update_document`.
-- No layer ever modifies documents autonomously — Layer 3 requires user confirmation.
-
-## Error Handling
-
-- **Git unavailable**: Layer 1 skips silently. Layer 3 skips code-drift analysis but still performs cascade and temporal checks.
-- **No `.archcore/` commits**: Layer 1 skips. Layer 3 falls back to file modification times.
-- **archcore CLI unavailable**: Layer 2 skips. Layer 3 uses MCP tools directly.
-- **Relation graph empty**: Layer 2 produces no output. Layer 3 skips cascade analysis.
-- **Hook command cannot locate its script**: exit 0 with a stderr warning; the layer is inert for that session and the warning is the only signal.
-- **Large project (>100 documents)**: Layer 3 should scope analysis when possible. Suggest user provides tag/category filter.
+1. IF git is unavailable, THEN Layer 1 MUST skip silently.
+2. IF git is unavailable, THEN Layer 3 MUST skip code-drift analysis and still run the cascade and temporal checks.
+3. IF `.archcore/` has no commits, THEN Layer 1 MUST skip.
+4. IF `.archcore/` has no commits, THEN Layer 3 MUST fall back to file modification times.
+5. IF the archcore CLI is unavailable, THEN Layer 2 MUST skip.
+6. IF the relation graph is empty, THEN Layer 2 MUST produce no output.
+7. IF the relation graph is empty, THEN Layer 3 MUST skip cascade analysis.
+8. IF a hook command cannot locate its script, THEN the command MUST exit 0.
+9. IF a hook command cannot locate its script, THEN the command MUST write a warning to stderr. The layer is inert for that session, and the warning is the only signal.
+10. IF the project holds more than 100 documents, THEN Layer 3 SHOULD scope the analysis and ask the user for a tag or category filter.
 
 ## Conformance
 
-The Actualize system conforms to this specification if:
+The system is conformant when:
 
-1. `bin/check-staleness` runs at SessionStart and produces code-drift warnings when applicable.
-2. `bin/check-cascade` runs after `update_document` and produces cascade warnings when applicable.
-3. Every host hook config (`hooks.json`, `cursor.hooks.json`, `codex.hooks.json`, `copilot.hooks.json`) registers `check-cascade` on `update_document` — by matcher where the host has one, and by the script's own filtering on Copilot, which has none.
-4. `/archcore:audit --drift` exists as a mode of the `audit` intent skill, with routing-table support and the 3-dimension analysis.
+1. `bin/check-staleness` runs at SessionStart and produces a code-drift warning where one applies.
+2. `bin/check-cascade` runs after `update_document` and produces a cascade warning where one applies.
+3. Every host hook config registers `check-cascade` on `update_document` — by matcher where the host has one, and by the script's own filtering on Copilot, which has none.
+4. `/archcore:audit --drift` exists as a mode of the `audit` skill, with routing-table support and all three analyses.
 5. The drift protocol lives at `skills/audit/lib/drift-detection.md`.
-6. All hooks complete within their timeout budgets.
-7. No layer blocks operations or modifies documents without user confirmation.
-8. All layers degrade gracefully when git or CLI is unavailable.
+6. Every hook completes inside its timeout budget.
+7. No layer blocks an operation, and no layer modifies a document without user confirmation.
+8. Every layer degrades to a skip when git or the CLI is unavailable.

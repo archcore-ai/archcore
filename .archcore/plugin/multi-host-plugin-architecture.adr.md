@@ -9,149 +9,49 @@ tags:
 
 ## Context
 
-The Archcore plugin must work across multiple AI coding hosts that have converged on common open standards (April 2026 research):
+The Archcore plugin must work across several AI coding hosts that converged on common open standards during April 2026 research, and analysis showed that about 95% of the plugin's content is host-agnostic — skills, agents, hook scripts, and the stdin-normalization library — leaving only manifests and hooks configs host-specific. Maintaining a separate repository per host would therefore duplicate every skill, agent, and hook script to serve a 5% difference.
 
-- **Agent Skills standard** (agentskills.io) — adopted by Cursor, GitHub Copilot, Codex CLI, Roo Code, Cline, Gemini CLI, Windsurf, JetBrains Junie, OpenHands
-- **MCP (Model Context Protocol)** — adopted by all of the above plus Amazon Q, Continue.dev, Zed AI
-- **Markdown agent definitions** — adopted by Cursor, GitHub Copilot, Codex CLI, Gemini CLI
-
-Analysis showed that ~95% of plugin code is host-agnostic: skills, agents, hook scripts, and the stdin-normalization library. Only manifest files and hooks configs are host-specific.
-
-### Drivers
-
-- Users of Cursor, Copilot, and Codex CLI need Archcore integration — Codex CLI v0.117.0+ (March 2026) added a plugin system with near-1:1 surface to Claude Code, validating the multi-host bet; GitHub Copilot CLI followed as the fourth host.
-- Industry convergence on Agent Skills + MCP makes cross-host support low-effort.
-- Maintaining separate repos per host would mean duplicating every skill, agent, and hook script.
+The convergence covers the Agent Skills standard at agentskills.io, adopted by Cursor, GitHub Copilot, Codex CLI, Roo Code, Cline, Gemini CLI, Windsurf, JetBrains Junie, and OpenHands; MCP, adopted by all of those plus Amazon Q, Continue.dev, and Zed AI; and markdown agent definitions, adopted by Cursor, GitHub Copilot, Codex CLI, and Gemini CLI. Users of Cursor, Copilot, and Codex CLI needed Archcore integration, and Codex CLI v0.117.0 in March 2026 added a plugin system with a near one-to-one surface to Claude Code, validating the multi-host bet; GitHub Copilot CLI followed as the fourth host.
 
 ## Decision
 
-**Support multiple AI coding hosts from a single repository** with a shared core and thin per-host adapter layer.
+Support multiple AI coding hosts from a single repository, with a shared host-agnostic core and a thin per-host adapter layer that is pure configuration.
 
-The plugin ships:
+The **shared core** is `skills/`, `agents/` in both `.md` and `.toml` variants, `copilot-agents/` holding byte-identical `*.agent.md` copies, `bin/` with the hook scripts and the stdin normalizer, and `commands/` with the slash-command wrappers. The **per-host adapter files** are a plugin manifest, a hooks config, and — where the host can safely run one — an MCP config, none of which carries logic. The plugin **bundles no CLI**: the user installs `archcore` globally from https://docs.archcore.ai/cli/install/, every MCP config names `archcore` as the command resolved through PATH, and the plugin never bundles, downloads, caches, or pins a binary.
 
-- **Shared core** (host-agnostic): `skills/`, `agents/` (both `.md` and `.toml` variants), `copilot-agents/` (`*.agent.md` copies, byte-identical), `bin/` (hook scripts + stdin normalizer), `commands/` (slash command wrappers).
-- **Per-host adapter files** (configuration only, no logic): plugin manifest, hooks config, and — where the host can safely run one — an MCP config.
-- **No bundled CLI**: the Archcore CLI is installed globally by the user per https://docs.archcore.ai/cli/install/. Every MCP config names `archcore` as the command, resolved via PATH. The plugin does not bundle, download, cache, or pin a CLI binary.
+The plugin itself lives in the `plugins/archcore/` subdirectory, while the three marketplace catalogs stay at the repo root and point each host's plugin `source` or `path` at that subdirectory. `component-registry.doc` holds the full file inventory. The subdirectory layout is *required* for Codex marketplace discovery, because a catalog `source.path` of `./` is never scanned and the plugin is therefore never discovered there, and it is the canonical layout for Claude Code and Cursor as well. Copilot CLI has no marketplace concept and installs by subdirectory spec, so it needs no fourth catalog. Issue #2 is the report that surfaced the Codex case, and `subdirectory-plugin-layout.adr` extends this decision with the cross-host documentation matrix and the rejected alternatives.
 
-The plugin itself lives in a dedicated `plugins/archcore/` subdirectory; the marketplace catalogs stay at the repo root and point each host's plugin `source`/`path` at that subdirectory.
+**MCP wiring.** MCP ships plugin-side on the two hosts where that is safe: Claude Code through `.claude.mcp.json`, reached by the `mcpServers` key in `.claude-plugin/plugin.json`, and Codex CLI through `.codex.mcp.json`, reached by the same key in its manifest. Both name `archcore` directly, Codex using a direct server map and Claude Code its `mcpServers` wrapper, and both hosts launch the MCP with the working directory inherited from the user's project process. No MCP config sits on a filename any host auto-discovers: until 0.6.2 the Claude config was `.mcp.json` at the plugin root, discovered by convention with no manifest key and, as it turned out, discovered by two other hosts as well. Both files are now reachable only through an explicit manifest key, which is what makes "the plugin ships MCP to exactly two hosts" an enforced property rather than an intention, pinned by `@test/structure/plugin-mcp-isolation.bats`.
 
-```
-repo-root/                               # marketplace CATALOGS + dev tooling
-├── .claude-plugin/marketplace.json      # Claude catalog  → source: ./plugins/archcore
-├── .cursor-plugin/marketplace.json      # Cursor catalog  → source: ./plugins/archcore
-├── .agents/plugins/marketplace.json     # Codex catalog   → path:   ./plugins/archcore
-│                                        # (no Copilot catalog — it installs by subdir spec)
-├── docs/cursor.mcp.example.json         # Reference template users copy into ~/.cursor/mcp.json
-│
-└── plugins/archcore/                    # ← the plugin (single source of truth; what each host installs)
-    ├── commands/                        # Slash command wrappers (7, host-adapter shims)
-    ├── skills/                          # Shared — Agent Skills standard (7 skills)
-    ├── agents/                          # Shared — markdown agent definitions + Codex TOML variants
-    │   ├── archcore-assistant.md        # Claude Code / Cursor
-    │   ├── archcore-assistant.toml      # Codex CLI (sandbox_mode = "workspace-write")
-    │   ├── archcore-auditor.md          # Claude Code / Cursor
-    │   └── archcore-auditor.toml        # Codex CLI (sandbox_mode = "read-only" + disabled_tools)
-    ├── copilot-agents/                  # GitHub Copilot CLI — *.agent.md copies (cmp-tested)
-    │   ├── archcore-assistant.agent.md
-    │   └── archcore-auditor.agent.md
-    ├── bin/                             # Shared — hook scripts + stdin normalizer (no CLI binary)
-    │   ├── lib/normalize-stdin.sh
-    │   ├── session-start
-    │   ├── check-archcore-write
-    │   ├── check-code-alignment
-    │   ├── validate-archcore
-    │   ├── check-cascade
-    │   ├── check-precision
-    │   └── check-staleness
-    │
-    ├── .claude-plugin/plugin.json       # Claude Code manifest — mcpServers: "./.claude.mcp.json"
-    ├── .cursor-plugin/plugin.json       # Cursor manifest (no `mcpServers` field — deliberate)
-    ├── .codex-plugin/plugin.json        # Codex CLI manifest (single file)
-    ├── .plugin/plugin.json              # GitHub Copilot CLI manifest — mcpServers: {} (deliberate; see below)
-    │
-    ├── hooks/
-    │   ├── hooks.json                   # Claude Code (PascalCase events)
-    │   ├── cursor.hooks.json            # Cursor (camelCase events)
-    │   ├── codex.hooks.json             # Codex CLI (PascalCase events + apply_patch matcher)
-    │   └── copilot.hooks.json           # GitHub Copilot CLI (camelCase events, "bash" + timeoutSec)
-    │
-    ├── .claude.mcp.json                 # Claude Code — reached ONLY via the manifest key, never by discovery
-    ├── .codex.mcp.json                  # Codex CLI — direct server map
-    └── rules/                           # Cursor-only context rules (.mdc)
-```
+Cursor and GitHub Copilot CLI are the exceptions, for the same underlying reason: each launches a plugin's MCP child somewhere other than the user's project. Cursor auto-detects a plugin-shipped MCP config but spawns it from the plugin install directory, and its stdio schema has no `cwd` field, so the plugin ships no `mcpServers` field and no discoverable MCP filename, with the reference template under `docs/`. Its discovery list is `[".mcp.json", "mcp.json"]` — both spellings — so before 0.6.2 the Claude config was being registered there too, and keeping the plugin root free of "Cursor's filename" was never sufficient. Copilot launches a plugin's MCP child with the working directory set to the plugin install root and passes it no project path, not even the `COPILOT_PROJECT_DIR` its hooks receive, so documents would be written into `~/.copilot/installed-plugins/` while every tool reported success; worse, the plugin server and the project server share the key `archcore`, and Copilot merges MCP sources last-wins, so the plugin entry silently replaced the one the user was told to create. `.plugin/plugin.json` therefore declares `mcpServers: {}` — an empty declaration rather than an absent key, because an absent key sends Copilot to the Claude manifest for a fallback. `cursor-mcp-architecture.adr` and `copilot-mcp-architecture.adr` hold the full records.
 
-**Catalog vs. plugin location.** The three marketplace catalogs stay at the repo root; each points its plugin `source`/`path` at the `plugins/archcore/` subdirectory, which holds the per-host manifests and all shared content. This subdirectory layout is *required* for Codex marketplace discovery — a catalog `source.path` of `./` (the marketplace root) is not scanned, so the plugin is never discovered there — and it is the canonical layout for Claude Code and Cursor as well. Copilot CLI has no marketplace concept at all and installs by subdir spec (`archcore-ai/plugin:plugins/archcore`), so it needs no fourth catalog. The reporter that surfaced the Codex case is issue #2; the full rationale, the cross-host docs matrix, and the rejected alternatives (generated copy, Windows-breaking symlinks) live in `subdirectory-plugin-layout.adr`, which extends this ADR.
-
-### Shared core principle
-
-Skills, agents, and hook scripts are maintained once. All host-specific adapters are pure configuration — no logic duplication.
-
-### MCP wiring
-
-MCP is wired via plugin-shipped configs on the two hosts where that is safe: Claude Code (`.claude.mcp.json`, reached through the `mcpServers` key in `.claude-plugin/plugin.json`) and Codex CLI (`.codex.mcp.json`, reached through the same key in `.codex-plugin/plugin.json`). Both name `archcore` directly; Codex uses a direct server map, Claude Code uses its `mcpServers` wrapper. The host runtime resolves `archcore` from PATH. Both hosts launch the MCP with cwd inherited from the user's project process, which is the correct workspace.
-
-**No MCP config sits on a filename any host auto-discovers.** Until 0.6.2 the Claude config was `.mcp.json` at the plugin root, discovered by convention with no manifest key — and discovered, it turned out, by two other hosts as well. Both files are now off every discovery list and reachable only through an explicit manifest key, which is what makes "the plugin ships MCP to exactly two hosts" an enforced property rather than an intention. `test/structure/plugin-mcp-isolation.bats` holds the contract.
-
-**Cursor and GitHub Copilot CLI are the exceptions, for the same underlying reason: the host launches a plugin's MCP child somewhere other than the user's project.**
-
-Cursor 2.5+ auto-detects plugin-shipped MCP configs (per the [official plugins reference](https://cursor.com/docs/reference/plugins.md), an `mcp.json` at the plugin root registers under "Plugin MCP Servers"), but it spawns the plugin-MCP from the plugin install directory rather than the workspace, and its MCP stdio schema has no `cwd` field ([forum #74861](https://forum.cursor.com/t/allow-workspacefolder-in-mcp-project-configration/74861), [forum #99215](https://forum.cursor.com/t/how-get-the-correct-current-work-directory-in-mcp-server/99215)). We therefore ship no plugin-MCP for Cursor: no `mcpServers` field in `.cursor-plugin/plugin.json` and no discoverable MCP filename at the plugin root, with the reference template under `docs/`. Note that its discovery list is `[".mcp.json", "mcp.json"]` — **both** spellings — so before 0.6.2 the Claude config was being registered here too; keeping the plugin root free of "Cursor's filename" was never sufficient. See `cursor-mcp-architecture.adr`.
-
-Copilot CLI launches a plugin's MCP child with cwd set to the plugin install root and passes it no project path — not even the `COPILOT_PROJECT_DIR` its plugin *hooks* receive ([github/copilot-cli#4234](https://github.com/github/copilot-cli/issues/4234)). Documents would be written into `~/.copilot/installed-plugins/` while every tool reported success. Worse, the plugin server and the project server that `archcore init --agent copilot` registers share the key `archcore`, and Copilot merges MCP sources last-wins — so the plugin entry silently *replaced* the one the user was told to create. `.plugin/plugin.json` therefore declares `mcpServers: {}`: an empty declaration rather than an absent key, because an absent key sends Copilot to `.claude-plugin/plugin.json` for a fallback and it adopts the Claude server from there. Copilot users register the server per project via `archcore init --agent copilot`. The Cursor remedy of moving the file off the discovered name **was** available here, contrary to what this ADR said until 2026-08-03 — Claude Code accepts an explicit manifest path, so nothing forced the file to stay at `.mcp.json`. See `copilot-mcp-architecture.adr`.
-
-The plugin does not bundle the CLI, does not download it, and does not cache it; users install it once via the official installer at https://docs.archcore.ai/cli/install/.
-
-### Stdin normalization
-
-Hook scripts source a shared `bin/lib/normalize-stdin.sh` that detects the host from stdin JSON structure and exposes a canonical schema (`ARCHCORE_HOST`, `ARCHCORE_TOOL_NAME`, `ARCHCORE_FILE_PATH`, etc.). Detection uses each host's distinct stdin fields (Claude Code → `tool_name`; Cursor → `conversation_id`; Copilot → `hookEventName` on legacy payloads, `toolName`/`toolArgs` on native ones; Codex → `turn_id`). Codex shares Claude Code's snake_case schema, so the field-extraction logic for `codex` mirrors `claude-code`. The normalizer also folds all three MCP tool namings — `mcp__archcore__*`, `mcp__plugin_archcore_archcore__*`, and Copilot's flat `archcore-<tool>` — to one canonical name, so guard scripts match exactly one string instead of three.
+**Stdin normalization.** Hook scripts source `bin/lib/normalize-stdin.sh`, which detects the host from the stdin JSON structure and exposes a canonical schema of `ARCHCORE_HOST`, `ARCHCORE_TOOL_NAME`, and `ARCHCORE_FILE_PATH`. Detection keys on each host's distinct fields: `tool_name` for Claude Code, `conversation_id` for Cursor, `hookEventName` on legacy Copilot payloads and `toolName` or `toolArgs` on native ones, and `turn_id` for Codex. Codex shares Claude Code's snake_case schema, so its field extraction mirrors that host. The normalizer also folds all three MCP tool namings into one canonical name, so a guard script matches exactly one string rather than three.
 
 ## Alternatives Considered
 
-### 1. Separate repository per host
-
-One repo per host, each containing full copies of skills, agents, and bin scripts.
-
-**Rejected because:** duplication scales with host count; any skill update must be synced across all repos; only ~5% of code is actually host-specific.
-
-### 2. Build system that generates per-host packages
-
-A mono-repo with a build step (e.g., Node.js script) that reads a canonical source and generates separate plugin directories per host.
-
-**Rejected because:** introduces build tooling to a project that is currently pure Markdown + Shell; complexity not warranted — the per-host differences are purely configuration (JSON files); Agent Skills standard already ensures skills work across hosts without transformation.
-
-### 3. Symlinks from host-specific directories to shared source
-
-**Rejected because:** symlinks don't work reliably on Windows; plugin marketplace systems distribute files, not symlinks; fragile when cloned or copied.
-
-### 4. Bundle the CLI inside the plugin (download-on-first-use launcher)
-
-Ship a `bin/archcore` launcher that resolves the Archcore CLI on demand from `$ARCHCORE_BIN`, PATH, a plugin-managed cache, or a GitHub Releases download.
-
-**Tried and reverted.** Shipped briefly under `bundled-cli-launcher.adr` (now rejected), then removed in plugin v0.4.0 (2026-05-12) per `remove-bundled-launcher-global-cli.idea`. Eight bug classes — offline CI failures, security patch lag, uneven host support (Cursor still required manual setup), cache pollution, first-run latency, enterprise friction, version coupling to plugin releases, and 2000+ lines of launcher/test code — made the "zero-setup install" framing a net loss. The official installer at https://docs.archcore.ai/cli/install/ is the supported path; one-time user install replaces the bundled-launcher complexity.
-
-### 5. Ship `mcp.json` at the plugin root with `--project ${workspaceFolder}` in args
-
-This is the canonical Cursor 2.5+ way to register a plugin MCP. Rejected because Cursor's `${workspaceFolder}` interpolation inside plugin-MCP `args` is undocumented and the open feature request ([forum #74861](https://forum.cursor.com/t/allow-workspacefolder-in-mcp-project-configration/74861)) implies plugin-MCPs do not get the interpolation that user-config MCPs do. The same shape was reconsidered for Copilot and rejected harder: #4234 reports that the child gets no project path at all, so there is nothing to interpolate.
-
-### 6. Keep the Claude MCP config on the auto-discovered filename
-
-Held implicitly until 2026-08-03, on the belief that Claude Code could reach a plugin's MCP config only by convention. Measurement retired it: the manifest accepts a path string, an array, or an inline object, and a real marketplace install with the key and no `.mcp.json` reports the server connected. Keeping the discovered name cost one host outright and left a latent plugin-MCP on a second. The transferable lesson is narrow and worth stating: *a constraint attributed to the primary host was never measured on the primary host.*
+1. **A separate repository per host**, each holding full copies of the skills, agents, and bin scripts — rejected because duplication scales with host count, every skill update must be synced across all repositories, and only about 5% of the content is genuinely host-specific.
+2. **A build system generating per-host packages** from a canonical source — rejected because it introduces build tooling to a project that is pure Markdown and shell, because the per-host differences are purely JSON configuration, and because the Agent Skills standard already makes skills work across hosts without transformation.
+3. **Symlinks from host-specific directories to a shared source** — rejected because symlinks do not work reliably on Windows, because marketplace systems distribute files rather than symlinks, and because they break when the tree is cloned or copied.
+4. **Bundle the CLI inside the plugin as a download-on-first-use launcher** — tried and reverted. It shipped briefly under `bundled-cli-launcher.adr` and was removed in plugin v0.4.0 on 2026-05-12, after eight bug classes — offline CI failures, security-patch lag, uneven host support, cache pollution, first-run latency, enterprise friction, version coupling to plugin releases, and more than 2000 lines of launcher and test code — made the zero-setup framing a net loss.
+5. **Ship `mcp.json` at the plugin root with `--project ${workspaceFolder}` in `args`**, the canonical Cursor way to register a plugin MCP — rejected because Cursor's interpolation inside plugin-MCP `args` is undocumented and the open feature request implies plugin MCPs do not receive the interpolation that user-config MCPs do. The same shape was reconsidered for Copilot and rejected harder, because #4234 reports the child receives no project path at all, leaving nothing to interpolate.
+6. **Keep the Claude MCP config on the auto-discovered filename** — held implicitly until 2026-08-03 on the belief that Claude Code could reach a plugin's MCP config only by convention, and retired by measurement: the manifest accepts a path string, an array, or an inline object, and a real marketplace install with the key and no `.mcp.json` reports the server connected. Keeping the discovered name cost one host outright and left a latent plugin MCP on a second. The transferable lesson is narrow and worth stating — a constraint attributed to the primary host was never measured on the primary host.
 
 ## Consequences
 
-### Positive
+- Zero skill and agent duplication: both are maintained in one place, and the per-host format variants are copies held byte-identical by tests rather than forks.
+- Low per-host cost: a new host requires a manifest of roughly 10–15 lines and a hooks config of roughly 30–40 lines, plus an MCP config where the host can run one. Codex was the first real test at about one developer-day for scaffolding and tests, and Copilot confirmed the estimate.
+- The CLI lifecycle decouples: the CLI ships and patches on its own cadence, so a plugin release never gates a CLI security fix or the reverse, with `archcore update` as the user-facing upgrade path.
+- The plugin uses only open standards — Agent Skills, MCP, and markdown agents.
+- A bug fix in a skill, an agent, or a bin script propagates to every host automatically, because the plugin lives in exactly one place with no per-host copy or symlink to sync.
+- MCP reach is explicit per host: no host can pick up a config the plugin did not point at it, because no config sits on a name any host looks for.
+- Tradeoff: CLI installation is the user's responsibility, so the expectation that the plugin should just work surfaces when `archcore` is off PATH. `bin/session-start` prints the install command and a documentation link on every fresh session where the CLI is absent, and `plugin-development.guide` documents the session-start lifecycle gotcha that installing mid-session does not reconnect a Claude Code MCP that failed to register.
+- Tradeoff: Claude Code's MCP now rests on a single manifest key, since the conventional filename was an independent second route and is gone. Deleting the key costs the primary host every document tool, silently. `@test/structure/plugin-mcp-isolation.bats` pins it with mutation coverage.
+- Tradeoff: hook scripts must handle several stdin JSON formats, mitigated by the centralized normalizer.
+- Tradeoff: hook event mapping is imperfect, because hosts differ in both events and semantics. Cursor has no direct SessionStart equivalent and its PreToolUse matcher is `Write` only; Copilot's `postToolUse` carries no matcher, its `preToolUse` timeout fails open, and its `preToolUse` accepts no context field, so the injection guard is not registered there. The mitigation is to use the closest available event per host, declare each gap by name in the coverage tests, and keep the PreToolUse guards far inside their budget.
+- Tradeoff: on Cursor and Copilot the plugin is not self-contained, and those users get MCP only after host wiring runs. This is deliberate, and it is why `host-wiring-parity.adr` treats wiring as part of init rather than an extra.
+- Tradeoff: subagent formats diverge — Claude Code and Cursor read MD with YAML frontmatter, Codex requires TOML, and Copilot requires the `*.agent.md` extension and therefore its own directory, since that extension would otherwise be picked up as a duplicate by the MD-globbing hosts. `@test/structure/agents.bats` enforces parity between the MD and TOML bodies and byte-identity between MD and `*.agent.md`.
 
-- **Zero skill/agent duplication**: skills and agents maintained in one place; per-host format variants are copies held byte-identical by tests, not forks.
-- **Low per-host cost**: adding a new host requires only a manifest (~10-15 lines) and a hooks config (~30-40 lines), plus an MCP config where the host can run one. Codex was the first real test (~1 dev-day for scaffolding plus tests); Copilot confirmed the estimate.
-- **Decoupled CLI lifecycle**: the Archcore CLI ships and patches on its own cadence; plugin releases never gate CLI security fixes (and vice versa). `archcore update` is the user-facing upgrade path.
-- **Standard compliance**: uses Agent Skills, MCP, and markdown agents — all open standards.
-- **Single source of truth**: bug fixes in skills/agents/bin propagate to all hosts automatically; the plugin lives in exactly one place (`plugins/archcore/`), with no per-host copy or symlink to keep in sync.
-- **MCP reach is explicit per host**: no host can pick up a config we did not point at it, because no config sits on a name any host looks for.
+## Superseded when
 
-### Negative
-
-- **CLI install is the user's responsibility**: an unsupported user expectation (e.g., "the plugin should just work") surfaces when `archcore` is missing from PATH. Mitigation: `bin/session-start` prints the install command and a docs link on every fresh session where the CLI is absent; `plugin-development.guide` documents the MCP session-start lifecycle gotcha (installing the CLI mid-session does not reconnect a Claude Code MCP that failed to register at session start — restart required).
-- **Claude Code's MCP now rests on a single manifest key**: the conventional filename used to be an independent second route and is gone. Delete the key and the primary host loses every document tool, silently. Pinned by `test/structure/plugin-mcp-isolation.bats` with mutation coverage.
-- **Stdin normalization complexity**: hook scripts must handle multiple JSON formats. Mitigated by the centralized normalizer.
-- **Hook event mapping is imperfect**: not all hosts have equivalent hook events or equivalent semantics. Cursor has no direct `SessionStart` equivalent and its PreToolUse matcher is `Write` only, not `Write|Edit`; Copilot's `postToolUse` carries no matcher at all (the scripts self-filter there), its `preToolUse` timeout fails **open**, and its `preToolUse` accepts no context field at all — so the context-injection guard is not registered there. Mitigation: use the closest available event per host, declare the gaps by name in the coverage tests, and keep the PreToolUse guards far inside their budget (`test/unit/hook-latency.bats`).
-- **On two hosts the plugin is not self-contained**: Cursor and Copilot users get MCP only after host wiring runs (`archcore init --agent <host>`). Deliberate — see the two MCP ADRs — and the reason `host-wiring-parity.adr` treats wiring as part of init rather than an extra.
-- **Subagent format divergence**: Claude Code and Cursor read MD agents with YAML frontmatter; Codex requires TOML; Copilot requires the `*.agent.md` extension and therefore its own directory, since `.agent.md` would otherwise be picked up as a duplicate by the MD-globbing hosts. Mitigated by shipping the variants side by side, with `test/structure/agents.bats` enforcing parity between MD and TOML bodies and byte-identity between MD and `*.agent.md`.
+- The per-host adapter cost exceeds a manifest plus a hooks config for a new host, which would mean host divergence has outgrown the thin-adapter premise.
+- Every supported host launches a plugin-shipped MCP server in the user's project, which would collapse the two-host MCP exception and let one registration serve all four.

@@ -5,7 +5,10 @@
 - **`dev`** is the source of truth. All PRs, all tests, all reviews land here.
   `dev` carries the plugin team's own `.archcore/` knowledge base,
   reference materials, the bats test suite, the Makefile, CI workflows,
-  and our local host configs (`.claude/`, `.codex/`).
+  our local host configs (`.claude/`, `.codex/`), the repo-development
+  instruction files (`AGENTS.md`, `CLAUDE.md`), and the dev MCP wiring
+  (`.mcp.json`) that makes this repo an Archcore project for its own
+  contributors.
 
 - **`main`** is the public distribution surface. It is **synthesized**
   by `.github/workflows/release.yml` from a tagged commit on `dev` and
@@ -51,6 +54,9 @@ Any addition or removal MUST update the workflow at
 | `.github/`            | CI workflows. `main` is synthesized, not edited.       |
 | `Makefile`            | Dev-targets. Users never run `make` on installed plugins. |
 | `docs/release.md`     | This file. Lives on `dev` only.                        |
+| `AGENTS.md`           | Repo-development writing policy. A host reads a root `AGENTS.md` as instructions, so shipping it would apply plugin-contributor rules to the user's project. |
+| `CLAUDE.md`           | Claude Code entry point for the same policy. Routes to `AGENTS.md` and to `plugins/archcore/skills/_shared/`, neither of which is a user-facing contract. |
+| `.mcp.json`           | Dev MCP wiring for this repo. The shipped configs are `plugins/archcore/.claude.mcp.json` and `plugins/archcore/.codex.mcp.json`. |
 | `cursor.mcp.json`     | Legacy path; must already be gone but stripped defensively. |
 
 Everything else ships. The plugin itself lives under **`plugins/archcore/`**

@@ -7,148 +7,50 @@ tags:
   - "skills"
 ---
 
-## Status — Rejected (superseded by shipped push + pull mechanisms)
+**Status — rejected, superseded by shipped push and pull mechanisms.** As of plugin 0.3.0 the functionality proposed here is delivered by two complementary mechanisms that cover both modes of JTBD #1 without a dedicated `/archcore:align` intent. Pull mode shipped as `/archcore:context <path | topic>`, which classifies scope as path, topic, or pickup and returns grouped rules, ADRs, specs, and cpats for a code area — functionally what this idea proposed, under a more general name that also covers topic-level queries and session pickup. Push mode shipped as the `bin/check-code-alignment` pre-mutation hook, which auto-injects the same top-3 ranked documents on every source edit outside `.archcore/`.
 
-As of plugin 0.3.0, the functionality proposed here is already delivered by two complementary mechanisms that together cover both push and pull modes of JTBD #1 without requiring a dedicated `/archcore:align` intent skill:
-
-- **Pull mode already shipped** — `/archcore:context <path | topic>` classifies scope (path / topic / pickup) and returns grouped rules / ADRs / specs / cpats for the given code area. This is functionally what `/archcore:align` proposed, under a more general name that also covers topic-level queries and session pickup. Skill: `skills/context/SKILL.md`. Plan: `context-skill-implementation.plan.md` (accepted, realized).
-- **Push mode already shipped** — `bin/check-code-alignment` PreToolUse Write|Edit hook auto-injects the same top-3 ranked docs as `additionalContext` on every source edit outside `.archcore/`. Plan: `pre-code-hook-implementation.plan.md` (accepted, realized).
-
-Adding `/archcore:align` on top of these would duplicate surface area and introduce routing ambiguity between two pull intents ("context" vs "align"). The `Inverted Invocation Policy` explicitly prefers a minimal set of Layer 1 intents, and `/archcore:context` already covers the code-area pull use-case (path mode).
-
-Decision preserved below for audit trail and for the reasoning about rankers/resolvers, which informed both `/archcore:context` and `check-code-alignment`. If a distinct push-command is ever needed (e.g. a programmatic `archcore align <path>` CLI for non-interactive use — batch scripts, CI), it belongs in the CLI repo, not as a plugin intent skill. Tracked as a deferred follow-up in `pre-code-hook-implementation.plan.md`.
+Adding `/archcore:align` on top would duplicate surface area and introduce routing ambiguity between two pull intents, and the invocation policy explicitly prefers a minimal intent set. The reasoning about rankers and resolvers is preserved below, because it informed both shipped mechanisms. If a distinct push command is ever needed — a programmatic `archcore align <path>` for batch scripts or CI — it belongs in the CLI repository rather than as a plugin skill.
 
 ## Idea
 
-Add a new Layer 1 intent skill `/archcore:align` that takes a code area as argument (file path, directory, component name, or feature scope) and returns the applicable constraints from the knowledge base: ADRs that govern the area, rules that apply, specs the code must conform to, and cpats (before/after patterns) it should follow.
+Add an intent skill `/archcore:align` that takes a code area as its argument — a file path, a directory, a component name, or a feature scope — and returns the applicable constraints from the knowledge base: the ADRs governing the area, the rules that apply, the specs the code must conform to, and the cpats it should follow.
 
-This is the user-pull counterpart to the automatic push mechanism proposed in `pre-code-context-injection.idea.md`. The hook is invisible and unavoidable; the skill is explicit and scoped. Both serve the same JTBD #1 — ensure code changes respect existing architecture and decisions — but at different moments in the workflow.
+This is the user-pull counterpart to the automatic push mechanism: the hook is invisible and unavoidable, the skill is explicit and scoped. Both serve JTBD #1 — ensuring a code change respects existing architecture and decisions — at different moments in the workflow.
 
-### Why a new intent skill, and not an extension of `/archcore:capture` or `/archcore:review`
+**Why a new intent rather than an extension.** `/archcore:capture` creates documents *about* code while this reads documents *for* code, which is the opposite direction. The audit intent operates on the document graph rather than on code paths. The freshness intent reports when documentation has fallen behind code; it is a reporter rather than a constraint resolver. `/archcore:align` fills the empty slot — the code-centric read — because every existing intent is document-centric.
 
-- `/archcore:capture` creates documents _about_ code. `/archcore:align` reads documents _for_ code. Opposite direction.
-- `/archcore:review` audits documentation health. It operates on the doc graph, not on code paths.
-- `/archcore:actualize` detects when documentation has fallen behind code changes. It is a freshness-reporter, not a constraint-resolver.
+**Routing.** A file path routes to a path-match resolver returning documents that reference it; a directory routes to a prefix-match resolver; a component name routes to a symbol search followed by path matching; a feature scope routes to a tag match plus content search; and no argument produces one clarifying question. Output ranks by specificity, then type priority `rule > adr > spec > cpat > guide`, then recency — matching the hook.
 
-`/archcore:align` fills an empty slot: the code-centric read operation. All 9 existing intents are document-centric.
+**Execution.** Parse the argument to determine scope type; query through `list_documents`, `list_relations`, and `get_document` for the matched documents; then rank and format the result under fixed headings — rules that apply, decisions that govern this area, specs the code must conform to, patterns to follow, and related items in the graph — each entry being a one-line summary rather than a body. Close with a follow-up offer to show full content or to start implementation with the constraints loaded.
 
-### Routing table
-
-| Signal                                  | Route                         | Scope                            |
-| --------------------------------------- | ----------------------------- | -------------------------------- |
-| File path (`src/api/handlers/users.ts`) | → path-match resolver         | Documents referencing the path   |
-| Directory (`src/payments/`)             | → prefix-match resolver       | Documents referencing the dir    |
-| Component name (`AuthMiddleware`)       | → symbol search + path-match  | Documents referencing the symbol |
-| Feature scope (`"auth redesign"`)       | → tag match + content search  | Tagged docs + text match         |
-| No arguments                            | → ask one clarifying question | —                                |
-
-Output ranking matches the hook: specificity → type priority (`rule` > `adr` > `spec` > `cpat` > `guide`) → recency.
-
-### Execution
-
-```
-1. Parse $ARGUMENTS → determine scope type (path, dir, symbol, feature)
-2. Query via MCP tools:
-   - list_documents
-   - list_relations
-   - For matched docs: get_document to extract relevant excerpts
-3. Rank and format:
-   ## Rules that apply
-   - rule:api-handlers-layout — "Handlers live in src/api/handlers/, one per resource"
-   - rule:money-arithmetic — "All monetary math uses BigDecimal, never float"
-
-   ## Decisions that govern this area
-   - adr:rest-conventions — "We use REST, not RPC-over-HTTP" (accepted 2026-01-15)
-   - adr:postgres-for-transactions — "Transactional writes go through Postgres, not Mongo"
-
-   ## Specs the code must conform to
-   - spec:payment-flow — "Payments contract, see §3.2 for idempotency"
-
-   ## Patterns to follow
-   - cpat:handler-error-wrapping — "Use withErrorBoundary(), not try/catch"
-
-   ## Related in the graph
-   - plan:auth-redesign — in progress, touches this area
-4. Offer follow-up:
-   - "Show full content of any of these?"
-   - "Start implementation with these constraints loaded?"
-```
-
-### Frontmatter
-
-```yaml
----
-name: align
-argument-hint: "[file path, directory, component, or feature]"
-description: |
-  Load the rules, ADRs, specs, and patterns that apply to a code area before changing it.
-  Activate when user says "what rules apply to X", "before I refactor Y", "prepare to edit Z",
-  "what should I know before touching payments".
-  Do NOT activate for creating docs (use /archcore:capture or /archcore:decide).
-  Do NOT activate for audits (use /archcore:review or /archcore:actualize).
----
-```
-
-No `disable-model-invocation` flag — this is Layer 1 and must be auto-invocable per the Inverted Invocation Policy. Routing-sensitive trigger phrases in the description.
+**Frontmatter.** `name: align`, an argument hint naming the four accepted scopes, and a description whose triggers are phrases such as "what rules apply to X", "before I refactor Y", and "what should I know before touching payments", with anti-triggers pointing document creation at `capture` or `decide` and audits at the inspection intent. No invocation-restricting flag, because an intent skill must auto-invoke.
 
 ## Value
 
-### Complements the hook without duplicating it
+**It complements the hook without duplicating it.** The hook injects context at the moment of the write; the skill loads context deliberately, before the user even asks the agent to code. Two moments, two intents, one underlying index.
 
-The hook injects context at the moment of `Write|Edit`. The skill loads context deliberately, before the user even asks the agent to code. Two different moments, two different user intents, same underlying index.
+**It gives users an explicit pull lever.** Some users want to see the constraints before committing to a change — "I'm thinking about refactoring payments, what applies?" — and the hook answers that only once the agent starts writing, which is too late for exploratory thinking.
 
-### Gives users an explicit pull lever
+**It makes the knowledge base queryable by code location.** The graph is queryable today by document type, tag, and relation, but not by code path, and this fills the missing axis.
 
-Some users want to see the constraints before committing to a change: "I'm thinking about refactoring payments — what applies?" The hook answers this only after the agent starts writing, which is too late for humans doing exploratory thinking.
-
-### Makes the knowledge base queryable by code location
-
-Today the graph is queryable by document type, tag, and relation. It is not queryable by code path. This skill fills that missing axis.
-
-### Natural first-60-seconds demo
-
-The hero prompt becomes: "What rules apply to my src/api/handlers/?" → agent returns the list → obvious value. This works today as a read-only operation, without shipping the hook — so the skill can precede the hook in rollout.
+**It demos well.** The hero prompt becomes "What rules apply to my `src/api/handlers/`?", the agent returns the list, and the value is obvious. It works as a read-only operation without the hook, so the skill could precede the hook in rollout.
 
 ## Possible Implementation
 
-### Phase 1 — Path-match resolver (1–2 days)
+**Phase 1 — the path-match resolver**, roughly 1–2 days: a new `SKILL.md` inside the standard conventions, executing through the existing MCP tools, resolving paths by grep for a first version, with the output format fixed by the headings above.
 
-- New `skills/align/SKILL.md` at 100–200 lines per Layer 1 conventions
-- Executes via existing MCP tools: `list_documents`, `get_document`, `list_relations`
-- Grep-based path resolution via CLI or via agent's Grep tool — either works for v1
-- Output format fixed by the template above
+**Phase 2 — symbol and feature resolvers**, roughly 2–3 days: symbol search by grep across the codebase for the identifier followed by path matching on the hits, feature search by tag match plus content search, and a disambiguation question when several resolvers apply.
 
-### Phase 2 — Symbol and feature resolvers (2–3 days)
+**Phase 3 — index integration**, roughly 1 day after the hook's own Phase 2: reuse that path index so one index serves two consumers, replacing grep with an index lookup for the path and prefix cases.
 
-- Symbol search via Grep across codebase for the identifier, then path-match on hit locations
-- Feature search via tag match + content search across documents
-- Disambiguation question when multiple resolvers apply
+The specifications would need the intent count, the component inventory, and the invocation matrix updated alongside.
 
-### Phase 3 — Index integration (1 day after pre-code hook Phase 2)
+## Risks
 
-- Reuse the path index from `pre-code-context-injection.idea.md` Phase 2 — one shared index, two consumers
-- Replaces grep with index lookup for the path and prefix cases
-
-### Spec updates
-
-- `skills-system.spec.md`: intent-skill count becomes 10, update invariants
-- `plugin-architecture.spec.md`: update the Layer 1 component inventory
-- `inverted-invocation-policy.adr.md`: extend the invocation matrix row for intent to include `align`
-
-## Risks and Constraints
-
-- **Skill count creep.** Layer 1 currently has 9 intents; adding a 10th is fine, but the constraint "maximum 9 intent skills" in `plugin-architecture.spec.md` must be revised explicitly, not silently.
-- **Duplicate surface with the hook.** If both ship, users get the same context twice (once from the skill, once from the hook when they actually write). Mitigation: session-level de-duplication in the hook (do not re-inject documents already shown this session) — referenced in the hook idea's Phase 3.
-- **Overlap with `/archcore:capture`.** Users might confuse them. The routing description must be explicit: `capture` is for _writing_ docs about code, `align` is for _reading_ docs for code. Trigger-phrase discipline required.
-- **Empty-result UX.** If no documents apply to a given code area, the skill must return something useful: "No documented rules or decisions cover this area. Consider `/archcore:capture` to document it." Avoid looking broken on greenfield areas.
-- **Prompt routing precision.** "Before I refactor X" is ambiguous — could route to `align` (load constraints) or to a track skill (plan the refactor). Anti-trigger should explicitly say: `align` is read-only; use `/archcore:architecture-track` for a planned flow.
-- **Content truncation.** Returning full document bodies explodes output length on well-documented areas. Truncate to one-liner summaries + "/archcore:adr <name> for full content" follow-up. Full content is one get_document away.
-- **Layer 1 line limit.** Layer 1 intent skills must not exceed 300 lines. The routing and execution logic for 4 resolvers (path, dir, symbol, feature) fits comfortably.
-
-## Related work in this repo
-
-- `jtbd-alignment-analysis.idea.md` — lists this skill as one of the three mechanisms that close the JTBD #1 gap
-- `pre-code-context-injection.idea.md` — push counterpart; this skill is the pull counterpart
-- `plugin-architecture.spec.md` — intent-skill count and Layer 1 inventory need update
-- `skills-system.spec.md` — Layer 1 definition extends to a 10th skill
-- `inverted-invocation-policy.adr.md` — invocation matrix extends
+- **Skill count creep.** Adding another intent requires revising the maximum-intent constraint explicitly rather than silently.
+- **Duplicate surface with the hook.** If both ship, a user sees the same context twice — once from the skill and once from the hook at write time. The mitigation is session-level de-duplication in the hook.
+- **Overlap with `capture`.** Users may confuse them, so the routing description must state plainly that one writes documents about code while the other reads documents for code. Trigger-phrase discipline is required.
+- **Empty-result experience.** Where no document covers a code area, the skill must return something useful rather than looking broken on a greenfield area — for example, suggesting that the area be documented.
+- **Routing precision.** "Before I refactor X" is ambiguous between loading constraints and planning the refactor, so the anti-trigger must say the skill is read-only and name the planning path.
+- **Content truncation.** Returning full bodies explodes output length on a well-documented area, so entries stay one-line summaries with full content one `get_document` away.
+- **Line limit.** An intent skill must not exceed 300 lines, and the routing plus execution logic for four resolvers fits inside that.

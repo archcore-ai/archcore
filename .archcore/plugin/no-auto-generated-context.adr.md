@@ -7,37 +7,31 @@ tags:
   - "precision"
 ---
 
-## Status: Rejected (Superseded by `magic-first-day-init.adr`)
-
-Superseded 2026-06-26. The absolute ban on init-time auto-generated documents is replaced by a **bounded** model — extractive facts plus human-confirmed synthesis, gated behind a single preview/confirm step. The guardrails this ADR established are **retained** in the successor (no unconfirmed prose blobs, no documents over 200 lines, precision over coverage, the overview is an index not a summary); only the empty-state minimalism — which produced the "init does nothing / creates very little content" feedback — is reversed. See `magic-first-day-init.adr` for the new boundary, and `magic-first-day-init.plan` for the implementation.
-
----
+**Superseded on 2026-06-26 by `magic-first-day-init.adr`.** The absolute ban recorded here is replaced by a bounded model: extractive facts plus human-confirmed synthesis, gated behind a single preview and confirm step. The guardrails below are retained in the successor — no unconfirmed prose blobs, no document over 200 lines, precision over coverage, and an overview that indexes rather than summarizes. Only the empty-state minimalism is reversed, because it produced the "init does nothing" feedback.
 
 ## Context
 
-Recent research on AI agent context engineering (arxiv 2510.21413, "Context Engineering for AI Agents in Open-Source Software", Mohsenimofidi et al., 2026) measured the effect of `AGENTS.md`-style auto-generated context files across 466 open-source projects. LLM-generated context files reduced agent task success in 5 of 8 settings, increased inference cost 20–23%, and added 2.45–3.92 steps per task. Human-curated context files yielded only ~+4 percentage points of improvement, indicating that the bulk of measurable gain comes from intent and curation rather than coverage. Cloudflare's production AI code review system independently identified files >200 lines and tool names without runnable commands as performance penalizers.
-
-A naive product instinct for a documentation-oriented plugin is to "scan the repository and produce summary documents". This ADR closes that path before it is taken.
+Research on AI agent context engineering — arxiv 2510.21413, "Context Engineering for AI Agents in Open-Source Software", Mohsenimofidi et al., 2026 — measured `AGENTS.md`-style auto-generated context files across 466 open-source projects and found that LLM-generated context files reduced agent task success in 5 of 8 settings, increased inference cost by 20–23%, and added 2.45–3.92 steps per task, while human-curated files yielded only about +4 percentage points. Cloudflare's production AI code review system independently identified files longer than 200 lines, and tool names without runnable commands, as performance penalizers. The naive product instinct for a documentation-oriented plugin is to scan the repository and produce summary documents; this decision closed that path before it was taken.
 
 ## Decision
 
-Archcore does not produce auto-generated repository summaries, AGENTS.md-style blobs, or any document generated wholesale by an LLM scan of the codebase. Every `.archcore/` document is created intentionally, in response to a specific authoring intent (decide, capture, plan, etc.), through a skill that elicits context from the user or harvests evidence for that one document.
+Archcore produces no auto-generated repository summary, no `AGENTS.md`-style blob, and no document generated wholesale by an LLM scan of the codebase; every `.archcore/` document is created intentionally in response to a specific authoring intent, through a skill that elicits context from the user or harvests evidence for that one document.
 
 ## Alternatives Considered
 
-1. **Generate AGENTS.md per project on bootstrap** — rejected; arxiv 2510.21413 quantifies the harm at scale (−5/8 success, +20–23% cost) and the harm is structural, not implementation-specific.
-2. **Generate per-module summary docs to seed initial context** — rejected; same failure mode at finer granularity, and creates documents users have not consciously authored, undermining the trust signal of `.archcore/`.
-3. **Allow opt-in auto-summary skill behind a flag** — rejected; even opt-in availability normalizes a known anti-pattern, and over time users mistake auto-output for canonical docs, degrading the corpus.
+1. **Generate an `AGENTS.md` per project at bootstrap** — rejected because arxiv 2510.21413 quantifies the harm at scale, at −5 of 8 settings and +20–23% cost, and the harm is structural rather than implementation-specific.
+2. **Generate per-module summary documents to seed initial context** — rejected because it reproduces the same failure mode at finer granularity and creates documents the user never consciously authored, which undermines the trust signal of `.archcore/`.
+3. **Allow an opt-in auto-summary skill behind a flag** — rejected because even opt-in availability normalizes a known anti-pattern, and over time users mistake auto-output for canonical documents, which degrades the corpus.
 
 ## Consequences
 
-- Init output remains minimal; users do not get a "free" knowledge tree from running `/archcore:init` on an existing repo. The first useful state of `.archcore/` requires deliberate authoring.
-- All documents in `.archcore/` carry intentional authorship; readers (human and agent) can trust them as deliberate artifacts rather than machine fill.
-- Skills that need codebase context fall back to grep/read at composition time, not pre-generated artifacts. This costs a few seconds per skill invocation but keeps context fresh.
+- Every document in `.archcore/` carries intentional authorship, so a human or agent reader can treat it as a deliberate artifact rather than machine fill.
+- A skill that needs codebase context falls back to grep and read at composition time rather than to a pre-generated artifact, which costs a few seconds per invocation and keeps the context fresh.
+- Tradeoff: init output stays minimal, so a user running `/archcore:init` on an existing repository gets no knowledge tree for free, and the first useful state of `.archcore/` requires deliberate authoring. This tradeoff is what the successor reverses.
 
 ## Superseded when
 
-- A future benchmark on comparable scale (>400 OSS repos) demonstrates that auto-generated context files improve agent task success rate by ≥5 percentage points net of cost.
-- Anthropic, Cursor, or comparable host vendors document a different official position based on newer evidence and revise their own context-engineering guidance.
+- A benchmark at comparable scale, above 400 open-source repositories, shows auto-generated context files improving agent task success by 5 percentage points or more, net of cost.
+- Anthropic, Cursor, or a comparable host vendor documents a different official position based on newer evidence and revises its own context-engineering guidance.
 
-> **Superseded (2026-06-26):** met by product decision rather than a new benchmark — first-day onboarding impact was judged to outweigh strict minimalism, with the research's actual failure mode (unconfirmed wholesale prose blobs, >200-line files) fenced off by the successor's preview/confirm gate and retained guardrails. See `magic-first-day-init.adr`.
+Neither condition was met. The supersession was a product decision: first-day onboarding impact was judged to outweigh strict minimalism, with the research's actual failure mode — unconfirmed wholesale prose blobs and files over 200 lines — fenced off by the successor's preview and confirm gate and its retained guardrails.

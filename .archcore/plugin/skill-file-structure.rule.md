@@ -9,28 +9,28 @@ tags:
 
 ## Rule
 
-1. Each skill MUST live at `skills/<name>/SKILL.md` where `<name>` is one of the 7 canonical skill names: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`.
-2. Each SKILL.md MUST contain frontmatter with `name` and `description`. Per `skill-surface-collapse.adr.md`:
-   - All skills are auto-invocable. No skill carries `disable-model-invocation`.
-   - Skill descriptions MUST enumerate trigger phrases and anti-triggers using the "Activate when X. Do NOT activate for Y (use /archcore:other)." format, so model routing is deterministic.
-3. Section structure: Title+one-liner, When to Use, Routing Table (or numbered step sequence with deterministic branches), Execution, Result (5 sections). Creation-oriented skills inline per-type elicitation (question + sections + create_document + add_relation) within the Execution section. Flow-style skills (e.g., `init`, `plan`) may load per-flow references from `skills/<name>/references/<flow>.md` or `skills/<name>/lib/<mode>.md` on demand.
-4. Creation flows MUST show `create_document` MCP tool usage — never Write/Edit.
-5. Skills MUST NOT embed full document templates — reference the template system (MCP server templates) instead.
-6. Line limits: SKILL.md ≤ 300 lines; per-flow reference files (under `references/` or `lib/`) ≤ 200 lines each.
-7. The plan skill MUST hold per-flow logic in `skills/plan/references/<flow>.md` rather than spawning new top-level skills. Adding a new flow is a new reference file, not a new skill.
+1. Each skill MUST live at `skills/<name>/SKILL.md`.
+2. `<name>` MUST be one of the seven canonical skill names: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`.
+3. Each `SKILL.md` MUST carry a `name` field in its frontmatter.
+4. Each `SKILL.md` MUST carry a `description` field in its frontmatter.
+5. A `SKILL.md` MUST NOT carry `disable-model-invocation`.
+6. Each `description` MUST enumerate its trigger phrases in the form `Activate when X.`
+7. Each `description` MUST enumerate its anti-triggers in the form `Do NOT activate for Y (use /archcore:other).`
+8. Each `SKILL.md` MUST contain these five sections: a title with a one-line summary, `When to Use`, a routing table or a numbered step sequence with deterministic branches, `Execution`, and `Result`.
+9. A creation-oriented skill MUST inline its per-type elicitation — question, sections, `create_document`, `add_relation` — inside the `Execution` section.
+10. A flow-style skill MAY load a per-flow reference from `skills/<name>/references/<flow>.md` or `skills/<name>/lib/<mode>.md` on demand.
+11. A creation flow MUST call `create_document`.
+12. A creation flow MUST NOT call Write or Edit.
+13. A `SKILL.md` MUST NOT embed a full document template.
+14. A `SKILL.md` MUST reference the MCP server template system in place of an embedded template.
+15. A `SKILL.md` MUST NOT exceed 300 lines.
+16. A per-flow reference file under `references/` or `lib/` MUST NOT exceed 200 lines.
+17. The `plan` skill MUST hold its per-flow logic in `skills/plan/references/<flow>.md`.
+18. WHEN a new flow is added to the `plan` skill, the author MUST add a reference file instead of a top-level skill.
 
 ## Rationale
 
-Consistent structure ensures:
-
-- Predictable content — developers know where to find each type of guidance based on the skill's role.
-- Maintainability — skills follow the same pattern, making batch updates feasible.
-- Quality — required sections prevent incomplete skills that miss key guidance.
-- No drift — referencing templates instead of embedding them prevents staleness when CLI templates change.
-- MCP-only enforcement — creation flows model the correct behavior.
-- Routing correctness — every skill is auto-invocable; precise trigger/anti-trigger language in descriptions prevents the model from mis-routing into a neighboring intent.
-- Single home for per-type elicitation — creation skills inline the per-type recipes; there is no separate per-type skill layer (removed by `remove-document-type-skills.adr.md`).
-- Per-flow reuse without proliferation — per-flow references absorb what would otherwise become new top-level skills (track tier removed by `skill-surface-collapse.adr.md`).
+A fixed file location and a fixed section set let a contributor find each kind of guidance without reading the whole skill, and let a batch update touch every skill the same way. `skill-surface-collapse.adr` fixed the seven-skill surface and the auto-invocation invariant, so a `disable-model-invocation` flag or an eighth top-level skill breaks routing instead of extending it. `remove-document-type-skills.adr` removed the per-type skill layer, which is why item 9 places per-type elicitation inside `Execution`. Items 13 and 14 exist because an embedded template drifts as soon as the CLI templates change. The trigger and anti-trigger forms in items 6 and 7 are what make model routing between neighboring intents deterministic.
 
 ## Examples
 
@@ -59,7 +59,7 @@ Step 3 (per-type creation inlines: ask question → compose sections → create_
 ...
 ```
 
-No invocation-restricting flag — every skill auto-invokes from user phrasing.
+The frontmatter carries no invocation-restricting flag, so the skill auto-invokes from user phrasing.
 
 ### Good — Flow-Style Skill (plan)
 
@@ -88,25 +88,25 @@ description: "Plan a feature or initiative end-to-end. Activate when user says '
 - Step 4: Cross-relate to existing documents
 ```
 
-Per-flow content lives in references, keeping the SKILL.md under the 300-line budget.
+Per-flow content lives in references, which keeps `SKILL.md` inside the 300-line limit of item 15.
 
 ### Bad
 
 ```markdown
-# Missing frontmatter name/description
-# Skill with disable-model-invocation: true (every skill must auto-invoke)
-# Template content embedded verbatim (will drift from CLI)
-# Example uses Write instead of create_document
-# Skill missing Routing Table section (and not a flow-style skill with numbered steps)
-# SKILL.md exceeds 300 lines
-# Per-flow reference file exceeds 200 lines
-# New top-level skill added for a new flow (should be a reference under skills/plan/references/)
+# Frontmatter without name or description        → violates items 3 and 4
+# disable-model-invocation: true                 → violates item 5
+# Template content embedded verbatim             → violates item 13
+# Creation flow calling Write instead of create_document → violates items 11 and 12
+# No routing table and no numbered step sequence → violates item 8
+# SKILL.md at 340 lines                          → violates item 15
+# Per-flow reference file at 260 lines           → violates item 16
+# New top-level skill added for a new plan flow  → violates item 18
 ```
 
 ## Enforcement
 
 - Code review during skill development.
-- Skills System Specification defines the normative contract.
-- Plugin Architecture Specification defines the cross-component invariants.
-- `skill-surface-collapse.adr.md` defines the 7-skill surface and auto-invocation invariant.
-- Future: automated lint script in `bin/` to check skill structure.
+- `skills-system.spec` defines the normative contract for skill behavior.
+- `plugin-architecture.spec` defines the cross-component invariants.
+- `skill-surface-collapse.adr` fixes the seven-skill surface and the auto-invocation invariant that item 5 depends on.
+- No lint script checks items 1–18 today. A `bin/` lint script is the intended verifier. [assumption] No implementation date is set.

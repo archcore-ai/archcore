@@ -3431,6 +3431,51 @@
       "source": "plugin/multi-host-implementation.plan.md",
       "target": "plugin/multi-host-plugin-architecture.adr.md",
       "type": "implements"
+    },
+    {
+      "source": "plugin/controlled-technical-writing.rule.md",
+      "target": "plugin/controlled-technical-writing-profile.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/controlled-technical-writing-profile.adr.md",
+      "target": "plugin/precision-over-coverage.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/controlled-technical-writing-profile.adr.md",
+      "target": "plugin/architect-voice-default.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/controlled-technical-writing-profile.adr.md",
+      "target": "plugin/spec-single-narrative-ears-bcp14.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/controlled-technical-writing.rule.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/controlled-technical-writing.rule.md",
+      "target": "plugin/mcp-only-operations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/controlled-technical-writing.rule.md",
+      "target": "plugin/skill-file-structure.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-local-plugin-testing.guide.md",
+      "target": "plugin/subdirectory-plugin-layout.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-local-plugin-testing.guide.md",
+      "target": "plugin/codex-path-resolution.adr.md",
+      "type": "related"
     }
   ]
 }

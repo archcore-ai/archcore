@@ -9,200 +9,83 @@ tags:
 
 ## Goal
 
-Implement multi-host support for the Archcore plugin, enabling it to run in Cursor (P1) and prepare the architecture for GitHub Copilot and other hosts (P2). The plugin must work identically across hosts with zero duplication of skills, agents, or core logic.
+Implement multi-host support for the plugin, so it runs in Cursor as the first priority and the architecture is prepared for GitHub Copilot and further hosts. The plugin must behave identically across hosts with zero duplication of skills, agents, or core logic.
 
-**MCP scope note** — at the time this plan was drafted, MCP server configuration was explicitly out of scope: the plugin did not declare `mcpServers` anywhere and did not ship `.mcp.json` at the plugin root. That scope boundary was revised once for Claude Code (the long-since-removed bundled launcher, Phase 5 below) and then again when the launcher was removed in v0.4.0. The plugin currently ships `.mcp.json` and `.codex.mcp.json` at its root, both pointing at `archcore` on PATH. Cursor still relies on user-registered MCP via `~/.cursor/mcp.json` or project-scoped `.cursor/mcp.json`.
+**MCP scope note.** When this plan was drafted, MCP server configuration was explicitly out of scope: the plugin declared no `mcpServers` anywhere and shipped no MCP config at its root. That boundary was revised once for Claude Code, through the since-removed bundled launcher of Phase 5, and again when the launcher was removed in v0.4.0. The plugin now ships `.claude.mcp.json` and `.codex.mcp.json` at its root, both naming `archcore` on PATH and both reached only through an explicit manifest key, per `copilot-mcp-architecture.adr`. Cursor still relies on a user-registered server in `~/.cursor/mcp.json` or a project-scoped `.cursor/mcp.json`.
 
 ## Tasks
 
-### Phase 1: Stdin Normalization Layer
+### Phase 1 — the stdin normalization layer
 
-Create the shared normalization library that makes bin scripts host-agnostic.
+**1.1 Create `bin/lib/normalize-stdin.sh`**, a POSIX shell library sourced by every bin script. It reads stdin once into a variable, detects the host from the JSON structure, exports the normalized variables `ARCHCORE_HOST`, `ARCHCORE_HOOK_EVENT`, `ARCHCORE_TOOL_NAME`, `ARCHCORE_FILE_PATH`, and `ARCHCORE_TOOL_INPUT`, and provides the output helpers for info, block, and allow. It carries no external dependency: `grep` and `sed` only, with no jq.
 
-#### 1.1 Create `bin/lib/normalize-stdin.sh`
+**1.2 Refactor the existing bin scripts onto the normalizer**, replacing direct stdin parsing. The write guard replaces its inline parsing with the normalized file path and emits through the block helper. The validator uses the normalized tool name and file path and emits through the info helper. The cascade detector uses the normalized tool input for the document path and emits through the info helper. The staleness check needs no stdin change, because `session-start` calls it rather than a hook. And `session-start` changes minimally, possibly using the host variable for a host-specific CLI command.
 
-- POSIX shell library sourced by all bin scripts
-- Reads stdin once, stores in `$ARCHCORE_RAW_STDIN`
-- Detects host from JSON structure (Claude Code vs Cursor vs Copilot)
-- Exports normalized variables: `ARCHCORE_HOST`, `ARCHCORE_HOOK_EVENT`, `ARCHCORE_TOOL_NAME`, `ARCHCORE_FILE_PATH`, `ARCHCORE_TOOL_INPUT`
-- Provides output helpers: `archcore_hook_info()`, `archcore_hook_block()`, `archcore_hook_allow()`
-- No external dependencies (no `jq` — only `grep`/`sed`)
+**1.3 Verify Claude Code still works** across session start, document creation, direct-write blocking, validation, and cascade detection, with zero regression, since the normalizer defaults to the Claude Code format.
 
-**Files:** `bin/lib/normalize-stdin.sh` (new)
+### Phase 2 — the Cursor adapter
 
-#### 1.2 Refactor existing bin scripts to use normalizer
+**2.1 Research and verify the Cursor formats** by fetching the current documentation for the manifest schema, the hooks format including event names and the stdin and stdout protocol, and the rules format, then document every gap against Claude Code.
 
-Update all 5 bin scripts to source the normalizer instead of parsing stdin directly.
+**2.2 Create the Cursor manifest** with name, version, description, and author, plus references to the skills, agents, hooks, and rules directories, and no `mcpServers` field, because MCP is registered outside the plugin. Verify each field name against the documentation from 2.1.
 
-- `bin/check-archcore-write` — replace inline `grep`/`sed` with `$ARCHCORE_FILE_PATH`, use `archcore_hook_block()` for output
-- `bin/validate-archcore` — use `$ARCHCORE_TOOL_NAME` and `$ARCHCORE_FILE_PATH`, use `archcore_hook_info()` for output
-- `bin/check-cascade` — use `$ARCHCORE_TOOL_INPUT` for document path, use `archcore_hook_info()` for output
-- `bin/check-staleness` — no stdin changes needed (called from session-start, not directly from hook)
-- `bin/session-start` — minimal changes (may use `$ARCHCORE_HOST` for host-specific CLI command)
+**2.3 Create the Cursor marketplace catalog** carrying the same metadata as the Claude Code catalog, adapted to the Cursor format.
 
-**Files:** `bin/check-archcore-write`, `bin/validate-archcore`, `bin/check-cascade`, `bin/session-start` (modify)
+**2.4 Create `hooks/cursor.hooks.json`**, mapping the active hook functions to the Cursor event names — session start, the pre-mutation `Write` matcher, and the post-MCP event running the validator and the cascade detector. Handle the session-start gap through the available alternative or through rules, use the correct stdin and stdout protocol, and use Cursor's plugin-root variable. Register no post-mutation `Write` validator entry, because the pre-mutation guard already blocks and such an entry would fork a shell repository-wide for no benefit.
 
-#### 1.3 Verify Claude Code still works
+**2.5 Rename the Claude Code hooks file** to a host-specific name, update every reference to it, and verify the Claude Code plugin system reads the new path.
 
-- Run full test: session start, create document, block direct write, validate, cascade detection
-- Ensure zero regression — normalizer defaults to Claude Code format
+**2.6 Create the Cursor rules**, optionally: an always-apply context rule carrying the document-type reference and the MCP tool names, which substitutes for session-start context injection, and a glob-scoped rule over `.archcore/**` reminding the agent that operations are MCP-only.
 
-**Verification:** Manual test in Claude Code session
+**2.7 Extend the normalizer for Cursor** by adding its host detection, mapping its stdin fields to the normalized variables, implementing its output format in the helpers, and testing against a sample payload.
 
-### Phase 2: Cursor Plugin
+### Phase 3 — verification in Cursor
 
-Create all Cursor-specific adapter files.
+**3.1 Install the plugin locally** through Cursor's local loading mechanism, verify the user-registered MCP server is reachable and its tools are available, and verify the skills appear in the slash-command menu.
 
-#### 2.1 Research and verify Cursor plugin formats
+**3.2 Test the core flows:** create a document through the decision skill, confirming the skill activates and the MCP tool works; attempt a direct write to `.archcore/` and confirm the hook blocks it; update a document and confirm the validation and cascade hooks fire; run the audit dashboard and confirm it lists documents; run the drift mode and confirm staleness detection works; and invoke the assistant agent on a complex task.
 
-- Fetch latest Cursor docs for plugin.json manifest schema
-- Fetch latest Cursor docs for hooks.json format (event names, stdin/stdout protocol)
-- Fetch latest Cursor docs for rules .mdc format
-- Document any gaps vs Claude Code (missing events, different capabilities)
+**3.3 Document the findings and fix what surfaces**, recording any Cursor-specific behavior difference, fixing the hook format issues found in testing, and updating the specification where actual behavior differs from the documentation.
 
-**Output:** Verified formats, documented gaps
+### Phase 4 — repository cleanup
 
-#### 2.2 Create `.cursor-plugin/plugin.json`
+**4.1** Update the README with multi-host installation instructions and a supported-hosts section.
 
-- Plugin manifest with name, version, description, author
-- References to skills/, agents/, hooks/, rules/
-- No `mcpServers` field — MCP is registered externally by the user/repo
-- Verify field names against docs from 2.1
+**4.2** The repository rename is done. The final name places the brand on the organization and keeps the repository name host-agnostic.
 
-**Files:** `.cursor-plugin/plugin.json` (new)
+### Phase 5 — the bundled CLI launcher and plugin-owned MCP. Superseded and removed in v0.4.0.
 
-#### 2.3 Create `.cursor-plugin/marketplace.json`
+This phase shipped a download-on-first-use launcher plus plugin-owned MCP registration. The launcher caused eight bug classes — offline failures in CI, version coupling to plugin releases, cache pollution across hosts, first-run latency, enterprise friction, security-patch lag, plugin bloat, and uneven host support, since Cursor users still did manual MCP setup — and was removed entirely in v0.4.0, commit `2f99997`.
 
-- Marketplace listing for Cursor plugin marketplace
-- Same metadata as Claude Code marketplace.json adapted to Cursor format
+The plugin-owned MCP shape survived the rollback: the two configs still ship at the plugin root, but they name `archcore` on PATH directly with no launcher indirection. Cursor users still register MCP outside the plugin, and the reference template now lives at `docs/cursor.mcp.example.json` rather than at the plugin root, per `cursor-mcp-architecture.adr`.
 
-**Files:** `.cursor-plugin/marketplace.json` (new)
+`bundled-cli-launcher.adr` holds the original decision, now rejected; `remove-bundled-launcher-global-cli.idea` holds the replacement with the eight-bug-class analysis and the one-time-install trade-off; and `stack-and-tooling.rule` pins that no plugin-side download-on-first-use mechanism returns without a fresh ADR.
 
-#### 2.4 Create `hooks/cursor.hooks.json`
-
-- Map all active hook functions to Cursor event names (sessionStart, preToolUse Write, afterMCPExecution running validate-archcore + check-cascade)
-- Handle SessionStart gap: use `beforeSubmitPrompt` or rules
-- Use correct Cursor stdin/stdout protocol
-- Use Cursor's plugin root variable name
-- Do NOT register a `postToolUse Write` validate-archcore entry — that path was removed (PreToolUse already blocks; PostToolUse on every Write would fork a shell repo-wide for no benefit)
-
-**Files:** `hooks/cursor.hooks.json` (new)
-
-#### 2.5 Rename `hooks/hooks.json` → `hooks/claude-code.hooks.json`
-
-- Rename existing hooks file to be host-specific
-- Update any references (`.claude-plugin/plugin.json`, `.claude/settings.json`)
-- Verify Claude Code plugin system reads from the new path
-
-**Files:** `hooks/hooks.json` → `hooks/claude-code.hooks.json` (rename), update references
-
-#### 2.6 Create Cursor rules (optional enhancement)
-
-- `rules/archcore-context.mdc` — alwaysApply rule with document type reference and MCP tool names (replaces SessionStart context injection)
-- `rules/archcore-files.mdc` — glob-scoped rule for `.archcore/**` files, reminds about MCP-only
-
-**Files:** `rules/archcore-context.mdc`, `rules/archcore-files.mdc` (new)
-
-#### 2.7 Update normalize-stdin.sh for Cursor format
-
-- Add Cursor host detection (check for `hook_event_name` field)
-- Map Cursor stdin fields to normalized variables
-- Implement Cursor output format in helper functions
-- Test with sample Cursor hook stdin JSON
-
-**Files:** `bin/lib/normalize-stdin.sh` (update)
-
-### Phase 3: Verification in Cursor
-
-#### 3.1 Install plugin locally in Cursor
-
-- Use Cursor's local plugin loading mechanism
-- Verify the user-registered MCP server is reachable (via project `mcp.json` or Cursor's MCP settings) and its tools are available
-- Verify skills appear in slash command menu
-
-#### 3.2 Test core flows
-
-- Create a document via `/archcore:decide` — skill activates, MCP tool works
-- Try direct Write to `.archcore/` — hook blocks it
-- Update a document — validation and cascade hooks fire
-- Run `/archcore:audit` — lists documents correctly (default dashboard mode)
-- Run `/archcore:audit --drift` — staleness detection works
-- Invoke archcore-assistant agent — complex task works
-
-#### 3.3 Document findings and fix issues
-
-- Record any Cursor-specific behavior differences
-- Fix hook format issues discovered during testing
-- Update spec if Cursor's actual behavior differs from documented behavior
-
-### Phase 4: Repository Cleanup
-
-#### 4.1 Update documentation
-
-- Update README.md with multi-host installation instructions
-- Add "Supported Hosts" section
-
-#### 4.2 ~~Consider repository rename~~ Done
-
-- ~~Current: `archcore-claude-plugin`~~
-- ~~Renamed to: `archcore-plugin`~~
-- Final name: `archcore-ai/plugin` — the org carries the brand, the repo name is host-agnostic.
-
-### Phase 5: ~~Bundled CLI Launcher and Plugin-Owned MCP (Claude Code)~~ — Superseded and removed in v0.4.0
-
-**Status: rejected/removed.** Phase 5 shipped a download-on-first-use bundled launcher (`bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`, `bin/CLI_VERSION`) plus plugin-owned MCP registration. The launcher caused eight bug classes — offline failures in CI, version coupling to plugin releases, cache pollution across hosts, first-run latency, enterprise friction, security patch lag, plugin bloat, and uneven host support (Cursor users still did manual MCP setup). It was fully removed in plugin v0.4.0 (commit `2f99997`).
-
-The plugin-owned MCP shape **survived** the rollback — `.mcp.json` and `.codex.mcp.json` still ship at the plugin root, but they now point at `archcore` on PATH directly with no launcher indirection. Cursor users still register MCP externally via `~/.cursor/mcp.json` or `.cursor/mcp.json`; the plugin ships `cursor.mcp.json` as a template they copy.
-
-See:
-
-- `bundled-cli-launcher.adr` — original decision (status: rejected/superseded).
-- `remove-bundled-launcher-global-cli.idea` — replacement decision (status: accepted), with the eight-bug-classes analysis and the one-time-install trade-off.
-- `stack-and-tooling.rule` — pin: no plugin-side download-on-first-use mechanisms without a fresh ADR.
-
-The Phase 5 subtask checklist (5.1–5.9) is preserved below as a historical archive of what was built and then removed. None of it represents current plugin state.
-
-<details>
-<summary>Historical Phase 5 subtasks (rolled back)</summary>
-
-- 5.1 `bin/CLI_VERSION` — pinned semver of the CLI release the plugin shipped against. **Removed.**
-- 5.2 `bin/archcore` — POSIX launcher with resolution order `$ARCHCORE_BIN` → PATH → cache → download. **Removed.**
-- 5.3 `bin/archcore.cmd` + `bin/archcore.ps1` — Windows launcher pair with same resolution. **Removed.**
-- 5.4 `.mcp.json` at plugin root pointing at `${CLAUDE_PLUGIN_ROOT}/bin/archcore mcp`. **Replaced** with `"command": "archcore"` resolving via PATH.
-- 5.5 `bin/session-start` rewired through the launcher with `ARCHCORE_SKIP_DOWNLOAD=1`. **Reverted** to direct `archcore` invocation with a missing-CLI install-message fallback.
-- 5.6 `bin/validate-archcore` + `bin/check-cascade` rewired through `"$SCRIPT_DIR/archcore"`. **Reverted** to direct `archcore` invocation.
-- 5.7 "Step 0: Verify MCP" removed from all SKILL.md files (`remove-skill-verify-mcp-preamble.cpat`). **Kept** — the removal was correct on its own merits; subagent preambles that load knowledge tree context were retained for a different reason (see `subagent-knowledge-tree-bootstrap.adr`).
-- 5.8 `test/unit/launcher.bats`, `test/structure/cli-contract.bats`, `test/structure/cli-allowlist-consistency.bats`. **Removed.**
-- 5.9 README "Offline / BYO CLI" section + first-MCP-call download note. **Removed**; Prerequisites section now links to https://docs.archcore.ai/cli/install/.
-
-</details>
+The subtasks are preserved here as a historical record of what was built and then removed; none describes the current state. The version pin file, the POSIX launcher with its four-step resolution order, and the Windows launcher pair were all removed. The Claude Code MCP config pointing at the launcher was replaced by one naming `archcore` on PATH. `bin/session-start`, `bin/validate-archcore`, and `bin/check-cascade` were reverted from launcher indirection to direct invocation, with `session-start` gaining the missing-CLI install message. The launcher and CLI-contract test files were removed. The README's offline and bring-your-own-CLI section was removed in favor of a prerequisites section linking the installer. One item was kept rather than reverted: removing the MCP-verification preamble from every `SKILL.md`, which was correct on its own merits, while the sub-agent preambles that load knowledge-tree context were retained for the separate reason recorded in `subagent-knowledge-tree-bootstrap.adr`.
 
 ## Acceptance Criteria
 
-- [x] All 5 bin scripts use `bin/lib/normalize-stdin.sh` for stdin parsing
-- [x] Claude Code plugin works identically after refactor (zero regression)
-- [x] `.cursor-plugin/plugin.json` exists with correct manifest format and no `mcpServers` field
-- [x] `hooks/cursor.hooks.json` maps the active hook functions to Cursor events (sessionStart, preToolUse Write, afterMCPExecution running validate-archcore + check-cascade) and contains no postToolUse entry
-- [x] Plugin loads in Cursor: skills discoverable, user-registered MCP tools available
-- [x] Core flow works in Cursor: create document → validate → cascade
-- [x] Direct write blocking works in Cursor
-- [x] All config formats verified against official host documentation
-- [x] No skills or agents contain host-specific references (invariant maintained)
-- [x] `bin/session-start` emits actionable guidance when `.archcore/` is missing (routes through `mcp__archcore__init_project`)
-- [x] ~~`bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`, `bin/CLI_VERSION` exist~~ **Reverted — launcher removed in v0.4.0.**
-- [x] ~~Launcher downloads are SHA-256 verified against `checksums.txt`~~ **Reverted — no plugin-side downloads.**
-- [x] `.mcp.json` at plugin root registers `archcore` — now points at PATH-resolved `archcore` directly, not the (removed) launcher.
-- [x] ~~`bin/session-start` passes `ARCHCORE_SKIP_DOWNLOAD=1` to the launcher~~ **Reverted — no launcher; session-start invokes `archcore` directly and emits install guidance if missing.**
-- [x] All SKILL.md files have the "Step 0: Verify MCP" block removed
-- [x] ~~`test/unit/launcher.bats` covers launcher resolution and failure modes~~ **Reverted — file removed.**
-- [x] Users with a global `archcore` on `PATH` experience no behavior change — invariant strengthened: PATH install is now the only supported path.
+- [x] Every bin script parses stdin through the normalizer.
+- [x] The Claude Code plugin behaves identically after the refactor, with zero regression.
+- [x] The Cursor manifest exists in the correct format and declares no `mcpServers` field.
+- [x] The Cursor hooks config maps the active hook functions to the Cursor events and contains no post-mutation entry.
+- [x] The plugin loads in Cursor, with skills discoverable and the user-registered MCP tools available.
+- [x] The core flow works in Cursor: create a document, validate, and detect cascade.
+- [x] Direct-write blocking works in Cursor.
+- [x] Every config format is verified against the official host documentation.
+- [x] No skill and no agent contains a host-specific reference, so the invariant holds.
+- [x] `bin/session-start` emits actionable guidance when `.archcore/` is missing, routing through `init_project`.
+- [x] The Claude Code MCP config registers `archcore`, now naming the PATH-resolved binary directly rather than the removed launcher.
+- [x] Every `SKILL.md` has the MCP-verification block removed.
+- [x] A user with a global `archcore` on PATH sees no behavior change. The invariant is stronger now: a PATH install is the only supported path.
+
+Four criteria were reverted with the launcher and no longer apply: the existence of the launcher scripts and the version pin; SHA-256 verification of a launcher download against a checksum file; passing a skip-download variable from `session-start`; and the launcher test file.
 
 ## Dependencies
 
-- Multi-Host Plugin Architecture ADR (`.archcore/plugin/multi-host-plugin-architecture.adr.md`) — architectural decision for the shared-core / per-host split
-- ~~Bundled CLI Launcher ADR~~ (`.archcore/plugin/bundled-cli-launcher.adr.md`) — **rejected/superseded;** see `remove-bundled-launcher-global-cli.idea` for the replacement decision.
-- Multi-Host Compatibility Layer Specification (`.archcore/plugin/multi-host-compatibility-layer.spec.md`) — technical contract
-- Hooks and Validation System Specification (`.archcore/plugin/hooks-validation-system.spec.md`) — hook semantics
-- Cursor IDE installed for testing
-- Cursor plugin documentation (docs.cursor.com) for format verification
-- Archcore CLI installed on PATH per https://docs.archcore.ai/cli/install/ (no plugin-side fetching)
+- `multi-host-plugin-architecture.adr` — the architectural decision for the shared-core and per-host split.
+- `multi-host-compatibility-layer.spec` — the technical contract.
+- `hooks-validation-system.spec` — the hook semantics.
+- `bundled-cli-launcher.adr` was a dependency and is now rejected and superseded by `remove-bundled-launcher-global-cli.idea`.
+- Cursor installed for testing, and its plugin documentation for format verification.
+- The Archcore CLI installed on PATH per https://docs.archcore.ai/cli/install/, with no plugin-side fetching.

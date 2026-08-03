@@ -9,158 +9,73 @@ tags:
 
 ## Context
 
-The Archcore Claude Plugin currently exposes **27 skills** in a flat namespace:
-- 18 document-type skills (`/archcore:adr`, `/archcore:strs`, `/archcore:cpat`, etc.)
-- 6 track skills (`/archcore:product-track`, `/archcore:iso-track`, etc.)
-- 3 workflow skills (`/archcore:create`, `/archcore:review`, `/archcore:status`)
+The plugin exposed **27 skills** in a flat namespace — 18 document-type skills, 6 track skills, and 3 workflow skills — and Claude Code surfaces every registered skill in one flat list, so a user saw 27 `archcore:*` entries with no way to know where to start. The naming reflected internal system structure — document types, ISO standards, tracks — rather than user intent: nobody thinks "I need a `strs`", they think "I need to formalize stakeholder requirements". `keep-document-type-skills.adr` had established the type skills as the domain-knowledge layer over the MCP primitives and `scenario-track-skills.idea` had added the track skills for engineering workflows; both were sound, and neither addressed the user-facing entry point.
 
-Claude Code surfaces all registered skills in a flat list. Users see 27 `archcore:*` entries and don't know where to start. The naming reflects **internal system structure** (document types, ISO standards, tracks) rather than **user intent**. Nobody thinks "I need a strs" — they think "I need to formalize stakeholder requirements."
-
-The existing `keep-document-type-skills.adr.md` established that type skills should remain as the domain knowledge layer over MCP primitives. The `scenario-track-skills.idea.md` added track skills for engineering workflows. Both decisions were correct — but neither addressed the user-facing entry point problem.
-
-### What MCP already provides
-
-The archcore MCP server gives 8 atomic CRUD tools with type guidance in its server instructions (~20 lines). The agent can already pick types and create documents independently. MCP handles the data layer. But MCP does NOT provide: intent routing, multi-document orchestration, elicitation strategy, or progressive UX.
-
-### The gap
-
-There is no layer that translates user intent ("plan this feature", "document this module", "record this decision") into the correct document types, tracks, and relation chains. Users must either:
-1. Know which of 18 types fits their situation, or
-2. Use the `/archcore:create` wizard which still requires type selection
-
-This is the core UX problem: the product speaks in infrastructure terms, not user terms.
+The archcore MCP server already supplied 8 atomic CRUD tools with roughly 20 lines of type guidance in its server instructions, so the agent could pick a type and create a document unaided. What MCP did not supply was intent routing, multi-document orchestration, elicitation strategy, or progressive UX — leaving no layer to translate "plan this feature", "document this module", or "record this decision" into the right types, tracks, and relation chains. A user had to either know which of 18 types fit the situation or use a creation wizard that still demanded a type. The product spoke in infrastructure terms rather than user terms.
 
 ## Decision
 
-**Add a 4-layer command hierarchy with intent-based skills as the primary user-facing entry point.**
+Add a four-layer command hierarchy with **intent-based skills as the primary user-facing entry point**: 7 intent skills at Layer 1, the 6 track skills as advanced Layer 2, the 18 document-type skills as expert Layer 3, and the 8 MCP tools as unchanged Layer 4 infrastructure.
 
-### Layer 1 — Intent API (PRIMARY, 7 registered skills)
-
-| Skill | User intent | Routes to |
+| Layer 1 skill | User intent | Routes to |
 |---|---|---|
-| `/archcore:capture` | "document this module/component" | Routes to adr, spec, doc, guide based on context |
-| `/archcore:plan` | "plan this feature/initiative" | Routes to product-track (idea→prd→plan) or single plan |
-| `/archcore:decide` | "record this decision" | Creates adr, offers rule+guide follow-up |
-| `/archcore:standard` | "make this a team standard" | Routes to standard-track (adr→rule→guide) |
-| `/archcore:review` | "check documentation health" | Existing review logic |
-| `/archcore:status` | "show dashboard" | Existing status logic |
-| `/archcore:help` | "what can I do?" | Layer navigation guide, onboarding |
+| `/archcore:capture` | "document this module or component" | adr, spec, doc, or guide, by context |
+| `/archcore:plan` | "plan this feature or initiative" | product-track (idea → prd → plan) or a single plan |
+| `/archcore:decide` | "record this decision" | adr, with an optional rule and guide follow-up |
+| `/archcore:standard` | "make this a team standard" | standard-track (adr → rule → guide) |
+| `/archcore:review` | "check documentation health" | the existing review logic |
+| `/archcore:status` | "show dashboard" | the existing status logic |
+| `/archcore:help` | "what can I do?" | layer navigation and onboarding |
 
-### Layer 2 — Domain Flows (ADVANCED, registered with "Advanced" prefix in description)
+Layer 2 and Layer 3 carry a tier signal in their `description` prefix — "Advanced —" and "Expert —" respectively — and Layer 4 stays non-user-facing, used by skills, agents, and the model directly.
 
-6 track skills: product-track, sources-track, iso-track, architecture-track, standard-track, feature-track. For users who know which multi-document flow they need.
+**Five design principles govern an intent skill.** It carries an explicit routing table — a bounded decision tree mapping user input to a type or a track, with no open-ended "reason about what fits" instruction. It elicits minimally, asking one scope-confirmation question at the intent level and then content questions per document during creation. It is self-contained, because the host activates one skill at a time, so it inlines its creation recipes rather than delegating to a type skill at runtime. It is user-only, with `disable-model-invocation: true`, because auto-activating an orchestration flow from ambient context risks false positives. And it defaults to the minimum viable path, unlocking a larger flow only through a binary scope question, never defaulting to the largest.
 
-### Layer 3 — Typed Artifacts (EXPERT, registered with "Expert" prefix in description)
+**Naming.** `capture` rather than `document`, because "document" is ambiguous as verb and noun while "capture" is an unambiguous verb matching how users describe the action. `standard` rather than `standardize`, because brevity matters in a chat interface and the noun form is conventional, as with `git commit` and `git branch`. `plan` absorbs the existing `plan` type skill, resolving the name collision by making the intent skill the primary entry point.
 
-18 document-type skills. For power users who know exactly which document type they need. Remain model-invoked (Claude auto-activates from context).
-
-### Layer 4 — MCP Primitives (INFRASTRUCTURE, unchanged)
-
-8 CRUD tools. Not user-facing. Used by skills, agents, and Claude directly.
-
-### Intent skill design principles
-
-1. **Explicit routing tables** — each intent skill contains a bounded decision tree that maps user input to specific document types or tracks. No open-ended "reason about what fits" instructions.
-
-2. **Minimal elicitation** — one scope-confirmation question at the intent level ("full feature plan or just a plan document?"), then content questions per-document during creation (inherited from track/type skill patterns).
-
-3. **Self-contained** — Claude Code activates one skill at a time, so intent skills contain inline creation recipes (question + sections + create_document + add_relation per type) without delegating to type skills at runtime.
-
-4. **User-only invocation** — all intent skills use `disable-model-invocation: true`. Auto-activation of orchestration flows from ambient context is too risky for false positives. Type skills remain model-invoked.
-
-5. **Default to minimum path** — `/archcore:plan` defaults to the smallest complete unit (product-track: idea→prd→plan). Binary scope question unlocks larger flows. Never default to the largest flow.
-
-### Naming decisions
-
-- **`/archcore:capture`** instead of `/archcore:document` — "document" is ambiguous as verb/noun. "Capture" is an unambiguous verb matching how users describe the action ("capture a decision", "capture the architecture").
-- **`/archcore:standard`** instead of `/archcore:standardize` — brevity matters in a chat interface. Noun form is conventional (git uses `commit`, `branch`).
-- **`/archcore:plan`** absorbs the existing `plan` type skill — the intent version routes to either a single plan document or the full product-track, resolving the name collision by making the intent skill the primary entry point.
-
-### Progressive disclosure mechanism
-
-In Claude Code's flat skill namespace, progressive disclosure happens **inside commands via conversation**, not via command selection:
-- Layer 1 skills detect scope from arguments and ask one clarifying question
-- They internally invoke track/type logic without redirecting users to different commands
-- `/archcore:help` serves as the navigation layer between tiers
-
-Description fields carry the tier signal: Layer 1 descriptions start normally, Layer 2 descriptions prefix "Advanced —", Layer 3 descriptions prefix "Expert —".
+**Progressive disclosure** happens inside a command through conversation rather than through command selection, because the host namespace is flat: a Layer 1 skill detects scope from its arguments, asks one clarifying question, and invokes the track or type logic internally without redirecting the user to another command, with `/archcore:help` as the navigation layer between tiers.
 
 ## Alternatives Considered
 
-### Keep flat 27-command structure with better descriptions
-
-Tried to fix discoverability through description quality alone. Rejected: 27 entries in a flat list overwhelm regardless of description quality. The cognitive load is in the count, not the labels.
-
-### Remove type and track skills entirely, keep only intent skills
-
-Would lose the domain knowledge layer that `keep-document-type-skills.adr.md` established. Type skills serve model-invocation (Claude auto-activates `adr` when user says "record this decision") — this is valuable and would be lost. Track skills serve expert users who know exactly which flow they need.
-
-*Note: this alternative was later partially adopted by `remove-document-type-skills.adr.md` (type skills removed) and fully adopted by `skill-surface-collapse.adr.md` (track skills also removed). See addendum.*
-
-### Add layer-level skills (/archcore:vision, /archcore:knowledge)
-
-Layers are internal classification, not user mental models. Nobody thinks "I need a knowledge document." Still requires type selection within the layer (knowledge has 6 types), offering minimal friction reduction.
-
-### Move intent routing into MCP (suggest_type tool)
-
-Type suggestion is classification over natural language — belongs in the prompt/skill layer. A `suggest_type` MCP tool would make the server stateful, add unnecessary round-trips, and couple domain knowledge into a primitive CRUD server. Intent routing is prompt work, not data work.
+1. **Keep the flat 27-command structure and fix discoverability through better descriptions** — rejected because 27 entries in a flat list overwhelm regardless of description quality; the cognitive load is in the count rather than the labels.
+2. **Remove the type and track skills entirely and keep only intent skills** — rejected at the time because it would lose the domain-knowledge layer that `keep-document-type-skills.adr` established, along with the model-invocation path where the host auto-activates a type skill from user phrasing, and the expert path that track skills serve. This alternative was later partially adopted by `remove-document-type-skills.adr` and fully adopted by `skill-surface-collapse.adr`; see the addendum.
+3. **Add layer-level skills such as `/archcore:vision` and `/archcore:knowledge`** — rejected because the layers are internal classification rather than a user mental model; nobody thinks "I need a knowledge document", and type selection would still be required inside the layer, since knowledge alone holds 6 types.
+4. **Move intent routing into MCP as a `suggest_type` tool** — rejected because type suggestion is classification over natural language and belongs in the prompt layer; such a tool would make the server stateful, add round-trips, and couple domain knowledge into a primitive CRUD server. Intent routing is prompt work rather than data work.
 
 ## Consequences
 
-### Positive
+- Users see 7 intent-based entry points instead of 27 infrastructure-named skills, and those entry points match user mental models rather than the system taxonomy.
+- The full power of the 18 types and 6 tracks stays available to advanced and expert users.
+- The MCP layer stays stable, with no change to the 8 primitive tools, and the type skills continue to serve the model-invocation case.
+- Each layer has a distinct role, so the architecture is layered without duplication.
+- Tradeoff: an intent skill must be self-contained with inline creation recipes, which adds maintenance surface.
+- Tradeoff: the `/archcore:plan` name collision requires absorbing the existing `plan` type skill.
+- Tradeoff: Layer 2 and Layer 3 skills are less discoverable in a flat picker, mitigated by the description prefixes and by `/archcore:help`.
+- Tradeoff: the intent skill structure of 5 sections differs from the type skill structure of 7, leaving two patterns to maintain.
 
-- Users see 7 intent-based entry points instead of 27 infrastructure-named skills
-- Entry points match user mental models ("plan", "decide", "capture") not system taxonomy ("strs", "iso-track")
-- Full power of 18 types and 6 tracks preserved for advanced/expert users
-- MCP layer stays stable (no changes to 8 primitive tools)
-- Type skills continue to serve model-invocation use case
-- Clean layered architecture: each layer has a distinct role without duplication
+## Constraints
 
-### Negative
+1. An intent skill MUST carry `disable-model-invocation: true`.
+2. An intent skill MUST contain an explicit routing table rather than an open-ended reasoning instruction.
+3. An intent skill MUST default to the minimum viable path.
+4. An intent skill MUST offer expansion through a scope question.
+5. An intent skill MUST be self-contained, with an inline creation recipe per document type it produces.
+6. The existing `plan` type skill MUST be absorbed into the `/archcore:plan` intent skill.
+7. A Layer 2 or Layer 3 description MUST carry its tier prefix.
 
-- Intent skills must be self-contained (include inline creation recipes), adding maintenance surface
-- `/archcore:plan` name collision requires absorbing the existing `plan` type skill into the intent version
-- Layer 2-3 skills are less discoverable in the flat picker (mitigated by description prefixes and `/archcore:help`)
-- New intent skill structure (5 sections) differs from type skill structure (7 sections) — two patterns to maintain
+## Addendum — post-decision evolution
 
-### Constraints
+**Inverted invocation policy.** Principle 4 and constraint 1 — user-only invocation for intent skills — were reversed by `inverted-invocation-policy.adr`. Intent and track skills became auto-invocable with no flag. The four-layer structural decomposition stood; only the invocation wiring flipped.
 
-- Intent skills MUST use `disable-model-invocation: true`
-- Intent skills MUST contain explicit routing tables, not open-ended reasoning instructions
-- Intent skills MUST default to minimum viable path, offer expansion via scope question
-- Each intent skill MUST be self-contained with inline creation recipes per document type
-- The existing `plan` type skill MUST be absorbed into the `/archcore:plan` intent skill
-- Layer 2-3 skill descriptions MUST include tier prefixes ("Advanced —" / "Expert —")
+**Layer 3 collapse.** `remove-document-type-skills.adr` removed the type-skill layer, inlining its per-type elicitation into the intent and track skills. The runtime layering became intent skills, track skills, the `verify` utility, and the MCP primitives — the last now acting as the universal document-creation primitive for every Archcore type with no type-skill mediation.
 
-## Addendum — Post-Decision Evolution
+**Inspection consolidation.** `merge-review-status-remove-graph.adr` merged `status` into the default short mode of `review` and removed `graph`, taking the intent count from 11 to 9 and the visible total from 18 to 16.
 
-### Inverted invocation policy (superseded principle 4)
+**Final collapse to a single tier.** `skill-surface-collapse.adr` flattened the rest: all 6 track skills were deleted, with their flow content moved to `skills/plan/references/<flow>.md` and `skills/decide/references/continuations.md`; `actualize` became `/archcore:audit --drift`; `bootstrap` was renamed `init`; `standard` was removed, since its cascade is reachable through `decide`; and `verify` was removed, with `make verify` as the canonical integrity check.
 
-Principle 4 above — "User-only invocation" for intent skills — was reversed by `inverted-invocation-policy.adr.md`. Intent and track skills became auto-invocable (no `disable-model-invocation`). The 4-layer structural decomposition stood; only the invocation wiring flipped.
+The current surface is **7 skills**: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. The intent-based framing of Layer 1 is fully in force, and the tiered structure is gone. The naming decisions, design principles 1, 2, 3, and 5, and the progressive-disclosure mechanism all remain valid in the final form; only the layered packaging was retired.
 
-### Layer 3 collapse (superseded by `remove-document-type-skills.adr.md`)
+## Superseded when
 
-The type-skill layer (Layer 3) was removed. Per-type elicitation that previously lived in type skills was inlined inside Layer 1 (intent) and Layer 2 (track) skills. The runtime layering became:
-
-- Layer 1: Intent skills (11 at the time)
-- Layer 2: Track skills (6)
-- Utility: verify (1)
-- Layer 4 (formerly): MCP primitives — unchanged, now acting as the universal document-creation primitive for all 17 Archcore document types without any type-skill mediation
-
-### Inspection consolidation (superseded by `merge-review-status-remove-graph.adr.md`)
-
-`/archcore:status` was merged into the default short mode of `/archcore:review`. `/archcore:graph` was removed entirely. The intent count dropped from 11 to 9; total visible commands dropped from 18 to 16.
-
-### Final collapse to a single tier (superseded by `skill-surface-collapse.adr.md`)
-
-The remaining hierarchy was flattened further:
-
-- **Layer 2 (track skills) removed.** All 6 track skills were deleted; their flow content moved to `skills/plan/references/<flow>.md` (for the four product/sources/iso/feature cascades) and `skills/decide/references/continuations.md` (for the ADR-driven standard and architecture chains).
-- **`actualize` merged into `audit`.** The freshness-detection intent became a mode of the inspection skill: `/archcore:audit --drift`.
-- **`bootstrap` renamed to `init`.** Same skill, clearer name.
-- **`standard` removed.** The ADR + rule + guide cascade is now reachable through `/archcore:decide` with its continuation chain.
-- **`verify` removed.** No replacement skill — `make verify` is the canonical way to run plugin integrity checks.
-
-The current surface is **7 skills**: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. The "intent-based" framing from this ADR's Layer 1 principles is fully in force; the tiered structure (Layer 2 / Layer 3 / Utility) is gone.
-
-Naming decisions (`/archcore:capture` over `/archcore:document`, `/archcore:plan` absorbing the plan type skill), design principles 1–3 and 5, and the progressive-disclosure mechanism (inside commands via conversation) all remain valid and are in force in the final form. Only the layered packaging was retired in favor of a single-tier, intent-only surface.
+- An eighth genuinely distinct user intent appears that no existing skill can absorb as a mode, which `skill-surface-collapse.adr` requires a new ADR to admit.
+- A host stops surfacing skills in a flat namespace and offers real hierarchical grouping, which would reopen the tiered packaging this decision introduced and its successors retired.

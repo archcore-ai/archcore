@@ -10,45 +10,43 @@ tags:
 
 ## Idea
 
-Remove the bundled shell/PowerShell launcher (`bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`, `bin/CLI_VERSION`) entirely. Require users to install the Archcore CLI globally via the official installer at https://docs.archcore.ai/cli/install/ — `curl -fsSL https://archcore.ai/install.sh | bash` on macOS/Linux/WSL, or `irm https://archcore.ai/install.ps1 | iex` on Windows PowerShell 5.1+. Have plugins simply `exec archcore` from PATH.
+Remove the bundled shell and PowerShell launcher — `bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`, and `bin/CLI_VERSION` — entirely, require the user to install the Archcore CLI globally from https://docs.archcore.ai/cli/install/, and have every plugin config exec `archcore` from PATH.
 
 ## Value
 
-The bundled launcher causes eight categories of bugs that are expensive to maintain:
+The bundled launcher produced eight categories of bug, each expensive to maintain:
 
-1. **Offline failures in CI/CD** — launcher download fails in air-gapped environments. Workaround: `ARCHCORE_SKIP_DOWNLOAD=1` + manual `ARCHCORE_BIN` pin (undocumented, fragile).
-2. **Security patch lag** — CLI bugfix requires plugin release cycle (2–4 weeks). Workaround: users stuck until plugin bumps `CLI_VERSION`.
-3. **Uneven host support** — Claude Code and Codex get bundled launcher; Cursor users still do manual MCP setup. Inconsistent UX.
-4. **Cache pollution** — same binary cached 3+ times (Claude, Cursor, Codex data dirs) at 5 MB each.
-5. **First-run latency** — MCP calls block 5–10 sec on download if cache miss.
-6. **Enterprise friction** — no documented way to pre-install in Docker/Artifactory. Users hack `ARCHCORE_BIN`.
-7. **Version coupling** — plugin pins CLI version; users can't patch without plugin update.
-8. **Plugin bloat** — 200+ lines of launcher code per platform + cache logic inflates plugin size and test surface.
+1. **Offline failures in CI/CD**, where the launcher download fails in an air-gapped environment, worked around only by an undocumented `ARCHCORE_SKIP_DOWNLOAD=1` plus a manual `ARCHCORE_BIN` pin.
+2. **Security-patch lag**, where a CLI bugfix waits on a plugin release cycle of 2–4 weeks, leaving users stuck until the plugin bumps `CLI_VERSION`.
+3. **Uneven host support**, where Claude Code and Codex got the launcher while Cursor users still did manual MCP setup.
+4. **Cache pollution**, with the same binary cached three or more times across host data directories at about 5 MB each.
+5. **First-run latency**, where an MCP call blocks 5–10 seconds on download after a cache miss.
+6. **Enterprise friction**, with no documented way to pre-install in Docker or Artifactory, pushing users to hack `ARCHCORE_BIN`.
+7. **Version coupling**, where the plugin pins the CLI version so users cannot patch without a plugin update.
+8. **Plugin bloat**, with more than 200 lines of launcher code per platform plus cache logic inflating both plugin size and test surface.
 
-**Cost to fix:** One-time ~30-second user install via the official installer per developer or CI base image. The installer is the supported, documented entry point at https://docs.archcore.ai/cli/install/ — it auto-detects platform/arch, downloads the binary from GitHub Releases, verifies the checksum, and places it on PATH. Subsequent updates use `archcore update`.
-
-**Benefits:** All eight bug classes solved. Plugin shrinks by 90%. CLI updates decouple from plugin releases.
+The cost of removing them is one roughly 30-second install per developer or CI base image, through the supported installer that auto-detects platform and architecture, downloads from GitHub Releases, verifies the checksum, and places the binary on PATH, with `archcore update` handling later upgrades. All eight bug classes resolve, the plugin shrinks substantially, and CLI updates decouple from plugin releases.
 
 ## Possible Implementation
 
-1. Delete `bin/archcore`, `bin/archcore.{cmd,ps1}`, `bin/CLI_VERSION`.
-2. Update `.mcp.json` → `"command": "archcore"` (resolve via PATH instead of launcher).
-3. Update `.codex.mcp.json` → `"command": "archcore"` (remove cwd rebase + env_vars).
-4. Update `cursor.mcp.json` → remove `env.ARCHCORE_CWD` (keep `cwd: "${workspaceFolder}"` for good practice).
-5. Simplify `bin/session-start` and `bin/validate-archcore` → exec `archcore` directly (no launcher wrapper).
-6. Remove launcher-related tests: `test/unit/launcher.bats`, `test/structure/cli-contract.bats`, `test/structure/cli-allowlist-consistency.bats`.
-7. Update `test/structure/scripts.bats` and `test/integration/codex-plugin-smoke.bats` to remove launcher assertions.
-8. Add CLI availability check to bootstrap skill — prompt the user once to run the official installer (`curl -fsSL https://archcore.ai/install.sh | bash`) if `archcore` is not found. Do NOT recommend other install paths (`brew`, `go install`, package-manager wrappers) — they are not the supported channel and risk version-incompatible binaries.
-9. Update README: add Prerequisites section pointing at https://docs.archcore.ai/cli/install/, remove "Offline / BYO CLI" section + launcher cache descriptions.
+1. Delete `bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`, and `bin/CLI_VERSION`.
+2. Set the Claude Code MCP config to `"command": "archcore"`, resolving through PATH.
+3. Set `.codex.mcp.json` to `"command": "archcore"`, removing the `cwd` rebase and the `env_vars` allowlist.
+4. Remove `env.ARCHCORE_CWD` from the Cursor template. (Recorded at the time as "keep `cwd: "${workspaceFolder}"`". That was wrong: Cursor's MCP stdio schema has no `cwd` field. The shipped template is `docs/cursor.mcp.example.json`, which carries `--project ${workspaceFolder}` in `args` — see `cursor-mcp-architecture.adr`.)
+5. Simplify `bin/session-start` and `bin/validate-archcore` to exec `archcore` directly.
+6. Remove the launcher-related tests `test/unit/launcher.bats`, `test/structure/cli-contract.bats`, and `test/structure/cli-allowlist-consistency.bats`.
+7. Remove the launcher assertions from `test/structure/scripts.bats` and `test/integration/codex-plugin-smoke.bats`.
+8. Add a CLI availability check to the onboarding skill that prompts the user once to run the official installer when `archcore` is absent, and recommends no other channel, because a package-manager wrapper risks a version-incompatible binary.
+9. Update the README with a prerequisites section pointing at the install docs, removing the offline and BYO-CLI section and the launcher cache descriptions.
 
-## Risks & Constraints
+## Risks
 
-- **Risk 1:** Users forget to install CLI → MCP calls fail with "command not found." Mitigation: clear error messages, SessionStart nudge if CLI missing, bootstrap skill prompts the official installer.
-- **Risk 2:** User has old CLI version on PATH → API mismatches. Mitigation: fail-fast version check in `session-start`, document `archcore update` as the upgrade path.
-- **Risk 3:** Enterprise can't control CLI version. Mitigation: document standard patterns (Docker base image with pre-installed CLI, internal mirror of `archcore.ai/install.sh`, vendored binary on PATH).
-- **Risk 4:** MCP session-start lifecycle gotcha — installing the CLI mid-session does not reconnect a Claude Code MCP server that failed to register at session start. Mitigation: documented in `bin/session-start`'s install message and in `plugin-development.guide.md` ("MCP server not connecting" troubleshooting).
-- **Constraint:** CWD guards (Step 0b/0c) were launcher-specific. Without launcher, simpler CWD model: rely on host's `cwd` field + optional `$ARCHCORE_CWD` env (no longer needed without launcher complexity).
+- **A user forgets to install the CLI**, so MCP calls fail with `command not found`. Mitigated by clear error text, a SessionStart nudge when the CLI is missing, and the onboarding prompt naming the official installer.
+- **A user has an old CLI on PATH**, producing API mismatches. Mitigated by a fail-fast version check in `session-start` and by documenting `archcore update` as the upgrade path.
+- **An enterprise cannot control the CLI version.** Mitigated by documenting the standard patterns: a Docker base image with the CLI pre-installed, an internal mirror of the install script, or a vendored binary on PATH.
+- **The session-start lifecycle gotcha**, where installing the CLI mid-session does not reconnect a Claude Code MCP server that failed to register at session start. Mitigated in the install message and in `plugin-development.guide` troubleshooting.
+- **Constraint:** the CWD guards were launcher-specific. Without a launcher the model is simpler — each host's own working directory, plus `archcore mcp --project <path>` where the host cannot guarantee it.
 
 ## Outcome (2026-05-12)
 
-Shipped in plugin v0.4.0 (commit `2f99997`). All eight bug classes resolved. Plugin source shrank by ~2300 lines (deleted launcher scripts + tests + version pin). The three superseded design docs (`bundled-cli-launcher.adr`, `codex-mcp-cwd-rebase-to-user-project.idea`, `codex-path-resolution.adr`, `cwd-guard-for-cursor-and-claude.idea`) are marked rejected. See commits `2f99997`, `682d079`, `c0d6019` for the rollback set.
+Shipped in plugin v0.4.0, commit `2f99997`. All eight bug classes resolved and the plugin source shrank by roughly 2300 lines across the deleted launcher scripts, tests, and version pin. The superseded design records — `bundled-cli-launcher.adr`, `codex-mcp-cwd-rebase-to-user-project.idea`, `codex-path-resolution.adr`, and `cwd-guard-for-cursor-and-claude.idea` — are marked rejected. Commits `2f99997`, `682d079`, and `c0d6019` hold the rollback set.

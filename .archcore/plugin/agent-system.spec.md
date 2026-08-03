@@ -6,23 +6,13 @@ tags:
   - "plugin"
 ---
 
-## Purpose
+## Purpose & Scope
 
-Define the contract for the Archcore plugin's subagents — `archcore-assistant` (read/write) and `archcore-auditor` (read-only) — across every host that loads them.
+This spec defines the contract for the Archcore plugin's two subagents — `archcore-assistant` (read/write) and `archcore-auditor` (read-only) — across every host that loads them. Normative for both agent definitions, their per-host file formats, their system prompts, tool restrictions, invocation triggers, and domain expertise. Depended on by every host loader and by `@test/structure/agents.bats`. `single-universal-agent.adr` records the original rationale, `add-read-only-auditor-agent.adr` extends it, and `subagent-knowledge-tree-bootstrap.adr` is authoritative for the mandatory preamble. Out of scope: skills, which `skills-system.spec` governs.
 
-## Scope
+## Surface
 
-This specification covers both agent definitions, their per-host file formats, their system prompts, tool restrictions, invocation triggers, and domain expertise.
-
-## Authority
-
-This specification is the authoritative reference for both agents. The Single Universal Agent Design ADR provides the original rationale; the Add Read-Only Auditor Agent ADR extends it. The Knowledge Tree Bootstrap ADR (`subagent-knowledge-tree-bootstrap.adr`) is authoritative for the mandatory preamble section in both agent system prompts.
-
-## Subject
-
-### Per-host file formats
-
-The two agents are one definition each, shipped in the format every host's loader accepts. Content is identical across formats; only the container differs.
+**Definitions.** Each agent is one definition, shipped in the format each host's loader accepts. Content is identical across formats; only the container differs. Canonical sources: `@plugins/archcore/agents/archcore-assistant.md` and `@plugins/archcore/agents/archcore-auditor.md`.
 
 | Format | Location | Read by | Notes |
 |---|---|---|---|
@@ -30,147 +20,21 @@ The two agents are one definition each, shipped in the format every host's loade
 | `<name>.toml` | `agents/` | Codex CLI | Adds `sandbox_mode` and `disabled_tools[]`; body kept in parity with the MD |
 | `<name>.agent.md` | `copilot-agents/` | GitHub Copilot CLI | Byte-identical copy of the MD; agent id comes from the filename |
 
-Copilot's copies sit in a directory of their own rather than beside the originals. Its loader accepts only the `*.agent.md` extension, and that extension still matches the `*.md` glob Claude Code and Cursor use — a sibling copy would give both hosts two files declaring the same `name:`. The TOML variants never had this problem because their extension is foreign to every md-globbing host. `test/structure/agents.bats` holds the copies byte-identical (`cmp`) and fails when an agent in `agents/` has no counterpart.
+Copilot's copies sit in a directory of their own rather than beside the originals. Its loader accepts only the `*.agent.md` extension, and that extension still matches the `*.md` glob Claude Code and Cursor use, so a sibling copy would give both hosts two files declaring the same `name:`. The TOML variants never had this problem, because their extension is foreign to every md-globbing host.
 
-### MCP tool naming
+**Runtime knobs.** Declared in each definition's frontmatter, referenced here rather than reproduced.
 
-A tool list is only as good as the names in it. The same MCP server appears under three names depending on how it was registered: `mcp__archcore__*` (project `.mcp.json`), `mcp__plugin_archcore_archcore__*` (plugin-bundled on Claude Code), and the flat `archcore-<tool>` (Copilot, which joins server and tool with a hyphen). Every allow-list and deny-list in the agent files carries all three. This matters asymmetrically: an allow-list missing a name loses a capability, while the auditor's TOML **deny**-list missing a name silently grants the read-only agent the power to mutate. `test/structure/agents.bats` pins the twins in both directions.
+| Agent | Role | model | maxTurns | background |
+|---|---|---|---|---|
+| `archcore-assistant` | complex, multi-step documentation tasks requiring write access | sonnet | 20 | no |
+| `archcore-auditor` | documentation health checks with no mutation capability | sonnet | 15 | yes |
 
-### Agent 1: archcore-assistant (Read/Write)
+**MCP tool naming.** The same MCP server appears under three names depending on registration: `mcp__archcore__*` (project `.mcp.json`), `mcp__plugin_archcore_archcore__*` (plugin-bundled on Claude Code), and the flat `archcore-<tool>` (Copilot, which joins server and tool with a hyphen). Every allow-list and deny-list in an agent file carries all three. The asymmetry matters: an allow-list missing a name loses a capability, while the auditor's TOML **deny**-list missing a name silently grants the read-only agent the power to mutate.
 
-Handles complex, multi-step documentation tasks requiring write access to MCP tools.
-
-#### Definition File
-
-Location: `agents/archcore-assistant.md` (plus the TOML and `*.agent.md` variants above)
-
-```yaml
----
-name: archcore-assistant
-description: >
-  Archcore documentation expert. Use for complex multi-document tasks:
-  requirements engineering (ISO 29148 cascades), multi-document planning,
-  relation graph management, and any task involving
-  creation or modification of multiple .archcore/ documents.
-model: sonnet
-maxTurns: 20
-color: blue
-tools:
-  - mcp__archcore__list_documents
-  - mcp__archcore__get_document
-  - mcp__archcore__create_document
-  - mcp__archcore__update_document
-  - mcp__archcore__remove_document
-  - mcp__archcore__add_relation
-  - mcp__archcore__remove_relation
-  - mcp__archcore__list_relations
-  - Read
-  - Grep
-  - Glob
----
-```
-
-(Abbreviated: the shipped file lists each MCP tool under all three namings.)
-
-#### Invocation Triggers
-
-The host should invoke `archcore-assistant` when:
-
-- User requests creation of multiple related documents
-- Task involves requirements decomposition (e.g., "break this PRD into specifications")
-- Complex refactoring of existing documentation structure
-- Task requires understanding the full relation graph to make decisions
-
-### Agent 2: archcore-auditor (Read-Only)
-
-Performs documentation health checks without any mutation capability.
-
-#### Definition File
-
-Location: `agents/archcore-auditor.md` (plus the TOML and `*.agent.md` variants above)
-
-```yaml
----
-name: archcore-auditor
-description: >
-  Read-only documentation auditor. Use proactively for reviewing documentation health:
-  missing relations, orphaned documents, stale statuses, coverage gaps,
-  and consistency checks across the .archcore/ knowledge base.
-model: sonnet
-maxTurns: 15
-color: yellow
-background: true
-tools:
-  - mcp__archcore__list_documents
-  - mcp__archcore__get_document
-  - mcp__archcore__list_relations
-  - Read
-  - Grep
-  - Glob
----
-```
-
-#### Invocation Triggers
-
-The host should invoke `archcore-auditor` when:
-
-- User asks for a documentation audit, health check, or review
-- User asks "what's missing?" or "what needs attention?" about documentation
-- Proactively after a batch of documents has been created (quality check)
-- User wants to verify documentation coverage before a release or milestone
-- User wants to check if documentation matches the current code
-
-#### Background Execution
-
-The auditor runs with `background: true` by default. This means:
-
-- User can continue working while the audit runs
-- Results are delivered when complete, not blocking the conversation
-- Ideal for large knowledge bases where audit takes multiple turns
-
-## Contract Surface
-
-### Knowledge Tree Bootstrap (both agents)
-
-Sub-agents do NOT receive the `SessionStart` additional context that the main conversation gets. Both agent system prompts MUST carry a `# First Step — Bootstrap Knowledge Tree` section as the first content section after the YAML frontmatter, mandating parallel calls to `list_documents` and `list_relations` as the first tool calls in every invocation. Immediately after both calls return, the agent MUST note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding — this synthesis uses only data already returned by the two bootstrap calls and adds no new tool calls. The preamble MUST cross-reference both `remove-skill-verify-mcp-preamble.cpat` (to prevent removal by analogy) and `subagent-knowledge-tree-bootstrap.adr` (for rationale).
-
-`archcore-assistant` preamble MAY include a narrow exception for strictly single-document reads with explicit paths (`get_document` alone acceptable). `archcore-auditor` preamble MUST NOT include any exception — audits without the full graph produce incomplete findings.
-
-### Shared Domain Knowledge
-
-Both agents MUST understand:
-
-#### 1. Document Type Expertise
-
-All 18 types across 3 categories:
-
-- Knowledge: adr, rfc, rule, guide, doc, spec
-- Vision: prd, idea, plan, mrd, brd, urd, brs, strs, syrs, srs
-- Experience: task-type, cpat
-
-For each type: purpose, when to use, required sections, differentiation from similar types.
-
-#### 2. Requirements Engineering Patterns
-
-Three tracks that can coexist:
-
-**Product Track (simple):** idea → prd → plan
-
-**Sources Track (discovery):** mrd + brd + urd → prd
-
-**ISO 29148 Track (decomposition):** brs → strs → syrs → srs
-
-#### 3. Relation Types
-
-- `implements` — source fulfills target (plan implements prd)
-- `extends` — source builds upon target (rfc extends adr)
-- `depends_on` — source requires target (plan depends_on adr)
-- `related` — general association
-
-### Tool Access Matrix
+**Tool access matrix.**
 
 | Tool | assistant | auditor |
-|------|-----------|---------
+|------|-----------|---------|
 | list_documents | Yes | Yes |
 | get_document | Yes | Yes |
 | create_document | Yes | No |
@@ -184,76 +48,61 @@ Three tracks that can coexist:
 | Glob | Yes | Yes |
 | Write/Edit/Bash | No | No |
 
-### Output Contracts
+**Invocation triggers.** The host invokes `archcore-assistant` when the user requests several related documents, when the task decomposes requirements ("break this PRD into specifications"), when existing documentation structure is refactored, or when a decision needs the full relation graph. The host invokes `archcore-auditor` when the user asks for an audit, health check, or review; when the user asks what is missing or what needs attention; proactively after a batch of documents has been created; before a release or milestone; or to check documentation against current code.
 
-**archcore-assistant** outputs: created/updated documents, relation changes, and explanations of choices.
+**Shared domain knowledge.** Both agents cover all 18 document types across the three categories — knowledge (`adr`, `rfc`, `rule`, `guide`, `doc`, `spec`), vision (`prd`, `idea`, `plan`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`), and experience (`task-type`, `cpat`) — including each type's purpose, its trigger, its required sections, and its differentiation from similar types. They cover three coexisting requirements tracks: product (idea → prd → plan), sources (mrd + brd + urd → prd), and ISO 29148 (brs → strs → syrs → srs). They cover the four relation types: `implements` (source fulfills target), `extends` (source builds on target), `depends_on` (source requires target), and `related` (general association).
 
-**archcore-auditor** outputs: structured audit report with sections:
-- Audit Summary (counts, issue totals)
-- Critical Issues (broken references, misleading content)
-- Warnings (quality gaps)
-- Code-Document Correlation (documents referencing source paths where code has changed since the document was last modified)
-- Info (suggestions)
-- Recommendations (prioritized actions)
+**Output contracts.** `archcore-assistant` returns created and updated documents, relation changes, and the reasoning behind its choices. `archcore-auditor` returns a structured report with Audit Summary (counts, issue totals), Critical Issues (broken references, misleading content), Warnings (quality gaps), Code-Document Correlation (documents referencing source paths where code changed after the document was last modified), Info (suggestions), and Recommendations (prioritized actions).
 
 ## Normative Behavior
 
-### Both Agents
+1. Each agent MUST call `list_documents` and `list_relations` in parallel as the first tool calls of every invocation, before any domain action.
+2. WHEN both bootstrap calls return, the agent MUST note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding. This synthesis is a read-only transformation over data already in hand and adds no tool call.
+3. Each agent's system prompt MUST carry a `# First Step — Bootstrap Knowledge Tree` section as the first content section after the YAML frontmatter.
+4. That preamble MUST cross-reference `subagent-knowledge-tree-bootstrap.adr` for the rationale.
+5. That preamble MUST cross-reference `remove-skill-verify-mcp-preamble.cpat`, so the section is not removed by analogy with the retired MCP-verification preamble.
+6. Each agent MUST perform every `.archcore/` operation through an MCP tool.
+7. Each agent MUST list every MCP tool it uses under all three namings, so the definition works whether the server was registered by the project, by the plugin, or by Copilot's flattening.
+8. Each agent SHOULD explain its reasoning when it chooses a document type or a relation type.
+9. `archcore-assistant` MUST create a relation between documents it creates whenever a semantic link exists.
+10. `archcore-assistant` SHOULD present a plan for user approval before creating several documents.
+11. `archcore-assistant` MUST NOT create more than 10 documents in one invocation without user confirmation.
+12. `archcore-assistant` MAY skip `list_relations` during the bootstrap only when the task is a strictly single-document read with an explicit path; `list_documents` remains required.
+13. `archcore-auditor` MUST NOT create, update, or delete a document.
+14. `archcore-auditor` MUST perform the full bootstrap with no exception, because an audit without the graph produces incomplete findings.
+15. `archcore-auditor` MUST return a structured audit report rather than free-form commentary.
+16. `archcore-auditor` SHOULD cross-reference documentation against code through Read, Grep, and Glob.
+17. `archcore-auditor` SHOULD use `Grep` to find path references in document bodies and then check with `git log` whether those paths changed after the document was last modified.
+18. `archcore-auditor` SHOULD prioritize specs, ADRs, and guides describing specific code modules when correlating documents with code.
 
-- MUST bootstrap the knowledge tree by calling `list_documents` and `list_relations` in parallel as the first tool calls in every invocation, before any domain action. See `subagent-knowledge-tree-bootstrap.adr` for the rationale and the explicit boundary against `remove-skill-verify-mcp-preamble.cpat`.
-- MUST, immediately after the bootstrap calls return, note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding with the user's task. This synthesis is a read-only transformation over data already in hand; it adds no new tool calls.
-- MUST use MCP tools for all `.archcore/` operations (no Write/Edit/Bash).
-- MUST call `list_documents` before creating any document to prevent duplicates (subsumed by the bootstrap requirement above, retained for emphasis).
-- MUST list every MCP tool they use under all three namings, so the definition works whether the server was registered by the project, by the plugin, or by Copilot's flattening.
-- Should explain reasoning when choosing document types or relation types.
+## Constraints & Invariants
 
-### archcore-assistant Only
+- Constraint: an agent system prompt MUST NOT exceed 2000 lines.
+- Constraint: an agent MUST NOT modify a file outside `.archcore/` by any means.
+- Constraint: an agent MUST respect an existing document status.
+- Constraint: a format variant exists only where a host's loader requires one. Variants are copies, not forks: no host-specific instruction may enter one (`host-adapter-contract.spec`).
+- Invariant: `archcore-assistant` never uses Write, Edit, or Bash on a `.archcore/` file.
+- Invariant: `archcore-auditor` holds zero write tools, enforced by the tool allow-list and by the TOML deny-list.
+- Invariant: both agents check for an existing document before suggesting creation.
+- Invariant: the first tool calls of every invocation are `list_documents` and `list_relations`. `archcore-auditor` has no exception; `archcore-assistant` has the narrow exception of item 12.
+- Invariant: both system prompts carry the bootstrap section with both cross-references and with the synthesis anchor literal `recent accepted decisions` present.
+- Invariant: every agent in `agents/*.md` has a byte-identical `copilot-agents/<name>.agent.md` counterpart.
+- Invariant: no Copilot-only tool entry exists without its canonical twin.
 
-- MUST create relations between documents it creates when semantic links exist.
-- Should present a plan before creating multiple documents, letting the user approve.
-- MUST NOT create more than 10 documents in a single invocation without user confirmation.
-- MAY skip `list_relations` during the bootstrap only when the user's task is a strictly single-document read with an explicit path; `list_documents` is still required.
+## Failure Behavior
 
-### archcore-auditor Only
-
-- MUST NOT attempt to create, update, or delete any document.
-- MUST produce a structured audit report (not free-form commentary).
-- MUST perform the full bootstrap (`list_documents` + `list_relations`) with no exceptions — audits without the graph produce incomplete findings.
-- Should cross-reference documentation with actual code via Read/Grep/Glob.
-- Should use `Grep` to find path references in document content, then check via `git log` if those paths changed since the document was last modified.
-- Should prioritize specs, ADRs, and guides that describe specific code modules for code-document correlation checks.
-
-## Constraints
-
-- System prompts must not exceed 2000 lines.
-- Neither agent may modify files outside `.archcore/` via any means.
-- Both agents respect existing document statuses.
-- Format variants exist only where a host's loader requires one. They are copies, not forks: no host-specific instruction may enter any variant (`host-adapter-contract.spec`).
-
-## Invariants
-
-- `archcore-assistant` never uses Write/Edit/Bash on `.archcore/` files.
-- `archcore-auditor` has zero write tools — enforcement by tool whitelist.
-- Both agents check for existing documents before suggesting creation.
-- Every sub-agent invocation's first tool calls are `list_documents` and `list_relations` (bootstrap requirement per `subagent-knowledge-tree-bootstrap.adr`). `archcore-auditor` has no exception to this invariant; `archcore-assistant` has a narrow exception only for strictly single-document reads with explicit paths.
-- Both agent system prompts carry a `# First Step — Bootstrap Knowledge Tree` section as the first content section after the YAML frontmatter, with cross-references to `remove-skill-verify-mcp-preamble.cpat` and `subagent-knowledge-tree-bootstrap.adr`, and with the synthesis directive anchor literal `recent accepted decisions` present.
-- Every agent present in `agents/*.md` has a byte-identical `copilot-agents/<name>.agent.md` counterpart.
-- No Copilot-only tool entry exists without its canonical twin.
-
-## Error Handling
-
-- If MCP server is unavailable, inform the user and exit gracefully.
-- If a document operation fails, report the error and continue with remaining tasks.
-- If a relation target doesn't exist, skip the relation and note it for the user.
+1. IF the MCP server is unavailable, THEN the agent MUST inform the user and exit without further tool calls.
+2. IF a document operation fails, THEN the agent MUST report the error and continue with the remaining tasks.
+3. IF a relation target does not exist, THEN the agent MUST skip that relation and report the skip to the user.
 
 ## Conformance
 
-An agent conforms to this specification if:
+An agent is conformant when:
 
-1. It resides at `agents/<name>.md` with the correct frontmatter, and every format variant its hosts require exists: `agents/<name>.toml` for Codex, `copilot-agents/<name>.agent.md` for Copilot
-2. Its tool list matches the allowed tools exactly (per tool access matrix), under all three MCP namings
-3. Its system prompt covers the shared domain knowledge
-4. It follows the normative behavior for its role
-5. archcore-auditor produces no mutations; archcore-assistant produces structured output
-6. Its system prompt carries the `# First Step — Bootstrap Knowledge Tree` section per `subagent-knowledge-tree-bootstrap.adr`, including cross-references to that ADR and to `remove-skill-verify-mcp-preamble.cpat`, plus the synthesis directive whose anchor literal `recent accepted decisions` is grep-able in both files
-7. `test/structure/agents.bats` asserts the bootstrap preamble, the synthesis directive anchor, the three-way tool naming, and byte-identity of the Copilot copies
+1. It resides at `agents/<name>.md` with the required frontmatter, and every format variant its hosts require exists: `agents/<name>.toml` for Codex and `copilot-agents/<name>.agent.md` for Copilot.
+2. Its tool list matches the tool access matrix exactly, under all three MCP namings.
+3. Its system prompt covers the shared domain knowledge above.
+4. It satisfies the normative behavior for its role.
+5. `archcore-auditor` produces no mutation, and `archcore-assistant` produces structured output.
+6. Its system prompt carries the `# First Step — Bootstrap Knowledge Tree` section with both cross-references and the grep-able anchor literal `recent accepted decisions`.
+7. `@test/structure/agents.bats` asserts the bootstrap preamble, the synthesis anchor, the three-way tool naming, and byte-identity of the Copilot copies.

@@ -11,51 +11,51 @@ tags:
 
 ## Goal
 
-Build the decision context for an OpenCode host adapter: verify the plugin API, skills discovery, hook semantics, and MCP registration against official docs and source, and update the adapter design decisions ahead of the mandatory ADR (`stack-and-tooling.rule` — a JS/TS adapter introduces a new language and requires an ADR before any code).
+Build the decision context for an OpenCode host adapter: verify the plugin API, skills discovery, hook semantics, and MCP registration against the official documentation and source, and update the adapter design ahead of the mandatory ADR. `stack-and-tooling.rule` requires that ADR before any code, because a JS or TS adapter introduces a new language.
 
 ## Questions
 
 1. How does an OpenCode plugin load, and what hook points exist?
-2. Can our guard scripts stay authoritative (bridge shells out to `bin/check-*`), and how does a deny reach the model?
-3. Can our Claude-style skills and markdown agents be reused without copying?
-4. How is the MCP server registered — and can the plugin do it programmatically?
+2. Can the guard scripts stay authoritative, with the bridge shelling out to `bin/check-*`, and how does a deny reach the model?
+3. Can the Claude-style skills and markdown agents be reused without copying?
+4. How is the MCP server registered, and can the plugin do it programmatically?
 5. How are OpenCode plugins distributed?
 
 ## Approach
 
-Documentation and source sweep, 2026-07-05: opencode.ai/docs (plugins, skills, agents, mcp-servers, rules, config, ecosystem), `packages/plugin/src/index.ts` (full Hooks interface), `skill/index.ts`, `session/tools.ts`, the v1 config schema, and the first-party `customize-opencode` skill. Repo note: `sst/opencode` now redirects to `anomalyco/opencode`; plugin types package `@opencode-ai/plugin` at 1.17.13.
+A documentation and source sweep on 2026-07-05 over opencode.ai/docs — plugins, skills, agents, mcp-servers, rules, config, and ecosystem — plus `packages/plugin/src/index.ts` for the full Hooks interface, `skill/index.ts`, `session/tools.ts`, the v1 config schema, and the first-party `customize-opencode` skill. Repository note: `sst/opencode` now redirects to `anomalyco/opencode`, and the plugin types package `@opencode-ai/plugin` is at 1.17.13.
 
 ## Findings
 
-**Plugin loading.** Local files in `.opencode/plugins/` (project) and `~/.config/opencode/plugins/` (global) auto-load at startup; npm packages load via the `plugin` array in `opencode.json`, auto-installed by Bun into `~/.cache/opencode/node_modules/`, pinnable as `name@x.y.z`, gateable via `"engines": {"opencode": "<range>"}`. A plugin exports `Plugin = (input, options?) => Promise<Hooks>`; `input` includes `directory`, `worktree`, `client`, and `$` (Bun shell).
+**Plugin loading.** A local file in `.opencode/plugins/` for a project, or `~/.config/opencode/plugins/` globally, auto-loads at startup. An npm package loads through the `plugin` array in `opencode.json`, is auto-installed by Bun into `~/.cache/opencode/node_modules/`, is pinnable as `name@x.y.z`, and is gateable through `"engines": {"opencode": "<range>"}`. A plugin exports `Plugin = (input, options?) => Promise<Hooks>`, where `input` carries `directory`, `worktree`, `client`, and `$`, the Bun shell.
 
-**Hook points.** `tool.execute.before ({tool, sessionID, callID}, {args})` and `tool.execute.after ({tool, sessionID, callID, args}, {title, output, metadata})` exist exactly as assumed. Also available: `event` (all bus events, incl. `session.created` / `session.idle`), `config` (called once at init with the live merged config — "mutate fields here" per the first-party skill), `permission.ask` (can force `deny`/`allow`), `chat.message`, `shell.env`, and custom `tool` definitions. There is **no literal session-start hook** — the equivalent is plugin-init plus `event: session.created`.
+**Hook points.** `tool.execute.before` and `tool.execute.after` exist exactly as assumed, carrying `{tool, sessionID, callID}` with `{args}` and `{title, output, metadata}` respectively. Also available are `event` for all bus events including `session.created` and `session.idle`; `config`, called once at init with the live merged config, which the first-party skill describes as the place to mutate fields; `permission.ask`, which can force a deny or an allow; `chat.message`; `shell.env`; and custom `tool` definitions. There is no literal session-start hook — the equivalent is plugin init plus the `session.created` event.
 
-**Deny semantics.** Throwing from `tool.execute.before` blocks the call; verified through source that the model receives a failed tool result (`output-error` with `errorText` = the thrown message) and the session continues. Hooks mutate `output` in place and return void.
+**Deny semantics.** Throwing from `tool.execute.before` blocks the call. Source reading confirms the model receives a failed tool result, an `output-error` whose `errorText` is the thrown message, and the session continues. A hook mutates `output` in place and returns void.
 
-**Shell-out bridge — endorsed pattern.** Plugins receive Bun's `$` shell explicitly and official examples shell out. The hook bridge can spawn `bin/check-*` with the canonical stdin JSON and translate a blocking exit into `throw Error(<reason from stderr>)` — zero decision logic in TS, per `host-adapter-contract.spec`. Guard: `$` is `undefined` in non-Bun embeddings.
+**The shell-out bridge is an endorsed pattern.** A plugin receives Bun's `$` shell explicitly, and the official examples shell out. The bridge can spawn a `bin/check-*` script with the canonical stdin JSON and translate a blocking exit into a thrown error carrying the reason from stderr, which keeps decision logic out of TypeScript per `host-adapter-contract.spec`. One guard applies: `$` is undefined in a non-Bun embedding.
 
-**Skills reuse — corrected decision.** OpenCode natively reads project/global `.claude/skills/**/SKILL.md` and `.agents/skills/**/SKILL.md` and *ignores unknown frontmatter* (`allowed-tools` is tolerated), so Claude-authored skills load unmodified. **But those are user-project paths** — our skills ship inside the plugin package, not in the user's repo, so the compatibility paths alone do not deliver them. The zero-copy route for a packaged adapter is the `skills.paths` config key (scanned recursively for `**/SKILL.md`), pointed at the npm package's own `skills/` directory from the plugin's `config` hook (`cfg.skills.paths.push(<pkg>/skills)`). Ordering guarantee (config hook before skill discovery) is undocumented → probe. Duplicate skill names: later-loaded overwrites with a warning and the order is nondeterministic — avoid duplicates entirely.
+**Skills reuse — a corrected decision.** OpenCode natively reads project and global `.claude/skills/**/SKILL.md` and `.agents/skills/**/SKILL.md` and ignores unknown frontmatter, tolerating `allowed-tools`, so a Claude-authored skill loads unmodified. But those are user-project paths, and the plugin's skills ship inside the package rather than in the user's repository, so the compatibility paths alone do not deliver them. The zero-copy route for a packaged adapter is the `skills.paths` config key, scanned recursively for `**/SKILL.md`, pointed at the package's own `skills/` directory from the plugin's `config` hook. The ordering guarantee — that the config hook runs before skill discovery — is undocumented and needs a probe. On a duplicate skill name the later load overwrites with a warning and the order is nondeterministic, so duplicates must be avoided entirely.
 
-**MCP registration.** `opencode.json` `mcp` schema for stdio: `{"archcore": {"type": "local", "command": ["archcore", "mcp"], "environment": {…}, "enabled": true}}` — the key is `environment` (not `env`), `command` is an array, timeout defaults to 5000 ms. Programmatic registration from the plugin's `config` hook (`cfg.mcp.archcore = …`) is the community-standard mechanism and is supported by source reading, but the init-ordering contract is undocumented → probe. MCP tool names get prefixed (`archcore_*`) — relevant for matching post-MCP validation in `tool.execute.after`.
+**MCP registration.** The `opencode.json` `mcp` schema for stdio takes `{"archcore": {"type": "local", "command": ["archcore", "mcp"], "environment": {…}, "enabled": true}}`, where the key is `environment` rather than `env`, `command` is an array, and the timeout defaults to 5000 ms. Programmatic registration from the plugin's `config` hook is the community-standard mechanism and is supported by source reading, but the init-ordering contract is undocumented and needs a probe. MCP tool names arrive prefixed as `archcore_*`, which matters for matching post-MCP validation in `tool.execute.after`.
 
-**Agents.** `.opencode/agents/*.md` (singular `agent/` also works); the filename becomes the agent name; `description` is required; `mode: primary|subagent|all`; permissions via the `permission` map — the `tools` field is deprecated. Unknown frontmatter is routed into `options`. Our two agents port as markdown with permission maps replacing tool lists.
+**Agents.** They live in `.opencode/agents/*.md`, with the singular `agent/` also working; the filename becomes the agent name; `description` is required; `mode` is `primary`, `subagent`, or `all`; and permissions come from the `permission` map, with the `tools` field deprecated. Unknown frontmatter is routed into `options`. Both Archcore agents port as markdown with permission maps replacing the tool lists.
 
-**Instructions.** `AGENTS.md` walk-up plus global; `CLAUDE.md` is read when no `AGENTS.md` exists (first match wins per category); the `instructions` config key accepts globs and URLs. No native `@file` imports.
+**Instructions.** OpenCode walks up for `AGENTS.md` and also reads a global one, falling back to `CLAUDE.md` only where no `AGENTS.md` exists, with the first match winning per category. The `instructions` config key accepts globs and URLs, and there are no native `@file` imports.
 
-**Distribution.** Ecosystem convention: unscoped `opencode-*` names dominate (~37 plugins listed); scoped `@org/name` is supported. Users install by adding the package name to `plugin: []` — no separate install step; config is not hot-reloaded (restart required). Community template exists (`zenobi-us/opencode-plugin-template`); no first-party template.
+**Distribution.** The ecosystem convention favors unscoped `opencode-*` names, which dominate the roughly 37 listed plugins, though a scoped `@org/name` is supported. A user installs by adding the package name to the `plugin` array, with no separate install step, and the config is not hot-reloaded, so a restart is required. A community template exists at `zenobi-us/opencode-plugin-template`; there is no first-party template.
 
 ## Recommendation
 
-Updated adapter design, pending the maintainer ADR:
+The updated adapter design, pending the maintainer ADR:
 
-1. **Packaging: npm package.** Name decision for the ADR: `opencode-archcore` (better ecosystem-list discoverability) vs `@archcore/opencode-plugin` (namespace consistency). Ship an `engines` gate and document version pinning.
-2. **Repo-location decision for the ADR:** a separate repo keeps this repo shell-only (no stack-rule exception needed); `plugins/opencode/` in this repo gives single-repo releases but requires amending `stack-and-tooling.rule`.
-3. **Hook bridge:** `tool.execute.before` → `bin/check-archcore-write` / `bin/check-code-alignment`; `tool.execute.after` → `bin/validate-archcore` (+ cascade/precision); deny = `throw Error(<reason>)`; session-start = plugin init + `session.created` → `bin/session-start`.
-4. **Skills: bundle `skills/` inside the package and register via `cfg.skills.paths` in the `config` hook**; fallback = a documented manual `skills.paths` entry. Do NOT sync/copy into user projects.
-5. **MCP: register in the `config` hook** (`type: "local"`, `command: ["archcore", "mcp"]`, `environment` key).
-6. **Agents: ship both as markdown** with `mode: subagent` and permission maps.
+1. **Package it on npm.** The name decision for the ADR is `opencode-archcore`, which is more discoverable in the ecosystem list, against `@archcore/opencode-plugin`, which is consistent with the namespace. Ship an `engines` gate and document version pinning.
+2. **Decide the repository location in the ADR.** A separate repository keeps this one shell-only and needs no stack-rule exception; `plugins/opencode/` here gives single-repo releases but requires amending `stack-and-tooling.rule`.
+3. **Bridge the hooks.** Route `tool.execute.before` to `bin/check-archcore-write` and `bin/check-code-alignment`, and `tool.execute.after` to `bin/validate-archcore` plus the cascade and precision checks. A deny is a thrown error carrying the reason, and session start is plugin init plus `session.created` routed to `bin/session-start`.
+4. **Bundle `skills/` inside the package and register it through `cfg.skills.paths` in the `config` hook**, with a documented manual `skills.paths` entry as the fallback. Do not sync or copy into a user project.
+5. **Register MCP in the `config` hook**, with `type: "local"`, `command: ["archcore", "mcp"]`, and the `environment` key.
+6. **Ship both agents as markdown** with `mode: subagent` and permission maps.
 
 ## Next Action
 
-Maintainer ADR (package name, repo location, stack-rule exception or non-exception), then live probes: (1) `config`-hook mutation ordering vs MCP init and skill discovery; (2) `cfg.skills.paths` honored when set from the hook; (3) transcript rendering of a `tool.execute.before` throw; (4) duplicate-skill-name winner determinism; (5) `$` availability in packaged installs; (6) the exact `input.tool` string for MCP tools (`archcore_*`) in `tool.execute.before/after`. Then adapter implementation per `host-adapter-contract.spec`.
+The maintainer ADR first, covering the package name, the repository location, and whether the stack rule gains an exception. Then six live probes: the `config`-hook mutation ordering against MCP init and skill discovery; whether `cfg.skills.paths` is honored when set from the hook; how a thrown `tool.execute.before` renders in the transcript; whether the duplicate-skill-name winner is deterministic; whether `$` is available in a packaged install; and the exact `input.tool` string for an MCP tool in both hooks. Then adapter implementation per `host-adapter-contract.spec`.

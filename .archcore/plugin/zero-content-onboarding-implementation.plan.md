@@ -9,41 +9,32 @@ tags:
   - "skills"
 ---
 
-> **Outcome (2026-05-15):** Plan executed. The skill shipped as `skills/init/` and the command is `/archcore:init` per `skill-surface-collapse.adr.md` (originally drafted as `skills/bootstrap/` and `/archcore:bootstrap`). All references below to bootstrap should be read as init. SessionStart nudge (Phase A), stack-rule generation (B1), run-guide generation (B2), and agent-instruction file import (B3) all shipped as designed.
+**Outcome (2026-05-15).** The plan was executed. The skill shipped as `skills/init/` and the command is `/archcore:init` per `skill-surface-collapse.adr`, having been drafted as `bootstrap`; read every reference to bootstrap below as init. The SessionStart nudge of Phase A, the stack-rule generation of B1, the run-guide generation of B2, and the agent-instruction import of B3 all shipped as designed.
 
 ## Goal
 
-Implement **Variants A + B** from `zero-content-onboarding.idea` so a fresh-install user goes from empty `.archcore/` to a useful seeded state in one short session. Two coupled deliverables:
+Implement variants A and B from `zero-content-onboarding.idea`, so a fresh-install user goes from an empty `.archcore/` to a useful seeded state in one short session, through two coupled deliverables.
 
-1. **Phase A — SessionStart nudge.** When `.archcore/` is empty/missing, the SessionStart hook adds one advisory line pointing the user at `/archcore:init`. Pure copy, ~10 lines of shell.
-2. **Phase B — `/archcore:init` intent skill.** Three sequential steps. B1 and B2 generate artifacts directly (no accept/edit/skip prompt — the output is a short file that is trivially edited, deleted, or regenerated on demand). B3 is opt-in with a cost warning and a dry-run preview because it can create many documents at once.
-   - **B1.** Generate a terse **stack rule** (imperative, no library inventory, no versions) from manifest detection.
-   - **B2.** Generate a short **run-the-app guide** from README + scripts, monorepo-aware.
-   - **B3.** **Opt-in parse** of existing agent-instruction files (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`, `.windsurfrules`, `.junie/guidelines.md`, `CONVENTIONS.md`) with cost warning when input is large. Default mode per file is **link by reference** — a `doc` whose body holds a one-line pointer and whose tags carry the source identifier (no content duplication). Optional **extract** mode routes content into typed rules / ADRs / docs.
+**Phase A — the SessionStart nudge.** When `.archcore/` is missing or empty, the hook adds one advisory line pointing at `/archcore:init`. Pure copy, roughly 10 lines of shell.
 
-### Out of scope (intentionally deferred)
+**Phase B — the `/archcore:init` intent skill**, in three sequential steps. B1 and B2 generate their artifacts directly, with no accept-edit-skip prompt, because each output is a short file that is trivially edited, deleted, or regenerated. B3 is opt-in behind a cost warning and a dry-run preview, because it can create many documents at once. B1 generates a terse imperative stack rule from manifest detection, carrying no library inventory and no versions. B2 generates a short run-the-app guide from the README and the scripts, with monorepo awareness. B3 parses the existing agent-instruction files — `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`, `.windsurfrules`, `.junie/guidelines.md`, and `CONVENTIONS.md` — with a cost warning on a large input. Its default per-file mode is link by reference, creating a `doc` whose body holds a one-line pointer and whose tags carry the source identifier, duplicating no content; an optional extract mode routes content into typed rules, ADRs, and docs.
 
-- **Variant C** (`/archcore:init --scan`) — full repo introspection beyond manifests. Decide go/no-go after observing real B usage.
-- **Active guardrail / lint** for the generated stack rule — Phase B produces context, not enforcement.
-- **Auto-refresh** of imported docs when source files change. Initially manual (`/archcore:audit --drift` covers it).
-- **CLI-side ownership** of empty-state detection. Phase A ships plugin-side first; migration to CLI is a separate decision once the UX is validated.
+**Deferred deliberately.** Variant C, the full repository introspection beyond manifests, awaits observed usage of B. An active guardrail or lint for the generated stack rule is out of scope, because Phase B produces context rather than enforcement. Auto-refresh of an imported document when its source changes stays manual, covered by `/archcore:audit --drift`. And CLI-side ownership of empty-state detection is a separate decision once the experience is validated; Phase A ships plugin-side first.
 
 ## Tasks
 
-### Phase A — SessionStart empty-state nudge
+### Phase A — the SessionStart empty-state nudge
 
-#### A1. Empty-state detection and advisory output
-
-**Files touched.**
+**A1 — detection and advisory output.**
 
 | File | Change |
 |------|--------|
-| `bin/session-start` | Add empty-state check after the existing CLI `session-start` invocation. If `.archcore/` is missing OR contains zero documents with `body length ≥ 200 chars` and `status ∈ {accepted, draft}`, append an advisory paragraph to the SessionStart payload. |
-| `bin/lib/empty-state.sh` | **New.** Helper that returns 0 if archcore is "functionally empty", 1 otherwise. Uses `find` + `wc -c`; no MCP calls, no jq dependency. |
-| `test/unit/session-start-empty.bats` | **New.** Three cases: (a) no `.archcore/` directory → nudge present; (b) `.archcore/` with only `.gitkeep` and stub files < 200 chars → nudge present; (c) `.archcore/` with at least one substantial document → nudge absent. |
+| `bin/session-start` | Add the empty-state check after the existing CLI invocation. IF `.archcore/` is missing, or contains no document whose body is at least 200 characters and whose status is `accepted` or `draft`, THEN append an advisory paragraph to the payload. |
+| `bin/lib/empty-state.sh` | New. A helper returning success when archcore is functionally empty, using `find` and `wc -c`, with no MCP call and no jq dependency. |
+| `test/unit/session-start-empty.bats` | New. Three cases: no `.archcore/` directory yields the nudge; a directory holding only a `.gitkeep` and sub-200-character stubs yields the nudge; and a directory holding at least one substantial document yields no nudge. |
 | `test/unit/session-start.bats` | Existing cases unchanged. |
 
-**Nudge text (exact).**
+The nudge text reads exactly:
 
 ```
 .archcore/ is empty. Run /archcore:init to seed a stack rule, a run-the-app
@@ -51,139 +42,78 @@ guide, and (optionally) imports from existing agent-instruction files like
 CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
 ```
 
-**Escape hatch.** `ARCHCORE_HIDE_EMPTY_NUDGE=1` suppresses the line entirely.
+`ARCHCORE_HIDE_EMPTY_NUDGE=1` suppresses the line entirely. No persistent flag is needed for suppression after init, because once any step completes the empty-state check returns false on its own.
 
-**One-time suppression after init.** Once `/archcore:init` completes any step, the empty-state check naturally returns `false`. No persistent flag needed for v1.
+### Phase B — the `/archcore:init` intent skill
 
-### Phase B — `/archcore:init` intent skill
-
-#### B1. Stack rule generation
-
-**Skill behaviour.**
-
-1. **Detect manifests.** Read in order, stop at first found per-language: `package.json`, `pnpm-workspace.yaml`, `pyproject.toml`, `Pipfile`, `requirements.txt`, `Cargo.toml`, `go.mod`, `Gemfile`, `composer.json`, `*.csproj`, `pom.xml`, `build.gradle*`. Multiple co-existing manifests are allowed.
-2. **Extract signal-bearing deps.** For each manifest, pull top-level declared dependencies. Filter to a curated allowlist of "stack signals". Ignore versions. Cap at **5 signals total** across all manifests.
-3. **Detect language fallback.** If no manifest exists: scan top-level file extensions, identify majority language(s). At most 2.
-4. **Compose imperative draft.** Template:
-    ```
-    Code in {language(s)}.
-    Build with {framework} (do not introduce alternative frameworks without an ADR).
-    Persist via {persistence-lib} when adding storage; default to {primary-store}.
-    Style with {styling-lib} classes/components; do not introduce alternative styling.
-    Manage state with {state-lib}.
-    ```
-    Lines without detected signals are dropped, not left as placeholders.
-5. **Create directly.** Call `mcp__archcore__create_document(type='rule', filename='project-stack', directory='conventions', status='accepted')`. Report one line: *"Stack: {signals} → {path}"*.
-6. **Idempotency.** Before running, check via `list_documents` for an existing `rule` with title containing "stack" in `conventions/` directory. If exists, ask: regenerate / skip.
-
-**Files touched.**
+**B1 — stack rule generation.** The skill detects manifests, reading in order and stopping at the first found per language across `package.json`, `pnpm-workspace.yaml`, `pyproject.toml`, `Pipfile`, `requirements.txt`, `Cargo.toml`, `go.mod`, `Gemfile`, `composer.json`, `*.csproj`, `pom.xml`, and the Gradle build files, allowing several to coexist. It pulls the top-level declared dependencies from each, filters them to a curated allowlist of stack signals, ignores versions, and caps at 5 signals in total. Where no manifest exists it scans the top-level file extensions and identifies at most 2 majority languages. It then composes an imperative draft from a fixed template whose lines name the language, the build framework with an ADR requirement before introducing an alternative, the persistence library and primary store, the styling library, and the state library — dropping any line whose signal was not detected rather than leaving a placeholder. It creates the document directly as a `rule` named `project-stack` under `conventions/` with status `accepted`, and reports one line naming the signals and the path. Before running it checks for an existing stack rule in that directory and asks whether to regenerate or skip.
 
 | File | Change |
 |------|--------|
-| `skills/init/SKILL.md` | **New.** Full intent-skill structure per `skill-file-structure.rule`. Frontmatter `description` triggers on phrases like "init", "initialize archcore", "first-time setup", "set up archcore". |
-| `skills/init/lib/detect-stack.md` | **New.** Manifest-to-signals lookup tables. |
-| `test/structure/skills.bats` | Extend to assert presence of `init` SKILL.md and required sections. |
+| `skills/init/SKILL.md` | New. The full intent-skill structure per `skill-file-structure.rule`, with a description triggering on phrases such as "init", "initialize archcore", and "first-time setup". |
+| `skills/init/lib/detect-stack.md` | New. The manifest-to-signals lookup tables. |
+| `test/structure/skills.bats` | Extended to assert the presence of the skill and its required sections. |
 
-#### B2. Run-the-app guide generation
-
-**Skill behaviour.**
-
-1. **Monorepo detection.** Look for `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `lerna.json`, OR multiple `package.json` files under `apps/` or `packages/`.
-2. **README extraction.** Read `README.md` and look for the first section matching `(?i)getting started|quick start|installation|development|setup|local`.
-3. **Scripts fallback.** If README has no usable section, read `scripts:` from `package.json` (or equivalent).
-4. **Compose draft.** Single-app or monorepo template (see source for full templates).
-5. **Create directly.** Save as `guide` type with filename `running-the-project`, directory `onboarding/`, status `accepted`.
-6. **Idempotency.** Skip if a `guide` titled "running" or "run" exists in `onboarding/`.
-
-**Files touched.**
+**B2 — run-the-app guide generation.** The skill detects a monorepo through `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `lerna.json`, or several `package.json` files under `apps/` or `packages/`. It reads `README.md` for the first section matching a getting-started, quick-start, installation, development, setup, or local heading, and falls back to the manifest scripts when the README yields nothing usable. It composes from the single-app or monorepo template and creates the document directly as a `guide` named `running-the-project` under `onboarding/` with status `accepted`, skipping when such a guide already exists.
 
 | File | Change |
 |------|--------|
-| `skills/init/SKILL.md` | Extend with B2 step. |
-| `skills/init/lib/extract-run-instructions.md` | **New.** Heuristics for README section selection. |
+| `skills/init/SKILL.md` | Extended with the B2 step. |
+| `skills/init/lib/extract-run-instructions.md` | New. The heuristics for README section selection. |
 
-#### B3. Opt-in parse of agent-instruction files
-
-**Skill behaviour.**
-
-1. **Detect agent files.** Probe the documented list (stored as data in `skills/init/lib/agent-files.md`).
-2. **Cost estimation.** Sum byte-size; show user a summary.
-3. **Cost warning threshold.** If combined size > 50 KB, or file count > 5, or estimated yield > 8 documents, prefix with `⚠️ HIGH COST:` and require explicit `do` confirmation.
-4. **Per-file mode selection.** Each detected file gets a mode: link (default), extract, or skip.
-5. **Source-of-truth representation.** Tag + body convention — every imported document carries `imported` and `source:<slug>` tags plus a body first line `> Imported from \`<path>\` on <ISO-date>.`
-6. **Dry-run preview.** Show users the full list of intended writes before any `create_document` calls.
-7. **Batch create.** `create_document` per item; create all `related` edges after.
-8. **Idempotency.** Docs with matching `source:<slug>` tag are treated as already imported.
-
-**Files touched.**
+**B3 — the opt-in parse of agent-instruction files.** The skill probes the documented file list held as data in its lib, estimates cost by summing byte size and showing a summary, and applies the high-cost gate: IF the combined size exceeds 50 KB, or the file count exceeds 5, or the estimated yield exceeds 8 documents, THEN it prefixes the warning and requires explicit confirmation. Each detected file gets a mode — link by default, extract, or skip. Every imported document carries the `imported` and `source:<slug>` tags plus a body first line naming the source path and the import date. A dry-run preview shows the full list of intended writes before any creation call. Creation runs per item, with the `related` edges added afterwards. A document carrying a matching `source:<slug>` tag counts as already imported.
 
 | File | Change |
 |------|--------|
-| `skills/init/SKILL.md` | Extend with B3 step. |
-| `skills/init/lib/agent-files.md` | **New.** Detection list. |
-| `skills/init/lib/extract-routing.md` | **New.** Imperative/decision/reference heuristics. |
-| `commands-system.spec.md` | Register `/archcore:init` in the command surface. |
-| `skills-system.spec.md` | Add init to the skill section. |
+| `skills/init/SKILL.md` | Extended with the B3 step. |
+| `skills/init/lib/agent-files.md` | New. The detection list. |
+| `skills/init/lib/extract-routing.md` | New. The imperative, decision, and reference heuristics. |
+| `commands-system.spec` | Register the command in the surface. |
+| `skills-system.spec` | Add the skill to the skill section. |
 
-#### B4. Skill metadata and routing
+**B4 — metadata and routing.** The skill description triggers on the natural-language phrases listed above plus "seed archcore" and "what should I do first". The skill is auto-invocable per `skill-surface-collapse.adr`, and the commands specification documents the trigger phrases.
 
-- `description` in `skills/init/SKILL.md` frontmatter triggers on natural-language phrases: "init", "initialize archcore", "first-time setup", "set up archcore", "seed archcore", "what should I do first".
-- Skill is auto-invocable per `skill-surface-collapse.adr`.
-- `commands-system.spec` documents the trigger phrases.
-
-### Phase C — Documentation
+### Phase C — documentation
 
 | File | Change |
 |------|--------|
-| `README.md` | Add a single line under "Try these 3 prompts first": *"Empty repo? Run `/archcore:init` first to seed the basics."* |
-| `claude-plugin.prd.md` | Add **FR-7** for first-session activation on empty `.archcore/` (Phase A) and **FR-8** for `/archcore:init` skill (Phase B). |
-| `multi-host-compatibility-layer.spec.md` | Document `ARCHCORE_HIDE_EMPTY_NUDGE` env var. |
-| `development-roadmap.plan.md` | Mark "zero-content onboarding" as in-progress / shipped per phase. |
+| `README.md` | Add one line under the try-these section telling a user with an empty repository to run the command first. |
+| `claude-plugin.prd` | Add the functional requirements for first-session activation on an empty `.archcore/` and for the init skill. |
+| `multi-host-compatibility-layer.spec` | Document the suppression environment variable. |
+| `development-roadmap.plan` | Mark zero-content onboarding per phase. |
 
-### Phase D — Release
+### Phase D — release
 
-- Plugin manifests bump `version` per coordinated release plan.
-- README changelog entry.
+Bump the version in the plugin manifests per the coordinated release plan, and add the README changelog entry.
 
 ## Acceptance Criteria
 
-1. **Empty-state nudge fires correctly:** verified by `session-start-empty.bats`.
-2. **`ARCHCORE_HIDE_EMPTY_NUDGE=1` suppresses the nudge** unconditionally.
-3. **`/archcore:init` is discoverable and auto-invoked** on phrases listed in B4.
-4. **B1 produces a stack rule** of ≤ 6 lines, no version numbers, ≤ 5 stack signals, written directly without a confirm prompt.
-5. **B2 produces a run guide** of ≤ 15 lines, with monorepo-detection branching, written directly without a confirm prompt.
-6. **B3 detects all files** in the documented list, reports cost accurately, and gates HIGH COST behind explicit confirmation.
-7. **B3 link mode** creates `doc` documents with the canonical tag + body pointer convention.
-8. **B3 extract mode** routes imperatives → rule, decisions → adr, reference → doc.
-9. **All init steps are idempotent** — re-run skips already-created artifacts with a clear message.
-10. **PRD updated** with FR-7 and FR-8.
-11. **Test suite green.**
+1. The empty-state nudge fires correctly, verified by its bats file.
+2. `ARCHCORE_HIDE_EMPTY_NUDGE=1` suppresses the nudge unconditionally.
+3. The command is discoverable and auto-invokes on the phrases listed in B4.
+4. B1 produces a stack rule of 6 lines or fewer, with no version number and at most 5 stack signals, written directly with no confirm prompt.
+5. B2 produces a run guide of 15 lines or fewer, branching on monorepo detection, written directly with no confirm prompt.
+6. B3 detects every file in the documented list, reports cost accurately, and gates the high-cost case behind explicit confirmation.
+7. B3 link mode creates `doc` documents carrying the canonical tag and body-pointer convention.
+8. B3 extract mode routes an imperative to a rule, a decision to an ADR, and reference material to a doc.
+9. Every init step is idempotent, so a re-run skips an already-created artifact with a clear message.
+10. The product requirements document carries the two new functional requirements.
+11. The test suite is green.
 
 ## Dependencies
 
-- **No CLI release dependency** for any phase.
-- **Existing intent-skill infrastructure** — `skill-surface-collapse.adr.md` provides the auto-invocation contract.
-- **Existing per-document-type schemas** (rule, guide, doc, adr).
+- No CLI release dependency for any phase.
+- The existing intent-skill infrastructure, with `skill-surface-collapse.adr` providing the auto-invocation contract.
+- The existing per-document-type schemas for rule, guide, doc, and adr.
 
 ## Risks
 
-- **B1 detection false positives.** Mitigation: signal allowlist excludes `@types/*`, `eslint-*`, `prettier`, test runners, build tools.
-- **B2 README extraction quality.** Marketing-heavy READMEs may yield no usable command blocks. Fallback to `scripts:` extraction.
-- **B3 extract-mode quality.** Mitigation: dry-run preview is mandatory; default mode is link.
-- **B3 cost estimate accuracy.** Heuristic 1 doc / 800 bytes is rough; ±50% on extreme inputs. Acceptable.
-- **Tag-spec compatibility.** Mitigation: targeted unit test that creates a doc with `source:agents-md`.
-- **Slug collisions.** Mitigation: include the file extension in the slug.
-- **Stale source files.** Mitigation: `/archcore:audit --drift` covers code-doc drift.
-- **Idempotency edge cases.** Mitigation: regenerate prompt explicitly warns about overwriting edits.
-- **Skill discovery dependency on Variant A.** Phase A and Phase B must ship together.
-
-## Relations
-
-- `implements` → `zero-content-onboarding.idea` (this plan executes variants A and B; defers C)
-- `extends` → `claude-plugin.prd` (adds FR-7 and FR-8)
-- `extends` → `commands-system.spec` (registers new intent skill)
-- `extends` → `skills-system.spec` (adds init to the skill section)
-- `extends` → `hooks-validation-system.spec` (Phase A modifies SessionStart behaviour)
-- `related` → `skill-surface-collapse.adr` (the rename `bootstrap` → `init`)
-- `related` → `skill-file-structure.rule` (SKILL.md must conform)
-- `related` → `readme-first-60-seconds.idea`
+- **B1 detection false positives.** Mitigated by a signal allowlist that excludes type packages, linters, formatters, test runners, and build tools.
+- **B2 README extraction quality.** A marketing-heavy README may yield no usable command block, which the scripts fallback covers.
+- **B3 extract-mode quality.** Mitigated by the mandatory dry-run preview and the link default.
+- **B3 cost-estimate accuracy.** The heuristic of one document per 800 bytes is rough and can be off by half on an extreme input. Accepted.
+- **Tag-spec compatibility.** Mitigated by a targeted unit test creating a document with a source tag.
+- **Slug collisions.** Mitigated by including the file extension in the slug.
+- **Stale source files.** Mitigated by `/archcore:audit --drift`, which covers code-document drift.
+- **Idempotency edge cases.** Mitigated by a regenerate prompt that warns explicitly about overwriting an edit.
+- **Skill discovery depends on Phase A.** Both phases must ship together.

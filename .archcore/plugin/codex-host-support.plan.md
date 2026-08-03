@@ -10,39 +10,35 @@ tags:
 
 ## Goal
 
-Implement OpenAI Codex CLI as the third first-class host for the Archcore plugin with Codex-native packaging for slash command wrappers, skills, plugin-managed MCP, hooks config, and subagent TOML files. Marketplace registration via `codex plugin marketplace add archcore-ai/plugin`, no manual `codex mcp add`, zero regression for Claude Code/Cursor.
+Implement OpenAI Codex CLI as the third first-class host for the Archcore plugin, with Codex-native packaging for the slash-command wrappers, skills, plugin-managed MCP, hooks config, and subagent TOML files. Marketplace registration happens through `codex plugin marketplace add archcore-ai/plugin`, no manual `codex mcp add` is required, and Claude Code and Cursor see zero regression.
 
 ## Outcome
 
-Shipped. The current Codex packaging contract is documented in:
+Shipped. The current Codex packaging contract lives in `component-registry.doc` for the per-host config table, `codex-local-plugin-testing.guide` for the end-to-end test recipe, and `codex-host-support.prd` for the functional requirements, whose F6 is marked obsolete after the launcher removal.
 
-- `component-registry.doc` — per-host config table (`.codex-plugin/plugin.json`, `.codex.mcp.json`, `hooks/codex.hooks.json`, `.agents/plugins/marketplace.json`, `commands/*.md`, `agents/*.toml`)
-- `codex-local-plugin-testing.guide` — end-to-end test recipe
-- `codex-host-support.prd` — functional requirements F1–F10 (F6 marked obsolete after launcher removal)
+The plan ran in three rounds.
 
-The plan went through three rounds:
+1. **A Phase 0 spike of 1–2 days** verified Codex plugin-relative path resolution, the plugin-shipped MCP schema, subagent TOML packaging, skill invocation namespacing, per-subagent `disabled_tools[]` enforcement, and `SKILL.md` frontmatter compatibility. All resolved cleanly, and the risks were captured in the PRD.
+2. **Implementation across phases 1–7, roughly 4–5 days**, delivered the manifest, the marketplace entry, the command wrappers, `hooks/codex.hooks.json`, the `codex` branch in `bin/lib/normalize-stdin.sh`, and the TOML subagent variants. MCP was initially wired through the bundled launcher with `cwd: "."` and an `env_vars` allowlist, per the ADR that was live at the time.
+3. **The launcher rollback on 2026-05-12, in v0.4.0**, removed the bundled launcher entirely, simplified `.codex.mcp.json` to `command: "archcore"` resolved through PATH, dropped the `$CODEX_PLUGIN_DATA` cache extension, and removed the shell-wrapper requirement.
 
-1. **Phase 0 spike** (1–2 days) — verified Codex plugin-relative path resolution, plugin-shipped `.mcp.json` schema, subagent TOML packaging, skill invocation namespacing, per-subagent `disabled_tools[]` enforcement, and SKILL.md frontmatter compatibility. All resolved cleanly; risks captured in the PRD.
-2. **Phases 1–7 implementation** (~4–5 days) — manifest + marketplace + 16 `commands/*.md` wrappers + `hooks/codex.hooks.json` + `bin/lib/normalize-stdin.sh` `codex` branch + TOML subagent variants. Initially wired MCP via `command: "./bin/archcore"` with `cwd: "."` + `env_vars: ["ARCHCORE_CWD"]` per the (at the time live) bundled-launcher ADR.
-3. **Launcher rollback** (2026-05-12, v0.4.0) — bundled launcher removed entirely; `.codex.mcp.json` simplified to `command: "archcore"` resolved via PATH; `$CODEX_PLUGIN_DATA` cache extension dropped; ARCHCORE_CWD shell wrapper requirement gone. See `remove-bundled-launcher-global-cli.idea`.
-
-The shared-core / per-host-adapter split from `multi-host-plugin-architecture.adr` proved correct: adding Codex did not require any change to skills, agents, or hook script bodies — only a new `codex` branch in `normalize-stdin.sh` and the per-host adapter files. The launcher rollback simplified Codex packaging further (no more `cwd: "."` / `env_vars` / shell wrapper).
+The shared-core and per-host-adapter split of `multi-host-plugin-architecture.adr` proved correct: adding Codex required no change to any skill, agent, or hook script body — only a new branch in `normalize-stdin.sh` and the per-host adapter files. The rollback simplified the packaging further.
 
 ## Acceptance Criteria
 
-- [x] `.codex-plugin/plugin.json` exists with synchronized metadata, valid component pointers, and `interface{}` marketplace block
-- [x] Plugin-shipped MCP works in Codex (`.codex.mcp.json` with `command: "archcore"`, no external `codex mcp add` step)
-- [x] `commands/<name>.md` wrappers exist for all 16 user-facing skills; parity tests in `test/structure/codex-plugin.bats` pass
-- [x] `hooks/codex.hooks.json` maps the active hook functions with correct matchers and timeouts
-- [x] `bin/lib/normalize-stdin.sh` has explicit `codex` host detection and field extraction
-- [x] `agents/archcore-auditor.toml` and `agents/archcore-assistant.toml` exist; auditor enforced read-only via `sandbox_mode` and `disabled_tools[]`
-- [x] All existing Claude Code tests pass unchanged
-- [x] Cursor manual smoke test passes unchanged
+- [x] `.codex-plugin/plugin.json` exists with synchronized metadata, valid component pointers, and an `interface{}` marketplace block.
+- [x] Plugin-shipped MCP works in Codex through `.codex.mcp.json` with `command: "archcore"`, needing no external `codex mcp add`.
+- [x] A `commands/<name>.md` wrapper exists for every user-facing skill, and the parity tests in `@test/structure/codex-plugin.bats` pass.
+- [x] `hooks/codex.hooks.json` maps the active hook functions with the correct matchers and timeouts.
+- [x] `bin/lib/normalize-stdin.sh` carries explicit `codex` host detection and field extraction.
+- [x] `agents/archcore-auditor.toml` and `agents/archcore-assistant.toml` exist, with the auditor held read-only through `sandbox_mode` and `disabled_tools[]`.
+- [x] Every existing Claude Code test passes unchanged.
+- [x] The Cursor manual smoke test passes unchanged.
 
 ## Dependencies
 
-- Multi-Host Plugin Architecture ADR (architectural authority).
-- Multi-Host Implementation Plan (predecessor).
-- Hooks and Validation System Specification (hook semantics).
-- Codex CLI v0.117.0+ available locally for testing.
-- ~~Bundled CLI Launcher ADR~~ — rejected; replaced by `remove-bundled-launcher-global-cli.idea`. The current MCP wiring (`command: "archcore"` via PATH) eliminates the original F6 launcher cache extension entirely.
+- `multi-host-plugin-architecture.adr` as the architectural authority.
+- `multi-host-implementation.plan` as the predecessor.
+- `hooks-validation-system.spec` for the hook semantics.
+- Codex CLI v0.117.0 or later, available locally for testing.
+- The bundled CLI launcher ADR was a dependency at the time and is now rejected, replaced by `remove-bundled-launcher-global-cli.idea`. The current MCP wiring resolves `archcore` through PATH, which removed the original F6 launcher cache extension entirely.

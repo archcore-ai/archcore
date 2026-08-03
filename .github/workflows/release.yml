@@ -77,6 +77,9 @@ jobs:
           rm -rf .github
           rm -f Makefile
           rm -f docs/release.md
+          rm -f AGENTS.md
+          rm -f CLAUDE.md
+          rm -f .mcp.json
           rm -f plugins/archcore/cursor.mcp.json  # belt-and-suspenders: must already be gone
           # Sanity: bundled .archcore must be gone, and no distributable
           # file may reference our internal docs.
@@ -84,6 +87,15 @@ jobs:
             echo "::error::.archcore/ still present after strip"
             exit 1
           fi
+          # Sanity: repo-development instruction files and the dev MCP config
+          # must not reach the public surface — hosts would read them as
+          # instructions for the user's own project.
+          for dev_only in AGENTS.md CLAUDE.md .mcp.json; do
+            if [ -e "$dev_only" ]; then
+              echo "::error::$dev_only still present after strip"
+              exit 1
+            fi
+          done
           # Any leftover reference to the plugin's own .archcore docs is
           # a hard failure (mirrors test/structure/no-bundled-archcore-refs.bats)
           pattern='\.archcore/(plugin|knowledge|vision|experience)/[a-zA-Z0-9_-]+\.(adr|spec|prd|plan|idea|rule|guide|doc|task-type|cpat|rfc|mrd|brd|urd|brs|strs|syrs|srs)\.md'

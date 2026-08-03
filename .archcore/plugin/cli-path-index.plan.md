@@ -7,51 +7,25 @@ tags:
   - "roadmap"
 ---
 
-## Status — Deferred consumer (as of 2026-04-23)
+**Status — deferred consumer, as of 2026-04-23.** When first drafted this plan was the CLI-side counterpart of a plugin task that consumed the index. That plugin release narrowed to delegated coverage only, so hook performance hardening is deferred and the consumer ships later.
 
-**Scope update.** When first drafted, this plan was the CLI-side counterpart of plugin phase v0.4.0 task A1 (hook consumes `path_index`). Plugin v0.4.0 has since narrowed to delegated-coverage only (see `jtbd1-phase2-hardening-delegated.plan` — B1+B2). Hook performance hardening is deferred, so the plugin-side consumer of this CLI work ships in a later release rather than v0.4.0.
+The CLI work stays valid and independently shippable: producing `path_index` in `.sync-state.json` is additive and carries no behavioral risk to a current plugin version, because readers treat an unknown key as opaque. Shipping early only means the consumer catches up later. The promotion trigger for the consumer side is the first real-world repository whose injection hook breaches the host's 1-second timeout, or a deliberate decision to add performance hardening to a release.
 
-The CLI work itself remains valid and independently shippable — producing `path_index` in `.sync-state.json` is safe, additive, and carries no behavioural risk to current plugin versions (they ignore unknown keys). Shipping this plan early just means the consumer catches up later.
-
-Promotion trigger for the consumer side: the first real-world repo whose `check-code-alignment` hook breaches the host's 1-second timeout, OR a deliberate decision to add perf hardening to a release for non-urgency reasons.
-
-**CLI versioning note (2026-05-12 update).** The plugin no longer pins a CLI version via `bin/CLI_VERSION` — that file was removed when the bundled launcher was rolled back in v0.4.0 (see `remove-bundled-launcher-global-cli.idea`). Users install the CLI via the official installer at https://docs.archcore.ai/cli/install/; CLI lifecycle is decoupled from plugin releases. When the consumer side of this plan ships, the version-compatibility matrix below applies the moment a user upgrades the CLI past 0.1.8, with no plugin-side version pin to bump.
-
----
+**CLI versioning note (2026-05-12).** The plugin no longer pins a CLI version, because that file was removed with the bundled launcher. Users install the CLI from the official installer, and its lifecycle is decoupled from plugin releases. When the consumer ships, the compatibility matrix below applies the moment a user upgrades past CLI 0.1.8, with no plugin-side pin to bump.
 
 ## Goal
 
-Extend the Archcore CLI to maintain a reverse index from source-code path tokens to the `.archcore/` documents that reference them, persisted alongside the existing relation manifest in `.sync-state.json`. A future plugin release consumes the index in `bin/check-code-alignment` to replace the per-token grep scan with O(1) map lookup, bringing the hook well inside its 1-second timeout on repos with ~100 documents and scaling essentially flat beyond that.
+Extend the CLI to maintain a reverse index from source-code path tokens to the `.archcore/` documents referencing them, persisted alongside the relation manifest in `.sync-state.json`. A future plugin release consumes it in `bin/check-code-alignment`, replacing the per-token grep scan with a constant-time map lookup, bringing the hook well inside its 1-second timeout at around 100 documents and scaling essentially flat beyond that.
 
-Out of scope for this plan:
-
-- Violation detection or `archcore check` CLI subcommand (planned separately for v0.5.0+)
-- Per-document mtime index (the plugin already reads mtime from the filesystem when it needs to rank).
-- Full-text / inverted content index (grep over bodies is still adequate for topic mode; the plugin's `search_documents` MCP tool already handles that path).
-- Session-scoped state (that lives in `/tmp`, not `.sync-state.json`).
+Out of scope: violation detection and an `archcore check` subcommand, planned separately; a per-document mtime index, since the plugin already reads mtime from the filesystem when ranking; a full-text or inverted content index, since grep over bodies remains adequate for topic mode and the `search_documents` MCP tool already covers that path; and session-scoped state, which lives outside the manifest.
 
 ## Context
 
-### What the plugin needs (when the consumer eventually ships)
+**What the plugin needs.** The injection hook fires on every mutation outside `.archcore/`. For a path like `src/api/handlers/users.ts` it generates tokens longest first, capped at 5 levels, and runs one `grep -rlF` per token, skipping a document already matched by a longer token. At about 40 documents across 5 tokens that is 200 grep invocations at roughly 2–5 ms each, so 400 ms to 1 s in total; at 100 documents it breaches the timeout, and at 500 it fails reliably. What each grep actually answers is which document files mention this directory prefix — which is a reverse index, answerable in a tight shell loop from a JSON map with no body read at all.
 
-`bin/check-code-alignment` fires on every `Write|Edit` outside `.archcore/`. For a file path like `src/api/handlers/users.ts` the hook generates tokens longest-first: `src/api/handlers/`, `src/api/`, `src/`, capped at 5 levels. For each token it runs `grep -rlF <token> .archcore --include='*.md'` and walks the matches. A doc matched by a longer token is not re-scored by shorter ones.
+**What the CLI already produces.** `.sync-state.json` carries the relation manifest and some metadata, is written by `archcore sync`, is read by `archcore doctor` and the MCP server, and is the git-committed truth for relations. Adding `path_index` on the same write path is a pure extension: same sync cadence, same atomic write, same tracked artifact, with no new command and no new file.
 
-The cost today at ~40 docs × 5 tokens is 200 grep invocations (~2–5 ms each, ~400 ms–1 s total). At 100 docs it breaches the 1-second host timeout. At 500 docs it fails reliably.
-
-What the hook actually needs from each grep is: *which document files mention this directory prefix?* That is a reverse index. The plugin can answer it in a tight shell loop if the index is present as a JSON map, no bodies read at all.
-
-### What the CLI already produces
-
-`.sync-state.json` today carries the relation manifest (source/target/type triples) plus some metadata. The file is written by `archcore sync` and read by `archcore doctor` / other subcommands, and serves as the git-committed truth for relations. Readers treat unknown top-level keys as opaque, so additions are backward-compatible. The plugin's MCP server reads from the same file when listing relations.
-
-Adding `path_index` on this same write path is a pure extension: same sync cadence, same atomic write, same git-tracked artifact. No new commands, no new files.
-
-### Why not query at read-time
-
-Two reasons.
-
-1. **Budget.** The hook has a 1-second budget shared with the host. Even a fast Go subprocess with exec cost, shell setup, and result marshalling won't be reliably faster than a precomputed lookup. A plain shell read of a JSON map via the existing Unix pipeline (`jq`, or in-POSIX-shell fallback) is hundreds of microseconds.
-2. **Portability.** The plugin deliberately ships the hook as POSIX shell (see `check-code-alignment`); it does not assume the CLI binary is on PATH during hook execution. A file-based index keeps the hook's dependency surface unchanged — read, parse, lookup, emit.
+**Why not query at read time.** Two reasons. The hook shares a 1-second budget with the host, and even a fast Go subprocess — with exec cost, shell setup, and result marshalling — will not reliably beat a precomputed lookup, whereas a plain shell read of a JSON map costs hundreds of microseconds. And the hook ships as POSIX shell that does not assume the CLI is on PATH during execution, so a file-based index keeps its dependency surface unchanged.
 
 ## Design
 
@@ -71,16 +45,13 @@ Two reasons.
     "roots": ["src", "lib", "app", "pkg", "cmd", "internal",
               "apps", "packages", "modules", "components"],
     "tokens": {
-      "src/api/handlers/": [".archcore/auth/api-handlers.rule.md",
-                            ".archcore/plugin/rest-conventions.adr.md"],
-      "src/api/":          [".archcore/plugin/rest-conventions.adr.md",
-                            ".archcore/security/api-auth.spec.md"],
-      "src/":              [".archcore/plugin/rest-conventions.adr.md",
-                            ".archcore/security/api-auth.spec.md",
-                            ".archcore/monorepo-layout.doc.md"]
+      "src/api/handlers/": [".archcore/<domain>/api-handlers.rule.md",
+                            ".archcore/<domain>/rest-conventions.adr.md"],
+      "src/api/":          [".archcore/<domain>/rest-conventions.adr.md",
+                            ".archcore/<domain>/api-auth.spec.md"]
     },
     "docs": {
-      ".archcore/plugin/rest-conventions.adr.md": {
+      ".archcore/<domain>/rest-conventions.adr.md": {
         "type": "adr",
         "title": "REST over HTTP for the public surface",
         "tokens": ["src/api/", "src/"]
@@ -90,189 +61,92 @@ Two reasons.
 }
 ```
 
-Key decisions:
-
-- **`tokens` is the forward lookup** — plugin reads `tokens[<dir>/]` to get ranked candidates. Value arrays preserve the order in which documents were indexed (stable by `.archcore/` path), so the plugin can tiebreak lexicographically.
-- **`docs` is a sidecar for metadata** — type, title, optional tags. The plugin needs type for ranking (rule > cpat > adr > spec > guide) and title for rendering; reading it here avoids a second file stat + frontmatter parse per candidate.
-- **`roots` is captured** — plugin can check its configured source-root set against the set the CLI indexed against. Divergence is fine (plugin filters by its own roots), but the captured list makes debugging easier.
-- **`schema` and `built_by` carry forward-compatibility** — if schema evolves, the plugin can downgrade to grep fallback when it doesn't recognise the schema label.
+Four decisions shape it. `tokens` is the forward lookup the plugin reads to get candidates, whose value arrays preserve indexing order — stable by document path — so the plugin can tiebreak lexicographically. `docs` is a metadata sidecar carrying type, title, and optional tags, so the plugin gets the type it needs for ranking and the title it needs for rendering without a second stat and frontmatter parse per candidate. `roots` is captured so the plugin can compare its configured set against what the CLI indexed against; divergence is fine, because the plugin filters by its own roots, but the record makes debugging easier. And `schema` with `built_by` carry forward compatibility, so an unrecognized schema label sends the plugin back to the grep fallback.
 
 ### Token extraction rules
 
-For every `.archcore/**/*.md` document the indexer scans:
+For each document the indexer scans, it takes four steps. It scans the body, including code fences, for a reference beginning with one of the configured roots, and also scans any advisory frontmatter path array as literal tokens. It normalizes each hit by stripping quotes, trimming trailing punctuation, keeping a trailing slash to mark a directory reference, dropping relative segments, and rejecting anything with a space or control character. It expands each concrete reference into its prefix set, capped at 5 levels to mirror the plugin's cap. And it deduplicates per document, so a document referencing one directory three times contributes once.
 
-1. **Source-root frontmatter and inline mentions.** Scan the body (and codefences within it) for patterns matching `^|[\s`'"(\[]<root>/(?:[\w.\-]+/)*` where `<root>` is one of the configured roots. Also scan YAML frontmatter `paths:` / `affects:` / `touches:` arrays if present (advisory — treated as literal tokens).
-2. **Normalize** — strip quotes, trim trailing punctuation, keep trailing `/` to mark "directory reference", drop `.` / `..` segments, reject anything containing spaces or control chars.
-3. **Expand to prefix set.** For each concrete reference `src/api/handlers/users.ts`, emit all prefix tokens `src/api/handlers/`, `src/api/`, `src/`. For a bare directory `src/api/` emit `src/api/`, `src/`. Cap at 5 levels (mirrors the plugin's cap).
-4. **Deduplicate per document.** A doc referencing `src/api/` three times contributes once to `tokens['src/api/']`.
-
-Token set is deliberately a superset of what the plugin would derive from a file path — the plugin still has to match the file under edit to these tokens, but the CLI does not need to know any specific file.
+The token set is deliberately a superset of what the plugin derives from a file path: the plugin still matches the file under edit against these tokens, and the CLI never needs to know any specific file.
 
 ### Source corpus
 
-Only eligible document types contribute to the index:
-
-- `rule`, `cpat`, `adr`, `spec`, `guide` — mirrors the plugin's type allowlist.
-- `prd`, `idea`, `plan`, `task-type`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs` — **excluded** from the index even when they mention paths, because the plugin explicitly filters those out to avoid injecting aspirational or vision content on code edits.
-- `doc` — **excluded** for now (rarely references paths specifically; can be promoted to included later without a schema bump).
-- `rfc` — **excluded** (pre-decision status).
-
-Status filter: only documents with `status: accepted` or `status: draft` are indexed. `rejected` documents never appear in the index. The plugin is responsible for any further status filtering.
+Only the five types the plugin injects contribute: `rule`, `cpat`, `adr`, `spec`, and `guide`. The vision and requirements types are excluded even when they mention paths, because the plugin filters them out to avoid injecting aspirational content on a code edit. `doc` is excluded for now, since it rarely references a path specifically, and can be promoted later without a schema bump. `rfc` is excluded as pre-decision. Only documents with status `accepted` or `draft` are indexed; a rejected document never appears, and further status filtering is the plugin's responsibility.
 
 ### Indexer module
 
-New Go package `internal/pathindex/`:
+A new Go package `internal/pathindex/` exposes three functions. `Extract` is pure and I/O-free, returning the token set for a parsed document body, type, and frontmatter, which makes it unit-testable against fixture bodies. `Build` is pure over a pre-loaded corpus and returns the full index matching the schema. `Merge` is not required for a first version, because `archcore sync` always rebuilds, and is reserved for a future incremental mode.
 
-- `pathindex.Extract(doc DocMeta) []string` — pure function, no I/O, given a parsed document body + type + frontmatter returns the token set. Unit-testable with fixture bodies.
-- `pathindex.Build(corpus Corpus, roots []string) Index` — pure function over a pre-loaded corpus. Returns the full `Index` struct matching the JSON schema.
-- `pathindex.Merge(prev, next Index) Index` — not strictly required in v1 because `archcore sync` always rebuilds; reserved for future incremental-update mode.
-
-Integration in `internal/sync/` (existing): after relations are reconciled, call `pathindex.Build(corpus, defaultRoots)` and set the result on the `.sync-state.json` writer. One extra call in an existing code path; no new subcommand.
-
-### Write ordering
-
-`.sync-state.json` write is already atomic (write to temp file + rename). The `path_index` is assembled in memory before the write, so the existing atomicity guarantee covers the new field. Plugin consumers will never see a torn manifest.
+Integration lands in the existing sync package: after relations are reconciled, call `Build` and set the result on the manifest writer. That is one extra call in an existing code path, with no new subcommand. The manifest write is already atomic through a temp file and rename, and the index is assembled in memory beforehand, so the existing atomicity guarantee covers the new field and no consumer sees a torn manifest.
 
 ### Roots configuration
 
-The CLI indexes against the *same* root list the plugin uses by default — this is the invariant that makes the plugin's root filter work correctly against the index. Overrides:
+The CLI indexes against the same root list the plugin uses by default, which is the invariant that makes the plugin's root filter work against the index. `.archcore/settings.json` at `codeAlignment.sourceRoots` is consumed by both sides, so a mismatch is impossible when both respect it, and a `--roots` flag on sync is an advisory override for tests that is not persisted.
 
-- `.archcore/settings.json` → `codeAlignment.sourceRoots` — consumed by both CLI and plugin. If present, the CLI uses this list for indexing and the plugin uses it for filtering. Mismatch is impossible if both respect the same config.
-- CLI flag `archcore sync --roots <list>` — advisory override, not persisted. Primarily for tests.
+### Size and performance targets
 
-### Size and perf targets
-
-- Index size budget: **≤ 5% of sum of `.archcore/` body bytes**. At ~40 docs / ~400 KB corpus this is ≤ 20 KB, which is negligible. At 10× scale we are still at 200 KB — well within any file-handling limit.
-- Build time budget: **linear in corpus size, ≤ 50 ms per 100 documents** on commodity hardware. Validated by benchmark in `internal/pathindex/pathindex_bench_test.go`.
-- Plugin read cost: **single `jq` invocation or POSIX-shell parse, ≤ 20 ms**. Measured in the plugin's bats suite.
+The index budget is at most 5% of the summed body bytes of the included documents, which at roughly 40 documents and a 400 KB corpus is at most 20 KB, and at ten times that scale is still around 200 KB. Build time is linear in corpus size at no more than 50 ms per 100 documents on commodity hardware, validated by a benchmark. And the plugin's read cost is a single `jq` invocation or POSIX-shell parse at no more than 20 ms, measured in the bats suite.
 
 ## Tasks
 
-### Phase CLI-1 — Indexer module
+**Phase CLI-1 — the indexer module.** Create the package with the public `Extract` and `Build` functions plus the internal normalization helpers. Port the plugin's token-extraction algorithm into Go with identical semantics for prefix generation, the 5-level cap, and the trailing-slash directory marker. Add unit tests covering a bare reference, a quoted reference, a frontmatter-array reference, six-level truncation, a reference inside a code fence against one in prose, type-filter exclusion, rejected-status exclusion, and a roots override. Add a benchmark over synthetic corpora at 40, 400, and 4000 documents.
 
-- Create `internal/pathindex/pathindex.go` with the public `Extract` / `Build` functions and internal normalization helpers.
-- Port the plugin's token-extraction algorithm into Go with identical semantics (prefix generation, 5-level cap, trailing-slash directory marker).
-- Create `internal/pathindex/pathindex_test.go` covering: bare reference, quoted reference, frontmatter-array reference, 6-level path truncation, doc referencing paths in codefence vs prose, type-filter exclusion, rejected-status exclusion, roots override.
-- Create `internal/pathindex/pathindex_bench_test.go` with synthetic corpora at 40 / 400 / 4000 documents.
+**Phase CLI-2 — sync integration.** Call `Build` after relation reconciliation and attach the result to the manifest struct before serialization. Thread the active roots list through the settings package, resolving the settings file, then the flag, then the default. Update the serializer to include the new field while keeping the existing fields byte-identical when it is absent. Add a `--no-path-index` flag for emergency disablement, so an operator can drop the index without downgrading. And teach `archcore doctor` to accept but not require the field, checking the schema lightly and never hard-failing, because the index is advisory while manifest correctness is load-bearing.
 
-### Phase CLI-2 — Sync integration
+**Phase CLI-3 — tests and documentation.** Add a sync test asserting the field appears after sync and disappears under the flag, a snapshot test locking the JSON shape, a documentation subsection covering the schema, the rebuild cadence, and the opt-out, and a changelog entry.
 
-- Modify `internal/sync/sync.go` (or equivalent): after relation reconciliation, call `pathindex.Build(corpus, activeRoots)` and attach the result to the manifest struct before serialization.
-- Thread the active roots list through `internal/config/settings.go` — resolve priority `.archcore/settings.json` → CLI flag → default.
-- Update the manifest serializer to include `path_index`; ensure existing manifest fields stay byte-identical when `path_index` is absent (unchanged behaviour when the indexer is disabled).
-- Add `--no-path-index` CLI flag for emergency disablement. Operators can drop the index without a CLI downgrade.
-- Update `archcore doctor` to accept (but not require) `path_index` and lightly check schema (`schema=="v1"` means required keys present). Never hard-fail on index anomalies — the index is advisory, manifest correctness is load-bearing.
+**Phase CLI-4 — release coordination.** Cut a minor CLI release as an additive feature with no breaking change, confirmed by running `archcore doctor` against a manifest written by the previous version, which must pass unchanged. The plugin consumer ships later and, with no version pin to bump, simply detects the schema label at runtime and switches paths, so coordination is version-free and the consumer's release notes point users at `archcore update` for the fast path.
 
-### Phase CLI-3 — Tests and docs
+## Plugin integration, for the future consumer
 
-- Update `internal/sync/sync_test.go` with a fixture that asserts `path_index` appears after sync and disappears under `--no-path-index`.
-- Add a snapshot test (`testdata/sync/with-path-index/`) to lock the JSON shape.
-- Update `docs/sync.md` or equivalent CLI docs with a "Path index" subsection documenting the schema, the rebuild cadence, and the opt-out flag.
-- Add a `CHANGELOG.md` entry under the CLI's next release.
+**The reader algorithm.** The hook checks whether the manifest is readable, whether `jq` is available, and whether the schema label matches; when all three hold it takes the fast path, reading the candidate list for each token straight out of the token map, and otherwise it runs the existing grep for that token. Everything after that — deduplication across tokens, ranking, and the top-3 cap — is unchanged.
 
-### Phase CLI-4 — Release coordination (when plugin consumer ships)
+Three rules hold whichever path fires. A missing index, a missing `jq`, or a schema mismatch falls back to grep silently, so the user never sees an error. An index present but empty yields no candidates, which is the same silent exit the hook already takes when nothing matches. And where the `docs` sidecar is present, the hook uses its cached type and title instead of re-reading frontmatter, falling back to parsing the title from the first lines of each candidate when an older CLI wrote no sidecar.
 
-- Cut CLI release (target `0.1.8` from current `0.1.7` — minor bump, additive feature, no breaking changes). Confirm by running `archcore doctor` against a plugin repo with the *previous* CLI's `.sync-state.json` — must pass unchanged.
-- Plugin consumer ships in a later release (not v0.4.0). With the bundled launcher removed, there is no `bin/CLI_VERSION` to bump in the plugin — the consumer simply detects `path_index.schema == "v1"` at runtime and switches paths. Coordination is therefore version-free: the consumer release notes point users at `archcore update` if they want the fast path.
-- Announce in CLI CHANGELOG; plugin-side changelog entry appears only when the consumer ships.
+| State | Plugin behavior |
+|---|---|
+| Old CLI, no index | The current grep path, with unchanged runtime |
+| New CLI, v1 index present | The index fast path, under 200 ms on a 100-document repository |
+| New CLI, schema bumped to v2 | Falls back to grep, warning only in debug mode |
+| Index present, `jq` missing | Falls back to grep, since a shell-only JSON parse is not worth the complexity |
+| Index present but corrupt | Falls back to grep, and neither rewrites nor deletes the index |
 
-## Plugin integration (consumption details — future plugin release)
+**Environment and overrides.** `ARCHCORE_DISABLE_PATH_INDEX=1` forces the grep path regardless of index presence, which is useful for debugging and for bats cases. The existing injection kill-switch short-circuits the hook before any index work and is unaffected. No CLI-owned environment variable is added; the sync flag is the write-side equivalent.
 
-### Reader algorithm in `bin/check-code-alignment`
+| Plugin | CLI | Behavior |
+|---|---|---|
+| Current | 0.1.7 | Grep on every edit |
+| Current | 0.1.8+ | The plugin still greps; the CLI writes the index with no consumer |
+| Future consumer | 0.1.7 | The plugin greps as a fallback: no improvement, no regression |
+| Future consumer | 0.1.8+ | The fast path, delivering the target |
 
-Pseudocode (actual implementation in POSIX shell with `jq` optional):
+Upgrade order therefore does not matter, because both directions are safe. Only the target combination delivers the performance, and every other combination is indistinguishable from today.
 
-```sh
-INDEX_FILE=".archcore/.sync-state.json"
-USE_INDEX=0
-if [ -r "$INDEX_FILE" ] && command -v jq >/dev/null 2>&1; then
-  if jq -e '.path_index.schema == "v1"' "$INDEX_FILE" >/dev/null 2>&1; then
-    USE_INDEX=1
-  fi
-fi
-
-for TOKEN in $TOKENS; do
-  if [ "$USE_INDEX" = "1" ]; then
-    # Fast path — O(1) per token.
-    DOCS=$(jq -r --arg t "$TOKEN" '.path_index.tokens[$t][]?' "$INDEX_FILE")
-  else
-    # Fallback — existing grep behaviour.
-    DOCS=$(grep -rlF "$TOKEN" .archcore --include='*.md' 2>/dev/null)
-  fi
-  # Remainder (dedup across tokens, ranking, top-3) unchanged.
-done
-```
-
-Rules the plugin enforces regardless of which path fires:
-
-- Index absence OR `jq` absence OR schema mismatch → silent fallback to grep. User never sees an error.
-- Index present but empty (`tokens: {}`) → no candidates → same exit-0-silent behaviour the hook has today when no docs match.
-- If `docs` sidecar is present, use its cached `type` and `title` instead of re-reading frontmatter. If absent (older CLI), fall back to current behaviour of parsing title from the first 10 lines of each candidate.
-
-### Fallback matrix
-
-| State                        | Plugin behaviour                                      |
-|------------------------------|-------------------------------------------------------|
-| Old CLI → no `path_index`    | Current grep path; unchanged runtime                  |
-| New CLI → v1 index present   | Index fast path; < 200 ms on 100-doc repos            |
-| New CLI → schema bump to v2  | Fall back to grep; warn only in debug mode            |
-| Index present, `jq` missing  | Fall back to grep (shell-only POSIX JSON parse is not worth the complexity for v1) |
-| Index present but corrupt    | Fall back to grep; do not rewrite or delete the index |
-
-### Environment and overrides
-
-- `ARCHCORE_DISABLE_PATH_INDEX=1` — plugin forces the grep path regardless of index presence. Useful for debugging and for per-test cases in the bats suite.
-- `ARCHCORE_DISABLE_INJECTION=1` — already exists; short-circuits the hook entirely before any index work, so unaffected.
-- No CLI-owned env vars are added; the `--no-path-index` flag on the CLI is the equivalent on the write side.
-
-### Version compatibility matrix
-
-| Plugin (hook) | CLI          | Behaviour                                                              |
-|---------------|--------------|------------------------------------------------------------------------|
-| ≤ 0.4.x       | 0.1.7        | Current state — grep on every edit                                     |
-| ≤ 0.4.x       | 0.1.8+       | Plugin still greps (unchanged); CLI writes the index but no consumer   |
-| Future plugin | 0.1.7        | Plugin greps (fallback); no perf improvement but no regression         |
-| Future plugin | 0.1.8+       | Fast path; target delivered                                            |
-
-Upgrade order therefore does not matter — both directions are safe. The target state (consumer-shipped plugin + CLI 0.1.8) delivers the performance; any other combo is indistinguishable from v0.3.0 behaviour.
-
-### Plugin tests added by the future consumer plan
-
-- `test/unit/check-code-alignment-index.bats` — fixture with a prebuilt `.sync-state.json` containing a canned `path_index`. Asserts the hook emits the expected top-3 ranking without ever running `grep -rlF`. Instrumented by stubbing `grep` on PATH to a failing binary — if the hook tries to grep, the test fails.
-- `test/unit/check-code-alignment-fallback.bats` — `.sync-state.json` present but with invalid `path_index.schema`. Asserts the hook falls back to grep and still emits the expected output.
-- `test/unit/check-code-alignment.bats` (existing 13 cases) — none regress; index absence remains the default path in those tests.
+**Tests the consumer plan adds.** One bats file with a prebuilt manifest containing a canned index, asserting the hook emits the expected ranking without ever running grep — instrumented by stubbing `grep` on PATH to a failing binary, so an attempted grep fails the test. One with an invalid schema label, asserting the fallback still emits the expected output. And the existing cases, none of which regress, since index absence remains their default.
 
 ## Acceptance Criteria
 
-1. `archcore sync` on a fresh repo produces a `.sync-state.json` with a valid `path_index` object conforming to the schema above, verifiable via `jq '.path_index.schema' == "v1"`.
-2. `archcore sync` on a pre-existing repo (without `path_index` in the prior manifest) does not alter any relation data; only the new `path_index` field appears.
-3. `archcore doctor` passes on both pre-migration and post-migration manifests.
-4. `archcore sync --no-path-index` produces a manifest without `path_index` even if one was present before; idempotent.
-5. Benchmark in `internal/pathindex/pathindex_bench_test.go` shows build time ≤ 50 ms for a 100-document synthetic corpus on commodity hardware.
-6. Index size ≤ 5% of the cumulative body size of included documents on a real-world test repo.
-7. Plugin consumer (future release) validates the fast path: hook consumes the index when present and `jq` is available; falls back to grep otherwise. Both paths emit identical ranking output on the same fixture.
-8. Plugin hook wall-clock time ≤ 200 ms on the 100-doc fixture when the index is used; ≥ 400 ms on the grep fallback (asserted to prove the fast path is actually being taken). Validated by the consumer plan.
-9. `ARCHCORE_DISABLE_PATH_INDEX=1` forces the plugin to grep even when the index is present — verified by the consumer plan's dedicated bats test.
-10. CLI `CHANGELOG.md` and `docs/sync.md` updated. When the plugin consumer ships, it cites this plan as its upstream dependency.
+1. `archcore sync` on a fresh repository produces a manifest with a valid index object conforming to the schema, verifiable by reading its schema label.
+2. `archcore sync` on a pre-existing repository alters no relation data; only the new field appears.
+3. `archcore doctor` passes on both a pre-migration and a post-migration manifest.
+4. `archcore sync --no-path-index` produces a manifest without the field even when one was present, idempotently.
+5. The benchmark shows build time at or under 50 ms for a 100-document synthetic corpus on commodity hardware.
+6. Index size stays at or under 5% of the cumulative body size of the included documents on a real test repository.
+7. The future consumer validates the fast path: the hook consumes the index when it and `jq` are present and falls back otherwise, with both paths emitting identical ranking on the same fixture.
+8. Hook wall-clock time is at or under 200 ms on the 100-document fixture with the index, and at or above 400 ms on the grep fallback, which proves the fast path is actually taken.
+9. `ARCHCORE_DISABLE_PATH_INDEX=1` forces grep even when the index is present, verified by a dedicated bats test.
+10. The CLI changelog and sync documentation are updated, and the consumer cites this plan as its upstream dependency.
 
 ## Dependencies
 
-- **Plugin repo (future release)** — the eventual consumer reads the index. CLI release precedes or ships in parallel with the consumer release; upgrade order does not matter for correctness (fallback path absorbs any ordering).
-- **`jq` presence** — the plugin-side fast path assumes `jq` is available on the developer machine. If not, the plugin falls back to grep. Consider adding `jq` to the plugin's documented prerequisites in a separate plan if fast-path adoption matters; out of scope here.
-- **`.archcore/settings.json` schema** — `codeAlignment.sourceRoots` already exists for the plugin; no schema change needed. The CLI reads the same key when present.
+- The plugin repository's future release, which is the eventual consumer. The CLI release precedes or parallels it, and upgrade order does not affect correctness, because the fallback absorbs any ordering.
+- `jq` on the developer machine for the fast path. Without it the plugin falls back to grep. Adding `jq` to the documented prerequisites is a separate decision.
+- The `codeAlignment.sourceRoots` settings key, which already exists for the plugin and needs no schema change; the CLI reads the same key.
 
 ## Risks
 
-- **Index staleness between sync runs.** If a user edits a `.archcore/` document and does not run `archcore sync` before the next source-file edit, the index is stale relative to the document. Mitigation: the hook falls back to grep when the index does not contain a token it needs — no silent wrong answers. Longer-term: have the plugin's PostToolUse `validate-archcore` trigger an index refresh as part of its normal run, making the index eventually-consistent with zero user action.
-- **Index growth at 10× repo scale.** At 400–500 documents the index may cross 100 KB, which is still fine for a git-tracked file. At 4000+ documents it is worth revisiting the single-file approach (possibly splitting out `path_index` into a sibling artifact). Out of scope for v1; revisit when a real repo approaches the limit.
-- **Root-list drift between CLI and plugin.** If a user sets `codeAlignment.sourceRoots` in `.archcore/settings.json` but runs an old CLI that ignores the setting, the index would be built against the wrong root list. Mitigation: capture `roots` in the index header (`path_index.roots`) and have the plugin warn (in debug mode) when its active root list disagrees with the index's.
-- **Codefence false positives.** Scanning document bodies for path tokens picks up path-like strings inside code examples that don't actually reference real source paths. Acceptable: the index overestimates candidates, but ranking (specificity + type priority) compensates. If noise becomes user-visible, add codefence exclusion to `pathindex.Extract` in a v2 schema bump.
-- **Shipping without a consumer.** Shipping the CLI side before a plugin consumer means the index field sits unused. Risk: schema decisions ossify before a real consumer exercises them. Mitigation: a minimal end-to-end smoke on a fixture repo where the schema is read back with `jq` and structural expectations are asserted, independent of the plugin hook.
-
-## Relations
-
-- `implements` → `jtbd-alignment-analysis.idea` (continues Path B in the CLI layer)
-- `implements` → `pre-code-context-injection.idea` (Phase 2 referenced in that idea)
-- `related` → `pre-code-hook-implementation.plan` (Phase 1 predecessor whose output this plan optimises)
-- `related` → `jtbd1-phase2-hardening-delegated.plan` (plugin-side plan; consumer deferred, not v0.4.0)
-- `related` → `remove-bundled-launcher-global-cli.idea` (rationale for why there's no `bin/CLI_VERSION` to coordinate against)
+- **Index staleness between sync runs.** A user who edits a document and does not sync before the next source edit leaves the index stale. Mitigated because the hook falls back to grep for a token the index lacks, so there is no silent wrong answer. The longer-term fix is to have the post-mutation validator trigger a refresh, making the index eventually consistent with no user action.
+- **Index growth at ten times repository scale.** At 400 to 500 documents the index may cross 100 KB, which is still fine for a tracked file; at 4000 the single-file approach is worth revisiting, possibly by splitting the index into a sibling artifact. Out of scope until a real repository approaches the limit.
+- **Root-list drift between CLI and plugin.** A user who sets the settings key but runs an older CLI that ignores it gets an index built against the wrong roots. Mitigated by capturing the roots in the index header, so the plugin can warn in debug mode when its active list disagrees.
+- **Code-fence false positives.** Scanning bodies picks up path-like strings inside examples that reference no real source path. Acceptable, because the index overestimates candidates while ranking compensates; if the noise becomes user-visible, add code-fence exclusion in a schema bump.
+- **Shipping without a consumer.** The field sits unused, so schema decisions could ossify before a real consumer exercises them. Mitigated by an end-to-end smoke on a fixture repository that reads the schema back and asserts structural expectations independently of the hook.
