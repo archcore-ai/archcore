@@ -3,17 +3,41 @@ name: Notify Landing
 # archcore.ai serves install.sh / install.ps1 directly, syncing them from this
 # repo at deploy time. Without this nudge that copy only refreshes on the next
 # landing deploy, so an installer fix could sit unpublished for days.
+#
+# Chained to Install Smoke rather than to the push itself. Installer changes
+# reach main by direct push as well as by PR, and on a direct push this workflow
+# used to fire in parallel with the tests — a single fast curl against a
+# multi-minute Windows matrix — so archcore.ai could republish an installer
+# minutes before anything had verified it. Waiting for the smoke jobs turns that
+# race into a gate.
+#
+# Install Smoke carries the install.sh / install.ps1 paths filter, so "it ran at
+# all" already implies an installer changed and no paths filter is needed here.
+# The filter also covers install-smoke.yml itself, so editing that file triggers
+# a redeploy too — an accepted trade, since a resync of unchanged installers is
+# a no-op on the landing side.
+#
+# Operational consequence: a red smoke run now blocks publication, including a
+# flaky one. Run this workflow manually to override.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "install.sh"
-      - "install.ps1"
+  workflow_run:
+    workflows: ["Install Smoke"]
+    types: [completed]
   workflow_dispatch:
 
 jobs:
   dispatch:
     runs-on: ubuntu-latest
+    # All three workflow_run conditions are load-bearing. The event fires for
+    # every Install Smoke run — including pull_request ones, which must not
+    # publish anything — and it fires on failure as well as success. The
+    # event_name check comes first because a manual dispatch carries no
+    # workflow_run payload at all.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
     steps:
       - name: Trigger a landing redeploy
         # Needs a PAT with `contents: write` on archcore-ai/landing, stored as

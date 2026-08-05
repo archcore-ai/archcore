@@ -7,6 +7,28 @@ $ErrorActionPreference = 'Stop'
 $GITHUB_REPO    = 'archcore-ai/cli'
 $BINARY_NAME    = 'archcore'
 
+# ── Telemetry constants ──────────────────────────────────────────────────────
+# The key is a placeholder in this repository on purpose. archcore.ai's deploy
+# workflow substitutes vars.POSTHOG_KEY while it syncs this file into public/,
+# so the key never lands in git and any copy run straight from the repo — a
+# local test, install-smoke.yml, a fork — reports nothing at all.
+#
+# The guard in Test-TelemetryEnabled looks for the `phc_` prefix of a real
+# PostHog project key rather than comparing against the placeholder text, so the
+# substitution can never accidentally rewrite its own off-switch.
+$POSTHOG_KEY  = '__POSTHOG_KEY__'
+$POSTHOG_HOST = 'https://ph.archcore.ai'
+
+# Coarse progress marker. Reported as `stage` on a failed install so a genuine
+# drop-off can be told apart from a network outage without ever transmitting an
+# error message. Advanced by main().
+$script:STAGE = 'start'
+
+# Platform facts, filled in by main() once detected. A failure before detection
+# still reports, hence the defaults — Set-StrictMode rejects unset variables.
+$script:TELEMETRY_ARCH    = 'unknown'
+$script:TELEMETRY_VERSION = ''
+
 # ── Color / formatting (TTY-aware) ──────────────────────────────────────────
 # `e escape only exists on PowerShell 6+; build ANSI sequences via [char]27 so
 # Windows PowerShell 5.1 emits real escape codes instead of literal "`e[…".
@@ -49,7 +71,133 @@ function Write-ErrExit {
         $line = "Error: $Message"
     }
     [Console]::Error.WriteLine($line)
+    # Stage category only. The message itself is never transmitted.
+    Send-TelemetryEvent -EventName 'cli_install_failed' -Extra @{ stage = $script:STAGE }
     throw $Message
+}
+
+# ── Telemetry ────────────────────────────────────────────────────────────────
+# Anonymous install analytics, sent to archcore.ai's first-party PostHog proxy.
+# Documented at https://archcore.ai/privacy. Three properties of this code are
+# load-bearing and must survive any refactor:
+#
+#   1. It can never fail the install. Every path is wrapped in try/catch and
+#      bounded by a short timeout; $ErrorActionPreference is 'Stop' script-wide,
+#      so an unguarded web call here would abort a successful install the way
+#      Test-Install once did.
+#   2. It can never run without a key injected at deploy time (see above), so
+#      the repository copy is inert.
+#   3. Opting out leaves no trace on disk — the id file below is created only
+#      after the opt-out check has already passed.
+function Test-TelemetryEnabled {
+    if ($POSTHOG_KEY -notlike 'phc_*') { return $false }
+
+    # consoledonottrack.com, plus the tool-specific override. Any value other
+    # than absent, empty or "0" opts out.
+    foreach ($name in @('DO_NOT_TRACK', 'ARCHCORE_TELEMETRY_OPTOUT')) {
+        $value = [Environment]::GetEnvironmentVariable($name)
+        if ($value -and $value -ne '0') { return $false }
+    }
+    return $true
+}
+
+# A random, opaque, per-machine identifier — not derived from hostname, user
+# name or any hardware id, so it carries nothing about the machine it names.
+#
+# The path deliberately mirrors updateCheckCachePath() in cmd/update.go, which
+# uses Go's os.UserHomeDir() + ".local/state" on every platform including
+# Windows rather than %LOCALAPPDATA%. Matching it — instead of using the more
+# idiomatic Windows location — is what lets the CLI's own telemetry adopt this
+# same id later and join "installed" to "used" without a second identifier.
+function Get-InstallIdPath {
+    $base = [Environment]::GetEnvironmentVariable('XDG_STATE_HOME')
+    if (-not $base) {
+        $base = Join-Path $env:USERPROFILE '.local\state'
+    }
+    return Join-Path $base 'archcore\install-id'
+}
+
+# Returns a hashtable @{ Id = <32 hex chars>; IsReinstall = $bool }, or $null
+# when the id could not be resolved and the caller must skip reporting.
+function Get-InstallId {
+    try {
+        $path = Get-InstallIdPath
+
+        if (Test-Path -LiteralPath $path) {
+            $existing = (Get-Content -LiteralPath $path -Raw -ErrorAction Stop) -replace '[^0-9a-f]', ''
+            if ($existing) {
+                return @{ Id = $existing; IsReinstall = $true }
+            }
+        }
+
+        # 'N' formats the GUID as 32 lowercase hex digits with no braces or
+        # dashes, matching the format install.sh writes so one machine that has
+        # used both installers is not counted twice.
+        $id = [guid]::NewGuid().ToString('N')
+
+        $dir = Split-Path -Parent $path
+        if (-not (Test-Path -LiteralPath $dir)) {
+            New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null
+        }
+        Set-Content -LiteralPath $path -Value $id -NoNewline -ErrorAction Stop
+
+        return @{ Id = $id; IsReinstall = $false }
+    } catch {
+        return $null
+    }
+}
+
+function Send-TelemetryEvent {
+    param(
+        [string]$EventName,
+        [hashtable]$Extra = @{}
+    )
+
+    try {
+        if (-not (Test-TelemetryEnabled)) { return }
+
+        $identity = Get-InstallId
+        if (-not $identity) { return }
+
+        $ci = $false
+        foreach ($name in @('CI', 'GITHUB_ACTIONS', 'GITLAB_CI', 'BUILDKITE', 'JENKINS_URL', 'TEAMCITY_VERSION')) {
+            if ([Environment]::GetEnvironmentVariable($name)) { $ci = $true; break }
+        }
+
+        $properties = @{
+            source              = 'installer'
+            installer           = 'install.ps1'
+            os                  = 'windows'
+            arch                = $script:TELEMETRY_ARCH
+            is_reinstall        = $identity.IsReinstall
+            ci                  = $ci
+            pinned_version      = [bool]$env:ARCHCORE_VERSION
+            install_dir_default = -not [bool]$env:ARCHCORE_INSTALL_DIR
+        }
+        if ($script:TELEMETRY_VERSION) {
+            # The one value with an external shape, so it is filtered to the
+            # semver alphabet before it reaches the payload.
+            $properties['archcore_version'] = $script:TELEMETRY_VERSION -replace '[^0-9A-Za-z.+\-]', ''
+        }
+        foreach ($key in $Extra.Keys) {
+            $properties[$key] = $Extra[$key]
+        }
+
+        $payload = @{
+            api_key     = $POSTHOG_KEY
+            event       = $EventName
+            distinct_id = $identity.Id
+            properties  = $properties
+        } | ConvertTo-Json -Depth 5 -Compress
+
+        Invoke-WebRequest -UseBasicParsing -Method Post -TimeoutSec 3 `
+            -Uri "$POSTHOG_HOST/i/v0/e/" `
+            -ContentType 'application/json' `
+            -Body $payload | Out-Null
+    } catch {
+        # Blocked host, offline, proxy interstitial, PostHog outage — all of it
+        # is irrelevant to whether the CLI installed.
+    }
 }
 
 # ── Architecture detection ───────────────────────────────────────────────────
@@ -302,10 +450,13 @@ function main {
     Write-Info 'Installing Archcore CLI...'
 
     # Architecture
+    $script:STAGE = 'platform'
     $arch = Get-Arch
+    $script:TELEMETRY_ARCH = $arch
     Write-Info "Detected platform: windows/$arch"
 
     # Version
+    $script:STAGE = 'version'
     $version = $null
     if ($PinnedVersion) {
         $version = $PinnedVersion.TrimStart('v')
@@ -316,6 +467,7 @@ function main {
         $version = $tag.TrimStart('v')
         Write-Info "Latest version: $version"
     }
+    $script:TELEMETRY_VERSION = $version
 
     # Construct URLs
     $archiveName   = "archcore_windows_${arch}.zip"
@@ -327,11 +479,13 @@ function main {
     New-Item -ItemType Directory -Path $script:tmp_dir -Force | Out-Null
 
     # Download archive
+    $script:STAGE = 'download'
     $archivePath   = Join-Path $script:tmp_dir $archiveName
     Write-Info "Downloading ${archiveName}..."
     Invoke-Download -Url $downloadUrl -OutFile $archivePath
 
     # Download checksums
+    $script:STAGE = 'checksum'
     Write-Info 'Verifying checksum...'
     $checksumsPath = Join-Path $script:tmp_dir 'checksums.txt'
     Invoke-Download -Url $checksumsUrl -OutFile $checksumsPath
@@ -341,10 +495,12 @@ function main {
     Write-Success 'Checksum verified'
 
     # Extract
+    $script:STAGE = 'extract'
     Write-Info 'Extracting...'
     $extractedExe = Expand-Release -ZipPath $archivePath -TmpDir $script:tmp_dir
 
     # Install
+    $script:STAGE = 'install'
     Write-Info "Installing to ${InstallDir}..."
     $installPath = Install-Binary -SrcExe $extractedExe -DestDir $InstallDir
 
@@ -355,6 +511,15 @@ function main {
     Test-Install -InstallPath $installPath
 
     Write-Success "Archcore CLI v${version} installed to ${installPath}"
+
+    $script:STAGE = 'done'
+    Send-TelemetryEvent -EventName 'cli_installed'
+    # Disclosure belongs next to the thing being disclosed, not only in the
+    # policy page. Printed after the success line so it never reads as an error,
+    # and only when an event was actually sent.
+    if (Test-TelemetryEnabled) {
+        Write-Info 'Anonymous install ping sent (no personal data). Opt out with $env:DO_NOT_TRACK=1 — https://archcore.ai/privacy'
+    }
 }
 
 $script:tmp_dir = $null

@@ -1072,6 +1072,21 @@
       "source": "sync/one-way-push-sync-strategy.adr.md",
       "target": "sync/temporarily-disable-sync.adr.md",
       "type": "related"
+    },
+    {
+      "source": "telemetry/install-analytics-via-installer-beacon.adr.md",
+      "target": "telemetry/telemetry-provider-selection.rfc.md",
+      "type": "extends"
+    },
+    {
+      "source": "release/install-script-usage.guide.md",
+      "target": "telemetry/install-analytics-via-installer-beacon.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "telemetry/install-analytics-via-installer-beacon.adr.md",
+      "target": "release/release-infrastructure.doc.md",
+      "type": "related"
     }
   ]
 }

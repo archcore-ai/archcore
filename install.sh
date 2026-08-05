@@ -17,6 +17,29 @@ DEFAULT_INSTALL_DIR="$HOME/.local/bin"
 INSTALL_DIR="${ARCHCORE_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
 PINNED_VERSION="${ARCHCORE_VERSION:-}"
 
+# ── Telemetry constants ──────────────────────────────────────────────────────
+# The key is a placeholder in this repository on purpose. archcore.ai's deploy
+# workflow substitutes vars.POSTHOG_KEY while it syncs this file into public/,
+# so the key never lands in git and any copy run straight from the repo — a
+# local test, install-smoke.yml, a fork — reports nothing at all.
+#
+# The guard below tests for the `phc_` prefix of a real PostHog project key
+# rather than comparing against the placeholder text, so the substitution can
+# never accidentally rewrite its own off-switch.
+POSTHOG_KEY="__POSTHOG_KEY__"
+POSTHOG_HOST="https://ph.archcore.ai"
+
+# Coarse progress marker. Reported as `stage` on a failed install so a genuine
+# drop-off can be told apart from a network outage without ever transmitting an
+# error message. Set by main() as it advances.
+STAGE="start"
+
+# Platform facts, filled in by main() once detected. A failure before detection
+# still reports, hence the defaults — the script runs under `set -u`.
+TELEMETRY_OS="unknown"
+TELEMETRY_ARCH="unknown"
+TELEMETRY_VERSION=""
+
 # ── Color / formatting (TTY-aware) ──────────────────────────────────────────
 if [[ -t 1 ]]; then
     RED='\033[0;31m'
@@ -49,7 +72,125 @@ warn() {
 
 error_exit() {
     printf '%b %s\n' "${RED}Error:${NC}" "$1" >&2
+    # Stage category only. The message itself is never transmitted.
+    send_event "cli_install_failed" ",\"stage\":\"${STAGE}\""
     exit 1
+}
+
+# ── Telemetry ────────────────────────────────────────────────────────────────
+# Anonymous install analytics, sent to archcore.ai's first-party PostHog proxy.
+# Documented at https://archcore.ai/privacy. Three properties of this code are
+# load-bearing and must survive any refactor:
+#
+#   1. It can never fail the install. Every call is bounded by a short timeout,
+#      discards output, and ends in `|| true`.
+#   2. It can never run without a key injected at deploy time (see above), so
+#      the repository copy is inert.
+#   3. Opting out leaves no trace on disk — the id file below is created only
+#      after the opt-out check has already passed.
+telemetry_enabled() {
+    # A real PostHog project key, i.e. the deploy substitution happened.
+    case "$POSTHOG_KEY" in
+        phc_*) ;;
+        *) return 1 ;;
+    esac
+
+    # consoledonottrack.com, plus the tool-specific override. Any value other
+    # than empty or "0" opts out.
+    case "${DO_NOT_TRACK:-0}" in
+        ''|0) ;;
+        *) return 1 ;;
+    esac
+    case "${ARCHCORE_TELEMETRY_OPTOUT:-0}" in
+        ''|0) ;;
+        *) return 1 ;;
+    esac
+
+    command -v curl &>/dev/null || return 1
+    return 0
+}
+
+# A random, opaque, per-machine identifier — not derived from hostname, user
+# name or any hardware id, so it carries nothing about the machine it names.
+# Stored beside the update-check cache and under the same XDG rules as
+# updateCheckCachePath() in cmd/update.go, so the CLI's own telemetry can adopt
+# the same id later and join "installed" to "used" without a second identifier.
+install_id_path() {
+    printf '%s/archcore/install-id' "${XDG_STATE_HOME:-${HOME}/.local/state}"
+}
+
+# Prints "<id> <is_reinstall>". Empty output means the id was unavailable and
+# the caller must skip reporting.
+resolve_install_id() {
+    local path existing id
+    path="$(install_id_path)"
+
+    if [[ -r "$path" ]]; then
+        existing="$(tr -cd '0-9a-f' < "$path" 2>/dev/null || true)"
+        if [[ -n "$existing" ]]; then
+            printf '%s true' "$existing"
+            return 0
+        fi
+    fi
+
+    id="$(od -An -tx1 -N16 /dev/urandom 2>/dev/null | tr -cd '0-9a-f' || true)"
+    if [[ -z "$id" ]]; then
+        # /dev/urandom is absent in some minimal containers. Uniqueness matters
+        # more than unpredictability here, so pid+time is an adequate fallback.
+        id="$(printf '%s-%s' "$$" "${EPOCHSECONDS:-$(date +%s 2>/dev/null || printf '0')}" \
+            | { shasum -a 256 2>/dev/null || sha256sum 2>/dev/null; } \
+            | tr -cd '0-9a-f' | cut -c1-32 || true)"
+    fi
+    [[ -n "$id" ]] || return 1
+
+    mkdir -p "$(dirname "$path")" 2>/dev/null || true
+    printf '%s\n' "$id" > "$path" 2>/dev/null || true
+
+    printf '%s false' "$id"
+}
+
+# JSON string values are built from `uname` output already narrowed to fixed
+# words by detect_os/detect_arch, plus a version string from a github.com
+# redirect. The version is the one value with any external shape, so it is
+# filtered down to the semver alphabet before it reaches the payload.
+send_event() {
+    local event="$1"
+    local extra="${2:-}"
+
+    telemetry_enabled || return 0
+
+    local id_pair id is_reinstall
+    id_pair="$(resolve_install_id 2>/dev/null || true)"
+    [[ -n "$id_pair" ]] || return 0
+    id="${id_pair% *}"
+    is_reinstall="${id_pair##* }"
+
+    local ci="false"
+    if [[ -n "${CI:-}${GITHUB_ACTIONS:-}${GITLAB_CI:-}${BUILDKITE:-}${JENKINS_URL:-}${TEAMCITY_VERSION:-}" ]]; then
+        ci="true"
+    fi
+
+    local pinned="false"
+    [[ -z "$PINNED_VERSION" ]] || pinned="true"
+
+    local dir_default="false"
+    [[ "$INSTALL_DIR" != "$DEFAULT_INSTALL_DIR" ]] || dir_default="true"
+
+    local version_prop=""
+    if [[ -n "$TELEMETRY_VERSION" ]]; then
+        version_prop=",\"archcore_version\":\"$(printf '%s' "$TELEMETRY_VERSION" | tr -cd '0-9A-Za-z.+-')\""
+    fi
+
+    local payload
+    payload="$(printf '{"api_key":"%s","event":"%s","distinct_id":"%s","properties":{"source":"installer","installer":"install.sh","os":"%s","arch":"%s","is_reinstall":%s,"ci":%s,"pinned_version":%s,"install_dir_default":%s%s%s}}' \
+        "$POSTHOG_KEY" "$event" "$id" \
+        "$TELEMETRY_OS" "$TELEMETRY_ARCH" \
+        "$is_reinstall" "$ci" "$pinned" "$dir_default" \
+        "$version_prop" "$extra")"
+
+    curl -fsS -X POST --connect-timeout 2 --max-time 3 \
+        -H 'Content-Type: application/json' \
+        -d "$payload" "${POSTHOG_HOST}/i/v0/e/" >/dev/null 2>&1 || true
 }
 
 # ── Prerequisite check ──────────────────────────────────────────────────────
@@ -244,6 +385,7 @@ main() {
     fi
 
     # Prerequisites
+    STAGE="prereq"
     need_cmd curl
     need_cmd tar
     need_cmd uname
@@ -251,12 +393,16 @@ main() {
     info "Installing Archcore CLI..."
 
     # Platform
+    STAGE="platform"
     local os arch
     os=$(detect_os) || exit 1
     arch=$(detect_arch) || exit 1
+    TELEMETRY_OS="$os"
+    TELEMETRY_ARCH="$arch"
     info "Detected platform: ${os}/${arch}"
 
     # Version
+    STAGE="version"
     local version
     if [[ -n "$PINNED_VERSION" ]]; then
         version="${PINNED_VERSION#v}"
@@ -267,6 +413,7 @@ main() {
         version="${version#v}"
         info "Latest version: ${version}"
     fi
+    TELEMETRY_VERSION="$version"
 
     # Construct URLs
     local archive_name="${BINARY_NAME}_${os}_${arch}.tar.gz"
@@ -278,6 +425,7 @@ main() {
     trap 'rm -rf "$tmp_dir"' EXIT
 
     # Download archive
+    STAGE="download"
     local archive_path="${tmp_dir}/${archive_name}"
     info "Downloading ${archive_name}..."
     if ! download_file "$download_url" "$archive_path"; then
@@ -285,6 +433,7 @@ main() {
     fi
 
     # Download checksums
+    STAGE="checksum"
     info "Verifying checksum..."
     local checksums_path="${tmp_dir}/checksums.txt"
     if ! download_file "$checksums_url" "$checksums_path"; then
@@ -296,6 +445,7 @@ main() {
     success "Checksum verified"
 
     # Extract — try named binary first (tar slip mitigation), fallback to full
+    STAGE="extract"
     info "Extracting..."
     if ! tar -xzf "$archive_path" -C "$tmp_dir" "$BINARY_NAME" 2>/dev/null; then
         tar -xzf "$archive_path" -C "$tmp_dir"
@@ -316,6 +466,7 @@ main() {
     fi
 
     # Install
+    STAGE="install"
     info "Installing to ${INSTALL_DIR}..."
     install_binary "$extracted_binary" "$INSTALL_DIR"
     local install_path="${INSTALL_DIR}/${BINARY_NAME}"
@@ -331,6 +482,15 @@ main() {
     check_path "$INSTALL_DIR"
 
     success "Archcore CLI v${version} installed to ${install_path}"
+
+    STAGE="done"
+    send_event "cli_installed" ""
+    # Disclosure belongs next to the thing being disclosed, not only in the
+    # policy page. Printed after the success line so it never reads as an error,
+    # and only when an event was actually sent.
+    if telemetry_enabled; then
+        printf '%b\n' "${BLUE}==>${NC} Anonymous install ping sent (no personal data). Opt out with ${BOLD}DO_NOT_TRACK=1${NC} — https://archcore.ai/privacy"
+    fi
 }
 
 main "$@"

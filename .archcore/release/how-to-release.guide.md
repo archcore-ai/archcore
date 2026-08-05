@@ -59,6 +59,8 @@ Publish a new Archcore CLI release from a git tag, and keep the release aligned 
 
    Expected result: `archcore 1.0.0 (commit: <sha>)`.
 
+   Keep both install commands pointed at `raw.githubusercontent.com`, not at `archcore.ai`. The copies in this repository carry a `__POSTHOG_KEY__` placeholder, so a release check installs without reporting an install event. The published copies carry a real key, so switching these URLs would count every release verification as a user install. See install-script-usage.guide.md.
+
 ## Coordinated release with the Claude plugin
 
 The plugin's `SKILL.md` pins a minimum CLI version — currently `v0.6.1`, the `CLAUDE.md` and `AGENTS.md` nudge layout — and gates `/archcore:init` on it. An older `archcore --version` makes the plugin skip the `install_host_config` MCP tool and ask the user to update. The constant and the CLI release tag must agree, and the order matters.
@@ -87,6 +89,16 @@ When planning such a release:
 2. Ship the parser and validation change in an earlier, separate release from the feature that writes the new field, so a user on the intermediate version upgrades smoothly in either order.
 3. Do not backport a new config field to a branch whose parser is still strict.
 
+## Publishing an installer change
+
+An installer change follows a different path from a release. It is not tag-driven: it ships when the change reaches `main`, by pull request or by direct push.
+
+1. `Install Smoke` runs on both routes — pull requests and direct pushes to `main`. It is the only gate on the PowerShell 5.1 path.
+2. `Notify Landing` runs only after a **successful** `Install Smoke` on `main`, and dispatches the redeploy to `archcore-ai/landing`.
+3. The landing deploy re-fetches both installers, substitutes the PostHog key, and republishes them.
+
+Therefore a red or flaky smoke run blocks publication. Run `Notify Landing` manually to override.
+
 ## Verification
 
 - The GitHub Release page shows 6 archives (4 `.tar.gz` for darwin and linux on amd64 and arm64, 2 `.zip` for windows on amd64 and arm64) plus `checksums.txt`.
@@ -111,3 +123,4 @@ The related reference document on release infrastructure carries the full build 
 - The wrong commit was tagged. Delete the remote tag, re-tag the correct commit, and push again.
 - `install.sh` or `install.ps1` cannot find the release. Confirm that the tag follows the `v*` pattern, for example `v1.0.0` rather than `1.0.0`.
 - The Windows zips are missing from the release. Confirm that `format_overrides` in `@.goreleaser.yaml` still maps `windows` to `zip`. Otherwise GoReleaser falls back to `.tar.gz` and `install.ps1` does not find the expected archives.
+- An installer fix is merged but archcore.ai still serves the old script. Check that `Install Smoke` passed on `main`; `Notify Landing` will not dispatch after a failed run.

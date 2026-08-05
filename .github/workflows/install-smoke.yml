@@ -6,7 +6,32 @@ on:
       - "install.sh"
       - "install.ps1"
       - ".github/workflows/install-smoke.yml"
+  # Direct pushes to main are a normal way to ship an installer fix here, and
+  # without this trigger those land completely unverified — the PowerShell 5.1
+  # path in particular has no other gate. Scoped to main on purpose: a push to
+  # a feature branch that also has a PR open would otherwise run this twice.
+  #
+  # Read this as a detector, not a gate. It starts after the commit is already
+  # on main, so it cannot block a bad installer from being published — see the
+  # workflow_run wiring in notify-landing.yml, which is what holds the
+  # archcore.ai redeploy until these jobs pass.
+  push:
+    branches: [main]
+    paths:
+      - "install.sh"
+      - "install.ps1"
+      - ".github/workflows/install-smoke.yml"
   workflow_dispatch:
+
+# Second line of defence for install telemetry. Every job below runs the copy of
+# the installer committed to this repo, where the PostHog key is still the
+# `__POSTHOG_KEY__` placeholder — archcore.ai substitutes the real key only when
+# it syncs the script into public/ — so these runs are already inert. This makes
+# that inertness explicit rather than incidental, so a future step that fetches
+# the published installer instead cannot start reporting hundreds of phantom CI
+# installs before anyone notices.
+env:
+  DO_NOT_TRACK: "1"
 
 jobs:
   windows:
