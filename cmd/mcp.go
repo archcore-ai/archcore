@@ -8,8 +8,8 @@ import (
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
+	"archcore-cli/internal/docs"
 	mcpserver "archcore-cli/internal/mcp"
-	"archcore-cli/internal/mcp/tools"
 
 	"github.com/spf13/cobra"
 )
@@ -67,7 +67,7 @@ func newMCPCmd(version string) *cobra.Command {
 // warning but does not block startup. A present-but-invalid settings.json also
 // aborts, rather than starting with globals silently dropped from the read path.
 func checkGlobals(baseDir string) error {
-	inspections, err := tools.InspectGlobals(baseDir)
+	inspections, err := docs.InspectGlobals(baseDir)
 	if err != nil {
 		// A present-but-invalid settings.json must not start silently: the read
 		// path degrades to "no globals" without signal, the exact failure the
@@ -76,11 +76,11 @@ func checkGlobals(baseDir string) error {
 	}
 	for _, in := range inspections {
 		switch {
-		case in.State == tools.GlobalEmpty:
+		case in.State == docs.GlobalEmpty:
 			fmt.Fprintln(os.Stderr, display.WarnLine(in.Message()+" — starting anyway"))
 		case in.State.Fatal():
 			suffix := " — fix .archcore/settings.json before starting the MCP server"
-			if in.State == tools.GlobalMissing {
+			if in.State == docs.GlobalMissing {
 				suffix = " — clone it before starting the MCP server"
 			}
 			return errors.New(in.Message() + suffix)

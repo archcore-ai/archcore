@@ -58,15 +58,6 @@ func setupSyncTestDirNoPID(t *testing.T) string {
 	return baseDir
 }
 
-func writeSyncDoc(t *testing.T, baseDir, relPath, content string) {
-	t.Helper()
-	absPath := filepath.Join(baseDir, ".archcore", relPath)
-	os.MkdirAll(filepath.Dir(absPath), 0o755)
-	if err := os.WriteFile(absPath, []byte(content), 0o644); err != nil {
-		t.Fatalf("WriteFile %s: %v", relPath, err)
-	}
-}
-
 func testPreconditions(baseDir string) *syncPreconditions {
 	pid := 1
 	return &syncPreconditions{
@@ -216,7 +207,7 @@ func TestCheckSyncPreconditions_OnPremServerURL(t *testing.T) {
 
 func TestRunSync_DryRun_DoesNotUpdateManifest(t *testing.T) {
 	baseDir := setupSyncTestDir(t)
-	writeSyncDoc(t, baseDir, "vision/test.adr.md", "# Test ADR")
+	writeArchcoreDoc(t, baseDir, "vision/test.adr.md", "# Test ADR")
 
 	mock := &mockSyncClient{}
 	flags := &syncFlags{DryRun: true, CI: true}
@@ -240,7 +231,7 @@ func TestRunSync_DryRun_DoesNotUpdateManifest(t *testing.T) {
 
 func TestRunSync_Force_ResyncsUnchangedFiles(t *testing.T) {
 	baseDir := setupSyncTestDir(t)
-	writeSyncDoc(t, baseDir, "vision/test.adr.md", "# Test ADR")
+	writeArchcoreDoc(t, baseDir, "vision/test.adr.md", "# Test ADR")
 
 	// Create a manifest that already has the file with the correct hash,
 	// so a normal sync would consider it unchanged.
@@ -279,7 +270,7 @@ func TestRunSync_Force_ResyncsUnchangedFiles(t *testing.T) {
 
 func TestRunSync_Force_DetectsDeletions(t *testing.T) {
 	baseDir := setupSyncTestDir(t)
-	writeSyncDoc(t, baseDir, "vision/existing.adr.md", "# Existing")
+	writeArchcoreDoc(t, baseDir, "vision/existing.adr.md", "# Existing")
 
 	// Manifest has an extra file that no longer exists on disk.
 	m := archsync.NewManifest()
@@ -333,7 +324,7 @@ func TestRunSync_Force_DetectsDeletions(t *testing.T) {
 
 func TestRunSync_NoChanges_ShortCircuit(t *testing.T) {
 	baseDir := setupSyncTestDir(t)
-	writeSyncDoc(t, baseDir, "vision/test.adr.md", "# Test ADR")
+	writeArchcoreDoc(t, baseDir, "vision/test.adr.md", "# Test ADR")
 
 	// Create manifest that exactly matches on-disk state.
 	currentFiles, err := archsync.ScanFiles(baseDir)
@@ -363,8 +354,8 @@ func TestRunSync_NoChanges_ShortCircuit(t *testing.T) {
 
 func TestRunSync_EndToEnd(t *testing.T) {
 	baseDir := setupSyncTestDir(t)
-	writeSyncDoc(t, baseDir, "vision/plan.plan.md", "# Plan")
-	writeSyncDoc(t, baseDir, "knowledge/adr.adr.md", "# ADR")
+	writeArchcoreDoc(t, baseDir, "vision/plan.plan.md", "# Plan")
+	writeArchcoreDoc(t, baseDir, "knowledge/adr.adr.md", "# ADR")
 
 	mock := &mockSyncClient{
 		resp: &api.SyncResponse{
@@ -414,7 +405,7 @@ func TestRunSync_EndToEnd(t *testing.T) {
 
 func TestRunSync_AutoCreateProject(t *testing.T) {
 	baseDir := setupSyncTestDirNoPID(t)
-	writeSyncDoc(t, baseDir, "vision/plan.plan.md", "# Plan")
+	writeArchcoreDoc(t, baseDir, "vision/plan.plan.md", "# Plan")
 
 	mock := &mockSyncClient{
 		resp: &api.SyncResponse{
@@ -458,7 +449,7 @@ func TestRunSync_AutoCreateProject(t *testing.T) {
 func TestRunSync_PayloadHasFrontmatter(t *testing.T) {
 	baseDir := setupSyncTestDir(t)
 	content := "---\ntitle: My ADR\nstatus: accepted\n---\n\n# Body"
-	writeSyncDoc(t, baseDir, "vision/test.adr.md", content)
+	writeArchcoreDoc(t, baseDir, "vision/test.adr.md", content)
 
 	mock := &mockSyncClient{
 		resp: &api.SyncResponse{
@@ -497,7 +488,7 @@ func TestDeriveProjectName(t *testing.T) {
 
 func TestRunSync_AutoCreate_NoGitRepo_RepoURLNil(t *testing.T) {
 	baseDir := setupSyncTestDirNoPID(t)
-	writeSyncDoc(t, baseDir, "vision/plan.plan.md", "# Plan")
+	writeArchcoreDoc(t, baseDir, "vision/plan.plan.md", "# Plan")
 
 	mock := &mockSyncClient{
 		resp: &api.SyncResponse{
@@ -523,7 +514,7 @@ func TestRunSync_AutoCreate_NoGitRepo_RepoURLNil(t *testing.T) {
 
 func TestRunSync_AutoCreate_WithGitRepo_RepoURLPopulated(t *testing.T) {
 	baseDir := setupSyncTestDirNoPID(t)
-	writeSyncDoc(t, baseDir, "vision/plan.plan.md", "# Plan")
+	writeArchcoreDoc(t, baseDir, "vision/plan.plan.md", "# Plan")
 
 	// Initialize a git repo with a remote in the test directory.
 	for _, args := range [][]string{
@@ -564,7 +555,7 @@ func TestRunSync_AutoCreate_WithGitRepo_RepoURLPopulated(t *testing.T) {
 
 func TestRunSync_ExistingProject_NoRepoURL(t *testing.T) {
 	baseDir := setupSyncTestDir(t)
-	writeSyncDoc(t, baseDir, "vision/plan.plan.md", "# Plan")
+	writeArchcoreDoc(t, baseDir, "vision/plan.plan.md", "# Plan")
 
 	// Initialize a git repo — RepoURL should still be nil because project_id is set.
 	for _, args := range [][]string{
@@ -600,7 +591,7 @@ func TestRunSync_ExistingProject_NoRepoURL(t *testing.T) {
 func TestDoSync_ClientError_CI(t *testing.T) {
 	t.Parallel()
 	baseDir := setupSyncTestDir(t)
-	writeSyncDoc(t, baseDir, "knowledge/a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
+	writeArchcoreDoc(t, baseDir, "knowledge/a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
 
 	mock := &mockSyncClient{err: context.DeadlineExceeded}
 	flags := &syncFlags{CI: true}
@@ -623,8 +614,8 @@ func TestDoSync_ClientError_CI(t *testing.T) {
 func TestDoSync_PartialFailure_RejectedFilesNotRecorded(t *testing.T) {
 	t.Parallel()
 	baseDir := setupSyncTestDir(t)
-	writeSyncDoc(t, baseDir, "knowledge/good.adr.md", "---\ntitle: Good\nstatus: draft\n---\n\nbody")
-	writeSyncDoc(t, baseDir, "knowledge/bad.adr.md", "---\ntitle: Bad\nstatus: draft\n---\n\nbody")
+	writeArchcoreDoc(t, baseDir, "knowledge/good.adr.md", "---\ntitle: Good\nstatus: draft\n---\n\nbody")
+	writeArchcoreDoc(t, baseDir, "knowledge/bad.adr.md", "---\ntitle: Bad\nstatus: draft\n---\n\nbody")
 
 	// Seed a manifest with a file that no longer exists on disk (a deletion)
 	// which the server will reject.
@@ -669,7 +660,7 @@ func TestDoSync_PartialFailure_RejectedFilesNotRecorded(t *testing.T) {
 func TestDoSync_AcceptedDeletionRemoved(t *testing.T) {
 	t.Parallel()
 	baseDir := setupSyncTestDir(t)
-	writeSyncDoc(t, baseDir, "knowledge/kept.adr.md", "---\ntitle: K\nstatus: draft\n---\n\nbody")
+	writeArchcoreDoc(t, baseDir, "knowledge/kept.adr.md", "---\ntitle: K\nstatus: draft\n---\n\nbody")
 
 	m := archsync.NewManifest()
 	m.Files["knowledge/old.adr.md"] = strings.Repeat("b", 64)

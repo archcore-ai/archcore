@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"archcore-cli/internal/config"
+	"archcore-cli/internal/docs"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -13,25 +14,28 @@ import (
 // TestIsReservedGlobalDir covers the any-depth segment match that keeps the
 // write/relation guard in agreement with the local-scan skip (BUG-1).
 func TestIsReservedGlobalDir(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
+		name string
 		path string
 		want bool
 	}{
-		{".archcore/global", true},
-		{".archcore/global/x.rule.md", true},
-		{".archcore/global/company/knowledge/react-query.rule.md", true},
-		{".archcore/integrations/global/deep.rule.md", true}, // nested: any depth
-		{".archcore/a/b/global/c.rule.md", true},
-		{".archcore/global-ish/x.rule.md", false},     // substring, not a segment
-		{".archcore/knowledge/global.rule.md", false}, // "global" in filename, not a dir
-		{".archcore/knowledge/local.rule.md", false},
-		{"global/x.rule.md", false}, // not under .archcore/
-		{"", false},
+		{name: "reserved root", path: ".archcore/global", want: true},
+		{name: "document directly under the reserved root", path: ".archcore/global/x.rule.md", want: true},
+		{name: "document deep under the reserved root", path: ".archcore/global/company/knowledge/react-query.rule.md", want: true},
+		{name: "reserved segment one level deep", path: ".archcore/integrations/global/deep.rule.md", want: true},
+		{name: "reserved segment at any depth", path: ".archcore/a/b/global/c.rule.md", want: true},
+		{name: "substring is not a segment", path: ".archcore/global-ish/x.rule.md", want: false},
+		{name: "global in the filename is not a directory", path: ".archcore/knowledge/global.rule.md", want: false},
+		{name: "ordinary local document", path: ".archcore/knowledge/local.rule.md", want: false},
+		{name: "outside .archcore/", path: "global/x.rule.md", want: false},
+		{name: "empty path", path: "", want: false},
 	}
-	for _, tc := range cases {
-		if got := isReservedGlobalDir(tc.path); got != tc.want {
-			t.Errorf("isReservedGlobalDir(%q) = %v, want %v", tc.path, got, tc.want)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := docs.IsReservedGlobalDir(tt.path); got != tt.want {
+				t.Errorf("IsReservedGlobalDir(%q) = %v, want %v", tt.path, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -46,9 +50,9 @@ func TestScanDocuments_SkipsNestedGlobalDir(t *testing.T) {
 	writeGlobalDoc(t, base, ".archcore/integrations/global", "knowledge", "deep.rule.md",
 		"---\ntitle: \"Deep Nested\"\nstatus: accepted\n---\n\nbody\n")
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
-		t.Fatalf("ScanDocuments: %v", err)
+		t.Fatalf("scanDocuments: %v", err)
 	}
 	if len(docs) != 1 {
 		t.Errorf("want 1 doc (nested global/ skipped), got %d", len(docs))

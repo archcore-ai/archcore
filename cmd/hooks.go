@@ -18,14 +18,40 @@ func newHooksCmd(version string) *cobra.Command {
 		Use:   "hooks",
 		Short: "Manage agent hooks integration",
 	}
-	cmd.AddCommand(
-		newHooksInstallCmd(),
-		newHooksClaudeCodeCmd(version),
-		newHooksCursorCmd(version),
-		newHooksGeminiCLICmd(version),
-		newHooksCopilotCmd(version),
-	)
+	// Arbitrary args plus a RunE that falls back to help: `archcore hooks` with
+	// no argument is a human asking what this does, but `archcore hooks <host>`
+	// with an unrecognized host is a hook firing. Without this, cobra answers the
+	// second case by printing usage to stdout — the hook's protocol channel.
+	cmd.Args = cobra.ArbitraryArgs
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return cmd.Help()
+		}
+		return nil
+	}
+
+	cmd.AddCommand(newHooksInstallCmd())
+	for _, d := range hookDialects {
+		cmd.AddCommand(newHookHostCmd(d, version))
+	}
 	return cmd
+}
+
+// printEffectiveHookNotes reports whether a host will actually read the config
+// just written for it. Silence means it will.
+func printEffectiveHookNotes(baseDir string, id agents.AgentID) {
+	for _, note := range wiring.DescribeEffectiveHooks(baseDir, id) {
+		fmt.Println(display.WarnLine(note))
+	}
+}
+
+// printPluginConflictNote reports an installed plugin whose hooks may fire
+// alongside these. It describes the machine, not an agent, so callers that
+// install for several agents print it once after the loop.
+func printPluginConflictNote() {
+	if note := wiring.DescribePluginConflict(); note != "" {
+		fmt.Println(display.WarnLine(note))
+	}
 }
 
 func newHooksInstallCmd() *cobra.Command {
@@ -77,6 +103,9 @@ func runHooksInstallForAgent(baseDir string, id agents.AgentID) error {
 		// Hookless agents still get their MCP config, matching the
 		// auto-detect path (installAgents).
 		fmt.Println(display.WarnLine(fmt.Sprintf("%s does not support hooks", agent.DisplayName)))
+	} else {
+		printEffectiveHookNotes(baseDir, agent.ID)
+		printPluginConflictNote()
 	}
 	if err := installMCPForAgent(baseDir, agent); err != nil {
 		return err
@@ -107,15 +136,22 @@ func runHooksInstallAutoDetect(baseDir string) error {
 // in list, logging per-agent failures as warnings without aborting the loop.
 // Shared by 'archcore init' and 'archcore hooks install' auto-detect paths.
 func installAgents(baseDir string, list []*agents.Agent) {
+	anyHooks := false
 	for _, agent := range list {
 		installed, err := wiring.InstallHooksForAgent(baseDir, agent)
 		if err != nil {
 			fmt.Println(display.WarnLine(fmt.Sprintf("%s hooks: %v", agent.DisplayName, err)))
 		} else if !installed {
 			fmt.Println(display.Dim.Render(fmt.Sprintf("  Skipping hooks for %s (not supported)", agent.DisplayName)))
+		} else {
+			anyHooks = true
+			printEffectiveHookNotes(baseDir, agent.ID)
 		}
 		if err := installMCPForAgent(baseDir, agent); err != nil {
 			fmt.Println(display.WarnLine(fmt.Sprintf("%s MCP: %v", agent.DisplayName, err)))
 		}
+	}
+	if anyHooks {
+		printPluginConflictNote()
 	}
 }

@@ -5,13 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
-	"archcore-cli/internal/mcp/tools"
+	"archcore-cli/internal/docs"
 	archsync "archcore-cli/internal/sync"
 	"archcore-cli/templates"
 
@@ -50,214 +52,214 @@ func runStatus(baseDir string) int {
 // runStatusChecks performs all read-only validation checks without printing a summary.
 // It is used by both the status and doctor commands.
 func runStatusChecks(baseDir string) int {
+	report := collectStatus(baseDir)
+	report.print()
+	return report.issues()
+}
+
+// collectStatus runs every check and returns the result as data, printing
+// nothing. The hook path uses it; runStatusChecks prints what it returns.
+func collectStatus(baseDir string) *statusReport {
+	r := &statusReport{}
+
 	if !config.DirExists(baseDir) {
-		fmt.Println(display.FailLine(".archcore/ directory not found"))
-		fmt.Println(display.HintLine("Run 'archcore init' to set up"))
-		return 1
+		r.fail(".archcore/ directory not found")
+		r.hint("Run 'archcore init' to set up")
+		return r
 	}
 
-	issues := 0
-	fmt.Println(display.CheckLine(".archcore/ exists"))
-	issues += checkFiles(baseDir)
-	issues += checkGlobalSources(baseDir)
-	// Tag hygiene checks only local documents: mounted read-only globals belong to
-	// their own repo and the consumer cannot fix their tags. Scanning local documents
-	// only also keeps these checks running even when a declared global is broken —
-	// that is reported by checkGlobalSources above.
-	docs, scanErr := tools.ScanLocalDocuments(baseDir)
-	issues += checkTagHygiene(localDocuments(docs), scanErr)
-	issues += checkManifest(baseDir)
-	return issues
+	r.ok(".archcore/ exists")
+
+	// One scan serves every document check below. The post-tool-use hook runs
+	// this on every document mutation, and the structural checks used to re-read
+	// each file with os.ReadFile — bypassing the scan cache and doubling the I/O.
+	//
+	// Local only: mounted read-only globals belong to their own repo and the
+	// consumer cannot fix their naming or tags. Their health is reported by
+	// checkGlobalSources, which is also why these checks keep running when a
+	// declared global is broken.
+	corpus, scanErr := docs.ScanLocal(baseDir, true)
+
+	r.merge(checkFiles(corpus, scanErr))
+	r.merge(checkGlobalSources(baseDir))
+	r.merge(checkTagHygiene(localDocuments(corpus), scanErr))
+	r.merge(checkManifest(baseDir))
+	return r
 }
 
 // checkGlobalSources reports the health of declared global sources. Fatal states
 // (missing, not a directory, unreadable, self-overlap, duplicate path) and a
 // present-but-invalid settings.json are counted as issues; an empty source is a
-// warning only. Returns the issue count.
-func checkGlobalSources(baseDir string) int {
-	inspections, err := tools.InspectGlobals(baseDir)
+// warning only.
+func checkGlobalSources(baseDir string) *statusReport {
+	r := &statusReport{}
+
+	inspections, err := docs.InspectGlobals(baseDir)
 	if err != nil {
-		fmt.Println(display.FailLine(fmt.Sprintf("invalid .archcore/settings.json: %v", err)))
-		return 1
+		r.failf("invalid .archcore/settings.json: %v", err)
+		return r
 	}
-	issues := 0
 	for _, in := range inspections {
 		switch {
-		case in.State == tools.GlobalEmpty:
-			fmt.Println(display.WarnLine(in.Message()))
+		case in.State == docs.GlobalEmpty:
+			r.warnf("%s", in.Message())
 		case in.State.Fatal():
-			issues++
-			fmt.Println(display.FailLine(in.Message()))
+			r.failf("%s", in.Message())
 		default: // GlobalOK
-			fmt.Println(display.CheckLine(fmt.Sprintf("global source %q (%d document(s))", in.ID, in.Docs)))
+			r.okf("global source %q (%d document(s))", in.ID, in.Docs)
 		}
 	}
-	return issues
+	return r
 }
 
-func checkFiles(baseDir string) int {
-	issues := 0
-	archcoreDir := filepath.Join(baseDir, ".archcore")
-
-	walkErr := templates.WalkArchcoreFilesSkipping(archcoreDir, []string{"global"}, func(path string, d fs.DirEntry) error {
-		name := d.Name()
-
-		relPath, err := filepath.Rel(baseDir, path)
-		if err != nil {
-			relPath = path
-		}
-		relPath = filepath.ToSlash(relPath)
-
-		issues += checkNaming(relPath, name)
-
-		// Check type validity (but no category placement check — directory is free-form).
-		docType := templates.ExtractDocType(name)
-		if docType != "" && !templates.IsValidType(docType) {
-			issues++
-			fmt.Println(display.FailLine(fmt.Sprintf("%s: unknown document type %q", relPath, docType)))
-			fmt.Println(display.HintLine(fmt.Sprintf("valid types: %s", strings.Join(templates.ValidTypes(), ", "))))
-		}
-
-		issues += checkFrontmatter(path, relPath)
-		return nil
-	})
-	if walkErr != nil {
-		issues++
-		fmt.Println(display.FailLine(fmt.Sprintf("error scanning .archcore/: %v", walkErr)))
+func checkFiles(corpus []docs.Document, scanErr error) *statusReport {
+	r := &statusReport{}
+	if scanErr != nil {
+		r.failf("error scanning .archcore/: %v", scanErr)
+		return r
 	}
 
-	return issues
+	for _, doc := range corpus {
+		r.merge(checkNaming(doc.Path, doc.Filename))
+
+		// Type validity only — no category placement check, the directory is
+		// free-form.
+		if doc.Type != "" && !templates.IsValidType(string(doc.Type)) {
+			r.failf("%s: unknown document type %q", doc.Path, doc.Type)
+			r.hintf("valid types: %s", strings.Join(templates.ValidTypes(), ", "))
+		}
+
+		r.merge(checkFrontmatter(doc.Content, doc.Path))
+	}
+
+	return r
 }
 
-func checkNaming(relPath, filename string) int {
-	issues := 0
+func checkNaming(relPath, filename string) *statusReport {
+	r := &statusReport{}
 	name := strings.TrimSuffix(filename, ".md")
 	parts := strings.Split(name, ".")
 
 	if len(parts) < 2 {
-		issues++
-		fmt.Println(display.FailLine(fmt.Sprintf("%s: filename must match <slug>.<type>.md", relPath)))
-		fmt.Println(display.HintLine("example: oauth-user.adr.md"))
-		return issues
+		r.failf("%s: filename must match <slug>.<type>.md", relPath)
+		r.hint("example: oauth-user.adr.md")
+		// Without a type segment there is no slug to validate.
+		return r
 	}
 
 	slug := strings.Join(parts[:len(parts)-1], ".")
 	if !templates.SlugRe.MatchString(slug) {
-		issues++
-		fmt.Println(display.FailLine(fmt.Sprintf("%s: slug must be lowercase alphanumeric with hyphens", relPath)))
-		fmt.Println(display.HintLine("example: my-feature"))
+		r.failf("%s: slug must be lowercase alphanumeric with hyphens", relPath)
+		r.hint("example: my-feature")
 	}
 
-	return issues
+	return r
 }
 
-func checkFrontmatter(absPath, relPath string) int {
-	issues := 0
+// checkFrontmatter validates one document's structure. It takes the text the
+// scan already read; a file the scan could not read arrives as an empty string
+// and is reported as missing frontmatter, which is what it looks like from here.
+func checkFrontmatter(raw, relPath string) *statusReport {
+	r := &statusReport{}
 
-	data, err := os.ReadFile(absPath)
-	if err != nil {
-		issues++
-		fmt.Println(display.FailLine(fmt.Sprintf("%s: cannot read file: %v", relPath, err)))
-		return issues
-	}
 	// Normalize CRLF and strip a UTF-8 BOM before structural checks, matching
 	// templates.SplitDocument — a Windows-edited document is not "missing"
 	// its frontmatter.
-	content := strings.ReplaceAll(string(data), "\r\n", "\n")
+	content := strings.ReplaceAll(raw, "\r\n", "\n")
 	content = strings.TrimPrefix(content, "\ufeff")
 
-	// Check for frontmatter delimiters.
+	// Each structural failure below returns: once the frontmatter block cannot
+	// be located or parsed, every later check would report a consequence of the
+	// same defect.
 	if !strings.HasPrefix(content, "---\n") {
-		issues++
-		fmt.Println(display.FailLine(fmt.Sprintf("%s: missing YAML frontmatter", relPath)))
-		fmt.Println(display.HintLine("file must start with --- delimiters"))
-		return issues
+		r.failf("%s: missing YAML frontmatter", relPath)
+		r.hint("file must start with --- delimiters")
+		return r
 	}
 
 	endIdx := strings.Index(content[4:], "\n---")
 	if endIdx < 0 {
-		issues++
-		fmt.Println(display.FailLine(fmt.Sprintf("%s: missing closing --- delimiter", relPath)))
-		return issues
+		r.failf("%s: missing closing --- delimiter", relPath)
+		return r
 	}
 
 	fmContent := content[4 : 4+endIdx]
 
 	var fm map[string]any
 	if err := yaml.Unmarshal([]byte(fmContent), &fm); err != nil {
-		issues++
-		fmt.Println(display.FailLine(fmt.Sprintf("%s: invalid YAML in frontmatter", relPath)))
-		fmt.Println(display.HintLine(err.Error()))
-		return issues
+		r.failf("%s: invalid YAML in frontmatter", relPath)
+		r.hintf("%s", err.Error())
+		return r
 	}
 
 	// Check required fields.
 	for _, field := range []string{"title", "status"} {
 		val, ok := fm[field]
 		if !ok {
-			issues++
-			fmt.Println(display.FailLine(fmt.Sprintf("%s: missing required field %q", relPath, field)))
+			r.failf("%s: missing required field %q", relPath, field)
 		} else if str, isStr := val.(string); isStr && str == "" {
-			issues++
-			fmt.Println(display.FailLine(fmt.Sprintf("%s: missing required field %q", relPath, field)))
+			r.failf("%s: missing required field %q", relPath, field)
 		}
 	}
 
-	return issues
+	return r
 }
 
-func checkTagHygiene(docs []tools.LocalDocument, scanErr error) int {
-	issues := 0
+func checkTagHygiene(corpus []docs.Document, scanErr error) *statusReport {
+	r := &statusReport{}
+
 	if scanErr != nil {
-		issues++
-		fmt.Println(display.FailLine(fmt.Sprintf("error scanning documents for tag check: %v", scanErr)))
-		return issues
+		r.failf("error scanning documents for tag check: %v", scanErr)
+		return r
 	}
 
 	tagCount := make(map[string]int)
-	for _, doc := range docs {
+	for _, doc := range corpus {
 		for _, tag := range doc.Tags {
 			if !templates.TagRe.MatchString(tag) {
-				issues++
-				fmt.Println(display.FailLine(fmt.Sprintf("%s: invalid tag %q", doc.Path, tag)))
+				r.failf("%s: invalid tag %q", doc.Path, tag)
 				continue
 			}
 			tagCount[tag]++
 		}
 	}
 
-	// Warn about singleton tags (possible typos).
-	for tag, count := range tagCount {
-		if count == 1 {
-			fmt.Println(display.WarnLine(fmt.Sprintf("tag %q is used only once (possible typo)", tag)))
+	// Warn about singleton tags (possible typos). A warning is not an issue, so
+	// a corpus with only singletons still reports hygiene as OK below.
+	//
+	// Sorted, because this output is user-visible and also reaches an agent
+	// through the PostToolUse hook: ranging the map made an unchanged corpus
+	// print its warnings in a different order every run.
+	for _, tag := range slices.Sorted(maps.Keys(tagCount)) {
+		if tagCount[tag] == 1 {
+			r.warnf("tag %q is used only once (possible typo)", tag)
 		}
 	}
 
-	if issues == 0 {
-		fmt.Println(display.CheckLine(fmt.Sprintf("Tag hygiene OK (%d unique tag(s))", len(tagCount))))
+	if r.issues() == 0 {
+		r.okf("Tag hygiene OK (%d unique tag(s))", len(tagCount))
 	}
 
-	return issues
+	return r
 }
 
-func checkManifest(baseDir string) int {
-	issues := 0
+func checkManifest(baseDir string) *statusReport {
+	r := &statusReport{}
 	manifestPath := filepath.Join(baseDir, ".archcore", archsync.ManifestFile)
 
 	data, err := os.ReadFile(manifestPath)
 	if errors.Is(err, fs.ErrNotExist) {
-		fmt.Println(display.CheckLine("No sync manifest (first sync pending)"))
-		return 0
+		r.ok("No sync manifest (first sync pending)")
+		return r
 	}
 	if err != nil {
-		fmt.Println(display.FailLine(fmt.Sprintf("Cannot read sync manifest: %v", err)))
-		return 1
+		r.failf("Cannot read sync manifest: %v", err)
+		return r
 	}
 
 	jsonIssues := archsync.ValidateManifestJSON(data)
 	for _, issue := range jsonIssues {
-		issues++
-		fmt.Println(display.FailLine(fmt.Sprintf("Sync manifest: %s", issue)))
+		r.failf("Sync manifest: %s", issue)
 	}
 
 	if len(jsonIssues) == 0 {
@@ -268,33 +270,32 @@ func checkManifest(baseDir string) int {
 			}
 			semIssues := archsync.ValidateManifest(&m)
 			for _, issue := range semIssues {
-				issues++
-				fmt.Println(display.FailLine(fmt.Sprintf("Sync manifest: %s", issue)))
+				r.failf("Sync manifest: %s", issue)
 			}
 
 			danglingIssues := checkDanglingRelations(baseDir, m.Relations)
 			for _, issue := range danglingIssues {
-				issues++
-				fmt.Println(display.FailLine(fmt.Sprintf("Sync manifest: %s", issue)))
+				r.failf("Sync manifest: %s", issue)
 			}
+			// One hint for the whole batch, not one per orphaned relation.
 			if len(danglingIssues) > 0 {
-				fmt.Println(display.HintLine("Run 'archcore doctor --fix' to remove orphaned relations"))
+				r.hint("Run 'archcore doctor --fix' to remove orphaned relations")
 			}
 
 			if len(semIssues) == 0 && len(danglingIssues) == 0 {
-				fmt.Println(display.CheckLine(fmt.Sprintf("Sync manifest valid (%d file(s) tracked, %d relation(s))", len(m.Files), len(m.Relations))))
+				r.okf("Sync manifest valid (%d file(s) tracked, %d relation(s))", len(m.Files), len(m.Relations))
 			}
 		} else {
-			issues++
-			fmt.Println(display.FailLine(fmt.Sprintf("Sync manifest: invalid JSON: %v", err)))
+			r.failf("Sync manifest: invalid JSON: %v", err)
 		}
 	}
 
-	if issues > 0 {
-		fmt.Println(display.HintLine("Delete .archcore/.sync-state.json and re-sync"))
+	// Likewise: one closing hint per check, however many manifest issues there were.
+	if r.issues() > 0 {
+		r.hint("Delete .archcore/.sync-state.json and re-sync")
 	}
 
-	return issues
+	return r
 }
 
 // fixManifest removes orphaned relations from the sync manifest.

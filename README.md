@@ -117,8 +117,6 @@ Creates `backend/error-wrapping.rule.md` with imperative guidance, rationale, an
 
 Creates `incidents/connection-pool-exhaustion.cpat.md` with root-cause analysis and prevention steps.
 
-For bigger flows, MCP prompts orchestrate whole document cascades — `/product_track feature="user notifications"` drafts an idea, derives a PRD, builds an implementation plan, and links them together.
-
 ## How it compares
 
 | If you rely on…                                          | The gap                                                                           | What Archcore does instead                                                                          |
@@ -133,7 +131,7 @@ For bigger flows, MCP prompts orchestrate whole document cascades — `/product_
 
 ## Reference
 
-What ships in the box: **19 document types**, **4 relation types**, **10 MCP tools**, **5 multi-document prompts**, hook integrations for 4 agents and MCP integrations for 8.
+What ships in the box: **19 document types**, **4 relation types**, **10 MCP tools**, hook integrations for 4 agents and MCP integrations for 8.
 
 <details>
 <summary><strong>Document types</strong> — 19 types across vision, knowledge, and experience</summary>
@@ -205,23 +203,11 @@ Valid statuses: `draft`, `accepted`, `rejected`. Tags are optional and free-form
 </details>
 
 <details>
-<summary><strong>MCP tools, prompts, and relations</strong></summary>
+<summary><strong>MCP tools and relations</strong></summary>
 
 ### MCP tools
 
 10 tools: `init_project`, `list_documents`, `get_document`, `search_documents`, `create_document`, `update_document`, `remove_document`, `add_relation`, `remove_relation`, `list_relations`. The server also works in an empty repo — agents can bootstrap `.archcore/` themselves via `init_project`.
-
-### Prompts
-
-Prompts orchestrate full document cascades in one call. Most MCP-compatible agents surface them as slash commands (the exact prefix depends on the client):
-
-| Prompt               | What it does                                          |
-| -------------------- | ----------------------------------------------------- |
-| `product_track`      | idea → PRD → plan (lightweight feature flow)          |
-| `architecture_track` | ADR → spec → plan (technical design + implementation) |
-| `standard_track`     | ADR → rule → guide (codify a team standard)           |
-| `sources_track`      | MRD → BRD → URD (market / business / user discovery)  |
-| `iso_track`          | BRS → StRS → SyRS → SRS (formal ISO 29148 cascade)    |
 
 ### Relations
 

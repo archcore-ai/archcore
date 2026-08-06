@@ -29,6 +29,19 @@ PINNED_VERSION="${ARCHCORE_VERSION:-}"
 POSTHOG_KEY="__POSTHOG_KEY__"
 POSTHOG_HOST="https://ph.archcore.ai"
 
+# Reported as `$lib_version` alongside `$lib`. The script is fetched fresh on
+# every run and carries no other version marker, so this is the only way to tell
+# which revision of the installer produced an event. Bump it whenever the
+# property set in send_event() changes.
+TELEMETRY_LIB_VERSION="1"
+
+# Set to "true" by send_event() once the ingestion endpoint has accepted a
+# payload. The disclosure line at the end of main() is gated on this rather than
+# on telemetry_enabled(): announcing a ping that a timeout or a blocked host
+# swallowed is worse than saying nothing, and it is what made a dropped event
+# indistinguishable from a delivered one in the installer's own output.
+TELEMETRY_DELIVERED="false"
+
 # Coarse progress marker. Reported as `stage` on a failed install so a genuine
 # drop-off can be told apart from a network outage without ever transmitting an
 # error message. Set by main() as it advances.
@@ -82,8 +95,8 @@ error_exit() {
 # Documented at https://archcore.ai/privacy. Three properties of this code are
 # load-bearing and must survive any refactor:
 #
-#   1. It can never fail the install. Every call is bounded by a short timeout,
-#      discards output, and ends in `|| true`.
+#   1. It can never fail the install. Every call is bounded by a short timeout
+#      and every non-zero exit is absorbed, so no path here can trip `set -e`.
 #   2. It can never run without a key injected at deploy time (see above), so
 #      the repository copy is inert.
 #   3. Opting out leaves no trace on disk — the id file below is created only
@@ -181,16 +194,29 @@ send_event() {
         version_prop=",\"archcore_version\":\"$(printf '%s' "$TELEMETRY_VERSION" | tr -cd '0-9A-Za-z.+-')\""
     fi
 
+    # `$lib` is what PostHog's Library column reads, so without it every event
+    # from here is indistinguishable from any other server-side source in the UI.
+    # It duplicates `installer` on purpose: that one stays the stable field to
+    # query on, this one exists so the built-in column is not empty.
     local payload
-    payload="$(printf '{"api_key":"%s","event":"%s","distinct_id":"%s","properties":{"source":"installer","installer":"install.sh","os":"%s","arch":"%s","is_reinstall":%s,"ci":%s,"pinned_version":%s,"install_dir_default":%s%s%s}}' \
+    payload="$(printf '{"api_key":"%s","event":"%s","distinct_id":"%s","properties":{"$lib":"install.sh","$lib_version":"%s","source":"installer","installer":"install.sh","os":"%s","arch":"%s","is_reinstall":%s,"ci":%s,"pinned_version":%s,"install_dir_default":%s%s%s}}' \
         "$POSTHOG_KEY" "$event" "$id" \
+        "$TELEMETRY_LIB_VERSION" \
         "$TELEMETRY_OS" "$TELEMETRY_ARCH" \
         "$is_reinstall" "$ci" "$pinned" "$dir_default" \
         "$version_prop" "$extra")"
 
-    curl -fsS -X POST --connect-timeout 2 --max-time 3 \
+    # `if curl` rather than `curl || true`: the exit status is consumed by the
+    # conditional, so a failed send can neither trip `set -e` nor leak a
+    # non-zero status to the caller, and success is recorded where the
+    # disclosure in main() can see it.
+    if curl -fsS -X POST --connect-timeout 2 --max-time 3 \
         -H 'Content-Type: application/json' \
-        -d "$payload" "${POSTHOG_HOST}/i/v0/e/" >/dev/null 2>&1 || true
+        -d "$payload" "${POSTHOG_HOST}/i/v0/e/" >/dev/null 2>&1
+    then
+        TELEMETRY_DELIVERED="true"
+    fi
+    return 0
 }
 
 # ── Prerequisite check ──────────────────────────────────────────────────────
@@ -487,8 +513,9 @@ main() {
     send_event "cli_installed" ""
     # Disclosure belongs next to the thing being disclosed, not only in the
     # policy page. Printed after the success line so it never reads as an error,
-    # and only when an event was actually sent.
-    if telemetry_enabled; then
+    # and only once the endpoint has actually accepted the event — see
+    # TELEMETRY_DELIVERED above for why this is not gated on telemetry_enabled.
+    if [[ "$TELEMETRY_DELIVERED" == "true" ]]; then
         printf '%b\n' "${BLUE}==>${NC} Anonymous install ping sent (no personal data). Opt out with ${BOLD}DO_NOT_TRACK=1${NC} — https://archcore.ai/privacy"
     fi
 }

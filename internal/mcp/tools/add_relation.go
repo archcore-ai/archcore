@@ -99,10 +99,10 @@ func HandleAddRelation(baseDir string) func(ctx context.Context, request mcp.Cal
 		}
 
 		// Verify both documents exist.
-		if _, err := ReadDocumentContent(baseDir, ".archcore/"+source); err != nil {
+		if _, err := readDocumentContent(baseDir, ".archcore/"+source); err != nil {
 			return errorResult("source document not found: .archcore/" + source), nil
 		}
-		if _, err := ReadDocumentContent(baseDir, ".archcore/"+target); err != nil {
+		if _, err := readDocumentContent(baseDir, ".archcore/"+target); err != nil {
 			return errorResult("target document not found: .archcore/" + target), nil
 		}
 

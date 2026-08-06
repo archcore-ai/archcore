@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"archcore-cli/internal/docs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,7 +32,7 @@ func TestScanDocuments_EmptyGlobalIsNotFatal(t *testing.T) {
 	}
 	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "empty", Path: ".archcore/global/empty"}})
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatalf("empty global must not fail the scan: %v", err)
 	}
@@ -55,7 +56,7 @@ func TestScanDocuments_FileAsPathFails(t *testing.T) {
 	}
 	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "x", Path: "notadir.txt"}})
 
-	_, err := ScanDocuments(base)
+	_, err := scanDocuments(base)
 	if err == nil {
 		t.Fatal("a global path pointing at a file must fail the scan")
 	}
@@ -83,7 +84,7 @@ func TestScanDocuments_UnreadableGlobalFails(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(noperm, 0o755) })
 	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "noperm", Path: ".archcore/global/noperm"}})
 
-	_, err := ScanDocuments(base)
+	_, err := scanDocuments(base)
 	if err == nil {
 		t.Fatal("an unreadable global must fail the scan")
 	}
@@ -103,7 +104,7 @@ func TestScanDocuments_SelfOverlapFails(t *testing.T) {
 		"---\ntitle: Local\nstatus: accepted\n---\n\nbody\n")
 	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "self", Path: ".archcore"}})
 
-	_, err := ScanDocuments(base)
+	_, err := scanDocuments(base)
 	if err == nil {
 		t.Fatal("a global resolving to the project's own .archcore must fail")
 	}
@@ -125,7 +126,7 @@ func TestScanDocuments_DuplicatePathFails(t *testing.T) {
 		{ID: "b", Path: ".archcore/global/dup"},
 	})
 
-	_, err := ScanDocuments(base)
+	_, err := scanDocuments(base)
 	if err == nil {
 		t.Fatal("two globals resolving to the same path must fail")
 	}
@@ -145,7 +146,7 @@ func TestScanDocuments_GlobalValidTypeFilter(t *testing.T) {
 	writeGlobalDoc(t, base, ".archcore/global/co", "knowledge", "notes.bogus.md", "stray\n")
 	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "co", Path: ".archcore/global/co"}})
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,14 +178,14 @@ func TestInspectGlobals_States(t *testing.T) {
 		{ID: "dup", Path: ".archcore/global/ok"},
 	})
 
-	got, err := InspectGlobals(base)
+	got, err := inspectGlobals(base)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(got) != 4 {
 		t.Fatalf("want 4 inspections, got %d", len(got))
 	}
-	want := []GlobalState{GlobalOK, GlobalEmpty, GlobalMissing, GlobalDuplicate}
+	want := []docs.GlobalState{docs.GlobalOK, docs.GlobalEmpty, docs.GlobalMissing, docs.GlobalDuplicate}
 	for i, w := range want {
 		if got[i].State != w {
 			t.Errorf("inspection[%d] (%s) state = %v, want %v", i, got[i].ID, got[i].State, w)
@@ -203,7 +204,7 @@ func TestInspectGlobals_InvalidSettings(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(base, ".archcore", "settings.json"), []byte("{not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := InspectGlobals(base); err == nil {
-		t.Fatal("InspectGlobals must return an error for invalid settings.json")
+	if _, err := inspectGlobals(base); err == nil {
+		t.Fatal("inspectGlobals must return an error for invalid settings.json")
 	}
 }

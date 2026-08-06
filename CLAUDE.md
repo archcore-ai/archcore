@@ -104,7 +104,6 @@ When adding a command:
 - `internal/config/` manages settings and initialization.
 - `internal/mcp/` implements the MCP server.
 - `internal/mcp/tools/` implements MCP tools.
-- `internal/mcp/prompts/` implements document-track prompts.
 - `internal/mcp/integration/` contains in-process MCP integration tests.
 - `internal/agents/` defines supported agent integrations.
 - `internal/wiring/` implements host wiring.

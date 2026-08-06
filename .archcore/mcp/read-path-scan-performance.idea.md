@@ -20,9 +20,9 @@ future performance work starts from data instead of guesses.
 > now that the scan cache removes repeat reads), and candidate 6 (per-source
 > global budgets).
 
-The read path is backed by a two-phase filesystem scan (`scanDocuments`,
-@internal/mcp/tools/common.go). Since 2026-07 it has an **mtime+size-keyed
-per-file cache** (@internal/mcp/tools/scan_cache.go): the walk still runs every
+The read path is backed by a two-phase filesystem scan (`docs.Scan`,
+@internal/docs/scan.go). Since 2026-07 it has an **mtime+size-keyed
+per-file cache** (@internal/docs/cache.go): the walk still runs every
 call (adds/removes detected by enumeration), but on a warm scan no file is
 re-read or re-parsed. `get_document` and `search_documents` read the relation
 manifest through a cached store (@internal/mcp/tools/manifest_store.go) keyed on
@@ -30,6 +30,11 @@ manifest through a cached store (@internal/mcp/tools/manifest_store.go) keyed on
 instead of a linear `RelationsFor` scan per matched document. `list_documents`
 is paginated (default 100, max 500) and returns a `{documents, total, offset,
 returned, truncated}` envelope.
+
+Since the scan and the cache moved into `internal/docs` (see
+@.archcore/cli/docs-package-owns-the-document-model.adr.md), the hook path shares
+them: the session recap and the code-alignment injection hit the same warm cache
+as the MCP tools, so the numbers below now cover three callers, not one.
 
 ## Value
 
@@ -109,6 +114,13 @@ are cached like locals, but `CheckGlobalDir` probes remain per call — required
 by @.archcore/globals/global-sources.spec.md §6.1 fail-fast). A bloated shared
 global still taxes every consumer; candidate 6 remains open.
 
+### Hook-path budget
+
+The pre-write guard is the one caller with a latency budget a user can feel. It
+takes the local-only scan and does no full document read for the deny decision,
+so it does not inherit the search-content wall. The post-write checks run one
+scan for all three of their reports.
+
 ### Relevance (orthogonal to speed)
 
 - **`search_documents` ranks local and global together with no source weight**
@@ -123,8 +135,8 @@ global still taxes every consumer; candidate 6 remains open.
 
 ## Possible Implementation (status)
 
-1. **Scan cache keyed by mtime.** ✅ Shipped 2026-07 as
-   @internal/mcp/tools/scan_cache.go — (mtime, size)-keyed per-file cache,
+1. **Scan cache keyed by mtime.** ✅ Shipped 2026-07, now at
+   @internal/docs/cache.go — (mtime, size)-keyed per-file cache,
    mutex-protected, write-handler invalidation, amortised pruning, globals
    covered; settings.json is loaded once per request.
 2. **`list_documents` cap + pagination.** ✅ Shipped 2026-07 — `limit` (default
@@ -143,7 +155,9 @@ global still taxes every consumer; candidate 6 remains open.
 ## Notes
 
 - Baseline recorded 2026-06-12; re-verified unchanged 2026-07-02 during the full
-  CLI audit; re-measured 2026-07-03 after the optimisation work landed.
+  CLI audit; re-measured 2026-07-03 after the optimisation work landed. The
+  numbers were not re-measured after the scan moved to `internal/docs`; the move
+  changed the package, not the algorithm. [assumption]
 - Re-run the harnesses after any change to the scan, manifest, or
   search-ranking paths.
 - The harnesses are intentionally kept in-tree as the reproduction baseline for

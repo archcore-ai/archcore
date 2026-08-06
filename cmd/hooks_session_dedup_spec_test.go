@@ -1,16 +1,15 @@
 package cmd
 
-// SessionStart dedup by session id (implemented — handleSessionStartDeduped
-// in hooks_claude_code.go).
+// SessionStart dedup by session id (handleSessionStartDeduped in
+// hook_session_start.go).
 //
 // Motivation: a project-level hook installed by `archcore init --agent`
 // coexisting with a plugin-shipped hook fires twice for one SessionStart
 // event, and both entries delegate to this binary — so the suppression lives
-// here, protecting every plugin/CLI version combination. The dedup key folds
-// in the event source (startup/resume/clear/compact) so a legitimate
-// re-injection after a compact is not suppressed by the startup stamp, and
-// the stamp window is short (sessionStampWindow) so genuinely later re-fires
-// emit again.
+// here, protecting every plugin/CLI version combination. The key folds in the
+// event source (startup/resume/clear/compact) so a legitimate re-injection
+// after a compact is not suppressed by the startup stamp, and the host id so
+// two leaves reading the same stdin do not suppress each other.
 
 import (
 	"os"
@@ -27,37 +26,26 @@ func TestHandleSessionStart_DedupesBySessionID_Spec(t *testing.T) {
 	stampDir := t.TempDir()
 
 	// 1. First call for session "s1": full context emitted.
-	first, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
-	if err != nil {
-		t.Fatalf("first call: %v", err)
+	first, banner, emitted := handleSessionStartDeduped(bg(), base, "v0.0.0-test", "s1", stampDir)
+	if !emitted {
+		t.Fatal("first call must emit")
 	}
-	if len(first) == 0 {
-		t.Fatal("first call must emit output")
+	if !strings.Contains(first, "[Archcore") {
+		t.Errorf("output missing the session context:\n%s", first)
 	}
-	if !strings.Contains(string(first), `"hookEventName":"SessionStart"`) {
-		t.Errorf("output missing SessionStart envelope:\n%s", first)
-	}
-	if !strings.Contains(string(first), "additionalContext") {
-		t.Errorf("output missing additionalContext:\n%s", first)
+	if banner == "" {
+		t.Error("first call must carry the connected banner")
 	}
 
-	// 2. Repeat for the SAME session: empty output, nil error — hosts must
+	// 2. Repeat for the SAME session: nothing emitted, and no error — hosts must
 	// never see a failing hook here, just silence.
-	second, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
-	if err != nil {
-		t.Fatalf("repeat call must not error: %v", err)
-	}
-	if len(second) != 0 {
-		t.Errorf("repeat call for same session must emit nothing, got:\n%s", second)
+	if _, _, again := handleSessionStartDeduped(bg(), base, "v0.0.0-test", "s1", stampDir); again {
+		t.Error("repeat call for the same session must emit nothing")
 	}
 
 	// 3. A DIFFERENT session emits again — dedup is per-session, not global.
-	other, err := handleSessionStartDeduped(base, "v0.0.0-test", "s2", stampDir, shapeClaudeCompat)
-	if err != nil {
-		t.Fatalf("other-session call: %v", err)
-	}
-	if len(other) == 0 {
-		t.Error("different session id must emit output (stamp from s1 must not suppress s2)")
+	if _, _, other := handleSessionStartDeduped(bg(), base, "v0.0.0-test", "s2", stampDir); !other {
+		t.Error("a different session id must emit (s1's stamp must not suppress s2)")
 	}
 }
 
@@ -67,12 +55,8 @@ func TestHandleSessionStart_EmptyKeyFailsOpen(t *testing.T) {
 	stampDir := t.TempDir()
 
 	for i := 1; i <= 2; i++ {
-		out, err := handleSessionStartDeduped(base, "v0.0.0-test", "", stampDir, shapeClaudeCompat)
-		if err != nil {
-			t.Fatalf("call %d: %v", i, err)
-		}
-		if len(out) == 0 {
-			t.Errorf("call %d with empty session id must emit (no dedup key, fail open)", i)
+		if _, _, emitted := handleSessionStartDeduped(bg(), base, "v0.0.0-test", "", stampDir); !emitted {
+			t.Errorf("call %d with an empty session id must emit (no dedup key, fail open)", i)
 		}
 	}
 }
@@ -89,11 +73,7 @@ func TestHandleSessionStart_UnwritableStampDirFailsOpen(t *testing.T) {
 	stampDir := filepath.Join(parent, "stamps")
 
 	for i := 1; i <= 2; i++ {
-		out, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
-		if err != nil {
-			t.Fatalf("call %d must stay exit-0 with unwritable stamp dir: %v", i, err)
-		}
-		if len(out) == 0 {
+		if _, _, emitted := handleSessionStartDeduped(bg(), base, "v0.0.0-test", "s1", stampDir); !emitted {
 			t.Errorf("call %d must emit — dedup is best-effort and fails open", i)
 		}
 	}
@@ -104,8 +84,8 @@ func TestHandleSessionStart_ExpiredStampReEmits(t *testing.T) {
 	base := setupArchcoreDir(t)
 	stampDir := t.TempDir()
 
-	if _, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat); err != nil {
-		t.Fatal(err)
+	if _, _, emitted := handleSessionStartDeduped(bg(), base, "v0.0.0-test", "s1", stampDir); !emitted {
+		t.Fatal("first call must emit")
 	}
 	// Age the stamp beyond the window: the next call must emit again. The
 	// on-disk stamp key is the host key scoped by project root.
@@ -115,12 +95,8 @@ func TestHandleSessionStart_ExpiredStampReEmits(t *testing.T) {
 		t.Fatalf("aging stamp: %v", err)
 	}
 
-	out, err := handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(out) == 0 {
-		t.Error("expired stamp must not suppress emission")
+	if _, _, emitted := handleSessionStartDeduped(bg(), base, "v0.0.0-test", "s1", stampDir); !emitted {
+		t.Error("an expired stamp must not suppress emission")
 	}
 }
 
@@ -134,25 +110,21 @@ func TestHandleSessionStart_ConcurrentDoubleFire_ExactlyOneEmits(t *testing.T) {
 	stampDir := t.TempDir()
 
 	const n = 8
-	outs := make([][]byte, n)
-	errs := make([]error, n)
+	results := make([]bool, n)
 	start := make(chan struct{})
 	var wg sync.WaitGroup
 	for i := range n {
 		wg.Go(func() {
 			<-start
-			outs[i], errs[i] = handleSessionStartDeduped(base, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
+			_, _, results[i] = handleSessionStartDeduped(bg(), base, "v0.0.0-test", "s1", stampDir)
 		})
 	}
 	close(start)
 	wg.Wait()
 
 	emitted := 0
-	for i := range n {
-		if errs[i] != nil {
-			t.Errorf("call %d errored: %v", i, errs[i])
-		}
-		if len(outs[i]) > 0 {
+	for _, ok := range results {
+		if ok {
 			emitted++
 		}
 	}
@@ -170,42 +142,71 @@ func TestHandleSessionStart_SameSessionDifferentProjectsBothEmit(t *testing.T) {
 	baseB := setupArchcoreDir(t)
 	stampDir := t.TempDir()
 
-	outA, err := handleSessionStartDeduped(baseA, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
-	if err != nil {
-		t.Fatalf("project A: %v", err)
-	}
-	if len(outA) == 0 {
+	if _, _, emitted := handleSessionStartDeduped(bg(), baseA, "v0.0.0-test", "s1", stampDir); !emitted {
 		t.Fatal("project A must emit")
 	}
-
-	outB, err := handleSessionStartDeduped(baseB, "v0.0.0-test", "s1", stampDir, shapeClaudeCompat)
-	if err != nil {
-		t.Fatalf("project B: %v", err)
-	}
-	if len(outB) == 0 {
-		t.Error("same session id in a different project must emit (stamps are project-scoped)")
+	if _, _, emitted := handleSessionStartDeduped(bg(), baseB, "v0.0.0-test", "s1", stampDir); !emitted {
+		t.Error("the same session id in a different project must emit (stamps are project-scoped)")
 	}
 }
 
-func TestHookInput_DedupKey(t *testing.T) {
+func TestDeriveDedupKey(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name string
-		in   hookInput
-		want string
+		name    string
+		host    string
+		payload string
+		want    string
 	}{
-		{"claude/codex session_id", hookInput{SessionID: "abc", Source: "startup"}, "abc\x00startup"},
-		{"cursor conversation_id", hookInput{ConversationID: "conv1"}, "conv1\x00"},
-		{"session_id wins over conversation_id", hookInput{SessionID: "abc", ConversationID: "conv1"}, "abc\x00"},
-		{"no id at all fails open", hookInput{Source: "startup"}, ""},
-		{"source differentiates compact re-fire", hookInput{SessionID: "abc", Source: "compact"}, "abc\x00compact"},
+		{name: "claude/codex session_id", host: "claude-code", payload: `{"session_id":"abc","source":"startup"}`, want: "abc\x00startup\x00claude-code"},
+		{name: "cursor conversation_id", host: "cursor", payload: `{"conversation_id":"conv1"}`, want: "conv1\x00\x00cursor"},
+		{name: "session_id wins over conversation_id", host: "claude-code", payload: `{"session_id":"abc","conversation_id":"conv1"}`, want: "abc\x00\x00claude-code"},
+		{name: "no id at all fails open", host: "claude-code", payload: `{"source":"startup"}`, want: ""},
+		{name: "source differentiates compact re-fire", host: "claude-code", payload: `{"session_id":"abc","source":"compact"}`, want: "abc\x00compact\x00claude-code"},
+		{name: "unparsable payload fails open", host: "claude-code", payload: `not json`, want: ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			if got := tt.in.dedupKey(); got != tt.want {
-				t.Errorf("dedupKey() = %q, want %q", got, tt.want)
+			if got := deriveDedupKey(reqFor(t, tt.host, "", tt.payload)); got != tt.want {
+				t.Errorf("deriveDedupKey() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestDeriveDedupKey_HostSeparatesTheLeaves is the C3 contract: Copilot reads
+// .claude/settings.json as well as its own config, so one session start can run
+// two leaves with byte-identical stdin. Without the host in the key they race
+// for one stamp and the loser stays silent — and because each speaks a different
+// dialect, the wrong winner leaves the session with no readable context at all.
+func TestDeriveDedupKey_HostSeparatesTheLeaves(t *testing.T) {
+	t.Parallel()
+	const payload = `{"session_id":"s1","source":"startup"}`
+
+	copilot := deriveDedupKey(reqFor(t, "copilot", "/p", payload))
+	claude := deriveDedupKey(reqFor(t, "claude-code", "/p", payload))
+
+	if copilot == claude {
+		t.Errorf("both hosts derived the same dedup key %q; one would suppress the other", copilot)
+	}
+}
+
+// TestHandleSessionStart_BothHostsEmitForOneSession is the same contract one
+// layer down: with per-host keys each leaf emits in its own dialect.
+func TestHandleSessionStart_BothHostsEmitForOneSession(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	stampDir := t.TempDir()
+	const payload = `{"session_id":"s1","source":"startup"}`
+
+	copilotKey := deriveDedupKey(reqFor(t, "copilot", base, payload))
+	claudeKey := deriveDedupKey(reqFor(t, "claude-code", base, payload))
+
+	if _, _, emitted := handleSessionStartDeduped(bg(), base, "v", copilotKey, stampDir); !emitted {
+		t.Fatal("the copilot leaf must emit")
+	}
+	if _, _, emitted := handleSessionStartDeduped(bg(), base, "v", claudeKey, stampDir); !emitted {
+		t.Error("the claude-code leaf was suppressed by the copilot stamp")
 	}
 }

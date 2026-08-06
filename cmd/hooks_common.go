@@ -1,11 +1,17 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
+	"time"
 
-	"archcore-cli/internal/mcp/tools"
+	"archcore-cli/internal/advisory"
+	"archcore-cli/internal/docs"
+	"archcore-cli/internal/git"
+	"archcore-cli/internal/stamp"
 	archsync "archcore-cli/internal/sync"
 	"archcore-cli/templates"
 )
@@ -15,31 +21,45 @@ import (
 // while preserving enough coverage for projects with rich tag namespaces.
 const maxSessionTags = 20
 
+// Session recap budget. Output size is a function of these caps, not of corpus
+// size (session-start-context.spec).
+const (
+	// maxRecapDocs bounds the document lines across both blocks, so output size
+	// is a function of the budget rather than of corpus size.
+	maxRecapDocs = 24
+	// acceptedFloor reserves room for recent decisions even when many drafts are
+	// open; without it a repository mid-refactor would show only its own mess.
+	acceptedFloor = 6
+	// recentWindow bounds "recently accepted". Older decisions are still findable
+	// through the MCP tools; they are just not news.
+	recentWindow = 30 * 24 * time.Hour
+)
+
 // buildSessionContext generates the session-start context string
 // that is injected into agents at session start.
-func buildSessionContext(baseDir string) (string, int) {
-	docs, err := tools.ScanDocuments(baseDir)
-	var scanWarning string
-	if err != nil {
-		// A declared global source is broken (missing, not a directory, unreadable,
-		// self-overlapping, or a duplicate path). Don't blank the whole session
-		// context — that would also drop every LOCAL document. Degrade to a
-		// local-only scan (which never fails on a global) and surface the problem,
-		// honoring "a broken mandatory global is loud, not silent".
-		scanWarning = err.Error()
-		docs, _ = tools.ScanLocalDocuments(baseDir)
-	}
-	docs = localDocuments(docs) // globals are MCP-read-only; not surfaced in session context
+//
+// Callers embed the returned string in a per-host JSON envelope. This function
+// owns the text inside that envelope and never the envelope itself — the plugin
+// splices its own advisories into the same document on Copilot, and a change to
+// the wrapper would break that splice silently.
+func buildSessionContext(ctx context.Context, baseDir string) (string, int) {
+	// Local only, content included. Globals are surfaced through the MCP read
+	// tools and never here, so scanning them would read and parse every global
+	// document only to discard it. The content is free — the frontmatter parse
+	// already reads each file — and the staleness correlation below needs it,
+	// which is what keeps this to one scan per session start.
+	corpus, _ := docs.ScanLocal(baseDir, true)
 
-	// Some global problems are invisible to ScanDocuments: an empty source (0 docs)
-	// scans cleanly, and an invalid settings.json makes the read path silently see
-	// no globals. Surface both here so a broken mount is never silent in a session.
+	// Global health comes from InspectGlobals rather than from a scan error: it
+	// classifies every failure mode the scan reports plus two the scan cannot
+	// see — an empty source scans cleanly, and an invalid settings.json makes
+	// the read path silently observe no globals at all.
 	var globalNotices []string
-	if inspections, iErr := tools.InspectGlobals(baseDir); iErr != nil {
+	if inspections, iErr := docs.InspectGlobals(baseDir); iErr != nil {
 		globalNotices = append(globalNotices, fmt.Sprintf("invalid .archcore/settings.json: %v — global sources not loaded", iErr))
 	} else {
 		for _, in := range inspections {
-			if in.State == tools.GlobalEmpty {
+			if in.State.Fatal() || in.State == docs.GlobalEmpty {
 				globalNotices = append(globalNotices, in.Message())
 			}
 		}
@@ -48,40 +68,23 @@ func buildSessionContext(baseDir string) (string, int) {
 	var b strings.Builder
 	b.WriteString("[Archcore — Git-native context for AI coding agents]\n")
 	b.WriteString("You have MCP tools available: list_documents, get_document, search_documents, create_document, update_document, remove_document, add_relation, remove_relation, list_relations.\n")
-	if scanWarning != "" {
-		fmt.Fprintf(&b, "\n⚠ %s — context limited to local documents; clone the source or fix .archcore/settings.json.\n", scanWarning)
-	}
 	for _, n := range globalNotices {
-		fmt.Fprintf(&b, "\n⚠ %s\n", n)
+		fmt.Fprintf(&b, "\n⚠ %s — context limited to local documents; clone the source or fix .archcore/settings.json.\n", n)
 	}
 
-	// Pre-group documents by category.
-	docsByCategory := make(map[templates.Category][]tools.LocalDocument, 3)
-	for _, doc := range docs {
-		docsByCategory[doc.Category] = append(docsByCategory[doc.Category], doc)
+	writeCorpusLine(&b, corpus)
+	writeBranchLine(ctx, &b, baseDir)
+	writeRecap(&b, corpus)
+
+	if advisory := advisory.Staleness(ctx, baseDir, stamp.DirFor("staleness-stamps"), corpus); advisory != "" {
+		fmt.Fprintf(&b, "\n%s", advisory)
 	}
 
-	// Existing documents by category.
-	b.WriteString("\nEXISTING DOCUMENTS:\n")
-	for _, cat := range []templates.Category{templates.CategoryKnowledge, templates.CategoryVision, templates.CategoryExperience} {
-		fmt.Fprintf(&b, "  [%s]\n", cat)
-		catDocs := docsByCategory[cat]
-		if len(catDocs) == 0 {
-			b.WriteString("    (none)\n")
-			continue
-		}
-		for _, doc := range catDocs {
-			titlePart := ""
-			if doc.Title != "" {
-				titlePart = fmt.Sprintf(" — %q", doc.Title)
-			}
-			fmt.Fprintf(&b, "    - %s%s\n", doc.Filename, titlePart)
-		}
-	}
-
-	// Aggregate tag frequencies and emit top tags.
+	// Tag frequencies cover every local document, rejected included: a tag used
+	// only by a rejected document is still part of the project's vocabulary and
+	// the agent should reuse it rather than invent a synonym.
 	tagFreq := make(map[string]int)
-	for _, doc := range docs {
+	for _, doc := range corpus {
 		for _, tag := range doc.Tags {
 			tagFreq[tag]++
 		}
@@ -117,16 +120,126 @@ func buildSessionContext(baseDir string) (string, int) {
 
 	b.WriteString("\nRefer to MCP server instructions for document types, workflow rules, and usage guidance.\n")
 
-	return b.String(), len(docs)
+	// The count is every local document, including rejected ones: it feeds the
+	// "N docs" banner, which reports what the project holds, not what this recap
+	// chose to show.
+	return b.String(), len(corpus)
+}
+
+// writeCorpusLine summarizes the whole corpus in one line: what exists, by
+// category and by status. The rejected count appears here and nowhere else —
+// enough to tell the agent refused work exists without pushing it as guidance.
+func writeCorpusLine(b *strings.Builder, corpus []docs.Document) {
+	if len(corpus) == 0 {
+		b.WriteString("\nCORPUS: no documents yet — use create_document to record the first one.\n")
+		return
+	}
+
+	byCategory := make(map[templates.Category]int, 3)
+	byStatus := make(map[templates.DocStatus]int, 3)
+	for _, d := range corpus {
+		byCategory[d.Category]++
+		byStatus[effectiveStatus(d)]++
+	}
+
+	var cats []string
+	for _, cat := range []templates.Category{templates.CategoryKnowledge, templates.CategoryVision, templates.CategoryExperience} {
+		if n := byCategory[cat]; n > 0 {
+			cats = append(cats, fmt.Sprintf("%s %d", cat, n))
+		}
+	}
+
+	var statuses []string
+	for _, st := range []templates.DocStatus{templates.StatusDraft, templates.StatusAccepted, templates.StatusRejected} {
+		if n := byStatus[st]; n > 0 {
+			statuses = append(statuses, fmt.Sprintf("%s %d", st, n))
+		}
+	}
+
+	fmt.Fprintf(b, "\nCORPUS: %d documents — %s · %s\n",
+		len(corpus), strings.Join(cats, ", "), strings.Join(statuses, ", "))
+}
+
+// writeBranchLine names the checked-out branch. It is omitted entirely outside a
+// git working tree, on a detached HEAD, or when git is unavailable — an absent
+// line is better than one that says "unknown".
+func writeBranchLine(ctx context.Context, b *strings.Builder, baseDir string) {
+	branch, err := git.CurrentBranch(ctx, baseDir)
+	if err != nil || branch == "" {
+		return
+	}
+	fmt.Fprintf(b, "BRANCH: %s\n", branch)
+}
+
+// writeRecap emits the two blocks that carry the moving parts of the project:
+// what is open, and what was decided recently. Rejected documents appear in
+// neither — pushing a refused decision reads as guidance and invites the agent
+// to re-walk a dead end. The read tools still return them on request.
+func writeRecap(b *strings.Builder, corpus []docs.Document) {
+	var drafts, accepted []docs.Document
+	cutoff := time.Now().Add(-recentWindow)
+	for _, d := range corpus {
+		if !d.InAgentContext() {
+			continue
+		}
+		switch effectiveStatus(d) {
+		case templates.StatusDraft:
+			drafts = append(drafts, d)
+		case templates.StatusAccepted:
+			if d.ModTime.After(cutoff) {
+				accepted = append(accepted, d)
+			}
+		}
+	}
+	byNewest := func(a, c docs.Document) int { return c.ModTime.Compare(a.ModTime) }
+	slices.SortStableFunc(drafts, byNewest)
+	slices.SortStableFunc(accepted, byNewest)
+
+	// Drafts claim the budget first — open work is what a session resumes — but
+	// recent decisions keep a floor so a busy repository still shows them.
+	nDraft := min(len(drafts), maxRecapDocs-min(len(accepted), acceptedFloor))
+	nAccepted := min(len(accepted), maxRecapDocs-nDraft)
+
+	writeRecapBlock(b, "IN PROGRESS (draft, newest first)", drafts, nDraft, "status=\"draft\"")
+	writeRecapBlock(b, "RECENTLY ACCEPTED (last 30 days)", accepted, nAccepted, "status=\"accepted\"")
+}
+
+// writeRecapBlock renders one block, truncating from the end and naming what was
+// dropped so a truncated list never reads as a complete one.
+func writeRecapBlock(b *strings.Builder, heading string, corpus []docs.Document, limit int, filterHint string) {
+	if len(corpus) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "\n%s:\n", heading)
+	for _, d := range corpus[:limit] {
+		// The full path, not the filename: it is what get_document takes.
+		if d.Title != "" {
+			fmt.Fprintf(b, "  - %s — %q\n", d.Path, d.Title)
+			continue
+		}
+		fmt.Fprintf(b, "  - %s\n", d.Path)
+	}
+	if rest := len(corpus) - limit; rest > 0 {
+		fmt.Fprintf(b, "  … and %d more — list_documents(%s)\n", rest, filterHint)
+	}
+}
+
+// effectiveStatus resolves a document's status, treating an absent or unknown
+// value as draft — the documented default for a new document.
+func effectiveStatus(d docs.Document) templates.DocStatus {
+	if templates.IsValidStatus(d.Status) {
+		return d.Status
+	}
+	return templates.StatusDraft
 }
 
 // localDocuments returns only documents owned by the primary project, dropping
 // mounted read-only global sources. Globals are surfaced exclusively through the
 // MCP read tools (list/get/search), never in CLI status or session-start context.
-func localDocuments(docs []tools.LocalDocument) []tools.LocalDocument {
-	out := make([]tools.LocalDocument, 0, len(docs))
-	for _, d := range docs {
-		if d.SourceKind == "local" {
+func localDocuments(corpus []docs.Document) []docs.Document {
+	out := make([]docs.Document, 0, len(corpus))
+	for _, d := range corpus {
+		if d.IsLocal() {
 			out = append(out, d)
 		}
 	}

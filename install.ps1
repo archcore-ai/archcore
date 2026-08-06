@@ -19,6 +19,20 @@ $BINARY_NAME    = 'archcore'
 $POSTHOG_KEY  = '__POSTHOG_KEY__'
 $POSTHOG_HOST = 'https://ph.archcore.ai'
 
+# Reported as `$lib_version` alongside `$lib`. The script is fetched fresh on
+# every run and carries no other version marker, so this is the only way to tell
+# which revision of the installer produced an event. Bump it whenever the
+# property set in Send-TelemetryEvent changes. Kept in step with install.sh so
+# one number covers both.
+$TELEMETRY_LIB_VERSION = '1'
+
+# Set by Send-TelemetryEvent once the ingestion endpoint has accepted a payload.
+# The disclosure line at the end of main() is gated on this rather than on
+# Test-TelemetryEnabled: announcing a ping that a timeout or a blocked host
+# swallowed is worse than saying nothing, and it is what made a dropped event
+# indistinguishable from a delivered one in the installer's own output.
+$script:TELEMETRY_DELIVERED = $false
+
 # Coarse progress marker. Reported as `stage` on a failed install so a genuine
 # drop-off can be told apart from a network outage without ever transmitting an
 # error message. Advanced by main().
@@ -164,7 +178,13 @@ function Send-TelemetryEvent {
             if ([Environment]::GetEnvironmentVariable($name)) { $ci = $true; break }
         }
 
+        # `$lib` is what PostHog's Library column reads, so without it every
+        # event from here is indistinguishable from any other server-side source
+        # in the UI. It duplicates `installer` on purpose: that one stays the
+        # stable field to query on, this one exists so the column is not empty.
         $properties = @{
+            '$lib'              = 'install.ps1'
+            '$lib_version'      = $TELEMETRY_LIB_VERSION
             source              = 'installer'
             installer           = 'install.ps1'
             os                  = 'windows'
@@ -190,10 +210,13 @@ function Send-TelemetryEvent {
             properties  = $properties
         } | ConvertTo-Json -Depth 5 -Compress
 
+        # Invoke-WebRequest throws on any non-2xx, so a status reached here is
+        # already a success; everything else lands in the catch below.
         Invoke-WebRequest -UseBasicParsing -Method Post -TimeoutSec 3 `
             -Uri "$POSTHOG_HOST/i/v0/e/" `
             -ContentType 'application/json' `
             -Body $payload | Out-Null
+        $script:TELEMETRY_DELIVERED = $true
     } catch {
         # Blocked host, offline, proxy interstitial, PostHog outage — all of it
         # is irrelevant to whether the CLI installed.
@@ -516,8 +539,9 @@ function main {
     Send-TelemetryEvent -EventName 'cli_installed'
     # Disclosure belongs next to the thing being disclosed, not only in the
     # policy page. Printed after the success line so it never reads as an error,
-    # and only when an event was actually sent.
-    if (Test-TelemetryEnabled) {
+    # and only once the endpoint has actually accepted the event — see
+    # TELEMETRY_DELIVERED above for why this is not gated on Test-TelemetryEnabled.
+    if ($script:TELEMETRY_DELIVERED) {
         Write-Info 'Anonymous install ping sent (no personal data). Opt out with $env:DO_NOT_TRACK=1 — https://archcore.ai/privacy'
     }
 }

@@ -99,23 +99,8 @@ func TestUpdateCmd_UpdateAvailable(t *testing.T) {
 	root.SetArgs([]string{"update"})
 
 	// Capture stdout since the command uses fmt.Println.
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe: %v", err)
-	}
-	oldStdout := os.Stdout
-	os.Stdout = w
-	defer func() { os.Stdout = oldStdout }()
-
-	ctx := context.Background()
-	root.SetContext(ctx)
-	_ = root.Execute()
-	w.Close()
-	os.Stdout = oldStdout
-
-	var out bytes.Buffer
-	out.ReadFrom(r)
-	output := out.String()
+	root.SetContext(context.Background())
+	output := captureStdout(t, func() { _ = root.Execute() })
 
 	if !strings.Contains(output, "Current: v1.0.0") {
 		t.Errorf("expected 'Current: v1.0.0' in output, got: %s", output)
@@ -208,24 +193,10 @@ func runUpdateCmd(t *testing.T, version string, srv *httptest.Server) (string, e
 	root.SetArgs([]string{"update"})
 
 	// Capture stdout since the command uses fmt.Println.
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe: %v", err)
-	}
-	oldStdout := os.Stdout
-	os.Stdout = w
-	defer func() { os.Stdout = oldStdout }()
-
-	ctx := context.Background()
-	root.SetContext(ctx)
-	execErr := root.Execute()
-	w.Close()
-	os.Stdout = oldStdout
-
-	var out bytes.Buffer
-	out.ReadFrom(r)
-
-	return out.String(), execErr
+	root.SetContext(context.Background())
+	var execErr error
+	out := captureStdout(t, func() { execErr = root.Execute() })
+	return out, execErr
 }
 
 // testRewriteTransport rewrites all request URLs to point at a test server.

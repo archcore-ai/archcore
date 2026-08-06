@@ -41,16 +41,13 @@ func TestRunHooksInstallForAgent_CopilotAlsoInstallsMCP(t *testing.T) {
 // starts with no archcore context. That silence is why this is a test and not
 // a comment.
 func TestHandleSessionStart_CopilotNativeShape(t *testing.T) {
-	t.Parallel()
+	// Not parallel: the stdout capture below swaps a process global.
 	base := setupArchcoreDir(t)
 
-	out, err := handleSessionStart(base, "v0.0.0-test", shapeCopilotNative)
-	if err != nil {
-		t.Fatalf("handleSessionStart: %v", err)
-	}
+	out := emitSessionStart(t, "copilot", base, "v0.0.0-test")
 
 	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(out, &raw); err != nil {
+	if err := json.Unmarshal([]byte(out), &raw); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
 	if _, ok := raw["hookSpecificOutput"]; ok {
@@ -76,15 +73,13 @@ func TestHandleSessionStart_CopilotNativeShape(t *testing.T) {
 // helper, different frame. A refactor that collapsed both onto one shape would
 // break whichever host it did not pick.
 func TestHandleSessionStart_ClaudeCompatShapeUnchanged(t *testing.T) {
-	t.Parallel()
+	// Not parallel: the stdout capture below swaps a process global.
 	base := setupArchcoreDir(t)
 
-	out, err := handleSessionStart(base, "v0.0.0-test", shapeClaudeCompat)
-	if err != nil {
-		t.Fatalf("handleSessionStart: %v", err)
-	}
+	out := emitSessionStart(t, "claude-code", base, "v0.0.0-test")
+
 	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(out, &raw); err != nil {
+	if err := json.Unmarshal([]byte(out), &raw); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
 	if _, ok := raw["additionalContext"]; ok {

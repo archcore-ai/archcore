@@ -3,11 +3,14 @@ package cmd
 import (
 	"bytes"
 	"os"
+	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"archcore-cli/internal/config"
+	"archcore-cli/internal/docs"
 	"archcore-cli/internal/sync"
 )
 
@@ -29,35 +32,15 @@ func runCmdInDir(t *testing.T, dir string, args ...string) (string, error) {
 	root.SetErr(buf)
 	root.SetArgs(args)
 
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe: %v", err)
-	}
-	oldStdout := os.Stdout
-	os.Stdout = w
-	defer func() { os.Stdout = oldStdout }()
-
-	execErr := root.Execute()
-	w.Close()
-	os.Stdout = oldStdout
-
-	var out bytes.Buffer
-	out.ReadFrom(r)
-	return out.String(), execErr
+	var execErr error
+	out := captureStdout(t, func() { execErr = root.Execute() })
+	return out, execErr
 }
 
 // writeDoc creates a .md file with given content inside .archcore/<subdir>/.
-// Creates the subdirectory if it doesn't exist.
 func writeDoc(t *testing.T, dir, subdir, filename, content string) {
 	t.Helper()
-	d := filepath.Join(dir, ".archcore", subdir)
-	if err := os.MkdirAll(d, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	p := filepath.Join(d, filename)
-	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeArchcoreDoc(t, dir, path.Join(subdir, filename), content)
 }
 
 const validFrontmatter = "---\ntitle: Test Doc\nstatus: draft\n---\n\nBody.\n"
@@ -547,6 +530,45 @@ func TestStatus_MalformedFrontmatterBranches(t *testing.T) {
 				t.Errorf("output missing %q:\n%s", tt.wantMsg, out)
 			}
 		})
+	}
+}
+
+// TestStatus_SingletonTagWarningsAreOrdered: the warnings came out of a map
+// range, so identical input produced a different order on every run.
+//
+// This output is not only read by a person — it reaches an agent through the
+// PostToolUse hook, and it is what a user diffs when comparing two runs. A
+// reordering that means nothing looks like a change that does.
+func TestStatus_SingletonTagWarningsAreOrdered(t *testing.T) {
+	t.Parallel()
+	corpus := []docs.Document{{
+		Path: ".archcore/knowledge/a.adr.md",
+		Tags: []string{"zeta", "alpha", "mike", "bravo", "yankee", "delta", "oscar", "kilo"},
+	}}
+
+	var warnings []string
+	for range 20 {
+		var b strings.Builder
+		checkTagHygiene(corpus, nil).writeTo(&b)
+		warnings = append(warnings, b.String())
+	}
+
+	for i, got := range warnings {
+		if got != warnings[0] {
+			t.Fatalf("run %d produced a different order for the same corpus:\nfirst:\n%s\ngot:\n%s", i, warnings[0], got)
+		}
+	}
+	// Sorted, not merely stable: a stable-but-arbitrary order is still a
+	// surprise to anyone scanning the list for a tag.
+	var tags []string
+	for _, line := range strings.Split(warnings[0], "\n") {
+		if _, rest, ok := strings.Cut(line, `tag "`); ok {
+			tag, _, _ := strings.Cut(rest, `"`)
+			tags = append(tags, tag)
+		}
+	}
+	if !slices.IsSorted(tags) {
+		t.Errorf("singleton-tag warnings are not sorted: %v", tags)
 	}
 }
 

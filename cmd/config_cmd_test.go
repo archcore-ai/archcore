@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -305,26 +304,17 @@ func TestRunConfig_NoArgs_PrintsSync(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chdir(origDir) })
 
-	r, w, pipeErr := os.Pipe()
-	if pipeErr != nil {
-		t.Fatal(pipeErr)
-	}
-	oldStdout := os.Stdout
-	os.Stdout = w
-	defer func() { os.Stdout = oldStdout }()
-
-	cmd := newConfigCmd()
-	cmd.SetArgs([]string{})
-	execErr := cmd.Execute()
-	w.Close()
-	os.Stdout = oldStdout
+	var execErr error
+	out := captureStdout(t, func() {
+		cmd := newConfigCmd()
+		cmd.SetArgs([]string{})
+		execErr = cmd.Execute()
+	})
 	if execErr != nil {
 		t.Fatalf("unexpected error: %v", execErr)
 	}
-	var out bytes.Buffer
-	out.ReadFrom(r)
-	if !strings.Contains(out.String(), "sync") || !strings.Contains(out.String(), "none") {
-		t.Errorf("no-args config must print the sync setting, got: %s", out.String())
+	if !strings.Contains(out, "sync") || !strings.Contains(out, "none") {
+		t.Errorf("no-args config must print the sync setting, got: %s", out)
 	}
 }
 

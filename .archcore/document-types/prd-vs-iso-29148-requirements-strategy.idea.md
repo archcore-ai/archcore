@@ -112,7 +112,7 @@ Users can:
 - [x] Implement BRS, StRS, SyRS, SRS document types (templates, MCP descriptions, disambiguation rules)
 - [x] Add disambiguation rules to MCP server instructions and create_document tool
 - [x] Update categories-and-document-types.doc.md with all three tracks documented
-- [ ] Future: Add track guidance prompts in CLI suggesting simple vs. sources vs. ISO approach
+- [ ] Future: Add track guidance in the CLI suggesting simple vs. sources vs. ISO approach. Track guidance MUST NOT return as an MCP prompts capability — that was implemented and removed; see the ADR on removing the MCP track prompts.
 - [ ] Future: Add `requirements_approach` setting to settings.json
 - [ ] Future: Add `doctor` check suggesting ISO decomposition for large PRDs
 
@@ -123,4 +123,3 @@ Users can:
 - Existing PRD template in @templates/templates.go
 - MCP server instructions in @internal/mcp/server.go
 - Companion idea: @.archcore/document-types/mrd-brd-urd-requirement-sources.idea.md
-- ISO implementation plan: @.archcore/document-types/iso-29148-document-types-implementation.plan.md

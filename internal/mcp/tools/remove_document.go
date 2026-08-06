@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"archcore-cli/internal/docs"
 	"archcore-cli/internal/sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -71,7 +72,7 @@ func HandleRemoveDocument(baseDir string) func(ctx context.Context, request mcp.
 		}
 
 		// Read file metadata before deletion.
-		doc, err := ReadDocumentContent(baseDir, relPath)
+		doc, err := readDocumentContent(baseDir, relPath)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				return errorResult(fmt.Sprintf("document not found: %s", relPath)), nil
@@ -84,7 +85,7 @@ func HandleRemoveDocument(baseDir string) func(ctx context.Context, request mcp.
 		if err := os.Remove(absPath); err != nil {
 			return errorResult(sanitizeError("removing "+relPath, err)), nil
 		}
-		sharedScanCache.invalidate(absPath)
+		docs.InvalidateCache(absPath)
 
 		// Clean up relations from manifest. relations_removed counts only the
 		// deleted document's own edges; CleanupRelations still opportunistically

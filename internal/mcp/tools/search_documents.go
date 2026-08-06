@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"archcore-cli/internal/docs"
 	"archcore-cli/internal/sync"
 	"archcore-cli/templates"
 
@@ -23,7 +24,7 @@ import (
 // Anything not listed falls back to typePriorityDefault.
 const typePriorityDefault = 100
 
-var typePriority = map[string]int{
+var typePriority = map[templates.DocumentType]int{
 	"rule":      1,
 	"adr":       2,
 	"rfc":       3,
@@ -94,21 +95,21 @@ type searchMatch struct {
 
 // searchResult is the per-document row returned by search_documents.
 type searchResult struct {
-	Path    string              `json:"path"`
-	Title   string              `json:"title"`
-	Type    string              `json:"type"`
-	Status  templates.DocStatus `json:"status,omitempty"`
-	ModTime time.Time           `json:"mtime"`
-	Tags    []string            `json:"tags,omitempty"`
+	Path    string                 `json:"path"`
+	Title   string                 `json:"title"`
+	Type    templates.DocumentType `json:"type"`
+	Status  templates.DocStatus    `json:"status,omitempty"`
+	ModTime time.Time              `json:"mtime"`
+	Tags    []string               `json:"tags,omitempty"`
 	// Source annotation, mirroring LocalDocument so all three read tools
 	// (list_documents, get_document, search_documents) carry the same machine-
 	// checkable local/global distinction. local-overrides-global.rule requires
 	// agents to read these rather than guess authority from the path.
-	SourceID   string        `json:"source_id"`
-	SourceKind string        `json:"source_kind"`
-	Global     bool          `json:"global,omitempty"`
-	ReadOnly   bool          `json:"read_only,omitempty"`
-	Matches    []searchMatch `json:"matches"`
+	SourceID   string          `json:"source_id"`
+	SourceKind docs.SourceKind `json:"source_kind"`
+	Global     bool            `json:"global,omitempty"`
+	ReadOnly   bool            `json:"read_only,omitempty"`
+	Matches    []searchMatch   `json:"matches"`
 	// Body is the full document body (frontmatter stripped), populated only in
 	// mode=full so callers can read the matched doc without a get_document call.
 	Body              string             `json:"body,omitempty"`
@@ -176,9 +177,13 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		pathRefFilter := strings.TrimSpace(request.GetString("path_ref", ""))
 		contentFilter := request.GetString("content", "")
-		types := request.GetStringSlice("types", nil)
+		rawTypes := request.GetStringSlice("types", nil)
+		types := make([]templates.DocumentType, len(rawTypes))
+		for i, t := range rawTypes {
+			types[i] = templates.DocumentType(t)
+		}
 		for _, tp := range types {
-			if !templates.IsValidType(tp) {
+			if !templates.IsValidType(string(tp)) {
 				return errorResult(fmt.Sprintf("invalid type %q (valid: %s)", tp, strings.Join(templates.ValidTypes(), ", "))), nil
 			}
 		}
@@ -233,9 +238,9 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 		needsBody := pathRefFilter != "" || contentFilter != "" || mode == searchModeFull
 		var docs []LocalDocument
 		if needsBody {
-			docs, err = ScanDocumentsFull(baseDir)
+			docs, err = scanDocumentsFull(baseDir)
 		} else {
-			docs, err = ScanDocuments(baseDir)
+			docs, err = scanDocuments(baseDir)
 		}
 		if err != nil {
 			return errorResult(sanitizeError("scanning documents", err)), nil
@@ -352,7 +357,7 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 
 			// In full mode, attach the body so the caller can read the doc
 			// without a separate get_document round-trip. Content is present
-			// because needsBody forced ScanDocumentsFull above.
+			// because needsBody forced scanDocumentsFull above.
 			if mode == searchModeFull {
 				result.Body = stripFrontmatter(doc.Content)
 			}

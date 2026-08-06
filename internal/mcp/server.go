@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"archcore-cli/internal/config"
-	"archcore-cli/internal/mcp/prompts"
 	"archcore-cli/internal/mcp/tools"
 
 	"github.com/mark3labs/mcp-go/server"
@@ -41,6 +40,7 @@ Documents can be linked with directed relations stored in the sync manifest.
 
   After creating a document, check the nearby_documents hint in the response.
   Use add_relation to link related documents. Use list_relations to see existing links.
+  Research (rnd) conventions (advisory): idea related rnd; prd/plan/adr depends_on rnd; rfc extends rnd; rnd related rnd. Do not use "implements" for research.
 
 TAGS:
 Use tags when a document is relevant to multiple teams or domains.
@@ -120,13 +120,6 @@ TYPE SELECTION RULES (use these to disambiguate):
 - brs vs brd: BRS is a FORMAL ISO SPECIFICATION (mission, goals, operational concept, success criteria). BRD is an INFORMAL SOURCE (business justification: ROI, budget, stakeholders). BRS formalizes what BRD captures informally.
 - strs vs urd: StRS is a FORMAL ISO SPECIFICATION (per-stakeholder-class requirements with ConOps). URD is an INFORMAL SOURCE (personas, journeys, usability). StRS formalizes what URD captures informally.
 
-REQUIREMENTS TRACKS:
-Three approaches to requirements engineering, choose based on project complexity:
-  Product track (simple):  prd — single document covering vision, requirements, and solution. Best for small teams, internal tools, rapid prototyping.
-  Sources track (discovery): mrd → brd → urd — captures where requirements come from (market, business, users). Best for product teams doing discovery, stakeholder alignment.
-  ISO track (decomposition): brs → strs → syrs → srs — formal requirements cascade per ISO 29148. Best for regulated systems, multi-team projects.
-All tracks can coexist — use what fits the project.
-
 REQUIREMENTS LAYERS — Sources and Specifications are SEPARATE layers:
   Layer A (Sources):        mrd, brd, urd, prd — capture raw requirements from market, business, and user perspectives
   Layer B (Specifications): brs, strs, syrs, srs — formalize requirements into ISO-structured specifications
@@ -140,28 +133,16 @@ REQUIREMENTS LAYERS — Sources and Specifications are SEPARATE layers:
   PRD can substitute for the entire ISO cascade (use "related" relation to link PRD to ISO types).
   Do NOT confuse source documents (mrd/brd/urd) with specification documents (brs/strs/syrs/srs). Sources are informal, discovery-oriented. Specifications are formal, ISO-structured.
 
-RESEARCH GATE (rnd) — optional investigation before committing:
-  Use rnd to resolve an open question before the first committing document of any track (rnd → idea, rnd → adr → spec → plan, rnd → adr → rule). Every rnd ends with a mandatory Recommendation (proceed/refine/defer/stop) and a Next Action.
-  Status maps the verdict: draft = investigating; accepted = proceed/refine; rejected = defer/stop. A "rejected" rnd ("we investigated and decided not to") is a first-class, valuable outcome — keep it, do not delete it; it preserves the dead end.
-  Relation conventions (advisory): idea related rnd; prd/plan/adr depends_on rnd; rfc extends rnd; rnd related rnd. Do not use "implements" for research.
-
 VALID STATUS VALUES:
   draft     — default for new documents; work in progress
   accepted  — finalized or approved; set only when the human confirms
   rejected  — superseded, abandoned, or declined; preserves history
+  For an rnd, status carries the investigation's verdict: draft = investigating; accepted = proceed/refine; rejected = defer/stop. A "rejected" rnd ("we investigated and decided not to") is a first-class outcome — keep it, do not delete it; it preserves the dead end.
 
 CODE REFERENCES (optional):
 Documents may reference source code paths using @-notation (e.g., @cmd/sync.go, @internal/config/).
 This is optional but encouraged — it helps agents navigate between documentation and code, and enables future staleness detection.
 When writing or updating documents, include relevant code paths where they naturally fit (e.g., in "Implementation Notes", "Key files", "Related" sections).
-
-WORKFLOW PROMPTS (when client supports MCP prompts):
-  iso_track          — BRS → StRS → SyRS → SRS cascade
-  sources_track      — MRD → BRD → URD discovery flow
-  product_track      — PRD → plan
-  standard_track     — ADR → rule → guide
-  architecture_track — ADR → spec → plan
-If the user's request matches one of these patterns and the client exposes MCP prompts, prefer suggesting the matching prompt over manual orchestration. Otherwise, follow the cascade manually using create_document and add_relation.
 
 NEVER create documents for: temporary notes, questions, chat summaries, or speculative content without clear value.
 ALWAYS use a descriptive slug (lowercase, hyphens only) and a clear human-readable title.`
@@ -214,7 +195,6 @@ func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPS
 		"archcore",
 		version,
 		server.WithInstructions(buildInstructions(language)),
-		server.WithPromptCapabilities(true),
 	)
 
 	s.AddTool(tools.NewInitProjectTool(), tools.HandleInitProject(baseDir))
@@ -231,8 +211,6 @@ func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPS
 	if cfg.hostWiring != nil {
 		s.AddTool(tools.NewInstallHostConfigTool(), tools.HandleInstallHostConfig(cfg.hostWiring))
 	}
-
-	prompts.RegisterAll(s)
 
 	return s
 }

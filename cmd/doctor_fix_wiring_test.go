@@ -4,6 +4,7 @@ package cmd
 // by an older CLI are updated in place; foreign content survives.
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,8 +88,23 @@ func TestConvergeHostWiring_HealsStaleHookCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Count(string(data), "archcore hooks"); got != 1 {
-		t.Errorf("want exactly 1 archcore hook after convergence, got %d:\n%s", got, data)
+	// Scoped to the event under repair: archcore now installs three events, so
+	// counting across the file would measure that instead of the ownership
+	// contract this test is about.
+	var doc struct {
+		Hooks map[string][]json.RawMessage `json:"hooks"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("parsing config: %v\n%s", err, data)
+	}
+	owned := 0
+	for _, entry := range doc.Hooks["SessionStart"] {
+		if strings.Contains(string(entry), "archcore hooks ") {
+			owned++
+		}
+	}
+	if owned != 1 {
+		t.Errorf("want exactly 1 archcore entry under SessionStart after convergence, got %d:\n%s", owned, data)
 	}
 	if !strings.Contains(string(data), "archcore hooks claude-code session-start") {
 		t.Errorf("stale hook command must be updated:\n%s", data)

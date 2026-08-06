@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"archcore-cli/internal/advisory"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
 
@@ -100,8 +101,17 @@ func getSettingsValue(s *config.Settings, key string) (string, error) {
 			return "en", nil
 		}
 		return s.Language, nil
+	case "codeAlignment.sourceRoots":
+		// Readable but not writable, like globals: the value is a list, and
+		// hand-editing settings.json is the one path that cannot mangle it. The
+		// CLI never writes this key, so an older binary — which rejects a field
+		// it does not know — is never handed one by us.
+		if s.CodeAlignment == nil || len(s.CodeAlignment.SourceRoots) == 0 {
+			return strings.Join(advisory.DefaultSourceRoots, ", "), nil
+		}
+		return strings.Join(s.CodeAlignment.SourceRoots, ", "), nil
 	default:
-		return "", fmt.Errorf("unknown config key %q — valid keys: sync, project_id, archcore_url, language", key)
+		return "", fmt.Errorf("unknown config key %q — valid keys: sync, project_id, archcore_url, language, codeAlignment.sourceRoots", key)
 	}
 }
 

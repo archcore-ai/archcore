@@ -62,31 +62,31 @@ Read the tag from the path segment after `/releases/tag/`, and do not follow the
 
 ## Alternatives Considered
 
-The five options weighed in `update-version-check-strategy.rfc.md`. All were rejected in favour of the redirect.
+Five options were weighed before this decision. All were rejected in favour of the redirect.
 
-### Alternative 1: Proxy through archcore.ai (RFC Option A)
+### Alternative 1: Proxy through archcore.ai
 
-A server-side endpoint that calls the API with its own token and caches for 5 minutes. Detailed separately in `version-check-proxy.idea.md`.
+A server-side endpoint that calls the API with its own token and caches for 5 minutes.
 
 - Rejected: it adds a service to operate and a hard dependency on archcore.ai availability for a lookup a static redirect already answers for free.
 
-### Alternative 2: Static version file on archcore.ai (RFC Option B — the RFC's own recommendation)
+### Alternative 2: Static version file on archcore.ai
 
-Publish `version.txt` from CI after each release.
+Publish `version.txt` from CI after each release. This was the recommendation of the earlier version-check proposal.
 
 - Rejected: still infrastructure, plus a release-pipeline step that can fail silently and leave every user pinned to a stale version. The redirect is in sync with the actual release by construction.
 
-### Alternative 3: Keep the REST API (RFC Option C)
+### Alternative 3: Keep the REST API
 
 - Rejected: this is the problem being solved.
 
-### Alternative 4: ETag conditional requests (RFC Option D)
+### Alternative 4: ETag conditional requests
 
 Cache locally and send `If-None-Match`; a `304` does not count against the budget.
 
 - Rejected: a mitigation, not a fix. Each IP's first request still counts, so the shared-NAT case — the actual failure mode — remains. It also adds local cache management.
 
-### Alternative 5: Hybrid ETag with proxy fallback (RFC Option E)
+### Alternative 5: Hybrid ETag with proxy fallback
 
 - Rejected: the most complex option, two code paths to maintain, and it still requires the proxy from Alternative 1.
 

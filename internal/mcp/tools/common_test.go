@@ -34,7 +34,7 @@ func writeDoc(t *testing.T, base, subdir, filename, content string) {
 func TestScanDocuments_Empty(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestScanDocuments_FindsDocs(t *testing.T) {
 	writeDoc(t, base, "knowledge", "use-postgres.adr.md", "---\ntitle: Use PostgreSQL\nstatus: accepted\n---\n\nbody")
 	writeDoc(t, base, "vision", "my-plan.plan.md", "---\ntitle: My Plan\nstatus: draft\n---\n\nbody")
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestScanDocuments_CustomDirectory(t *testing.T) {
 	writeDoc(t, base, "auth", "jwt-strategy.adr.md", "---\ntitle: JWT\nstatus: draft\n---\n\nbody")
 	writeDoc(t, base, "payments", "stripe.prd.md", "---\ntitle: Stripe\nstatus: draft\n---\n\nbody")
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestScanDocuments_NestedDirectory(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "infrastructure/k8s", "migration.adr.md", "---\ntitle: K8s Migration\nstatus: draft\n---\n\nbody")
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestScanDocuments_SkipsNonMd(t *testing.T) {
 	writeDoc(t, base, "knowledge", "readme.txt", "not a doc")
 	writeDoc(t, base, "knowledge", "real.rfc.md", "---\ntitle: Real\nstatus: draft\n---\n")
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestScanDocuments_SkipsNonMd(t *testing.T) {
 func TestScanDocuments_NoArchcoreDir(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestReadDocumentContent(t *testing.T) {
 	content := "---\ntitle: My ADR\nstatus: accepted\n---\n\n## Context\nSome context."
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", content)
 
-	doc, err := ReadDocumentContent(base, ".archcore/knowledge/my-adr.adr.md")
+	doc, err := readDocumentContent(base, ".archcore/knowledge/my-adr.adr.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestReadDocumentContent(t *testing.T) {
 func TestReadDocumentContent_NotFound(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
-	_, err := ReadDocumentContent(base, ".archcore/knowledge/nonexistent.adr.md")
+	_, err := readDocumentContent(base, ".archcore/knowledge/nonexistent.adr.md")
 	if err == nil {
 		t.Fatal("expected error for missing file")
 	}
@@ -202,7 +202,7 @@ func TestScanDocuments_FilesInRoot(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "", "my-doc.adr.md", "---\ntitle: Root Doc\nstatus: draft\n---\n\nbody")
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +226,7 @@ func TestScanDocuments_SkipsHiddenDirectories(t *testing.T) {
 	writeDoc(t, base, ".git", "config.adr.md", "---\ntitle: Hidden\nstatus: draft\n---\n\nbody")
 	writeDoc(t, base, "visible", "real.adr.md", "---\ntitle: Real\nstatus: draft\n---\n\nbody")
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func TestScanDocuments_SkipsMetaFiles(t *testing.T) {
 	}
 	writeDoc(t, base, "", "real.adr.md", "---\ntitle: Real\nstatus: draft\n---\n\nbody")
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +265,7 @@ func TestScanDocuments_UnknownDocType(t *testing.T) {
 	// File with no type segment -- ExtractDocType returns "".
 	writeDoc(t, base, "", "readme.md", "---\ntitle: Readme\nstatus: draft\n---\n\nbody")
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -483,7 +483,7 @@ func TestScanDocuments_WithTags(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "tagged.adr.md", "---\ntitle: Tagged\nstatus: draft\ntags:\n  - auth\n  - backend\n---\n\nbody")
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,7 +500,7 @@ func TestReadDocumentContent_WithTags(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "tagged.adr.md", "---\ntitle: Tagged\nstatus: draft\ntags:\n  - frontend\n---\n\nbody")
 
-	doc, err := ReadDocumentContent(base, ".archcore/knowledge/tagged.adr.md")
+	doc, err := readDocumentContent(base, ".archcore/knowledge/tagged.adr.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -528,24 +528,24 @@ func TestValidateArchcorePath(t *testing.T) {
 		{name: "traversal escape", input: ".archcore/../etc/passwd", wantErr: true, errMatch: "must be relative"},
 		{name: "absolute unix", input: "/etc/passwd", wantErr: true, errMatch: "must be relative"},
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := validateArchcorePath(tc.input)
-			if tc.wantErr {
+			got, err := validateArchcorePath(tt.input)
+			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil (result=%q)", got)
 				}
-				if tc.errMatch != "" && !strings.Contains(err.Error(), tc.errMatch) {
-					t.Errorf("error = %q, want substring %q", err.Error(), tc.errMatch)
+				if tt.errMatch != "" && !strings.Contains(err.Error(), tt.errMatch) {
+					t.Errorf("error = %q, want substring %q", err.Error(), tt.errMatch)
 				}
 				return
 			}
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if got != tc.want {
-				t.Errorf("got %q, want %q", got, tc.want)
+			if got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
 	}

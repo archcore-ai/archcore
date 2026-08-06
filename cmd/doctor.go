@@ -79,6 +79,12 @@ func newDoctorCmd(version string) *cobra.Command {
 				warnUnknownConfigFields(os.Stderr, settings)
 			}
 
+			// Whether each wired host will actually read what was written for
+			// it. This belongs in the diagnosis, not in --fix: a config that a
+			// host silently ignores is exactly what doctor exists to surface,
+			// and reporting it here means a plain `doctor` says so too.
+			reportEffectiveHooks(cwd)
+
 			// Server reachable (only when a server URL is configured).
 			if settings != nil {
 				if serverURL := settings.ServerURL(); serverURL != "" {
@@ -110,6 +116,38 @@ func newDoctorCmd(version string) *cobra.Command {
 	cmd.Flags().StringVar(&projectFlag, "project", "",
 		"project root to check (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
 	return cmd
+}
+
+// reportEffectiveHooks prints, for every host that actually carries archcore
+// hooks, whether it can act on them. Silence means every wired host will.
+//
+// Wired, not merely detected. agents.Detect answers "is this host used here?"
+// from the presence of a .claude/ or .codex/ directory, which says nothing about
+// whether archcore ever wrote hooks into it — so an unwired project used to warn
+// about Codex configuration it does not have, and, with nothing wired at all,
+// still claimed its wired hosts were healthy. The rule scopes this to a wired
+// host (report-effective-hook-state.rule, requirement 3).
+func reportEffectiveHooks(baseDir string) {
+	printed, wired := false, 0
+	for _, agent := range agents.Detect(baseDir) {
+		if !wiring.CarriesArchcoreHooks(baseDir, agent.ID) {
+			continue
+		}
+		wired++
+		for _, note := range wiring.DescribeEffectiveHooks(baseDir, agent.ID) {
+			fmt.Println(display.WarnLine(note))
+			printed = true
+		}
+	}
+	if note := wiring.DescribePluginConflict(); note != "" {
+		fmt.Println(display.WarnLine(note))
+		printed = true
+	}
+	// The reassurance is a claim about the hosts examined, so it is only honest
+	// when at least one was.
+	if !printed && wired > 0 {
+		fmt.Println(display.CheckLine("Wired hosts can act on their hook configs"))
+	}
 }
 
 // convergeHostWiring re-runs the host-wiring installers in converge mode for

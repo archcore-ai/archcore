@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"maps"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -54,12 +55,91 @@ func ValidSyncTypeStrings() []string {
 // CloudServerURL is the hardcoded URL for cloud sync. Var for test override.
 var CloudServerURL = "https://app.archcore.ai"
 
+// CodeAlignment tunes the pre-write context injection.
+type CodeAlignment struct {
+	// SourceRoots are the top-level directories treated as source code. A file
+	// outside all of them gets no injection. Empty means the built-in defaults.
+	SourceRoots []string `json:"sourceRoots,omitempty"`
+
+	// Extra preserves keys a newer archcore wrote here. Settings guards the
+	// top level the same way, but codeAlignment is a known key and is decoded
+	// into this struct, so without its own escape hatch anything nested that
+	// this binary does not recognize is dropped on the next write.
+	Extra map[string]json.RawMessage `json:"-"`
+}
+
+// caKnownFields are the codeAlignment keys this binary understands; everything
+// else is captured into Extra.
+var caKnownFields = map[string]bool{"sourceRoots": true}
+
+func (c CodeAlignment) MarshalJSON() ([]byte, error) {
+	known, err := json.Marshal(struct {
+		SourceRoots []string `json:"sourceRoots,omitempty"`
+	}{SourceRoots: c.SourceRoots})
+	if err != nil {
+		return nil, err
+	}
+	if len(c.Extra) == 0 {
+		return known, nil
+	}
+	var merged map[string]json.RawMessage
+	if err := json.Unmarshal(known, &merged); err != nil {
+		return nil, err
+	}
+	maps.Copy(merged, c.Extra)
+	return json.Marshal(merged)
+}
+
+func (c *CodeAlignment) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("field \"codeAlignment\" must be an object: %w", err)
+	}
+	if rootsRaw, ok := raw["sourceRoots"]; ok {
+		if err := json.Unmarshal(rootsRaw, &c.SourceRoots); err != nil {
+			return fmt.Errorf("field \"codeAlignment.sourceRoots\" must be an array of strings: %w", err)
+		}
+	}
+	for i, root := range c.SourceRoots {
+		if root == "" {
+			return errors.New("field \"codeAlignment.sourceRoots\" must not contain an empty entry")
+		}
+		// IsLocal rejects absolute paths, traversal, and reserved names in one
+		// predicate. A plain Contains("..") also rejected "foo..bar", which is
+		// an ordinary directory name.
+		if !filepath.IsLocal(root) {
+			return fmt.Errorf("field \"codeAlignment.sourceRoots\" entry %q must be a relative path inside the project", root)
+		}
+		// Normalize here, once, so consumers can stay a plain prefix test.
+		// IsLocal accepts "./src" and (on Windows) "src\api", but document paths
+		// are slash-separated and unprefixed — those roots validated cleanly and
+		// then matched nothing, silently disabling the advisory for a config
+		// that looked correct.
+		cleaned := strings.Trim(path.Clean(filepath.ToSlash(root)), "/")
+		if cleaned == "" || cleaned == "." {
+			return fmt.Errorf("field \"codeAlignment.sourceRoots\" entry %q must name a directory inside the project", root)
+		}
+		c.SourceRoots[i] = cleaned
+	}
+	for k, v := range raw {
+		if caKnownFields[k] {
+			continue
+		}
+		if c.Extra == nil {
+			c.Extra = map[string]json.RawMessage{}
+		}
+		c.Extra[k] = v
+	}
+	return nil
+}
+
 type Settings struct {
-	Sync        SyncType       `json:"sync"`
-	ProjectID   *int           `json:"project_id,omitempty"`
-	ArchcoreURL string         `json:"archcore_url,omitempty"`
-	Language    string         `json:"language,omitempty"`
-	Globals     []GlobalSource `json:"globals,omitempty"`
+	Sync          SyncType       `json:"sync"`
+	ProjectID     *int           `json:"project_id,omitempty"`
+	ArchcoreURL   string         `json:"archcore_url,omitempty"`
+	Language      string         `json:"language,omitempty"`
+	Globals       []GlobalSource `json:"globals,omitempty"`
+	CodeAlignment *CodeAlignment `json:"codeAlignment,omitempty"`
 
 	// Extra holds fields present in settings.json that this binary does not
 	// recognize — typically a field added by a newer archcore version. They are
@@ -147,9 +227,9 @@ func (s *Settings) ServerURL() string {
 // allowedFields defines which JSON fields are valid per sync type (besides "sync" itself).
 // "globals" is always allowed regardless of sync mode.
 var allowedFields = map[SyncType]map[string]bool{
-	SyncTypeNone:   {"language": true, "globals": true},
-	SyncTypeCloud:  {"project_id": true, "language": true, "globals": true},
-	SyncTypeOnPrem: {"project_id": true, "archcore_url": true, "language": true, "globals": true},
+	SyncTypeNone:   {"language": true, "globals": true, "codeAlignment": true},
+	SyncTypeCloud:  {"project_id": true, "language": true, "globals": true, "codeAlignment": true},
+	SyncTypeOnPrem: {"project_id": true, "archcore_url": true, "language": true, "globals": true, "codeAlignment": true},
 }
 
 // requiredFields defines which JSON fields must be present per sync type.
@@ -178,29 +258,34 @@ func (s Settings) MarshalJSON() ([]byte, error) {
 	var known []byte
 	var err error
 	switch s.Sync {
+	// Every optional field must appear in all three shapes below. A field added
+	// to only one is silently dropped when the project switches sync mode.
 	case SyncTypeNone:
 		known, err = json.Marshal(struct {
-			Sync     SyncType       `json:"sync"`
-			Language string         `json:"language,omitempty"`
-			Globals  []GlobalSource `json:"globals,omitempty"`
-		}{Sync: s.Sync, Language: s.Language, Globals: s.Globals})
+			Sync          SyncType       `json:"sync"`
+			Language      string         `json:"language,omitempty"`
+			Globals       []GlobalSource `json:"globals,omitempty"`
+			CodeAlignment *CodeAlignment `json:"codeAlignment,omitempty"`
+		}{Sync: s.Sync, Language: s.Language, Globals: s.Globals, CodeAlignment: s.CodeAlignment})
 
 	case SyncTypeCloud:
 		known, err = json.Marshal(struct {
-			Sync      SyncType       `json:"sync"`
-			ProjectID *int           `json:"project_id,omitempty"`
-			Language  string         `json:"language,omitempty"`
-			Globals   []GlobalSource `json:"globals,omitempty"`
-		}{Sync: s.Sync, ProjectID: s.ProjectID, Language: s.Language, Globals: s.Globals})
+			Sync          SyncType       `json:"sync"`
+			ProjectID     *int           `json:"project_id,omitempty"`
+			Language      string         `json:"language,omitempty"`
+			Globals       []GlobalSource `json:"globals,omitempty"`
+			CodeAlignment *CodeAlignment `json:"codeAlignment,omitempty"`
+		}{Sync: s.Sync, ProjectID: s.ProjectID, Language: s.Language, Globals: s.Globals, CodeAlignment: s.CodeAlignment})
 
 	case SyncTypeOnPrem:
 		known, err = json.Marshal(struct {
-			Sync        SyncType       `json:"sync"`
-			ProjectID   *int           `json:"project_id,omitempty"`
-			ArchcoreURL string         `json:"archcore_url"`
-			Language    string         `json:"language,omitempty"`
-			Globals     []GlobalSource `json:"globals,omitempty"`
-		}{Sync: s.Sync, ProjectID: s.ProjectID, ArchcoreURL: s.ArchcoreURL, Language: s.Language, Globals: s.Globals})
+			Sync          SyncType       `json:"sync"`
+			ProjectID     *int           `json:"project_id,omitempty"`
+			ArchcoreURL   string         `json:"archcore_url"`
+			Language      string         `json:"language,omitempty"`
+			Globals       []GlobalSource `json:"globals,omitempty"`
+			CodeAlignment *CodeAlignment `json:"codeAlignment,omitempty"`
+		}{Sync: s.Sync, ProjectID: s.ProjectID, ArchcoreURL: s.ArchcoreURL, Language: s.Language, Globals: s.Globals, CodeAlignment: s.CodeAlignment})
 
 	default:
 		return nil, fmt.Errorf("unknown sync type %q", s.Sync)
@@ -237,11 +322,11 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	// Extract and validate sync field.
 	syncRaw, ok := raw["sync"]
 	if !ok {
-		return fmt.Errorf("missing required field \"sync\"")
+		return errors.New("missing required field \"sync\"")
 	}
 	var syncRawString string
 	if err := json.Unmarshal(syncRaw, &syncRawString); err != nil {
-		return fmt.Errorf("field \"sync\" must be a string")
+		return errors.New("field \"sync\" must be a string")
 	}
 	syncType := SyncType(syncRawString)
 
@@ -288,7 +373,7 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 		} else {
 			var pid int
 			if err := json.Unmarshal(pidRaw, &pid); err != nil {
-				return fmt.Errorf("field \"project_id\" must be null or a number")
+				return errors.New("field \"project_id\" must be null or a number")
 			}
 			s.ProjectID = &pid
 		}
@@ -298,10 +383,10 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if urlRaw, ok := raw["archcore_url"]; ok {
 		var url string
 		if err := json.Unmarshal(urlRaw, &url); err != nil {
-			return fmt.Errorf("field \"archcore_url\" must be a string")
+			return errors.New("field \"archcore_url\" must be a string")
 		}
 		if url == "" {
-			return fmt.Errorf("field \"archcore_url\" must not be empty")
+			return errors.New("field \"archcore_url\" must not be empty")
 		}
 		s.ArchcoreURL = url
 	}
@@ -310,13 +395,13 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if langRaw, ok := raw["language"]; ok {
 		var lang string
 		if err := json.Unmarshal(langRaw, &lang); err != nil {
-			return fmt.Errorf("field \"language\" must be a string")
+			return errors.New("field \"language\" must be a string")
 		}
 		if lang == "" {
-			return fmt.Errorf("field \"language\" must not be empty")
+			return errors.New("field \"language\" must not be empty")
 		}
 		if strings.Contains(lang, " ") {
-			return fmt.Errorf("field \"language\" must not contain spaces")
+			return errors.New("field \"language\" must not contain spaces")
 		}
 		s.Language = lang
 	}
@@ -325,9 +410,20 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if globalsRaw, ok := raw["globals"]; ok {
 		var globals []GlobalSource
 		if err := json.Unmarshal(globalsRaw, &globals); err != nil {
-			return fmt.Errorf("field \"globals\" must be an array of global source objects")
+			return errors.New("field \"globals\" must be an array of global source objects")
 		}
 		s.Globals = globals
+	}
+
+	// Decode codeAlignment if present. Explicit null leaves the section unset
+	// rather than producing an empty object the next write would persist, the
+	// same treatment project_id gets above.
+	if caRaw, ok := raw["codeAlignment"]; ok && string(caRaw) != "null" {
+		var ca CodeAlignment
+		if err := json.Unmarshal(caRaw, &ca); err != nil {
+			return err
+		}
+		s.CodeAlignment = &ca
 	}
 
 	return nil

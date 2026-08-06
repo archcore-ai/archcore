@@ -13,14 +13,22 @@ func TestBuildSessionContext_Empty(t *testing.T) {
 	t.Parallel()
 	base := setupArchcoreDir(t)
 
-	ctx, _ := buildSessionContext(base)
+	ctx, _ := buildSessionContext(bg(), base)
 
 	if !strings.Contains(ctx, "Archcore") {
 		t.Error("missing Archcore header")
 	}
-	for _, cat := range []string{"knowledge", "vision", "experience"} {
-		if !strings.Contains(ctx, "  ["+cat+"]\n    (none)") {
-			t.Errorf("category %s should show (none)", cat)
+	// An empty corpus states so and points at the way out, rather than printing
+	// three empty category headings the model has to interpret.
+	if !strings.Contains(ctx, "CORPUS: no documents yet") {
+		t.Errorf("empty corpus should say so; ctx=%q", ctx)
+	}
+	if !strings.Contains(ctx, "create_document") {
+		t.Errorf("empty corpus should name the tool that fixes it; ctx=%q", ctx)
+	}
+	for _, absent := range []string{"IN PROGRESS", "RECENTLY ACCEPTED"} {
+		if strings.Contains(ctx, absent) {
+			t.Errorf("empty corpus should not render the %q block; ctx=%q", absent, ctx)
 		}
 	}
 }
@@ -38,7 +46,7 @@ func TestBuildSessionContext_WithDocs(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	ctx, _ := buildSessionContext(base)
+	ctx, _ := buildSessionContext(bg(), base)
 
 	if !strings.Contains(ctx, "use-postgres.adr.md") {
 		t.Error("context missing knowledge doc")
@@ -62,7 +70,7 @@ func TestBuildSessionContext_WithRelations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, _ := buildSessionContext(base)
+	ctx, _ := buildSessionContext(bg(), base)
 	if !strings.Contains(ctx, "DOCUMENT RELATIONS") {
 		t.Error("expected DOCUMENT RELATIONS section")
 	}
@@ -75,7 +83,7 @@ func TestBuildSessionContext_MentionsRelationTools(t *testing.T) {
 	t.Parallel()
 	base := setupArchcoreDir(t)
 
-	ctx, _ := buildSessionContext(base)
+	ctx, _ := buildSessionContext(bg(), base)
 	if !strings.Contains(ctx, "add_relation") {
 		t.Error("expected 'add_relation' in context")
 	}
@@ -100,7 +108,7 @@ func TestBuildSessionContext_WithTags(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, _ := buildSessionContext(base)
+	ctx, _ := buildSessionContext(bg(), base)
 	if !strings.Contains(ctx, "EXISTING TAGS:") {
 		t.Error("expected EXISTING TAGS section")
 	}
@@ -124,7 +132,7 @@ func TestBuildSessionContext_NoTags(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, _ := buildSessionContext(base)
+	ctx, _ := buildSessionContext(bg(), base)
 	if strings.Contains(ctx, "EXISTING TAGS:") {
 		t.Error("should not show EXISTING TAGS when no tags exist")
 	}
@@ -153,7 +161,7 @@ func TestBuildSessionContext_ExcludesGlobals(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, _ := buildSessionContext(base)
+	ctx, _ := buildSessionContext(bg(), base)
 
 	if !strings.Contains(ctx, "local-rule.rule.md") {
 		t.Error("local doc should appear in session context")
@@ -185,7 +193,7 @@ func TestBuildSessionContext_MissingGlobalDegradesToLocal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, n := buildSessionContext(base)
+	ctx, n := buildSessionContext(bg(), base)
 
 	if !strings.Contains(ctx, "local-rule.rule.md") {
 		t.Error("local doc must survive a missing global, not be blanked")

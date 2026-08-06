@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"io"
 	"strings"
 	"testing"
@@ -31,7 +32,6 @@ func TestCommands_RejectStrayPositionalArgs(t *testing.T) {
 		{"hooks", "install", "x"},        // --agent only
 		{"instructions", "install", "x"}, // --agent only
 		{"instructions", "remove", "x"},  // the original footgun
-		{"hooks", "claude-code", "session-start", "x"}, // hidden hook: stdin JSON, no args
 	}
 	for _, args := range cases {
 		t.Run(strings.Join(args, "_"), func(t *testing.T) {
@@ -47,6 +47,32 @@ func TestCommands_RejectStrayPositionalArgs(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), "unknown command") {
 				t.Errorf("%v: error %q should reject the positional arg as an unknown command", args, err.Error())
+			}
+		})
+	}
+}
+
+// The hook event leaves are the other deliberate exception, and the opposite
+// one: they must NOT reject a stray argument.
+//
+// "Fail loudly" assumes a human reads the error. On a hook leaf the reader is
+// the host, and every one of them treats a non-zero exit as a verdict —
+// Copilot as a deny whose reason is discarded. Rejecting the argument at
+// validation time also skips safeHandle and emitDecision, so the fail-open
+// paths never run. The contract is owned by TestHooksCLI_StrayArgument* in
+// hook_cli_e2e_test.go: tolerate the argument, still run the guard.
+func TestHookLeaves_AcceptStrayPositionalArgs(t *testing.T) {
+	t.Parallel()
+	for _, event := range []string{"session-start", "pre-tool-use", "post-tool-use"} {
+		t.Run(event, func(t *testing.T) {
+			t.Parallel()
+			leaf := newHookEventCmd(hookDialects[0], eventSessionStart, event,
+				func(context.Context, hookRequest) hookDecision { return allowHook() })
+			if leaf.Args == nil {
+				t.Fatal("hook leaf must set Args explicitly, not inherit cobra's default")
+			}
+			if err := leaf.Args(leaf, []string{"x"}); err != nil {
+				t.Errorf("a stray argument must not fail validation: %v", err)
 			}
 		})
 	}

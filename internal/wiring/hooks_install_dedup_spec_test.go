@@ -116,9 +116,8 @@ func TestHooksInstall_RemovesStaleDuplicateWhenCurrentPresent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := strings.Count(string(data), "archcore hooks")
-	if got != 1 {
-		t.Errorf("want exactly 1 archcore hook command after healing a duplicate, got %d:\n%s", got, data)
+	if got := countArchcoreEntriesUnder(t, data, "SessionStart"); got != 1 {
+		t.Errorf("want exactly 1 archcore entry under SessionStart after healing a duplicate, got %d:\n%s", got, data)
 	}
 	if !strings.Contains(string(data), "archcore hooks claude-code session-start") {
 		t.Errorf("surviving entry must carry the current command:\n%s", data)
@@ -182,8 +181,8 @@ func TestHooksInstall_UpdatesStaleCursorEntry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Count(string(data), "archcore hooks"); got != 1 {
-		t.Errorf("want exactly 1 archcore cursor hook after update, got %d:\n%s", got, data)
+	if got := countArchcoreEntriesUnder(t, data, "sessionStart"); got != 1 {
+		t.Errorf("want exactly 1 archcore entry under sessionStart after update, got %d:\n%s", got, data)
 	}
 	if !strings.Contains(string(data), "archcore hooks cursor session-start") {
 		t.Errorf("stale cursor command must be updated in place:\n%s", data)
@@ -261,10 +260,31 @@ func TestHooksInstall_UpdatesStaleCopilotEntry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Count(string(data), "archcore hooks"); got != 1 {
-		t.Errorf("want exactly 1 archcore copilot hook after update, got %d:\n%s", got, data)
+	if got := countArchcoreEntriesUnder(t, data, "sessionStart"); got != 1 {
+		t.Errorf("want exactly 1 archcore entry under sessionStart after update, got %d:\n%s", got, data)
 	}
 	if !strings.Contains(string(data), "archcore hooks copilot session-start") {
 		t.Errorf("stale copilot command must be updated in place:\n%s", data)
 	}
+}
+
+// countArchcoreEntriesUnder counts the archcore-owned entries under one event
+// key. Scoped to an event on purpose: "how many entries do we own here" is the
+// ownership contract, while "how many appear in the file" only counts how many
+// events archcore installs — a number these tests have no opinion about.
+func countArchcoreEntriesUnder(t *testing.T, data []byte, event string) int {
+	t.Helper()
+	var doc struct {
+		Hooks map[string][]json.RawMessage `json:"hooks"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("parsing config: %v\n%s", err, data)
+	}
+	n := 0
+	for _, entry := range doc.Hooks[event] {
+		if strings.Contains(string(entry), "archcore hooks ") {
+			n++
+		}
+	}
+	return n
 }

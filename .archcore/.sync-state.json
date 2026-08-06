@@ -120,47 +120,7 @@
     },
     {
       "source": "document-types/mrd-brd-urd-requirement-sources.idea.md",
-      "target": "document-types/iso-29148-document-types-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/mrd-brd-urd-requirement-sources.idea.md",
       "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/mrd-brd-urd-implementation.plan.md",
-      "target": "document-types/iso-29148-document-types-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/mrd-brd-urd-implementation.plan.md",
-      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/mrd-brd-urd-implementation.plan.md",
-      "target": "document-types/mrd-brd-urd-requirement-sources.idea.md",
-      "type": "implements"
-    },
-    {
-      "source": "mcp/tags-implementation.plan.md",
-      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/tags-implementation.plan.md",
-      "target": "dir/free-form-directory-structure.adr.md",
-      "type": "extends"
-    },
-    {
-      "source": "document-types/spec-type-usage.rule.md",
-      "target": "document-types/iso-29148-document-types-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/spec-type-usage.rule.md",
-      "target": "document-types/mrd-brd-urd-implementation.plan.md",
       "type": "related"
     },
     {
@@ -171,16 +131,6 @@
     {
       "source": "document-types/spec-type-usage.rule.md",
       "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/writing-spec-documents.guide.md",
-      "target": "document-types/iso-29148-document-types-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/writing-spec-documents.guide.md",
-      "target": "document-types/mrd-brd-urd-implementation.plan.md",
       "type": "related"
     },
     {
@@ -206,16 +156,6 @@
     {
       "source": "document-types/writing-spec-documents.guide.md",
       "target": "dir/categories-and-document-types.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/remove-project-document-type.adr.md",
-      "target": "document-types/iso-29148-document-types-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/remove-project-document-type.adr.md",
-      "target": "document-types/mrd-brd-urd-implementation.plan.md",
       "type": "related"
     },
     {
@@ -270,16 +210,6 @@
     },
     {
       "source": "document-types/source-to-specification-relations.rule.md",
-      "target": "document-types/iso-29148-document-types-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/source-to-specification-relations.rule.md",
-      "target": "document-types/mrd-brd-urd-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/source-to-specification-relations.rule.md",
       "target": "document-types/mrd-brd-urd-requirement-sources.idea.md",
       "type": "related"
     },
@@ -301,16 +231,6 @@
     {
       "source": "document-types/source-to-specification-relations.rule.md",
       "target": "document-types/writing-spec-documents.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/sources-are-not-specifications.rule.md",
-      "target": "document-types/iso-29148-document-types-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/sources-are-not-specifications.rule.md",
-      "target": "document-types/mrd-brd-urd-implementation.plan.md",
       "type": "related"
     },
     {
@@ -341,16 +261,6 @@
     {
       "source": "document-types/sources-are-not-specifications.rule.md",
       "target": "document-types/writing-spec-documents.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/working-with-requirements-tracks.guide.md",
-      "target": "document-types/iso-29148-document-types-implementation.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/working-with-requirements-tracks.guide.md",
-      "target": "document-types/mrd-brd-urd-implementation.plan.md",
       "type": "related"
     },
     {
@@ -419,16 +329,6 @@
       "type": "related"
     },
     {
-      "source": "mcp/no-list-tags-tool.adr.md",
-      "target": "mcp/tags-implementation.plan.md",
-      "type": "implements"
-    },
-    {
-      "source": "mcp/tag-update-semantics.rule.md",
-      "target": "mcp/tags-implementation.plan.md",
-      "type": "implements"
-    },
-    {
       "source": "mcp/tag-update-semantics.rule.md",
       "target": "cli/optional-settings-omit-defaults.rule.md",
       "type": "related"
@@ -469,11 +369,6 @@
       "type": "related"
     },
     {
-      "source": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
-      "target": "mcp/tags-implementation.plan.md",
-      "type": "related"
-    },
-    {
       "source": "integrations/agent-hooks-integration.guide.md",
       "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
       "type": "related"
@@ -504,11 +399,6 @@
       "type": "related"
     },
     {
-      "source": "mcp/search-documents.spec.md",
-      "target": "mcp/tags-implementation.plan.md",
-      "type": "related"
-    },
-    {
       "source": "mcp/search-documents-matching-not-presentation.adr.md",
       "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
       "type": "related"
@@ -531,11 +421,6 @@
     {
       "source": "mcp/search-documents-matching-not-presentation.adr.md",
       "target": "mcp/tag-update-semantics.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/search-documents-matching-not-presentation.adr.md",
-      "target": "mcp/tags-implementation.plan.md",
       "type": "related"
     },
     {
@@ -562,51 +447,6 @@
       "source": "code-quality/in-process-mcp-integration-tests.adr.md",
       "target": "code-quality/go-code-quality.rule.md",
       "type": "related"
-    },
-    {
-      "source": "mcp/mcp-prompts-for-tracks-only.adr.md",
-      "target": "mcp/track-cascade-invocation-via-mcp.idea.md",
-      "type": "implements"
-    },
-    {
-      "source": "mcp/mcp-prompts-for-tracks-only.adr.md",
-      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/mcp-prompts-for-tracks-only.adr.md",
-      "target": "relations/no-auto-relations-on-create-document.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/mcp-prompts-for-tracks-only.adr.md",
-      "target": "code-quality/in-process-mcp-integration-tests.adr.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "mcp/mcp-prompts-for-tracks-only.adr.md",
-      "target": "cli/mcp-token-optimization.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/mcp-prompts-orchestration-only.rule.md",
-      "target": "mcp/mcp-prompts-for-tracks-only.adr.md",
-      "type": "implements"
-    },
-    {
-      "source": "mcp/adding-mcp-track-prompts.guide.md",
-      "target": "mcp/mcp-prompts-orchestration-only.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/adding-mcp-track-prompts.guide.md",
-      "target": "mcp/mcp-prompts-for-tracks-only.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/adding-mcp-track-prompts.guide.md",
-      "target": "code-quality/in-process-mcp-integration-tests.adr.md",
-      "type": "depends_on"
     },
     {
       "source": "integrations/instruction-nudge-on-init.adr.md",
@@ -649,11 +489,6 @@
       "type": "related"
     },
     {
-      "source": "features/globals-prototype-fixes.plan.md",
-      "target": "globals/global-sources-via-settings.adr.md",
-      "type": "related"
-    },
-    {
       "source": "globals/global-sources-via-settings.adr.md",
       "target": "cli/multi-project-mcp-access.idea.md",
       "type": "related"
@@ -679,46 +514,6 @@
       "type": "related"
     },
     {
-      "source": "features/globals-prototype-fixes.plan.md",
-      "target": "globals/globals-are-mandatory.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/mcp-prompts-implementation.plan.md",
-      "target": "mcp/mcp-prompts-for-tracks-only.adr.md",
-      "type": "implements"
-    },
-    {
-      "source": "mcp/mcp-prompts-implementation.plan.md",
-      "target": "code-quality/in-process-mcp-integration-tests.adr.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "mcp/mcp-prompts-implementation.plan.md",
-      "target": "mcp/adding-mcp-track-prompts.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/mcp-prompts-implementation.plan.md",
-      "target": "mcp/mcp-prompts-orchestration-only.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "sync/sync-command-implementation.plan.md",
-      "target": "sync/sync-design.idea.md",
-      "type": "implements"
-    },
-    {
-      "source": "sync/sync-command-implementation.plan.md",
-      "target": "sync/one-way-push-sync-strategy.adr.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "sync/sync-command-implementation.plan.md",
-      "target": "sync/auto-detect-repo-url-on-sync.adr.md",
-      "type": "related"
-    },
-    {
       "source": "sync/sync-source-of-truth.rule.md",
       "target": "sync/one-way-push-sync-strategy.adr.md",
       "type": "implements"
@@ -739,24 +534,9 @@
       "type": "related"
     },
     {
-      "source": "sync/temporarily-disable-sync.adr.md",
-      "target": "sync/sync-command-implementation.plan.md",
-      "type": "related"
-    },
-    {
       "source": "cli/feature-gating-at-command-layer.rule.md",
       "target": "sync/temporarily-disable-sync.adr.md",
       "type": "implements"
-    },
-    {
-      "source": "update/update-version-check-strategy.rfc.md",
-      "target": "update/version-check-proxy.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "update/self-update-command.guide.md",
-      "target": "update/update-version-check-strategy.rfc.md",
-      "type": "related"
     },
     {
       "source": "update/self-update-command.guide.md",
@@ -809,41 +589,6 @@
       "type": "related"
     },
     {
-      "source": "features/globals-prototype-fixes.plan.md",
-      "target": "features/globals-cli-forward-compat.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "features/globals-prototype-fixes.plan.md",
-      "target": "features/globals-plugin-compat.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "features/globals-cli-forward-compat.plan.md",
-      "target": "globals/global-sources-via-settings.adr.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "features/globals-cli-forward-compat.plan.md",
-      "target": "globals/globals-are-mandatory.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "features/globals-plugin-compat.plan.md",
-      "target": "globals/global-sources-via-settings.adr.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "features/globals-plugin-compat.plan.md",
-      "target": "features/globals-cli-forward-compat.plan.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "integrations/save-agent-plans-into-archcore.idea.md",
-      "target": "mcp/track-cascade-invocation-via-mcp.idea.md",
-      "type": "related"
-    },
-    {
       "source": "integrations/save-agent-plans-into-archcore.idea.md",
       "target": "integrations/instruction-nudge-on-init.adr.md",
       "type": "related"
@@ -879,16 +624,6 @@
       "type": "related"
     },
     {
-      "source": "document-types/spec-doctrine-ears-alignment.plan.md",
-      "target": "document-types/writing-spec-documents.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/spec-doctrine-ears-alignment.plan.md",
-      "target": "document-types/spec-type-usage.rule.md",
-      "type": "related"
-    },
-    {
       "source": "mcp/install-host-config-tool-contract.adr.md",
       "target": "integrations/hook-command-marker-prefix.adr.md",
       "type": "depends_on"
@@ -909,44 +644,9 @@
       "type": "related"
     },
     {
-      "source": "document-types/iso-29148-document-types-implementation.plan.md",
-      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
-      "type": "implements"
-    },
-    {
-      "source": "code-quality/cli-full-audit-2026-07-fix.plan.md",
-      "target": "code-quality/strict-go-naming-conventions.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "code-quality/cli-full-audit-2026-07-fix.plan.md",
-      "target": "sync/sync-engine.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "code-quality/cli-full-audit-2026-07-fix.plan.md",
-      "target": "mcp/search-documents.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "code-quality/cli-full-audit-2026-07-fix.plan.md",
-      "target": "integrations/backup-invalid-configs.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "code-quality/cli-full-audit-2026-07-fix.plan.md",
-      "target": "globals/global-sources.spec.md",
-      "type": "related"
-    },
-    {
       "source": "sync/sync-engine.spec.md",
       "target": "sync/one-way-push-sync-strategy.adr.md",
       "type": "depends_on"
-    },
-    {
-      "source": "sync/sync-command-implementation.plan.md",
-      "target": "sync/sync-engine.spec.md",
-      "type": "implements"
     },
     {
       "source": "update/self-update-command.guide.md",
@@ -957,16 +657,6 @@
       "source": "release/install-script-usage.guide.md",
       "target": "update/resolve-latest-via-github-redirect.adr.md",
       "type": "depends_on"
-    },
-    {
-      "source": "update/update-version-check-strategy.rfc.md",
-      "target": "update/resolve-latest-via-github-redirect.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "update/version-check-proxy.idea.md",
-      "target": "update/resolve-latest-via-github-redirect.adr.md",
-      "type": "related"
     },
     {
       "source": "release/release-infrastructure.doc.md",
@@ -1054,16 +744,6 @@
       "type": "related"
     },
     {
-      "source": "globals/vendoring-a-global.guide.md",
-      "target": "features/globals-prototype-fixes.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "release/how-to-release.guide.md",
-      "target": "features/globals-cli-forward-compat.plan.md",
-      "type": "related"
-    },
-    {
       "source": "dir/archcore-directory-structure.guide.md",
       "target": "dir/free-form-directory-structure.adr.md",
       "type": "related"
@@ -1086,6 +766,156 @@
     {
       "source": "telemetry/install-analytics-via-installer-beacon.adr.md",
       "target": "release/release-infrastructure.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/session-start-context.spec.md",
+      "target": "integrations/cli-hooks-reference.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-runtime.spec.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "target": "integrations/disable-stop-and-prompt-hooks.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "target": "integrations/hook-command-marker-prefix.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-runtime.spec.md",
+      "target": "integrations/session-start-context.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/report-effective-hook-state.rule.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/report-effective-hook-state.rule.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/plugin-cli-compatibility.rule.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/plugin-cli-compatibility.rule.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/docs-package-owns-the-document-model.adr.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/docs-package-owns-the-document-model.adr.md",
+      "target": "code-quality/strict-go-naming-conventions.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/forward-compatible-settings-parsing.rule.md",
+      "target": "cli/optional-settings-omit-defaults.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/forward-compatible-settings-parsing.rule.md",
+      "target": "sync/sync-mode-field-validation.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/forward-compatible-settings-parsing.rule.md",
+      "target": "integrations/backup-invalid-configs.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-mandatory.adr.md",
+      "target": "cli/forward-compatible-settings-parsing.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/tag-hygiene-checks.idea.md",
+      "target": "mcp/tag-update-semantics.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/tag-hygiene-checks.idea.md",
+      "target": "mcp/no-list-tags-tool.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.guide.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.guide.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.guide.md",
+      "target": "cli/forward-compatible-settings-parsing.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/agent-hooks-integration.guide.md",
+      "target": "integrations/cli-hooks-reference.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/agent-hooks-integration.guide.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-read-only-everywhere.rule.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/supported-ai-agents.doc.md",
+      "target": "integrations/cli-hooks-reference.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/backup-invalid-configs.adr.md",
+      "target": "integrations/mcp-config-converge-ownership.adr.md",
       "type": "related"
     }
   ]

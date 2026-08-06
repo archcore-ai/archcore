@@ -71,26 +71,47 @@ func TestNewServer_WithLanguageSetting(t *testing.T) {
 	}
 }
 
-func TestBuildInstructions_HasWorkflowPromptsBlock(t *testing.T) {
+// TestBuildInstructions_TrackSectionsRemoved guards the layer boundary from
+// both sides. Track orchestration moved to the plugin, so the instructions must
+// not describe it — but the cut sat next to sections that carry knowledge about
+// document TYPES, which stays here. Asserting only the removal would let a
+// careless edit take REQUIREMENTS LAYERS with it and no test would notice;
+// asserting only the survivors would let the track prose creep back.
+func TestBuildInstructions_TrackSectionsRemoved(t *testing.T) {
 	t.Parallel()
-	promptNames := []string{
+
+	// Track orchestration and the prompt surface that drove it.
+	removed := []string{
+		"REQUIREMENTS TRACKS",
+		"RESEARCH GATE",
+		"WORKFLOW PROMPTS",
 		"iso_track",
 		"sources_track",
 		"product_track",
 		"standard_track",
 		"architecture_track",
 	}
+	// Type knowledge, relation conventions, and status semantics stay.
+	kept := []string{
+		"TYPE SELECTION RULES",
+		"REQUIREMENTS LAYERS",
+		"DOCUMENT RELATIONS",
+		"VALID STATUS VALUES",
+		"TAGS:",
+		// The rnd verdict mapping outlived the section it used to live in.
+		"first-class outcome",
+	}
+
 	for _, lang := range []string{"", "en", "ru"} {
 		result := buildInstructions(lang)
-		if !strings.Contains(result, "WORKFLOW PROMPTS") {
-			t.Errorf("buildInstructions(%q): missing WORKFLOW PROMPTS block", lang)
+		for _, s := range removed {
+			if strings.Contains(result, s) {
+				t.Errorf("buildInstructions(%q): still contains removed marker %q", lang, s)
+			}
 		}
-		if got := strings.Count(result, "WORKFLOW PROMPTS"); got != 1 {
-			t.Errorf("buildInstructions(%q): WORKFLOW PROMPTS appears %d times, want 1", lang, got)
-		}
-		for _, name := range promptNames {
-			if !strings.Contains(result, name) {
-				t.Errorf("buildInstructions(%q): missing prompt name %q", lang, name)
+		for _, s := range kept {
+			if !strings.Contains(result, s) {
+				t.Errorf("buildInstructions(%q): lost surviving section %q", lang, s)
 			}
 		}
 	}

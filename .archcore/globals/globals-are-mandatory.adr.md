@@ -34,8 +34,8 @@ A global is declared only when a project deliberately adds it to its `globals` a
 ## Consequences
 
 - The schema simplifies: each entry is `{ id, path }` (the `Required` field is removed from `GlobalSource` in @internal/config/config.go).
-- `scanDocuments` (@internal/mcp/tools/common.go) and `checkGlobals` (@cmd/mcp.go) always error on a missing source; the `if gs.Required` branch is gone.
-- Distribution/lifecycle (getting the source onto disk) becomes more pressing, since there is no "tolerate missing" mode. Tracked as problem 6 in @.archcore/features/globals-prototype-fixes.plan.md; the interim answer is in-tree vendoring (@.archcore/globals/vendoring-a-global.guide.md), which is self-contained.
+- `docs.Scan` (@internal/docs/scan.go) and `checkGlobals` (@cmd/mcp.go) always error on a missing source; the `if gs.Required` branch is gone.
+- Distribution and lifecycle — getting the source onto disk — become more pressing, since there is no "tolerate missing" mode. This stays an open question; the interim answer is in-tree vendoring (@.archcore/globals/vendoring-a-global.guide.md), which is self-contained.
 - This supersedes the `required` specifics in @.archcore/globals/global-sources-via-settings.adr.md (Decision point 6) and is reflected in @.archcore/globals/global-sources.spec.md and @.archcore/globals/declaring-global-sources.rule.md.
-- Backward compatible at load time: an old `settings.json` that still carries `"required": …` keeps working — the unknown field is ignored — but it has no effect.
+- Backward compatible at load time: an old `settings.json` that still carries `"required": …` keeps working — the unknown field is carried through per @.archcore/cli/forward-compatible-settings-parsing.rule.md — but it has no effect.
 - Non-server surfaces (`archcore status`, the SessionStart hook) must not block a session, so they do **not** fail-fast on a missing global: they degrade to a local-only scan and surface a visible warning naming the source, rather than silently blanking local context. "Loud, not silent" holds without aborting. See @.archcore/globals/global-sources.spec.md §6.4 and @cmd/hooks_common.go.

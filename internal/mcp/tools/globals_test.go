@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"archcore-cli/internal/config"
+	"archcore-cli/internal/docs"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -68,9 +69,9 @@ func TestScanDocuments_WithGlobals(t *testing.T) {
 		{ID: "platform", Path: ".archcore/global/platform"},
 	})
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
-		t.Fatalf("ScanDocuments: %v", err)
+		t.Fatalf("scanDocuments: %v", err)
 	}
 	if len(docs) != 5 {
 		t.Fatalf("want 5 docs, got %d", len(docs))
@@ -151,9 +152,9 @@ func TestScanDocuments_SkipsGlobalDirWithoutDeclaration(t *testing.T) {
 
 	// No settings.json → no globals declared.
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
-		t.Fatalf("ScanDocuments: %v", err)
+		t.Fatalf("scanDocuments: %v", err)
 	}
 	if len(docs) != 1 {
 		t.Errorf("want 1 doc (global/ skipped), got %d", len(docs))
@@ -275,8 +276,8 @@ func TestIsGlobalPath_LookupBased(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isGlobalPath(baseDir, tt.relPath, globals); got != tt.want {
-				t.Errorf("isGlobalPath(%q) = %v, want %v", tt.relPath, got, tt.want)
+			if got := docs.IsGlobalPath(baseDir, tt.relPath, globals); got != tt.want {
+				t.Errorf("IsGlobalPath(%q) = %v, want %v", tt.relPath, got, tt.want)
 			}
 		})
 	}
@@ -296,9 +297,9 @@ func TestScanDocuments_WithExternalGlobal(t *testing.T) {
 		{ID: "platform", Path: "vendor/platform"},
 	})
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
-		t.Fatalf("ScanDocuments: %v", err)
+		t.Fatalf("scanDocuments: %v", err)
 	}
 	if len(docs) != 2 {
 		t.Fatalf("want 2 docs (1 local + 1 external global), got %d", len(docs))
@@ -336,9 +337,9 @@ func TestScanDocuments_MissingGlobalFails(t *testing.T) {
 		{ID: "ghost", Path: ".archcore/global/ghost"},
 	})
 
-	_, err := ScanDocuments(base)
+	_, err := scanDocuments(base)
 	if err == nil {
-		t.Fatal("ScanDocuments should fail for a missing global source")
+		t.Fatal("scanDocuments should fail for a missing global source")
 	}
 	if !strings.Contains(err.Error(), "ghost") {
 		t.Errorf("error %q should mention the global id", err.Error())
@@ -379,9 +380,9 @@ func TestScanDocuments_WithRelativeExternalGlobal(t *testing.T) {
 		{ID: "company-global", Path: "../company-global/.archcore"},
 	})
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
-		t.Fatalf("ScanDocuments: %v", err)
+		t.Fatalf("scanDocuments: %v", err)
 	}
 
 	// Expect 1 local + 2 external global docs.
@@ -436,9 +437,9 @@ func TestScanDocuments_InTreeGlobalOutsideReservedDir_NotDoubleScanned(t *testin
 		{ID: "company", Path: ".archcore/globals/company"},
 	})
 
-	docs, err := ScanDocuments(base)
+	docs, err := scanDocuments(base)
 	if err != nil {
-		t.Fatalf("ScanDocuments: %v", err)
+		t.Fatalf("scanDocuments: %v", err)
 	}
 
 	const companyPath = ".archcore/globals/company/knowledge/company.rule.md"

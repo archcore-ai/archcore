@@ -55,7 +55,7 @@ func HandleGetDocument(baseDir string) func(ctx context.Context, request mcp.Cal
 			return errorResult(err.Error()), nil
 		}
 
-		doc, err := ReadDocumentContent(baseDir, cleanPath)
+		doc, err := readDocumentContent(baseDir, cleanPath)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				return errorResult("document not found: " + cleanPath), nil
@@ -66,7 +66,7 @@ func HandleGetDocument(baseDir string) func(ctx context.Context, request mcp.Cal
 		// Annotate source metadata based on path and declared globals.
 		annotateSource(&doc, baseDir, globals)
 
-		enriched := EnrichedDocument{LocalDocument: doc}
+		enriched := EnrichedDocument{Document: doc}
 
 		// Load relations from the manifest. A present-but-invalid manifest is a
 		// tool error — silently reporting "no relations" hides real graph state.

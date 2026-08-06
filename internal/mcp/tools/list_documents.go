@@ -72,14 +72,18 @@ Use the returned paths directly as input to get_document. Do not construct paths
 // HandleListDocuments handles the list_documents tool call.
 func HandleListDocuments(baseDir string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		docs, err := ScanDocuments(baseDir)
+		docs, err := scanDocuments(baseDir)
 		if err != nil {
 			return errorResult(sanitizeError("scanning documents", err)), nil
 		}
 
-		types := request.GetStringSlice("types", nil)
+		rawTypes := request.GetStringSlice("types", nil)
+		types := make([]templates.DocumentType, len(rawTypes))
+		for i, t := range rawTypes {
+			types[i] = templates.DocumentType(t)
+		}
 		for _, tp := range types {
-			if !templates.IsValidType(tp) {
+			if !templates.IsValidType(string(tp)) {
 				return errorResult(fmt.Sprintf("invalid type %q (valid: %s)", tp, strings.Join(templates.ValidTypes(), ", "))), nil
 			}
 		}

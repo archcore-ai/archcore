@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"archcore-cli/internal/docs"
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -145,7 +146,7 @@ func HandleUpdateDocument(baseDir string) func(ctx context.Context, request mcp.
 		if err := writeFileAtomic(absPath, []byte(fileContent)); err != nil {
 			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
-		sharedScanCache.invalidate(absPath)
+		docs.InvalidateCache(absPath)
 
 		// Derive category from document type, not directory.
 		filename := filepath.Base(relPath)

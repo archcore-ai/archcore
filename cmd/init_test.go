@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -390,30 +389,6 @@ func withPickAgentsFn(t *testing.T, fn agentPicker) {
 		pickAgents = origPick
 		isInteractive = origInteractive
 	})
-}
-
-// captureStdout redirects os.Stdout for the duration of fn and returns the
-// captured bytes. Mirrors the pattern used in cmd/status_test.go and
-// cmd/update_test.go. NOT safe under t.Parallel(): mutates the global
-// os.Stdout.
-func captureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe: %v", err)
-	}
-	oldStdout := os.Stdout
-	os.Stdout = w
-	defer func() { os.Stdout = oldStdout }()
-
-	fn()
-
-	w.Close()
-	var out bytes.Buffer
-	if _, err := out.ReadFrom(r); err != nil {
-		t.Fatalf("read pipe: %v", err)
-	}
-	return out.String()
 }
 
 func TestValidateAgentSelection(t *testing.T) {

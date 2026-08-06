@@ -9,12 +9,14 @@ tags:
 
 Add MRD (Market Requirements Document), BRD (Business Requirements Document), and URD (User Requirements Document) as a **requirement sources** track alongside PRD (simple) and ISO 29148 (formal decomposition). These represent the horizontal axis of requirements engineering — where requirements come from — complementing ISO 29148's vertical axis of how requirements refine.
 
+Status: implemented. All three types ship in `@templates/templates.go` and are documented in the categories-and-document-types reference.
+
 ### Problem / Opportunity
 
 - Two orthogonal axes of requirements engineering exist:
   - **Source axis** (MRD/BRD/URD): captures *where* requirements originate — market analysis, business objectives, user needs
   - **Decomposition axis** (ISO 29148: BRS→StRS→SyRS→SRS): captures *how* requirements refine from business goals to testable software specs
-- Archcore supports the decomposition axis (ISO cascade) and a simple path (PRD), but lacks the source axis used in product management (MRD/PRD) and business analysis (BABOK/IIBA frameworks: BRD/URD)
+- Archcore supports the decomposition axis (ISO cascade) and a simple path (PRD), but lacked the source axis used in product management (MRD/PRD) and business analysis (BABOK/IIBA frameworks: BRD/URD)
 - These are complementary, not competing — an MRD can feed into a BRS, a URD can feed into a StRS, and all can feed into a PRD for simpler projects
 
 ## Value
@@ -34,7 +36,7 @@ Add MRD (Market Requirements Document), BRD (Business Requirements Document), an
 ### For Business
 
 - Covers product management and business analysis workflows alongside engineering requirements
-- Positions archcore as a tool that spans the full requirements lifecycle: discovery (sources) → specification (ISO/PRD) → implementation (plan)
+- Positions archcore as a tool that spans the full requirements lifecycle: discovery (sources) → specification (ISO/PRD) → implementation
 
 ## Possible Implementation
 
@@ -109,17 +111,17 @@ These structural cues help agents choose the right type across all three tracks:
 
 ### Known Constraints
 
-- MRD/BRD/URD are industry conventions, not formal standards — templates should reflect common practice from product management and business analysis (BABOK/IIBA) without claiming standardization.
+- MRD/BRD/URD are industry conventions, not formal standards — templates reflect common practice from product management and business analysis (BABOK/IIBA) without claiming standardization.
 - Cross-axis relations (e.g., MRD→BRS) use the existing `implements` relation type — no new infrastructure needed.
-- The three-track guidance system (suggesting which track to use) is a future enhancement, not part of the initial type implementation.
+- The three-track guidance system (suggesting which track to use) is a future enhancement, not part of the type implementation.
 
 ## Next Steps
 
-- [ ] Implement MRD, BRD, URD document types (templates, MCP descriptions, disambiguation rules)
-- [ ] Add cross-track disambiguation rules to MCP server instructions and create_document tool
-- [ ] Update categories-and-document-types.doc.md with all three tracks documented
-- [ ] Update prd-vs-iso-29148-requirements-strategy.idea.md to reference three tracks instead of two
-- [ ] Future: Add track guidance prompts in CLI suggesting simple vs. sources vs. ISO approach
+- [x] Implement MRD, BRD, URD document types (templates, MCP descriptions, disambiguation rules)
+- [x] Add cross-track disambiguation rules to MCP server instructions and create_document tool
+- [x] Update categories-and-document-types.doc.md with all three tracks documented
+- [x] Update prd-vs-iso-29148-requirements-strategy.idea.md to reference three tracks instead of two
+- [ ] Future: Add track guidance in the CLI suggesting simple vs. sources vs. ISO approach. Track guidance MUST NOT return as an MCP prompts capability — that was implemented and removed; see the ADR on removing the MCP track prompts.
 
 ## Related Materials
 
@@ -127,4 +129,3 @@ These structural cues help agents choose the right type across all three tracks:
 - Existing PRD template in @templates/templates.go
 - MCP server instructions in @internal/mcp/server.go
 - Companion idea: @.archcore/document-types/prd-vs-iso-29148-requirements-strategy.idea.md
-- ISO implementation plan: @.archcore/document-types/iso-29148-document-types-implementation.plan.md

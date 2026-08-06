@@ -44,11 +44,19 @@ stays closed.
 
 ## Possible Implementation
 
-- **Split the predicate.** Today both write guards and the relation guard use one
-  `isReadOnlyGlobalPath` (@internal/mcp/tools/common.go). Keep it on `add_relation`
-  **unchanged** (relations stay forbidden — it's path-based, independent of `read_only`).
-  Introduce a narrower *write* predicate: writable = local OR **declared** global; the
-  undeclared `__global__` reserved tree stays read-only (no `id`, nowhere to target).
+- **Split the predicate.** Today the MCP write guards, the relation guard, and the
+  pre-write hook guard all reach `docs.GuardWritablePath` (@internal/docs/guard.go), which
+  consults `docs.IsReadOnlyGlobalPath` (@internal/docs/globals.go). Keep that predicate on
+  `add_relation` **unchanged** (relations stay forbidden — it's path-based, independent of
+  `read_only`). Introduce a narrower *write* predicate: writable = local OR **declared**
+  global; the undeclared `__global__` reserved tree stays read-only (no `id`, nowhere to
+  target).
+- **Decide what the hook guard does.** Since the repatriation, the `PreToolUse` guard shares
+  the same predicate (@.archcore/integrations/hook-guardrails-in-the-cli.adr.md). Relaxing
+  the predicate would therefore also stop blocking a *direct editor write* into a mounted
+  global — a raw edit that skips validation entirely, which is exactly what the premise
+  above says must not happen. The write predicate must stay split by caller: relaxed for
+  the MCP tools, unchanged for the hook guard.
 - **Autonomy: soft only.** Guidance in the three write-tool descriptions + system
   instructions: "write to a global only when the user explicitly asked; never as a
   proactive side effect." No `confirm_global_write` flag, no `globals_writable` master
@@ -60,13 +68,11 @@ stays closed.
 - **New addressing scheme for external writes.** `create_document`'s `directory` param is
   relative-within-primary and rejects `..` (@internal/mcp/tools/create_document.go) — it
   *cannot* express an external global. Need e.g. `source_id` + subpath. `update_document`
-  is path-addressed and works once `validateArchcorePath` is relaxed.
-- **Write-path hardening** ported from `validateReadPath` §4.4: `.md`-only, lexical
+  is path-addressed and works once `docs.ValidateArchcorePath` is relaxed.
+- **Write-path hardening** ported from `docs.ValidateReadPath` §4.4: `.md`-only, lexical
   containment under the declared global root (block `../` traversal), symlink-evaluated
   containment **both directions** (block a symlink escaping the global, and a local symlink
   resolving *into* a global).
-- **Atomic write** (temp + rename within one FS) to mitigate torn reads under
-  last-writer-wins.
 - **Provenance without relations**: a non-relation frontmatter marker
   (e.g. `derived_from: "<source_id>/<slug>"`) to record a local↔global link without a
   manifest edge — OPEN. Otherwise provenance survives only via same-slug override
@@ -79,7 +85,7 @@ stays closed.
 Accepted (by the user, as MVP trade-offs):
 - **Concurrency**: no lock, last-writer-wins; the global repo's git surfaces conflicts.
 - **sync/status**: primary never syncs/validates global writes — only the success notice.
-- **Behavior change for existing globals users**: read-only → writable shipped *without*
+- **Behavior change for existing globals users**: read-only → writable would ship *without*
   opt-in. Tolerated because relations stay locked and git is the net.
 
 Central tension:
@@ -93,16 +99,21 @@ Code-grounded findings:
 - **F2**: `remove_document` cleans the *primary's* manifest, not the global's
   (@internal/mcp/tools/remove_document.go) → cross-repo dangling relations in the global's
   own manifest. → keep `remove` read-only.
-- **F3**: writes are non-atomic (`os.WriteFile`) → torn reads under concurrency.
+- **F3**: resolved. `update_document` writes through `docs.WriteFileAtomic` (temp + rename)
+  and `create_document` opens with `O_EXCL`, so the torn-read and stat-then-write races this
+  finding described are closed. Cross-filesystem rename remains the one untested path for an
+  external global on a different mount. [assumption]
 - **F4**: structural validation on write exists; semantic/health of the global is not
   checked by the primary (status is local-only); `MkdirAll` creates dirs in the foreign tree.
+- **F5**: the write guard is now shared with the hook path, so any relaxation has a second
+  blast radius that did not exist when this idea was written. See the implementation note above.
 
 Other corner cases to design against:
 - Same-slug divergence (editing both the local override and the global it overrides).
 - Path aliasing: a global declared at `../primary/.archcore/sub` is a *descendant* of own
   `.archcore` — NOT caught by self-overlap (which only flags own-or-ancestor) — aliases part
   of own tree as a writable "global".
-- Nested/overlapping globals: `matchGlobal` returns the first match → nondeterministic
+- Nested/overlapping globals: global matching returns the first match → nondeterministic
   ownership of the overlap for writes/annotation.
 - Stale mount (global moved ahead, no "pull first"); cross-FS / OS-readonly external
   global (mid-write failure, must keep clean message — no absolute-path leak).
@@ -114,6 +125,7 @@ Other corner cases to design against:
 - Keep `remove` read-only for globals? (recommended: yes)
 - Adopt the `derived_from` non-relation provenance marker, or rely on same-slug + prose?
 - Exact write-addressing scheme (`source_id` + subpath shape).
+- Does the pre-write hook guard stay strict while the MCP tools relax? (recommended: yes)
 
 When ready, promote to an RFC (`/archcore:decide`) — it supersedes accepted docs
 (globals-are-read-only-everywhere.rule, global-sources.spec §5, the "exactly one writable

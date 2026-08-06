@@ -12,7 +12,7 @@ import (
 // TestExamples_ValidAndGlobalsResolve smoke-tests the shipped examples/ fixtures
 // that the globals docs now cite as canonical (.archcore/globals/*). For every
 // .archcore/settings.json under examples/: the settings must parse and validate,
-// ScanDocuments must succeed (which resolves and walks any declared globals), and
+// scanDocuments must succeed (which resolves and walks any declared globals), and
 // any example declaring globals must actually surface at least one global
 // document. A typo or unresolvable path in a shipped example fails here instead
 // of silently misleading a user who opens it.
@@ -53,9 +53,9 @@ func TestExamples_ValidAndGlobalsResolve(t *testing.T) {
 				t.Fatalf("settings.Validate: %v", err)
 			}
 
-			docs, err := ScanDocuments(base)
+			docs, err := scanDocuments(base)
 			if err != nil {
-				t.Fatalf("ScanDocuments (a declared global likely does not resolve): %v", err)
+				t.Fatalf("scanDocuments (a declared global likely does not resolve): %v", err)
 			}
 
 			if len(settings.Globals) > 0 {
@@ -66,7 +66,7 @@ func TestExamples_ValidAndGlobalsResolve(t *testing.T) {
 					}
 				}
 				if globalCount == 0 {
-					t.Errorf("example declares %d global source(s) but ScanDocuments surfaced no global documents",
+					t.Errorf("example declares %d global source(s) but scanDocuments surfaced no global documents",
 						len(settings.Globals))
 				}
 			}
