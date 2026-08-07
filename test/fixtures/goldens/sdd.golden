@@ -1,0 +1,28 @@
+gate: sdd.frame
+skip_when: yes
+budget: 3
+taxonomy: Functional Scope & Behavior, Constraints & Tradeoffs
+produces: idea draft
+next: sdd.require
+
+gate: sdd.require
+skip_when: yes
+budget: 5
+taxonomy: Functional Scope & Behavior, Interaction & UX Flow, Non-Functional Quality Attributes, Completion Signals
+produces: prd draft
+next: sdd.design
+
+gate: sdd.design
+skip_when: yes
+budget: 3
+taxonomy: Domain & Data Model, Integration & External Dependencies, Edge Cases & Failure Handling, Constraints & Tradeoffs
+produces: spec draft
+next: sdd.decompose
+
+gate: sdd.decompose
+skip_when: yes
+budget: 0
+taxonomy: none
+produces: plan draft
+next: end
+

@@ -1,6 +1,6 @@
 ---
 title: "Intent Skill Implementation Plan — 4-Layer Migration"
-status: accepted
+status: rejected
 tags:
   - "plugin"
   - "roadmap"

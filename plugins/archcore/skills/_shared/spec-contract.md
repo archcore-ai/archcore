@@ -92,7 +92,7 @@ trigger/state clauses when writing or editing a line whose behavior is condition
   this short even for a complex subject.
 - **Flagship (size/churn-gated, `/archcore:init` hotspot synthesis only): ≤ 120
   lines.** A hotspot module clearing `LOC > 3000` OR top-quartile churn
-  (`skills/init/lib/detect-hotspots.md` "Flagship specs") MAY compose at this raised
+  (`skills/_shared/grounding/detect-hotspots.md` "Flagship specs") MAY compose at this raised
   cap instead of splitting — see that catalog for the decomposition alternative (≤ 3
   sub-specs by separable sub-surface, each back at the default ≤ 80-line cap). The
   extra room goes to Normative Behavior / Constraints & Invariants, never to
@@ -105,7 +105,7 @@ A hotspot `spec` synthesized by `/archcore:init` (Tier-2) is created with
 not authored or reviewed, so the user confirms it before it becomes canon. Same
 rationale, and same default, as a heuristic-derived cross-cutting `rule`
 (`skills/_shared/rule-contract.md`). This status default is specific to init's
-synthesis path; a spec authored via `/archcore:capture` or `/archcore:decide`
+synthesis path; a spec authored via `/archcore:document`
 follows that skill's own status convention.
 
 ## Forbidden in the body

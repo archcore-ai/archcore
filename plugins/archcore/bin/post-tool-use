@@ -1,0 +1,29 @@
+#!/bin/sh
+# PostToolUse hook launcher: delegate to `archcore hooks <host> post-tool-use`.
+#
+# The policy — post-write validation, cascade notice, precision lexicon —
+# lives in the CLI since v0.7.0 (cli-owns-layers-4-5.adr). The CLI gates on
+# the tool name internally (only archcore document mutations trigger a scan)
+# and always reports rather than blocks. This script carries only the host
+# glue, mirroring bin/pre-tool-use:
+#   1. refuse to run from a plugin-cache cwd (lib/plugin-cache-guard.sh);
+#   2. fail OPEN when the CLI is absent or older than 0.7.0 — a pre-0.7 CLI
+#      has no post-tool-use leaf and would exit non-zero on every tool call;
+#   3. map the shell host id "codex" to the CLI agent id "codex-cli";
+#   4. hand the raw payload through and propagate stdout and the exit code
+#      unchanged.
+
+SCRIPT_DIR=$(dirname "$0")
+# shellcheck source=lib/normalize-stdin.sh
+. "$SCRIPT_DIR/lib/normalize-stdin.sh"
+# shellcheck source=lib/plugin-cache-guard.sh
+. "$SCRIPT_DIR/lib/plugin-cache-guard.sh"
+archcore_plugin_cache_guard
+
+[ "$("$SCRIPT_DIR/cli-gte" 0.7.0)" = "yes" ] || exit 0
+
+ARCHCORE_CLI_HOST="$ARCHCORE_HOST"
+[ "$ARCHCORE_CLI_HOST" = "codex" ] && ARCHCORE_CLI_HOST="codex-cli"
+
+printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_CLI_HOST" post-tool-use
+exit $?

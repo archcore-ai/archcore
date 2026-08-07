@@ -1,6 +1,6 @@
 ---
 title: "Plugin Development Roadmap"
-status: accepted
+status: rejected
 tags:
   - "plugin"
   - "roadmap"
@@ -86,9 +86,9 @@ Built the skills across the multi-tier hierarchy as planned, then consolidated t
 
 ## Acceptance Criteria
 
-- All 18 Archcore document types are covered through one of the 7 intent skills or a direct `create_document(type=<any>)` call.
-- The 7 intent skills are operational: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`.
-- Exactly 7 skills exist on disk, all visible in the `/` menu, with no hidden surface.
+- All 18 Archcore document types are covered through one of the four commands or a direct `create_document(type=<any>)` call.
+- The four commands are operational: `init`, `plan`, `document`, `review` (per `four-command-palette.adr`).
+- Exactly four commands are visible in the `/` menu, over a gated track layer per `track-layer.spec`.
 - Two agents exist: the read/write assistant and the read-only auditor.
 - The pre-mutation guard blocks every direct write attempt against a `.archcore/` markdown file.
 - The post-mutation hooks report validation issues, cascade staleness, and precision warnings.

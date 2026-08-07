@@ -1,6 +1,6 @@
 ---
 title: "/archcore:context — Filtering Pipeline"
-status: accepted
+status: rejected
 tags:
   - "commands"
   - "plugin"

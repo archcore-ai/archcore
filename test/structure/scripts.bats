@@ -8,8 +8,8 @@ setup() {
 
 @test "all bin scripts are executable" {
   local not_exec=""
-  for f in "$PLUGIN_ROOT"/bin/check-* "$PLUGIN_ROOT"/bin/validate-* "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/git-scope; do
-    [ -f "$f" ] || continue
+  for f in "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/pre-tool-use "$PLUGIN_ROOT"/bin/post-tool-use "$PLUGIN_ROOT"/bin/detect-host "$PLUGIN_ROOT"/bin/cli-gte; do
+    [ -f "$f" ] || fail "Missing bin script: $f"
     if [ ! -x "$f" ]; then
       not_exec="$not_exec $(basename "$f")"
     fi
@@ -19,7 +19,7 @@ setup() {
 
 @test "all bin scripts have #!/bin/sh shebang" {
   local bad_shebang=""
-  for f in "$PLUGIN_ROOT"/bin/check-* "$PLUGIN_ROOT"/bin/validate-* "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/git-scope; do
+  for f in "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/pre-tool-use "$PLUGIN_ROOT"/bin/post-tool-use "$PLUGIN_ROOT"/bin/detect-host "$PLUGIN_ROOT"/bin/cli-gte; do
     [ -f "$f" ] || continue
     local first_line
     first_line=$(head -1 "$f")
@@ -37,24 +37,23 @@ setup() {
   [ "$first_line" = "#!/bin/sh" ]
 }
 
-@test "check-archcore-write sources normalize-stdin.sh" {
-  grep -q 'normalize-stdin.sh' "$PLUGIN_ROOT/bin/check-archcore-write"
+@test "pre-tool-use sources normalize-stdin.sh and the plugin-cache guard" {
+  grep -q 'normalize-stdin.sh' "$PLUGIN_ROOT/bin/pre-tool-use"
+  grep -q 'plugin-cache-guard.sh' "$PLUGIN_ROOT/bin/pre-tool-use"
 }
 
-@test "validate-archcore sources normalize-stdin.sh" {
-  grep -q 'normalize-stdin.sh' "$PLUGIN_ROOT/bin/validate-archcore"
-}
-
-@test "check-cascade sources normalize-stdin.sh" {
-  grep -q 'normalize-stdin.sh' "$PLUGIN_ROOT/bin/check-cascade"
+@test "post-tool-use sources normalize-stdin.sh and the plugin-cache guard" {
+  grep -q 'normalize-stdin.sh' "$PLUGIN_ROOT/bin/post-tool-use"
+  grep -q 'plugin-cache-guard.sh' "$PLUGIN_ROOT/bin/post-tool-use"
 }
 
 @test "session-start sources normalize-stdin.sh" {
   grep -q 'normalize-stdin.sh' "$PLUGIN_ROOT/bin/session-start"
 }
 
-@test "check-staleness does NOT source normalize-stdin.sh" {
-  ! grep -q 'normalize-stdin.sh' "$PLUGIN_ROOT/bin/check-staleness"
+@test "launchers gate on cli-gte 0.7.0 — the release that added the pre/post-tool-use leaves" {
+  grep -qF 'cli-gte" 0.7.0' "$PLUGIN_ROOT/bin/pre-tool-use"
+  grep -qF 'cli-gte" 0.7.0' "$PLUGIN_ROOT/bin/post-tool-use"
 }
 
 

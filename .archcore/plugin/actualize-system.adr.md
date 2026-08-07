@@ -8,7 +8,7 @@ tags:
   - "skills"
 ---
 
-**Outcome (2026-05-15).** The decision was accepted as recorded, but Layer 3 shipped as the `--drift` mode of `/archcore:audit` rather than as a standalone `/archcore:actualize` intent skill, per `skill-surface-collapse.adr`. The three-layer architecture, the detection dimensions, and the naming rationale below remain authoritative; read `/archcore:audit --drift` wherever the original text said `/archcore:actualize`.
+**Outcome (2026-05-15).** The decision was accepted as recorded, but Layer 3 shipped as the `--drift` mode of `/archcore:audit` rather than as a standalone `/archcore:actualize` intent skill, per `skill-surface-collapse.adr`. The three-layer architecture, the detection dimensions, and the naming rationale below remain authoritative; read `/archcore:audit --drift` wherever the original text said `/archcore:actualize`. `/archcore:audit` was itself absorbed into `/archcore:review` by `four-command-palette.adr`, so read `/archcore:review --drift` wherever the text says `/archcore:actualize` or `/archcore:audit --drift`.
 
 ## Context
 

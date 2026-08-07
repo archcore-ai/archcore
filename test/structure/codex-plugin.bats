@@ -86,13 +86,10 @@ setup() {
   [ -d "$commands_dir" ]
 
   local expected=(
-    audit
-    capture
-    context
-    decide
-    help
     init
     plan
+    document
+    review
   )
 
   local name

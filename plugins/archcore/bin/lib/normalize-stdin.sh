@@ -161,8 +161,7 @@ esac
 #   mcp__plugin_archcore_archcore__<tool>    plugin-bundled server (Claude Code)
 #   archcore-<tool>                          Copilot flattens to "<server>-<tool>"
 #
-# Everything downstream (bin/validate-archcore, bin/check-precision,
-# bin/check-cascade) gates on the project naming alone. Without this fold, a
+# Everything downstream gates on the project naming alone. Without this fold, a
 # session using either of the other two registrations fires those hooks and
 # they silently no-op — the failure mode host-wiring-parity.adr calls out for
 # the hook MATCHERS, which carry both namings; matchers decide *whether* a

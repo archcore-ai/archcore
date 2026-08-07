@@ -106,6 +106,22 @@ setup() {
   assert_line "DOC=auth/jwt.adr.md"
 }
 
+@test "claude-code: duplicated key at two depths — first occurrence wins" {
+  # Pins the first-occurrence contract of _archcore_json_val. A PostToolUse
+  # blob carries the same key twice at different depths: tool_input.path
+  # (what the host sends for the guards) comes first, and the MCP server's
+  # tool_response echoes a resolved absolute path under the same key later.
+  # Extraction must take the FIRST occurrence — last-occurrence extraction
+  # would hand the guards the response echo instead of the tool input.
+  run_normalizer '{"session_id":"s1","transcript_path":"/Users/dev/.claude/projects/work/t.jsonl","cwd":"/work","hook_event_name":"PostToolUse","tool_name":"mcp__archcore__update_document","tool_input":{"path":"auth/jwt.adr.md","content":"# updated"},"tool_response":{"structuredContent":{"path":"/work/.archcore/auth/jwt.adr.md","status":"updated"}}}'
+  assert_success
+  # Expected: DOC=auth/jwt.adr.md (first occurrence, from tool_input).
+  # DOC=/work/.archcore/auth/jwt.adr.md means normalize-stdin.sh picked the
+  # LAST occurrence (tool_response echo) — first-occurrence contract broken.
+  assert_line "DOC=auth/jwt.adr.md"
+  refute_line "DOC=/work/.archcore/auth/jwt.adr.md"
+}
+
 @test "claude-code: empty tool_name yields empty TOOL" {
   run_normalizer '{"tool_input":{"file_path":"x.py"}}'
   assert_success

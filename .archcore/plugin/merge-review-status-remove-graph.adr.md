@@ -8,7 +8,7 @@ tags:
   - "skills"
 ---
 
-**Naming note.** This decision merged `status` into a skill then called `/archcore:review`. `skill-surface-collapse.adr` later renamed that skill to `/archcore:audit` and removed the track tier, so the counts recorded here — 16 visible commands, 9 intent skills — describe the surface at the time of this decision, not the current 7-skill palette. The merge itself, and the short-versus-deep mode split, survived the rename intact and now live as the default dashboard and `--deep` modes of `/archcore:audit`.
+**Naming note.** This decision merged `status` into a skill then called `/archcore:review`. `skill-surface-collapse.adr` later renamed that skill to `/archcore:audit` and removed the track tier, so the counts recorded here — 16 visible commands, 9 intent skills — describe the surface at the time of this decision, not the current four-command palette. The merge itself, and the short-versus-deep mode split, survived the rename intact and now live as the default dashboard and `--deep` modes of `/archcore:review` — `audit` itself was later reabsorbed into `review` by `four-command-palette.adr`.
 
 ## Context
 

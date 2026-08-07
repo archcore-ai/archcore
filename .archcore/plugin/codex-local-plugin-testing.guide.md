@@ -148,7 +148,7 @@ Notes on the test environment, non-normative:
 
     Start a fresh Codex session after installation. Type `/archcore:` and then type `@`.
 
-    Expected result: the slash commands appear — for example `/archcore:audit`, `/archcore:plan`, `/archcore:context`, `/archcore:capture` — and the matching Archcore skills appear under `@`. Run a small prompt such as `/archcore:context` to confirm execution.
+    Expected result: the slash commands appear — for example `/archcore:review`, `/archcore:plan`, `/archcore:document`, `/archcore:init` — and the matching Archcore skills appear under `@`. Run a small prompt such as `/archcore:review` to confirm execution.
 
 12. After changing manifest, skill, MCP, or hook files, restart Codex.
 

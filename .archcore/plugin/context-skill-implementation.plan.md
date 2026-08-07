@@ -1,6 +1,6 @@
 ---
 title: "Context Skill Implementation Plan — Phase 1 of JTBD #1"
-status: accepted
+status: rejected
 tags:
   - "commands"
   - "onboarding"

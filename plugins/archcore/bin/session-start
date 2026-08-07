@@ -177,7 +177,7 @@ _archcore_copilot_flush() {
 # so the plugin cannot wrap that crash — this SessionStart hook is the one place
 # we can turn the otherwise-cryptic failure into a clear "update your CLI" nudge.
 
-# Stamp directory, same precedence order as bin/check-staleness.
+# Stamp directory: plugin data dir, then XDG, then a home fallback.
 _archcore_stamp_dir() {
   if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
     printf '%s' "$CLAUDE_PLUGIN_DATA/archcore"
@@ -189,8 +189,7 @@ _archcore_stamp_dir() {
 }
 
 # Generic 24h rate-limit over a named stamp file. Each advisory keeps its own
-# stamp (separate from check-staleness's) so the rate-limit windows never
-# clobber each other. Global (per-binary) suppression is correct for CLI
+# stamp so the rate-limit windows never clobber each other. Global (per-binary) suppression is correct for CLI
 # advisories — the CLI is one global binary, not a per-project condition.
 #
 # _archcore_due <stamp-name>: true when the advisory has NOT fired in 24h.
@@ -263,11 +262,15 @@ fi
 # first byte has left for the host that is no longer possible. Other hosts keep
 # streaming exactly as before.
 _ac_err="${TMPDIR:-/tmp}/archcore_ss_err_$$"
+# The shell host id "codex" maps to the CLI agent id "codex-cli"; every other
+# host id matches its CLI dialect name as-is (bin/pre-tool-use does the same).
+_ac_cli_host="$ARCHCORE_HOST"
+[ "$_ac_cli_host" = "codex" ] && _ac_cli_host="codex-cli"
 if [ "$ARCHCORE_HOST" = "copilot" ]; then
-  _ac_cop_hookout=$(printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_HOST" session-start 2>"$_ac_err")
+  _ac_cop_hookout=$(printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$_ac_cli_host" session-start 2>"$_ac_err")
   _ac_rc=$?
 else
-  printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_HOST" session-start 2>"$_ac_err"
+  printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$_ac_cli_host" session-start 2>"$_ac_err"
   _ac_rc=$?
 fi
 
@@ -349,11 +352,8 @@ if [ "$ARCHCORE_HOST" = "copilot" ] && [ "${ARCHCORE_HIDE_WIRING_NUDGE:-}" != "1
   fi
 fi
 
-# Run staleness check (code-document drift detection)
-STALENESS=$("$SCRIPT_DIR/check-staleness" 2>/dev/null) || true
-if [ -n "$STALENESS" ]; then
-  _archcore_note "$STALENESS"
-fi
+# Staleness (code-document drift) is part of the CLI's session-start recap
+# since v0.7.0 — no plugin-side check remains.
 
 # Outdated-CLI advisory. `archcore update --check` is designed for exactly
 # this call site: result cached 24h in XDG state, ~500ms network bound, silent

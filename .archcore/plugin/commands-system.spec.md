@@ -1,6 +1,6 @@
 ---
 title: "User-Invoked Skills — Seven-Command Surface Specification"
-status: accepted
+status: rejected
 tags:
   - "commands"
   - "plugin"

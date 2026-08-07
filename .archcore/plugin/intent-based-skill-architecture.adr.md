@@ -73,9 +73,11 @@ Layer 2 and Layer 3 carry a tier signal in their `description` prefix — "Advan
 
 **Final collapse to a single tier.** `skill-surface-collapse.adr` flattened the rest: all 6 track skills were deleted, with their flow content moved to `skills/plan/references/<flow>.md` and `skills/decide/references/continuations.md`; `actualize` became `/archcore:audit --drift`; `bootstrap` was renamed `init`; `standard` was removed, since its cascade is reachable through `decide`; and `verify` was removed, with `make verify` as the canonical integrity check.
 
-The current surface is **7 skills**: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. The intent-based framing of Layer 1 is fully in force, and the tiered structure is gone. The naming decisions, design principles 1, 2, 3, and 5, and the progressive-disclosure mechanism all remain valid in the final form; only the layered packaging was retired.
+**Naming reversal.** `four-command-palette.adr` explicitly reverses the capture-over-document naming choice recorded above: `capture` is retired, and `document` becomes the primary verb, absorbing `decide` as well.
+
+The current surface is four commands: `init`, `plan`, `document`, `review`, per `four-command-palette.adr` (capture and decide absorbed by document, audit by review; context and help removed). The intent-based framing of Layer 1 is fully in force, and the tiered structure is gone. The naming decisions, design principles 1, 2, 3, and 5, and the progressive-disclosure mechanism all remain valid in the final form; only the layered packaging was retired.
 
 ## Superseded when
 
-- An eighth genuinely distinct user intent appears that no existing skill can absorb as a mode, which `skill-surface-collapse.adr` requires a new ADR to admit.
+- A fifth genuinely distinct user intent appears that no existing command can absorb as a mode or track, which `four-command-palette.adr` requires a new ADR to admit.
 - A host stops surfacing skills in a flat namespace and offers real hierarchical grouping, which would reopen the tiered packaging this decision introduced and its successors retired.

@@ -1,6 +1,6 @@
 ---
 title: "Magic First-Day Init Implementation Plan"
-status: accepted
+status: rejected
 tags:
   - "onboarding"
   - "plugin"
@@ -18,9 +18,9 @@ A later universality pass, recorded below and as task M8, widened the seed beyon
 
 ## Scope
 
-In scope: the new init `SKILL.md` flow built around two ordered sub-phases plus one preview and one confirm; three new extractive detectors and one capstone composer under `skills/init/lib/`; a new `skills/_shared/rule-contract.md` for the Tier-2 cross-cutting rule bodies; promoting the entry-point inventory and the top-level map to every applicable mode, so scale changes breadth rather than presence; shifting hotspots from a proposed to-do to a stub in the preview and a full `spec` after confirm; folding the agent-file import into the main flow while preserving its high-cost gate; auto-wiring relations among the seeded documents; and closing the deferred test fixtures of `bootstrap-scale-modes.plan`.
+In scope: the new init `SKILL.md` flow built around two ordered sub-phases plus one preview and one confirm; three new extractive detectors and one capstone composer under `skills/_shared/grounding/`; a new `skills/_shared/rule-contract.md` for the Tier-2 cross-cutting rule bodies; promoting the entry-point inventory and the top-level map to every applicable mode, so scale changes breadth rather than presence; shifting hotspots from a proposed to-do to a stub in the preview and a full `spec` after confirm; folding the agent-file import into the main flow while preserving its high-cost gate; auto-wiring relations among the seeded documents; and closing the deferred test fixtures of `bootstrap-scale-modes.plan`.
 
-Out of scope: per-language deep parsers and call-graph analysis, so detection stays heuristic and data-table driven; auto-running `capture`, `decide`, or `plan` for a non-hotspot target, which stays organic; and any change to another skill beyond registration updates.
+Out of scope: per-language deep parsers and call-graph analysis, so detection stays heuristic and data-table driven; auto-running `document` or `plan` for a non-hotspot target, which stays organic; and any change to another skill beyond registration updates.
 
 ## The new init flow
 
@@ -32,7 +32,7 @@ Out of scope: per-language deep parsers and call-graph analysis, so detection st
 | **Preview** | One manifest grouped by tier, one line each. Each Tier-2 stub shows its hotspot path, LOC, test ratio, and estimated synthesis cost. The agent-file import shows its size and cost tier, with the high-cost gate preserved. The manifest closes with the planned relation count and the total token estimate. |
 | **Confirm** | `confirm` proceeds; `edit` deselects items and proceeds with the rest; `cancel` fires zero `create_document` and `add_relation` calls, leaving no partial state. |
 | **Create and wire** | Create the Tier-1 documents. For each surviving Tier-2 spec, read its source and companion tests *now* and compose the full body under the spec contract, composing the cross-cutting rules under the rule contract. Create the capstone, then add the planned relation edges, rolling forward on an individual failure. |
-| **Result** | A closing message: editing a file under a hotspot path auto-injects context; `/archcore:context <path>` pulls it on demand; and `/archcore:audit` now runs against a non-empty graph. |
+| **Result** | A closing message: editing a file under a hotspot path auto-injects context; CLI hooks and command grounding pull it on demand (context removed under v2); and `/archcore:review` now runs against a non-empty graph. |
 
 ## New detectors
 
@@ -114,7 +114,7 @@ The stub-before and body-after-confirm split defers about 9.9k input tokens on a
 
 1. On a small TypeScript SDK, init previews and then, on confirm, creates the stack rule, the run guide, the data-model, integrations, and config documents where detected, the architecture overview, and up to the per-mode hotspot specs, all with relations.
 2. `confirm` creates the whole set; `edit` removes the selected items and never reads a deselected spec's source; and `cancel` fires zero creation and relation calls, though `init_project` may have run.
-3. After init, `/archcore:context <hotspot path>` returns the generated spec, the graph is non-empty, and editing a matching file injects context.
+3. After init, command grounding (formerly `/archcore:context`, removed under v2) surfaces the generated spec, the graph is non-empty, and editing a matching file injects context.
 4. No created document exceeds 200 lines, the capstone stays within 150, the capstone body enumerates no `.archcore/` path, and `bin/check-precision` raises no error on the seeded synthesis.
 5. The config document carries variable names and purpose only, with no values, and the security test passes.
 6. The empty-repo gate still exits without creating anything, and every seed is idempotent on re-run.

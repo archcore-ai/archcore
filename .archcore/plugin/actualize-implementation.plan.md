@@ -1,6 +1,6 @@
 ---
 title: "Actualize System Implementation Plan"
-status: accepted
+status: rejected
 tags:
   - "hooks"
   - "plugin"
@@ -8,7 +8,7 @@ tags:
   - "skills"
 ---
 
-**Outcome (2026-05-15).** The plan was executed. Layer 1 as `bin/check-staleness` and Layer 2 as `bin/check-cascade` shipped as designed. Layer 3, the deep analysis, shipped as the `--drift` mode of `/archcore:audit` rather than as a standalone intent skill, per `skill-surface-collapse.adr`, with its protocol at `skills/audit/lib/drift-detection.md`. Every acceptance criterion below is met under that naming.
+**Outcome (2026-05-15).** The plan was executed. Layer 1 as `bin/check-staleness` and Layer 2 as `bin/check-cascade` shipped as designed. Layer 3, the deep analysis, shipped as the `--drift` mode of `/archcore:audit` rather than as a standalone intent skill, per `skill-surface-collapse.adr`, with its protocol at `skills/audit/lib/drift-detection.md`. Every acceptance criterion below is met under that naming. `audit` was later absorbed into `/archcore:review` by `four-command-palette.adr`; read `/archcore:review --drift` for the current invocation. The drift, staleness, and cascade detection system itself remains valid.
 
 ## Goal
 
@@ -56,8 +56,8 @@ The `audit` frontmatter carries `name: audit`, an argument hint of `[--deep] [--
 - [x] `bin/check-cascade` produces a cascade warning after `update_document` when a dependent exists.
 - [x] `bin/check-cascade` exits cleanly with no output when there is no cascade.
 - [x] Every host hook config registers the cascade script on `update_document`.
-- [x] `/archcore:audit --drift` exists with routing, the three-dimension analysis, and the assisted fix.
-- [x] The help skill lists all 7 primary commands, including `audit`.
+- [x] `/archcore:review --drift` exists with routing, the three-dimension analysis, and the assisted fix.
+- [x] The help skill listed all 7 primary commands, including `audit`, before `help` was removed under v2; command descriptions and CLI help now absorb that role per `four-command-palette.adr`.
 - [x] The auditor agent includes the code-document correlation dimension.
 - [x] Every bin script is POSIX shell compatible and exits 0.
 - [x] Every bin script degrades gracefully when git or the CLI is unavailable.

@@ -11,7 +11,7 @@ mandate (Rule 2), and no-cross-document-section rule (Rule 5) all bind here.
 A **team-wide normative constraint** on how code, docs, or process MUST behave, applying
 across many files or situations — not a one-off. A rule exists so that an agent editing a
 matching file is told the binding constraint *before* writing, and so push-mode injection
-(`check-code-alignment`) can surface it against the changed paths. One primary constraint
+(the CLI's code-alignment PreToolUse hook) can surface it against the changed paths. One primary constraint
 per rule document. Distinguished from:
 
 - a `spec` — the normative behavior of one subject others rely on (an interface/schema
@@ -65,7 +65,7 @@ Align with the `create_document` `rule` template (`Rule`, `Rationale`, `Examples
 
 RFC 2119 statements + Good/Bad examples + a named verifier make a rule *checkable*: a
 reviewer or hook can decide conformance without re-litigating intent. The explicit
-applies-to scope is what lets `check-code-alignment` match a rule to an edited file in
+applies-to scope is what lets the code-alignment hook match a rule to an edited file in
 push mode — a rule with no scope cannot be injected and silently never fires.
 
 ## Examples

@@ -2,8 +2,8 @@ SHELL := /bin/sh
 REPO_ROOT := $(shell pwd)
 PLUGIN_ROOT := $(REPO_ROOT)/plugins/archcore
 PLUGIN_REL := plugins/archcore
-BIN_SCRIPTS := $(wildcard $(PLUGIN_REL)/bin/check-* $(PLUGIN_REL)/bin/validate-* $(PLUGIN_REL)/bin/session-start) $(PLUGIN_REL)/bin/git-scope $(PLUGIN_REL)/bin/detect-host $(PLUGIN_REL)/bin/cli-gte
-LIB_SCRIPTS := $(PLUGIN_REL)/bin/lib/normalize-stdin.sh
+BIN_SCRIPTS := $(PLUGIN_REL)/bin/session-start $(PLUGIN_REL)/bin/pre-tool-use $(PLUGIN_REL)/bin/post-tool-use $(PLUGIN_REL)/bin/detect-host $(PLUGIN_REL)/bin/cli-gte
+LIB_SCRIPTS := $(PLUGIN_REL)/bin/lib/normalize-stdin.sh $(PLUGIN_REL)/bin/lib/plugin-cache-guard.sh
 ALL_SCRIPTS := $(BIN_SCRIPTS) $(LIB_SCRIPTS)
 # Marketplace catalogs stay at repo root; plugin manifests/hooks/mcp live under plugins/archcore/.
 JSON_FILES := .agents/plugins/marketplace.json .claude-plugin/marketplace.json .cursor-plugin/marketplace.json \

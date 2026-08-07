@@ -36,7 +36,7 @@ The original plugin at v0.0.1 was a thin wrapper that registered the MCP server 
 
 **Success metrics.**
 
-- All 18 document types are reachable through the 7 intent skills or directly through MCP, with no per-type skill required.
+- All 18 document types are reachable through the four commands or directly through MCP, with no per-type skill required.
 - The commands cover the common workflows: onboarding, documentation, decisions with the standard cascade, any forward-looking flow, health and drift, the on-demand pull, and help.
 - The PreToolUse guard intercepts every direct Write or Edit attempt on a `.archcore/` file.
 - Users never explain Archcore conventions to the model by hand.
@@ -46,9 +46,9 @@ The original plugin at v0.0.1 was a thin wrapper that registered the MCP server 
 
 ### Functional
 
-**FR-1 — the seven-skill intent surface.** The plugin ships 7 auto-invocable intent skills per `skill-surface-collapse.adr`: `init`, `capture`, `decide`, `plan`, `audit`, `context`, and `help`. Each maps to a distinct user intent and auto-invokes from user phrasing. Per-type elicitation lives inline inside the matching intent; per-flow logic for the product, sources, ISO, and feature cascades lives under `skills/plan/references/`; continuation logic for the decision and standard cascade lives at `skills/decide/references/continuations.md`; and drift detection lives at `skills/audit/lib/drift-detection.md`.
+**FR-1 — the four-command palette.** The plugin ships four auto-invocable commands per `four-command-palette.adr`: `init`, `plan`, `document`, `review`. Each maps to a distinct user intent and auto-invokes from user phrasing. Per-type elicitation lives inline inside the matching intent; per-flow logic for the product, sources, ISO, and feature cascades lives under `skills/plan/references/`; continuation logic for the decision and standard cascade lives at `skills/decide/references/continuations.md`; and drift detection lives at `skills/audit/lib/drift-detection.md`.
 
-**FR-2 — slash commands.** The user-invoked surface is `/archcore:init` for first-time onboarding, `/archcore:capture` to document a module or system routing to adr, spec, doc, or guide, `/archcore:decide` to record an ADR or draft an RFC with the optional standard cascade, `/archcore:plan` routing to a single plan or one of the four flows, `/archcore:audit` for the dashboard by default plus `--deep` and `--drift`, `/archcore:context` for the on-demand pull over a code area, topic, or current-focus pickup, and `/archcore:help`. For any type, `mcp__archcore__create_document(type=<any>)` remains a direct path that bypasses skill mediation.
+**FR-2 — slash commands.** The user-invoked surface is `/archcore:{init,plan,document,review}` per `command-surface-v2.spec`. `capture` and `decide` are absorbed by `document`; `audit` becomes `review`; `context` is removed, with CLI hooks and command grounding absorbing the pull moment; `help` is removed, with command descriptions and CLI help absorbing it. For any type, `mcp__archcore__create_document(type=<any>)` remains a direct path that bypasses skill mediation.
 
 **FR-3 — the universal agent.** One subagent, `archcore-assistant`, covers every documentation scenario: full knowledge of all 18 document types and their templates, requirements-engineering expertise across the product flow, sources flow, and ISO 29148 cascade, relation-pattern knowledge across the four relation types, and a tool set restricted to the archcore MCP tools plus Read, Grep, and Glob with no Write or Edit on `.archcore/`. It is invokable manually or automatically. Alongside it, `archcore-auditor` runs read-only documentation health checks in the background with a restricted tool set.
 
@@ -75,7 +75,7 @@ The skill detects scale as small, medium, or large, and seeds the extras that sc
 - **SessionStart empty-state nudge** — on a missing or functionally empty `.archcore/`, emits a one-line pointer at `/archcore:init`, suppressible by environment variable.
 - **PreToolUse guardrails** — the block guard denies a direct `.archcore/` markdown write, and the injection guard supplies the applicable rules, ADRs, specs, and cpats for a source-file edit.
 - **PostToolUse validation** — the validator, the cascade detector, and the precision check all run on MCP mutations.
-- **Seven intent skills** — routing natural-language intent into the right document type or workflow, with `audit` covering the dashboard, the deep audit, and drift detection, `plan` covering a single plan and all four cascades through on-demand references, and `decide` covering ADR and RFC creation plus the standard cascade.
+- **Four commands** — routing natural-language intent into the right document type or workflow, with `review` covering the dashboard, the deep audit, and drift detection (absorbing former `audit`), `plan` covering a single plan and all cascades through on-demand references, and `document` covering module capture plus ADR/RFC creation and the standard cascade (absorbing former `capture` and `decide`).
 - **Two agents** — `archcore-assistant` for complex multi-document tasks and `archcore-auditor` as the read-only reviewer.
 
 `development-roadmap.plan` records what remains.

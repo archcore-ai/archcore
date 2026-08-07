@@ -17,7 +17,7 @@ Set up a local development environment for the Archcore plugin, change a skill, 
 - bats-core for tests. macOS: `brew install bats-core`.
 - jq for JSON validation. macOS: `brew install jq`.
 - ShellCheck, optional. macOS: `brew install shellcheck`.
-- The Archcore CLI installed globally through the official installer at https://docs.archcore.ai/cli/install/ — `curl -fsSL https://archcore.ai/install.sh | bash` on macOS, Linux, and WSL, or `irm https://archcore.ai/install.ps1 | iex` on Windows PowerShell 5.1 or later. Verify with `archcore --version`.
+- The Archcore CLI installed globally through the official installer at https://docs.archcore.ai/cli/install/ — `curl -fsSL https://archcore.ai/install.sh | bash` on macOS, Linux, and WSL, or `irm https://archcore.ai/install.ps1 | iex` on Windows PowerShell 5.1 or later. Verify with `archcore --version`. The hook launchers require CLI v0.7.0 or later and fail open silently on anything older.
 
 The plugin bundles no launcher; it assumes the CLI is on PATH. MCP registers automatically for Claude Code through the plugin-root `.mcp.json`, and for Codex CLI through `.codex-plugin/plugin.json` pointing at the plugin-root `.codex.mcp.json`. Both name `archcore` as the command, and the host runtime resolves it through PATH.
 
@@ -57,15 +57,15 @@ On Copilot, `--plugin-dir` is not equivalent to an install for hook purposes. Wh
 
 ### 3. Modify an existing skill
 
-The plugin ships **7 skills** per `skill-surface-collapse.adr`: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`. Each lives at `skills/<name>/SKILL.md`. An eighth top-level skill requires a new ADR — prefer adding flow logic under `skills/plan/references/` or `skills/decide/references/`.
+The plugin ships four commands per `four-command-palette.adr`: `init`, `plan`, `document`, `review`, with gated track flows per `track-layer.spec`. Each lives at `skills/<name>/SKILL.md`. A fifth command requires a new ADR — prefer adding flow logic to the gated track layer (`skills/_shared/tracks/`, per `track-layer.spec`).
 
-1. Edit `skills/<name>/SKILL.md`. Required frontmatter: `name`, which must match the directory name, and `description`. Optional: `argument-hint`. No skill carries `disable-model-invocation`; all 7 auto-invoke.
+1. Edit `skills/<name>/SKILL.md`. Required frontmatter: `name`, which must match the directory name, and `description`. Optional: `argument-hint`. No skill carries `disable-model-invocation`; all four auto-invoke.
 2. Run `/reload-plugins`.
 3. Invoke `/archcore:<name>`.
 
 ### 4. Add a slash-command wrapper for a new skill
 
-Claude Code, Cursor, and Copilot surface skills directly in the `/` menu. Codex CLI does not — it discovers slash commands from `commands/<name>.md`. The plugin ships 7 wrappers, one per skill. If you add a new top-level skill, which itself requires a new ADR, add the matching wrapper:
+Claude Code, Cursor, and Copilot surface skills directly in the `/` menu. Codex CLI does not — it discovers slash commands from `commands/<name>.md`. The plugin ships four wrappers, one per command. If you add a new top-level skill, which itself requires a new ADR, add the matching wrapper:
 
 ```markdown
 ---
@@ -87,6 +87,8 @@ A wrapper carries no workflow logic; behavior lives in the skill, which is the s
 
 ### 5. Add or modify hooks
 
+Since v0.7.0 the hook policy executes inside the archcore CLI; the plugin registers three launchers — `bin/session-start`, `bin/pre-tool-use`, `bin/post-tool-use` — per host config (`cli-owns-layers-4-5.adr`, `hooks-validation-system.spec`). A behavior change therefore usually lands in the CLI repository; the plugin side changes only for wiring, host glue, or a new event.
+
 Edit `hooks/hooks.json` for Claude Code, `hooks/cursor.hooks.json` for Cursor, `hooks/codex.hooks.json` for Codex CLI, or `hooks/copilot.hooks.json` for GitHub Copilot CLI. Enroll every hooks config in `test/structure/host-coverage-matrix.bats` and in the resolution table in `hooks.bats`; both carry enrollment guards that fail until you do.
 
 A hook script goes in `bin/` and must:
@@ -96,7 +98,7 @@ A hook script goes in `bin/` and must:
 - source `bin/lib/normalize-stdin.sh` when it reads hook stdin;
 - carry `# shellcheck source=lib/normalize-stdin.sh` before that source line;
 - invoke the CLI directly as `archcore`, resolved through PATH;
-- guard against a plugin-install launch directory when it reads `.archcore/` or emits user-visible context, by exiting silently when the working directory contains — or sits beneath — a `.cursor-plugin/`, `.claude-plugin/`, `.codex-plugin/`, or `.plugin/` manifest. `bin/session-start` is the canonical pattern, and `cursor-mcp-architecture.adr` holds the rationale.
+- guard against a plugin-install launch directory when it reads `.archcore/` or emits user-visible context, by sourcing `bin/lib/plugin-cache-guard.sh` and calling `archcore_plugin_cache_guard` (the launchers are the canonical pattern; `cursor-mcp-architecture.adr` holds the rationale).
 
 Three hosts substitute a single canonical plugin-root variable; Copilot is the exception.
 
@@ -107,9 +109,9 @@ Three hosts substitute a single canonical plugin-root variable; Copilot is the e
 
 If you edit those commands, note that `test/structure/copilot-plugin.bats` **runs** them under `env -u` rather than comparing strings: exit 0 with a warning when nothing resolves, each candidate sufficient alone, a dead candidate skipped rather than fatal. The old string-equality assertions matched the broken command exactly and shipped it — see `copilot-adapter-design.adr` and `cli-integration-tests.rule`.
 
-Copilot's config differs in shape, not only in names: entries use `bash` rather than `command` and `timeoutSec` rather than `timeout`, are flat objects rather than nested groups, carry `cwd: "."` so the hook runs from the user's project, and its `postToolUse` entries carry no matcher at all, because the scripts self-filter. A test written by copying another host's and swapping the filename iterates an empty set and reports `ok`.
+Copilot's config differs in shape, not only in names: entries use `bash` rather than `command` and `timeoutSec` rather than `timeout`, are flat objects rather than nested groups, carry `cwd: "."` so the hook runs from the user's project, and its `postToolUse` entry carries no matcher at all, because the CLI gates on the tool name. A test written by copying another host's and swapping the filename iterates an empty set and reports `ok`.
 
-Two Copilot hook semantics differ from every other host, and both are load-bearing. First, every non-zero exit denies: `exit 2` is a deny whose stdout JSON merges with the deny decision, and any other non-zero exit denies as `Denied by preToolUse hook (hook errored)` (hooks-reference, re-read 2026-07-27). Guard scripts still write `{"permissionDecision":"deny","permissionDecisionReason":…}` to stdout with exit 0, because that is how a deny carries its reason — not because exit 2 fails to block. The corollary is that a guard which cannot *start* denies the write too, which is why hook bootstrap gets the candidate chain above. Second, a `preToolUse` timeout fails open, which makes guard latency a correctness concern; `test/unit/hook-latency.bats` keeps both PreToolUse guards far inside the 1-second budget for that reason.
+Two Copilot hook semantics differ from every other host, and both are load-bearing. First, every non-zero exit denies: `exit 2` is a deny whose stdout JSON merges with the deny decision, and any other non-zero exit denies as `Denied by preToolUse hook (hook errored)` (hooks-reference, re-read 2026-07-27). The CLI's Copilot dialect therefore writes `{"permissionDecision":"deny","permissionDecisionReason":…}` to stdout with exit 0, because that is how a deny carries its reason — not because exit 2 fails to block. The corollary is that a guard which cannot *start* denies the write too, which is why hook bootstrap gets the candidate chain above and why the launchers fail open on an absent or pre-0.7.0 CLI. Second, a `preToolUse` timeout fails open, which makes guard latency a correctness concern; the CLI holds its pre-tool work inside an internal 1-second budget (tested in the CLI repository), and the hook configs give the launcher 2 seconds so process-spawn overhead never cuts off a within-budget answer.
 
 Hooks are narrower than plugins on this host: hooks-reference names exactly two supported surfaces, Copilot CLI and Copilot cloud agent. VS Code agent mode is not one of them, even though Copilot Chat ships its own CLI binary under the extension's `globalStorage` and hook machinery has been observed firing there.
 
@@ -149,7 +151,7 @@ make check-perms        # executable permissions
 - Skills: discuss a relevant topic and confirm the host activates the skill.
 - Commands: run each `/archcore:<name>` on every host you can reach. Codex pulls them from `commands/`; Claude Code, Cursor, and Copilot from `skills/`.
 - Agent: invoke it on a multi-document task.
-- Hooks: trigger a Write or Edit on `.archcore/` and confirm the pre-mutation guard blocks it.
+- Hooks: trigger a Write or Edit on `.archcore/` and confirm the pre-mutation guard blocks it. Requires CLI v0.7.0 or later — the launchers fail open on anything older.
 - MCP availability: confirm `archcore --version` works.
 - Codex: from a directory outside the plugin source repo, such as `cd $(mktemp -d)`, call any `mcp__archcore__*` tool and confirm the MCP starts.
 - Cursor: after copying `docs/cursor.mcp.example.json` into `.cursor/mcp.json`, open an empty project. Expected result: `list_documents` returns empty rather than the plugin's own dev documents. If it returns dev documents, the plugin-install-dir guards regressed; file an issue against this repo and `archcore-ai/cli`.
@@ -162,10 +164,9 @@ For the questions no manual checklist can settle — whether a deny is honored o
 ## Verification
 
 - `make verify` exits 0 with `All checks passed`.
-- `/reload-plugins` reports 7 skills, 2 agents, and 6 hook entries.
-- `/help` lists all 7 `/archcore:*` commands.
+- `/reload-plugins` reports 4 skills, 2 agents, and 3 hook entries.
 - `/agents` lists `archcore-assistant` and `archcore-auditor`.
-- A Write or Edit against a `.archcore/` markdown file is blocked with a redirect message.
+- A Write or Edit against a `.archcore/` markdown file is blocked with a redirect message (CLI v0.7.0 or later on PATH).
 - `archcore --version` prints a version.
 - MCP tools work from any project directory on every host.
 
@@ -199,8 +200,9 @@ For the questions no manual checklist can settle — whether a deny is honored o
 
 - Confirm the `bin/` scripts are executable: `chmod +x bin/<name>`.
 - Check the shebang line reads `#!/bin/sh`.
+- Confirm the installed CLI is v0.7.0 or later: `bin/cli-gte 0.7.0` must print `yes`. On anything older the launchers exit 0 silently — no guard, no injection, no validation.
 - Confirm the hook JSON structure matches the expected format for that host.
-- Test the script manually: `echo '{"tool_name":"Write","tool_input":{"file_path":".archcore/test.adr.md"}}' | bin/check-archcore-write`.
+- Test the launcher manually: `echo '{"tool_name":"Write","tool_input":{"file_path":".archcore/test.adr.md"}}' | bin/pre-tool-use` — expected: the deny message on stderr and exit 2.
 - On Codex, hooks require `codex features enable plugin_hooks`. Without the flag, Codex does not run plugin-shipped hooks.
 - On Copilot, confirm the entry uses `bash` rather than `command` and `timeoutSec` rather than `timeout`. A config written in Claude's shape loads without error and does nothing.
 

@@ -1,0 +1,45 @@
+# Trigger-phrase routing fixtures — deterministic proxy for host routing.
+# The frontmatter description of each v2 skill IS the host's routing input:
+# each row pins a trigger phrase against silent description or track edits.
+# Consumed by test/structure/trigger-routing.bats.
+#
+# Columns (tab-separated, exactly 4 fields per data row):
+#   1. phrase  — literal substring expected (case-insensitive, fixed-string)
+#                in exactly ONE v2 skill frontmatter description among
+#                init|plan|document|review
+#   2. skill   — expected owning skill: init|plan|document|review
+#   3. track   — expected track file and entry gate, written as
+#                <path relative to plugins/archcore>:<gate-name>
+#                (e.g. skills/_shared/tracks/sdd.md:sdd.frame),
+#                or '-' when the phrase routes to no track (skill-internal flow)
+#   4. budget  — expected entry-gate budget knob value (integer),
+#                or '-' when no track/gate applies
+# Lines starting with '#' and blank lines are ignored.
+#
+# --- plan ---
+plan a new feature	plan	skills/_shared/tracks/sdd.md:sdd.frame	3
+create a roadmap	plan	skills/_shared/tracks/sdd.md:sdd.frame	3
+plan the X redesign	plan	skills/_shared/tracks/sdd.md:sdd.frame	3
+I need market research before we plan	plan	skills/_shared/tracks/requirements-cascade.md:requirements-cascade.mrd	2
+start the ISO requirements cascade	plan	skills/_shared/tracks/requirements-cascade.md:requirements-cascade.brs	2
+#
+# --- document ---
+we decided	document	skills/_shared/tracks/decision.md:decision.classify	1
+record this decision	document	skills/_shared/tracks/decision.md:decision.classify	1
+document why we chose X	document	skills/_shared/tracks/decision.md:decision.classify	1
+make it our standard	document	skills/_shared/tracks/decision.md:decision.classify	1
+draft an RFC	document	skills/_shared/tracks/decision.md:decision.classify	1
+document the auth module	document	skills/_shared/tracks/describe.md:describe.read	0
+capture how the payment system works	document	skills/_shared/tracks/describe.md:describe.read	0
+reference material	document	skills/_shared/tracks/describe.md:describe.read	0
+#
+# --- review ---
+review my branch	review	-	-
+review the changes before merge	review	-	-
+check if docs match code	review	skills/_shared/tracks/actualize.md:actualize.scope	1
+staleness warning	review	skills/_shared/tracks/actualize.md:actualize.scope	1
+documentation gaps	review	skills/_shared/tracks/actualize.md:actualize.scope	1
+#
+# --- init ---
+set up archcore	init	-	-
+fresh clone	init	-	-

@@ -59,28 +59,19 @@ script_basenames() {
   local file guard_event tools guard_matcher tok entry_cmds
   while IFS='|' read -r file _ _ guard_event tools; do
     [ -z "$file" ] && continue
-    # The write-guard event must run both check-archcore-write and check-code-alignment.
+    # The write-guard event runs the single pre-tool-use launcher; the guard
+    # and the code-alignment context both live in the CLI behind it, and the
+    # CLI is what skips context on Copilot (its preToolUse carries only a
+    # permission decision) — one launcher set, host behavior in one place.
     entry_cmds=$(jq -r --arg e "$guard_event" \
       '.hooks[$e][]? | (.hooks[]?.command // .command? // .bash? // empty)' \
       "$PLUGIN_ROOT/$file")
-    echo "$entry_cmds" | grep -q 'bin/check-archcore-write' \
-      || fail "$file: '$guard_event' must invoke bin/check-archcore-write; got: $entry_cmds"
-    # check-code-alignment is context injection, not a guard, and Copilot's
-    # preToolUse has no field that carries context (only permissionDecision,
-    # permissionDecisionReason, modifiedArgs). Registering it there would fork
-    # per edit and emit into a channel the host discards, so that one host is
-    # exempt — by name, so no other host can lose it quietly.
-    if [ "$file" != "hooks/copilot.hooks.json" ]; then
-      echo "$entry_cmds" | grep -q 'bin/check-code-alignment' \
-        || fail "$file: '$guard_event' must invoke bin/check-code-alignment; got: $entry_cmds"
-    else
-      ! echo "$entry_cmds" | grep -q 'bin/check-code-alignment' \
-        || fail "$file: registers bin/check-code-alignment, whose output Copilot's preToolUse discards"
-    fi
+    echo "$entry_cmds" | grep -q 'bin/pre-tool-use' \
+      || fail "$file: '$guard_event' must invoke bin/pre-tool-use; got: $entry_cmds"
     # The guard entry's matcher must cover every mutation tool of that host.
     guard_matcher=$(jq -r --arg e "$guard_event" \
       '.hooks[$e][] |
-       select((.hooks[]?.command // .command? // .bash? // "") | test("check-archcore-write")) |
+       select((.hooks[]?.command // .command? // .bash? // "") | test("pre-tool-use")) |
        .matcher' \
       "$PLUGIN_ROOT/$file" | head -1)
     for tok in $tools; do
@@ -93,21 +84,14 @@ script_basenames() {
 }
 
 @test "host matrix: script-set parity with hooks.json" {
-  # One named exemption, for the reason spelled out in the write-guard test
-  # above: Copilot's preToolUse carries no context field, so the context-only
-  # script is not registered there. Every other difference on every other host
-  # still fails.
-  local canonical file actual expected
+  # Every host routes through the same three launchers; any drift fails.
+  local canonical file actual
   canonical=$(script_basenames "$PLUGIN_ROOT/hooks/hooks.json")
   while IFS='|' read -r file _ _ _ _; do
     [ -z "$file" ] && continue
     actual=$(script_basenames "$PLUGIN_ROOT/$file")
-    expected="$canonical"
-    if [ "$file" = "hooks/copilot.hooks.json" ]; then
-      expected=$(printf '%s\n' "$canonical" | grep -v '^check-code-alignment$')
-    fi
-    [ "$actual" = "$expected" ] || {
-      echo "expected for $file: $expected"
+    [ "$actual" = "$canonical" ] || {
+      echo "expected for $file: $canonical"
       echo "$file: $actual"
       fail "$file references a different script set than hooks.json"
     }

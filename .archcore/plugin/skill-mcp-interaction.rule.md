@@ -32,7 +32,7 @@ The agent sees two instruction layers at the same time. MCP tool descriptions de
 An intent skill asks focused questions, composes content, and passes it to MCP:
 
 ```
-Intent skill activates for /archcore:decide →
+Intent skill activates for /archcore:document →
   Routing table identifies: single ADR →
   Asks: "What was the decision? What alternatives?"
   User answers with context →
@@ -46,7 +46,7 @@ Intent skill activates for /archcore:decide →
 A flow-style skill creates documents in sequence, each with content (`plan` running the product flow):
 
 ```
-Skill activates for /archcore:plan --product →
+Skill activates for /archcore:plan (gated track flow per `track-layer.spec`) →
   Loads skills/plan/references/product-flow.md →
   Step 1: Ask idea questions → create_document(type="idea", content="...") →
   Step 2: Ask PRD questions → create_document(type="prd", content="...") →

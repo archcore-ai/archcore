@@ -1,5 +1,5 @@
 ---
-title: "Actualize System Specification (now /archcore:audit --drift)"
+title: "Actualize System Specification (now /archcore:review --drift)"
 status: accepted
 tags:
   - "hooks"
@@ -10,9 +10,9 @@ tags:
 
 ## Purpose & Scope
 
-**Outcome (2026-05-15):** the Actualize system shipped, but as the `--drift` mode of the unified `/archcore:audit` skill rather than as a standalone `/archcore:actualize` skill. Layer 1 and Layer 2 — the `bin/check-staleness` SessionStart hook and the `bin/check-cascade` PostToolUse hook — shipped as designed. Layer 3 was folded into `audit` by `skill-surface-collapse.adr`, and the detection protocol now lives at `skills/audit/lib/drift-detection.md`. This document remains normative for the three detection layers themselves; the user-facing command contract lives in `commands-system.spec` and `plugin-architecture.spec`.
+**Outcome (2026-05-15):** the Actualize system shipped, but as the `--drift` mode of the unified `/archcore:audit` skill rather than as a standalone `/archcore:actualize` skill. `/archcore:audit` was itself absorbed into `/archcore:review` by `four-command-palette.adr`, so the drift mode is now `/archcore:review --drift`. Layer 1 and Layer 2 — the `bin/check-staleness` SessionStart hook and the `bin/check-cascade` PostToolUse hook — shipped as designed. Layer 3 was folded into `audit` by `skill-surface-collapse.adr`, and the detection protocol now lives at `skills/audit/lib/drift-detection.md`. This document remains normative for the three detection layers themselves; the user-facing command contract lives in `commands-system.spec` and `plugin-architecture.spec`.
 
-This spec defines the contract for documentation freshness detection: the SessionStart staleness check (Layer 1), the PostToolUse cascade detection (Layer 2), and the drift analysis mode of `/archcore:audit` (Layer 3) — their triggers, detection logic, output formats, and interaction with the existing hooks and MCP tools. Normative for `@plugins/archcore/bin/check-staleness`, `@plugins/archcore/bin/check-cascade`, and the four host hook configs. `actualize-system.adr` records the architectural rationale, and `hooks-validation-system.spec` defines the hook execution model this system extends. Out of scope: structural validation (`archcore doctor`), the dashboard and `--deep` modes of `/archcore:audit`, and the `archcore-auditor` agent.
+This spec defines the contract for documentation freshness detection: the SessionStart staleness check (Layer 1), the PostToolUse cascade detection (Layer 2), and `/archcore:review` (Layer 3) — their triggers, detection logic, output formats, and interaction with the existing hooks and MCP tools. Normative for `@plugins/archcore/bin/check-staleness`, `@plugins/archcore/bin/check-cascade`, and the four host hook configs. `actualize-system.adr` records the architectural rationale, and `hooks-validation-system.spec` defines the hook execution model this system extends. Out of scope: structural validation (`archcore doctor`), the dashboard and `--deep` modes of `/archcore:review`, and the `archcore-auditor` agent.
 
 ## Surface
 
@@ -24,16 +24,16 @@ The system detects three kinds of staleness: **code→doc drift** (source change
 │  Trigger: SessionStart                                   │
 │  Depth: git diff heuristic                               │
 │  Output: Brief warning in session context                │
-│  Cost: ~1-2s at session start                            │
+│  Cost: ~1-2s at session start                             │
 ├─────────────────────────────────────────────────────────┤
 │  Layer 2: Reactive Cascade                               │
 │  Trigger: PostToolUse (update_document)                  │
 │  Depth: Relation graph traversal                         │
-│  Output: Cascade warning in additionalContext            │
-│  Cost: <1s after each update                             │
+│  Output: Cascade warning in additionalContext             │
+│  Cost: <1s after each update                              │
 ├─────────────────────────────────────────────────────────┤
 │  Layer 3: Deep Analysis                                  │
-│  Trigger: /archcore:audit --drift (user-invoked)         │
+│  Trigger: /archcore:review --drift (user-invoked)        │
 │  Depth: Full code↔doc cross-reference + relation graph   │
 │  Output: Actionable report + interactive fixes           │
 │  Cost: 10-30s depending on project size                  │
@@ -46,7 +46,7 @@ The system detects three kinds of staleness: **code→doc drift** (source change
 [Archcore Staleness] {N} source files changed since last documentation update.
 Potentially affected documents:
   - {doc-path} — references {dir/} ({M} files changed)
-Run /archcore:audit --drift for detailed analysis.
+Run /archcore:review --drift for detailed analysis.
 ```
 
 **Layer 2 — `bin/check-cascade`.** Registered as a PostToolUse entry in all four host hook configs (`hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`, `hooks/copilot.hooks.json`). It parses the updated document path from stdin, queries `.archcore/.sync-state.json` for relations whose target is that path and whose type is `implements`, `depends_on`, or `extends`, and reports the source documents of those relations.
@@ -70,7 +70,7 @@ Run /archcore:audit --drift for detailed analysis.
 
 Copilot's entry is structurally different and cannot be produced by substituting that variable. It is a flat object carrying `bash` instead of `command`, `timeoutSec` instead of `timeout`, `cwd: "."`, `env.ARCHCORE_HOST=copilot`, and **no matcher**, because Copilot's `postToolUse` accepts none — the script self-filters there on the normalized tool name. Its `bash` value probes `$COPILOT_PLUGIN_ROOT`, `$PLUGIN_ROOT`, and `$CLAUDE_PLUGIN_ROOT` in turn with `-x`, execs the first that holds `bin/check-cascade`, and otherwise warns on stderr and exits 0. Until 2026-07-27 it was the one-liner `"${COPILOT_PLUGIN_ROOT}"/bin/check-cascade`, which resolved to the literal path `/bin/check-cascade` whenever that undocumented variable was unset. The live config is `@plugins/archcore/hooks/copilot.hooks.json`; the reasoning is in `copilot-adapter-design.adr`.
 
-**Layer 3 — `/archcore:audit --drift`.** A mode of the `audit` intent skill, activated by the `--drift` flag or by drift phrasing such as "are any docs stale?". Drift mode loads `skills/audit/lib/drift-detection.md` for the protocol, then gathers (`list_documents`, `list_relations`, `git log`), analyses code→doc drift, doc→doc cascade, and temporal staleness, reports findings grouped by severity, and offers an assisted fix one document at a time.
+**Layer 3 — `/archcore:review --drift`.** A mode of the `review` command, activated by the `--drift` flag or by drift phrasing such as "are any docs stale?". Drift mode loads `skills/audit/lib/drift-detection.md` for the protocol, then gathers (`list_documents`, `list_relations`, `git log`), analyses code→doc drift, doc→doc cascade, and temporal staleness, reports findings grouped by severity, and offers an assisted fix one document at a time.
 
 | Signal | Mode | Scope |
 |---|---|---|
@@ -134,7 +134,7 @@ The system is conformant when:
 1. `bin/check-staleness` runs at SessionStart and produces a code-drift warning where one applies.
 2. `bin/check-cascade` runs after `update_document` and produces a cascade warning where one applies.
 3. Every host hook config registers `check-cascade` on `update_document` — by matcher where the host has one, and by the script's own filtering on Copilot, which has none.
-4. `/archcore:audit --drift` exists as a mode of the `audit` skill, with routing-table support and all three analyses.
+4. `/archcore:review --drift` exists as a mode of `review`, with routing-table support and all three analyses.
 5. The drift protocol lives at `skills/audit/lib/drift-detection.md`.
 6. Every hook completes inside its timeout budget.
 7. No layer blocks an operation, and no layer modifies a document without user confirmation.

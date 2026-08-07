@@ -32,7 +32,7 @@ The mechanism has five parts:
 
 ## Consequences
 
-- New documents become consistently structured, and a pre-existing document remains readable while being signaled as inferior in `/archcore:audit --deep` reports and in `make verify` output.
+- New documents become consistently structured, and a pre-existing document remains readable while being signaled as inferior in `/archcore:review --deep` reports and in `make verify` output.
 - [expected] The usefulness ratio — the fraction of documents re-read or referenced after creation — rises. This is the primary success metric.
 - Tradeoff: document creation latency in full mode increases an estimated 20–40%, from contract loading and evidence harvest.
 - Tradeoff: authors accept stricter skill prompts; draft mode preserves a fast path for rapid capture.

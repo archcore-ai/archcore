@@ -1,6 +1,6 @@
 ---
 title: "Multi-Host Plugin Implementation Plan"
-status: accepted
+status: rejected
 tags:
   - "multi-host"
   - "plugin"

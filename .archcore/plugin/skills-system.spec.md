@@ -1,6 +1,6 @@
 ---
 title: "Skills System Specification — Seven Auto-Invocable Intent Skills"
-status: accepted
+status: rejected
 tags:
   - "plugin"
   - "skills"

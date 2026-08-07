@@ -38,7 +38,7 @@ The pass is the elicitation counterpart to init's evidence extraction, splitting
 - **Question fatigue against the minimalist ethos.** Mitigated by the hard cap, the recommendation-led options, the only-when-no-sensible-default rule, and the restriction to intent-heavy types — never on capturing a known module and never on init.
 - **Portability regression.** Mitigated by keeping the pass in the skill layer and forbidding any hard dependency on `AskUserQuestion` or MCP elicitation; the structure tests already pin the absence of host-conditional text in skills.
 - **Determinism and testing.** An interactive step is non-deterministic, so it stays a specified contract like `adr-contract.md` and remains reviewable, with tests covering the contract's presence and loading rather than the dialogue.
-- **Palette pressure.** The 7-command surface is ADR-gated, so this must ship as a mode or pass inside an existing skill rather than as a new command.
+- **Palette pressure.** The four-command palette is ADR-gated (`four-command-palette.adr`), so this must ship as a mode inside an existing command (plan or document track) rather than as a new command.
 
 ## Open decisions
 

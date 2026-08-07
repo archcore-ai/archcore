@@ -18,13 +18,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CURSOR_PLUGIN_ROOT}\"/bin/check-archcore-write",
-            "timeout": 1
-          },
-          {
-            "type": "command",
-            "command": "\"${CURSOR_PLUGIN_ROOT}\"/bin/check-code-alignment",
-            "timeout": 1
+            "command": "\"${CURSOR_PLUGIN_ROOT}\"/bin/pre-tool-use",
+            "timeout": 2
           }
         ]
       }
@@ -35,18 +30,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CURSOR_PLUGIN_ROOT}\"/bin/validate-archcore",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "\"${CURSOR_PLUGIN_ROOT}\"/bin/check-cascade",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "\"${CURSOR_PLUGIN_ROOT}\"/bin/check-precision",
-            "timeout": 3
+            "command": "\"${CURSOR_PLUGIN_ROOT}\"/bin/post-tool-use",
+            "timeout": 4
           }
         ]
       }

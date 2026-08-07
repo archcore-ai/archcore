@@ -35,4 +35,4 @@ Adopt a single-narrative spec: keep the six-section spine with generalized **Sur
 
 ## Next Action
 
-Implemented in `skills/_shared/spec-contract.md` and in the three spec-creating skills. Two items stay open: re-validate the 80-line cap against real specs after EARS clause expansion, and consider tying numbered requirements into `/archcore:audit --drift`.
+Implemented in `skills/_shared/spec-contract.md` and in the three spec-creating skills. Two items stay open: re-validate the 80-line cap against real specs after EARS clause expansion, and consider tying numbered requirements into `/archcore:review --drift`.

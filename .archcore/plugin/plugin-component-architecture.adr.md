@@ -14,9 +14,9 @@ A host plugin system supports several component types — skills that the model 
 
 Map each plugin capability to the component type whose invocation model matches it: skills route intent, command wrappers surface skills on hosts that need them, agents orchestrate complex work, hooks guard quality, and the MCP server provides document operations.
 
-**Skills — model-invoked and context-aware.** They translate user intent and orchestrate multi-document flows, living at `skills/<skill-name>/SKILL.md`. Every skill is auto-invocable, so the model picks the right one from user phrasing, and each inlines its per-type elicitation — questions, sections, MCP calls, relation suggestions — with per-flow logic loaded on demand from `skills/<name>/references/` or `skills/audit/lib/`. There are **7**: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`, per `skill-surface-collapse.adr`. There are no per-document-type skills, no track skills, and no utility skills.
+**Skills — model-invoked and context-aware.** They translate user intent and orchestrate multi-document flows, living at `skills/<skill-name>/SKILL.md`. Every skill is auto-invocable, so the model picks the right one from user phrasing, and each inlines its per-type elicitation — questions, sections, MCP calls, relation suggestions — with per-flow logic loaded on demand from `skills/<name>/references/` or `skills/audit/lib/`. There are four: `init`, `plan`, `document`, `review`, per `four-command-palette.adr`, with a non-palette gated track layer per `track-layer.spec`. There are no per-document-type skills, no track skills, and no utility skills.
 
-**Commands — user-invoked slash commands.** Claude Code, Cursor, and Copilot CLI surface user-invoked workflows directly from skills. Codex CLI does not, and discovers slash commands from `commands/*.md` wrappers — host-adapter shims carrying only `description:` frontmatter and a delegate instruction. A wrapper MUST NOT duplicate workflow logic; the skill stays the single behavioral source of truth on every host. Copilot loads the same wrappers behind its skills. The user-facing palette is the 7 commands `/archcore:init`, `/archcore:capture`, `/archcore:decide`, `/archcore:plan`, `/archcore:audit`, `/archcore:context`, and `/archcore:help`.
+**Commands — user-invoked slash commands.** Claude Code, Cursor, and Copilot CLI surface user-invoked workflows directly from skills. Codex CLI does not, and discovers slash commands from `commands/*.md` wrappers — host-adapter shims carrying only `description:` frontmatter and a delegate instruction. A wrapper MUST NOT duplicate workflow logic; the skill stays the single behavioral source of truth on every host. Copilot loads the same wrappers behind its skills. The user-facing palette is the four commands `/archcore:init`, `/archcore:plan`, `/archcore:document`, and `/archcore:review`.
 
 **Agents — subagents.** They handle complex multi-document tasks needing domain expertise, at `agents/archcore-assistant.md` and `agents/archcore-auditor.md`. The assistant covers requirements engineering, decision recording, documentation review, and relation management, restricted to MCP tools plus read-only file access; the auditor is its read-only counterpart.
 
@@ -35,9 +35,9 @@ Map each plugin capability to the component type whose invocation model matches 
 
 - Responsibilities separate cleanly: skills route intent, agents orchestrate, hooks guard, and MCP performs operations.
 - Each component type is used for the invocation model it was designed for.
-- A single 7-skill surface is quick to learn and to teach, and all four hosts see the same 7 commands.
-- Tradeoff: 7 `SKILL.md` files plus the per-flow references and lib files require maintenance, and consistency must hold between the skills, those references, and the agent system prompts.
-- Tradeoff: Codex CLI requires 7 thin wrappers in `commands/` to surface the skills, which is mechanical parity rather than logic duplication, and Copilot needs the same wrappers plus an explicit manifest pointer.
+- A single four-command surface is quick to learn and to teach, and all four hosts see the same four commands.
+- Tradeoff: 4 `SKILL.md` files (plus non-palette track files) plus the per-flow references and lib files require maintenance, and consistency must hold between the skills, those references, and the agent system prompts.
+- Tradeoff: Codex CLI requires 4 thin wrappers in `commands/` to surface the skills, which is mechanical parity rather than logic duplication, and Copilot needs the same wrappers plus an explicit manifest pointer.
 - Tradeoff: Cursor and Copilot users must register MCP separately. `bin/session-start` mitigates this with actionable guidance when the server is unreachable, and `host-wiring-parity.adr` reduces it to a confirmed step inside `/archcore:init`.
 
 ## Superseded when

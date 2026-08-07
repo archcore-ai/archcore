@@ -6,10 +6,13 @@ setup() {
   common_setup
 }
 
-@test "every skill directory has a SKILL.md" {
+@test "exactly the four v2 skills ship a SKILL.md" {
   local count
   count=$(find "$PLUGIN_ROOT/skills" -name "SKILL.md" | wc -l | tr -d ' ')
-  [ "$count" -ge 7 ]
+  [ "$count" -eq 4 ]
+  for s in init plan document review; do
+    [ -f "$PLUGIN_ROOT/skills/$s/SKILL.md" ] || fail "missing skills/$s/SKILL.md"
+  done
 }
 
 @test "every skill has name: in frontmatter" {
@@ -59,11 +62,11 @@ setup() {
     || fail "init/SKILL.md must instruct the agent to call mcp__archcore__init_project for uninitialized projects"
 }
 
-@test "help skill documents the archcore init CLI recovery path" {
-  # /archcore:help is a likely first stop when MCP tools fail; it must explain
-  # how to install the CLI and run `archcore init` to recover. This is the
-  # MCP-unavailable fallback (distinct from the in-session init_project call
-  # that bootstrap uses when MCP works but .archcore/ is empty).
-  grep -q 'archcore init' "$PLUGIN_ROOT/skills/help/SKILL.md" \
-    || fail "help/SKILL.md must include 'archcore init' recovery instruction"
+@test "init skill documents the archcore init CLI recovery path" {
+  # With /archcore:help retired, init is where a user lands when MCP tools
+  # fail; it must explain how to install the CLI and wire the project with
+  # `archcore init`. This is the MCP-unavailable fallback (distinct from the
+  # in-session init_project call used when MCP works but .archcore/ is empty).
+  grep -q 'archcore init' "$PLUGIN_ROOT/skills/init/SKILL.md" \
+    || fail "init/SKILL.md must include 'archcore init' recovery instruction"
 }

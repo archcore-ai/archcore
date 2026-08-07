@@ -53,7 +53,7 @@ setup() {
   [ "$before" = "$after" ] || fail "mkprobe changed the file list under $PLUGIN_ROOT"
 
   # And it did produce a wrapped copy, so the check above is not vacuous.
-  [ -f "$dest/plugin-src/bin/check-archcore-write.real" ] \
+  [ -f "$dest/plugin-src/bin/pre-tool-use.real" ] \
     || fail "mkprobe produced no wrapped copy — the invariance check proves nothing"
 }
 

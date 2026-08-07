@@ -14,6 +14,8 @@ Positioning followed: the README hero line reads "auto-injected before source ed
 
 **Naming note (2026-05-15).** The original Path B referenced `/archcore:standard-track` as the marketing entry for JTBD #3. After `skill-surface-collapse.adr` the standard cascade lives inside `/archcore:decide`. The narrative is unchanged — decisions become rules become applied constraints — but the entry point is `/archcore:decide`. Read any stale `/archcore:standard-track` or `/archcore:standard` below as `/archcore:decide`, and `/archcore:actualize` as `/archcore:audit --drift`.
 
+**Naming note (v2).** After `four-command-palette.adr` and `remove-context-command.adr` the seven-command surface narrated below is historical. Read `/archcore:context` throughout as the removed pull command — CLI hooks and command grounding absorb it. Read `/archcore:decide` throughout as `/archcore:document`. Read `/archcore:audit --drift` throughout as `/archcore:review --drift`. This covers every stale instance below: "Pull mode shipped as the `/archcore:context` skill", "the `/archcore:context` pull skill", "`/archcore:decide` creates the ADR or RFC", "`/archcore:audit --drift` for deep on-demand analysis", "reachable through `/archcore:decide`", and "the standard cascade lives inside `/archcore:decide`".
+
 ## Idea
 
 Analyze the plugin against four jobs-to-be-done, map each to the mechanisms that actually exist, and identify where the README promise outruns the engineered reality.

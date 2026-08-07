@@ -1,0 +1,21 @@
+gate: actualize.scope
+skip_when: yes
+budget: 1
+taxonomy: Functional Scope & Behavior
+produces: none
+next: actualize.verdict
+
+gate: actualize.verdict
+skip_when: yes
+budget: 2
+taxonomy: Functional Scope & Behavior, Misc / Placeholders
+produces: none
+next: actualize.fix end
+
+gate: actualize.fix
+skip_when: yes
+budget: 1 question per document carrying a spec-wrong finding
+taxonomy: Terminology & Consistency, Misc / Placeholders
+produces: none
+next: end
+

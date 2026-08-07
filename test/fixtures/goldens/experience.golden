@@ -1,0 +1,14 @@
+gate: experience.detect
+skip_when: yes
+budget: 0
+taxonomy: none
+produces: none
+next: experience.offer
+
+gate: experience.offer
+skip_when: yes
+budget: 1
+taxonomy: none
+produces: cpat or task-type, per the accepted answer draft
+next: end
+

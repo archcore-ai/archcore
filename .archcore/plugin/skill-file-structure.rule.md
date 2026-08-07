@@ -10,7 +10,7 @@ tags:
 ## Rule
 
 1. Each skill MUST live at `skills/<name>/SKILL.md`.
-2. `<name>` MUST be one of the seven canonical skill names: `init`, `capture`, `decide`, `plan`, `audit`, `context`, `help`.
+2. `<name>` MUST be one of the four canonical command names: `init`, `plan`, `document`, `review`, per `four-command-palette.adr`.
 3. Each `SKILL.md` MUST carry a `name` field in its frontmatter.
 4. Each `SKILL.md` MUST carry a `description` field in its frontmatter.
 5. A `SKILL.md` MUST NOT carry `disable-model-invocation`.
@@ -30,7 +30,7 @@ tags:
 
 ## Rationale
 
-A fixed file location and a fixed section set let a contributor find each kind of guidance without reading the whole skill, and let a batch update touch every skill the same way. `skill-surface-collapse.adr` fixed the seven-skill surface and the auto-invocation invariant, so a `disable-model-invocation` flag or an eighth top-level skill breaks routing instead of extending it. `remove-document-type-skills.adr` removed the per-type skill layer, which is why item 9 places per-type elicitation inside `Execution`. Items 13 and 14 exist because an embedded template drifts as soon as the CLI templates change. The trigger and anti-trigger forms in items 6 and 7 are what make model routing between neighboring intents deterministic.
+A fixed file location and a fixed section set let a contributor find each kind of guidance without reading the whole skill, and let a batch update touch every skill the same way. `four-command-palette.adr` fixes the four-command surface and the auto-invocation invariant, so a `disable-model-invocation` flag or an eighth top-level skill breaks routing instead of extending it. `remove-document-type-skills.adr` removed the per-type skill layer, which is why item 9 places per-type elicitation inside `Execution`. Items 13 and 14 exist because an embedded template drifts as soon as the CLI templates change. The trigger and anti-trigger forms in items 6 and 7 are what make model routing between neighboring intents deterministic.
 
 ## Examples
 
@@ -38,12 +38,12 @@ A fixed file location and a fixed section set let a contributor find each kind o
 
 ```markdown
 ---
-name: capture
+name: document
 argument-hint: "[topic or description]"
-description: "Document a module, component, or system — automatically picks the right type (ADR, spec, doc, or guide). Activate when user says 'document this module', 'capture how X works', 'write reference docs'. Do NOT activate for recording a decision (use /archcore:decide) or planning a feature (use /archcore:plan)."
+description: "Document a module, component, or system, or record a decision — automatically picks the right type (ADR, spec, doc, guide, or rule). Activate when user says 'document this module', 'capture how X works', 'record this decision', 'write reference docs'. Do NOT activate for planning a feature (use /archcore:plan) or auditing existing documentation (use /archcore:review)."
 ---
 
-# /archcore:capture
+# /archcore:document
 
 ...
 
@@ -67,7 +67,7 @@ The frontmatter carries no invocation-restricting flag, so the skill auto-invoke
 ---
 name: plan
 argument-hint: "[topic] [--product|--sources|--iso|--feature]"
-description: "Plan a feature or initiative end-to-end. Activate when user says 'let's plan', 'create a roadmap for X', 'I need to plan Y'. Do NOT activate for recording a decision (use /archcore:decide) or documenting an existing module (use /archcore:capture)."
+description: "Plan a feature or initiative end-to-end. Activate when user says 'let's plan', 'create a roadmap for X', 'I need to plan Y'. Do NOT activate for recording a decision (use /archcore:document) or documenting an existing module (use /archcore:document)."
 ---
 
 # /archcore:plan
@@ -88,8 +88,6 @@ description: "Plan a feature or initiative end-to-end. Activate when user says '
 - Step 4: Cross-relate to existing documents
 ```
 
-Per-flow content lives in references, which keeps `SKILL.md` inside the 300-line limit of item 15.
-
 ### Bad
 
 ```markdown
@@ -108,5 +106,5 @@ Per-flow content lives in references, which keeps `SKILL.md` inside the 300-line
 - Code review during skill development.
 - `skills-system.spec` defines the normative contract for skill behavior.
 - `plugin-architecture.spec` defines the cross-component invariants.
-- `skill-surface-collapse.adr` fixes the seven-skill surface and the auto-invocation invariant that item 5 depends on.
+- `four-command-palette.adr` fixes the four-command surface and the auto-invocation invariant that item 5 depends on.
 - No lint script checks items 1–18 today. A `bin/` lint script is the intended verifier. [assumption] No implementation date is set.

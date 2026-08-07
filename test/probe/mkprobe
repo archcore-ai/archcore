@@ -36,9 +36,10 @@ REPO_ROOT=${REPO_ROOT:-$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)}
 PLUGIN_SRC="$REPO_ROOT/plugins/archcore"
 SENTINEL_VERSION="0.0.0-probe"
 
-# Guards with a wrapper. One per probe in the protocol; check-code-alignment
-# serves both A and A-d.
-WRAPPED="session-start check-archcore-write check-code-alignment validate-archcore"
+# Guards with a wrapper. One per probe in the protocol; pre-tool-use serves
+# P0, A, and A-d (write guard + code-alignment context live behind it in the
+# CLI), post-tool-use serves B/C/D.
+WRAPPED="session-start pre-tool-use post-tool-use"
 
 usage() {
   cat <<'EOF'

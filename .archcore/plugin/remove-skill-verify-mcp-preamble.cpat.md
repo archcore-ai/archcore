@@ -47,7 +47,7 @@ Existing step numbering stays as it was. The removed block was always numbered f
 
 ## Scope
 
-Every skill under `skills/`. At the time of the change the surface held 16 skills: 9 intent (`bootstrap`, `capture`, `plan`, `decide`, `standard`, `review`, `actualize`, `help`, `context`), 6 track (`product-track`, `sources-track`, `iso-track`, `architecture-track`, `standard-track`, `feature-track`), and 1 utility (`verify`). The surface is now 7 skills, collapsed by `skill-surface-collapse.adr`; the pattern applies unchanged to each of them and to any skill added later.
+Every skill under `skills/`. At the time of the change the surface held 16 skills: 9 intent (`bootstrap`, `capture`, `plan`, `decide`, `standard`, `review`, `actualize`, `help`, `context`), 6 track (`product-track`, `sources-track`, `iso-track`, `architecture-track`, `standard-track`, `feature-track`), and 1 utility (`verify`). The surface is now four commands (`init`, `plan`, `document`, `review`), collapsed by `four-command-palette.adr`; the pattern applies unchanged to each of them and to any skill added later.
 
 ## Rationale
 

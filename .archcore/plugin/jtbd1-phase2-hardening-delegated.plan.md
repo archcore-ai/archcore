@@ -1,6 +1,6 @@
 ---
 title: "JTBD #1 Phase 2 — Delegated-Agent Coverage"
-status: accepted
+status: rejected
 tags:
   - "agents"
   - "hooks"

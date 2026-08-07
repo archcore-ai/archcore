@@ -16,40 +16,22 @@
         "type": "command",
         "matcher": "create|edit|str_replace_editor|apply_patch",
         "cwd": ".",
-        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/check-archcore-write\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/check-archcore-write\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/check-archcore-write\" ] && exec \"$PLUGIN_ROOT/bin/check-archcore-write\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/check-archcore-write\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/check-archcore-write\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/check-archcore-write\" >&2; exit 0",
+        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/pre-tool-use\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/pre-tool-use\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/pre-tool-use\" ] && exec \"$PLUGIN_ROOT/bin/pre-tool-use\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/pre-tool-use\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/pre-tool-use\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/pre-tool-use\" >&2; exit 0",
         "env": {
           "ARCHCORE_HOST": "copilot"
         },
-        "timeoutSec": 1
+        "timeoutSec": 2
       }
     ],
     "postToolUse": [
       {
         "type": "command",
         "cwd": ".",
-        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/validate-archcore\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/validate-archcore\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/validate-archcore\" ] && exec \"$PLUGIN_ROOT/bin/validate-archcore\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/validate-archcore\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/validate-archcore\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/validate-archcore\" >&2; exit 0",
+        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/post-tool-use\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/post-tool-use\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/post-tool-use\" ] && exec \"$PLUGIN_ROOT/bin/post-tool-use\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/post-tool-use\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/post-tool-use\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/post-tool-use\" >&2; exit 0",
         "env": {
           "ARCHCORE_HOST": "copilot"
         },
-        "timeoutSec": 3
-      },
-      {
-        "type": "command",
-        "cwd": ".",
-        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/check-cascade\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/check-cascade\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/check-cascade\" ] && exec \"$PLUGIN_ROOT/bin/check-cascade\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/check-cascade\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/check-cascade\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/check-cascade\" >&2; exit 0",
-        "env": {
-          "ARCHCORE_HOST": "copilot"
-        },
-        "timeoutSec": 3
-      },
-      {
-        "type": "command",
-        "cwd": ".",
-        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/check-precision\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/check-precision\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/check-precision\" ] && exec \"$PLUGIN_ROOT/bin/check-precision\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/check-precision\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/check-precision\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/check-precision\" >&2; exit 0",
-        "env": {
-          "ARCHCORE_HOST": "copilot"
-        },
-        "timeoutSec": 3
+        "timeoutSec": 4
       }
     ]
   }

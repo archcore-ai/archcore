@@ -1,6 +1,6 @@
 ---
 title: "Bootstrap (Now Init) Scale Modes — Small / Medium / Large with Tracked-Context Targets"
-status: accepted
+status: rejected
 tags:
   - "onboarding"
   - "plugin"
@@ -8,9 +8,9 @@ tags:
   - "skills"
 ---
 
-**Outcome (2026-05-15).** The plan was executed. The skill shipped as `skills/init/`, renamed from `skills/bootstrap/` per `skill-surface-collapse.adr`, with its lib files at `skills/init/lib/detect-*.md` and the command at `/archcore:init`. Read every reference to the old names below as the new ones. The three-mode detection logic is preserved as designed.
+**Outcome (2026-05-15).** The plan was executed. The skill shipped as `skills/init/`, renamed from `skills/bootstrap/` per `skill-surface-collapse.adr`, with its lib files at `skills/_shared/grounding/detect-*.md` and the command at `/archcore:init`. Read every reference to the old names below as the new ones. The three-mode detection logic is preserved as designed.
 
-**Update (2026-07-01).** The premise below that large mode cannot meaningfully seed per-domain artifacts in one pass is reversed. Real-world run evidence — a 773-module, 24-domain repository seeded only 3 specs and 4 domain data-models at day one — showed the opposite failure: seeding too little per domain rather than too much. Large mode now scales its hotspot-spec budget with the domain selection, applying a per-selected-domain floor of at least 1 spec filled to a depth-scaled cap by repo-wide rank — 2 per domain with a minimum of 6 and a cap of 12 at `light`, 3 per domain with a minimum of 10 and a cap of 24 at `standard`, and 4 per domain with a minimum of 14 and a cap of 40 at `deep` — and seeds a data-model doc for **every** schema-bearing domain regardless of selection. `SKILL.md` and `skills/init/lib/detect-hotspots.md` hold the current numbers. The per-domain re-run described below still exists as a narrower top-up mechanism, now on top of a substantive day-one seed rather than instead of one. The target-context and steady-state lists from the M2 tasks onward predate the Tier-2 confirmed-synthesis rewrite in `magic-first-day-init.adr` and are historical context rather than the current contract.
+**Update (2026-07-01).** The premise below that large mode cannot meaningfully seed per-domain artifacts in one pass is reversed. Real-world run evidence — a 773-module, 24-domain repository seeded only 3 specs and 4 domain data-models at day one — showed the opposite failure: seeding too little per domain rather than too much. Large mode now scales its hotspot-spec budget with the domain selection, applying a per-selected-domain floor of at least 1 spec filled to a depth-scaled cap by repo-wide rank — 2 per domain with a minimum of 6 and a cap of 12 at `light`, 3 per domain with a minimum of 10 and a cap of 24 at `standard`, and 4 per domain with a minimum of 14 and a cap of 40 at `deep` — and seeds a data-model doc for **every** schema-bearing domain regardless of selection. `SKILL.md` and `skills/_shared/grounding/detect-hotspots.md` hold the current numbers. The per-domain re-run described below still exists as a narrower top-up mechanism, now on top of a substantive day-one seed rather than instead of one. The target-context and steady-state lists from the M2 tasks onward predate the Tier-2 confirmed-synthesis rewrite in `magic-first-day-init.adr` and are historical context rather than the current contract.
 
 ## Goal
 
@@ -32,7 +32,7 @@ Three cheap, language-agnostic signals are computed in one pass. **`domain_count
 | **Medium** — a focused service, framework kit, or mid-sized SDK | `domain_count ≤ 2` and `15 < module_count ≤ 40` |
 | **Large** — a multi-domain application, monorepo, or modular monolith | `domain_count ≥ 3` or `module_count > 40` |
 
-The thresholds live in `skills/init/lib/detect-scale.md` as editable data. Init prints the detected mode in its opening line together with the override hint.
+The thresholds live in `skills/_shared/grounding/detect-scale.md` as editable data. Init prints the detected mode in its opening line together with the override hint.
 
 ## Target context per mode
 
@@ -42,7 +42,7 @@ Each item below is marked **[seed]** when init writes it directly, **[propose]**
 
 **Medium mode — a focused service, framework kit, or mid-sized SDK**, typically one domain with a non-trivial internal surface and few entry points. The stack rule, the run guide, and an entry-point inventory doc are [seed]. Three to five hotspot capture candidates and one cross-cutting rule candidate are [propose]. An ADR per architectural decision, typically 3 to 6; a spec per hotspot module, typically 3 to 6; a rule per cross-cutting concern, typically 2 to 4; and a task-type for the top 2 to 3 change patterns are [organic]. Expected steady state: 12 to 20 documents.
 
-**Large mode — a multi-domain application, monorepo, or modular monolith**, typically three or more cohesive domains with many entry points. The strategy recorded here was to seed a map of the shape and then run narrow per-domain passes; the 2026-07-01 update above scales the day-one seed instead. The workspace stack rule, the monorepo-aware run guide, a top-level map doc, and an entry-point inventory doc are [seed]. A domain selection dialog runs interactively during init, asking which of the detected domains the user is working on. The per-selected-domain hotspot proposal is [propose]. An ADR per domain-level decision, typically 2 to 5 per domain; a spec per hotspot module, typically 2 to 5 per selected domain; a spec per cohesive domain boundary, typically one per neighboring pair; the repo-wide cross-cutting rules, typically 4 to 8, whose candidates init flags; and a task-type for the top 3 to 5 change patterns are all [organic]. Expected steady state: 20 to 40 or more documents, which is acceptable because the map plus the per-domain tag lets `/archcore:context` scope its queries.
+**Large mode — a multi-domain application, monorepo, or modular monolith**, typically three or more cohesive domains with many entry points. The strategy recorded here was to seed a map of the shape and then run narrow per-domain passes; the 2026-07-01 update above scales the day-one seed instead. The workspace stack rule, the monorepo-aware run guide, a top-level map doc, and an entry-point inventory doc are [seed]. A domain selection dialog runs interactively during init, asking which of the detected domains the user is working on. The per-selected-domain hotspot proposal is [propose]. An ADR per domain-level decision, typically 2 to 5 per domain; a spec per hotspot module, typically 2 to 5 per selected domain; a spec per cohesive domain boundary, typically one per neighboring pair; the repo-wide cross-cutting rules, typically 4 to 8, whose candidates init flags; and a task-type for the top 3 to 5 change patterns are all [organic]. Expected steady state: 20 to 40 or more documents, which is acceptable because the map plus the per-domain tag lets session hooks and command grounding scope their queries (formerly `/archcore:context`, removed under v2).
 
 ## Per-mode flow
 
@@ -64,7 +64,7 @@ The closing message in every mode lists the over-time targets not yet created, s
 
 ## Common infrastructure
 
-Six language-agnostic signal modules live under `skills/init/lib/`: `detect-scale.md` holding the thresholds, the override semantics, and the utility-directory exclusions; `detect-domains.md` holding the conventional roots, the exclusion list, and the cohesion rule; `detect-modules.md` holding the per-language source-extension allowlist plus the test-file and generated-code patterns to exclude; `detect-entry-points.md` holding the language-independent patterns and the per-language additions; `detect-hotspots.md` holding the ranking formula and the optional git-activity weighting; and `detect-cross-cutting.md` holding the repeated-pattern heuristics.
+Six language-agnostic signal modules live under `skills/_shared/grounding/`: `detect-scale.md` holding the thresholds, the override semantics, and the utility-directory exclusions; `detect-domains.md` holding the conventional roots, the exclusion list, and the cohesion rule; `detect-modules.md` holding the per-language source-extension allowlist plus the test-file and generated-code patterns to exclude; `detect-entry-points.md` holding the language-independent patterns and the per-language additions; `detect-hotspots.md` holding the ranking formula and the optional git-activity weighting; and `detect-cross-cutting.md` holding the repeated-pattern heuristics.
 
 ## MVP slice status (2026-04-24)
 
@@ -91,7 +91,7 @@ The first implementation pass delivered the lib files and a rewritten `SKILL.md`
 **M4 — the shared hotspot proposal.**
 - [x] Add the ranking module.
 - [x] Add the presentation step.
-- [x] Keep `/archcore:capture` un-invoked automatically.
+- [x] Keep `/archcore:capture` un-invoked automatically (now `/archcore:document`; capture absorbed by document under v2).
 
 **M5 — the signal libraries.**
 - [x] Write the six detector files.
@@ -126,7 +126,7 @@ The first implementation pass delivered the lib files and a rewritten `SKILL.md`
 - The parent plan `zero-content-onboarding-implementation.plan`, which this assumes has already implemented the stack rule and the run guide.
 - The source idea `zero-content-onboarding.idea`.
 - No CLI release dependency, since everything is reachable through the existing MCP surface.
-- The existing `capture`, `decide`, and `plan` skills, which the propose lists route to.
+- The existing `document` and `plan` commands (capture and decide absorbed by document under v2), which the propose lists route to.
 - Optionally, the `git` CLI for hotspot weighting.
 
 ## Risks

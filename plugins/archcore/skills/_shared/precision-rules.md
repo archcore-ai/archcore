@@ -107,7 +107,8 @@ composing documents of type `adr`, `spec`, `rule`, `guide`. See also
 
 ## Enforcement
 
-- The plugin's `bin/check-precision` PostToolUse hook detects forbidden lexicon
+- The CLI's PostToolUse hook (`archcore hooks <host> post-tool-use`, launched
+  via the plugin's `bin/post-tool-use`) detects forbidden lexicon
   words in newly created documents and (in later phases) in additions during
   `update_document`. Findings are emitted as `additionalContext`. The hook never
   blocks (always exits 0).

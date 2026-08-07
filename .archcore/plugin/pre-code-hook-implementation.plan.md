@@ -1,6 +1,6 @@
 ---
 title: "Pre-Code Context Injection Hook Implementation Plan"
-status: accepted
+status: rejected
 tags:
   - "hooks"
   - "plugin"
@@ -13,7 +13,7 @@ Deferred to later phases: a persistent path index in the sync manifest replacing
 
 ## Goal
 
-Ship the push-mode counterpart to `/archcore:context`: a pre-mutation hook that injects the applicable rules, ADRs, specs, and cpats as additional context when an agent is about to edit source code outside `.archcore/`. Together with the already-shipped pull skill this closes JTBD #1 into an engineered guarantee and retires the largest README-versus-reality gap identified in `jtbd-alignment-analysis.idea`.
+Ship the push-mode counterpart to the pull moment (formerly `/archcore:context`, removed under v2 per `remove-context-command.adr`; CLI hooks + command grounding absorb it): a pre-mutation hook that injects the applicable rules, ADRs, specs, and cpats as additional context when an agent is about to edit source code outside `.archcore/`. Together with the already-shipped pull skill this closes JTBD #1 into an engineered guarantee and retires the largest README-versus-reality gap identified in `jtbd-alignment-analysis.idea`.
 
 ## Scope of this iteration
 

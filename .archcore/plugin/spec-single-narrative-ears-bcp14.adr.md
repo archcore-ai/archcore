@@ -35,4 +35,4 @@ The notation is `WHEN <trigger>, the <subject> MUST <response>`, plus the WHILE,
 ## Superseded when
 
 - Measurement on the converted corpus shows the 80-line cap unreachable for a majority of specs without losing normative content, which would call for a revised cap rather than decomposition.
-- Numbered requirements are wired into `/archcore:audit --drift`, which would make requirement identifiers load-bearing and may require stable IDs this decision does not define.
+- Numbered requirements are wired into `/archcore:review --drift`, which would make requirement identifiers load-bearing and may require stable IDs this decision does not define.

@@ -1,6 +1,6 @@
 ---
 title: "Zero-Content Onboarding Implementation — SessionStart Nudge + /archcore:init"
-status: accepted
+status: rejected
 tags:
   - "hooks"
   - "onboarding"
@@ -19,7 +19,7 @@ Implement variants A and B from `zero-content-onboarding.idea`, so a fresh-insta
 
 **Phase B — the `/archcore:init` intent skill**, in three sequential steps. B1 and B2 generate their artifacts directly, with no accept-edit-skip prompt, because each output is a short file that is trivially edited, deleted, or regenerated. B3 is opt-in behind a cost warning and a dry-run preview, because it can create many documents at once. B1 generates a terse imperative stack rule from manifest detection, carrying no library inventory and no versions. B2 generates a short run-the-app guide from the README and the scripts, with monorepo awareness. B3 parses the existing agent-instruction files — `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `.cursor/rules/*.mdc`, `.github/copilot-instructions.md`, `.windsurfrules`, `.junie/guidelines.md`, and `CONVENTIONS.md` — with a cost warning on a large input. Its default per-file mode is link by reference, creating a `doc` whose body holds a one-line pointer and whose tags carry the source identifier, duplicating no content; an optional extract mode routes content into typed rules, ADRs, and docs.
 
-**Deferred deliberately.** Variant C, the full repository introspection beyond manifests, awaits observed usage of B. An active guardrail or lint for the generated stack rule is out of scope, because Phase B produces context rather than enforcement. Auto-refresh of an imported document when its source changes stays manual, covered by `/archcore:audit --drift`. And CLI-side ownership of empty-state detection is a separate decision once the experience is validated; Phase A ships plugin-side first.
+**Deferred deliberately.** Variant C, the full repository introspection beyond manifests, awaits observed usage of B. An active guardrail or lint for the generated stack rule is out of scope, because Phase B produces context rather than enforcement. Auto-refresh of an imported document when its source changes stays manual, covered by `/archcore:review --drift`. And CLI-side ownership of empty-state detection is a separate decision once the experience is validated; Phase A ships plugin-side first.
 
 ## Tasks
 
@@ -51,7 +51,7 @@ CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
 | File | Change |
 |------|--------|
 | `skills/init/SKILL.md` | New. The full intent-skill structure per `skill-file-structure.rule`, with a description triggering on phrases such as "init", "initialize archcore", and "first-time setup". |
-| `skills/init/lib/detect-stack.md` | New. The manifest-to-signals lookup tables. |
+| `skills/_shared/grounding/detect-stack.md` | New. The manifest-to-signals lookup tables. |
 | `test/structure/skills.bats` | Extended to assert the presence of the skill and its required sections. |
 
 **B2 — run-the-app guide generation.** The skill detects a monorepo through `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `lerna.json`, or several `package.json` files under `apps/` or `packages/`. It reads `README.md` for the first section matching a getting-started, quick-start, installation, development, setup, or local heading, and falls back to the manifest scripts when the README yields nothing usable. It composes from the single-app or monorepo template and creates the document directly as a `guide` named `running-the-project` under `onboarding/` with status `accepted`, skipping when such a guide already exists.
@@ -59,7 +59,7 @@ CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
 | File | Change |
 |------|--------|
 | `skills/init/SKILL.md` | Extended with the B2 step. |
-| `skills/init/lib/extract-run-instructions.md` | New. The heuristics for README section selection. |
+| `skills/_shared/grounding/extract-run-instructions.md` | New. The heuristics for README section selection. |
 
 **B3 — the opt-in parse of agent-instruction files.** The skill probes the documented file list held as data in its lib, estimates cost by summing byte size and showing a summary, and applies the high-cost gate: IF the combined size exceeds 50 KB, or the file count exceeds 5, or the estimated yield exceeds 8 documents, THEN it prefixes the warning and requires explicit confirmation. Each detected file gets a mode — link by default, extract, or skip. Every imported document carries the `imported` and `source:<slug>` tags plus a body first line naming the source path and the import date. A dry-run preview shows the full list of intended writes before any creation call. Creation runs per item, with the `related` edges added afterwards. A document carrying a matching `source:<slug>` tag counts as already imported.
 
@@ -67,7 +67,7 @@ CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
 |------|--------|
 | `skills/init/SKILL.md` | Extended with the B3 step. |
 | `skills/init/lib/agent-files.md` | New. The detection list. |
-| `skills/init/lib/extract-routing.md` | New. The imperative, decision, and reference heuristics. |
+| `skills/_shared/grounding/extract-routing.md` | New. The imperative, decision, and reference heuristics. |
 | `commands-system.spec` | Register the command in the surface. |
 | `skills-system.spec` | Add the skill to the skill section. |
 
@@ -114,6 +114,6 @@ Bump the version in the plugin manifests per the coordinated release plan, and a
 - **B3 cost-estimate accuracy.** The heuristic of one document per 800 bytes is rough and can be off by half on an extreme input. Accepted.
 - **Tag-spec compatibility.** Mitigated by a targeted unit test creating a document with a source tag.
 - **Slug collisions.** Mitigated by including the file extension in the slug.
-- **Stale source files.** Mitigated by `/archcore:audit --drift`, which covers code-document drift.
+- **Stale source files.** Mitigated by `/archcore:review --drift`, which covers code-document drift.
 - **Idempotency edge cases.** Mitigated by a regenerate prompt that warns explicitly about overwriting an edit.
 - **Skill discovery depends on Phase A.** Both phases must ship together.

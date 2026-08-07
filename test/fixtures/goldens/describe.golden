@@ -1,0 +1,21 @@
+gate: describe.read
+skip_when: yes
+budget: 0
+taxonomy: none
+produces: none
+next: describe.draft
+
+gate: describe.draft
+skip_when: yes
+budget: 1
+taxonomy: Functional Scope & Behavior
+produces: spec, doc, or guide per the type heuristics; the comprehensive route produces more than one document draft
+next: describe.clarify
+
+gate: describe.clarify
+skip_when: yes
+budget: 2
+taxonomy: Integration & External Dependencies, Non-Functional Quality Attributes, Constraints & Tradeoffs, Edge Cases & Failure Handling, Completion Signals
+produces: none
+next: end
+

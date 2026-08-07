@@ -1,6 +1,6 @@
 ---
 title: "Scenario Track Skills Implementation Plan"
-status: accepted
+status: rejected
 tags:
   - "plugin"
   - "skills"

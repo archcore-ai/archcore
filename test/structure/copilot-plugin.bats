@@ -143,7 +143,7 @@ HOOKS_REL="hooks/copilot.hooks.json"
 @test "every Copilot hook entry sets deterministic host detection" {
   local hooks="$PLUGIN_ROOT/$HOOKS_REL"
   jq -e '
-    ([.hooks[][]] | length) == 5 and
+    ([.hooks[][]] | length) == 3 and
     all(.hooks[][]; .type == "command" and .env.ARCHCORE_HOST == "copilot")
   ' "$hooks" > /dev/null
 }
@@ -200,22 +200,20 @@ command_script() {
   done < <(hook_commands)
 }
 
-# check-code-alignment is deliberately absent: its only output channel on this
-# host (preToolUse additionalContext) is not a field Copilot reads. See the
-# preToolUse tests below.
-@test "Copilot hook commands cover the shared bin scripts and nothing else" {
+# Pre-tool context injection is skipped for Copilot inside the CLI (its
+# preToolUse carries only a permission decision), so the same launcher set
+# serves every host and the host-specific behavior lives in one place.
+@test "Copilot hook commands cover the shared bin launchers and nothing else" {
   local actual expected
   actual=$(hook_commands | grep -o 'bin/[a-z0-9_-]*' | sort -u)
   expected=$(printf '%s\n' \
-    'bin/check-archcore-write' \
-    'bin/check-cascade' \
-    'bin/check-precision' \
     'bin/session-start' \
-    'bin/validate-archcore' | sort)
+    'bin/pre-tool-use' \
+    'bin/post-tool-use' | sort)
   [ "$actual" = "$expected" ] || {
     echo "expected: $expected"
     echo "actual: $actual"
-    fail "Copilot hook commands must route to the shared bin scripts"
+    fail "Copilot hook commands must route to the shared bin launchers"
   }
 }
 
@@ -295,44 +293,40 @@ command_script() {
 #
 # If Copilot ever adds additionalContext to preToolUse, re-registering it here
 # is the whole change.
-@test "Copilot preToolUse registers only the hook that can act on this host" {
+@test "Copilot preToolUse registers the single guard launcher with the native matcher" {
   local hooks="$PLUGIN_ROOT/$HOOKS_REL"
   local matcher="create|edit|str_replace_editor|apply_patch"
   jq -e --arg matcher "$matcher" '
     (.hooks.preToolUse | length) == 1 and
     all(.hooks.preToolUse[];
       .matcher == $matcher and
-      .timeoutSec == 1 and
-      (.bash | test("bin/check-archcore-write"))
+      .timeoutSec == 2 and
+      (.bash | test("bin/pre-tool-use"))
     )
   ' "$hooks" > /dev/null
 }
 
-@test "Copilot does not register the context-only preToolUse hook" {
-  local hooks="$PLUGIN_ROOT/$HOOKS_REL"
-  ! jq -e '.hooks.preToolUse[]? | select(.bash | test("bin/check-code-alignment"))' "$hooks" > /dev/null \
-    || fail "check-code-alignment is registered on Copilot preToolUse, where its additionalContext output is discarded by the host"
-}
-
-@test "the context-only preToolUse hook stays registered on hosts that carry context" {
-  # Negative control for the test above: the removal must be Copilot-specific,
-  # not a quiet deletion of the feature everywhere.
+@test "the pre-tool-use launcher stays registered on hosts that carry context" {
+  # The CLI drops pre-tool context for Copilot (its preToolUse carries only a
+  # permission decision); the other hosts must keep the launcher that injects
+  # code-alignment context, so a Copilot-motivated change cannot quietly
+  # delete the feature everywhere.
   local f
   for f in hooks.json cursor.hooks.json codex.hooks.json; do
-    jq -e '[.. | strings | select(test("check-code-alignment"))] | length > 0' \
+    jq -e '[.. | strings | select(test("bin/pre-tool-use"))] | length > 0' \
       "$PLUGIN_ROOT/hooks/$f" > /dev/null \
-      || fail "check-code-alignment vanished from hooks/$f"
+      || fail "bin/pre-tool-use vanished from hooks/$f"
   done
 }
 
-@test "Copilot postToolUse self-filters through all shared validation scripts" {
+@test "Copilot postToolUse self-filters through the single post launcher" {
   local hooks="$PLUGIN_ROOT/$HOOKS_REL"
   jq -e '
-    (.hooks.postToolUse | length) == 3 and
+    (.hooks.postToolUse | length) == 1 and
     all(.hooks.postToolUse[];
       (has("matcher") | not) and
-      .timeoutSec == 3 and
-      (.bash | test("bin/(validate-archcore|check-cascade|check-precision)"))
+      .timeoutSec == 4 and
+      (.bash | test("bin/post-tool-use"))
     )
   ' "$hooks" > /dev/null
 }

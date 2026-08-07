@@ -101,7 +101,7 @@ For `modular-rule` files, extract is the default. One file yields **one document
 
 ## Extract-mode body shape
 
-Pointer line, then a blank line, then the extracted content. See `lib/extract-routing.md` for how content is selected per document type.
+Pointer line, then a blank line, then the extracted content. See `_shared/grounding/extract-routing.md` for how content is selected per document type.
 
 ## Umbrella document for extract mode
 

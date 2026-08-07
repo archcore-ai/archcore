@@ -1,7 +1,7 @@
 # Global Sources — Local/Global Reading Convention
 
-Plugin runtime asset. Loaded by skills (`context`, `audit`, `capture`,
-`decide`, `plan`) **only when** MCP results indicate a project mounts global
+Plugin runtime asset. Loaded by skills (`init`, `plan`, `document`, `review`)
+**only when** MCP results indicate a project mounts global
 sources. Mirrors the CLI contract `local-overrides-global.rule` /
 `global-sources.spec.md` shipped with the `archcore` CLI.
 

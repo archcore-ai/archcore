@@ -24,7 +24,7 @@ Phase 1 is grep-based with no path index: it scans `.archcore/**/*.md` with one 
 
 The two entries act on disjoint path sets by construction: the blocking guard handles `.archcore/` markdown and passes everything else through, while the injection guard short-circuits silently inside `.archcore/` and does real work only on a source path.
 
-**The path index is deferred to Phase 2.** The originally proposed pre-built index in the sync manifest remains future work; the current scan is acceptable for a corpus of 50 documents or fewer inside the 1-second hook timeout, and a larger corpus benefits from the index. A CLI subcommand backing `search_documents` is the natural home for it, and would unify the hook and the `/archcore:context` skill on one primitive.
+**The path index is deferred to Phase 2.** The originally proposed pre-built index in the sync manifest remains future work; the current scan is acceptable for a corpus of 50 documents or fewer inside the 1-second hook timeout, and a larger corpus benefits from the index. A CLI subcommand backing `search_documents` is the natural home for it, and would unify the hook with CLI-level search now that `/archcore:context` is removed under v2 (`remove-context-command.adr`).
 
 ## Value
 
@@ -42,7 +42,7 @@ The two entries act on disjoint path sets by construction: the blocking guard ha
 
 **Phase 3 — ranking and session dedup.** Suppress re-injection of the same document inside one session unless the document changed, which reduces repetition fatigue, and refine specificity scoring so a document mentioning many paths is penalized as generic reference.
 
-**Phase 4 — measurement.** Opt-in telemetry counting injections per session and the most-cited documents, feeding back into `/archcore:audit --deep` as the most-applied rules.
+**Phase 4 — measurement.** Opt-in telemetry counting injections per session and the most-cited documents, feeding back into `/archcore:review --deep` as the most-applied rules.
 
 ## Risks
 
@@ -52,5 +52,5 @@ The two entries act on disjoint path sets by construction: the blocking guard ha
 - **The trigger surface is narrow.** `Write|Edit` catches an inline edit but not code reviewed in a planning tool and pasted later. Accepted for a first version.
 - **Coupling to path conventions.** A monorepo with non-standard roots needs `codeAlignment.sourceRoots` configured, and the conservative default set covers the common layouts.
 - **Sub-agent compatibility.** Hooks fire for a sub-agent tool call too, so combined with `subagent-knowledge-tree-bootstrap.adr` delegated work is covered.
-- **Cursor parity.** Whether Cursor's `preToolUse` respects the context field is host-version-dependent, and the degradation is graceful: if it is ignored, the hook becomes a no-op there while SessionStart context and the `/archcore:context` skill still carry the pull path.
+- **Cursor parity.** Whether Cursor's `preToolUse` respects the context field is host-version-dependent, and the degradation is graceful: if it is ignored, the hook becomes a no-op there while SessionStart context and CLI-hook grounding still carry the pull path (context removed under v2).
 - **User control.** The environment variable gives a global off-switch, and per-path muting is not implemented.

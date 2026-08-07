@@ -10,7 +10,7 @@ Works in **Claude Code**, **Cursor**, **Codex CLI**, and **GitHub Copilot CLI**.
 
 ## See it work
 
-The agent pulls in the rules and decisions that apply — no command needed — and still gives you the seven skills below for anything explicit.
+The agent pulls in the rules and decisions that apply — no command needed — and still gives you the four commands below for anything explicit.
 
 ![archcore plugin demo](demo.gif)
 
@@ -18,15 +18,14 @@ The agent pulls in the rules and decisions that apply — no command needed — 
 
 Describe what you want in plain English — Archcore routes it. The slash commands below are shortcuts to the same workflows.
 
-| Command             | Outcome                                                | When to use                                                                                                                                                                                       |
-| ------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/archcore:init`    | Make your repo legible to AI agents                    | First-time setup — seeds a stack rule, a run-the-app guide, and imports your `CLAUDE.md` / `AGENTS.md` / `.cursorrules` if present                                                                |
-| `/archcore:context` | Load what's already decided before you change code     | Daily, before editing — pulls relevant rules, decisions, specs, patterns, and reference docs for a file, directory, or topic; or `--git-changes` for the rules governing your uncommitted changes |
-| `/archcore:capture` | Document what already lives in code                    | A module, API, pipeline, or integration has tribal knowledge but no doc yet                                                                                                                       |
-| `/archcore:plan`    | Turn an idea into a scoped implementation plan         | New feature, refactor, or initiative — pick depth with `--track product\|feature\|sources\|iso`                                                                                                   |
-| `/archcore:decide`  | Record a decision and (optionally) make it a team rule | A decision was made — capture rationale, consequences, and turn it into an enforced standard                                                                                                      |
-| `/archcore:audit`   | Find stale, missing, or drifting docs                  | Health check — add `--deep` for a full audit, `--drift` for code/doc staleness                                                                                                                    |
-| `/archcore:help`    | Navigate the skill catalog                             | When you forget which command fits                                                                                                                                                                |
+| Command              | Outcome                                          | When to use                                                                                                                                                                     |
+| -------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/archcore:init`     | Make your repo legible to AI agents              | First-time setup — detects your repo's scale, seeds a first-day pack (stack rule, run guide, architecture overview, specs for hotspot modules) in one preview, wires host configs, and imports your `CLAUDE.md` / `AGENTS.md` / `.cursorrules` if present |
+| `/archcore:plan`     | Turn an idea into a scoped implementation plan   | New feature, refactor, or initiative — escalates into full spec-driven or requirements-cascade flows when the work needs that depth                                              |
+| `/archcore:document` | Record a decision or document what lives in code | A decision was made (ADR/RFC, optionally codified as a team rule), or a module, API, or integration has tribal knowledge but no doc yet                                          |
+| `/archcore:review`   | Check your changes and your docs against each other | Before merge — reviews the branch against recorded rules and decisions; add `--drift` for code/doc staleness, `--deep` for a full documentation audit                          |
+
+Everyday context needs no command at all: hooks inject the applicable rules and specs when the agent edits a file, and the session starts with a recap of what's decided and in progress.
 
 ## Install
 

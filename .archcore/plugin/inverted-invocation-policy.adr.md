@@ -7,7 +7,7 @@ tags:
   - "skills"
 ---
 
-**Surface note.** The matrices below describe intermediate states. The current palette is 7 auto-invocable skills, fixed by `skill-surface-collapse.adr`, which retired the track tier and the `verify` utility. What survives from this decision is its core rule: a skill that routes user intent is auto-invocable, and its description carries explicit trigger and anti-trigger phrasing as the routing signal.
+**Surface note.** The matrices below describe intermediate states. The current palette is four auto-invocable commands (`init`, `plan`, `document`, `review`), fixed by `four-command-palette.adr`, with a non-palette gated track layer per `track-layer.spec`, which retired the track tier and the `verify` utility. What survives from this decision is its core rule: a skill that routes user intent is auto-invocable, and its description carries explicit trigger and anti-trigger phrasing as the routing signal.
 
 ## Context
 
@@ -51,7 +51,7 @@ Intent and track skills are auto-invocable so that the model routes user intent 
 2. An intent skill description MUST enumerate its anti-triggers, naming the skill to use instead.
 3. A utility skill MUST carry `disable-model-invocation: true`.
 4. A track skill MUST remain auto-invocable, so a user reaches a multi-document flow through natural language.
-5. `/archcore:help` MUST document direct-MCP access for any document type, because no type-skill surface exists.
+5. Command descriptions and CLI help MUST document direct-MCP access (help removed under v2).
 
 Three constraints from the original record no longer apply, because type skills no longer exist: that a mainstream type skill carry `disable-model-invocation: true`, that a niche type skill carry `user-invocable: false`, and that a track orchestrating niche types remain auto-invocable to reach them. Constraint 4 survives in its own right, and `skill-surface-collapse.adr` later retired the track tier entirely.
 

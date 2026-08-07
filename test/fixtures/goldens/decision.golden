@@ -1,0 +1,28 @@
+gate: decision.classify
+skip_when: yes
+budget: 1
+taxonomy: Constraints & Tradeoffs, Completion Signals
+produces: none
+next: decision.adr decision.rfc
+
+gate: decision.adr
+skip_when: yes
+budget: 2
+taxonomy: Constraints & Tradeoffs, Completion Signals
+produces: adr draft
+next: decision.cascade
+
+gate: decision.rfc
+skip_when: yes
+budget: 2
+taxonomy: Functional Scope & Behavior, Constraints & Tradeoffs
+produces: rfc draft
+next: decision.cascade
+
+gate: decision.cascade
+skip_when: yes
+budget: 1
+taxonomy: Constraints & Tradeoffs, Integration & External Dependencies, Completion Signals
+produces: rule and guide (standard cascade), or spec and plan (architecture cascade); when the decision describes a before/after code-pattern shift, the executing skill MAY create a cpat before the rule draft
+next: end
+

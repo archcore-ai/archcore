@@ -67,17 +67,6 @@ expected_update_advisory() {
 EOF
 }
 
-expected_staleness() {
-  cat <<'EOF'
-
-
-[Archcore Staleness] 1 source files changed since last documentation update.
-Potentially affected documents:
-  - auth.adr.md — references src/ (1 files changed)
-Run /archcore:audit --drift for detailed analysis.
-EOF
-}
-
 # --- helpers ------------------------------------------------------------------
 
 # stdin payload that routes normalize-stdin.sh to the given host.
@@ -180,29 +169,8 @@ seed_substantial_doc() {
   assert_golden "$(expected_update_advisory)"
 }
 
-# --- staleness arm (host-agnostic echo; claude-code representative) -------------
-
-@test "golden: staleness passthrough is byte-stable" {
-  mock_archcore ""
-  local repo="$BATS_TEST_TMPDIR/stale-golden"
-  mkdir -p "$repo/src/auth" "$repo/.archcore"
-  cd "$repo"
-  git init -q
-  git config user.email "test@test.com"
-  git config user.name "Test"
-  echo "auth handler" > src/auth/handler.py
-  {
-    echo "References src/auth/ for authentication"
-    awk 'BEGIN { s=""; for (i=0;i<300;i++) s=s "x"; print s }'
-  } > .archcore/auth.adr.md
-  git add -A && git commit -q -m "initial"
-  echo "changed" >> src/auth/handler.py
-  git add -A && git commit -q -m "change"
-
-  run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
-  assert_success
-  assert_golden "$(expected_staleness)"
-}
+# Staleness (code-document drift) moved into the CLI's session-start recap in
+# v0.7.0, so no plugin-side staleness arm remains to pin here.
 
 # --- negatives: copilot-only strings must never leak to other hosts -------------
 

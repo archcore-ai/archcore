@@ -7,7 +7,7 @@ tags:
   - "skills"
 ---
 
-**Surface note.** The counts below describe the state at this decision — 18 skills on disk. `merge-review-status-remove-graph.adr` then took the palette to 16, and `skill-surface-collapse.adr` to the current 7. What survives is the rule this record established: per-type elicitation lives inline inside the skills that create documents, and no new per-type skill is added.
+**Surface note.** The counts below describe the state at this decision — 18 skills on disk. `merge-review-status-remove-graph.adr` then took the palette to 16, and `skill-surface-collapse.adr` to 7, and `four-command-palette.adr` then collapsed the surface to the current four commands (`init`, `plan`, `document`, `review`) with a gated track layer. What survives is the rule this record established: per-type elicitation lives inline inside the skills that create documents, and no new per-type skill is added.
 
 ## Context
 
@@ -44,7 +44,7 @@ Alongside those absorptions: the 17 type-skill directories were deleted; the cou
 - Content duplication was eliminated at the skill boundary, and the previously violated no-duplication invariant was replaced by an explicit acknowledgement: an inline recipe inside an intent or track skill is not duplication but that entry point's self-containment.
 - The session-start token budget freed the 17 type-skill descriptions.
 - Every Archcore document type stayed creatable, through an intent, through a track, or directly through `mcp__archcore__create_document(type=<any>)`.
-- Tradeoff: the `/archcore:<type> <topic>` power-user shortcut was lost. A user wanting a specific type now goes through the matching intent or calls MCP directly, and `/archcore:help` documents both.
+- Tradeoff: the `/archcore:<type> <topic>` power-user shortcut was lost. A user wanting a specific type now goes through the matching intent or calls MCP directly. Help is removed under v2: command descriptions plus CLI help MUST document direct-MCP access.
 - Tradeoff: the teaching role the type skills served — explaining what an ADR is in Archcore — moved to the Archcore CLI documentation outside this plugin, which the README references.
 - Tradeoff: a change to one of the inlined recipes has no per-type skill to edit and must be edited inside each intent or track that uses it. This is the duplication cost accepted in exchange for self-containment, and when it grows heavy the deferred MCP-schema alternative becomes attractive.
 - This decision supersedes `keep-document-type-skills.adr`, deleted in this change with its reasoning preserved above; the type-skill portion of `inverted-invocation-policy.adr`, whose intent, track, and utility policy remains in force; and Layer 3 of `intent-based-skill-architecture.adr`, whose four-layer decomposition remains as historical framing.
@@ -54,7 +54,7 @@ Alongside those absorptions: the 17 type-skill directories were deleted; the cou
 1. An intent skill MUST inline the per-type elicitation for every document type it creates.
 2. A track skill MUST inline the per-type elicitation for every step.
 3. The author MUST NOT add a new per-type `SKILL.md`. A new type is added by extending the matching intent or track.
-4. `/archcore:help` MUST document direct-MCP access for any document type, as the fallback for a type no user-facing skill covers.
+4. Help is removed under v2: command descriptions plus CLI help MUST document direct-MCP access for any document type, as the fallback for a type no user-facing skill covers.
 
 ## Superseded when
 

@@ -69,7 +69,7 @@ capture() {
 
 @test "wrapped guards match the originals byte for byte on every fixture" {
   local guard fixture n=0 name real_out wrapped_out
-  for guard in session-start check-archcore-write check-code-alignment validate-archcore; do
+  for guard in session-start pre-tool-use post-tool-use; do
     [ -f "$PROBE_TREE/plugin-src/bin/$guard.real" ] \
       || fail "$guard was not wrapped by mkprobe"
     while IFS= read -r fixture; do
@@ -97,11 +97,11 @@ capture() {
   (
     cd "$WORK" || exit 1
     printf '%s' '{"tool_name":"Write","tool_input":{"file_path":".archcore/probe/p.adr.md"}}' \
-      | ARCHCORE_PROBE_LOG="$log" "$PROBE_TREE/plugin-src/bin/check-archcore-write" >/dev/null 2>&1
+      | ARCHCORE_PROBE_LOG="$log" "$PROBE_TREE/plugin-src/bin/pre-tool-use" >/dev/null 2>&1
   ) || true
 
   [ -s "$log" ] || fail "the wrapper forwarded the call but logged nothing"
-  grep -q 'check-archcore-write' "$log" || fail "log does not name the guard: $(cat "$log")"
+  grep -q 'pre-tool-use' "$log" || fail "log does not name the guard: $(cat "$log")"
   # The captured payload is what turns a probe run into a stdin fixture.
   grep -q 'p.adr.md' "$log" || fail "log does not carry the payload: $(cat "$log")"
 }
@@ -109,9 +109,11 @@ capture() {
 @test "the wrapper is silent when no log is configured" {
   # A probe tree left behind must not start writing into whatever path a stale
   # ARCHCORE_PROBE_LOG happens to name — absent the variable, the log goes to
-  # /dev/null and the guard behaves exactly as shipped.
+  # /dev/null and the guard behaves exactly as shipped. The payload targets a
+  # file no rule applies to, so the shipped behavior is itself silent — any
+  # output here is the wrapper's own noise.
   local out
-  out=$(cd "$WORK" && printf '%s' '{"tool_name":"Write","tool_input":{"file_path":"src/probe/x.ts"}}' \
-    | "$PROBE_TREE/plugin-src/bin/check-archcore-write" 2>&1)
+  out=$(cd "$WORK" && printf '%s' '{"tool_name":"Write","tool_input":{"file_path":"notes.txt"}}' \
+    | "$PROBE_TREE/plugin-src/bin/pre-tool-use" 2>&1)
   [ -z "$out" ] || fail "unexpected output with no log configured: $out"
 }

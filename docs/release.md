@@ -69,7 +69,7 @@ multi-host layout ADR and issue #2). That directory carries `skills/`,
 `plugins/archcore/.cursor-plugin/plugin.json`,
 `plugins/archcore/.codex-plugin/plugin.json`,
 `plugins/archcore/.plugin/plugin.json`), and the MCP configs
-(`plugins/archcore/.mcp.json`, `plugins/archcore/.codex.mcp.json`).
+(`plugins/archcore/.claude.mcp.json`, `plugins/archcore/.codex.mcp.json`).
 
 At the **repo root** the marketplace catalogs ship and point at the
 subdirectory: `.agents/plugins/marketplace.json` (Codex),

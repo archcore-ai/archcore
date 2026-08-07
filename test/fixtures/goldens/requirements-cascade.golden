@@ -1,0 +1,49 @@
+gate: requirements-cascade.mrd
+skip_when: yes
+budget: 2
+taxonomy: Functional Scope & Behavior, Constraints & Tradeoffs
+produces: mrd draft
+next: requirements-cascade.brd
+
+gate: requirements-cascade.brd
+skip_when: yes
+budget: 2
+taxonomy: Completion Signals, Integration & External Dependencies
+produces: brd draft
+next: requirements-cascade.urd
+
+gate: requirements-cascade.urd
+skip_when: yes
+budget: 2
+taxonomy: Interaction & UX Flow, Completion Signals
+produces: urd draft
+next: end
+
+gate: requirements-cascade.brs
+skip_when: yes
+budget: 2
+taxonomy: Functional Scope & Behavior, Constraints & Tradeoffs
+produces: brs draft
+next: requirements-cascade.strs
+
+gate: requirements-cascade.strs
+skip_when: yes
+budget: 2
+taxonomy: Functional Scope & Behavior, Interaction & UX Flow
+produces: strs draft
+next: requirements-cascade.syrs
+
+gate: requirements-cascade.syrs
+skip_when: yes
+budget: 2
+taxonomy: Domain & Data Model, Integration & External Dependencies
+produces: syrs draft
+next: requirements-cascade.srs
+
+gate: requirements-cascade.srs
+skip_when: yes
+budget: 2
+taxonomy: Functional Scope & Behavior, Non-Functional Quality Attributes
+produces: srs draft
+next: end
+

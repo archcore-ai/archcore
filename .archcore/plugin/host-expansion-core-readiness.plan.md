@@ -1,6 +1,6 @@
 ---
 title: "Host Expansion Core Readiness — Shared Core Prepared for Copilot CLI and OpenCode"
-status: accepted
+status: rejected
 tags:
   - "copilot"
   - "hooks"

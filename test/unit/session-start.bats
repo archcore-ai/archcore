@@ -47,6 +47,21 @@ setup() {
   refute_output --partial "hookSpecificOutput"
 }
 
+@test "codex payload routes the CLI hook call to the codex-cli agent id" {
+  # The shell host id is "codex" but the CLI registers its dialect as
+  # "codex-cli"; an unmapped call hits an unknown subcommand and the session
+  # silently loses its context.
+  export MOCK_ARCHCORE_LOG="$BATS_TEST_TMPDIR/archcore.log"
+  mock_archcore_logging ""
+  mkdir -p "$BATS_TEST_TMPDIR/proj/.archcore"
+  echo "stub" > "$BATS_TEST_TMPDIR/proj/.archcore/stub.doc.md"
+  cd "$BATS_TEST_TMPDIR/proj"
+  run sh -c "printf '%s' '{\"turn_id\":\"x\"}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  grep -q '^hooks codex-cli session-start' "$MOCK_ARCHCORE_LOG" \
+    || fail "expected 'hooks codex-cli session-start' in CLI invocations, got: $(cat "$MOCK_ARCHCORE_LOG")"
+}
+
 @test "CLI-missing notice: claude-code emits SessionStart hookSpecificOutput JSON" {
   cd "$BATS_TEST_TMPDIR"
   run sh -c "PATH='/usr/bin:/bin'; export PATH; printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"

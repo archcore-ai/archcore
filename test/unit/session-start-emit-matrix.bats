@@ -132,39 +132,9 @@ $stripped"
   printf '%s' "$stripped" | jq -s -r '.[0].additionalContext // ""'
 }
 
-@test "copilot single doc: staleness travels inside the document" {
-  export MOCK_HOOKS_OUTPUT='{"additionalContext":"ctx"}'
-  mock_archcore_multi
-  local repo="$BATS_TEST_TMPDIR/stale-channel"
-  mkdir -p "$repo/src" "$repo/.archcore"
-  cd "$repo"
-  git init -q
-  git config user.email "test@test.com"
-  git config user.name "Test"
-  echo "code" > src/app.py
-  {
-    echo "References src/ for the app"
-    awk 'BEGIN { s=""; for (i=0;i<300;i++) s=s "x"; print s }'
-  } > .archcore/app.adr.md
-  # Wire the project so the wiring advisory stays out of this pin's frame.
-  printf '%s' '{"mcpServers":{"archcore":{"command":"archcore","args":["mcp"]}}}' > .mcp.json
-  git add -A && git commit -q -m "initial"
-  echo "changed" >> src/app.py
-  git add -A && git commit -q -m "change"
-
-  run sh -c "printf '%s' '{}' | ARCHCORE_HOST=copilot '${PLUGIN_ROOT}/bin/session-start'"
-  assert_success
-  local ctx
-  ctx=$(copilot_document)
-  case "$ctx" in
-    *ctx*) ;;
-    *) fail "the CLI hook's context did not survive into the document: '$ctx'" ;;
-  esac
-  case "$ctx" in
-    *"[Archcore Staleness]"*) ;;
-    *) fail "staleness findings are missing from the document: '$ctx'" ;;
-  esac
-}
+# The staleness advisory moved into the CLI's session-start recap in v0.7.0,
+# so it arrives inside the CLI hook's own document — the buffering path this
+# suite guards is exercised by the empty-state-nudge test below.
 
 @test "copilot single doc: the empty-state nudge travels inside the document" {
   export MOCK_HOOKS_OUTPUT='{"additionalContext":"ctx"}'
