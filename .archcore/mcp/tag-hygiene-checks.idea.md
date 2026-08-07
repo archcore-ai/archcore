@@ -1,10 +1,40 @@
 ---
 title: "Tag Hygiene Checks in archcore doctor"
-status: draft
+status: accepted
 tags:
   - "cli"
   - "mcp"
 ---
+
+## Status
+
+**Shipped 2026-04-07** in commit `df1015e`. Both checks live in `@cmd/status.go`. They run in
+`archcore status`, and `archcore doctor` reports the same lines because it calls `runStatusChecks`.
+
+- The singleton-tag warning emits `tag %q is used only once (possible typo)`.
+- The unique tag count emits `Tag hygiene OK (%d unique tag(s))`.
+
+The shipped form diverges from the sketch below in two ways:
+
+1. The unique tag count is a standalone report line, not a field beside a document count.
+   `archcore status` reports no total local document count; its only document count is per global
+   source.
+2. Neither containment measure named under "Risks" shipped. There is no corpus-size threshold and no
+   `--strict` gate, so every tag carried by exactly one document produces a warning.
+
+A singleton warning is not an issue. The report still states `Tag hygiene OK` when singletons are the
+only finding, which `@cmd/status.go` records in an inline comment.
+
+The predicted noise is observable. In `@examples/`, the projects `03-product-planning`,
+`04-experience-playbook`, `06-global-multiple-sources`, `07-local-overrides-global`, and
+`10-monorepo-root-global` each warn on at least one singleton tag while still reporting
+`Tag hygiene OK`.
+
+Tag counting covers local documents only, as required by
+`globals/globals-are-read-only-everywhere.rule.md`.
+
+The text below preserves the original idea as historical record. Its "Idea", "Possible
+Implementation", and "Risks" sections describe the state before implementation, not current behavior.
 
 ## Idea
 
@@ -39,7 +69,3 @@ corpus carry?", so there is no signal for when a tag vocabulary needs pruning.
 - On a small corpus most tags are singletons, so the warning is noise until the corpus grows. A
   threshold on corpus size, or a `--strict` gate, would contain it.
 - The check has no way to tell a typo from a deliberate narrow tag. It reports; it does not correct.
-
-## Status
-
-Not started. Deferred deliberately, tracked as a follow-up if tag sprawl becomes observable.
