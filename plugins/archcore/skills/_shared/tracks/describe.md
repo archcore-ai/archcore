@@ -22,7 +22,7 @@ hand; settled at `describe.draft`.
 | Behavior others rely on — an API, interface, schema, or protocol boundary, or a feature/subsystem with states, field-driven rules, and invariants | `spec` |
 | Reference material — a registry, glossary, or lookup | `doc` |
 | How-to instructions or procedures | `guide` |
-| A module described comprehensively ("document everything about X") | `guide`, plus `spec` when others rely on the module's behavior. [assumption] The v1 flow also created an `adr` on this route; a settled decision surfaced by the evidence now routes to the decision track. |
+| A module described comprehensively ("document everything about X") | `guide`, plus `spec` when others rely on the module's behavior, plus `doc` when the evidence includes reference material (a registry, glossary, or lookup). [assumption] The v1 flow also created an `adr` on this route; a settled decision surfaced by the evidence now routes to the decision track. |
 
 Default after the one type question at `describe.draft`: `spec` when others
 rely on the subject's behavior; `doc` otherwise. [assumption] The v1 default

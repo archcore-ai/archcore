@@ -1,0 +1,21 @@
+gate: research.frame
+skip_when: yes
+budget: 2
+taxonomy: Functional Scope & Behavior, Constraints & Tradeoffs
+produces: rnd draft
+next: research.gather
+
+gate: research.gather
+skip_when: yes
+budget: 0
+taxonomy: none
+produces: none
+next: research.conclude
+
+gate: research.conclude
+skip_when: yes
+budget: 2
+taxonomy: Constraints & Tradeoffs, Completion Signals
+produces: none
+next: end
+

@@ -1,7 +1,7 @@
 ---
 name: document
 argument-hint: "[module, topic, or decision] [adr|rfc|spec|doc|guide|rule]"
-description: "Record a decision or document existing code. Use for 'we decided', 'record this decision', 'document why we chose X', 'make it our standard', 'draft an RFC', 'should we switch to Y' proposals, 'document the auth module', 'capture how the payment system works', reference material, or how-to instructions. Planning a feature → /archcore:plan. Checking docs against code or docs health → /archcore:review."
+description: "Record a decision or document existing code. Use for 'we decided', 'record this decision', 'document why we chose X', 'make it our standard', 'draft an RFC', 'should we switch to Y' proposals, 'resolve the RFC', 'we accepted the proposal', 'document the auth module', 'capture how the payment system works', reference material, or how-to instructions. Planning a feature → /archcore:plan. Checking docs against code or docs health → /archcore:review."
 ---
 
 # /archcore:document
@@ -21,6 +21,7 @@ Load `skills/_shared/gate-contract.md` and `skills/_shared/elicitation-contract.
 - "Make this our team standard for error handling"
 - "Draft an RFC for switching from REST to gRPC"
 - "Should we switch to Kubernetes?" — open proposal
+- "We accepted the proposal — resolve the RFC" — proposal resolution
 - "Document the auth module"
 - "Capture how the payment system works"
 - "Create reference docs for the config system" — reference material
@@ -37,7 +38,8 @@ Load `skills/_shared/gate-contract.md` and `skills/_shared/elicitation-contract.
 | Signal | Route |
 |---|---|
 | The invocation names a type — `adr`, `rfc`, `spec`, `doc`, `guide`, `rule` | → expert form, no routing (Step 2) |
-| Decision signals: "we decided", "record this decision", "document why we chose X", "make it our standard", "draft an RFC", a "should we switch to Y" proposal | → decision track — `skills/_shared/tracks/decision.md`, entry at `decision.classify` |
+| Decision signals: "we decided", "record this decision", "document why we chose X", "make it our standard", "draft an RFC", a "should we switch to Y" proposal. A bare "compare X vs Y" with no proposed target belongs to `/archcore:plan`'s research track; a proposal to add a new capability with no named technical target ("should we add caching?") is feature framing → `/archcore:plan`, sdd track | → decision track — `skills/_shared/tracks/decision.md`, entry at `decision.classify` |
+| Resolution signals: "resolve the RFC", "we accepted the proposal", "reject the RFC" — an `rfc` draft exists on the topic | → decision track — `skills/_shared/tracks/decision.md`, entry at `decision.resolve` |
 | Code-doc signals: "document the auth module", "capture how the payment system works", reference material (registry, glossary, lookup), how-to instructions | → describe track — `skills/_shared/tracks/describe.md`, entry at `describe.read` |
 | Unclear | → git investigation, then one classifying question (Step 3) |
 
@@ -47,8 +49,8 @@ Load `skills/_shared/gate-contract.md` and `skills/_shared/elicitation-contract.
 
 Search `.archcore/` on the request topic across all three categories — vision,
 knowledge, experience. Do not exclude a category from reads. Pass a type filter
-matched to this command's moment (`adr`, `rfc`, `spec`, `doc`, `guide`, `rule`)
-instead of relying on the global type ranking. When a found document carries
+matched to this command's moment (`adr`, `rfc`, `spec`, `doc`, `guide`, `rule`,
+plus `rnd` as decision evidence) instead of relying on the global type ranking. When a found document carries
 `implements` or `related` relations, pull the linked documents one hop across
 categories. Duplicate handling lives in the tracks' check-existing gates — do
 not resolve duplicates here.
@@ -81,8 +83,13 @@ Then go to Step 4.
 
 ### Step 3: Classify
 
-Classify the target as decision, code-doc, or unclear:
+Classify the target as resolution, decision, code-doc, or unclear:
 
+- **Resolution** — the request names a verdict on an existing open proposal
+  (resolution signals above) and an `rfc` draft on the topic exists → decision
+  track at `decision.resolve`. Check this before Decision: wording that also
+  reads as a settled-decision signal ("we accepted the proposal") routes here
+  whenever a matching `rfc` draft exists.
 - **Decision** — the request records a settled choice or an open proposal
   (decision signals above) → decision track at `decision.classify`.
 - **Code-doc** — the request describes existing code, reference material, or a

@@ -19,6 +19,13 @@ taxonomy: Functional Scope & Behavior, Constraints & Tradeoffs
 produces: rfc draft
 next: decision.cascade
 
+gate: decision.resolve
+skip_when: yes
+budget: 1
+taxonomy: Completion Signals, Constraints & Tradeoffs
+produces: adr draft
+next: decision.cascade end
+
 gate: decision.cascade
 skip_when: yes
 budget: 1

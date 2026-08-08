@@ -90,6 +90,7 @@ deferred: <questions deferred to a later gate>
 5. IF an advisory exit check fails, THEN the executing skill MUST proceed to the next gate.
 6. IF a blocking exit check fails, THEN the executing skill MUST stop at the current gate.
 7. IF a blocking exit check fails, THEN the executing skill MUST report the failed check.
+8. WHEN a gate's `skip_when` holds, the executing skill MUST continue at the gate that gate's `Next` field names, unless the skip_when text itself states a different route — `skip_when` skips one gate, never the track.
 
 ## Resume rules
 

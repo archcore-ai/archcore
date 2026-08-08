@@ -41,7 +41,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 
 - Constraint: the visible palette is exactly `init`, `plan`, `document`, `review`; a palette change requires a superseding ADR.
 - Constraint: total questions per invocation MUST NOT exceed the shared elicitation budget.
-- Invariant: every one of the 18 document types is producible through at least one command path.
+- Invariant: every one of the 19 document types is producible through at least one command path — the `research` track closed the last gap (`rnd`).
 - Invariant: category is computed from the document type; no command asks the user to select a category.
 - Invariant: skill content is byte-identical across hosts.
 

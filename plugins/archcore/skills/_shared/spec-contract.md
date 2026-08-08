@@ -106,7 +106,11 @@ not authored or reviewed, so the user confirms it before it becomes canon. Same
 rationale, and same default, as a heuristic-derived cross-cutting `rule`
 (`skills/_shared/rule-contract.md`). This status default is specific to init's
 synthesis path; a spec authored via `/archcore:document`
-follows that skill's own status convention.
+follows that skill's own status convention. A spec authored **ahead of the
+code** (`sdd.design`) also stays `status: draft` until the implementation is
+verified — the closeout track's accept gate performs the draft → accepted
+transition, so the status field is what distinguishes an intended contract
+from a verified one.
 
 ## Forbidden in the body
 

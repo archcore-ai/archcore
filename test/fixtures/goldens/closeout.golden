@@ -1,0 +1,21 @@
+gate: closeout.verify
+skip_when: yes
+budget: 2
+taxonomy: Completion Signals, Functional Scope & Behavior
+produces: none
+next: closeout.merge
+
+gate: closeout.merge
+skip_when: yes
+budget: 1 question per document awaiting an update
+taxonomy: Terminology & Consistency, Misc / Placeholders
+produces: none
+next: closeout.accept
+
+gate: closeout.accept
+skip_when: yes
+budget: 1 question per draft document in scope
+taxonomy: Completion Signals
+produces: none
+next: end
+

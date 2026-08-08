@@ -29,7 +29,7 @@ setup() {
   EXTRACT="$REPO_ROOT/test/helpers/extract-gates.sh"
   TRACKS_DIR="$PLUGIN_ROOT/skills/_shared/tracks"
   GOLDENS_DIR="$FIXTURES/goldens"
-  ALL_TRACKS="decision sdd requirements-cascade describe actualize experience"
+  ALL_TRACKS="decision sdd requirements-cascade describe actualize experience research closeout"
 }
 
 # Diff the extractor's live output for one track against its golden; show the
@@ -69,6 +69,14 @@ $(cat "$diff_out")"
 
 @test "experience track gate records match golden" {
   assert_track_golden experience
+}
+
+@test "research track gate records match golden" {
+  assert_track_golden research
+}
+
+@test "closeout track gate records match golden" {
+  assert_track_golden closeout
 }
 
 @test "every Next target resolves to a gate in the same track or a terminal marker" {

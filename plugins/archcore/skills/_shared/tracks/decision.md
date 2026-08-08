@@ -8,11 +8,16 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
 ## Track notes
 
 - Stages: `decision.classify` → `decision.adr` | `decision.rfc` → `decision.cascade`.
+- Resolution entry: `decision.resolve` is a second entry point on an existing
+  `rfc` draft ("resolve the RFC", "we accepted the proposal"), outside the
+  classify chain; its accepted verdict rejoins the chain at `decision.cascade`.
 - Ported from the pre-cutover `decide` skill (`skills/decide/SKILL.md` and
   `skills/decide/references/continuations.md`), removed at cutover; "the source"
   in this file names those files.
-- Track question maximum: 4. The per-gate split (classify 1, adr 2, rfc 2,
-  cascade 1) follows the weight of the source questions [assumption]. Each
+- Track question maximum: 4 on the classify chain. The per-gate split
+  (classify 1, adr 2, rfc 2, cascade 1) follows the weight of the source
+  questions [assumption]; the resolution entry adds `decision.resolve` with
+  budget 1 outside that chain. Each
   `budget` knob is the per-gate maximum, reached only in expert invocation; in
   auto mode every question draws from the shared per-invocation ceiling in
   `skills/_shared/elicitation-contract.md`.
@@ -47,7 +52,7 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
 - Purpose: Compose and create the ADR for a settled decision per `skills/_shared/adr-contract.md` and `skills/_shared/precision-rules.md`.
 - Entry conditions:
   - skip_when: `decision.classify` selected `decision.rfc`.
-  - The request or recorded clarifications state the specific choice (version or name), the considered alternatives with rejection reasons, and the conditions that would invalidate the decision.
+  - The request, recorded clarifications, or an `rnd` covering the topic state the specific choice (version or name), the considered alternatives with rejection reasons, and the conditions that would invalidate the decision.
 - Elicitation knobs:
   - trigger: the coverage scan returns `Missing` on a named category — the decision lacks a specific choice, named alternatives with rejection reasons, or invalidation conditions.
   - taxonomy: Constraints & Tradeoffs, Completion Signals from `skills/_shared/coverage-taxonomy.md` [assumption].
@@ -55,7 +60,7 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
 - Produces:
   - type: adr
   - status: draft
-  - relations: adr `related` existing `rfc`, `spec`, or `plan` documents on the same topic — the source relate step names the link but not the relation type, and allowed unnamed further document types; narrowed to `rfc`, `spec`, and `plan` to avoid an open-ended list [assumption].
+  - relations: adr `related` existing `rfc`, `spec`, `plan`, or `rnd` documents on the same topic — the source relate step names the link but not the relation type, and allowed unnamed further document types; narrowed to `rfc`, `spec`, `plan`, and `rnd` (the research evidence base) to avoid an open-ended list [assumption].
 - Exit checks:
   - blocking: the draft carries every section that `skills/_shared/adr-contract.md` requires.
   - advisory: the draft introduces no word from the forbidden lexicon in `skills/_shared/precision-rules.md`.
@@ -80,6 +85,28 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
   - advisory: the draft introduces no word from the forbidden lexicon in `skills/_shared/precision-rules.md`.
 - Next: `decision.cascade` — that gate's skip_when ends the track on this branch.
 
+### gate: decision.resolve
+
+- Purpose: Resolve an open `rfc` — record the verdict and route acceptance into the ADR path.
+- Entry conditions:
+  - skip_when: no `rfc` draft covers the topic — a fresh decision request belongs to `decision.classify`.
+  - The request names a resolution intent for an existing proposal — "resolve the RFC", "we accepted the proposal", "reject the RFC".
+- Elicitation knobs:
+  - trigger: the request does not state the verdict — accepted, rejected, or still open.
+  - taxonomy: Completion Signals, Constraints & Tradeoffs from `skills/_shared/coverage-taxonomy.md`.
+  - budget: 1
+- Produces:
+  - type: adr — on the accepted verdict only; the rejected and still-open verdicts produce no document. Composed per `skills/_shared/adr-contract.md` and `skills/_shared/precision-rules.md`, mapping the rfc's Motivation → Context, Detailed Design → Decision, Alternatives → Alternatives Considered, and Drawbacks → Consequences.
+  - status: draft
+  - relations: adr `extends` the resolved `rfc`.
+- Exit checks:
+  - blocking: the recorded verdict names accepted, rejected, or still open.
+  - blocking: WHEN the verdict is accepted, the adr exists with `extends` → the rfc, carries every section `skills/_shared/adr-contract.md` requires, and the rfc status is `accepted`.
+  - blocking: WHEN the verdict is rejected, the rfc status is `rejected` and no adr was created.
+  - blocking: WHEN the verdict is still open, no document was modified.
+  - advisory: the adr introduces no word from the forbidden lexicon in `skills/_shared/precision-rules.md`.
+- Next: `decision.cascade` on the accepted verdict; exit otherwise.
+
 ### gate: decision.cascade
 
 - Purpose: Offer the continuation cascade that matches the ADR — standard (rule + guide) or architecture (spec + plan) — and create the documents the user confirms, per `skills/_shared/precision-rules.md`, `skills/_shared/rule-contract.md` (rule), and `skills/_shared/spec-contract.md` (spec).
@@ -101,5 +128,6 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
   - blocking: every created cascade document carries its relation from the Produces list.
   - blocking: each created rule carries every section that `skills/_shared/rule-contract.md` requires; each created spec carries every section that `skills/_shared/spec-contract.md` requires.
   - blocking: each created guide covers Prerequisites, Steps, Verification, Common Issues; each created plan covers Goal, Tasks, Acceptance Criteria, Dependencies; each created cpat covers What Changed, Why, Before, After, Scope.
+  - advisory: WHEN grounding surfaced a concrete file or module for a plan task, the created plan annotates that task with `@path` notation — parity with the plan skill's task-mapping step.
   - advisory: the closing report lists document paths, relation edges, and one recommended next action.
 - Next: exit.

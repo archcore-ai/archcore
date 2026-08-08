@@ -18,14 +18,22 @@ The agent pulls in the rules and decisions that apply — no command needed — 
 
 Describe what you want in plain English — Archcore routes it. The slash commands below are shortcuts to the same workflows.
 
-| Command              | Outcome                                          | When to use                                                                                                                                                                     |
-| -------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/archcore:init`     | Make your repo legible to AI agents              | First-time setup — detects your repo's scale, seeds a first-day pack (stack rule, run guide, architecture overview, specs for hotspot modules) in one preview, wires host configs, and imports your `CLAUDE.md` / `AGENTS.md` / `.cursorrules` if present |
-| `/archcore:plan`     | Turn an idea into a scoped implementation plan   | New feature, refactor, or initiative — escalates into full spec-driven or requirements-cascade flows when the work needs that depth                                              |
-| `/archcore:document` | Record a decision or document what lives in code | A decision was made (ADR/RFC, optionally codified as a team rule), or a module, API, or integration has tribal knowledge but no doc yet                                          |
-| `/archcore:review`   | Check your changes and your docs against each other | Before merge — reviews the branch against recorded rules and decisions; add `--drift` for code/doc staleness, `--deep` for a full documentation audit                          |
+| Command              | Outcome                                             | When to use                                                                                                                                                                                                                                               |
+| -------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/archcore:init`     | Make your repo legible to AI agents                 | First-time setup — detects your repo's scale, seeds a first-day pack (stack rule, run guide, architecture overview, specs for hotspot modules) in one preview, wires host configs, and imports your `CLAUDE.md` / `AGENTS.md` / `.cursorrules` if present |
+| `/archcore:plan`     | Turn an idea into a scoped implementation plan      | New feature, refactor, or initiative — escalates into full spec-driven or requirements-cascade flows when the work needs that depth                                                                                                                       |
+| `/archcore:document` | Record a decision or document what lives in code    | A decision was made (ADR/RFC, optionally codified as a team rule), or a module, API, or integration has tribal knowledge but no doc yet                                                                                                                   |
+| `/archcore:review`   | Check your changes and your docs against each other | Before merge — reviews the branch against recorded rules and decisions; add `--drift` for code/doc staleness, `--deep` for a full documentation audit                                                                                                     |
 
 Everyday context needs no command at all: hooks inject the applicable rules and specs when the agent edits a file, and the session starts with a recap of what's decided and in progress.
+
+### Inside the commands: tracks
+
+The three work commands route into small gated flows — tracks. Each track is a short chain of gates that produces typed, linked documents in `.archcore/`:
+
+![The three work commands routing into tracks: plan → sdd / research / requirements-cascade, document → decision / decision.resolve / describe, review → branch review / actualize / closeout / experience](3-commands.png)
+
+You never pick a track — the wording of the request routes it (naming one works too: `plan research`, `review closeout`). Every gate skips itself when an existing document already covers it, so a fully-specified request runs question-free; a vague one stays within 5 questions. An interrupted flow resumes in a later session — the draft document carries the track state.
 
 ## Install
 

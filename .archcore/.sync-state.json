@@ -3601,6 +3601,26 @@
       "source": "plugin/user-prompt-submit-injection.idea.md",
       "target": "plugin/hooks-validation-system.spec.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/track-layer-extension.prd.md",
+      "target": "plugin/track-layer-extension.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/track-layer-extension.plan.md",
+      "target": "plugin/track-layer-extension.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/document-status-transitions.adr.md",
+      "target": "plugin/track-layer-extension.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/document-status-transitions.adr.md",
+      "target": "plugin/track-layer.spec.md",
+      "type": "related"
     }
   ]
 }

@@ -1,7 +1,7 @@
 ---
 name: plan
-argument-hint: "[topic] [sdd | sources | iso]"
-description: "Plan a feature or initiative over gated tracks: sdd (idea → PRD → spec → plan) by default, sources mode (MRD → BRD → URD) for market research and discovery, iso mode (BRS → StRS → SyRS → SRS) for ISO 29148 and regulated work. Use for 'plan the X redesign', 'create a roadmap', 'plan a new feature', 'I need market research before we plan', 'we're regulated — start the ISO requirements cascade'. Not for recording a decision or documenting existing code — use /archcore:document. Not for checking docs against code — use /archcore:review."
+argument-hint: "[topic] [sdd | sources | iso | research]"
+description: "Plan a feature or initiative over gated tracks: sdd (idea → PRD → spec → plan) by default, sources mode (MRD → BRD → URD) for market research and discovery, iso mode (BRS → StRS → SyRS → SRS) for ISO 29148 and regulated work, research track (RND) for technical research. Use for 'plan the X redesign', 'create a roadmap', 'plan a new feature', 'I need market research before we plan', 'we're regulated — start the ISO requirements cascade', 'investigate X before we plan', 'compare the alternatives for Y'. Not for recording a decision or documenting existing code — use /archcore:document. Not for checking docs against code — use /archcore:review."
 ---
 
 # /archcore:plan
@@ -19,6 +19,7 @@ precedent.
 - "Just a plan, skip the idea and PRD" → `sdd` track; gates an existing document covers close via `skip_when`, the rest run question-free
 - "I need market research before we plan" → `requirements-cascade` track, sources mode
 - "We're regulated — start the ISO requirements cascade" → `requirements-cascade` track, iso mode
+- "Investigate X before we plan" / "Compare the alternatives for Y" → `research` track
 
 **Not plan:**
 
@@ -32,9 +33,10 @@ precedent.
 | Signal | Route |
 |---|---|
 | Default — feature, initiative, refactor, roadmap | `sdd` track — `skills/_shared/tracks/sdd.md`, entry `sdd.frame` |
-| Market research, discovery, competitive or opportunity analysis, stakeholder alignment | `requirements-cascade` track, sources mode — `skills/_shared/tracks/requirements-cascade.md`, entry `requirements-cascade.mrd` |
+| Market research, discovery, competitive or opportunity analysis, stakeholder alignment — when it opens a requirements cascade (`mrd` → `brd` → `urd`); standalone market research as evidence routes to the `research` row below | `requirements-cascade` track, sources mode — `skills/_shared/tracks/requirements-cascade.md`, entry `requirements-cascade.mrd` |
 | Regulated system, ISO 29148, audits, formal or traceable requirements | `requirements-cascade` track, iso mode — `skills/_shared/tracks/requirements-cascade.md`, entry `requirements-cascade.brs` |
-| The user names a track or mode (`sdd`, `sources`, `iso`) in the invocation | The named path, with no routing |
+| Technical research: investigate an unknown, compare alternatives, gather evidence before planning or deciding — "investigate X", "research the options for Y". Market and business discovery stays on the sources row above; a request that already proposes a specific target for team acceptance ("should we switch to Y", "let's adopt Y") belongs to `/archcore:document`'s decision track — research is pre-decision evidence gathering with no proposed verdict | `research` track — `skills/_shared/tracks/research.md`, entry `research.frame` |
+| The user names a track or mode (`sdd`, `sources`, `iso`, `research`) in the invocation | The named path, with no routing |
 | "Just a plan" or "only the plan document" | `sdd` track — gates whose topic an existing document already covers close through `skip_when`; otherwise upstream gates run question-free when the request text satisfies their entry conditions |
 | A decision surfaces at a gate | Record the `adr` through the decision track (`skills/_shared/tracks/decision.md`), then return to the open gate |
 
@@ -47,7 +49,7 @@ named cascade document type — belongs to that track's Mode selection section.
 
 Complete this step before asking the user any question.
 
-1. Search `.archcore/` with `mcp__archcore__search_documents` and `mcp__archcore__list_documents` across all three categories. Pass a planning-moment type filter — for example `types=["idea", "prd", "plan", "spec", "adr", "rule", "task-type"]` — instead of relying on the global type ranking. Do not exclude a category from reads.
+1. Search `.archcore/` with `mcp__archcore__search_documents` and `mcp__archcore__list_documents` across all three categories. Pass a planning-moment type filter — for example `types=["idea", "prd", "plan", "spec", "rnd", "rfc", "adr", "rule", "task-type", "cpat"]` — instead of relying on the global type ranking. Do not exclude a category from reads.
 2. WHEN a found document carries `implements` or `related` relations, pull the linked documents one hop via `mcp__archcore__list_relations` and `mcp__archcore__get_document`.
 3. WHEN a found draft on the topic carries an `archcore:track` state block, resume it per the resume rules in `skills/_shared/gate-contract.md` instead of opening a new track.
 4. Read git state — current branch, recent commits, working tree — and the code areas the topic names. Record the concrete files and modules for Step 5.
@@ -88,8 +90,9 @@ WHEN the track has exited and a `plan` document exists:
 1. Annotate each task in the plan's Tasks section with the concrete files or modules that grounding surfaced for it, using `@path/to/file` notation, in one `mcp__archcore__update_document` call.
 2. WHEN grounding surfaced no file or module for a task, state that no target was found for that task. Do not guess a path.
 
-WHEN the track produced no `plan` document (sources and iso modes), skip to
-Result — the track's exit gate names its follow-ups.
+WHEN the track produced no `plan` document (sources and iso modes, and the
+`research` track), skip to Result — the track's exit gate names its
+follow-ups.
 
 ### 6. Implement fork
 

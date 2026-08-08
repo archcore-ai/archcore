@@ -122,7 +122,7 @@ for example `mode: iso — request names a regulated system` [assumption: the wo
   - relations: `implements` → the `mrd` and `implements` → the `brd`, when they exist.
 - Exit checks:
   - blocking: the draft states the business goals and enumerates the business requirements derived from them.
-  - advisory: each requirement carries a stable identifier for traceability.
+  - blocking: each requirement carries a stable identifier for traceability.
 - Next: `requirements-cascade.strs`.
 
 ### gate: requirements-cascade.strs
@@ -141,7 +141,7 @@ for example `mode: iso — request names a regulated system` [assumption: the wo
   - relations: `implements` → the `brs`; `implements` → the `urd`, when one exists.
 - Exit checks:
   - blocking: the draft names each stakeholder class and states that class's requirements.
-  - advisory: each requirement carries a stable identifier for traceability.
+  - blocking: each requirement carries a stable identifier for traceability.
 - Next: `requirements-cascade.syrs`.
 
 ### gate: requirements-cascade.syrs
@@ -160,7 +160,7 @@ for example `mode: iso — request names a regulated system` [assumption: the wo
   - relations: `implements` → the `strs`.
 - Exit checks:
   - blocking: the draft states the system boundary, the interfaces, and the operational modes.
-  - advisory: each requirement carries a stable identifier for traceability.
+  - blocking: each requirement carries a stable identifier for traceability.
 - Next: `requirements-cascade.srs`.
 
 ### gate: requirements-cascade.srs
@@ -179,5 +179,6 @@ for example `mode: iso — request names a regulated system` [assumption: the wo
   - relations: `implements` → the `syrs`.
 - Exit checks:
   - blocking: the draft states functional and non-functional requirements for each named software component.
-  - advisory: the report names existing `spec`, `plan`, or `prd` documents to link the `srs` to, or states that none exist.
-- Next: exit. Report follow-ups: link the `srs` into `spec` or `plan` documents via `add_relation`.
+  - blocking: each requirement carries a stable identifier for traceability.
+  - advisory: the report names existing `spec`, `plan`, or `prd` documents linked to the `srs`, or states that none exist.
+- Next: exit. WHEN an existing `spec` or `plan` document covers the topic, the `plan` skill creates the `related` link via `add_relation` at the track exit; WHEN none exists, the report states that none exist and names a `prd` through the `sdd` track as the follow-up.

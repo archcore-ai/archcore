@@ -14,8 +14,8 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 ## Surface
 
 - Track files: `skills/_shared/tracks/<track-id>.md`; gates as `### gate: <track>.<stage>` sections.
-- Catalog: `sdd` (frame → require → design → decompose), `requirements-cascade` (`mode: sources` = mrd → brd → urd; `mode: iso` = brs → strs → syrs → srs), `decision` (classify → adr | rfc → cascade), `describe` (read code → draft spec/doc/guide → clarify gaps), `actualize` (scope diff → per-finding verdict → confirmed fixes), `experience` (detect repeated pattern → cpat | task-type offer).
-- Primary executors: `plan` → sdd, requirements-cascade; `document` → describe, decision; `review` → actualize, experience; `decision` is callable from all three.
+- Catalog: `sdd` (frame → require → design → decompose), `requirements-cascade` (`mode: sources` = mrd → brd → urd; `mode: iso` = brs → strs → syrs → srs), `decision` (classify → adr | rfc → cascade; resolution entry `decision.resolve` on an existing rfc draft), `describe` (read code → draft spec/doc/guide → clarify gaps), `actualize` (scope diff → per-finding verdict → confirmed fixes), `experience` (detect repeated pattern → cpat | task-type offer), `research` (frame questions → gather evidence → conclude with recommendation), `closeout` (verify plan against branch diff → confirmed canon merge → confirmed draft → accepted status transitions).
+- Primary executors: `plan` → sdd, requirements-cascade, research; `document` → describe, decision; `review` → actualize, experience, closeout; `decision` is callable from all three.
 - Gate record fields, fixed order: Purpose; Entry conditions with `skip_when`; Elicitation knobs (trigger, taxonomy, budget); Produces (type, status, relations); Exit checks tagged `blocking` or `advisory`; Next.
 - Track state block inside the draft artifact: `<!-- archcore:track -->` with fields `track`, `gate`, `taxonomy`, `asked`, `budget`, `deferred`.
 
@@ -34,6 +34,8 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 11. WHILE resuming, the executing skill MUST NOT re-ask questions recorded in `taxonomy` or `## Clarifications`.
 12. The review skill MAY run a gate in the reverse direction (code → document) with entry evidence pre-filled from git.
 13. WHEN a gate closes, the executing skill MUST persist answers and the state block in one `update_document` call.
+14. A document status MUST change only through an explicitly confirmed action — `closeout.accept` for draft → accepted, `decision.resolve` for an rfc verdict, or a direct user-driven `update_document` — per `document-status-transitions.adr`.
+15. A hook or subagent MUST NOT change a document status.
 
 ## Constraints & Invariants
 
@@ -53,4 +55,4 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 
 ## Conformance
 
-A track file and its executing skills are conformant when they satisfy behaviors 1–13, hold all invariants, and degrade per the failure rules.
+A track file and its executing skills are conformant when they satisfy behaviors 1–15, hold all invariants, and degrade per the failure rules.

@@ -15,7 +15,11 @@ resolves to the `sdd` track. Gate execution, state block, and resume rules:
 - Content voice for produced documents: `skills/_shared/precision-rules.md`
   Rule 6.
 - Before the first gate, the `plan` skill calls `list_documents` for the types
-  `idea`, `prd`, `spec`, and `plan` and checks the topic for duplicates.
+  `idea`, `prd`, `rnd`, `mrd`, `brd`, `urd`, `spec`, and `plan` and checks the
+  topic for duplicates and recorded discovery.
+- WHEN a `brd` or `urd` covers the topic, `sdd.require` composes Goals and
+  Success Metrics from the `brd`'s success metrics and Requirements from the
+  `urd`'s acceptance criteria — recorded requirements are never re-asked.
 - WHEN a check-existing search returns a global document (`source_kind:
   "global"`), the executing skill loads `skills/_shared/globals.md`.
   WHEN no result is global, the gates proceed unchanged.
@@ -31,7 +35,10 @@ resolves to the `sdd` track. Gate execution, state block, and resume rules:
 - Purpose: Establish the core concept, its beneficiary, and known risks — the
   framing the later gates implement.
 - Entry conditions:
-  - skip_when: an `idea` or `prd` covering the topic exists in `.archcore/`.
+  - skip_when: an `idea`, `prd`, or `rnd` covering the topic exists in
+    `.archcore/` — an `rnd`'s Recommendation frames the topic the way an
+    `idea` does; a complete sources set (`mrd`, `brd`, `urd`) on the topic
+    also closes this gate — the `urd` records the concept's beneficiary.
   - The request text names the core concept and who benefits from it.
 - Elicitation knobs:
   - trigger: the request does not name the core concept or the beneficiary.
@@ -54,8 +61,9 @@ resolves to the `sdd` track. Gate execution, state block, and resume rules:
   single feature; size never changes the type.
 - Entry conditions:
   - skip_when: a `prd` covering the topic exists in `.archcore/`.
-  - The concept and beneficiary are recorded — in an `idea` document, under
-    `## Clarifications`, or in the request text.
+  - The concept and beneficiary are recorded — in an `idea` or `rnd`
+    document, in a `urd` or `srs` covering the topic (recorded requirement
+    sources), under `## Clarifications`, or in the request text.
 - Elicitation knobs:
   - trigger: the problem statement or the success metrics are not recorded.
   - taxonomy: Functional Scope & Behavior, Interaction & UX Flow,
@@ -66,8 +74,9 @@ resolves to the `sdd` track. Gate execution, state block, and resume rules:
   - type: prd
   - status: draft
   - relations: `implements` → the `idea` from `sdd.frame`; none when no
-    `idea` exists. A product-level `prd` additionally links each
-    feature-scoped `prd` it covers.
+    `idea` exists. `related` → the `mrd`, `brd`, and `urd` on the topic, when
+    they exist. A product-level `prd` additionally links each feature-scoped
+    `prd` it covers.
 - Exit checks:
   - blocking: the prd draft contains the sections Vision, Problem Statement,
     Goals and Success Metrics, and Requirements.
@@ -104,8 +113,9 @@ resolves to the `sdd` track. Gate execution, state block, and resume rules:
 ### gate: sdd.decompose
 
 - Purpose: Decompose the recorded scope into a phased `plan` with acceptance
-  criteria and dependencies, composed only from upstream drafts and recorded
-  clarifications.
+  criteria and dependencies, composed from upstream drafts, recorded
+  clarifications, and matching `task-type` or `cpat` precedent surfaced by
+  grounding — a matching `task-type`'s Steps seed the task breakdown.
 - Entry conditions:
   - skip_when: a `plan` covering the topic exists in `.archcore/`.
   - A `prd` on the topic exists.

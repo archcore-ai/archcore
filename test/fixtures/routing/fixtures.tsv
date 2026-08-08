@@ -22,12 +22,14 @@ create a roadmap	plan	skills/_shared/tracks/sdd.md:sdd.frame	3
 plan the X redesign	plan	skills/_shared/tracks/sdd.md:sdd.frame	3
 I need market research before we plan	plan	skills/_shared/tracks/requirements-cascade.md:requirements-cascade.mrd	2
 start the ISO requirements cascade	plan	skills/_shared/tracks/requirements-cascade.md:requirements-cascade.brs	2
+investigate X before we plan	plan	skills/_shared/tracks/research.md:research.frame	2
 #
 # --- document ---
 we decided	document	skills/_shared/tracks/decision.md:decision.classify	1
 record this decision	document	skills/_shared/tracks/decision.md:decision.classify	1
 document why we chose X	document	skills/_shared/tracks/decision.md:decision.classify	1
 make it our standard	document	skills/_shared/tracks/decision.md:decision.classify	1
+resolve the RFC	document	skills/_shared/tracks/decision.md:decision.resolve	1
 draft an RFC	document	skills/_shared/tracks/decision.md:decision.classify	1
 document the auth module	document	skills/_shared/tracks/describe.md:describe.read	0
 capture how the payment system works	document	skills/_shared/tracks/describe.md:describe.read	0
@@ -39,6 +41,7 @@ review the changes before merge	review	-	-
 check if docs match code	review	skills/_shared/tracks/actualize.md:actualize.scope	1
 staleness warning	review	skills/_shared/tracks/actualize.md:actualize.scope	1
 documentation gaps	review	skills/_shared/tracks/actualize.md:actualize.scope	1
+close out the feature	review	skills/_shared/tracks/closeout.md:closeout.verify	2
 #
 # --- init ---
 set up archcore	init	-	-
