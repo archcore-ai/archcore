@@ -1,12 +1,12 @@
-# Archcore Plugin
+# Archcore Plugin — Spec-Driven Development & Context Engineering for AI Coding Agents
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**Make your AI code like it already knows your repo.**
+**Make your AI coding agent work like it already knows your repo.**
 
-Archcore gives coding agents the architecture, rules, and prior decisions of _this_ repo — so new changes land where your project says they belong and follow the team's conventions, automatically.
+Archcore brings spec-driven development and automatic project context to **Claude Code**, **Cursor**, **Codex CLI**, and **GitHub Copilot CLI**. Specs, architecture, decisions, rules, and plans live in Git and are applied as the agent works.
 
-Works in **Claude Code**, **Cursor**, **Codex CLI**, and **GitHub Copilot CLI**. One source of truth, in Git.
+The plugin pairs with [Archcore CLI](https://github.com/archcore-ai/cli): the CLI provides the git-native context layer and MCP tools; the plugin adds skills, slash commands, gated tracks, routing, and guardrails.
 
 ## See it work
 
@@ -16,7 +16,7 @@ The agent pulls in the rules and decisions that apply — no command needed — 
 
 ## Commands
 
-Describe what you want in plain English — Archcore routes it. The slash commands below are shortcuts to the same workflows.
+Describe what you want in plain English — Archcore routes it. The slash commands below are shortcuts to the same tracks.
 
 | Command              | Outcome                                             | When to use                                                                                                                                                                                                                                               |
 | -------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -155,7 +155,7 @@ The decision is captured, codified as a rule, and auto-applied to every future c
 - You work with 2+ agents or 2+ host tools (Claude Code + Cursor + Codex + Copilot)
 - You want decisions, rules, and specs in Git — not in chat scrollback
 
-**Not for** — chat memory, a prompt library, or a one-shot spec-to-code generator. Archcore is a repo truth layer for coding agents, not a methodology kit.
+**Not for** — chat memory, a prompt library, or a one-shot spec-to-code generator. Archcore is a git-native context layer for AI coding agents, not a methodology kit.
 
 ## Supported hosts
 
