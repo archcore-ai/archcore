@@ -32,6 +32,7 @@ Adopted the internal controlled technical writing profile defined in `@AGENTS.md
 
 ## Superseded when
 
-- More than 3 of the numbered obligations in `controlled-technical-writing.rule.md` become hook-enforced in `@plugins/archcore/bin/check-precision`, which makes that rule's Enforcement section misstate the verifier.
+- More than 3 of the shared profile's obligations become hook-enforced by the precision check, which makes the local rule's Enforcement section misstate the verifier. The verifier itself moved out of this repository in v0.7.0: `@plugins/archcore/bin/check-precision` was deleted and the canon now lives in the CLI binary (`cli-owns-layers-4-5.adr`). The trigger is unchanged; its location is.
+- The profile obligations moved to the `archcore` global source as `concepts/controlled-technical-writing`, so this repository's rule keeps only scope, precedence resolution, and enforcement. A later change to the profile is made there, not here.
 - The repository publishes documentation in a second natural language, which requires the Russian-language clauses of `@AGENTS.md` to become a separate contract rather than a subsection.
 - A consumer project reports that documents authored under the plugin's shipped contracts diverge structurally from documents authored in this repository, indicating the repository policy leaked into the shipped runtime assets.

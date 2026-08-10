@@ -13,6 +13,8 @@ Use:
 
 This policy is an internal writing profile. It is not a claim of compliance, certification, or approval by ASD, ISO, or any standards organization.
 
+Authority for the profile is the shared Archcore rule `concepts/controlled-technical-writing`, mounted read-only from the `archcore` global source. The text below mirrors it so that a host reading this file directly still receives the profile. When the two differ, the shared rule wins and this file is corrected. Repository-specific scope, precedence resolution, and enforcement live in `.archcore/plugin/controlled-technical-writing.rule.md`.
+
 ## Scope
 
 Apply this policy when creating or updating:

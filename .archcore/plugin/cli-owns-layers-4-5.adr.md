@@ -28,6 +28,7 @@ The CLI owns layers 4–5 only: delete `internal/mcp/prompts/`, strip the track 
 - Guardrails (write-guard, injection, validation, staleness) reach all 8 registry hosts; shell/Go hook duplication collapses.
 - CLI-only users lose the five track prompts; the bare-host flow-guidance floor is the type-selection rules in server instructions.
 - [expected] Dual-canon window for type templates stays within one release until phase 2 lands.
+- The ecosystem-level statement of this boundary lives in the `archcore` global source as `architecture/engine-runtime-boundary`, which names the owner of each responsibility without numbering. The layer numbers in this record are local to this repository and do not line up with the numbered roles in `architecture/conceptual-architecture`; a document crossing the repository boundary names the role rather than a number.
 
 ## Superseded when
 

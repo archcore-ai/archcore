@@ -1,5 +1,5 @@
 ---
-title: "Controlled Technical Writing — Binding Constraints and Precedence"
+title: "Controlled Technical Writing — Repository Scope and Enforcement"
 status: accepted
 tags:
   - "plugin"
@@ -9,76 +9,39 @@ tags:
 
 ## Rule
 
-1. WHEN an agent creates or updates a Markdown file under `.archcore/**`, `plugins/archcore/skills/**`, `plugins/archcore/agents/**`, `plugins/archcore/copilot-agents/**`, `plugins/archcore/rules/**`, `docs/**`, or `README.md`, the agent MUST apply the controlled technical writing policy in `@AGENTS.md`.
-2. IF two instruction sources conflict for a file in the scope of item 1, THEN the agent MUST resolve the conflict in this order: explicit user requirement, the Archcore type contract in `@plugins/archcore/skills/_shared/`, `@plugins/archcore/skills/_shared/precision-rules.md`, `@AGENTS.md`, general stylistic preference.
-3. In the normative section of a `rule`, `spec`, `brs`, `strs`, `syrs`, or `srs` document, the author MUST state one obligation in each numbered item.
-4. In the normative section of a `rule`, `spec`, `brs`, `strs`, `syrs`, or `srs` document, the author MUST use one uppercase modal — `MUST`, `MUST NOT`, `SHOULD`, or `MAY` — in each numbered item.
-5. In the normative section of a `rule`, `spec`, `brs`, `strs`, `syrs`, or `srs` document, the author MUST name the obligated actor in each numbered item.
-6. WHEN a numbered requirement depends on a trigger or a state, the author MUST place the trigger or the state before the obligation.
-7. In a numbered requirement, the author MUST NOT use an open-ended list marker such as `etc.`.
-8. The author MUST NOT place a required action only in a note, a rationale paragraph, a heading, or an example.
-9. In a `guide` document, the author MUST state prerequisites and required inputs before the first numbered step.
-10. In a `guide` document, the author MUST put one primary action in each numbered step.
-11. In a `guide` document, the author MUST place a warning before the hazardous or destructive action that the warning guards.
-12. WHEN an agent applies this policy to an existing file, the agent MUST preserve code identifiers, paths, commands, configuration keys, API names, flags, and literal values unchanged.
-13. IF required information is unavailable, THEN the author MUST insert a visible placeholder — `[ACTOR REQUIRED]`, `[CONDITION REQUIRED]`, `[METRIC REQUIRED]`, `[LIMIT REQUIRED]`, or `[EVIDENCE REQUIRED]` — in place of the missing constraint, measurement, behavior, rationale, or guarantee.
-14. The author MUST NOT invent a constraint, a measurement, a behavior, a rationale, or a guarantee that repository evidence does not support.
-15. The author MUST NOT include the `@AGENTS.md` review checklist in a generated document.
-16. IF the user does not request a review report, THEN the author MUST NOT include a writing-quality score in a generated document.
+The writing profile itself is the shared rule `concepts/controlled-technical-writing` in the mounted `archcore` global source. It carries the sentence contract for normative documents, the procedure obligations, the evidence obligations, and the precedence order. This rule states only what is specific to this repository.
+
+1. WHEN an agent creates or updates a Markdown file under `.archcore/**`, `plugins/archcore/skills/**`, `plugins/archcore/agents/**`, `plugins/archcore/copilot-agents/**`, `plugins/archcore/rules/**`, `docs/**`, or `README.md`, the agent MUST apply the shared writing profile. `@AGENTS.md` carries the profile text for hosts that read an instruction file directly rather than the document graph.
+2. WHEN the shared profile's precedence order reaches the document-type contract level, the agent MUST resolve that level in this repository to the per-type contracts in `@plugins/archcore/skills/_shared/`, then to `@plugins/archcore/skills/_shared/precision-rules.md`.
+3. WHEN the shared profile requires a visible placeholder for information the repository does not support, the author MUST use one of `[ACTOR REQUIRED]`, `[CONDITION REQUIRED]`, `[METRIC REQUIRED]`, `[LIMIT REQUIRED]`, or `[EVIDENCE REQUIRED]`.
+4. The author MUST NOT restate in this file an obligation the shared profile already carries.
 
 ## Rationale
 
-`@AGENTS.md` defines the profile; this rule states which parts bind inside `.archcore/` and how conflicts resolve. `@plugins/archcore/bin/check-precision` already applies the one-modal check (7b) and the active-voice-subject check (7c) to numbered lines in `spec` bodies; items 3–8 extend the same sentence contract to every normative type by review. Item 2 exists because `@plugins/archcore/skills/_shared/spec-contract.md` and `@plugins/archcore/skills/_shared/rule-contract.md` define mandatory sections that `@AGENTS.md` does not describe, so the general policy MUST NOT displace them.
+Requirement 4 is the point of this file. This repository and the CLI repository each held a full copy of the profile under the same filename, and the copies had already diverged on the precedence order, on which document types the sentence contract binds, and on whether a repository may claim conformance to an external writing standard. One profile with two owners produces two profiles.
+
+Requirement 2 exists because `@plugins/archcore/skills/_shared/spec-contract.md` and `@plugins/archcore/skills/_shared/rule-contract.md` define mandatory sections the general profile does not describe, so the general profile MUST NOT displace them.
+
+Requirement 1 keeps `@AGENTS.md` in the loop deliberately. A host that reads an instruction file but not the document graph still needs the profile, so the text is mirrored there for delivery, not for authority.
 
 ## Examples
 
 ### Good
 
-```markdown
-## Rule
-3. WHEN `archcore init` finds an existing `.mcp.json`, the CLI MUST merge the
-   `archcore` server key without rewriting the other keys.
-4. IF the merge fails, THEN the CLI MUST exit non-zero.
-5. IF the merge fails, THEN the CLI MUST leave `.mcp.json` unchanged.
-```
-
-```markdown
-## Prerequisites
-- Go 1.24 or later on `PATH`.
-- A clean worktree — `git status --porcelain` returns no output.
-
-## Procedure
-1. Run `make build`.
-2. Run `make verify`.
-   Expected result: the command exits 0 and prints no `ERROR` line.
-
-Warning: step 3 deletes `.archcore/.sync-state.json` and cannot be undone.
-3. Run `rm .archcore/.sync-state.json`.
-```
+A `spec` in this repository omits a section the general profile never mentions, because `spec-contract.md` mandates it and requirement 2 puts the type contract above the profile.
 
 ### Bad
 
 ```markdown
 ## Rule
-3. The MCP config should be merged carefully and the CLI must not break other
-   keys, fail silently, etc.
+3. In the normative section of a `rule`, the author MUST state one obligation
+   in each numbered item.
 ```
 
-Item 3 above names no actor for the first clause, carries two obligations in one
-item, mixes `should` and `must` in one statement, ends with an open-ended `etc.`,
-and leaves the failure path unstated.
-
-```markdown
-## Procedure
-1. Run `make build` and then `make verify`, but note that you need Go 1.24 and a
-   clean worktree first.
-```
-
-Step 1 above carries two actions, hides both prerequisites inside a note, and
-places the prerequisites after the step that depends on them.
+The shared profile already carries that obligation. Restating it here creates the second copy requirement 4 forbids, and the copy is what drifts.
 
 ## Enforcement
 
-- `@plugins/archcore/bin/check-precision` (PostToolUse, soft mode, always exits 0) checks the forbidden lexicon, mandatory sections by type, frontmatter title and status, body length, cross-document body references, multi-line code blocks in architect-voice types, and — for `spec` bodies only — BCP 14 modals, the 80-line body cap, one modal per numbered line, and an active-voice obligated subject.
-- Items 3–16 outside `spec` bodies: manual review. No hook checks them.
+- The precision check runs inside the CLI binary since v0.7.0 (`cli-owns-layers-4-5.adr`). This repository ships no `check-precision` script; `@plugins/archcore/bin/post-tool-use` is host glue that delegates the raw payload to `archcore hooks <host> post-tool-use` and fails open below CLI 0.7.0.
+- The check covers the forbidden lexicon, mandatory sections by type, frontmatter, body length, and — for `spec` bodies — BCP 14 modals, one modal per numbered line, and an active-voice obligated subject. Everything else in the shared profile rests on review.
 - The authoring agent applies the review checklist in `@AGENTS.md` before returning a document.
