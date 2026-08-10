@@ -1,4 +1,4 @@
-# Archcore CLI
+# Archcore CLI — Git-Native Context for AI Coding Agents
 
 <!-- PLACEHOLDER: centered logo/wordmark, ~300px, light/dark variants via <picture>.
      Alt text should carry the tagline: "Archcore — git-native context for AI coding agents" -->
@@ -10,7 +10,9 @@
 
 **Archcore is a git-native context layer for AI coding agents.**
 
-It ships as a CLI and a local stdio MCP server, so any MCP-compatible coding agent can read and write your repo context through standard tools. Works across Claude Code, Cursor, GitHub Copilot, Gemini CLI, Codex CLI, OpenCode, Roo Code, and Cline.
+The CLI keeps specs, architecture decisions, rules, plans, and project knowledge in `.archcore/`, versioned with your code, and serves the relevant context to coding agents through MCP and session hooks.
+
+It ships as a CLI and a local stdio MCP server, so any MCP-compatible coding agent can read and write your project context through standard tools. Use it for persistent project context across Claude Code, Cursor, Codex CLI, GitHub Copilot, Gemini CLI, OpenCode, Roo Code, and Cline.
 
 ## See it work
 
