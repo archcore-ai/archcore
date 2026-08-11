@@ -8,6 +8,8 @@ Archcore brings spec-driven development and automatic project context to **Claud
 
 The plugin pairs with [Archcore CLI](https://github.com/archcore-ai/cli): the CLI provides the git-native context layer and MCP tools; the plugin adds skills, slash commands, gated tracks, routing, and guardrails.
 
+[Spec-driven development](https://archcore.ai/spec-driven-development/) defines intent. [Context engineering](https://archcore.ai/context-engineering/) supplies the broader project understanding needed to execute that intent correctly — a spec is one part of context, not the whole context.
+
 ## See it work
 
 The agent pulls in the rules and decisions that apply — no command needed — and still gives you the four commands below for anything explicit.
@@ -159,23 +161,24 @@ The decision is captured, codified as a rule, and auto-applied to every future c
 
 ## Supported hosts
 
-| Host                   | Status      | Install                                |
-| ---------------------- | ----------- | -------------------------------------- |
-| **Claude Code**        | Production  | Plugin marketplace                     |
-| **Cursor**             | Implemented | Plugin marketplace                     |
-| **Codex CLI**          | Implemented | Plugin marketplace                     |
-| **GitHub Copilot CLI** | Implemented | `copilot plugin install` (subdir spec) |
+| Host                                                          | Status      | Install                                |
+| ------------------------------------------------------------- | ----------- | -------------------------------------- |
+| [**Claude Code**](https://archcore.ai/claude-code/)           | Production  | Plugin marketplace                     |
+| [**Cursor**](https://archcore.ai/cursor/)                     | Implemented | Plugin marketplace                     |
+| [**Codex CLI**](https://archcore.ai/codex/)                   | Implemented | Plugin marketplace                     |
+| [**GitHub Copilot CLI**](https://archcore.ai/github-copilot/) | Implemented | `copilot plugin install` (subdir spec) |
 
 Built on open standards (Agent Skills, MCP) — skills and MCP tools are shared across hosts; only manifests are host-specific.
 
 ## How Archcore differs
 
-| Tool                                | Category    | How Archcore differs                                                                          |
-| ----------------------------------- | ----------- | --------------------------------------------------------------------------------------------- |
-| **BMAD / Spec Kit / Agent OS**      | Methodology | Archcore stores _artifacts_ and a living context graph; methodology kits prescribe _process_. |
-| **Superpowers**                     | Methodology | Shapes _agent behavior_; Archcore provides _canonical project knowledge_ any agent can read.  |
-| **claude-mem / Mem0 / agentmemory** | Memory      | They remember _what you did_; Archcore stores _how the system is built and what was decided_. |
-| **Cline Memory Bank**               | Docs        | Same spirit, lower ceremony. Archcore adds typed relations and validated multi-step cascades. |
+| Tool                                                                                                                       | Category          | How Archcore differs                                                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **BMAD / Spec Kit / Agent OS**                                                                                             | Methodology       | Methodology tools define a development process. Archcore keeps the resulting project knowledge alive, connected, versioned, and available to agents throughout implementation. |
+| **Superpowers**                                                                                                            | Methodology       | Shapes _agent behavior_; Archcore provides _canonical project knowledge_ any agent can read.                                                                                   |
+| [**`AGENTS.md`**](https://archcore.ai/agents-md/) / [**`CLAUDE.md`**](https://archcore.ai/claude-md/) / **`.cursorrules`** | Instruction files | Instruction files are useful entry points. Archcore adds typed documents, relations, lifecycle, selective retrieval, and cross-agent portability.                              |
+| **claude-mem / Mem0 / agentmemory**                                                                                        | Memory            | Memory remembers what happened in previous sessions. Archcore stores what the project says is true.                                                                            |
+| **Cline Memory Bank**                                                                                                      | Docs              | Same spirit, lower ceremony. Archcore adds typed relations and validated multi-step cascades.                                                                                  |
 
 Pick a methodology tool for an opinionated dev flow. Pick a memory tool for session continuity. Pick Archcore when you want typed, queryable **project truth** that your coding agent respects on every request.
 
