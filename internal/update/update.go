@@ -1,3 +1,7 @@
+// Package update replaces the running binary with a newer release. The download
+// is bounded, the archive is validated before anything is written, and the
+// replacement is atomic with a rollback — a failed update must leave a working
+// binary, not a truncated one.
 package update
 
 import (
@@ -98,7 +102,7 @@ func (u *Updater) CheckLatest(ctx context.Context) (string, error) {
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxRedirectBodyDrain))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 
 	// Any 3xx is accepted: GitHub answers 302 today but 301/303/307/308 are
@@ -330,7 +334,7 @@ func (u *Updater) download(ctx context.Context, version, filename string) ([]byt
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 
 	if resp.StatusCode != http.StatusOK {
@@ -452,7 +456,7 @@ func extractFromTarGz(archiveData []byte, candidates ...string) ([]byte, error) 
 	if err != nil {
 		return nil, fmt.Errorf("opening gzip: %w", err)
 	}
-	defer gr.Close()
+	defer func() { _ = gr.Close() }() // read-only handle
 
 	tr := tar.NewReader(gr)
 	for {
@@ -513,7 +517,7 @@ func extractFromZip(archiveData []byte, candidates ...string) ([]byte, error) {
 			return nil, fmt.Errorf("opening %s in zip: %w", name, err)
 		}
 		data, err := io.ReadAll(io.LimitReader(rc, maxArchiveSize+1))
-		rc.Close()
+		_ = rc.Close()
 		if err != nil {
 			return nil, fmt.Errorf("reading %s from zip: %w", name, err)
 		}
@@ -548,12 +552,12 @@ func atomicReplace(target string, data []byte) error {
 		oldPath := target + ".old"
 		_ = os.Remove(oldPath) // sweep stale leftover from a prior update
 		if err := os.Rename(target, oldPath); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			os.Remove(tmpPath)
+			_ = os.Remove(tmpPath)
 			return fmt.Errorf("renaming target aside: %w", err)
 		}
 		if err := os.Rename(tmpPath, target); err != nil {
 			// Roll back so the user is not left without a binary.
-			os.Remove(tmpPath)
+			_ = os.Remove(tmpPath)
 			if rollbackErr := os.Rename(oldPath, target); rollbackErr != nil && !errors.Is(rollbackErr, fs.ErrNotExist) {
 				return errors.Join(
 					fmt.Errorf("renaming temp to target: %w", err),
@@ -567,7 +571,7 @@ func atomicReplace(target string, data []byte) error {
 	}
 
 	if err := os.Rename(tmpPath, target); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("renaming temp to target: %w", err)
 	}
 
@@ -582,17 +586,17 @@ func writeBinarySynced(path string, data []byte) error {
 		return fmt.Errorf("writing temp binary: %w", err)
 	}
 	if _, err := f.Write(data); err != nil {
-		f.Close()
-		os.Remove(path)
+		_ = f.Close()
+		_ = os.Remove(path)
 		return fmt.Errorf("writing temp binary: %w", err)
 	}
 	if err := f.Sync(); err != nil {
-		f.Close()
-		os.Remove(path)
+		_ = f.Close()
+		_ = os.Remove(path)
 		return fmt.Errorf("syncing temp binary: %w", err)
 	}
 	if err := f.Close(); err != nil {
-		os.Remove(path)
+		_ = os.Remove(path)
 		return fmt.Errorf("closing temp binary: %w", err)
 	}
 	return nil

@@ -257,3 +257,31 @@ func TestWriteGuard_CaseVariantGlobalBlocked(t *testing.T) {
 		t.Error("a case-variant global path was allowed")
 	}
 }
+
+// TestWriteGuard_PatchIsGuardedOnEveryHostThatMatchesIt: apply_patch is not an
+// OpenCode-only concern. Codex CLI and Copilot both name it in the pre-write
+// matchers the CLI installs (@internal/wiring/hooks_agents.go), so the
+// path-less call reaches this guard on hosts the CLI wires as well as on the one
+// it does not. The guard reads the patch body regardless of who sent it, and
+// this is what says so.
+func TestWriteGuard_PatchIsGuardedOnEveryHostThatMatchesIt(t *testing.T) {
+	t.Parallel()
+	const guarded = `{"tool_name":"apply_patch","tool_input":{"patchText":` +
+		`"*** Begin Patch\n*** Update File: .archcore/my.rule.md\n*** End Patch"}}`
+	const ordinary = `{"tool_name":"apply_patch","tool_input":{"patchText":` +
+		`"*** Begin Patch\n*** Update File: src/app.go\n*** End Patch"}}`
+
+	for _, host := range []string{"codex-cli", "copilot", "opencode"} {
+		t.Run(host, func(t *testing.T) {
+			t.Parallel()
+			base := setupArchcoreDir(t)
+
+			if dec := preToolUseHandler(bg(), reqFor(t, host, base, guarded)); !dec.deny {
+				t.Error("a patch writing an .archcore document was allowed")
+			}
+			if dec := preToolUseHandler(bg(), reqFor(t, host, base, ordinary)); dec.deny {
+				t.Error("a patch writing only source was denied")
+			}
+		})
+	}
+}

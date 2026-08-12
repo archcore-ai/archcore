@@ -1,3 +1,8 @@
+// Package agents is the registry of AI coding hosts archcore integrates with.
+// One Agent value per host holds how to detect it, where its MCP config lives,
+// how to write that config, and which instruction file carries the usage hint.
+// The runtime side of hooks is not here: a host is a row in the dialect table in
+// package cmd, and the install side lives in internal/wiring.
 package agents
 
 import "os"

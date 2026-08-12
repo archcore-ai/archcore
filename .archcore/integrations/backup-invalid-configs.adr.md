@@ -39,9 +39,13 @@ The trade this accepts: a field archcore used to write and no longer does is pre
 
 The same principle governs MCP entries; the converge-ownership decision records it for that surface.
 
-### Exception: JSONC-capable targets (`.vscode/mcp.json`)
+### Superseded: the JSONC skip-install exception
 
-VS Code config files legitimately contain JSONC (comments, trailing commas). For `.vscode/mcp.json` (Copilot), "invalid strict JSON" usually means a perfectly valid JSONC config whose other MCP servers must not be silently replaced. This target therefore uses the `corruptSkipInstall` policy instead of backup-and-reset: the file is **left untouched**, a warning plus manual-install instructions are printed, and the install returns success (mirroring the `ManualMCPInstallHint` UX for agents without automatic MCP config).
+This decision once carried an exception for `.vscode/mcp.json`, Copilot's MCP config at the time. VS Code files legitimately contain JSONC, so "invalid strict JSON" there usually meant a valid JSONC config whose other servers must not be replaced; that target used a `corruptSkipInstall` policy — leave the file, print manual instructions, return success — rather than backup-and-reset.
+
+The exception no longer applies and its implementation is gone. Copilot CLI dropped `.vscode/mcp.json` as a source in v1.0.37 (github/copilot-cli#3019), so archcore writes Copilot's MCP entry to the workspace-root `.mcp.json`, the same standard `mcpServers` file Claude Code gets (@internal/agents/copilot.go). No target archcore writes is JSONC, so every one takes backup-and-reset, and `WriteVSCodeMCPJSON` and `corruptSkipInstall` were removed with the path.
+
+Recorded rather than deleted: the JSONC reasoning stands on its own and would apply again to any VS Code-owned target archcore starts writing.
 
 ### Affected Files
 
@@ -54,9 +58,8 @@ Hook config surgery is shared: every host installer builds its event table and h
 | `.gemini/settings.json` | Gemini CLI | backup-and-reset | @internal/wiring/hooks_agents.go via @internal/wiring/hooks_install.go |
 | `.codex/hooks.json` | Codex CLI | backup-and-reset | @internal/wiring/hooks_agents.go via @internal/wiring/hooks_install.go |
 | `.github/hooks/archcore.json` | Copilot (hooks) | backup-and-reset | @internal/wiring/hooks_agents.go via @internal/wiring/hooks_install.go |
-| Standard MCP JSON files (`.mcp.json`, `.cursor/mcp.json`, `.gemini/settings.json`, …) | Multiple | backup-and-reset | @internal/agents/mcp_helpers.go (`WriteStandardMCPJSON`) |
+| Standard MCP JSON files (`.mcp.json`, `.cursor/mcp.json`, `.gemini/settings.json`, …) | Multiple, Copilot included | backup-and-reset | @internal/agents/mcp_helpers.go (`WriteStandardMCPJSON`) |
 | `opencode.json` | OpenCode | backup-and-reset | @internal/agents/opencode.go (delegates to `writeMCPConfig`) |
-| `.vscode/mcp.json` | Copilot (MCP) | **skip-install (JSONC exception)** | @internal/agents/mcp_helpers.go (`WriteVSCodeMCPJSON`) |
 
 `.codex/config.toml` is not covered: the Codex MCP entry is TOML, and the hook wiring writes a separate `.codex/hooks.json` so that one writer owns each file.
 
@@ -78,7 +81,7 @@ Reject: Doesn't work in non-interactive contexts (CI, hooks, scripts). Adds comp
 Reject: Over-engineered. The scenario (invalid JSON) should be rare. A single `.bak` is sufficient to recover.
 
 ### Tolerating JSONC everywhere
-Reject: a JSONC parser is a new dependency for a case that only demonstrably occurs in VS Code files; the skip-install exception covers the real-world case without one.
+Reject: a JSONC parser is a new dependency for a case that only ever occurred in VS Code files, and archcore no longer writes one.
 
 ## Consequences
 
@@ -89,12 +92,12 @@ Reject: a JSONC parser is a new dependency for a case that only demonstrably occ
 - An install that only needs to preserve, not change, writes nothing: the file keeps its bytes and its mtime
 - Works in CI and non-interactive environments without prompts
 - Installation proceeds automatically — no manual intervention needed
-- Consistent behavior across all agent config files, with a single documented exception for JSONC targets
+- One policy across every target archcore writes, with no live exception to remember
 
 ### Negative
 
 - `.bak` files may accumulate if the issue recurs (mitigated: single overwrite, not versioned)
 - Users must know to check `.bak` files to recover original content
 - `.bak` files should be added to `.gitignore` to avoid accidental commits
-- For `.vscode/mcp.json` the user must add the archcore entry manually when their file is JSONC (instructions are printed)
 - A field archcore wrote in an earlier version and no longer writes stays in the config until the user removes it
+- A future VS Code-owned target would reopen the JSONC question, which is why the superseded exception is recorded above rather than deleted

@@ -26,6 +26,13 @@ CLI version. These obligations bind the CLI side of that pair.
 7. WHEN `archcore hooks` receives an unrecognized host or an unrecognized event, the CLI MUST write
    an empty stdout and MUST exit 0.
 8. A version mismatch MUST produce a message, and MUST NOT block the session.
+9. WHEN the CLI changes the wire protocol of an existing `archcore hooks <host> <event>` leaf, the
+   change MUST ship in a new release, and the release notes MUST name the host and the leaf. A leaf
+   whose protocol changed inside a version the plugin already gates on cannot be detected by that
+   gate.
+10. WHEN the CLI narrows what a leaf accepts on a host that already ships, the release notes MUST name
+    the narrowing. Requirement 9 covers a leaf that answers differently; this covers one that answers
+    less, which an existence gate cannot see either.
 
 ## Rationale
 
@@ -45,6 +52,20 @@ and repeated messages, not a wrong verdict or a corrupted file. Copilot parses e
 independently, so the payload survives the duplication. Once the plugin delegates to
 `archcore hooks <host> <event>`, both entries reach the same binary and the stamp collapses them.
 
+Requirement 9 comes from the OpenCode leaves. They existed in v0.7.0 and answered in the wrong
+protocol: the session event emitted a JSON envelope into a channel the bridge appends verbatim, and
+the host's `archcore_*` MCP spelling was unfolded, so the write guard denied the document tools it
+was meant to protect. A plugin gating on `cli-gte 0.7.0` passes on a CLI with both defects, because
+the gate can only ask whether the leaf exists, not whether it answers correctly. A bridge that needs
+the corrected protocol must gate on the release that carries it.
+
+Requirement 10 comes from the fix to requirement 9's second defect. Folding OpenCode's `archcore_*`
+spelling meant bounding the loose spellings to this server's own tool set, and Gemini CLI and GitHub
+Copilot use loose spellings too. Their leaves now decline to fold a tool the server does not
+register, which is a narrowing on hosts that were already shipping. Nothing observable from the
+plugin distinguishes the narrowed leaf from the old one until a tool falls outside the set, so the
+release notes are the only place it can be seen.
+
 An older CLI meeting a newer plugin cannot be fixed from this repository; already released binaries
 are fixed. The plugin closes that cell with its own minimum-version gate.
 
@@ -60,6 +81,9 @@ on. The plugin repository guards these with a property-based check.
   matches the path without global sources.
 - The plugin raises its minimum-CLI gate and turns its `bin/check-*` scripts into delegators once the
   CLI ships the equivalent guardrails.
+- The OpenCode bridge gates above v0.7.0. Its two protocol fixes — the plain-text session envelope
+  and the `archcore_*` fold — landed after that tag, and v0.7.0 already answers the leaves, so the
+  existence gate cannot tell the two apart.
 
 ## Examples
 
@@ -95,4 +119,6 @@ Usage text on stdout reaches the model as session context.
   unrecognized event never reaches cobra's help printer.
 - `@cmd/hooks.go` — the same guard on the `hooks` group itself.
 - `@internal/wiring/hooks_effective.go` — `detectInstalledPlugin`, `EffectiveHookNotes`.
-- `@cmd/hook_stamp.go` — the dedup claim shared by every hook scope.
+- `@cmd/hook_session_start.go` and `@internal/stamp/` — the dedup claim shared by every hook scope.
+- `@cmd/hook_dialect.go` and `@cmd/hook_payload.go` — the per-host wire protocol requirements 9 and
+  10 govern.

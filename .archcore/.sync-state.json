@@ -917,6 +917,76 @@
       "source": "integrations/backup-invalid-configs.adr.md",
       "target": "integrations/mcp-config-converge-ownership.adr.md",
       "type": "related"
+    },
+    {
+      "source": "integrations/hook-runtime.spec.md",
+      "target": "integrations/hook-wire-protocol.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-runtime.spec.md",
+      "target": "integrations/hook-payload-reading.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-wire-protocol.spec.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/hook-payload-reading.spec.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/hook-wire-protocol.spec.md",
+      "target": "integrations/session-start-context.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/hook-wire-protocol.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/hook-payload-reading.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/registry-agreement-and-test-seams.guide.md",
+      "target": "code-quality/unit-testing-patterns.guide.md",
+      "type": "extends"
+    },
+    {
+      "source": "code-quality/choosing-an-atomic-write.rule.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "extends"
+    },
+    {
+      "source": "code-quality/cite-the-governing-document-from-code.rule.md",
+      "target": "docs-style/controlled-technical-writing.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/bounded-and-deterministic-output.rule.md",
+      "target": "integrations/session-start-context.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/fail-open-or-fail-closed-reads.rule.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "code-quality/fail-open-or-fail-closed-reads.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "code-quality/bounded-and-deterministic-output.rule.md",
+      "type": "related"
     }
   ]
 }

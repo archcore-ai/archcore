@@ -14,6 +14,8 @@ Cursor, Gemini CLI, Codex CLI, GitHub Copilot, and others) via MCP and hooks.
 See also: [Supported AI Agents Registry](../integrations/supported-ai-agents.doc.md),
 [CLI Hooks Reference](../integrations/cli-hooks-reference.doc.md),
 [Hook Runtime Contract](../integrations/hook-runtime.spec.md),
+[Hook Wire Protocol Per Host](../integrations/hook-wire-protocol.spec.md),
+[Hook Payload Reading](../integrations/hook-payload-reading.spec.md),
 [Agent Integration Guide](../integrations/agent-hooks-integration.guide.md).
 
 ## Prerequisites
@@ -27,6 +29,7 @@ See also: [Supported AI Agents Registry](../integrations/supported-ai-agents.doc
 go build -o archcore .     # Build binary
 go test ./...              # Run all tests
 go test ./cmd/ -run TestX  # Run a specific test
+golangci-lint run ./...    # The analyzers CI runs; config in .golangci.yml
 ```
 
 ## Getting Started
@@ -80,6 +83,9 @@ convention on optional fields, and
 [Forward-Compatible Settings Parsing](../cli/forward-compatible-settings-parsing.rule.md) for how an
 older binary handles a field a newer release added.
 
+A hook reads this file on the pre-write path, so its size is on a latency budget — see the runtime
+contract's constraint on reading project state once per invocation.
+
 ## How to Add a New Setting
 
 1. Add the field to the `Settings` struct in `@internal/config/config.go` with a
@@ -102,6 +108,12 @@ older binary handles a field a newer release added.
 3. Register in `cmd/root.go` via `root.AddCommand(newXxxCmd())`
 4. If the command needs the CLI version (like `update`), pass it from `NewRootCmd`: `newXxxCmd(cleaned)`
 5. Keep cobra wiring minimal — extract logic into testable functions that accept a base directory
+6. If the command reads or writes `.archcore/`, resolve its root with
+   `resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))` and register a `--project`
+   flag whose help text names the environment variable. Never call `os.Getwd()` directly:
+   `resolveProjectRoot` also refuses a root inside a host's plugin install cache, which hosts have
+   been observed spawning agents into (host-cwd-misrouting.adr).
+   `TestCommands_OfferProjectFlag` walks the tree and fails on a command that does neither.
 
 A command that prints a report separates the report from the printer: `collectStatus` builds a
 `statusReport` as data, and `writeTo` renders it. The hook path needs the data form, because on a hook
@@ -111,7 +123,9 @@ stdout carries the host protocol and nothing may print to it. See `@cmd/status_r
 
 1. Add a `TypeXxx` constant in `@templates/templates.go`
 2. Add it to `categoryMap` with the correct virtual category
-3. Ensure it is returned by `ValidTypes()` (derived from `categoryMap`)
+3. Add it to `ValidTypes()` in the same file. It is a hand-written list, not derived —
+   `TestValidTypes_Completeness` holds its length against `categoryMap`, so a type added to one and
+   not the other fails there.
 4. Create a `generateXxxTemplate()` function
 5. Add the case to `GenerateTemplate()` switch
 6. Update the MCP server instructions in `@internal/mcp/server.go` (`mcpServerInstructions` — document
@@ -166,6 +180,14 @@ track prompts.
 5. Validate inputs and check path safety (no `..`, must resolve inside `.archcore/`)
 6. Never expose absolute filesystem paths in error messages — see
    [No Absolute Paths in MCP Errors](../mcp/no-absolute-paths-in-mcp-errors.rule.md)
+7. Add the tool name to `archcoreMCPTools` in `@cmd/hook_payload.go`.
+   `TestArchcoreMCPTools_MatchesTheServer` fails otherwise. Three hosts flatten an MCP tool name by
+   joining the server name to the tool name with one separator, and that separator also occurs inside
+   names, so the fold accepts only a tool this list knows. A tool missing from it is read by the write
+   guard as a direct edit and denied on those hosts.
+8. If the tool mutates the knowledge base, add it to `mutatingMCPTools` in the same file and to
+   `mcpDocumentTools` in `@internal/wiring/hooks_agents.go`, which is the host-side matcher that
+   decides whether the post-write process starts at all
 
 ### Conditionally Registered Tools (executor injection)
 
@@ -184,13 +206,21 @@ Hooks intercept host lifecycle events. Three events are active — `SessionStart
 `PostToolUse` — in each host's own spelling. The `Stop` and `UserPromptSubmit` families stay
 unsupported; see the [ADR on removing them](../integrations/disable-stop-and-prompt-hooks.adr.md).
 
-The normative behavior of the runtime side is the
-[Hook Runtime Contract](../integrations/hook-runtime.spec.md). Change it before changing the code.
+Three specs are normative here, split by what they own, and the one covering the part you are
+changing comes before the code:
+
+- [Hook Runtime Contract](../integrations/hook-runtime.spec.md) — which guard blocks, in what order
+  the work runs, and how the command degrades (`@cmd/hook_command.go`, `@cmd/hook_write_guard.go`).
+- [Hook Wire Protocol Per Host](../integrations/hook-wire-protocol.spec.md) — what the process writes
+  and how it exits, per dialect (`@cmd/hook_dialect.go`).
+- [Hook Payload Reading](../integrations/hook-payload-reading.spec.md) — how the payload becomes a
+  tool identity and a set of targets (`@cmd/hook_payload.go`).
 
 ### File Structure
 
 Install-time logic (writing host configs) lives in `internal/wiring`; runtime logic (handling a fired
 event) stays in `cmd/`. There is no per-agent runtime file — a host is one row in a dialect table.
+The advisory work the hooks call lives in `internal/advisory/`, not in `cmd/`.
 
 | File | Purpose |
 |------|---------|
@@ -198,26 +228,29 @@ event) stays in `cmd/`. There is no per-agent runtime file — a host is one row
 | `@internal/wiring/hooks_agents.go` | Per-host installers and the event tables (names, matchers, timeouts, entry shapes) + the `hooksInstallers` router |
 | `@internal/wiring/hooks_effective.go` | `EffectiveHookNotes` — whether a host will read what was written |
 | `@internal/wiring/wiring.go` | `Apply()` / `EnsureProjectInitialized()` — shared host-wiring entry points |
-| `@cmd/hooks.go` | `hooks install` command wiring |
+| `@cmd/hooks.go` | `hooks install` command wiring; `servesHookEvents` and `noHookWiringNote`, which separate a hookless agent from one whose hooks load as plugin code |
 | `@cmd/hook_dialect.go` | `hostDialect` table: session shape, context envelope, deny style, pre-write context support; `emitDecision` |
 | `@cmd/hook_command.go` | Command tree, `hookHandler` type, `safeHandle` panic recovery, per-event safety rules |
-| `@cmd/hook_payload.go` | Payload decoding by explicit key paths, MCP tool-name folding |
+| `@cmd/hook_payload.go` | Payload decoding by explicit key paths, MCP tool-name folding, apply-patch target extraction |
 | `@cmd/hook_session_start.go` | SessionStart response shapes and the dedup wrapper |
 | `@cmd/hooks_common.go` | `buildSessionContext()` — the injected session-start text |
-| `@cmd/hook_write_guard.go` | The one blocking guard |
-| `@cmd/hook_code_alignment.go` | Pre-write context injection |
+| `@cmd/hook_write_guard.go` | The one blocking guard, and the per-invocation `writeGuard` that caches what its verdicts read |
 | `@cmd/hook_post_tool_use.go` | Post-write dispatcher: validation, cascade |
-| `@cmd/hook_precision.go` | Post-write precision findings; canon in `@templates/precision.go` |
-| `@cmd/hook_staleness.go` | Drift advisory, rate-limited to 24 hours |
-| `@cmd/hook_stamp.go` | Dedup stamp claim, one directory per scope |
+| `@internal/advisory/code_alignment.go` | Pre-write context injection |
+| `@internal/advisory/precision.go` | Post-write precision findings; canon in `@templates/precision.go` |
+| `@internal/advisory/staleness.go` | Drift advisory, rate-limited to 24 hours |
+| `@internal/stamp/` | Dedup stamp claim, one directory per scope |
 
 Installed commands are recognized across CLI versions by the `archcore hooks ` prefix — see
 [Hook Command Marker ADR](../integrations/hook-command-marker-prefix.adr.md).
 
+The dialect table answers which hosts this binary serves; `hooksInstallers` answers which hosts get a
+config written. They are not the same set, and the difference is what `hooks install` reports: a host
+in the first and not the second loads its hooks as plugin code.
+
 ### Safety Rules
 
-These are the rules a change to the hook path must not break. The runtime contract states them
-normatively.
+These are the rules a change to the hook path must not break. The specs above state them normatively.
 
 - A handler returns a decision; the command layer owns output and exit codes.
 - The zero-value decision allows and writes nothing. Every failure path produces it.
@@ -226,6 +259,11 @@ normatively.
 - The write guard runs first and alone. Advisory work happens after the verdict.
 - On Copilot, stdout carries exactly one JSON document. Every diagnostic goes to stderr.
 - An unknown host or event writes an empty stdout and exits 0.
+- A file-mutation tool that names no path still has a target. `apply_patch` names its files inside the
+  patch body, and the guard reads them; a host whose registry replaces `write` and `edit` with it
+  would otherwise run unguarded and look no different from a guarded session.
+- The pre-write path runs inside a one-second host budget. State a verdict reads is read once per
+  invocation and only when a verdict needs it.
 
 ### Modifying the Injected Context
 
@@ -260,7 +298,15 @@ apply uniformly to every host.
      from it; no per-agent runtime file is needed.
    - Add an `InstallXxxHooks()` function in `@internal/wiring/hooks_agents.go` covering all three
      events — the installed command MUST start with `archcore hooks ` (marker contract)
-   - Add the agent to `hooksInstallers` in the same file
+   - Add the agent to `hooksInstallers` in the same file. Skip this step only when the host loads
+     hooks as plugin code and there is no declarative file to write; the dialect row alone then makes
+     `hooks install` describe it correctly instead of calling it hookless.
+   - If the host flattens MCP tool names into a spelling not already folded, add its prefix in
+     `@cmd/hook_payload.go`. An unfolded spelling makes the write guard deny the host's own document
+     tools.
+   - If the host names a file-mutation tool that carries no path argument, add the key its patch or
+     path arrives under in the same file. A missing key fails silently: no target, allow, and an
+     unprotected session that looks clean.
    - If the host can accept the config and still not run it, add its case to `EffectiveHookNotes` in
      `@internal/wiring/hooks_effective.go`
 
@@ -276,11 +322,19 @@ apply uniformly to every host.
   through rather than rejected.
 - **Constructor functions** — each command is `newXxxCmd() *cobra.Command` with logic extracted into
   testable functions.
+- **One root resolution** — every command reading the store goes through `resolveProjectRoot`. See
+  the rule in "How to Add a New Command"; the plugin-cache refusal is the part that matters.
 - **Report as data, printer as a thin layer** — `collectStatus` returns a `statusReport`; `writeTo`
   renders it. The hook path consumes the data form because it cannot print.
 - **One document model** — `internal/docs` owns the scan, the cache, and the path guards. The write
   guard and the MCP write tools call the same predicate, so a path MCP refuses cannot be reached by
   editing the file directly.
+- **Guard or advisory, never both** — every read of external state declares which it serves, and the
+  two fail in opposite directions. See
+  [Fail-Open or Fail-Closed Reads](../code-quality/fail-open-or-fail-closed-reads.rule.md).
+- **Bounded, ordered output** — anything leaving the process is capped by a named constant and sorted
+  before it is cut. See
+  [Bounded and Deterministic Output](../code-quality/bounded-and-deterministic-output.rule.md).
 - **One hook entry per (host, event)** — the process dispatches by tool name internally, so three
   post-write checks cost one process start.
 - **Dialect table, not per-host code** — a host is a row describing its protocol; the handlers are

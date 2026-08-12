@@ -10,14 +10,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-func setupManifest(t *testing.T, base string) {
-	t.Helper()
-	m := sync.NewManifest()
-	if err := sync.SaveManifest(base, m); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestHandleAddRelation_Success(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)

@@ -14,6 +14,11 @@ import (
 // four names. The in-process fold (cmd.foldToolName) normalizes them after the
 // process starts; this matcher decides whether it starts at all, so a spelling
 // missing here is a check that silently never runs.
+//
+// The fold carries a fifth name, OpenCode's "archcore_<tool>". It is absent
+// here on purpose: OpenCode is wired by a TypeScript bridge rather than by this
+// matcher, so the only effect of adding it would be to rewrite five other
+// hosts' configs. See the comment on mcpDocumentTools.
 func TestMCPDocumentTools_CoversEveryNaming(t *testing.T) {
 	t.Parallel()
 	re := regexp.MustCompile("^(" + mcpDocumentTools + ")$")

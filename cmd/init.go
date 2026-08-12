@@ -240,6 +240,7 @@ func resolveAgents(baseDir string) (agentSelection, error) {
 // uses a distinct anchor word ("Cancelled", "Skipped", "non-interactive") so
 // tests can assert on stable substrings.
 func printAgentSelectionStatus(sel agentSelection) {
+	//exhaustive:ignore // outcomePicked is the success path and prints nothing — this switch reports only the ways selection ended without one.
 	switch sel.outcome {
 	case outcomeAborted:
 		fmt.Println(display.Dim.Render(

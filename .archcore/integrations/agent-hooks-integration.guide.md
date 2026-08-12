@@ -13,7 +13,9 @@ Archcore integrates with AI coding agents via three mechanisms:
   project recap, `PreToolUse` blocks direct writes to `.archcore/` documents and injects the documents
   that constrain the file being edited, and `PostToolUse` reports validation, cascade, and precision
   findings after a document mutation. Wired for Claude Code, Cursor, Gemini CLI, Codex CLI, and GitHub
-  Copilot. The `Stop` and `UserPromptSubmit` families stay unsupported — see the ADR on removing them.
+  Copilot. OpenCode runs the same three events, but through the Archcore OpenCode plugin rather than a
+  written config. The `Stop` and `UserPromptSubmit` families stay unsupported — see the ADR on
+  removing them.
 - **MCP** — Model Context Protocol server providing document management tools (`init_project`,
   `list_documents`, `get_document`, `search_documents`, `create_document`, `update_document`,
   `remove_document`, `add_relation`, `remove_relation`, `list_relations`). Supported by all agents
@@ -67,6 +69,11 @@ for the architectural decision.
 
 ## Manual Installation
 
+Every command below reads the project root from `--project`, then `ARCHCORE_PROJECT_ROOT`, then the
+working directory. Pass `--project` whenever the shell is not already in the repository — the
+resolution also refuses a root inside a host's plugin install cache, which some hosts spawn agent
+processes into.
+
 ### Hooks Only
 
 ```bash
@@ -77,7 +84,8 @@ archcore hooks install --agent cursor  # install for a specific agent
 Note: `archcore hooks install` also triggers MCP installation automatically.
 
 Expected result: for each wired host, either silence (the wiring works as installed) or a note stating
-that the file was written, why the hooks are inert, and the action that enables them.
+that the file was written, why the hooks are inert, and the action that enables them. A host whose
+hooks load as plugin code, such as OpenCode, is reported as such instead of as hookless.
 
 ### MCP Only
 
@@ -139,7 +147,11 @@ One archcore-owned entry per (host, event) pair. The process dispatches by tool 
 
 Matchers and timeouts differ per host — see [CLI Hooks Reference](cli-hooks-reference.doc.md).
 
-OpenCode is never wired: its hooks are JavaScript plugins and cannot be written declaratively.
+OpenCode is never wired, and this is permanent rather than pending: the host loads hooks as plugin
+code, so there is no declarative file to write. It gets the same three events from the Archcore
+OpenCode plugin, which registers the host's own events and calls
+`archcore hooks opencode <event>`. Installing the CLI alone gives an OpenCode user the MCP document
+tools but no hooks; installing the plugin adds the hooks.
 
 ### MCP (7 agents, Cline is manual)
 
@@ -148,10 +160,15 @@ OpenCode is never wired: its hooks are JavaScript plugins and cannot be written 
 | Claude Code    | `.mcp.json`             | Standard `mcpServers` JSON                         |
 | Cursor         | `.cursor/mcp.json`      | Standard `mcpServers` JSON                         |
 | Gemini CLI     | `.gemini/settings.json` | Standard `mcpServers` JSON (shared with hooks)     |
-| GitHub Copilot | `.vscode/mcp.json`      | VS Code-style `servers` JSON with `"type": "stdio"` |
+| GitHub Copilot | `.mcp.json`             | Standard `mcpServers` JSON (the same file Claude Code gets) |
 | OpenCode       | `opencode.json`         | Custom `mcp` section with `type` + `command` array |
 | Codex CLI      | `.codex/config.toml`    | TOML `[mcp_servers.archcore]` block                |
 | Roo Code       | `.roo/mcp.json`         | Standard `mcpServers` JSON                         |
+
+Copilot shares Claude Code's file deliberately: both hosts key on `mcpServers` and accept a bare
+`{command, args}` stdio entry, and the write merges idempotently, so one file serves both. Not
+`.vscode/mcp.json` — Copilot CLI dropped that source in v1.0.37 (github/copilot-cli#3019) and it
+belongs to VS Code alone.
 
 ### Instruction Nudge (8 agents, opt-in)
 
@@ -257,20 +274,17 @@ Timeouts are in milliseconds on this host.
 { "mcpServers": { "archcore": { "command": "archcore", "args": ["mcp"] } } }
 ```
 
-Claude Code (`.mcp.json`), Cursor (`.cursor/mcp.json`), Gemini CLI (inside `.gemini/settings.json`),
-and Roo Code (`.roo/mcp.json`) all use that shape. The three that differ:
-
-```json
-{ "servers": { "archcore": { "type": "stdio", "command": "archcore", "args": ["mcp"] } } }
-```
-
-GitHub Copilot, `.vscode/mcp.json`.
+Claude Code and GitHub Copilot (both `.mcp.json`, one shared file), Cursor (`.cursor/mcp.json`),
+Gemini CLI (inside `.gemini/settings.json`), and Roo Code (`.roo/mcp.json`) all use that shape. The
+two that differ:
 
 ```json
 { "mcp": { "archcore": { "type": "local", "command": ["archcore", "mcp"] } } }
 ```
 
-OpenCode, `opencode.json`.
+OpenCode, `opencode.json`. Optional per-server keys are `enabled`, `cwd`, `timeout`, and
+`environment` — spelled that way, not `env`. The host's schema rejects an unknown key rather than
+ignoring it, so the wrong spelling fails the config instead of silently dropping the value.
 
 ```toml
 [mcp_servers.archcore]
@@ -299,7 +313,8 @@ Two overrides are available:
 - **Flag**: `archcore mcp --project /absolute/path/to/repo`
 - **Environment**: `ARCHCORE_PROJECT_ROOT=/absolute/path/to/repo archcore mcp`
 
-Precedence: `--project` > `ARCHCORE_PROJECT_ROOT` > current working directory.
+Precedence: `--project` > `ARCHCORE_PROJECT_ROOT` > current working directory. The same precedence
+applies to every command that reads `.archcore/`, not only `mcp`.
 
 The path must point at an existing directory (it does not need to contain `.archcore/` yet — the
 server still starts and exposes `init_project`).
@@ -342,6 +357,17 @@ Cause: the agent launched `archcore mcp` from a working directory that isn't you
 Fix: pass `--project` explicitly in the agent's MCP config, or set `ARCHCORE_PROJECT_ROOT` in the
 agent's environment. See **Pointing the MCP Server at a Specific Project Root** above.
 
+### A command reports on the wrong project
+
+Symptoms: `archcore status` or `archcore config get` describes a project that is not the one you are
+in, or `archcore instructions remove` strips a hint you did not mean to touch.
+
+Cause: the shell, or the host that spawned the process, is not in the repository. Some hosts launch
+agent processes with the working directory inside their own plugin install cache.
+
+Fix: pass `--project /path/to/repo` or set `ARCHCORE_PROJECT_ROOT`. Archcore refuses a root that
+resolves inside a known plugin cache rather than reading it as a project.
+
 ### Agent not detected
 
 Check that the agent's marker directory exists in your project root. You can also target a specific
@@ -362,6 +388,13 @@ archcore mcp install --agent opencode
    `hooks = true` in `~/.codex/config.toml`; `codex_hooks = true` before Codex 0.129.0), trust the
    project's `.codex/` layer, and note that Codex does not support hooks on Windows.
 5. Check the agent's logs for hook execution errors.
+
+### No hooks on OpenCode
+
+Expected without the plugin. `archcore init` writes OpenCode's MCP config but no hook config, because
+the host has no declarative hook file. Install the Archcore OpenCode plugin to get the three events;
+the CLI already ships the `archcore hooks opencode <event>` leaves it calls. A CLI older than the one
+that added those leaves makes the plugin degrade to no hooks rather than fail.
 
 ### Context appears twice
 

@@ -161,8 +161,21 @@ func sessionStartHandler(version string) hookHandler {
 func preToolUseHandler(ctx context.Context, r hookRequest) hookDecision {
 	filePath := r.payload.filePath()
 
-	if dec := writeGuardDecision(r.baseDir, filePath); dec.deny {
+	// One guard for the whole call. Every target below asks the same questions
+	// about the same project, and a patch can carry thousands of them.
+	guard := newWriteGuard(r.baseDir)
+
+	if dec := guard.decide(filePath); dec.deny {
 		return dec
+	}
+	// A patch call names its targets only inside the patch body, and one call can
+	// carry several. Any guarded target blocks the whole call: a patch applies as
+	// a unit, so allowing it because only one of its files is protected would
+	// write that file anyway.
+	for _, target := range r.payload.patchPaths() {
+		if dec := guard.decide(target); dec.deny {
+			return dec
+		}
 	}
 
 	// Copilot's preToolUse carries only a permission decision, so context sent

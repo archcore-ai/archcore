@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"archcore-cli/internal/jsonfile"
 )
 
 // RelationType represents the kind of relationship between two documents.
@@ -294,10 +296,10 @@ func (m *Manifest) CleanupRelations(archcoreDir string) int {
 		tgtPath := filepath.Join(archcoreDir, rel.Target)
 		srcExists := true
 		tgtExists := true
-		if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+		if _, err := os.Stat(srcPath); errors.Is(err, fs.ErrNotExist) {
 			srcExists = false
 		}
-		if _, err := os.Stat(tgtPath); os.IsNotExist(err) {
+		if _, err := os.Stat(tgtPath); errors.Is(err, fs.ErrNotExist) {
 			tgtExists = false
 		}
 		if srcExists && tgtExists {
@@ -310,6 +312,12 @@ func (m *Manifest) CleanupRelations(archcoreDir string) int {
 }
 
 // SaveManifest writes the manifest to disk atomically (write temp + rename).
+//
+// The write itself is jsonfile.WriteAtomic rather than a local copy of it. The
+// manifest is archcore-owned state, which is the case that helper serves; the
+// copy that used to live here was identical to it byte for byte, and two
+// identical implementations of a crash-safety primitive are one place for a fix
+// to land and one place for it to be missed.
 func SaveManifest(baseDir string, m *Manifest) error {
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {
@@ -317,14 +325,8 @@ func SaveManifest(baseDir string, m *Manifest) error {
 	}
 	data = append(data, '\n')
 
-	target := manifestPath(baseDir)
-	tmp := target + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return fmt.Errorf("writing manifest temp file: %w", err)
-	}
-	if err := os.Rename(tmp, target); err != nil {
-		os.Remove(tmp)
-		return fmt.Errorf("renaming manifest: %w", err)
+	if err := jsonfile.WriteAtomic(manifestPath(baseDir), data); err != nil {
+		return fmt.Errorf("saving manifest: %w", err)
 	}
 	return nil
 }

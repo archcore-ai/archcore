@@ -66,6 +66,13 @@ type geminiInnerHook struct {
 // server arrives as. A host filters on this before starting the process; the
 // process folds the name again, so a spelling missed here costs a skipped check,
 // never a wrong one.
+//
+// Four spellings, against five in the in-process fold (cmd.foldToolName). The
+// fifth is OpenCode's "archcore_<tool>", and OpenCode is the one host with no
+// entry in hooksInstallers: its hooks come from a TypeScript bridge that
+// decides for itself what to spawn, so this matcher is never written on its
+// behalf and would filter nothing there. Adding it would rewrite the hook
+// config of all five wired hosts to match a name none of them sends.
 const mcpDocumentTools = `mcp__archcore__(create_document|update_document|remove_document|add_relation|remove_relation)|` +
 	`mcp__plugin_archcore_archcore__(create_document|update_document|remove_document|add_relation|remove_relation)|` +
 	`mcp_archcore_(create_document|update_document|remove_document|add_relation|remove_relation)|` +

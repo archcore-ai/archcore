@@ -79,11 +79,26 @@ func TestHookLeaves_AcceptStrayPositionalArgs(t *testing.T) {
 }
 
 // config is the deliberate exception: it dispatches on positional args
-// (`config get <key>`, `config set <key> <value>`), so it must NOT carry a
-// NoArgs restriction. Guard that the exception stays intentional.
+// (`config get <key>`, `config set <key> <value>`), so it must NOT restrict
+// them. Guard that the exception stays intentional.
+//
+// Asserted by running the validator rather than by requiring Args to be nil.
+// Both cobra.ArbitraryArgs and no declaration at all accept everything, and the
+// convention is to state the policy: a nil Args is indistinguishable from a
+// command whose author never considered the question.
 func TestConfigCmd_AcceptsPositionalArgs(t *testing.T) {
 	t.Parallel()
-	if newConfigCmd().Args != nil {
-		t.Error("config must not restrict positional args — it dispatches on get/set <key> [value]")
+	cmd := newConfigCmd()
+	if cmd.Args == nil {
+		t.Fatal("config must declare its Args policy explicitly, even though it accepts everything")
+	}
+	for _, args := range [][]string{
+		{"get", "sync"},
+		{"set", "language", "ru"},
+		{"set", "language", "en", "US"}, // runConfig joins the tail; cobra must not refuse first
+	} {
+		if err := cmd.Args(cmd, args); err != nil {
+			t.Errorf("config rejected %v at validation time: %v", args, err)
+		}
 	}
 }

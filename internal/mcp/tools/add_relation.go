@@ -1,3 +1,8 @@
+// Package tools implements the handlers behind the MCP server's document tools.
+// Each file is one tool: its schema constructor and its handler. Document
+// reading, writing and path guarding are not implemented here — they come from
+// internal/docs through the aliases in docs_bridge.go, so a path the MCP tools
+// refuse cannot be reached by editing the file directly.
 package tools
 
 import (

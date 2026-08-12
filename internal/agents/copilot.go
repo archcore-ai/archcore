@@ -9,8 +9,8 @@ import "path/filepath"
 //
 // Not .vscode/mcp.json (what this agent wrote before): Copilot CLI dropped
 // that source in v1.0.37 (github/copilot-cli#3019), so it is dead config for
-// the CLI and belongs to VS Code alone — a surface copilot-adapter-design.adr
-// explicitly scopes out. Not .github/mcp.json either: the config-dir docs list
+// the CLI and belongs to VS Code alone — a surface archcore does not target.
+// Not .github/mcp.json either: the config-dir docs list
 // it, but it has never been read as a workspace source
 // (github/copilot-cli#1886, still open; confirmed by the maintainer closing
 // #1291). Copilot CLI discovers .mcp.json from the working directory up to the

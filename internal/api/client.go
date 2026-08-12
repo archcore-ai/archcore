@@ -1,3 +1,6 @@
+// Package api is the HTTP client for the Archcore server. Every call is bounded
+// by an explicit timeout, and the sync client carries its own longer one because
+// a push is not a health check.
 package api
 
 import (
@@ -87,8 +90,8 @@ func (c *Client) get(ctx context.Context, path string, dest any) error {
 		return err
 	}
 	defer func() {
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}()
 
 	if resp.StatusCode != http.StatusOK {
@@ -138,8 +141,8 @@ func (c *Client) Sync(ctx context.Context, payload *archsync.Payload) (*SyncResp
 		return nil, false, err
 	}
 	defer func() {
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}()
 
 	switch resp.StatusCode {

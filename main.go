@@ -1,3 +1,7 @@
+// Command archcore is the Archcore CLI: it manages a local .archcore/ directory
+// of structured Markdown documents and serves them to AI coding agents over MCP
+// and lifecycle hooks. This file owns process concerns only — signal handling
+// and the exit code; every command lives in the cmd package.
 package main
 
 import (

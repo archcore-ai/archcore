@@ -26,6 +26,10 @@ func TestVersionSuffix(t *testing.T) {
 	}
 }
 
+// The "dev version" row asserts on "Archcore dev", not on a bare "dev": what it
+// checks is that no version suffix was rendered, and versionSuffix renders one
+// as a space then the version, directly after the name. A bare substring would
+// also match any tagline that happens to contain the letters.
 func TestBanner(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -34,7 +38,7 @@ func TestBanner(t *testing.T) {
 		notContain  string
 	}{
 		{"no version", "", "Archcore", "v0.5.4"},
-		{"dev version", "dev", "Archcore", "dev"},
+		{"dev version", "dev", "Archcore", "Archcore dev"},
 		{"real version", "v0.5.4", "v0.5.4", ""},
 	}
 	for _, tt := range tests {
@@ -58,7 +62,7 @@ func TestWelcomeBanner(t *testing.T) {
 		notContain  string
 	}{
 		{"no version", "", "Archcore", "v0.5.4"},
-		{"dev version", "dev", "Archcore", "dev"},
+		{"dev version", "dev", "Archcore", "Archcore dev"},
 		{"real version", "v0.5.4", "v0.5.4", ""},
 	}
 	for _, tt := range tests {

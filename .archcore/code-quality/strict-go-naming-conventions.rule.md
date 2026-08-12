@@ -15,7 +15,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 
 - **MUST**: Exported identifiers (visible outside the package) start with an uppercase letter — `Settings`, `NewClient`, `URL`, `Manifest`.
 - **MUST**: Unexported identifiers (package-internal) start with a lowercase letter — `syncFlags`, `hookEntry`, `parseURL`, `searchMatch`.
-- **MUST NOT**: Use a leading or trailing underscore (`_Foo`, `Foo_`) to fake visibility. The blank import (`_ "embed"`) and blank interface assertion (`var _ Foo = (*Bar)(nil)`) are explicitly permitted as standard idioms.
+- **MUST NOT**: Use a leading or trailing underscore (`_Foo`, `Foo_`) to fake visibility. The blank import (`_ "embed"`) and blank interface assertion (`var _ Foo = (*Bar)(nil)`) are explicitly permitted as standard idioms. A named result is covered too: `context_` was a real violation, caught by `revive`'s `var-naming` once the linter began running.
 - **SHOULD**: Default to unexported. Promote to exported only when (a) another package needs it now, or (b) it is part of a stable, documented API surface.
 
 ### B. Acronyms — all letters in the same case
@@ -25,7 +25,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 - **MUST**: When an acronym leads an unexported identifier, it is fully lowercase: `urlString`, `httpClient`, `jsonDecoder`.
 - **MUST**: Apply to project-specific acronyms: `ADR`, `RFC`, `PRD`, `MRD`, `BRD`, `URD`, `BRS`, `SRS`.
 - **MUST**: Adjacent acronyms keep both fully uppercase: `XMLHTTPRequest`, not `XMLHttpRequest`.
-- **EXCEPTION**: ISO 29148 type names use their canonical mixed case as written in the standard: `StRS`, `SyRS`. These are the *only* mixed-case acronyms permitted. Add `//nolint:stylecheck // ST1003: ISO 29148 canonical name` at each declaration to silence the linter.
+- **EXCEPTION**: ISO 29148 type names use their canonical mixed case as written in the standard: `StRS`, `SyRS`. These are the *only* mixed-case acronyms permitted. Add `//nolint:staticcheck // ST1003: ISO 29148 canonical name` at each declaration to silence the linter.
 
 ### C. Type names
 
@@ -81,7 +81,9 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
   A `switch` with `default: false` and no other cases is **forbidden** — it silently accepts everything until linter catches up.
 
 - **MUST**: Fields referencing the enum use the typed alias, not bare `string`. `Settings.Sync` MUST be `SyncType`, not `string`. `Frontmatter.Status` MUST be `DocStatus`, not `string`.
+- **MUST**: Key a map on the typed enum with the constants, never with string literals. `map[DocumentType]int{"rul": 1}` compiles and silently yields the zero value; `{TypeRule: 1}` does not.
 - **MUST NOT**: Define a closed-set string as untyped constants. The compiler must be able to enforce the domain.
+- **MUST**: A `switch` that deliberately handles a subset carries `//exhaustive:ignore` with the reason on the same comment. Silencing the analyzer without saying why is a deviation under the closing clause of this rule.
 - **NUMERIC ENUMS**: Use `iota` with a typed alias: `type Level int` + `const ( LevelDebug Level = iota; LevelInfo; ... )`.
 
 ### H. Package names
@@ -97,6 +99,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 - **MUST**: snake_case, ASCII letters and digits only — `hooks_claude_code.go`, `gemini_cli.go`, `mcp_helpers.go`.
 - **MUST**: When a file is keyed to a slug-valued enum (e.g., `AgentID = "claude-code"`), the file basename mirrors the slug with `-` replaced by `_`. The triple `AgentID = "claude-code"` ↔ file `claude_code.go` ↔ identifier `ClaudeCode` MUST align.
 - **MUST**: Tests live alongside source as `<basename>_test.go`. No separate `tests/` directories inside Go packages.
+- **MAY**: A test file that pins normative properties rather than coverage is named `<subject>_spec_test.go` and carries a doc comment before `package` listing them.
 
 ### J. Error names and messages
 
@@ -111,6 +114,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 - **MUST**: Local variable names are short and contextual: `i`, `j`, `k` for indices; `err` for errors; `ctx` for context; `cmd` for cobra command; `req` / `resp` for HTTP request/response; `t` for `*testing.T`, `b` for `*testing.B`, `tb` for `testing.TB`; `tt` for the current case in a table-driven test.
 - **MUST**: Package-level vars holding compiled regex use the suffix `Re`: `SlugRe`, `TagRe`. The suffix may be omitted when the variable name itself reads as a pattern (`pseudoVersionSuffix`), but `Re` is preferred for new code.
 - **MUST**: Discarded values are assigned to `_` — never named `unused`, `ignored`, or `tmp`.
+- **MUST**: A package-level var that exists so a test can replace or observe behavior carries a comment saying production does not use it. See the test-seam guide.
 - **MUST NOT**: Use Hungarian notation (`strName`, `iCount`, `bDone`).
 
 ### L. Interfaces
@@ -162,6 +166,13 @@ var validSyncTypes = map[SyncType]bool{
     SyncTypeNone: true, SyncTypeCloud: true, SyncTypeOnPrem: true,
 }
 
+// §G A deliberate subset says so
+//exhaustive:ignore // Only hosts with a documented limitation carry a note.
+switch id {
+case agents.CodexCLI:
+    return codexHookNotes()
+}
+
 // §F Receiver — single letter, uniform
 func (m *Manifest) AddRelation(...)    { ... }
 func (m *Manifest) RemoveRelation(...) { ... }
@@ -186,6 +197,9 @@ type AgentId string                       // MUST be AgentID
 func (c *Client) ServerUrl() string { }   // MUST be ServerURL
 const HttpTimeout = 30 * time.Second      // MUST be HTTPTimeout
 
+// §A Trailing underscore on a named result
+func f() (context_ string, err error) { } // MUST be a real name: sessionContext
+
 // §B Wrong: editing struct tags to match identifier casing
 type Settings struct {
     ProjectID *int `json:"projectID"`     // MUST stay "project_id" — wire format
@@ -206,6 +220,9 @@ const (
 type Settings struct {
     Sync string `json:"sync"`             // MUST be SyncType
 }
+
+// §G Literal key in a typed-enum map: a typo compiles and takes the default
+var typePriority = map[templates.DocumentType]int{"rul": 1} // MUST be templates.TypeRule
 
 // §G Switch with default:false (silently accepts new constants)
 func valid(s SyncType) bool {
@@ -235,15 +252,21 @@ return fmt.Errorf("loading config: %v", err) // MUST be %w if caller may unwrap
 
 ## Enforcement
 
-**Linter coverage** (catches a subset, run as part of CI). Configure in `.golangci.yml`:
+**Linter coverage** (catches a subset, run as part of CI). The config is `.golangci.yml` at the
+repository root; CI runs `golangci-lint` as its own step after `go vet`.
 
-- `gofmt` / `gofumpt` — formatting.
+- `gofmt` — formatting, run separately as the first CI step.
 - `go vet` — receiver mismatches, common errors.
-- `revive` — `var-naming`, `package-comments`, `exported`, `error-strings`.
-- `stylecheck` — `ST1003` (acronym style). Note: `stylecheck` is a separate analyzer from `staticcheck` proper; both ship together but `ST*` checks must be enabled explicitly.
+- `revive` — `var-naming`, `error-strings`, `error-naming`, `error-return`, `receiver-naming`,
+  `unexported-return`, and others; see the config for the enabled set.
+- `staticcheck` — `ST1003` (acronym style, §B) among the rest. golangci-lint v2 merged the former
+  `stylecheck` analyzer into `staticcheck`, so the `ST*` checks are selected through
+  `staticcheck.checks` rather than by enabling a second linter. A per-line silence is
+  `//nolint:staticcheck // ST1003: <reason>`.
 - `errname` — enforces §J `Err*` and `*Error` patterns automatically.
-- `errcheck` — flags ignored errors.
-- `exhaustive` — required for §G typed enums; flags non-exhaustive switches.
+- `errcheck` — flags ignored errors. A deliberate drop is written `_ = f()`, not left bare.
+- `exhaustive` — required for §G typed enums; flags non-exhaustive switches. A deliberate subset
+  carries `//exhaustive:ignore` with the reason.
 - `unconvert` — flags redundant type conversions (catches over-casting at typed-enum boundaries).
 
 **Code review** (human or AI via `review-go` skill) covers what linters cannot:
@@ -255,10 +278,16 @@ return fmt.Errorf("loading config: %v", err) // MUST be %w if caller may unwrap
 - Stuttering with package name in exposed identifiers.
 - `%w` vs `%v` choice in error wrapping.
 - Default-to-unexported judgment (§A).
+- Whether an `//exhaustive:ignore` reason is true.
 
 **Known existing deviations** (new code MUST conform; existing violations are migrated opportunistically when the surrounding code is touched):
 
-- `LocalDocument.Type` and `searchResult.Type` in `internal/mcp/tools/` are bare `string` where `templates.DocumentType` applies (§G). The closed wire vocabularies there (`source_kind`, search match kinds, search modes) are named constants but not typed aliases yet.
-- Historical note: the original three deviations on this list (`SyncType`, `DocStatus`, `Category` bare-string enums) were resolved and verified closed by the July 2026 audit.
+- `internal/mcp/tools/search_documents.go` declares its match-kind and search-mode vocabularies as
+  named constants without a typed alias, and `searchMatch.Kind` is bare `string` where §G asks for
+  one. These are the last two.
+- Historical note: the deviations previously listed here are closed. `SyncType`, `DocStatus` and
+  `Category` were migrated by the July 2026 audit; `LocalDocument.Type`, `searchResult.Type` and
+  `source_kind` are now `templates.DocumentType` and `docs.SourceKind` respectively, verified against
+  the source in August 2026.
 
 **New code** MUST be conforming. A deviation requires a one-line comment naming the reason and the clause: `// §L: grandfathered; in-flight churn risk.`. Silent deviations are review-blocking.

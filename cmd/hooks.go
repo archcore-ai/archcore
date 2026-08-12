@@ -54,6 +54,34 @@ func printPluginConflictNote() {
 	}
 }
 
+// servesHookEvents reports whether this binary answers hook events for an agent,
+// which is not the same question as whether `hooks install` writes wiring for it.
+func servesHookEvents(id agents.AgentID) bool {
+	for _, d := range hookDialects {
+		if d.id == id {
+			return true
+		}
+	}
+	return false
+}
+
+// noHookWiringNote explains why an agent got no hook config.
+//
+// Two different facts used to share one sentence. An agent with no hook wiring
+// either has no hooks at all, or loads them as plugin code the CLI cannot write
+// — OpenCode is the second kind, and telling that user "OpenCode does not
+// support hooks" reports the opposite of the truth: the plugin gives them the
+// same three events this binary serves. The dialect registry separates the two,
+// so a host that gains a leaf stops being described as hookless on its own.
+func noHookWiringNote(agent *agents.Agent) string {
+	if !servesHookEvents(agent.ID) {
+		return fmt.Sprintf("%s does not support hooks", agent.DisplayName)
+	}
+	return fmt.Sprintf(
+		"%s loads hooks as plugin code, so no hook config is written. The Archcore plugin for %s registers them and calls 'archcore hooks %s <event>'.",
+		agent.DisplayName, agent.DisplayName, agent.ID)
+}
+
 func newHooksInstallCmd() *cobra.Command {
 	var (
 		agentFlag   string
@@ -102,7 +130,7 @@ func runHooksInstallForAgent(baseDir string, id agents.AgentID) error {
 	if !installed {
 		// Hookless agents still get their MCP config, matching the
 		// auto-detect path (installAgents).
-		fmt.Println(display.WarnLine(fmt.Sprintf("%s does not support hooks", agent.DisplayName)))
+		fmt.Println(display.WarnLine(noHookWiringNote(agent)))
 	} else {
 		printEffectiveHookNotes(baseDir, agent.ID)
 		printPluginConflictNote()
@@ -142,7 +170,7 @@ func installAgents(baseDir string, list []*agents.Agent) {
 		if err != nil {
 			fmt.Println(display.WarnLine(fmt.Sprintf("%s hooks: %v", agent.DisplayName, err)))
 		} else if !installed {
-			fmt.Println(display.Dim.Render(fmt.Sprintf("  Skipping hooks for %s (not supported)", agent.DisplayName)))
+			fmt.Println(display.Dim.Render("  " + noHookWiringNote(agent)))
 		} else {
 			anyHooks = true
 			printEffectiveHookNotes(baseDir, agent.ID)

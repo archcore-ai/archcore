@@ -1,10 +1,10 @@
 package cmd
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
@@ -98,11 +98,11 @@ func buildSessionContext(ctx context.Context, baseDir string) (string, int) {
 		for tag, count := range tagFreq {
 			sorted = append(sorted, tagCount{tag, count})
 		}
-		sort.Slice(sorted, func(i, j int) bool {
-			if sorted[i].count != sorted[j].count {
-				return sorted[i].count > sorted[j].count
+		slices.SortFunc(sorted, func(a, b tagCount) int {
+			if c := cmp.Compare(b.count, a.count); c != 0 {
+				return c
 			}
-			return sorted[i].tag < sorted[j].tag
+			return cmp.Compare(a.tag, b.tag)
 		})
 		limit := min(maxSessionTags, len(sorted))
 		tags := make([]string, limit)
@@ -182,6 +182,7 @@ func writeRecap(b *strings.Builder, corpus []docs.Document) {
 		if !d.InAgentContext() {
 			continue
 		}
+		//exhaustive:ignore // A rejected document is excluded from the recap upstream; naming it here would imply it can reach this switch.
 		switch effectiveStatus(d) {
 		case templates.StatusDraft:
 			drafts = append(drafts, d)

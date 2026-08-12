@@ -22,14 +22,16 @@ import (
 )
 
 func newStatusCmd() *cobra.Command {
-	return &cobra.Command{
+	var projectFlag string
+
+	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Check .archcore/ structure and document health",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
+			cwd, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
 			if err != nil {
-				return fmt.Errorf("getting working directory: %w", err)
+				return err
 			}
 			issues := runStatus(cwd)
 			if issues > 0 {
@@ -38,6 +40,9 @@ func newStatusCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&projectFlag, "project", "",
+		"project root to check (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
+	return cmd
 }
 
 // runStatus checks .archcore/ structure and documents. Returns issue count.

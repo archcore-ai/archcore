@@ -57,6 +57,7 @@ func BuildPayload(baseDir string, entries []DiffEntry) (*Payload, error) {
 			return nil, err
 		}
 
+		//exhaustive:ignore // ActionUnchanged contributes no payload entry by definition.
 		switch e.Action {
 		case ActionCreated, ActionModified:
 			absPath := filepath.Join(baseDir, ".archcore", e.RelPath)

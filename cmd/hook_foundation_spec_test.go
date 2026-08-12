@@ -10,7 +10,7 @@
 //  2. An internal failure allows. A panic exits 2, which most hosts read as an
 //     explicit deny; on Copilot every non-zero exit denies AND discards the
 //     reason, so a defect here blocks the user's edit with no explanation.
-//  3. One MCP server is recognized under all four of its names, and no other
+//  3. One MCP server is recognized under all five of its names, and no other
 //     server is ever mistaken for it.
 package cmd
 
@@ -178,7 +178,7 @@ func TestHookCommand_UnknownEventIsSilent(t *testing.T) {
 	}
 }
 
-// TestFoldToolName covers the four spellings one server arrives under, and the
+// TestFoldToolName covers the five spellings one server arrives under, and the
 // boundary that keeps a different server from being folded into it.
 func TestFoldToolName(t *testing.T) {
 	t.Parallel()
@@ -192,9 +192,39 @@ func TestFoldToolName(t *testing.T) {
 		{name: "plugin-bundled folds", in: "mcp__plugin_archcore_archcore__create_document", want: "mcp__archcore__create_document", wantArchore: true},
 		{name: "copilot flatten folds", in: "archcore-create_document", want: "mcp__archcore__create_document", wantArchore: true},
 		{name: "gemini underscore form folds", in: "mcp_archcore_create_document", want: "mcp__archcore__create_document", wantArchore: true},
+		// OpenCode prefixes an MCP tool with the server name and one underscore.
+		// Unfolded, it is not recognized as ours — and the consequence is not a
+		// skipped post-write check but a deny: filePath() then reads the bare
+		// "path" key, and the write guard blocks the document the MCP tool was
+		// sanctioned to write.
+		{name: "opencode underscore form folds", in: "archcore_create_document", want: "mcp__archcore__create_document", wantArchore: true},
 		{name: "a foreign MCP server is never rewritten", in: "mcp__other__create_document", want: "mcp__other__create_document"},
 		{name: "a native tool is not mistaken for a server prefix", in: "Write", want: "Write"},
 		{name: "a lookalike native tool is left alone", in: "create", want: "create"},
+		// OpenCode's prefix is the loose one — a bare server name and an
+		// underscore — so the boundary that matters for it is a foreign server
+		// flattened the same way. Its name is not ours, so it must pass through.
+		{name: "a foreign underscore server is left alone", in: "other_create_document", want: "other_create_document"},
+		{name: "a foreign gemini-style server is left alone", in: "mcp_other_create_document", want: "mcp_other_create_document"},
+		// The boundary the loose prefixes actually have to hold: a foreign server
+		// whose name STARTS with ours. The separator is inside names as well as
+		// between them, so nothing in the string marks where the server name ends
+		// — only the tool set does. Folding these would make the write guard skip
+		// the "path" key and wave a foreign server's write into .archcore/ through.
+		{name: "a foreign server prefixed with ours is left alone", in: "archcore_docs_create_document", want: "archcore_docs_create_document"},
+		{name: "a foreign gemini-style server prefixed with ours is left alone", in: "mcp_archcore_docs_create_document", want: "mcp_archcore_docs_create_document"},
+		{name: "a foreign copilot-style server prefixed with ours is left alone", in: "archcore-docs-create_document", want: "archcore-docs-create_document"},
+		// A tool this server does not have is not ours to claim under a loose
+		// spelling either, whoever sent it.
+		{name: "an unknown tool under the loose prefix is left alone", in: "archcore_write_file", want: "archcore_write_file"},
+		// The unambiguous spellings need no such bound: the double underscore
+		// delimits the server name, so an unknown tool is still plainly ours. The
+		// plugin row is the one that proves it — it is the only unambiguous
+		// spelling the fold actually rewrites, so bounding it would show up here.
+		// The canonical row below passes through untouched and would survive that
+		// same mistake; it guards the passthrough, not the bound.
+		{name: "an unknown tool under the plugin prefix is still ours", in: "mcp__plugin_archcore_archcore__future_tool", want: "mcp__archcore__future_tool", wantArchore: true},
+		{name: "an unknown tool under the canonical prefix passes through", in: "mcp__archcore__future_tool", want: "mcp__archcore__future_tool", wantArchore: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

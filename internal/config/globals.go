@@ -76,7 +76,7 @@ func CheckGlobalDir(baseDir, resolvedDir string) error {
 	if err != nil {
 		return ErrGlobalUnreadable
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }() // read-only handle
 	if _, err := f.Readdirnames(1); err != nil && !errors.Is(err, io.EOF) {
 		return ErrGlobalUnreadable
 	}

@@ -81,14 +81,6 @@ func captureStdout(t *testing.T, fn func()) string {
 	return out
 }
 
-// captureStderr returns only what fn wrote to stderr, where every deny reason
-// goes on the hosts that signal a block through the exit code.
-func captureStderr(t *testing.T, fn func()) string {
-	t.Helper()
-	_, errOut := captureOutput(t, fn)
-	return errOut
-}
-
 // withStdin points os.Stdin at input for the rest of the test. A file rather
 // than a pipe so a payload larger than the pipe buffer can be fed without a
 // writer goroutine.

@@ -15,19 +15,31 @@ import (
 )
 
 func newConfigCmd() *cobra.Command {
+	var projectFlag string
+
 	cmd := &cobra.Command{
 		Use:   "config [get|set] [key] [value]",
 		Short: "View or modify archcore configuration",
-		RunE:  runConfig,
+		// Arbitrary rather than a fixed count: `config set language en US` is
+		// rejected by runConfig with a message about the key, and cobra's own
+		// arity error would say "accepts at most 3 args" instead.
+		Args: cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cwd, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
+			if err != nil {
+				return err
+			}
+			return runConfig(cwd, args)
+		},
 	}
+	cmd.Flags().StringVar(&projectFlag, "project", "",
+		"project root containing .archcore/ (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
 	return cmd
 }
 
-func runConfig(cmd *cobra.Command, args []string) error {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+// runConfig takes the resolved root rather than finding one, so the command's
+// behavior is testable without changing the process working directory.
+func runConfig(cwd string, args []string) error {
 	settings, err := config.Load(cwd)
 	if err != nil {
 		fmt.Println(display.FailLine("Settings not found or invalid"))

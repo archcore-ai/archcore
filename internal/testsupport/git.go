@@ -25,9 +25,9 @@ var commitSeq atomic.Int64
 // environment, so a global commit.gpgsign, core.hooksPath or log.showSignature
 // changes what the code under test observes.
 func IsolateGit() {
-	os.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
-	os.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
-	os.Setenv("GIT_TERMINAL_PROMPT", "0")
+	_ = os.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	_ = os.Setenv("GIT_CONFIG_SYSTEM", os.DevNull)
+	_ = os.Setenv("GIT_TERMINAL_PROMPT", "0")
 }
 
 // RequireGit skips instead of failing when the machine has no git — an absent

@@ -25,7 +25,7 @@ matrix and the per-host protocol dialects.
 | Gemini CLI | `gemini-cli` | Yes | Yes | `.gemini/` dir | [github.com/google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) |
 | Codex CLI | `codex-cli` | Yes | Yes | `.codex/` dir | [github.com/openai/codex](https://github.com/openai/codex) |
 | GitHub Copilot | `copilot` | Yes | Yes | `.github/copilot-instructions.md` file | [github.com/features/copilot](https://github.com/features/copilot) |
-| OpenCode | `opencode` | No | Yes | `opencode.json` file or `.opencode/` dir | [opencode.ai](https://opencode.ai/) |
+| OpenCode | `opencode` | Via plugin | Yes | `opencode.json` file or `.opencode/` dir | [opencode.ai](https://opencode.ai/) |
 | Roo Code | `roo-code` | No | Yes | `.roo/` dir | [roocode.com](https://roocode.com/) |
 | Cline | `cline` | No | Manual | `.clinerules/` dir | [cline.bot](https://cline.bot/) |
 
@@ -45,13 +45,21 @@ Two of them carry a host limitation that `hooks install` reports at write time:
 - GitHub Copilot cannot carry context on its pre-write event, so the write guard runs there but the
   code-alignment injection does not.
 
+### Hooks through a plugin
+
+Agent: OpenCode.
+
+OpenCode loads hooks as plugin code, so the CLI writes no hook config and cannot: there is no
+declarative file to write. It ships the `archcore hooks opencode <event>` leaves instead, and the
+Archcore OpenCode plugin registers the host's events and calls them. The three events are the same
+ones every other host runs; only the wiring route differs. `hooks install` says so rather than
+reporting the host as hookless.
+
 ### MCP only
 
-Agents: OpenCode, Roo Code.
+Agent: Roo Code.
 
-OpenCode's hooks are JavaScript plugins and cannot be wired declaratively, so the CLI ships the
-`archcore hooks opencode <event>` leaves for the plugin to delegate to but writes no config. Roo Code
-supports `onSave` hooks only, which do not serve lifecycle events.
+Roo Code supports `onSave` hooks only, which do not serve lifecycle events.
 
 ### Manual
 
@@ -102,6 +110,11 @@ Three lifecycle events are active: `SessionStart`, `PreToolUse`, and `PostToolUs
 spelling. The `Stop` and `UserPromptSubmit` families remain unsupported; the related ADR records the
 rationale. The runtime side of every hook lives in the shared `cmd/hook_*.go` files, not in a
 per-agent file — the ADR on running the guardrails in the CLI records that consolidation.
+
+Every command that reads or writes `.archcore/` resolves its project root through
+`resolveProjectRoot`, which honors `--project` and `ARCHCORE_PROJECT_ROOT` and refuses a root inside a
+host's plugin install cache. The hook leaves are the exception: there the host names the project in
+the payload's `cwd` key, and the process's own working directory is the host's.
 
 ### Claude Code
 
@@ -155,16 +168,26 @@ per-agent file — the ADR on running the guardrails in the CLI records that con
 - Hooks are experimental and off by default (`[features]` with `hooks = true`, spelled
   `codex_hooks = true` before Codex 0.129.0), unavailable on Windows, and project-local hooks load only
   when the `.codex/` layer is trusted. `hooks install` and `doctor` report these conditions.
+- `apply_patch` names its files only inside the patch body, so the write guard reads the body rather
+  than a file-path argument. [assumption] The key that carries the patch is unverified from this
+  repository; `patchText`, `input`, and `patch` are all read.
 
 ### GitHub Copilot
 
-- Config paths: `.github/hooks/archcore.json` (hooks), `.vscode/mcp.json` (MCP)
+- Config paths: `.github/hooks/archcore.json` (hooks), `.mcp.json` (MCP)
 - Hook events: `sessionStart`; `preToolUse` with matcher `create|edit|str_replace_editor|apply_patch`;
   `postToolUse` with the MCP document-tool matcher
 - Hook commands: `archcore hooks copilot session-start|pre-tool-use|post-tool-use`
 - Hook format: uses the `bash` field instead of `command` (`{"type": "command", "bash": "..."}`), with
   `timeoutSec`
-- MCP format: VS Code-style `servers` JSON with `"type": "stdio"`
+- MCP format: standard `mcpServers` JSON — the same file and the same shape Claude Code gets. Both
+  hosts key on `mcpServers` and accept a bare `{command, args}` stdio entry, so one file serves both
+  and the write merges idempotently.
+- Not `.vscode/mcp.json`: Copilot CLI dropped that source in v1.0.37 (github/copilot-cli#3019), so it
+  is dead config for the CLI and belongs to VS Code alone. Not `.github/mcp.json` either — the
+  config-dir documentation lists it, but it has never been read as a workspace source
+  (github/copilot-cli#1886). Copilot CLI discovers `.mcp.json` from the working directory up to the
+  git root, so a repository-root file covers monorepo layouts too.
 - Detection: the `.github/copilot-instructions.md` file
 - Instruction file: `AGENTS.md` (fenced upsert, read natively alongside
   `.github/copilot-instructions.md`)
@@ -172,16 +195,37 @@ per-agent file — the ADR on running the guardrails in the CLI records that con
 - Copilot's `preToolUse` carries only a permission decision, so the write guard runs and the
   code-alignment injection does not. Copilot also reads `.claude/settings.json`; in a repository wired
   for both hosts, `hooks install` reports the possible duplicate run.
+- Its matcher names `apply_patch` too, so the patch-body scan applies here on the same terms as on
+  Codex CLI.
 
 ### OpenCode
 
 - Config path: `opencode.json` (MCP)
 - MCP format: `{"mcp": {"archcore": {"type": "local", "command": ["archcore", "mcp"]}}}`
-- Note: OpenCode uses a different MCP JSON structure, with `type` and with `command` as an array
-- Hooks: not wired. Its hooks are JavaScript plugins, so delegation is permanent, not temporary. The
-  `archcore hooks opencode <event>` leaves exist for a plugin to call.
+- Note: OpenCode uses a different MCP JSON structure, with `type` and with `command` as an array. Its
+  optional per-server keys are `enabled`, `cwd`, `timeout`, and `environment` — spelled that way, not
+  `env`. The published schema sets `additionalProperties: false`, so a wrong key is rejected rather
+  than ignored. OpenCode's own documentation gives the `timeout` default as 5000 ms while its source
+  uses 30000 ms; archcore sets no timeout, so neither value applies to what the CLI writes.
+- Hooks: not wired declaratively, and never will be — OpenCode loads hooks as plugin code. The
+  `archcore hooks opencode <event>` leaves exist for the Archcore OpenCode plugin to call.
+- Protocol: plain text on every event, including `session-start`, because the plugin's launcher
+  streams this binary's stdout to a bridge that appends it verbatim. Deny stays exit 2 with the reason
+  on stderr, which the bridge rethrows as an `Error` whose message the model receives. The CLI hooks
+  reference carries the detail.
+- MCP tool names: OpenCode flattens an MCP tool to `<server>_<tool>` joined by a single underscore,
+  with the server name passed through verbatim and no truncation, so archcore's arrive as
+  `archcore_create_document`. `cmd.foldToolName` folds that spelling; without it the write guard reads
+  a sanctioned MCP write as a direct edit and blocks the document tools.
+- The same separator occurs inside server names, so `archcore_docs_create_document` belongs to a
+  server called `archcore_docs` and the spelling alone cannot say which. The fold therefore accepts
+  only a tool this MCP server registers. Unbounded, it would exempt a foreign server's write from the
+  guard entirely.
+- File-writing tools: OpenCode's `write` and `edit` name their argument `filePath`, not `file_path`,
+  and its registry replaces both with `apply_patch` for `gpt-` models. The guard reads the camelCase
+  key and the patch body for that reason.
 - Instruction file: `AGENTS.md` (fenced upsert)
-- Source: `@internal/agents/opencode.go`
+- Source: `@internal/agents/opencode.go`, `@cmd/hook_dialect.go`, `@cmd/hook_payload.go`
 
 ### Roo Code
 
@@ -216,7 +260,28 @@ per-agent file — the ADR on running the guardrails in the CLI records that con
 7. IF the agent supports hooks, THEN add an `InstallXxxHooks` function in
    `@internal/wiring/hooks_agents.go` covering all three events, and add the agent to
    `hooksInstallers` in the same file. The installed command MUST start with `archcore hooks `.
-8. IF the host can accept a written config and still not run it, THEN add its case to
-   `EffectiveHookNotes` in `@internal/wiring/hooks_effective.go`.
-9. Add the agent to the registry table and to the instruction-nudge table in this document.
-10. Update the CLI hooks reference, the agent-hooks integration guide, and the building-the-CLI guide.
+8. IF the agent's host flattens MCP tool names into a spelling not already folded, THEN add its prefix
+   in `@cmd/hook_payload.go`. An unfolded spelling does not merely skip the post-write checks — it
+   makes the write guard deny the host's own document tools. A flattening that joins the server name
+   to the tool name with a single separator is matched against `archcoreMCPTools`, so it claims only
+   this server's tools and not a foreign server whose name starts the same way.
+9. IF the agent's host names a file-mutation tool that carries no path argument, THEN add the key its
+   patch or path arrives under in `@cmd/hook_payload.go`. A missing key fails silently: the guard
+   finds no target, allows, and an unprotected session looks exactly like a clean one.
+10. IF the host can accept a written config and still not run it, THEN add its case to
+    `EffectiveHookNotes` in `@internal/wiring/hooks_effective.go`.
+11. Add the agent to the registry table and to the instruction-nudge table in this document.
+12. Update the CLI hooks reference, the agent-hooks integration guide, and the building-the-CLI guide.
+
+## Adding a new MCP tool
+
+Add its name to `archcoreMCPTools` in `@cmd/hook_payload.go` in the same change.
+`TestArchcoreMCPTools_MatchesTheServer` fails otherwise. A tool the fold does not know is not folded
+under a flattened spelling, so on Gemini CLI, GitHub Copilot, and OpenCode the write guard reads that
+sanctioned MCP write as a direct edit and denies it.
+
+## Adding a new command
+
+A command that reads or writes `.archcore/` MUST resolve its root through `resolveProjectRoot` and
+MUST register a `--project` flag naming `ARCHCORE_PROJECT_ROOT` in its help text.
+`TestCommands_OfferProjectFlag` walks the command tree and fails on a command that does neither.

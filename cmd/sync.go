@@ -232,6 +232,7 @@ func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPrec
 		errored[e.Path] = true
 	}
 	for _, e := range diffEntries {
+		//exhaustive:ignore // ActionUnchanged leaves the manifest entry exactly as it is, which is what falling through does.
 		switch e.Action {
 		case archsync.ActionCreated, archsync.ActionModified:
 			if accepted[e.RelPath] {

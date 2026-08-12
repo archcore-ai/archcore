@@ -125,7 +125,7 @@ func WriteFileAtomic(absPath string, data []byte) error {
 		return err
 	}
 	if err := os.Rename(tmp, absPath); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return err
 	}
 	InvalidateCache(absPath)

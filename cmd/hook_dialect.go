@@ -79,17 +79,27 @@ func (d hostDialect) wireEvent(e hookEvent) string {
 	return string(e)
 }
 
-// hookDialects is the registry of hosts the hook commands serve. codex-cli and
-// opencode appear here without install wiring: the plugin registers their hooks
-// itself and delegates to this binary, so the commands must exist even though
-// `hooks install` writes no config for them. Until then the leaf answering is
-// already an improvement — an unregistered host used to be met by cobra's help
-// printer writing into the protocol channel.
+// hookDialects is the registry of hosts the hook commands serve, which is a
+// different question from which hosts `hooks install` writes a config for
+// (wiring.hooksInstallers). Every host here answers the leaves; opencode is the
+// one that answers them with no config written, because it loads hooks as
+// plugin code and there is no declarative file to write. Membership here is
+// what lets `hooks install` tell that host apart from a genuinely hookless one
+// (cmd.servesHookEvents), and it is why an unregistered host is no longer met by
+// cobra's help printer writing into the protocol channel.
 //
-// [assumption] opencode's SessionStart envelope is unverified. Its tool-event
-// envelope is plain text, documented by the bridge; its session envelope is set
-// to the Claude shape here because the bridge has never been probed against a
-// CLI that answers. Confirm before opencode joins the wired set.
+// opencode is plain text on BOTH the session and the tool events, not only the
+// tool ones. Its route is a TypeScript bridge that carries no decision logic:
+// the plugin's bin/session-start streams this command's stdout through
+// unchanged, and the bridge appends those bytes to the session verbatim. There
+// is no JSON parse anywhere on that path, so a wrapper emitted here does not
+// frame the recap — it lands in the model's context as literal JSON with the
+// recap escaped inside it.
+//
+// The corollary is that opencode has no slot for the SessionStart banner, which
+// the plain-text envelope therefore drops. That is the same call Copilot's
+// envelope makes, and for the same reason: the banner is a line for the user,
+// and smuggling it into the context channel makes it input for the model.
 var hookDialects = []hostDialect{
 	{id: agents.ClaudeCode, session: envelopeClaudeWrapper, envelope: envelopeClaudeWrapper, deny: denyExitTwo, preToolContext: true},
 	{id: agents.Cursor, session: envelopeClaudeWrapper, envelope: envelopeCursorFlat, deny: denyExitTwo, preToolContext: true},
@@ -100,7 +110,7 @@ var hookDialects = []hostDialect{
 		wireEvents: map[hookEvent]string{eventPreToolUse: "BeforeTool", eventPostToolUse: "AfterTool"}},
 	{id: agents.Copilot, session: envelopeCopilotFlat, envelope: envelopeCopilotFlat, deny: denyCopilotJSON, preToolContext: false},
 	{id: agents.CodexCLI, session: envelopeClaudeWrapper, envelope: envelopeClaudeWrapper, deny: denyExitTwo, preToolContext: true},
-	{id: agents.OpenCode, session: envelopeClaudeWrapper, envelope: envelopePlainText, deny: denyExitTwo, preToolContext: true},
+	{id: agents.OpenCode, session: envelopePlainText, envelope: envelopePlainText, deny: denyExitTwo, preToolContext: true},
 }
 
 // hookDecision is what a guard concluded. The zero value allows silently, which
@@ -167,6 +177,12 @@ func emitDeny(d hostDialect, reason string) int {
 func emitContext(env contextEnvelope, wireEvent, text, banner string) {
 	switch env {
 	case envelopePlainText:
+		// A banner alone reaches here when the context is empty, and this
+		// envelope has nowhere to put one. Printing anyway would send a bare
+		// newline down a channel whose every byte becomes model context.
+		if text == "" {
+			return
+		}
 		fmt.Fprintln(os.Stdout, text)
 	case envelopeCursorFlat:
 		writeJSON(map[string]string{"additional_context": text})

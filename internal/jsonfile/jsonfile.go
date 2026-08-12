@@ -92,7 +92,7 @@ func WriteAtomic(path string, data []byte) error {
 		return fmt.Errorf("writing %s: %w", tmp, err)
 	}
 	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp)
+		_ = os.Remove(tmp)
 		return fmt.Errorf("renaming %s: %w", tmp, err)
 	}
 	return nil

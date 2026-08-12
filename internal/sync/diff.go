@@ -1,3 +1,9 @@
+// Package sync builds and tracks the one-way push of .archcore/ documents to a
+// server: the content hashes, the file-level diff against the last push, the
+// payload, and the relation manifest that travels with it.
+//
+// It shadows the standard library's sync. Importers that also need that one
+// alias this package as archsync.
 package sync
 
 import "slices"

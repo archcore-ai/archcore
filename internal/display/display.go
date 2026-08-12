@@ -1,3 +1,5 @@
+// Package display owns every styled byte the CLI writes to a terminal. Callers
+// pass text and pick a line kind; no other package composes ANSI escapes.
 package display
 
 import (
@@ -39,7 +41,7 @@ func WelcomeBanner(version string) string {
 
 	textLines := []string{
 		Title.Render("Archcore" + versionSuffix(version) + " — Git-native context for AI coding agents"),
-		Dim.Render("Context engineering for repositories"),
+		Dim.Render("Spec-driven development & context engineering"),
 		Dim.Render("https://archcore.ai"),
 	}
 	text := strings.Join(textLines, "\n")

@@ -27,7 +27,7 @@ func HashFile(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("opening file for hash: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }() // read-only handle
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {

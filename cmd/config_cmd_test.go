@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -19,8 +18,6 @@ func setupConfigTest(t *testing.T, s *config.Settings) string {
 	}
 	return dir
 }
-
-// --- getSettingsValue ---
 
 func TestGetSettingsValue_Sync(t *testing.T) {
 	tests := []struct {
@@ -101,8 +98,6 @@ func TestGetSettingsValue_UnknownKey(t *testing.T) {
 		t.Fatal("expected error for unknown key")
 	}
 }
-
-// --- setSettingsValue ---
 
 func TestSetSettingsValue_SyncType(t *testing.T) {
 	// Switch from cloud to none — should reset fields.
@@ -291,18 +286,9 @@ func TestSetSettingsValue_UnknownKey(t *testing.T) {
 	}
 }
 
-// --- runConfig CLI flow tests ---
-
 func TestRunConfig_NoArgs_PrintsSync(t *testing.T) {
 	dir := setupConfigTest(t, config.NewNoneSettings())
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Chdir(dir)
 
 	var execErr error
 	out := captureStdout(t, func() {
@@ -320,18 +306,11 @@ func TestRunConfig_NoArgs_PrintsSync(t *testing.T) {
 
 func TestRunConfig_GetProjectID_ComingSoon(t *testing.T) {
 	dir := setupConfigTest(t, config.NewNoneSettings())
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Chdir(dir)
 
 	cmd := newConfigCmd()
 	cmd.SetArgs([]string{"get", "project_id"})
-	err = cmd.Execute()
+	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error for coming soon guard")
 	}
@@ -342,18 +321,11 @@ func TestRunConfig_GetProjectID_ComingSoon(t *testing.T) {
 
 func TestRunConfig_SetSync_ComingSoon(t *testing.T) {
 	dir := setupConfigTest(t, config.NewNoneSettings())
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { os.Chdir(origDir) })
+	t.Chdir(dir)
 
 	cmd := newConfigCmd()
 	cmd.SetArgs([]string{"set", "sync", "cloud"})
-	err = cmd.Execute()
+	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error for coming soon guard")
 	}
@@ -361,8 +333,6 @@ func TestRunConfig_SetSync_ComingSoon(t *testing.T) {
 		t.Errorf("error = %q, want it to contain %q", err.Error(), "not available yet")
 	}
 }
-
-// --- Integration: set + save + load ---
 
 func TestConfigSetAndLoad(t *testing.T) {
 	dir := setupConfigTest(t, config.NewCloudSettings())
@@ -424,18 +394,7 @@ func TestConfigSetArchcoreURL_SwitchesAndPersists(t *testing.T) {
 // TestRunConfig_UsageErrors pins the usage and unknown-subcommand branches.
 func TestRunConfig_UsageErrors(t *testing.T) {
 	dir := setupConfigTest(t, config.NewNoneSettings())
-	origDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.Chdir(origDir); err != nil {
-			t.Error(err)
-		}
-	})
+	t.Chdir(dir)
 
 	tests := []struct {
 		name    string

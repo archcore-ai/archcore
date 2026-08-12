@@ -1,0 +1,80 @@
+version: "2"
+
+# The analyzers named in strict-go-naming-conventions.rule §Enforcement. That
+# rule is long and detailed, and until this file existed none of it ran: CI
+# checked gofmt, vet and tests only, so every naming clause was held up by
+# review alone.
+#
+# Scope note: the rule names `stylecheck` as a separate analyzer. That was true
+# of golangci-lint v1; v2 merged it into `staticcheck`, and the ST* checks are
+# selected below instead.
+linters:
+  enable:
+    - errcheck
+    - errname
+    - exhaustive
+    - revive
+    - staticcheck
+    - unconvert
+
+  settings:
+    staticcheck:
+      # ST1003 is the acronym clause (§B). "all" also brings the SA bug checks
+      # and the QF quickfixes, which cost nothing to keep on.
+      checks:
+        - all
+        # ST1000 wants a comment on every package. revive's package-comments
+        # below covers the same ground and reports it once, so keeping both
+        # would double every finding.
+        - -ST1000
+        # QF1001 rewrites `!(a && b && c)` through De Morgan's law. In an
+        # ordering assertion the negated conjunction IS the sentence — "the
+        # expected order does not hold" — and the expanded disjunction has to be
+        # re-derived by the reader. A quickfix suggestion, not a defect.
+        - -QF1001
+
+    revive:
+      rules:
+        - name: var-naming
+        - name: package-comments
+        - name: error-strings
+        - name: error-return
+        - name: error-naming
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: errorf
+
+    exhaustive:
+      # A switch that ends in default has stated what it does with the rest.
+      default-signifies-exhaustive: true
+
+    errcheck:
+      exclude-functions:
+        # Writing to the terminal. The error has nowhere to report itself: the
+        # channel that would carry the complaint is the one that just failed.
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+
+  exclusions:
+    generated: lax
+    rules:
+      # A test asserting on a failure path routinely ignores the error it just
+      # provoked, and t.Fatal on every teardown call buys nothing.
+      - path: _test\.go
+        linters:
+          - errcheck
+      # The package doc belongs on a source file; revive otherwise picks
+      # whichever file it reaches first, test files included.
+      - path: _test\.go
+        text: "package-comments"
+        linters:
+          - revive
+
+formatters:
+  enable:
+    - gofmt

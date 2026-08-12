@@ -286,11 +286,11 @@ func writeFileAtomic(path string, data []byte) error {
 	}()
 
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return fmt.Errorf("writing %s: %w", target, err)
 	}
 	if err := tmp.Chmod(perm); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return fmt.Errorf("setting permissions on %s: %w", target, err)
 	}
 	if err := tmp.Close(); err != nil {

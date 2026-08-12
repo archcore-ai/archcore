@@ -1,3 +1,6 @@
+// Package templates owns the document model's vocabulary: the type constants,
+// their virtual categories, the body template each type is created from, and the
+// section contract the post-write precision check measures against.
 package templates
 
 // Precision canon.

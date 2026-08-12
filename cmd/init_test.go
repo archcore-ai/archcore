@@ -311,6 +311,7 @@ func TestInit_DetectsMultipleAgents(t *testing.T) {
 	// Now detect and install for detected agents.
 	detected := agents.Detect(base)
 	for _, agent := range detected {
+		//exhaustive:ignore // Only the agents whose config this test seeds are named.
 		switch agent.ID {
 		case agents.Cursor:
 			wiring.InstallCursorHooks(base)

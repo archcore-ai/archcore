@@ -61,8 +61,14 @@ func newInstructionsInstallCmd() *cobra.Command {
 	return cmd
 }
 
+// newInstructionsRemoveCmd resolves its root exactly as install does. The two
+// are one command to the user, and an uninstall that reads a different project
+// than the install did strips a hint from a repository nobody named.
 func newInstructionsRemoveCmd() *cobra.Command {
-	var agentFlag string
+	var (
+		agentFlag   string
+		projectFlag string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "remove",
@@ -77,7 +83,7 @@ func newInstructionsRemoveCmd() *cobra.Command {
 		// and strips the hint from EVERY target instead of the one named.
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cwd, err := os.Getwd()
+			cwd, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
 			if err != nil {
 				return err
 			}
@@ -93,6 +99,8 @@ func newInstructionsRemoveCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&agentFlag, "agent", "", "remove for a specific agent (e.g. cursor, gemini-cli)")
+	cmd.Flags().StringVar(&projectFlag, "project", "",
+		"project root to clean (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
 	return cmd
 }
 
@@ -134,6 +142,7 @@ func runInstructionsRemoveForAgent(baseDir string, id agents.AgentID) error {
 }
 
 func printInstructionsAgentSelectionStatus(sel agentSelection) {
+	//exhaustive:ignore // outcomePicked is the success path and prints nothing — this switch reports only the ways selection ended without one.
 	switch sel.outcome {
 	case outcomeAborted:
 		fmt.Println(display.Dim.Render(

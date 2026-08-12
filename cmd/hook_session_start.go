@@ -29,7 +29,7 @@ const sessionStampWindow = 10 * time.Minute
 // session touching two projects within the window must get both contexts. An
 // empty key or stampDir fails open (always emit); a suppressed repeat reports
 // emitted=false, which the caller turns into silence rather than an error.
-func handleSessionStartDeduped(ctx context.Context, baseDir, version, key, stampDir string) (context_ string, banner string, emitted bool) {
+func handleSessionStartDeduped(ctx context.Context, baseDir, version, key, stampDir string) (sessionContext, banner string, emitted bool) {
 	if key != "" && stampDir != "" {
 		key += "\x00" + baseDir
 		if !stamp.Claim(stampDir, key, sessionStampWindow) {

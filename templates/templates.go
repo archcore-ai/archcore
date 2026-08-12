@@ -1,9 +1,9 @@
 package templates
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -242,7 +242,7 @@ func WalkArchcoreFiles(archcoreDir string, fn func(path string, d fs.DirEntry) e
 func WalkArchcoreFilesSkipping(archcoreDir string, skipDirs []string, fn func(path string, d fs.DirEntry) error) error {
 	return filepath.WalkDir(archcoreDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			if os.IsNotExist(err) {
+			if errors.Is(err, fs.ErrNotExist) {
 				return nil
 			}
 			return err

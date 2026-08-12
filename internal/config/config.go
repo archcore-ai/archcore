@@ -10,7 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"archcore-cli/internal/jsonfile"
@@ -441,7 +441,7 @@ func (s *Settings) UnknownFieldNames() []string {
 	for k := range s.Extra {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

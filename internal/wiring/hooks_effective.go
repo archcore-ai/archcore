@@ -21,6 +21,7 @@ import (
 // reports the plugin overlap separately (DescribePluginConflict) rather than
 // repeating it per agent.
 func DescribeEffectiveHooks(baseDir string, id agents.AgentID) []string {
+	//exhaustive:ignore // Only hosts with a documented limitation have a note; the rest return nil, which is the default arm.
 	switch id {
 	case agents.CodexCLI:
 		return codexHookNotes()

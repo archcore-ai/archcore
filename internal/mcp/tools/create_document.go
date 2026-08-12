@@ -198,7 +198,7 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
 		if _, err := f.WriteString(fileContent); err != nil {
-			f.Close()
+			_ = f.Close()
 			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
 		if err := f.Close(); err != nil {

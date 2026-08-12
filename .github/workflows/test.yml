@@ -46,6 +46,14 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      # The analyzers strict-go-naming-conventions.rule §Enforcement names.
+      # Until this step existed the rule was held up by review alone, so its
+      # detailed naming clauses were unenforced in CI despite saying otherwise.
+      - name: Lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+
       - name: Test
         run: go test ./...
 

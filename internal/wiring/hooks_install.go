@@ -227,6 +227,7 @@ func installHookEvents(spec hookInstallSpec) error {
 		current := false
 		var staleIdx []int
 		for i, e := range entries {
+			//exhaustive:ignore // A foreign entry is left untouched, which is what handling no case does.
 			switch spec.Probe(e, want, ev) {
 			case entryCurrent:
 				current = true
