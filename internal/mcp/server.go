@@ -1,3 +1,11 @@
+// Package mcp serves the Archcore document tools over the Model Context
+// Protocol on stdio. It shields the protocol channel: anything a dependency
+// writes to the real stdout would corrupt a JSON-RPC frame, so the descriptor
+// is redirected before the server starts.
+//
+// The comment lives here rather than beside one of the dup2 implementations
+// because server.go is the only file in the package without a build tag, so it
+// is the only place the doc survives on every GOOS.
 package mcp
 
 import (
