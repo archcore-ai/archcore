@@ -104,3 +104,11 @@ Terminology & Consistency and Misc / Placeholders apply to all families: the
 repository writing policy and `skills/_shared/precision-rules.md` bind every
 document type to stable terminology, `[assumption]` markers, and the
 forbidden vagueness lexicon.
+
+## One category, different destinations
+
+A category names what to scan for, not where the answer is written. WHEN a track
+produces more than one document on one topic, the content-kind ownership table
+in `skills/_shared/prd-contract.md` names the section each category lands in per
+type, and a category marked `Covered` for one document stays open for a document
+of another type on the same topic.

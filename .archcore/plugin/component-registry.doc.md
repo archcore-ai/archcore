@@ -54,12 +54,13 @@ Plain-markdown assets loaded at runtime before a skill composes a document. They
 | --- | --- | --- | --- |
 | `precision-rules.md` | `skills/_shared/precision-rules.md` | `document`, `plan`, `init`, `review` | Forbidden vagueness lexicon, imperative phrasing, no-cross-document-section rule, `[assumption]` marker conventions |
 | `adr-contract.md` | `skills/_shared/adr-contract.md` | `document` (ADR) | Mandatory sections plus good and bad examples for ADR content, per MADR 4.0 |
+| `prd-contract.md` | `skills/_shared/prd-contract.md` | `plan` (`sdd.require`) | Mandatory sections, the outcome-shaped requirement form, the scope rule and its compression path, and the content-kind ownership table that assigns each statement on a topic to one document, per `prd-spec-plan-content-ownership.adr` |
 | `spec-contract.md` | `skills/_shared/spec-contract.md` | `document` (spec), `init` (hotspot specs) | Mandatory sections and the "when NOT to write a spec" gate |
 | `rule-contract.md` | `skills/_shared/rule-contract.md` | `document` (rule), `init` (cross-cutting rules) | Mandatory rule body: RFC 2119 statement, applies-to scope, rationale, Good/Bad examples, enforcement |
 | `elicitation-contract.md` | `skills/_shared/elicitation-contract.md` | all four commands | Bounded user interview — batching, per-gate budgets, the 5-question auto-mode ceiling, escape hatch |
 | `gate-contract.md` | `skills/_shared/gate-contract.md` | track files | Gate record template with the fixed six-field order |
 | `branch-state.md` | `skills/_shared/branch-state.md` | `plan`, `review` | Plain-git branch boundary: merge-base against the default branch, changed-file listing, sentinels for no-branch / detached HEAD / on-default |
-| `coverage-taxonomy.md` | `skills/_shared/coverage-taxonomy.md` | `plan` tracks | Per-family coverage categories mapped to vision/knowledge/experience |
+| `coverage-taxonomy.md` | `skills/_shared/coverage-taxonomy.md` | `plan` tracks | Per-family coverage categories mapped to vision/knowledge/experience, and the per-type destinations of `Completion Signals` |
 | `globals.md` | `skills/_shared/globals.md` | all four commands, on global-source results only | Local/global reading convention — never modify or relate to a mounted global document |
 | `grounding/*.md` (13) | `skills/_shared/grounding/` | `init` primarily; other commands on demand | Detect/extract catalogs (stack, scale, modules, hotspots, data model, integrations, config, entry points, surface, domains, cross-cutting, routing imports, run instructions) |
 

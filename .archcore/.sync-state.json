@@ -3621,6 +3621,26 @@
       "source": "plugin/document-status-transitions.adr.md",
       "target": "plugin/track-layer.spec.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/prd-spec-plan-content-ownership.adr.md",
+      "target": "plugin/no-frd-type-prd-scope-rule.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/prd-spec-plan-content-ownership.adr.md",
+      "target": "plugin/spec-single-narrative-ears-bcp14.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/prd-spec-plan-content-ownership.adr.md",
+      "target": "plugin/track-layer.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/prd-spec-plan-content-ownership.adr.md",
+      "target": "plugin/get-type-schema-mcp-tool.idea.md",
+      "type": "related"
     }
   ]
 }

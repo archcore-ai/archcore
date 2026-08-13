@@ -4,7 +4,9 @@ Plugin runtime asset. Loaded by the `plan` skill (primary executor) when routing
 resolves to the `sdd` track. Gate execution, state block, and resume rules:
 `skills/_shared/gate-contract.md`. Interview mechanics and question ceilings:
 `skills/_shared/elicitation-contract.md`. Coverage categories:
-`skills/_shared/coverage-taxonomy.md`.
+`skills/_shared/coverage-taxonomy.md`. Per-type content contracts:
+`skills/_shared/prd-contract.md` (`prd`) and
+`skills/_shared/spec-contract.md` (`spec`).
 
 ## Track notes
 
@@ -26,6 +28,10 @@ resolves to the `sdd` track. Gate execution, state block, and resume rules:
 - The `task-type` offer that followed the plan in the source feature flow
   belongs to the experience track (`skills/_shared/tracks/experience.md`),
   not to `sdd`.
+- This track produces four documents on one topic. The content-kind ownership
+  table in `skills/_shared/prd-contract.md` names the one document that owns
+  each kind of statement; the `sdd.require`, `sdd.design`, and `sdd.decompose`
+  exit checks apply it.
 - [assumption] Taxonomy knob values are mapped from each source step's
   composed sections; the source flows predate
   `skills/_shared/coverage-taxonomy.md`.
@@ -60,7 +66,10 @@ resolves to the `sdd` track. Gate execution, state block, and resume rules:
   a `prd` scoped to one unit of product decision — a whole product or a
   single feature; size never changes the type.
 - Entry conditions:
-  - skip_when: a `prd` covering the topic exists in `.archcore/`.
+  - skip_when: a `prd` covering the topic exists in `.archcore/`; or the
+    request is feature-scoped and an `idea`, `rnd`, or `adr` covering the
+    topic already records the problem and the goals — the compression path in
+    `skills/_shared/prd-contract.md`.
   - The concept and beneficiary are recorded — in an `idea` or `rnd`
     document, in a `urd` or `srs` covering the topic (recorded requirement
     sources), under `## Clarifications`, or in the request text.
@@ -78,20 +87,30 @@ resolves to the `sdd` track. Gate execution, state block, and resume rules:
     they exist. A product-level `prd` additionally links each feature-scoped
     `prd` it covers.
 - Exit checks:
-  - blocking: the prd draft contains the sections Vision, Problem Statement,
-    Goals and Success Metrics, and Requirements.
-  - advisory: a feature-scoped prd body is at most 40 lines.
+  - blocking: the prd draft contains every mandatory section defined in
+    `skills/_shared/prd-contract.md`.
+  - blocking: every numbered requirement in the prd draft follows the
+    requirement form in `skills/_shared/prd-contract.md`.
+  - blocking: no statement in the prd draft belongs to another document under
+    the content-kind ownership table in `skills/_shared/prd-contract.md`.
+  - advisory: a feature-scoped prd draft holds the body target the scope rule
+    in `skills/_shared/prd-contract.md` sets; a product-level prd carries no
+    line target.
 - Next: `sdd.design`.
 
 ### gate: sdd.design
 
 - Purpose: Formalize the behavior consumers rely on as a `spec` implementing
-  the `prd`.
+  the `prd`, and edit the `prd` statements this `spec` takes over — this gate
+  calls `update_document` on the `prd` as well as creating the `spec`, per
+  ownership rule 2 in `skills/_shared/prd-contract.md`.
 - Entry conditions:
   - skip_when: a `spec` covering the topic exists in `.archcore/`, or no
     consumer relies on the planned behavior as a contract, per the routing
     gate in `skills/_shared/spec-contract.md`.
-  - A `prd` on the topic exists.
+  - A `prd` on the topic exists, or `sdd.require` closed through the
+    compression path in `skills/_shared/prd-contract.md` and the `idea`,
+    `rnd`, or `adr` that closed it records the problem and the goals.
 - Elicitation knobs:
   - trigger: the dependents, the surface, the constraints and invariants, or
     the failure behaviors are not recorded.
@@ -102,10 +121,18 @@ resolves to the `sdd` track. Gate execution, state block, and resume rules:
 - Produces:
   - type: spec
   - status: draft
-  - relations: `implements` → the `prd` from `sdd.require`.
+  - relations: `implements` → the `prd` from `sdd.require`; `implements` →
+    the `idea`, `rnd`, or `adr` that closed `sdd.require`'s compression path
+    when no `prd` exists.
 - Exit checks:
   - blocking: the spec draft contains every mandatory section defined in
     `skills/_shared/spec-contract.md`.
+  - blocking: no line in the spec draft restates a prd requirement; the
+    content-kind ownership table in `skills/_shared/prd-contract.md` assigns
+    each statement to one document.
+  - blocking: WHEN this spec took over a prd statement, the executing skill
+    edited that statement in the prd per ownership rule 2 of
+    `skills/_shared/prd-contract.md`, in one `update_document` call.
 - Next: `sdd.decompose`. WHEN an answer at this gate settles a choice between
   technical alternatives, record it via the decision track
   (`skills/_shared/tracks/decision.md`).
@@ -118,7 +145,7 @@ resolves to the `sdd` track. Gate execution, state block, and resume rules:
   grounding — a matching `task-type`'s Steps seed the task breakdown.
 - Entry conditions:
   - skip_when: a `plan` covering the topic exists in `.archcore/`.
-  - A `prd` on the topic exists.
+  - A `prd` or a `spec` on the topic exists.
 - Elicitation knobs:
   - trigger: none — the executing skill MUST NOT ask questions at this gate.
   - taxonomy: none.
@@ -131,6 +158,10 @@ resolves to the `sdd` track. Gate execution, state block, and resume rules:
 - Exit checks:
   - blocking: the plan draft contains the sections Goal, Tasks (phased),
     Acceptance Criteria, and Dependencies.
+  - blocking: no plan task and no acceptance criterion restates a prd
+    requirement, a prd success metric, or a spec behavior line; the
+    content-kind ownership table in `skills/_shared/prd-contract.md` assigns
+    each statement to one document.
   - advisory: the closing report lists candidate `add_relation` targets among
     existing `adr`, `rule`, `spec`, and `plan` documents, or states that none
     match.
