@@ -34,6 +34,10 @@ var (
 	// do not inflect enough to need substring matching, and "variously" is not
 	// the defect "various" is.
 	enVaguenessRe = buildLexiconRe(templates.VaguenessLexiconEN)
+	// phraseVaguenessRe carries the same word boundaries. A raw substring match
+	// reported "why the change was needed" as the phrase "as needed", which is
+	// how the cpat template came back flagged for its own skeleton.
+	phraseVaguenessRe = buildLexiconRe(templates.VaguenessPhrases)
 	// crossDocRefRe finds links to other .archcore/ documents in the body.
 	crossDocRefRe = regexp.MustCompile(`\.archcore/[A-Za-z0-9_./-]+\.md`)
 	// numberedLineRe finds the numbered clauses of a spec's normative sections.
@@ -45,6 +49,9 @@ var (
 	notModalRe = regexp.MustCompile(`\b(MUST|SHOULD|SHALL|MAY) NOT\b`)
 	// shallRe finds the notation a graded spec must not use.
 	shallRe = regexp.MustCompile(`\bSHALL\b`)
+	// earsOpenerRe finds a numbered clause opening with an EARS trigger. A prd
+	// requirement states an outcome; the trigger/response form is spec notation.
+	earsOpenerRe = regexp.MustCompile(`^\s*[0-9]+\.\s*(WHEN|WHILE|IF)\b`)
 	// passiveRe finds an obligation with no obligated subject, in English
 	// ("MUST be rotated") and Russian ("MUST ротироваться").
 	//
@@ -104,6 +111,9 @@ func Precision(baseDir, tool, docPath string) string {
 	docType := templates.DocumentType(templates.ExtractDocType(filepath.Base(rel)))
 	fm, body, _ := templates.SplitDocument(data)
 	findings := PrecisionFindings(docType, fm, body)
+	// Kept out of PrecisionFindings: that function judges one document from its
+	// own text, and this one needs the relation graph and the store.
+	findings = append(findings, Restatement(baseDir, rel, body)...)
 	if len(findings) == 0 {
 		return ""
 	}
@@ -122,7 +132,7 @@ func PrecisionFindings(docType templates.DocumentType, fm templates.Frontmatter,
 	var out []string
 	lines := strings.Split(body, "\n")
 
-	if hits := findVaguenessHits(body); len(hits) > 0 {
+	if hits := findVaguenessHits(lines); len(hits) > 0 {
 		out = append(out, fmt.Sprintf("vague wording (%s) — replace with a concrete fact, version, threshold, or measurement",
 			strings.Join(hits, ", ")))
 	}
@@ -130,6 +140,13 @@ func PrecisionFindings(docType templates.DocumentType, fm templates.Frontmatter,
 	for _, section := range templates.RequiredSections[docType] {
 		if !hasSection(lines, section) {
 			out = append(out, fmt.Sprintf("missing section: ## %s", section.Name))
+		}
+	}
+
+	for _, foreign := range templates.ForeignSections[docType] {
+		if hasSection(lines, foreign.Section) {
+			out = append(out, fmt.Sprintf("section ## %s in a %s — a %s owns that content; link the two documents instead",
+				foreign.Section.Name, docType, foreign.Owner))
 		}
 	}
 
@@ -157,10 +174,63 @@ func PrecisionFindings(docType templates.DocumentType, fm templates.Frontmatter,
 			templates.MaxCodeBlockLines, docType))
 	}
 
-	if docType == templates.TypeSpec {
+	//exhaustive:ignore // Only spec and prd own a notation contract; every other
+	// type is judged by the shared checks above.
+	switch docType {
+	case templates.TypeSpec:
 		out = append(out, specFindings(body, lines)...)
+	case templates.TypePRD:
+		out = append(out, prdFindings(lines)...)
 	}
 	return out
+}
+
+// prdFindings are the checks that keep a prd on its own side of the boundary:
+// it states an outcome, and the graded behavior that satisfies the outcome
+// belongs to a linked spec. Both checks are the mechanical half of the
+// content-kind ownership table; whether one document paraphrases another is
+// not decidable here.
+func prdFindings(lines []string) []string {
+	var out []string
+
+	// Numbered clauses only, the same gate specFindings uses: a modal is a
+	// defect where the document grades a requirement, not where it names one in
+	// prose. The prd template itself lists "MUST / SHOULD / MAY" in the prose
+	// that tells the author to keep them out, and scanning the whole body
+	// reported that instruction as the defect on every freshly created prd.
+	var modals []string
+	for _, line := range lines {
+		if numberedLineRe.MatchString(line) {
+			modals = append(modals, modalRe.FindAllString(line, -1)...)
+		}
+	}
+	if len(modals) > 0 {
+		out = append(out, fmt.Sprintf("BCP 14 modal in a prd (%s) — a prd states the wanted outcome; record the graded behavior in a linked spec",
+			strings.Join(distinctCapped(modals, maxPrecisionHits), ", ")))
+	}
+
+	for _, line := range lines {
+		if earsOpenerRe.MatchString(line) {
+			out = append(out, fmt.Sprintf("EARS clause in a prd requirement (%q) — a prd requirement states an outcome, not a trigger and a response; that form belongs in a spec",
+				quote(strings.TrimSpace(line))))
+			break
+		}
+	}
+
+	return out
+}
+
+// distinctCapped keeps the first n distinct entries in sorted order, so the
+// reported set does not depend on where the offenders appear.
+//
+// Sorting before the cap, not after: capping in encounter order makes the
+// reported set a function of where the offenders sit, so reformatting a
+// document silently changes which ones it names.
+func distinctCapped(in []string, n int) []string {
+	out := slices.Clone(in)
+	slices.Sort(out)
+	out = slices.Compact(out)
+	return out[:min(len(out), n)]
 }
 
 // specFindings are the checks that apply only to a normative contract.
@@ -218,50 +288,45 @@ func findPassiveHits(lines []string) []string {
 	return out
 }
 
-// findVaguenessHits collects the distinct offenders, then keeps the first
-// maxPrecisionHits in sorted order.
+// findVaguenessHits collects the offenders from all three lexicons, lowercased
+// so the matches collapse with the canon's own spelling.
 //
-// Sorting before the cap, not after: capping in encounter order makes the
-// reported set a function of where the words appear, so reformatting a document
-// silently changes which offenders it names.
-func findVaguenessHits(body string) []string {
-	var hits []string
-	add := func(s string) {
-		s = strings.ToLower(s)
-		if !slices.Contains(hits, s) {
-			hits = append(hits, s)
+// Headings are excluded. The lexicon exists to catch a claim that hides a fact,
+// and a heading is a label, not a claim: the doc template owes its reader a
+// "## Best Practices" section, which is not the defect "we follow best
+// practices" is.
+func findVaguenessHits(lines []string) []string {
+	var prose strings.Builder
+	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimLeft(line, " \t"), "#") {
+			continue
 		}
+		prose.WriteString(line)
+		prose.WriteByte('\n')
 	}
+	body := prose.String()
 
+	var hits []string
 	for _, m := range enVaguenessRe.FindAllString(body, -1) {
-		add(m)
+		hits = append(hits, strings.ToLower(m))
 	}
+	for _, m := range phraseVaguenessRe.FindAllString(body, -1) {
+		hits = append(hits, strings.ToLower(m))
+	}
+	// Russian stays a substring match: the words inflect, and "неоптимальный"
+	// carries "оптимальн" and exactly as little falsifiable content.
 	lower := strings.ToLower(body)
 	for _, stem := range templates.VaguenessLexiconRU {
 		if strings.Contains(lower, stem) {
-			add(stem)
+			hits = append(hits, stem)
 		}
 	}
-	for _, phrase := range templates.VaguenessPhrases {
-		if strings.Contains(lower, phrase) {
-			add(phrase)
-		}
-	}
-	slices.Sort(hits)
-	return hits[:min(len(hits), maxPrecisionHits)]
+	return distinctCapped(hits, maxPrecisionHits)
 }
 
-// findCrossDocHits collects the distinct document references, then keeps the
-// first maxCrossDocHits in sorted order (see findVaguenessHits).
+// findCrossDocHits collects the document references the body links directly.
 func findCrossDocHits(body string) []string {
-	var hits []string
-	for _, m := range crossDocRefRe.FindAllString(body, -1) {
-		if !slices.Contains(hits, m) {
-			hits = append(hits, m)
-		}
-	}
-	slices.Sort(hits)
-	return hits[:min(len(hits), maxCrossDocHits)]
+	return distinctCapped(crossDocRefRe.FindAllString(body, -1), maxCrossDocHits)
 }
 
 // hasSection reports whether the body carries a level-2 heading matching the

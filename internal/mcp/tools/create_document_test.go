@@ -268,7 +268,7 @@ func TestHandleCreateDocument_AllTypes(t *testing.T) {
 		{"spec", "knowledge", "## Normative Behavior"},
 		{"task-type", "experience", "## When to Use"},
 		{"cpat", "experience", "## What Changed"},
-		{"prd", "vision", "### Product Vision Statement"},
+		{"prd", "vision", "## Goals and Success Metrics"},
 		{"idea", "vision", "### Problem / Opportunity"},
 		{"plan", "vision", "## Tasks"},
 		{"rnd", "vision", "## Recommendation"},

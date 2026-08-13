@@ -105,6 +105,40 @@ func TestPrecisionFindings(t *testing.T) {
 			wantHit: "prefer an @path/to/file reference",
 		},
 		{
+			name: "clean PRD produces no findings", docType: templates.TypePRD,
+			fm:   templates.Frontmatter{Title: "T", Status: templates.StatusDraft},
+			body: "## Vision\n" + longBody + "\n## Problem Statement\np\n## Goals and Success Metrics\ng\n## Requirements\n1. The user starts an export and keeps working.\n",
+		},
+		{
+			name: "BCP 14 modal in a PRD", docType: templates.TypePRD,
+			fm:      templates.Frontmatter{Title: "T", Status: templates.StatusDraft},
+			body:    "## Vision\n" + longBody + "\n## Problem Statement\np\n## Goals and Success Metrics\ng\n## Requirements\n1. The service MUST return a job ID within 200 ms.\n",
+			wantHit: "BCP 14 modal in a prd",
+		},
+		{
+			name: "EARS clause in a PRD requirement", docType: templates.TypePRD,
+			fm:      templates.Frontmatter{Title: "T", Status: templates.StatusDraft},
+			body:    "## Vision\n" + longBody + "\n## Problem Statement\np\n## Goals and Success Metrics\ng\n## Requirements\n1. WHEN the user requests an export, the job starts.\n",
+			wantHit: "EARS clause in a prd requirement",
+		},
+		{
+			name: "PRD carrying a section a plan owns", docType: templates.TypePRD,
+			fm:      templates.Frontmatter{Title: "T", Status: templates.StatusDraft},
+			body:    "## Vision\n" + longBody + "\n## Problem Statement\np\n## Goals and Success Metrics\ng\n## Requirements\nr\n## Timeline\nPhase 1\n",
+			wantHit: "section ## Timeline in a prd",
+		},
+		{
+			name: "PRD carrying a section a spec owns", docType: templates.TypePRD,
+			fm:      templates.Frontmatter{Title: "T", Status: templates.StatusDraft},
+			body:    "## Vision\n" + longBody + "\n## Problem Statement\np\n## Goals and Success Metrics\ng\n## Requirements\nr\n## Normative Behavior\n1. x\n",
+			wantHit: "section ## Normative Behavior in a prd",
+		},
+		{
+			name: "a spec keeps its own notation", docType: templates.TypeSpec,
+			fm:   templates.Frontmatter{Title: "T", Status: templates.StatusDraft},
+			body: "## Purpose & Scope\n" + longBody + "\n## Surface\ns\n## Normative Behavior\n1. WHEN the user acts, the service MUST respond.\n## Conformance\nc\n",
+		},
+		{
 			name: "long code block in a rule does not trigger", docType: templates.TypeRule,
 			fm:   templates.Frontmatter{Title: "T", Status: templates.StatusDraft},
 			body: "## Rule\n" + longBody + "\n```go\na\nb\nc\nd\ne\n```\n## Rationale\nr\n## Enforcement\ne\n",
@@ -128,6 +162,40 @@ func TestPrecisionFindings(t *testing.T) {
 			}
 			if !strings.Contains(joined, tt.wantHit) {
 				t.Errorf("findings missing %q, got: %s", tt.wantHit, joined)
+			}
+		})
+	}
+}
+
+// TestPrecisionFindings_GeneratedTemplatesAreClean pins the invariant the prd
+// template broke: the skeleton create_document hands an author must not come
+// back from the post-write hook with findings against its own text.
+//
+// The prd template lists "MUST / SHOULD / MAY" in the prose that tells the
+// author to keep those modals in a linked spec, and the modal check read the
+// whole body — so every freshly created prd was reported for the instruction it
+// had just been given. The check now reads numbered clauses only, and this test
+// fails if any template drifts back across its own rule.
+func TestPrecisionFindings_GeneratedTemplatesAreClean(t *testing.T) {
+	t.Parallel()
+	fm := templates.Frontmatter{Title: "T", Status: templates.StatusDraft}
+
+	for _, typ := range templates.ValidTypes() {
+		t.Run(typ, func(t *testing.T) {
+			t.Parallel()
+			docType := templates.DocumentType(typ)
+
+			var findings []string
+			for _, f := range PrecisionFindings(docType, fm, templates.GenerateTemplate(docType)) {
+				// A skeleton is a placeholder by definition, so the body-length
+				// floor is the one finding a template may trip.
+				if strings.Contains(f, "likely a placeholder") {
+					continue
+				}
+				findings = append(findings, f)
+			}
+			if len(findings) > 0 {
+				t.Errorf("generated %s template produces findings:\n  %s", typ, strings.Join(findings, "\n  "))
 			}
 		})
 	}

@@ -56,7 +56,7 @@ func TestGenerateTemplate(t *testing.T) {
 		{
 			name:         "PRD template",
 			documentType: TypePRD,
-			wantContains: []string{"## Vision", "## Problem Statement", "## Goals and Success Metrics", "## Requirements", "## Constraints", "## Timeline"},
+			wantContains: []string{"## Vision", "## Problem Statement", "## Goals and Success Metrics", "## Requirements"},
 		},
 		{
 			name:         "Idea template",
@@ -400,19 +400,9 @@ func TestGeneratePRDTemplate(t *testing.T) {
 
 	requiredSections := []string{
 		"## Vision",
-		"### Product Vision Statement",
 		"## Problem Statement",
-		"### Target Users",
-		"### User Stories",
 		"## Goals and Success Metrics",
 		"## Requirements",
-		"### Functional Requirements",
-		"### Non-Functional Requirements",
-		"## Constraints",
-		"## Solution Overview",
-		"## Risks and Mitigations",
-		"## Timeline",
-		"## Open Questions",
 	}
 
 	for _, section := range requiredSections {
@@ -421,12 +411,39 @@ func TestGeneratePRDTemplate(t *testing.T) {
 		}
 	}
 
-	if !strings.Contains(template, "|") {
-		t.Error("PRD template should include tables")
+	// The four sections above are the whole canon. A heading beyond them
+	// invites content another type owns, which is how a prd and its spec end
+	// up restating each other.
+	//
+	// Counted line by line rather than by substring: the template names
+	// optional sections inline as `## Out of Scope`, and a substring count
+	// would take those for headings.
+	headings := 0
+	for line := range strings.SplitSeq(template, "\n") {
+		if strings.HasPrefix(line, "## ") {
+			headings++
+		}
+	}
+	if headings != len(requiredSections) {
+		t.Errorf("PRD template top-level headings = %d, want %d", headings, len(requiredSections))
 	}
 
-	if !strings.Contains(template, "P0") {
-		t.Error("PRD template should include priority levels")
+	// Sections owned by spec, plan, and adr must not reappear as prd headings.
+	for _, foreign := range []string{
+		"## Solution Overview",
+		"## Timeline",
+		"## Constraints",
+		"## Risks and Mitigations",
+		"### Functional Requirements",
+		"### Non-Functional Requirements",
+	} {
+		if strings.Contains(template, foreign) {
+			t.Errorf("PRD template carries a section owned by another type: %q", foreign)
+		}
+	}
+
+	if !strings.Contains(template, "|") {
+		t.Error("PRD template should include the success-metrics table")
 	}
 }
 
@@ -444,7 +461,7 @@ func TestTemplateStructure(t *testing.T) {
 		{TypeSpec, 1900},
 		{TypeTaskType, 252},
 		{TypeCPAT, 198},
-		{TypePRD, 1925},
+		{TypePRD, 1700},
 		{TypeIdea, 175},
 		{TypePlan, 175},
 		{TypeRnD, 1300},
@@ -538,8 +555,11 @@ func TestPRDTemplate_Tables(t *testing.T) {
 
 	tableCount := strings.Count(template, "|")
 
-	if tableCount < 50 {
-		t.Errorf("PRD table elements = %d, should have at least 50", tableCount)
+	// One table: the Goal / Metric / Today / Target grid under Goals and
+	// Success Metrics. The old template carried six, and five of them held
+	// spec, plan, and adr content.
+	if tableCount < 15 {
+		t.Errorf("PRD table elements = %d, should have at least 15", tableCount)
 	}
 }
 

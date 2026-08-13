@@ -74,6 +74,49 @@ var RequiredSections = map[DocumentType][]SectionRule{
 		{Name: "Motivation"},
 		{Name: "Detailed Design"},
 	},
+	// Prefix matching keeps the canonical headings ("Problem Statement",
+	// "Goals and Success Metrics") and their shorter spellings both valid,
+	// the same way "Purpose" admits a spec's "Purpose & Scope".
+	TypePRD: {
+		{Name: "Vision"},
+		{Name: "Problem"},
+		{Name: "Goals"},
+		{Name: "Requirements"},
+	},
+}
+
+// ForeignSection is a heading whose content another document type owns. Owner
+// names that type, so a finding can say where the content belongs.
+type ForeignSection struct {
+	Section SectionRule
+	Owner   DocumentType
+}
+
+// ForeignSections lists, per type, the headings that carry another type's
+// content. The assignment is the content-kind ownership table recorded in
+// prd-spec-plan-content-ownership.adr and carried by the plugin's
+// skills/_shared/prd-contract.md. A type absent from this map admits any
+// heading.
+//
+// Only unambiguous headings are listed. A prd names a business constraint
+// inside its Problem Statement without owing the reader a Constraints section,
+// so "Constraints" is deliberately absent: the finding must mean the content
+// moved, never that the author phrased a paragraph differently.
+var ForeignSections = map[DocumentType][]ForeignSection{
+	TypePRD: {
+		{Section: SectionRule{Name: "Surface"}, Owner: TypeSpec},
+		{Section: SectionRule{Name: "Normative Behavior"}, Owner: TypeSpec},
+		{Section: SectionRule{Name: "Failure Behavior"}, Owner: TypeSpec},
+		{Section: SectionRule{Name: "Conformance"}, Owner: TypeSpec},
+		{Section: SectionRule{Name: "Solution Overview"}, Owner: TypeSpec},
+		{Section: SectionRule{Name: "Technical Considerations"}, Owner: TypeSpec},
+		{Section: SectionRule{Name: "Tasks"}, Owner: TypePlan},
+		{Section: SectionRule{Name: "Timeline"}, Owner: TypePlan},
+		{Section: SectionRule{Name: "Milestones"}, Owner: TypePlan},
+		{Section: SectionRule{Name: "Phases"}, Owner: TypePlan},
+		{Section: SectionRule{Name: "Acceptance Criteria"}, Owner: TypePlan},
+		{Section: SectionRule{Name: "Alternatives Considered", Aliases: []string{"Alternatives"}}, Owner: TypeADR},
+	},
 }
 
 // ArchitectVoiceTypes are the types that argue rather than instruct. A long code

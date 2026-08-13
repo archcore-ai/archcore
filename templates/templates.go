@@ -837,188 +837,50 @@ Affected files and modules:
 func generatePRDTemplate() string {
 	return `## Vision
 
-### Product Vision Statement
-
-One-sentence vision of what this product/feature will achieve.
-
-### Strategic Alignment
-
-How this aligns with company/team goals:
-
-- Strategic goal 1: How this product supports it
-- Strategic goal 2: How this product supports it
+One to three sentences: the product or feature, and the result it produces.
 
 ## Problem Statement
 
-### Current State
+The situation today, what it costs, and who carries that cost. Name the
+beneficiary — a role, a team, or a segment, not "users" in general.
 
-Describe the current situation and its limitations:
-
-- Pain point 1: Description and impact
-- Pain point 2: Description and impact
-- Pain point 3: Description and impact
-
-### Target Users
-
-| User Segment | Description | Key Needs |
-|--------------|-------------|-----------|
-| Segment 1 | Description | Needs |
-| Segment 2 | Description | Needs |
-
-### User Stories
-
-As a [user type], I want [goal] so that [benefit].
-
-- User story 1
-- User story 2
-- User story 3
+- [What happens today]: [its cost, with a number, or marked [assumption]]
+- [What happens today]: [its cost, with a number, or marked [assumption]]
 
 ## Goals and Success Metrics
 
-### Goals
+Each metric carries units and a value; where no measurement exists yet, mark
+the figure [assumption].
 
-| Goal | Description | Priority |
-|------|-------------|----------|
-| Goal 1 | Description | P0/P1/P2 |
-| Goal 2 | Description | P0/P1/P2 |
-| Goal 3 | Description | P0/P1/P2 |
-
-### Success Metrics
-
-| Metric | Current | Target | Timeline |
-|--------|---------|--------|----------|
-| Metric 1 | Value | Value | Date |
-| Metric 2 | Value | Value | Date |
-
-### Non-Goals
-
-Explicitly out of scope for this version:
-
-- Non-goal 1: Reason
-- Non-goal 2: Reason
+| Goal | Metric | Today | Target |
+|------|--------|-------|--------|
+| [outcome] | [what is measured, with units] | [value] | [value] |
+| [outcome] | [what is measured, with units] | [value] | [value] |
 
 ## Requirements
 
-### Functional Requirements
+Numbered outcomes this product owes: what it must achieve, for whom, at what
+threshold. One outcome per line. State the result, not the mechanism.
 
-#### P0 (Must Have)
+1. [Who] [reaches what result].
+2. [Who] [reaches what result].
+3. [Who] [reaches what result].
 
-| ID | Requirement | Acceptance Criteria |
-|----|-------------|---------------------|
-| FR-001 | Description | Criteria |
-| FR-002 | Description | Criteria |
-| FR-003 | Description | Criteria |
+Keep out of a prd — each belongs to a linked document:
 
-#### P1 (Should Have)
+- EARS clauses and BCP 14 modals (MUST / SHOULD / MAY) -> spec, Normative Behavior
+- Interfaces, signatures, states, field-driven rules -> spec, Surface
+- Error, edge, and degradation handling -> spec, Failure Behavior
+- Phases, tasks, milestones, delivery dates -> plan, Tasks
+- Rejected alternatives and why -> adr, Alternatives Considered
 
-| ID | Requirement | Acceptance Criteria |
-|----|-------------|---------------------|
-| FR-101 | Description | Criteria |
-| FR-102 | Description | Criteria |
+Optional sections, when they carry content: ` + "`## Out of Scope`" + `,
+` + "`## Dependencies`" + `, ` + "`## Clarifications`" + `.
 
-#### P2 (Nice to Have)
-
-| ID | Requirement | Acceptance Criteria |
-|----|-------------|---------------------|
-| FR-201 | Description | Criteria |
-
-### Non-Functional Requirements
-
-| Category | Requirement | Target |
-|----------|-------------|--------|
-| Performance | Description | Metric |
-| Scalability | Description | Metric |
-| Security | Description | Metric |
-| Reliability | Description | Metric |
-
-## Constraints
-
-### Technical Constraints
-
-- Constraint 1: Description and impact
-- Constraint 2: Description and impact
-
-### Business Constraints
-
-- Constraint 1: Description and impact
-- Constraint 2: Description and impact
-
-### Dependencies
-
-| Dependency | Type | Owner | Status |
-|------------|------|-------|--------|
-| Dependency 1 | Internal/External | Team | Status |
-| Dependency 2 | Internal/External | Team | Status |
-
-## Solution Overview
-
-### Proposed Approach
-
-High-level description of the proposed solution.
-
-### Key Components
-
-- Component 1: Purpose
-- Component 2: Purpose
-- Component 3: Purpose
-
-### User Experience
-
-Key UX considerations:
-
-- UX consideration 1
-- UX consideration 2
-
-### Technical Considerations
-
-Key technical considerations (defer details to RFC/design doc):
-
-- Consideration 1
-- Consideration 2
-
-## Risks and Mitigations
-
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Risk 1 | High/Med/Low | High/Med/Low | Strategy |
-| Risk 2 | High/Med/Low | High/Med/Low | Strategy |
-
-## Timeline
-
-### Milestones
-
-| Milestone | Target Date | Description |
-|-----------|-------------|-------------|
-| Milestone 1 | Date | Description |
-| Milestone 2 | Date | Description |
-| Milestone 3 | Date | Description |
-
-### Phases
-
-- Phase 1: Scope and timeline
-- Phase 2: Scope and timeline
-- Phase 3: Scope and timeline
-
-## Open Questions
-
-| Question | Context | Decision Owner | Due Date |
-|----------|---------|----------------|----------|
-| Question 1 | Context | Owner | Date |
-| Question 2 | Context | Owner | Date |
-
-## Appendix
-
-### Glossary
-
-| Term | Definition |
-|------|------------|
-| Term 1 | Definition |
-| Term 2 | Definition |
-
-### References
-
-- Reference 1: Link
-- Reference 2: Link
+Scope rule: one prd covers one unit of product decision — a whole product or a
+single feature. A feature-scoped prd uses these same four sections at a target
+of 40 lines or fewer. A product-level prd links each feature-scoped prd it
+covers through an ` + "`implements`" + ` relation.
 `
 }
 
