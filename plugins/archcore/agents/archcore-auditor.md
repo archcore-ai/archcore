@@ -46,6 +46,8 @@ You ONLY read and analyze. You never create, update, or delete documents. Your o
 
 # Audit Dimensions
 
+**Global sources.** If any inventory result carries `global: true` / `read_only: true` / `source_kind: "global"`, exclude those documents from every audit metric below — counts, orphan detection, relation checks, staleness, coverage gaps. A mounted global is another repository's content: it is read-only here, it never holds local relations, and its mtime is a clone-date artifact. You MAY add one summary line per mounted source (id and document count) to the report.
+
 ## 1. Coverage
 
 - Are key decisions documented (ADRs)?

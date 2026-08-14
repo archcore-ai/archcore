@@ -42,7 +42,7 @@ IF `.archcore/` does not exist, THEN announce initialization in one line and cal
 
 **Grounding.** Search all three categories — vision, knowledge, experience — with `mcp__archcore__search_documents` / `mcp__archcore__list_documents`; never exclude a category from reads. Pass a type filter matched to the review moment — `spec`, `rule`, `adr`, `doc`, `guide` for claims on changed code; `cpat`, `task-type` for precedent; `plan`, `prd`, `idea`, `rnd` for the closeout track's plan-and-implements-chain scope — instead of relying on the global type ranking. When a found document has `implements` or `related` relations, pull the linked documents one hop across categories.
 
-**Global sources (only when present).** If any `list_documents` / `search_documents` result carries `global: true` / `read_only: true` / `source_kind: "global"`, load `skills/_shared/globals.md`. Never modify a global document and never add a relation to one. Exclude global documents from every local-health metric — counts, orphan detection, drift; you MAY add one separate line naming the mounted source and its document count.
+**Global sources (only when present).** If any `list_documents` / `search_documents` result carries `global: true` / `read_only: true` / `source_kind: "global"`, load `skills/_shared/globals.md`. Also load it when a `search_documents` response's `coverage` names a source other than `"local"` — even when `results` is empty: the empty page is exactly where that file's retry ladder applies. Never modify a global document and never add a relation to one. Exclude global documents from every local-health metric — counts, orphan detection, drift; you MAY add one separate line naming the mounted source and its document count.
 
 ### Step 1: Branch scope
 
