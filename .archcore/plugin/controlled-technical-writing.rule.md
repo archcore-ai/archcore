@@ -9,9 +9,9 @@ tags:
 
 ## Rule
 
-The writing profile itself is the shared rule `concepts/controlled-technical-writing` in the mounted `archcore` global source. It carries the sentence contract for normative documents, the procedure obligations, the evidence obligations, and the precedence order. This rule states only what is specific to this repository.
+Two shared rules in the mounted `archcore` global source own the policy. `concepts/controlled-technical-writing` carries the profile — the sentence contract for normative documents, the procedure obligations, the evidence obligations, and the precedence order. `concepts/document-prose-canon` carries the per-type assignment of profile, line format, and metric. This rule states only what is specific to this repository.
 
-1. WHEN an agent creates or updates a Markdown file under `.archcore/**`, `plugins/archcore/skills/**`, `plugins/archcore/agents/**`, `plugins/archcore/copilot-agents/**`, `plugins/archcore/rules/**`, `docs/**`, or `README.md`, the agent MUST apply the shared writing profile. `@AGENTS.md` carries the profile text for hosts that read an instruction file directly rather than the document graph.
+1. WHEN an agent creates or updates a Markdown file under `.archcore/**`, `plugins/archcore/skills/**`, `plugins/archcore/agents/**`, `plugins/archcore/copilot-agents/**`, `plugins/archcore/rules/**`, `docs/**`, or `README.md`, the agent MUST apply the shared writing profile and the prose canon. `@AGENTS.md` carries the profile text for hosts that read an instruction file directly rather than the document graph.
 2. WHEN the shared profile's precedence order reaches the document-type contract level, the agent MUST resolve that level in this repository to the per-type contracts in `@plugins/archcore/skills/_shared/`, then to `@plugins/archcore/skills/_shared/precision-rules.md`.
 3. WHEN the shared profile requires a visible placeholder for information the repository does not support, the author MUST use one of `[ACTOR REQUIRED]`, `[CONDITION REQUIRED]`, `[METRIC REQUIRED]`, `[LIMIT REQUIRED]`, or `[EVIDENCE REQUIRED]`.
 4. The author MUST NOT restate in this file an obligation the shared profile already carries.
@@ -43,5 +43,5 @@ The shared profile already carries that obligation. Restating it here creates th
 ## Enforcement
 
 - The precision check runs inside the CLI binary since v0.7.0 (`cli-owns-layers-4-5.adr`). This repository ships no `check-precision` script; `@plugins/archcore/bin/post-tool-use` is host glue that delegates the raw payload to `archcore hooks <host> post-tool-use` and fails open below CLI 0.7.0.
-- The check covers the forbidden lexicon, mandatory sections by type, frontmatter, body length, and — for `spec` bodies — BCP 14 modals, one modal per numbered line, and an active-voice obligated subject. Everything else in the shared profile rests on review.
+- The check covers the forbidden lexicon, the mandatory sections of each of the 19 types, a heading another type owns, frontmatter, body length, and the line form the prose canon assigns the type: one modal per numbered clause, an active-voice obligated subject, the trigger before the response, the word cap on a clause and on a step, and the modal prohibition on a claim-recording type. What needs judgement rests on review — whether a claim needed evidence, and whether a section opens with its conclusion.
 - The authoring agent applies the review checklist in `@AGENTS.md` before returning a document.

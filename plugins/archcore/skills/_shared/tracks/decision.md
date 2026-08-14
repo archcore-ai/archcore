@@ -63,7 +63,6 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
   - relations: adr `related` existing `rfc`, `spec`, `plan`, or `rnd` documents on the same topic — the source relate step names the link but not the relation type, and allowed unnamed further document types; narrowed to `rfc`, `spec`, `plan`, and `rnd` (the research evidence base) to avoid an open-ended list [assumption].
 - Exit checks:
   - blocking: the draft carries every section that `skills/_shared/adr-contract.md` requires.
-  - advisory: the draft introduces no word from the forbidden lexicon in `skills/_shared/precision-rules.md`.
 - Next: `decision.cascade`.
 
 ### gate: decision.rfc
@@ -82,7 +81,6 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
   - relations: rfc `extends` the past ADR it revises, when one exists; rfc `related` the idea that inspired it, when one exists.
 - Exit checks:
   - blocking: the draft covers Summary, Motivation, Detailed Design, Drawbacks, and Alternatives.
-  - advisory: the draft introduces no word from the forbidden lexicon in `skills/_shared/precision-rules.md`.
 - Next: `decision.cascade` — that gate's skip_when ends the track on this branch.
 
 ### gate: decision.resolve
@@ -104,7 +102,6 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
   - blocking: WHEN the verdict is accepted, the adr exists with `extends` → the rfc, carries every section `skills/_shared/adr-contract.md` requires, and the rfc status is `accepted`.
   - blocking: WHEN the verdict is rejected, the rfc status is `rejected` and no adr was created.
   - blocking: WHEN the verdict is still open, no document was modified.
-  - advisory: the adr introduces no word from the forbidden lexicon in `skills/_shared/precision-rules.md`.
 - Next: `decision.cascade` on the accepted verdict; exit otherwise.
 
 ### gate: decision.cascade

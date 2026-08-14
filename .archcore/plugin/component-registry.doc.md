@@ -52,10 +52,10 @@ Plain-markdown assets loaded at runtime before a skill composes a document. They
 
 | Asset | Path | Loaded by | Purpose |
 | --- | --- | --- | --- |
-| `precision-rules.md` | `skills/_shared/precision-rules.md` | `document`, `plan`, `init`, `review` | Forbidden vagueness lexicon, imperative phrasing, no-cross-document-section rule, `[assumption]` marker conventions |
+| `precision-rules.md` | `skills/_shared/precision-rules.md` | `document`, `plan`, `init`, `review` | Forbidden vagueness lexicon, imperative phrasing, no-cross-document-section rule, `[assumption]` marker conventions, the prose profile and line format each type carries, and the open-list prohibition |
 | `adr-contract.md` | `skills/_shared/adr-contract.md` | `document` (ADR) | Mandatory sections plus good and bad examples for ADR content, per MADR 4.0 |
 | `prd-contract.md` | `skills/_shared/prd-contract.md` | `plan` (`sdd.require`) | Mandatory sections, the outcome-shaped requirement form, the scope rule and its compression path, and the content-kind ownership table that assigns each statement on a topic to one document, per `prd-spec-plan-content-ownership.adr` |
-| `spec-contract.md` | `skills/_shared/spec-contract.md` | `document` (spec), `init` (hotspot specs) | Mandatory sections and the "when NOT to write a spec" gate |
+| `spec-contract.md` | `skills/_shared/spec-contract.md` | `document` (spec), `init` (hotspot specs) | Mandatory sections, the strict-EARS notation with its word cap, the body cap, and the "when NOT to write a spec" gate |
 | `rule-contract.md` | `skills/_shared/rule-contract.md` | `document` (rule), `init` (cross-cutting rules) | Mandatory rule body: RFC 2119 statement, applies-to scope, rationale, Good/Bad examples, enforcement |
 | `elicitation-contract.md` | `skills/_shared/elicitation-contract.md` | all four commands | Bounded user interview — batching, per-gate budgets, the 5-question auto-mode ceiling, escape hatch |
 | `gate-contract.md` | `skills/_shared/gate-contract.md` | track files | Gate record template with the fixed six-field order |

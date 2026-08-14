@@ -37,7 +37,8 @@ The mechanism has five parts:
 - Tradeoff: document creation latency in full mode increases an estimated 20–40%, from contract loading and evidence harvest.
 - Tradeoff: authors accept stricter skill prompts; draft mode preserves a fast path for rapid capture.
 - Tradeoff: the contract files become first-class plugin assets in `skills/_shared/` and require maintenance as document standards evolve.
-- An existing document in any `.archcore/` is not retroactively flagged as invalid, and validation on `update_document` is diff-only: a change cannot introduce a new violation, but pre-existing structure is not flagged. `controlled-technical-writing-profile.adr` narrows this on 2026-08-03 by normalizing the plugin's own corpus in one authoring pass; no validation gate was added.
+- An existing document in any `.archcore/` is not retroactively flagged as invalid: no validation gate rejects one, and the post-write check reports without blocking. `controlled-technical-writing-profile.adr` narrows this on 2026-08-03 by normalizing the plugin's own corpus in one authoring pass.
+- Correction. The diff-only property this record claimed for `update_document` never shipped. Neither the deleted `check-precision` script nor the engine's `Precision` scopes a check to the changed lines — both read the whole body — so an edit to an older document surfaces that document's pre-existing findings as well. The no-rejection guarantee above is unaffected: a report is not a rejection.
 
 ## Superseded when
 

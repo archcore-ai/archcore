@@ -110,8 +110,6 @@ resolves to the `research` track. Gate execution, state block, and resume rules:
   - blocking: the Next Action section names the follow-up route —
     `/archcore:plan` to continue into the `sdd` track, `/archcore:document` to
     record the decision — or states that no follow-up is needed.
-  - advisory: the draft introduces no word from the forbidden lexicon in
-    `skills/_shared/precision-rules.md`.
   - advisory: the closing report lists candidate `add_relation` targets among
     existing `idea`, `prd`, `adr`, and `rfc` documents, or states that none
     match.

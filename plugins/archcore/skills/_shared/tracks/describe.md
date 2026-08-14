@@ -62,7 +62,6 @@ was `adr`, a type the decision track now owns.
   - blocking: a draft of the chosen type exists, created via `create_document`.
   - blocking: a `spec` draft carries the sections `skills/_shared/spec-contract.md` requires, composed after reading that contract and `skills/_shared/precision-rules.md`.
   - blocking: a `doc` draft covers Overview, Content, and Examples; a `guide` draft covers Prerequisites, numbered Steps, Verification, and Common Issues — ported v1 composition targets; no shared contract exists for these two types.
-  - advisory: the draft introduces no word from the forbidden lexicon in `skills/_shared/precision-rules.md`.
 - Next: `describe.clarify`; the decision track (`skills/_shared/tracks/decision.md`) when the type answer is "a decision".
 
 ### gate: describe.clarify

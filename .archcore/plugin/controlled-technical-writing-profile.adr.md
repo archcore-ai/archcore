@@ -28,11 +28,12 @@ Adopted the internal controlled technical writing profile defined in `@AGENTS.md
 - [expected] Requirement lines across `rule` and `spec` documents become uniformly checkable by review — one obligation, one modal, one named actor — matching the contract that `check-precision` already enforces for `spec` bodies.
 - Tradeoff: all 81 documents are rewritten in one commit, so `git log -p .archcore/plugin/` per-document archaeology crosses a single large diff at that commit.
 - Tradeoff: `precision-over-coverage.adr.md` records that existing documents are not retroactively flagged as invalid. That stance is narrowed, not reversed — no validation gate rejects a pre-existing document; the corpus is normalized once by an explicit authoring pass.
-- Items beyond the forbidden lexicon and the `spec`-only EARS checks have no automated verifier; they rest on the review checklist in `@AGENTS.md`, applied by the authoring agent.
+- Items beyond the forbidden lexicon and the `spec`-only EARS checks had no automated verifier when this was decided; they rested on the review checklist in `@AGENTS.md`, applied by the authoring agent.
+- Two of the supersession triggers below have since fired, and neither reversed this decision. The profile obligations moved to the `archcore` global source, and the set the engine checks grew past three obligations — sections for every type, the line form each type takes, the word metrics, and the trigger order. Both were serviced by reshaping the local rule to scope, precedence resolution, and enforcement, and by rewriting its Enforcement section to name the current verifier. The spent triggers are removed below.
 
 ## Superseded when
 
-- More than 3 of the shared profile's obligations become hook-enforced by the precision check, which makes the local rule's Enforcement section misstate the verifier. The verifier itself moved out of this repository in v0.7.0: `@plugins/archcore/bin/check-precision` was deleted and the canon now lives in the CLI binary (`cli-owns-layers-4-5.adr`). The trigger is unchanged; its location is.
-- The profile obligations moved to the `archcore` global source as `concepts/controlled-technical-writing`, so this repository's rule keeps only scope, precedence resolution, and enforcement. A later change to the profile is made there, not here.
 - The repository publishes documentation in a second natural language, which requires the Russian-language clauses of `@AGENTS.md` to become a separate contract rather than a subsection.
 - A consumer project reports that documents authored under the plugin's shipped contracts diverge structurally from documents authored in this repository, indicating the repository policy leaked into the shipped runtime assets.
+- The engine's checks begin to block a write instead of reporting it, which turns an advisory profile into a validation gate and reopens the retroactive-invalidation question `precision-over-coverage.adr` settled.
+- A second runtime composes documents over the same engine, which makes the shipped contracts one composition path among several rather than the only one.

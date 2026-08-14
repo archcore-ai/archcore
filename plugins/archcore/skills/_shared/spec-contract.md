@@ -64,7 +64,7 @@ uppercase only) as the modal:
 - State-driven: `WHILE <state>, the <subject> MUST <response>.`
 - Unwanted behavior: `IF <undesired condition>, THEN the <subject> MUST <response>.`
 
-Three rules keep each numbered line strict-EARS conformant:
+Four rules keep each numbered line strict-EARS conformant:
 
 1. **Active voice, obligated subject.** The grammatical subject is the component
    that bears the obligation — never a subjectless passive. "Tokens MUST be
@@ -79,6 +79,9 @@ Three rules keep each numbered line strict-EARS conformant:
    the event is the trigger, never the grammatical subject. Do not bury the
    trigger inside the subject ("The /remember command invalidates the cache" →
    `WHEN the user invokes /remember, the <component> MUST invalidate the cache`).
+4. **One clause, 25 words or fewer.** Past that a clause has usually taken on a
+   second obligation, or buried the actor behind subordinate clauses. Split it,
+   or move the qualifier into Constraints & Invariants.
 
 Grade with intent: MUST only where required for interoperation or to prevent harm
 (RFC 2119 §6 — sparingly); SHOULD where deviation needs a weighed reason; MAY for
@@ -123,6 +126,21 @@ from a verified one.
   graph via `mcp__archcore__add_relation`. The body MAY cite source code
   (`@path/to/file`), schemas, and external authorities. See
   `skills/_shared/precision-rules.md` Rule 5.
+
+## Enforcement
+
+The Archcore CLI reports the mechanical part of this contract in the post-tool-use
+hook: the mandatory sections, `SHALL` in place of a BCP 14 modal, two modals in
+one numbered line, a subjectless passive, a condition placed after the obligation
+it controls, and a clause past 25 words. A CLI that predates a check reports
+nothing for it, and no version blocks a write — the hook always exits 0.
+
+Two limits are worth knowing. The hook applies the **80-line default** to every
+spec: it cannot tell which subject qualifies for the flagship cap, so a spec
+composed at 120 lines reports one finding by design, and the composing skill is
+what decides the finding does not apply. And whether the spec covers **one**
+subject, and whether Surface references the source instead of reproducing it,
+is not decidable there at any version.
 
 ## Rationale
 

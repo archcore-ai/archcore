@@ -86,11 +86,18 @@ deferred: <questions deferred to a later gate>
 1. WHEN a gate opens, the executing skill MUST evaluate `skip_when` before any other gate step.
 2. WHEN existing documents or the request text satisfy a gate's entry conditions, the executing skill MUST ask zero questions at that gate.
 3. WHEN a gate produces a document, the executing skill MUST create it with `status: draft` via `create_document`.
-4. IF an advisory exit check fails, THEN the executing skill MUST report the finding.
-5. IF an advisory exit check fails, THEN the executing skill MUST proceed to the next gate.
-6. IF a blocking exit check fails, THEN the executing skill MUST stop at the current gate.
-7. IF a blocking exit check fails, THEN the executing skill MUST report the failed check.
-8. WHEN a gate's `skip_when` holds, the executing skill MUST continue at the gate that gate's `Next` field names, unless the skip_when text itself states a different route — `skip_when` skips one gate, never the track.
+4. WHEN a gate produces a document, the executing skill MUST check the draft against Rules 1, 7, and 8 of `skills/_shared/precision-rules.md`.
+5. IF the draft departs from those rules, THEN the executing skill MUST report each departure as an advisory finding.
+6. IF an advisory exit check fails, THEN the executing skill MUST report the finding.
+7. IF an advisory exit check fails, THEN the executing skill MUST proceed to the next gate.
+8. IF a blocking exit check fails, THEN the executing skill MUST stop at the current gate.
+9. IF a blocking exit check fails, THEN the executing skill MUST report the failed check.
+10. WHEN a gate's `skip_when` holds, the executing skill MUST continue at the gate that gate's `Next` field names, unless the skip_when text itself states a different route — `skip_when` skips one gate, never the track.
+
+Rules 4 and 5 are why no gate carries a prose check of its own: the forbidden
+lexicon, the line form a type takes, and the open-list prohibition bind every
+produced document, and authoring rule 5 below forbids restating a shared
+contract inside a gate. A gate states only what is specific to it.
 
 ## Resume rules
 

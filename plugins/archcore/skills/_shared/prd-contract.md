@@ -144,12 +144,12 @@ the one place that assignment lives.
 
 ## Enforcement
 
-Archcore CLI v0.7.2 and later check the mechanical part of this contract in the
-post-tool-use hook — the mandatory sections, the requirement form, the ownership
-headings, and near-verbatim restatement across an `implements` or `extends`
-link — under the advisory pattern in `skills/_shared/precision-rules.md`. An
-older CLI reports none of them and blocks nothing, so on that version the gate
-exit checks carry the contract alone.
+The Archcore CLI checks the mechanical part of this contract in the post-tool-use
+hook — the mandatory sections, the requirement form, the ownership headings, and
+near-verbatim restatement across an `implements` or `extends` link — under the
+advisory pattern in `skills/_shared/precision-rules.md`. A CLI that predates a
+check reports nothing for it and blocks nothing, so where the hook is silent the
+gate exit checks carry the contract alone.
 
 Whether a document **paraphrases** the document it links to is not decidable
 there at any version. That judgement stays with the executing skill at the gate
