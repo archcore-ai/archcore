@@ -15,19 +15,20 @@ A path is global when `settings.json` declares it as a global source, or when it
 3. `add_relation` MUST reject an edge whose source or target is a global document, in either direction.
 4. `remove_relation` MUST stay open for global endpoints, so that a pre-existing edge can be removed.
 5. `archcore status` MUST report tag hygiene and counts for local documents only.
-6. The SessionStart context MUST inject local documents only.
-7. The pre-write code-alignment injection MAY name a global document, and MUST mark it `[global]`.
-8. The pre-write hook guard MUST refuse a write to a global source mounted from outside the store, which the MCP write tools cannot address at all.
+6. The SessionStart context MUST list local documents only.
+7. The SessionStart `GLOBALS` block MUST carry per-source metadata only: id, counts, and directory names — never a global document's path, title, tags, or content.
+8. The pre-write code-alignment injection MAY name a global document, and MUST mark it `[global]`.
+9. The pre-write hook guard MUST refuse a write to a global source mounted from outside the store, which the MCP write tools cannot address at all.
 
 ## Rationale
 
 One predicate answers "is this global?" for every write guard and relation guard, so the behavior holds for a declared external source and an in-tree `.archcore/global/` document alike, with no corner cases.
 
-Requirement 8 is that same idea reached by a different route. `docs.GuardWritablePath` takes a path under `.archcore/`, so a source mounted outside the store never reaches it: the MCP tools refuse those paths as unaddressable, and the hook, which is handed a host-supplied absolute path, saw only "outside the project" and allowed the write. An external global was therefore editable straight from the editor while every in-tree global was protected. `docs.IsExternalGlobalDocument` closes that gap so both surfaces reach one verdict.
+Requirement 9 is that same idea reached by a different route. `docs.GuardWritablePath` takes a path under `.archcore/`, so a source mounted outside the store never reaches it: the MCP tools refuse those paths as unaddressable, and the hook, which is handed a host-supplied absolute path, saw only "outside the project" and allowed the write. An external global was therefore editable straight from the editor while every in-tree global was protected. `docs.IsExternalGlobalDocument` closes that gap so both surfaces reach one verdict.
 
 Read-only is a property of the mount, not of the repository. The same repository opened directly is fully writable; mounted as another project's global source it is read-only, and it never accumulates relation edges from its consumers. That keeps the reference direction one-way: local to global.
 
-Excluding globals from `status` and from the session context removes "fix this tag" signals that a consumer cannot act on, and keeps the injected context focused on what the project owns.
+Excluding global documents from `status` and from the session recap removes "fix this tag" signals that a consumer cannot act on, and keeps the injected context focused on what the project owns. The `GLOBALS` block stays at the source level — it names what is mounted without pushing content the project does not own, so discovering a mounted corpus no longer depends on the agent guessing that one exists (@.archcore/globals/global-discovery-gap.idea.md, @.archcore/globals/session-globals-disclosure.spec.md).
 
 The code-alignment injection is the one exception, and it is a read surface: an organization rule that constrains the file being edited is exactly what the agent needs before the edit. Marking it `[global]` keeps the reader from trying to change it.
 
@@ -41,6 +42,11 @@ Non-normative examples.
 An agent reads a company logging rule via get_document (read_only: true) and applies it.
 To record that a local plan follows it, the agent links local → local documents,
 never local → the global.
+
+SessionStart context:
+  GLOBALS (read-only, query via MCP read tools):
+    - archcore — 42 docs (knowledge 40, vision 1, experience 1) · concepts/ 14, product/ 14
+  — source metadata only; no global document path or title appears.
 ```
 
 ### Bad
@@ -57,7 +63,7 @@ create_document(directory: "global/foo")
 ## Enforcement
 
 - `docs.IsGlobalPath`, `docs.IsReservedGlobalDir`, and their case-folding siblings (`@internal/docs/globals.go`) back `docs.GuardWritablePath`, which serves the MCP write guards (`@internal/mcp/tools/create_document.go`, `@internal/mcp/tools/update_document.go`, `@internal/mcp/tools/remove_document.go`), the relation guard (`@internal/mcp/tools/add_relation.go`), and the pre-write hook guard (`@cmd/hook_write_guard.go`).
-- `docs.IsExternalGlobalDocument` (`@internal/docs/globals.go`) covers requirement 8 — the paths `GuardWritablePath` cannot classify.
-- `archcore status` and the SessionStart context filter to local documents (`@cmd/status.go`, `@cmd/hooks_common.go`).
+- `docs.IsExternalGlobalDocument` (`@internal/docs/globals.go`) covers requirement 9 — the paths `GuardWritablePath` cannot classify.
+- `archcore status` filters to local documents (`@cmd/status.go`); the SessionStart recap scans local only, and its `GLOBALS` block is built from `docs.InspectGlobals` counts, never from document content (`@cmd/hooks_common.go`, `@internal/docs/inspect.go`).
 - The code-alignment injection includes globals and marks them (`@internal/advisory/code_alignment.go`).
-- Tests: `@internal/docs/guard_test.go`, `@internal/mcp/tools/globals_test.go`, `@internal/mcp/integration/globals_test.go`, `@cmd/status_test.go`, `@cmd/hooks_common_test.go`, `@cmd/hook_write_guard_test.go`.
+- Tests: `@internal/docs/guard_test.go`, `@internal/mcp/tools/globals_test.go`, `@internal/mcp/integration/globals_test.go`, `@cmd/status_test.go`, `@cmd/hooks_common_test.go`, `@cmd/hooks_globals_block_test.go`, `@cmd/hook_write_guard_test.go`.

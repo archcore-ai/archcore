@@ -35,6 +35,13 @@ const (
 	recentWindow = 30 * 24 * time.Hour
 )
 
+// sessionDocCounts carries the banner counts out of buildSessionContext: the
+// local corpus size and the mounted global document total.
+type sessionDocCounts struct {
+	local  int
+	global int
+}
+
 // buildSessionContext generates the session-start context string
 // that is injected into agents at session start.
 //
@@ -42,38 +49,34 @@ const (
 // owns the text inside that envelope and never the envelope itself — the plugin
 // splices its own advisories into the same document on Copilot, and a change to
 // the wrapper would break that splice silently.
-func buildSessionContext(ctx context.Context, baseDir string) (string, int) {
-	// Local only, content included. Globals are surfaced through the MCP read
-	// tools and never here, so scanning them would read and parse every global
-	// document only to discard it. The content is free — the frontmatter parse
-	// already reads each file — and the staleness correlation below needs it,
-	// which is what keeps this to one scan per session start.
+func buildSessionContext(ctx context.Context, baseDir string) (string, sessionDocCounts) {
+	// Local only, content included. Global content stays behind the MCP read
+	// tools; scanning it here would read and parse every global document only
+	// to discard the bodies. The GLOBALS block below needs counts, not content,
+	// and takes them from the InspectGlobals walk. The local content is free —
+	// the frontmatter parse already reads each file — and the staleness
+	// correlation below needs it, which is what keeps this to one scan per
+	// session start.
 	corpus, _ := docs.ScanLocal(baseDir, true)
 
-	// Global health comes from InspectGlobals rather than from a scan error: it
-	// classifies every failure mode the scan reports plus two the scan cannot
-	// see — an empty source scans cleanly, and an invalid settings.json makes
-	// the read path silently observe no globals at all.
-	var globalNotices []string
-	if inspections, iErr := docs.InspectGlobals(baseDir); iErr != nil {
-		globalNotices = append(globalNotices, fmt.Sprintf("invalid .archcore/settings.json: %v — global sources not loaded", iErr))
-	} else {
-		for _, in := range inspections {
-			if in.State.Fatal() || in.State == docs.GlobalEmpty {
-				globalNotices = append(globalNotices, in.Message())
-			}
-		}
-	}
+	// Global health and counts come from InspectGlobals rather than from a scan
+	// error: it classifies every failure mode the scan reports plus two the scan
+	// cannot see — an empty source scans cleanly, and an invalid settings.json
+	// makes the read path silently observe no globals at all.
+	inspections, iErr := docs.InspectGlobals(baseDir)
 
 	var b strings.Builder
 	b.WriteString("[Archcore — Git-native context for AI coding agents]\n")
 	b.WriteString("You have MCP tools available: list_documents, get_document, search_documents, create_document, update_document, remove_document, add_relation, remove_relation, list_relations.\n")
-	for _, n := range globalNotices {
-		fmt.Fprintf(&b, "\n⚠ %s — context limited to local documents; clone the source or fix .archcore/settings.json.\n", n)
+	if iErr != nil {
+		// Fail closed to a warning: no GLOBALS block renders on an unverifiable
+		// declaration (session-globals-disclosure.spec clause 18).
+		fmt.Fprintf(&b, "\n⚠ invalid .archcore/settings.json: %v — global sources not loaded; context limited to local documents\n", iErr)
 	}
 
-	writeCorpusLine(&b, corpus)
+	writeCorpusLine(&b, corpus, len(inspections) > 0)
 	writeBranchLine(ctx, &b, baseDir)
+	globalDocs := writeGlobalsBlock(&b, inspections)
 	writeRecap(&b, corpus)
 
 	if advisory := advisory.Staleness(ctx, baseDir, stamp.DirFor("staleness-stamps"), corpus); advisory != "" {
@@ -120,18 +123,124 @@ func buildSessionContext(ctx context.Context, baseDir string) (string, int) {
 
 	b.WriteString("\nRefer to MCP server instructions for document types, workflow rules, and usage guidance.\n")
 
-	// The count is every local document, including rejected ones: it feeds the
-	// "N docs" banner, which reports what the project holds, not what this recap
-	// chose to show.
-	return b.String(), len(corpus)
+	// The local count is every local document, including rejected ones: it
+	// feeds the "N docs" banner, which reports what the project holds, not what
+	// this recap chose to show.
+	return b.String(), sessionDocCounts{local: len(corpus), global: globalDocs}
+}
+
+// Ceilings for the GLOBALS block. Output size is a function of these and never
+// of corpus size (session-globals-disclosure.spec clauses 8-11).
+const (
+	maxGlobalsSources = 8
+	maxGlobalsDirs    = 6
+)
+
+// globalsPrecedenceLine is the exact sentence clause 13 of
+// session-globals-disclosure.spec pins.
+const globalsPrecedenceLine = "Local documents take precedence over same-topic globals."
+
+// writeGlobalsBlock renders the GLOBALS block from the inspections and returns
+// the mounted document total across healthy sources, for the banner.
+//
+// Every number is filename- or dirname-derived during the InspectGlobals walk —
+// no global document content is read here (session-globals-disclosure.spec).
+func writeGlobalsBlock(b *strings.Builder, inspections []docs.GlobalInspection) int {
+	if len(inspections) == 0 {
+		return 0
+	}
+	// The banner total sums every healthy source independently of the render
+	// ceiling below: a source the block truncates away is still mounted, and
+	// clause 15 of session-globals-disclosure.spec asks for the total.
+	globalDocs := 0
+	for _, in := range inspections {
+		if in.State == docs.GlobalOK {
+			globalDocs += in.Docs
+		}
+	}
+	b.WriteString("\nGLOBALS (read-only, query via MCP read tools):\n")
+	okLines := 0
+	for i, in := range inspections {
+		if i == maxGlobalsSources {
+			fmt.Fprintf(b, "  … and %d more sources\n", len(inspections)-i)
+			break
+		}
+		if in.State.Fatal() {
+			fmt.Fprintf(b, "  ⚠ %s — clone it or fix .archcore/settings.json\n", in.Message())
+			continue
+		}
+		if in.State == docs.GlobalEmpty {
+			fmt.Fprintf(b, "  ⚠ %s\n", in.Message())
+			continue
+		}
+		okLines++
+		fmt.Fprintf(b, "  - %s — %d docs (%s)%s\n", in.ID, in.Docs, categorySummary(in.DocsByCategory), dirSummary(in.TopDirs))
+	}
+	if okLines > 0 {
+		b.WriteString("  " + globalsPrecedenceLine + "\n")
+	}
+	return globalDocs
+}
+
+// categorySummary renders per-category counts in the fixed category order the
+// CORPUS line uses, skipping empty categories.
+func categorySummary(byCategory map[templates.Category]int) string {
+	var parts []string
+	for _, cat := range []templates.Category{templates.CategoryKnowledge, templates.CategoryVision, templates.CategoryExperience} {
+		if n := byCategory[cat]; n > 0 {
+			parts = append(parts, fmt.Sprintf("%s %d", cat, n))
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// dirSummary renders the top-level directory counts — the topical map that lets
+// an agent phrase a query against a corpus it has never read. Ordered by count
+// descending, ties alphabetical, cut at maxGlobalsDirs with the drop named.
+func dirSummary(topDirs map[string]int) string {
+	if len(topDirs) == 0 {
+		return ""
+	}
+	type dirCount struct {
+		dir   string
+		count int
+	}
+	sorted := make([]dirCount, 0, len(topDirs))
+	for dir, count := range topDirs {
+		sorted = append(sorted, dirCount{dir, count})
+	}
+	slices.SortFunc(sorted, func(a, c dirCount) int {
+		if d := cmp.Compare(c.count, a.count); d != 0 {
+			return d
+		}
+		return cmp.Compare(a.dir, c.dir)
+	})
+	limit := min(maxGlobalsDirs, len(sorted))
+	parts := make([]string, limit)
+	for i := range limit {
+		parts[i] = fmt.Sprintf("%s/ %d", sorted[i].dir, sorted[i].count)
+	}
+	out := " · " + strings.Join(parts, ", ")
+	if rest := len(sorted) - limit; rest > 0 {
+		out += fmt.Sprintf(" … and %d more dirs", rest)
+	}
+	return out
 }
 
 // writeCorpusLine summarizes the whole corpus in one line: what exists, by
 // category and by status. The rejected count appears here and nowhere else —
 // enough to tell the agent refused work exists without pushing it as guidance.
-func writeCorpusLine(b *strings.Builder, corpus []docs.Document) {
+//
+// hasGlobals switches the label to "local documents" so the CORPUS count and
+// the GLOBALS totals cannot read as a contradiction
+// (session-globals-disclosure.spec clause 14).
+func writeCorpusLine(b *strings.Builder, corpus []docs.Document, hasGlobals bool) {
+	label := "documents"
+	if hasGlobals {
+		label = "local documents"
+	}
 	if len(corpus) == 0 {
-		b.WriteString("\nCORPUS: no documents yet — use create_document to record the first one.\n")
+		fmt.Fprintf(b, "\nCORPUS: no %s yet — use create_document to record the first one.\n", label)
 		return
 	}
 
@@ -156,8 +265,8 @@ func writeCorpusLine(b *strings.Builder, corpus []docs.Document) {
 		}
 	}
 
-	fmt.Fprintf(b, "\nCORPUS: %d documents — %s · %s\n",
-		len(corpus), strings.Join(cats, ", "), strings.Join(statuses, ", "))
+	fmt.Fprintf(b, "\nCORPUS: %d %s — %s · %s\n",
+		len(corpus), label, strings.Join(cats, ", "), strings.Join(statuses, ", "))
 }
 
 // writeBranchLine names the checked-out branch. It is omitted entirely outside a

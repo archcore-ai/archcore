@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/mcp/tools"
@@ -155,12 +156,30 @@ When writing or updating documents, include relevant code paths where they natur
 NEVER create documents for: temporary notes, questions, chat summaries, or speculative content without clear value.
 ALWAYS use a descriptive slug (lowercase, hyphens only) and a clear human-readable title.`
 
-// buildInstructions returns MCP server instructions with an optional language directive appended.
-func buildInstructions(language string) string {
-	if language == "" || language == "en" {
-		return mcpServerInstructions
+// buildInstructions returns MCP server instructions, with a globals paragraph
+// when the project declares global sources and an optional language directive.
+func buildInstructions(language string, globals []config.GlobalSource) string {
+	out := mcpServerInstructions
+	if len(globals) > 0 {
+		ids := make([]string, len(globals))
+		for i, gs := range globals {
+			ids[i] = gs.ID
+		}
+		// The paragraph exists because an agent that does not know a global is
+		// mounted never queries it (global-recall-guarantees.rfc).
+		out += fmt.Sprintf(`
+
+GLOBAL SOURCES:
+This project mounts %d read-only global source(s): %s.
+- The read tools (list_documents, get_document, search_documents) cover local and global documents together. Read source_kind on each result to tell them apart.
+- Local documents take precedence over same-topic globals. Treat a global as the org-wide default that a local document refines.
+- Global documents are read-only and never relation endpoints; the write tools refuse them.
+- When a search returns nothing, check its coverage field: the globals were scanned, so broaden the words (match="all" needs every word to occur) or scope with source="global".`, len(globals), strings.Join(ids, ", "))
 	}
-	return mcpServerInstructions + fmt.Sprintf(`
+	if language == "" || language == "en" {
+		return out
+	}
+	return out + fmt.Sprintf(`
 
 LANGUAGE REQUIREMENT:
 All document content (title, body text) MUST be written in %q. YAML frontmatter keys and status values remain in English. Slug must still be lowercase ASCII with hyphens.`, language)
@@ -202,7 +221,10 @@ func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPS
 	s := server.NewMCPServer(
 		"archcore",
 		version,
-		server.WithInstructions(buildInstructions(language)),
+		// ReadGlobals is fail-open by design here: the paragraph is advisory,
+		// and `archcore mcp` separately fails startup on an invalid
+		// settings.json (checkGlobals).
+		server.WithInstructions(buildInstructions(language, config.ReadGlobals(baseDir))),
 	)
 
 	s.AddTool(tools.NewInitProjectTool(), tools.HandleInitProject(baseDir))

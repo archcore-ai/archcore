@@ -107,8 +107,8 @@ func TestBuildSessionContext_ExcludesRejected(t *testing.T) {
 	if !strings.Contains(ctx, "deadend") {
 		t.Errorf("tag carried only by a rejected document should stay in the vocabulary; ctx=%q", ctx)
 	}
-	if count != 2 {
-		t.Errorf("doc count = %d, want 2 — the banner reports what the project holds", count)
+	if count.local != 2 {
+		t.Errorf("doc count = %d, want 2 — the banner reports what the project holds", count.local)
 	}
 }
 

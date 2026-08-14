@@ -31,7 +31,7 @@ Keep `search_documents` as a matching primitive. Its contract surface is: "given
 Specifically, the tool:
 
 - Accepts filters (`path_ref`, `content`, `types`, `status`, `mtime_after`) and search controls (`sort`, `limit`).
-- Returns a ranked, flat JSON array of `searchResult` objects with per-match evidence and enriched manifest relations.
+- Returns a ranked, flat JSON array of `searchResult` objects with per-match evidence and enriched manifest relations. (Superseded shape — see the 2026-08 addendum: the array now rides inside a `{"results", "coverage"}` envelope.)
 - Does NOT classify the caller's input mode (empty / path / topic).
 - Does NOT group results by type into user-facing categories.
 - Does NOT apply top-N-per-category cutoffs.
@@ -48,7 +48,7 @@ Callers (agents, hooks, skills, CI scripts) compose `search_documents` into what
 - **Small, focused Go surface.** The primitive is ~300 LOC including helpers. A presentation-aware variant would easily double this with category routing, relation traversal for guides, empty-state branching, and per-caller customization shims.
 - **Reusability.** The primitive is general-purpose. A future PreToolUse hook can call `search_documents(path_ref="...", sort="mtime")` and stream the raw list. A CI script can call `search_documents(types=["rule"], status="accepted")` to audit rules. A future skill can call `search_documents(content="...", limit=20)` for semantic preview. None of these require a second Go tool or CLI release.
 - **No opinion lock-in.** Category layout, type-priority weights, guide routing via relations — these are legitimate decisions that may vary per project or evolve over time. Keeping them out of the tool means they can live wherever they make sense (per-project skill, team convention, product release).
-- **Honest limitations surfaced.** The tool description documents that content search is strict substring and that ambient rules without `@path` are not reachable via path mode. Callers do not silently paper over these limits with fabricated fallbacks — they either surface them to users or extend their own handling.
+- **Honest limitations surfaced.** The tool description documents the matching semantics and that ambient rules without `@path` are not reachable via path mode. Callers do not silently paper over these limits with fabricated fallbacks — they either surface them to users or extend their own handling.
 
 ## Alternatives Considered
 
@@ -91,7 +91,7 @@ Split at an even finer grain: the first tool does search, the second tool takes 
 - **Reusable primitive.** Future hooks, CI linters, multiple skill variants, external MCP consumers — all can call `search_documents` directly without a second tool.
 - **Determinism where it matters.** Matching and ranking are code and fully tested. Presentation concerns stay with callers.
 - **No opinion lock-in at the tool level.** Section layout, type priorities, empty-state copy, guide routing — all caller-owned.
-- **Honest limitations documented at the tool.** Callers know strict-substring semantics and `@path`-reachability semantics before writing client code.
+- **Honest limitations documented at the tool.** Callers know the matching semantics and `@path`-reachability semantics before writing client code.
 
 ### Negative
 
@@ -101,7 +101,7 @@ Split at an even finer grain: the first tool does search, the second tool takes 
 ### Risks
 
 - **Ambient rules without `@path` are not reachable via path mode.** Intentional (determinism > recall), but users may misread as "broken". Mitigated by explicit mention in the tool description and spec. May later be reinforced by an `archcore doctor` hygiene warning.
-- **Content matching is strict substring.** `money rounding` will not find `Money Arithmetic`. Mitigated by explicit mention in the tool description; callers are expected to be honest about empty results.
+- **Content matching is strict substring.** `money rounding` will not find `Money Arithmetic`. (Narrowed by the 2026-08 addendum: the default became all-words matching, so `money arithmetic` finds it; morphology misses like `rounding` vs `Arithmetic` remain.)
 
 ## Implementation Notes
 
@@ -120,8 +120,17 @@ A later change added a `mode` parameter (`snippets` default / `full`). In `full`
 
 If full mode ever grows opinionated formatting (sectioning, rendering, summarization), that WOULD cross this ADR's line and should be revisited as a new decision.
 
+### Addendum (2026-08): the recall changes stay on the matching side
+
+@.archcore/mcp/global-recall-guarantees.rfc.md changed the tool's wire shape and matching semantics. The boundary this ADR draws is unchanged; each change lands on the matching side:
+
+- **The response became a `{"results", "coverage"}` envelope.** The Decision bullet "flat JSON array" describes the pre-2026-08 shape. `coverage` is matching metadata — which sources were scanned, and how many documents each holds — not layout. The current shape is owned by `.archcore/mcp/search-documents.spec.md`.
+- **`match` (`all` default / `any` / `exact`) and `source` are filters and search controls**, the category this ADR already admits. Tokenized all-words matching replaces one deterministic predicate with another; no fuzziness, no semantics, no opinion entered the tool.
+- **Per-source representation on the truncated page is a ranking/cut concern**, deterministic and spec-pinned — analogous to the `sort` parameter this ADR already keeps in the primitive. It is not top-N-per-*category*: it keys on `source_id`, a matching-layer fact, not on a product taxonomy.
+
 ## References
 
 - Tool contract: `.archcore/mcp/search-documents.spec.md`
+- Recall design: `.archcore/mcp/global-recall-guarantees.rfc.md`
 - Implementation: @internal/mcp/tools/search_documents.go
 - Related MCP decisions: `.archcore/mcp/no-list-tags-tool.adr.md`, `.archcore/mcp/mcp-server-starts-without-archcore-dir.adr.md`

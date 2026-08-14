@@ -198,8 +198,8 @@ func TestBuildSessionContext_MissingGlobalDegradesToLocal(t *testing.T) {
 	if !strings.Contains(ctx, "local-rule.rule.md") {
 		t.Error("local doc must survive a missing global, not be blanked")
 	}
-	if n != 1 {
-		t.Errorf("doc count = %d, want 1 surviving local doc", n)
+	if n.local != 1 {
+		t.Errorf("doc count = %d, want 1 surviving local doc", n.local)
 	}
 	if !strings.Contains(ctx, "⚠") || !strings.Contains(ctx, `"company"`) {
 		t.Errorf("expected a visible warning naming the missing global; ctx=%q", ctx)

@@ -67,7 +67,9 @@ func TestAddRelationCrossTool(t *testing.T) {
 	searchRes := mustCallTool(t, c, "search_documents", map[string]any{
 		"types": []string{"adr"},
 	})
-	hits := decodeJSON[[]searchHit](t, searchRes)
+	hits := decodeJSON[struct {
+		Results []searchHit `json:"results"`
+	}](t, searchRes).Results
 	if len(hits) != 2 {
 		t.Fatalf("search_documents returned %d hits, want 2", len(hits))
 	}

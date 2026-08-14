@@ -36,8 +36,8 @@ func handleSessionStartDeduped(ctx context.Context, baseDir, version, key, stamp
 			return "", "", false
 		}
 	}
-	text, docCount := buildSessionContext(ctx, baseDir)
-	return text, display.HookConnectedLine(version, docCount), true
+	text, counts := buildSessionContext(ctx, baseDir)
+	return text, display.HookConnectedLine(version, counts.local, counts.global), true
 }
 
 // defaultSessionStampDir is where the session scope keeps its stamps. Each scope

@@ -41,6 +41,7 @@ The document model, the scan, and the path guards live in `internal/docs`; @inte
 - Multi-writable projects in one session — explicitly excluded; one writable primary only.
 - Cross-project relations — no relation edge may reference a global document (enforced in §5.7); a global is never a relation endpoint.
 - The pre-write code-alignment injection, which MAY name a global document and marks it `[global]`. See @.archcore/globals/globals-are-read-only-everywhere.rule.md.
+- The SessionStart `GLOBALS` source summary — its content, ceilings, and failure states are owned by @.archcore/globals/session-globals-disclosure.spec.md.
 
 ## Authority
 
@@ -48,10 +49,10 @@ This document is the normative specification for global-source behavior. If the 
 
 ### Related Artifacts
 
-- Schema & validation: @internal/config/config.go (`GlobalSource`, `Settings.Globals`, `Validate`, `ReadGlobals`, `LoadGlobals`, `globalIDRe`)
-- Resolution & health classification: @internal/config/globals.go (`ResolveGlobalPath`, `CheckGlobalDir`, `DescribeGlobalDirError`, `ErrGlobalMissing`/`ErrGlobalNotDir`/`ErrGlobalUnreadable`/`ErrGlobalSelfOverlap`)
+- Schema &amp; validation: @internal/config/config.go (`GlobalSource`, `Settings.Globals`, `Validate`, `ReadGlobals`, `LoadGlobals`, `globalIDRe`)
+- Resolution &amp; health classification: @internal/config/globals.go (`ResolveGlobalPath`, `CheckGlobalDir`, `DescribeGlobalDirError`, `ErrGlobalMissing`/`ErrGlobalNotDir`/`ErrGlobalUnreadable`/`ErrGlobalSelfOverlap`)
 - Scan: @internal/docs/scan.go (`Scan`, `ScanFull`, `ScanLocal`, `BuildDoc`)
-- Annotation & global matching: @internal/docs/globals.go (`IsGlobalPath`, `IsReservedGlobalDir`, `IsExternalGlobalDocument`, `AnnotateSource`)
+- Annotation &amp; global matching: @internal/docs/globals.go (`IsGlobalPath`, `IsReservedGlobalDir`, `IsExternalGlobalDocument`, `AnnotateSource`)
 - Document model: @internal/docs/document.go (`Document`, aliased as `LocalDocument` by @internal/mcp/tools/docs_bridge.go)
 - Source-health reporter: @internal/docs/inspect.go (`InspectGlobals`, `GlobalInspection`, `GlobalState`) — single source of truth for the startup, status, and session-start surfaces
 - Directory walk: @templates/templates.go (`WalkArchcoreFilesSkipping`, `IsValidType`, `ExtractDocType`)
@@ -60,7 +61,7 @@ This document is the normative specification for global-source behavior. If the 
 - Local-only scan: @internal/docs/scan.go (`ScanLocal`) — phase 1 only; never fails on a broken global
 - Read-path validation: @internal/docs/guard.go (`ValidateReadPath`) — `get_document` and the post-write precision advisory; admits declared external globals, hardened (§4.4)
 - Source annotation on read: @internal/mcp/tools/get_document.go
-- Local-only CLI surfaces: @cmd/status.go (`checkGlobalSources`), @cmd/hooks_common.go (globals excluded from status + session context; degrade to local-only on a broken global, warn on empty/invalid settings, §6.4)
+- Local-only CLI surfaces: @cmd/status.go (`checkGlobalSources`), @cmd/hooks_common.go (global content excluded from status and the session recap; the SessionStart `GLOBALS` block reports per-source metadata from `InspectGlobals`; degrade to local-only on a broken global, warn on empty/invalid settings, §6.4)
 - Startup validation: @cmd/mcp.go (`checkGlobals`)
 - Consolidated rule: @.archcore/globals/globals-are-read-only-everywhere.rule.md
 
@@ -116,7 +117,7 @@ Documents from both phases are returned in a single flat list, in walk order (lo
 ### §4 Source annotation
 
 1. `docs.Document` MUST carry `source_id` (always), `source_kind` (always), `global` (omit when false), and `read_only` (omit when false). The same four fields MUST also appear on `search_documents` result rows, so all three read tools (`list_documents`, `get_document`, `search_documents`) expose the local/global distinction identically.
-2. `get_document` MUST call `docs.AnnotateSource(&doc, baseDir, globals)`, which matches the document's resolved absolute path against each declared global's resolved directory **first**; on a prefix match it sets the global tags with that source's `id`. A path in the reserved `global/` tree (§3) that is NOT declared is still annotated `source_id="__global__"`, `source_kind="global"`, `global=true`, `read_only=true`, so the read label matches the write guard. The `__global__` sentinel carries underscores, which the `id` pattern (§7.2) forbids, so it can never collide with a declared source id. Otherwise `source_id="local"`, `source_kind="local"`.
+2. `get_document` MUST call `docs.AnnotateSource(&amp;doc, baseDir, globals)`, which matches the document's resolved absolute path against each declared global's resolved directory **first**; on a prefix match it sets the global tags with that source's `id`. A path in the reserved `global/` tree (§3) that is NOT declared is still annotated `source_id="__global__"`, `source_kind="global"`, `global=true`, `read_only=true`, so the read label matches the write guard. The `__global__` sentinel carries underscores, which the `id` pattern (§7.2) forbids, so it can never collide with a declared source id. Otherwise `source_id="local"`, `source_kind="local"`.
 3. `AnnotateSource` and the scan MUST agree: a document listed as global by one MUST be annotated global by the other. Annotation keeps **exact-case** matching (`IsReservedGlobalDir`, global path matching) — case-folding on the read path would reclassify scan results on case-sensitive filesystems; only the write guard folds (§5.4).
 4. `get_document` MUST validate its `path` with `docs.ValidateReadPath(baseDir, path, ReadGlobals(baseDir))`, which accepts every path `ValidateArchcorePath` accepts **and additionally** a document that resolves strictly inside a declared external global. The external-global branch MUST be hardened: relative-only input, `.md`-only, lexical containment under a declared global root (blocks `../` traversal), and symlink-evaluated containment (blocks a symlink inside the mount from escaping it). A path under a declared global pointing at a missing file MUST yield an ordinary `document not found`. The write tools MUST NOT use this relaxation — they keep the strict guard (§5.4), so an external global stays unwritable and non-linkable (§5.5).
 5. Every hook surface that opens a document at a host-supplied path MUST validate it with `docs.ValidateReadPath` as well. Lexical validation alone lets a symlinked ancestor (`.archcore/escape -> /elsewhere`) resolve out of the store, and the post-write precision advisory reports the file's own wording and its document links — so an escape puts an outside document in front of the model. The advisory passes nil globals: it fires only after a write, and a global is never written.
@@ -158,7 +159,7 @@ Every declared global is mandatory; there is no optional source. A source is cla
 1. **Scan time.** The scan MUST reject every fatal state with a message built only from the declared id/path (never an absolute path — see @.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md). A missing source MUST read `global source "<id>" not found at "<path>"`; the other fatal messages follow `config.DescribeGlobalDirError` (not-a-directory / not-readable / resolves-to-own-.archcore) and the duplicate-path form `global sources "<a>" and "<b>" resolve to the same path "<path>"`. An empty source MUST NOT error — it simply yields no documents.
 2. **Startup time.** `checkGlobals(baseDir)` MUST, before serving, abort on any fatal state. Missing keeps `… — clone it before starting the MCP server`; the other fatal states append `… — fix .archcore/settings.json before starting the MCP server`. An empty source MUST be reported as a stderr warning and MUST NOT block startup.
 3. **Invalid settings at startup.** `checkGlobals` MUST distinguish a missing `settings.json` (no globals declared — OK) from a present-but-invalid one. A parse or validation error MUST abort startup with `invalid .archcore/settings.json: …`, rather than start with globals silently dropped from the read path (`ReadGlobals` degrades to "no globals" on a parse error — exactly the silent-incomplete-context failure mandatory globals exist to prevent).
-4. **Non-server surfaces MUST surface a broken or empty global, never blank silently — and without fail-fast (they must not block a session).** The SessionStart hook MUST degrade to a local-only scan (`docs.ScanLocal`, which never reads a global) on a fatal scan error and inject a visible warning naming the source, so local documents are never dropped; it MUST additionally warn on an empty source and on an invalid `settings.json` — both invisible to the full scan — via `docs.InspectGlobals` (@cmd/hooks_common.go). `archcore status` MUST report every fatal state as a visible failure (counted as an issue, non-zero exit) and an empty source as a warning (not an issue) via `checkGlobalSources`; its structural local-file checks and tag hygiene scan local documents only and never depend on the global scan. Neither aborts. (The MCP server still fails fast per §6.1–§6.2.)
+4. **Non-server surfaces MUST surface a broken or empty global, never blank silently — and without fail-fast (they must not block a session).** The SessionStart hook MUST degrade to a local-only scan (`docs.ScanLocal`, which never reads a global) on a fatal scan error and inject a visible warning naming the source, so local documents are never dropped; it MUST additionally warn on an empty source and on an invalid `settings.json` — both invisible to the full scan — via `docs.InspectGlobals` (@cmd/hooks_common.go). The per-source warnings render inside the SessionStart `GLOBALS` block (@.archcore/globals/session-globals-disclosure.spec.md). `archcore status` MUST report every fatal state as a visible failure (counted as an issue, non-zero exit) and an empty source as a warning (not an issue) via `checkGlobalSources`; its structural local-file checks and tag hygiene scan local documents only and never depend on the global scan. Neither aborts. (The MCP server still fails fast per §6.1–§6.2.)
 
 The decision to drop the per-entry `required` flag is @.archcore/globals/globals-are-mandatory.adr.md.
 
@@ -201,7 +202,7 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 - No surface opens a document at a host-supplied path without symlink-evaluated containment (§4.4, §4.5).
 - The startup gate and the runtime scan classify a source identically: a source that aborts the scan also aborts startup, and vice versa. Both reach the same answer for a directory that fails only partway through a walk (§6).
 - No global scan error embeds an absolute filesystem path.
-- Globals are surfaced only through the MCP read tools (`list_documents`, `get_document`, `search_documents`) and the pre-write code-alignment injection, which marks them `[global]`; `archcore status` and the SessionStart context operate on local documents only. When a declared global is broken or empty, neither blanks silently: the SessionStart hook degrades to a local-only scan with a warning, and `status` reports a fatal source as a visible failure (and an empty source as a warning) while still running its structural local checks (§6.4).
+- Global **content** is surfaced only through the MCP read tools (`list_documents`, `get_document`, `search_documents`) and the pre-write code-alignment injection, which marks it `[global]`. `archcore status` operates on local documents only. The SessionStart context lists no global documents; its `GLOBALS` block reports per-source metadata — counts and directory names — per @.archcore/globals/session-globals-disclosure.spec.md. When a declared global is broken or empty, neither surface blanks silently: the SessionStart hook degrades to a local-only scan with a warning inside the `GLOBALS` block, and `status` reports a fatal source as a visible failure (and an empty source as a warning) while still running its structural local checks (§6.4).
 
 ## Error Handling
 
@@ -223,7 +224,7 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 | Write path whose existing ancestor resolves outside `.archcore/` (symlink escape) | `invalid path: resolves outside .archcore/` |
 | Read a global via `get_document` | success — body + `read_only`/`source_id`; external paths admitted by `ValidateReadPath` (§4.4) |
 | Read path escaping a global or the store (traversal / symlink / non-`.md`) | `invalid path: …` — rejected by `ValidateReadPath` hardening; a hook advisory emits nothing at all |
-| Broken global on SessionStart | local-only context + visible warning naming the source (§6.4); session not blocked |
+| Broken global on SessionStart | local-only context + visible warning inside the `GLOBALS` block (§6.4); session not blocked |
 | Broken global on `archcore status` | reported as a visible failure (issue, non-zero exit) by `checkGlobalSources`; structural local checks still run (§6.4) |
 | Relation touching a global (either endpoint) | `cannot add a relation involving a read-only global source document — relations connect local documents only` |
 | Unreadable `settings.json` during a write/relation | `cannot verify global sources: settings.json is unreadable` (fail closed) |
@@ -231,7 +232,7 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 
 ## Conformance
 
-An implementation conforms if it satisfies all MUST/MUST NOT statements in §§1–7, the invariants, and the error-handling rows, and passes the tests in @internal/docs/guard_test.go, @internal/docs/inspect_test.go, @internal/mcp/tools/globals_test.go, @internal/mcp/tools/globals_edge_test.go, @internal/mcp/tools/globals_reserved_test.go, @internal/mcp/tools/guard_writable_path_test.go, @internal/mcp/integration/globals_test.go, the globals cases in @internal/config/config_test.go and @internal/config/globals_test.go, and the surface tests in @cmd/mcp_test.go, @cmd/status_test.go, @cmd/hooks_common_test.go, @cmd/hook_write_guard_test.go, and @internal/advisory/precision_path_test.go.
+An implementation conforms if it satisfies all MUST/MUST NOT statements in §§1–7, the invariants, and the error-handling rows, and passes the tests in @internal/docs/guard_test.go, @internal/docs/inspect_test.go, @internal/mcp/tools/globals_test.go, @internal/mcp/tools/globals_edge_test.go, @internal/mcp/tools/globals_reserved_test.go, @internal/mcp/tools/guard_writable_path_test.go, @internal/mcp/integration/globals_test.go, the globals cases in @internal/config/config_test.go and @internal/config/globals_test.go, and the surface tests in @cmd/mcp_test.go, @cmd/status_test.go, @cmd/hooks_common_test.go, @cmd/hooks_globals_block_test.go, @cmd/hook_write_guard_test.go, and @internal/advisory/precision_path_test.go.
 
 ## Examples
 

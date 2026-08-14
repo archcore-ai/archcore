@@ -125,9 +125,11 @@ func TestGlobals_SearchSeesGlobals(t *testing.T) {
 	res := mustCallTool(t, c, "search_documents", map[string]any{
 		"content": "structured logging",
 	})
-	hits := decodeJSON[[]struct {
-		Path string `json:"path"`
-	}](t, res)
+	hits := decodeJSON[struct {
+		Results []struct {
+			Path string `json:"path"`
+		} `json:"results"`
+	}](t, res).Results
 
 	found := false
 	for _, h := range hits {

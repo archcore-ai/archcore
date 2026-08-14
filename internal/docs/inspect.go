@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path/filepath"
+	"strings"
 
 	"archcore-cli/internal/config"
 	"archcore-cli/templates"
@@ -52,6 +54,14 @@ type GlobalInspection struct {
 	Path  string
 	State GlobalState
 	Docs  int
+	// DocsByCategory counts mounted documents per virtual category, derived
+	// from the filename type suffix during the same walk that counts Docs.
+	// Filled only for a source the walk completed (GlobalOK or GlobalEmpty);
+	// zero-read by construction (session-globals-disclosure.spec).
+	DocsByCategory map[templates.Category]int
+	// TopDirs counts mounted documents per top-level directory under the
+	// source root, from the same walk. A root-level document carries no entry.
+	TopDirs map[string]int
 }
 
 // Message returns a user-facing description of a non-OK inspection, built from
@@ -108,7 +118,7 @@ func InspectGlobals(baseDir string) ([]GlobalInspection, error) {
 			continue
 		}
 
-		n, walkErr := countGlobalDocs(resolved)
+		counts, walkErr := countGlobalDocs(resolved)
 		if walkErr != nil {
 			// A nested directory the walk cannot enter. CheckGlobalDir only
 			// probes the top level, so this is the first place the failure is
@@ -118,7 +128,9 @@ func InspectGlobals(baseDir string) ([]GlobalInspection, error) {
 			out = append(out, in)
 			continue
 		}
-		in.Docs = n
+		in.Docs = counts.total
+		in.DocsByCategory = counts.byCategory
+		in.TopDirs = counts.topDirs
 		if in.Docs == 0 {
 			in.State = GlobalEmpty
 		}
@@ -141,24 +153,46 @@ func stateForDirErr(err error) GlobalState {
 	}
 }
 
+// globalDocCounts is what one source-count walk produces: the mount total plus
+// the filename-derived breakdowns the session-start disclosure renders.
+type globalDocCounts struct {
+	total      int
+	byCategory map[templates.Category]int
+	topDirs    map[string]int
+}
+
 // countGlobalDocs counts the recognized-type documents a global directory would
-// mount, using the same valid-type filter as the scan.
+// mount, using the same valid-type filter as the scan, and breaks the count down
+// by virtual category and by top-level directory. Every field is derived from
+// the filename and the directory name — no document is opened
+// (session-globals-disclosure.spec).
 //
 // The walk error is returned, not swallowed: CheckGlobalDir opens only the top
 // directory, so an unreadable subdirectory reaches this walk unclassified. The
 // runtime scan walks the same tree and fails on it, and the startup gate and the
 // scan have to classify a source identically (global-sources.spec) — a discarded
 // error is what let `status` print a healthy source whose every read then failed.
-func countGlobalDocs(resolvedDir string) (int, error) {
-	n := 0
-	err := templates.WalkArchcoreFilesSkipping(resolvedDir, nil, func(_ string, d fs.DirEntry) error {
-		if templates.IsValidType(templates.ExtractDocType(d.Name())) {
-			n++
+func countGlobalDocs(resolvedDir string) (globalDocCounts, error) {
+	counts := globalDocCounts{
+		byCategory: make(map[templates.Category]int),
+		topDirs:    make(map[string]int),
+	}
+	err := templates.WalkArchcoreFilesSkipping(resolvedDir, nil, func(p string, d fs.DirEntry) error {
+		docType := templates.DocumentType(templates.ExtractDocType(d.Name()))
+		if !templates.IsValidType(string(docType)) {
+			return nil
+		}
+		counts.total++
+		counts.byCategory[templates.CategoryForType(docType)]++
+		if rel, relErr := filepath.Rel(resolvedDir, p); relErr == nil {
+			if top, _, nested := strings.Cut(filepath.ToSlash(rel), "/"); nested {
+				counts.topDirs[top]++
+			}
 		}
 		return nil
 	})
 	if err != nil {
-		return 0, err
+		return globalDocCounts{}, err
 	}
-	return n, nil
+	return counts, nil
 }

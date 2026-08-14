@@ -1117,6 +1117,76 @@
       "source": "update/keeping-the-cli-current-rollout.plan.md",
       "target": "update/self-update-command.doc.md",
       "type": "related"
+    },
+    {
+      "source": "globals/global-discovery-gap.idea.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-discovery-gap.idea.md",
+      "target": "globals/local-overrides-global.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-discovery-gap.idea.md",
+      "target": "integrations/session-start-context.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-discovery-gap.idea.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-discovery-gap.idea.md",
+      "target": "mcp/read-path-scan-performance.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/session-globals-disclosure.spec.md",
+      "target": "globals/global-discovery-gap.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "globals/session-globals-disclosure.spec.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "globals/session-globals-disclosure.spec.md",
+      "target": "integrations/session-start-context.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/global-recall-guarantees.rfc.md",
+      "target": "globals/global-discovery-gap.idea.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/global-recall-guarantees.rfc.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/global-recall-guarantees.rfc.md",
+      "target": "globals/session-globals-disclosure.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/global-recall-guarantees.rfc.md",
+      "target": "mcp/search-documents-matching-not-presentation.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/global-recall-guarantees.rfc.md",
+      "target": "sync/falkordb-graphrag-hybrid-indexing.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-read-only-everywhere.rule.md",
+      "target": "globals/session-globals-disclosure.spec.md",
+      "type": "related"
     }
   ]
 }

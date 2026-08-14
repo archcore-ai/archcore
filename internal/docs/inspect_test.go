@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"archcore-cli/templates"
 )
 
 // TestInspectGlobals_NestedTraversalFailure pins the invariant the startup gate
@@ -96,6 +98,62 @@ func TestInspectGlobals_ReadableSourceIsOK(t *testing.T) {
 	}
 	if in := inspections[0]; in.State != GlobalOK || in.Docs != 2 {
 		t.Errorf("State = %v, Docs = %d; want GlobalOK with 2 documents", in.State, in.Docs)
+	}
+}
+
+// TestInspectGlobals_CountBreakdowns pins the filename-derived breakdowns the
+// session-start disclosure renders (session-globals-disclosure.spec): category
+// from the type suffix, top-level directory from the path, root-level documents
+// counted in the total but under no directory.
+func TestInspectGlobals_CountBreakdowns(t *testing.T) {
+	t.Parallel()
+	base, gsDir := externalGlobalFixture(t)
+	docBody := "---\ntitle: T\nstatus: accepted\n---\nBody.\n"
+	for _, p := range []string{
+		"root.adr.md",              // knowledge, no directory entry
+		"concepts/a.rule.md",       // knowledge
+		"concepts/b.doc.md",        // knowledge
+		"product/c.idea.md",        // vision
+		"product/nested/d.plan.md", // vision, still counted under product/
+		"process/e.task-type.md",   // experience
+		"concepts/skip.txt",        // not a document
+		"concepts/no-type.md",      // unrecognized type: not mounted
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(gsDir, p)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(gsDir, p), docBody)
+	}
+
+	inspections, err := InspectGlobals(base)
+	if err != nil {
+		t.Fatalf("InspectGlobals: %v", err)
+	}
+	if len(inspections) != 1 {
+		t.Fatalf("got %d inspections, want 1", len(inspections))
+	}
+	in := inspections[0]
+	if in.Docs != 6 {
+		t.Errorf("Docs = %d, want 6", in.Docs)
+	}
+	wantCategories := map[templates.Category]int{
+		templates.CategoryKnowledge:  3,
+		templates.CategoryVision:     2,
+		templates.CategoryExperience: 1,
+	}
+	for cat, want := range wantCategories {
+		if got := in.DocsByCategory[cat]; got != want {
+			t.Errorf("DocsByCategory[%s] = %d, want %d", cat, got, want)
+		}
+	}
+	wantDirs := map[string]int{"concepts": 2, "product": 2, "process": 1}
+	if len(in.TopDirs) != len(wantDirs) {
+		t.Errorf("TopDirs = %v, want %v", in.TopDirs, wantDirs)
+	}
+	for dir, want := range wantDirs {
+		if got := in.TopDirs[dir]; got != want {
+			t.Errorf("TopDirs[%s] = %d, want %d", dir, got, want)
+		}
 	}
 }
 

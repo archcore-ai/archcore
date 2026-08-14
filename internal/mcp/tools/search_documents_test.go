@@ -14,9 +14,15 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// unmarshalSearch decodes a tool result into []searchResult. It fails the test
+// unmarshalSearch decodes a tool result's results rows. It fails the test
 // if decoding fails or the result is marked as an error.
 func unmarshalSearch(t *testing.T, result *mcp.CallToolResult) []searchResult {
+	t.Helper()
+	return unmarshalSearchEnvelope(t, result).Results
+}
+
+// unmarshalSearchEnvelope decodes the full {results, coverage} envelope.
+func unmarshalSearchEnvelope(t *testing.T, result *mcp.CallToolResult) searchDocumentsResult {
 	t.Helper()
 	if result == nil {
 		t.Fatal("nil result")
@@ -37,7 +43,7 @@ func unmarshalSearch(t *testing.T, result *mcp.CallToolResult) []searchResult {
 	if !ok {
 		t.Fatalf("unexpected content type %T", result.Content[0])
 	}
-	var out []searchResult
+	var out searchDocumentsResult
 	if err := json.Unmarshal([]byte(tc.Text), &out); err != nil {
 		t.Fatalf("unmarshal: %v\npayload: %s", err, tc.Text)
 	}
@@ -231,6 +237,38 @@ func TestHandleSearchDocuments_ContentBodyHit(t *testing.T) {
 	}
 }
 
+// TestHandleSearchDocuments_HeadingOutranksBody pins the middle content tier
+// (search-documents.spec §6.2): a markdown-heading hit carries specificity 2
+// and outranks a plain body hit of the same token.
+func TestHandleSearchDocuments_HeadingOutranksBody(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "heading.rule.md",
+		"---\ntitle: Alpha\nstatus: accepted\n---\n\n## Backoff Strategy\n\nDetails.")
+	writeDoc(t, base, "knowledge", "body.rule.md",
+		"---\ntitle: Beta\nstatus: accepted\n---\n\nThe backoff is exponential.")
+
+	result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		"content": "backoff",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 matches, got %d", len(got))
+	}
+	if got[0].Title != "Alpha" {
+		t.Errorf("first result = %q, want the heading hit to outrank the body hit", got[0].Title)
+	}
+	if spec := got[0].Matches[0].Specificity; spec != 2 {
+		t.Errorf("heading hit specificity = %d, want 2", spec)
+	}
+	if spec := got[1].Matches[0].Specificity; spec != 1 {
+		t.Errorf("body hit specificity = %d, want 1", spec)
+	}
+}
+
 func TestHandleSearchDocuments_ContentCaseInsensitive(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
@@ -411,6 +449,38 @@ func TestHandleSearchDocuments_SortRelevanceTypePriority(t *testing.T) {
 	}
 	if got[1].Type != "plan" {
 		t.Errorf("sort=relevance second type = %q, want plan", got[1].Type)
+	}
+}
+
+// TestHandleSearchDocuments_PathRefRepetitionIsNotRelevance pins the score
+// asymmetry: path_ref contributes its maximum specificity, so a document that
+// repeats the path cannot outrank a structurally better single mention. Every
+// repetition still appears in the wire evidence.
+func TestHandleSearchDocuments_PathRefRepetitionIsNotRelevance(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "stuffed.doc.md",
+		"---\ntitle: Stuffed\nstatus: accepted\n---\n\n"+strings.Repeat("see @src/payments/ again. ", 10))
+	writeDoc(t, base, "knowledge", "focused.rule.md",
+		"---\ntitle: Focused\nstatus: accepted\n---\n\nmonetary code in @src/payments/ uses Decimal")
+
+	result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		"path_ref": "src/payments/",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(got))
+	}
+	// Equal max specificity → the type-priority tiebreak puts the rule first;
+	// summed specificity would have scored the stuffed doc 10x higher.
+	if got[0].Title != "Focused" || got[1].Title != "Stuffed" {
+		t.Errorf("order = [%q, %q], want the single-mention rule first", got[0].Title, got[1].Title)
+	}
+	if len(got[1].Matches) != 10 {
+		t.Errorf("stuffed doc carries %d match records, want all 10 in the evidence", len(got[1].Matches))
 	}
 }
 

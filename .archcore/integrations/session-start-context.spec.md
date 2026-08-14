@@ -7,24 +7,26 @@ tags:
   - "performance"
 ---
 
-## Purpose & Scope
+## Purpose &amp; Scope
 
 This spec defines what `archcore hooks <host> session-start` emits: the payload
 text and the invariants that keep it bounded and host-safe. Normative for
 `buildSessionContext` (@cmd/hooks_common.go) and every per-host writer that
 wraps its result.
 
-Out of scope: the per-host JSON envelope shapes, the dedup stamp, and the
-document model.
+Out of scope: the per-host JSON envelope shapes, the dedup stamp, the
+document model, and the content of the `GLOBALS` block, which
+@.archcore/globals/session-globals-disclosure.spec.md owns.
 
 ## Surface
 
 One context string, embedded by the caller in a host-specific JSON envelope.
 
-Sections, in order: the header and MCP tool line; global-source warnings when
-present; `CORPUS`; `BRANCH` when resolvable; `IN PROGRESS`; `RECENTLY ACCEPTED`;
-the staleness advisory when due; `EXISTING TAGS`; `DOCUMENT RELATIONS`; the
-closing pointer to the server instructions.
+Sections, in order: the header and MCP tool line; the invalid-settings warning
+when present; `CORPUS`; `BRANCH` when resolvable; `GLOBALS` when sources are
+declared; `IN PROGRESS`; `RECENTLY ACCEPTED`; the staleness advisory when due;
+`EXISTING TAGS`; `DOCUMENT RELATIONS`; the closing pointer to the server
+instructions.
 
 ## Normative Behavior
 
@@ -51,12 +53,18 @@ closing pointer to the server instructions.
 14. The staleness advisory MUST NOT name a command the CLI does not own.
 15. The builder MUST reserve up to 6 budget lines for `RECENTLY ACCEPTED`.
 16. The builder MUST give `IN PROGRESS` every line that reserve leaves.
+17. WHEN `settings.json` declares at least one global source, the builder MUST
+    render the `GLOBALS` block per
+    @.archcore/globals/session-globals-disclosure.spec.md.
+18. WHEN the `GLOBALS` block renders, the builder MUST label the `CORPUS` count
+    "local documents".
 
-## Constraints & Invariants
+## Constraints &amp; Invariants
 
 - Invariant: output length is a function of the line budget, not of corpus size.
   Between a 300-document and a 3000-document corpus the length MAY differ only
-  by the width of the `CORPUS` counters.
+  by the width of the `CORPUS` counters. The `GLOBALS` block carries its own
+  ceilings for the same reason.
 - Invariant: this function owns the text inside the envelope and never the
   envelope itself. The plugin splices its own advisories into the same JSON
   document on Copilot, where a failed parse discards the entire payload — a
@@ -65,15 +73,18 @@ closing pointer to the server instructions.
 - Constraint: every dedup scope keeps its own stamp directory. A sweep expires
   everything older than its own window, so a shared directory would let the
   10-minute session scope erase the 24-hour staleness budget.
-- Constraint: global documents are surfaced only through the MCP read tools,
-  never here.
+- Constraint: no global document line appears in this context. The `GLOBALS`
+  block reports per-source metadata only; global content stays behind the MCP
+  read tools (@.archcore/globals/session-globals-disclosure.spec.md).
 
 ## Failure Behavior
 
 1. IF a declared global source is unreadable, THEN the builder MUST degrade to a
-   local-only scan, emit the warning, and keep every local document.
+   local-only scan, render the source's warning inside the `GLOBALS` block, and
+   keep every local document.
 2. IF `settings.json` is present but invalid, THEN the builder MUST emit a
-   warning naming the failure and continue.
+   warning naming the failure, MUST NOT render a `GLOBALS` block, and MUST
+   continue.
 3. IF the directory is not a git working tree, or git is absent, or HEAD is
    detached, THEN the builder MUST omit the `BRANCH` line rather than render a
    placeholder.
@@ -84,6 +95,7 @@ closing pointer to the server instructions.
 
 ## Conformance
 
-The builder is conformant when it satisfies behaviors 1–16, holds every
+The builder is conformant when it satisfies behaviors 1–18, holds every
 invariant, and degrades per the failure rules. The budget invariant is verified
-against synthetic corpora of 300 and 3000 documents.
+against synthetic corpora of 300 and 3000 documents; the `GLOBALS` behaviors
+are verified by @cmd/hooks_globals_block_test.go.

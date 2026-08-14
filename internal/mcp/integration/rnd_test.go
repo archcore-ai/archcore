@@ -40,9 +40,11 @@ func TestRejectedRnDStaysVisible(t *testing.T) {
 	}
 
 	// search_documents filtered by TYPE (not status) must also surface it.
-	hits := decodeJSON[[]map[string]any](t, mustCallTool(t, c, "search_documents", map[string]any{
+	hits := decodeJSON[struct {
+		Results []map[string]any `json:"results"`
+	}](t, mustCallTool(t, c, "search_documents", map[string]any{
 		"types": []string{"rnd"},
-	}))
+	})).Results
 	found := false
 	for _, h := range hits {
 		if p, _ := h["path"].(string); p == wantPath {

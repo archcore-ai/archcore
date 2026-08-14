@@ -25,7 +25,7 @@ func TestNewServer_HasTools(t *testing.T) {
 func TestBuildInstructions_DefaultEnglish(t *testing.T) {
 	t.Parallel()
 	for _, lang := range []string{"", "en"} {
-		result := buildInstructions(lang)
+		result := buildInstructions(lang, nil)
 		if result != mcpServerInstructions {
 			t.Errorf("buildInstructions(%q): expected base instructions unchanged", lang)
 		}
@@ -38,7 +38,7 @@ func TestBuildInstructions_DefaultEnglish(t *testing.T) {
 func TestBuildInstructions_NonEnglish(t *testing.T) {
 	t.Parallel()
 	for _, lang := range []string{"ru", "ja", "de"} {
-		result := buildInstructions(lang)
+		result := buildInstructions(lang, nil)
 		if !strings.HasPrefix(result, mcpServerInstructions) {
 			t.Errorf("buildInstructions(%q): should start with base instructions", lang)
 		}
@@ -103,7 +103,7 @@ func TestBuildInstructions_TrackSectionsRemoved(t *testing.T) {
 	}
 
 	for _, lang := range []string{"", "en", "ru"} {
-		result := buildInstructions(lang)
+		result := buildInstructions(lang, nil)
 		for _, s := range removed {
 			if strings.Contains(result, s) {
 				t.Errorf("buildInstructions(%q): still contains removed marker %q", lang, s)
