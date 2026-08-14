@@ -1,6 +1,6 @@
 ---
 title: "Display Version in CLI Banners"
-status: draft
+status: accepted
 tags:
   - "cli-ui"
 ---
@@ -18,6 +18,12 @@ Examples:
 - Users immediately know which version they're running without `--version`
 - Easier to reference in bug reports and screenshots
 - Consistent with common CLI tools that show version in help/banner output
+
+## Delivered
+
+`@internal/display/display.go` renders the version through `versionSuffix`, `Banner(version)`, and `WelcomeBanner(version)`. `versionSuffix` returns an empty string for an empty version and for `dev`, so an unstamped build renders the original title.
+
+The shipped form takes the version as a function parameter. It does not use the package variable `display.Version` that step 1 below proposes, so steps 1, 2, and 5 did not apply and `cleanVersion` stayed in `@cmd/root.go`. `@internal/display/display_test.go` covers the with-version and without-version cases.
 
 ## Possible Implementation
 

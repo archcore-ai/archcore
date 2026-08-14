@@ -154,15 +154,18 @@ tools, the hook handlers, and the status report all read documents through it. S
 | File | Contents |
 |------|----------|
 | `@internal/docs/document.go` | `Document`, `EnrichedDocument`, `DocumentRelation`, `ReadDocumentContent`, `NormalizeRelPath`, `WriteFileAtomic` |
-| `@internal/docs/scan.go` | `Scan`, `ScanFull`, `ScanLocal`, `BuildDoc` |
-| `@internal/docs/cache.go` | mtime-and-size-keyed per-file cache, `InvalidateCache` |
-| `@internal/docs/guard.go` | `GuardWritablePath`, `ValidateReadPath`, `ValidateArchcorePath`, `CheckSymlinkContainment` |
-| `@internal/docs/globals.go` | `IsGlobalPath`, `IsReservedGlobalDir`, `IsReadOnlyGlobalPath`, `AnnotateSource` |
+| `@internal/docs/scan.go` | `Scan`, `ScanFull`, `ScanTypes`, `ScanLocal`, `ScanLocalTypes`, `ScanCount` |
+| `@internal/docs/relpath.go` | `RelativeToBase` — a host-supplied path to a baseDir-relative slash path |
+| `@internal/docs/cache.go` | mtime-and-size-keyed per-file cache, `InvalidateCache`, `ResetCache` |
+| `@internal/docs/guard.go` | `GuardWritablePath`, `ValidateReadPath`, `ValidateArchcorePath`, and the package-private `checkSymlinkContainment` they layer |
+| `@internal/docs/globals.go` | `IsGlobalPath`, `IsReservedGlobalDir`, `IsExternalGlobalDocument`, `AnnotateSource` |
 | `@internal/docs/inspect.go` | `InspectGlobals`, `GlobalState`, `GlobalInspection` |
 | `@internal/mcp/tools/docs_bridge.go` | The seam. Aliases `LocalDocument` to `docs.Document` and re-exports the helpers under the short names the tool handlers call. |
 
 `LocalDocument` stays the name on the MCP wire; `docs.Document` is the domain name. The alias keeps
-both true with no conversion layer.
+both true with no conversion layer. The bridge's re-exports are package-private (`scanDocuments`,
+`scanDocumentsFull`, `readDocumentContent`, `guardWritablePath`, `validateReadPath`,
+`annotateSource`); a caller outside `internal/mcp/tools` uses the exported `docs.*` name instead.
 
 ## How to Add a New MCP Tool
 
@@ -175,8 +178,8 @@ track prompts.
 1. Create `internal/mcp/tools/<name>.go` returning `(mcp.Tool, server.ToolHandlerFunc)`
 2. Create `internal/mcp/tools/<name>_test.go`
 3. Register in `@internal/mcp/server.go` via `s.AddTool()`
-4. Use the helpers re-exported by `@internal/mcp/tools/docs_bridge.go` (`ScanDocuments`,
-   `ReadDocumentContent`, `guardWritablePath`, `validateReadPath`)
+4. Use the helpers re-exported by `@internal/mcp/tools/docs_bridge.go` (`scanDocuments`,
+   `scanDocumentsFull`, `readDocumentContent`, `guardWritablePath`, `validateReadPath`)
 5. Validate inputs and check path safety (no `..`, must resolve inside `.archcore/`)
 6. Never expose absolute filesystem paths in error messages — see
    [No Absolute Paths in MCP Errors](../mcp/no-absolute-paths-in-mcp-errors.rule.md)

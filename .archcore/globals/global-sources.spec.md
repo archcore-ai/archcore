@@ -21,7 +21,7 @@ It is normative for:
 - The pre-write hook guard in @cmd/hook_write_guard.go, which calls the same write-path validator.
 - MCP startup validation of declared globals in @cmd/mcp.go.
 
-The document model, the scan, and the path guards live in `internal/docs`; @internal/mcp/tools/docs_bridge.go re-exports them under the short names the MCP tool handlers use (`ScanDocuments`, `ScanDocumentsFull`, `ScanLocalDocuments`, `guardWritablePath`, `validateReadPath`, `annotateSource`, `LocalDocument`). See @.archcore/cli/docs-package-owns-the-document-model.adr.md.
+The document model, the scan, and the path guards live in `internal/docs`; @internal/mcp/tools/docs_bridge.go re-exports them under the short names the MCP tool handlers use (`scanDocuments`, `scanDocumentsFull`, `readDocumentContent`, `guardWritablePath`, `validateReadPath`, `annotateSource`, `LocalDocument`). The bridge exports no local-only scan; a caller that needs one calls `docs.ScanLocal` or `docs.ScanLocalTypes` directly. See @.archcore/cli/docs-package-owns-the-document-model.adr.md.
 
 ## Scope
 

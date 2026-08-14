@@ -35,7 +35,8 @@ closing pointer to the server instructions.
 3. The builder MUST render each document line with the full `.archcore/`-prefixed
    path, so the reader can pass it to `get_document` unchanged.
 4. The builder MUST exclude a document with status `rejected` from both blocks.
-5. The builder MUST report the count of `rejected` documents in `CORPUS`.
+5. WHEN the corpus holds at least one `rejected` document, the builder MUST
+   report their count in `CORPUS`.
 6. The builder MUST include tags from every local document, `rejected` included.
 7. The builder MUST return a document count covering every local document,
    `rejected` included.
@@ -48,6 +49,8 @@ closing pointer to the server instructions.
 13. WHEN the staleness advisory has fired for a project within 24 hours, the
     builder MUST omit it.
 14. The staleness advisory MUST NOT name a command the CLI does not own.
+15. The builder MUST reserve up to 6 budget lines for `RECENTLY ACCEPTED`.
+16. The builder MUST give `IN PROGRESS` every line that reserve leaves.
 
 ## Constraints & Invariants
 
@@ -58,6 +61,7 @@ closing pointer to the server instructions.
   envelope itself. The plugin splices its own advisories into the same JSON
   document on Copilot, where a failed parse discards the entire payload — a
   change to the wrapper would break that splice with no error anywhere.
+- Constraint: `CORPUS` omits any status counted zero, not only `rejected`.
 - Constraint: every dedup scope keeps its own stamp directory. A sweep expires
   everything older than its own window, so a shared directory would let the
   10-minute session scope erase the 24-hour staleness budget.
@@ -80,6 +84,6 @@ closing pointer to the server instructions.
 
 ## Conformance
 
-The builder is conformant when it satisfies behaviors 1–14, holds every
+The builder is conformant when it satisfies behaviors 1–16, holds every
 invariant, and degrades per the failure rules. The budget invariant is verified
 against synthetic corpora of 300 and 3000 documents.

@@ -48,7 +48,7 @@ If the implementation, tests, or downstream consumers diverge from this specific
 - Implementation: @internal/mcp/tools/search_documents.go
 - Tool registration: @internal/mcp/server.go
 - Tests: @internal/mcp/tools/search_documents_test.go
-- Shared scan helpers: @internal/mcp/tools/common.go (`ScanDocuments`, `ScanDocumentsFull`)
+- Shared scan helpers: @internal/mcp/tools/docs_bridge.go (`scanDocuments`, `scanDocumentsFull`), which delegate to @internal/docs/scan.go (`Scan`, `ScanFull`). Both are package-private to `internal/mcp/tools`; see @.archcore/cli/docs-package-owns-the-document-model.adr.md.
 - Manifest loading: @internal/mcp/tools/manifest_store.go (shared cached store, `sharedManifestStore.load`) over @internal/sync/manifest.go
 - Source-extension list: @templates/source_extensions.go
 
@@ -123,7 +123,7 @@ A JSON array of `searchResult` objects. Each object has the following fields:
 | `specificity` | integer | Per-match specificity value (see Normative Behavior §6).                                      |
 | `excerpt`     | string  | ≤ ~120-character window around the match, padded with `...` if truncated. Always valid UTF-8. |
 
-`Relation` fields (reuses `DocumentRelation` from @internal/mcp/tools/common.go): `path`, `type` (one of `related`, `implements`, `extends`, `depends_on`).
+`Relation` fields (reuses `DocumentRelation` from @internal/mcp/tools/docs_bridge.go, aliased to `docs.DocumentRelation`): `path`, `type` (one of `related`, `implements`, `extends`, `depends_on`).
 
 ## Normative Behavior
 
@@ -138,8 +138,8 @@ A JSON array of `searchResult` objects. Each object has the following fields:
 
 ### §2 Document loading
 
-1. When `path_ref` and `content` are both empty AND `mode` is `snippets`, the handler MUST call `ScanDocuments(baseDir)`, which does not retain document bodies in memory beyond the frontmatter parse.
-2. When either `path_ref` or `content` is non-empty, OR `mode` is `full`, the handler MUST call `ScanDocumentsFull(baseDir)`, which retains bodies on each `LocalDocument`. (Full mode needs bodies to populate the `body` field even for pure-metadata filters.)
+1. When `path_ref` and `content` are both empty AND `mode` is `snippets`, the handler MUST call `scanDocuments(baseDir)`, which does not retain document bodies in memory beyond the frontmatter parse.
+2. When either `path_ref` or `content` is non-empty, OR `mode` is `full`, the handler MUST call `scanDocumentsFull(baseDir)`, which retains bodies on each `LocalDocument`. (Full mode needs bodies to populate the `body` field even for pure-metadata filters.)
 3. Scanner I/O cost MUST be identical in both cases; only heap retention differs.
 
 ### §3 Manifest loading
@@ -330,7 +330,7 @@ search_documents({
 ]
 
 // Notes
-// ScanDocuments is used (not ScanDocumentsFull) — bodies are not loaded.
+// scanDocuments is used (not scanDocumentsFull) — bodies are not loaded.
 ```
 
 ### Full mode (read matched docs in one call)
@@ -362,7 +362,7 @@ search_documents({
 
 // Notes
 // `body` is the frontmatter-stripped document content; no follow-up get_document needed.
-// Full mode forces ScanDocumentsFull and defaults to limit=3 (max 20).
+// Full mode forces scanDocumentsFull and defaults to limit=3 (max 20).
 ```
 
 ### Invalid filter
