@@ -38,13 +38,20 @@ setup() {
   refute_output --partial "hookSpecificOutput"
 }
 
-@test "init nudge: codex emits plain text (no JSON wrapper)" {
+# Codex used to be pinned to plain text here. That pin encoded the defect:
+# looks_like_json (codex-rs/hooks/src/engine/output_parser.rs) fires on '[' as
+# well as '{', so a bare "[Archcore] …" line parses as a malformed JSON array
+# and the host discards the whole hook run (codex-adapter.spec failure 2).
+@test "init nudge: codex emits the SessionStart JSON wrapper, never a bare bracket line" {
   mock_archcore ""
   cd "$BATS_TEST_TMPDIR"
   run sh -c "printf '%s' '{\"turn_id\":\"x\"}' | '${PLUGIN_ROOT}/bin/session-start'"
   assert_success
   assert_output --partial "no .archcore/ directory"
-  refute_output --partial "hookSpecificOutput"
+  assert_output --partial "hookSpecificOutput"
+  case "$output" in
+    "[Archcore]"*) fail "codex must not emit a bare [Archcore] line: '$output'" ;;
+  esac
 }
 
 @test "codex payload routes the CLI hook call to the codex-cli agent id" {
@@ -78,12 +85,15 @@ setup() {
   refute_output --partial "hookSpecificOutput"
 }
 
-@test "CLI-missing notice: codex emits plain text (no JSON wrapper)" {
+@test "CLI-missing notice: codex emits the SessionStart JSON wrapper" {
   cd "$BATS_TEST_TMPDIR"
   run sh -c "PATH='/usr/bin:/bin'; export PATH; printf '%s' '{\"turn_id\":\"x\"}' | '${PLUGIN_ROOT}/bin/session-start'"
   assert_success
   assert_output --partial "install.sh"
-  refute_output --partial "hookSpecificOutput"
+  assert_output --partial "hookSpecificOutput"
+  case "$output" in
+    "[Archcore]"*) fail "codex must not emit a bare [Archcore] line: '$output'" ;;
+  esac
 }
 
 # --- Copilot emit shape (native top-level additionalContext) ----------------

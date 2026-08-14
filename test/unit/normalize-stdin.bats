@@ -50,6 +50,47 @@ setup() {
   assert_line "HOST=codex"
 }
 
+# Captured from Codex CLI 0.147.0 on 2026-08-14 (host-probe-protocol item 9).
+# The payload proves two claims the adapter rests on: a turn-scoped event
+# carries turn_id, and an MCP call reaches the hook under the mcp__<server>__
+# name even where the model-visible namespace drops that prefix
+# (hook_tool_name -> ensure_mcp_prefix, codex-rs/core/src/tools/handlers/mcp.rs).
+@test "captured codex PostToolUse payload: host codex, mcp__ prefixed tool name" {
+  run sh -c "cat '${FIXTURES}/stdin/codex/mcp-list-documents.json' | sh -c '
+    . \"${PLUGIN_ROOT}/bin/lib/normalize-stdin.sh\"
+    printf \"HOST=%s\n\" \"\$ARCHCORE_HOST\"
+    printf \"TOOL=%s\n\" \"\$ARCHCORE_TOOL_NAME\"
+  '"
+  assert_success
+  assert_line "HOST=codex"
+  assert_line "TOOL=mcp__archcore__list_documents"
+}
+
+# The reason hooks/codex.hooks.json pins ARCHCORE_HOST=codex: a captured Codex
+# SessionStart payload carries NO turn_id (turn_id is documented for
+# turn-scoped events only), so the stdin heuristic alone reads a Codex session
+# as claude-code — which is how the wrong CLI dialect and the wrong stdout
+# shape shipped (codex-adapter-conformance.adr).
+@test "captured codex SessionStart payload: no turn_id, so stdin alone reads claude-code" {
+  grep -q '"turn_id"' "${FIXTURES}/stdin/codex/session-start.json" \
+    && fail "fixture drifted: a Codex SessionStart payload must carry no turn_id"
+  run sh -c "cat '${FIXTURES}/stdin/codex/session-start.json' | sh -c '
+    . \"${PLUGIN_ROOT}/bin/lib/normalize-stdin.sh\"
+    printf \"HOST=%s\n\" \"\$ARCHCORE_HOST\"
+  '"
+  assert_success
+  assert_line "HOST=claude-code"
+}
+
+@test "captured codex SessionStart payload: the env pin resolves it to codex" {
+  run sh -c "cat '${FIXTURES}/stdin/codex/session-start.json' | ARCHCORE_HOST=codex sh -c '
+    . \"${PLUGIN_ROOT}/bin/lib/normalize-stdin.sh\"
+    printf \"HOST=%s\n\" \"\$ARCHCORE_HOST\"
+  '"
+  assert_success
+  assert_line "HOST=codex"
+}
+
 @test "cursor wins over codex when both conversation_id and turn_id present" {
   run_normalizer '{"conversation_id":"x","turn_id":"y","hook_event_name":"preToolUse","tool_name":"Write"}'
   assert_success

@@ -19,7 +19,8 @@
 # Env signals (keep these constants in sync with the script):
 #   claude-code: CLAUDECODE=1 or CLAUDE_SKILL_DIR set
 #   cursor:      CURSOR_TRACE_ID set
-#   codex-cli:   CODEX_HOME set
+#   codex-cli:   CODEX_THREAD_ID set (host-injected, the real marker) or
+#                CODEX_HOME set (user-exported config dir, fallback only)
 #   copilot:     NONE — see the __UNKNOWN__ test below. Copilot CLI exports no
 #                marker into agent shell commands, so it is deliberately absent
 #                from the token set and the init skill asks the user instead.
@@ -59,7 +60,32 @@ setup() {
   assert_output "cursor"
 }
 
-@test "detect-host: codex env → codex-cli" {
+# CODEX_THREAD_ID is the marker Codex actually injects: create_env
+# (codex-rs/protocol/src/shell_environment.rs) inserts it into every model-run
+# shell command as its last step, after include_only filtering. This is the
+# case that was broken until 0.7.3 — the branch keyed on CODEX_HOME alone
+# never fired, because Codex exports that variable nowhere, so every Codex
+# session resolved __UNKNOWN__ (codex-adapter-conformance.adr).
+@test "detect-host: CODEX_THREAD_ID → codex-cli" {
+  require_detect_host
+  run env -i PATH="$PATH" CODEX_THREAD_ID=019fffd4-f8ca-7c43-a515-99c4f80ae2a4 "$DETECT"
+  assert_success
+  assert_output "codex-cli"
+}
+
+# Both Codex surfaces share one binary, one ~/.codex/config.toml and one
+# plugin install, so the desktop app carries the same marker and takes the
+# same host id — there is no codex-desktop token (codex-adapter.spec item 13).
+@test "detect-host: desktop-app session resolves to the same codex-cli id" {
+  require_detect_host
+  run env -i PATH="$PATH" CODEX_THREAD_ID=thr_desktop CODEX_SANDBOX=seatbelt "$DETECT"
+  assert_success
+  assert_output "codex-cli"
+}
+
+# Kept as a second condition, not the primary one: a user who exports
+# CODEX_HOME is in Codex, but Codex itself never sets it.
+@test "detect-host: user-exported CODEX_HOME still → codex-cli" {
   require_detect_host
   run env -i PATH="$PATH" CODEX_HOME="$HOME/.codex" "$DETECT"
   assert_success
@@ -85,6 +111,36 @@ setup() {
   run env -i PATH="$PATH" CURSOR_TRACE_ID=abc CODEX_HOME="$HOME/.codex" "$DETECT"
   assert_success
   assert_output "cursor"
+}
+
+# Nesting, not a tie-break: Codex defaults to
+# shell_environment_policy.inherit = "all", so a Codex session started from a
+# Claude Code shell carries BOTH markers. Precedence keeps the historical
+# answer; the mirror case (Claude started from a Codex shell) is
+# indistinguishable by environment alone (codex-adapter-conformance.adr).
+@test "detect-host: claude-code wins when CODEX_THREAD_ID is inherited too" {
+  require_detect_host
+  run env -i PATH="$PATH" CLAUDECODE=1 CODEX_THREAD_ID=thr_nested "$DETECT"
+  assert_success
+  assert_output "claude-code"
+}
+
+@test "detect-host: cursor wins over an inherited CODEX_THREAD_ID" {
+  require_detect_host
+  run env -i PATH="$PATH" CURSOR_TRACE_ID=abc CODEX_THREAD_ID=thr_nested "$DETECT"
+  assert_success
+  assert_output "cursor"
+}
+
+# CODEX_* is not a prefix match: only the two exact names are signals. A
+# sandbox marker alone does not make a session Codex — and CODEX_SANDBOX is
+# absent under danger-full-access anyway, which is why it is not the key.
+@test "detect-host: CODEX_SANDBOX alone is NOT a detection signal" {
+  require_detect_host
+  run env -i PATH="$PATH" CODEX_SANDBOX=seatbelt CODEX_SANDBOX_NETWORK_DISABLED=1 \
+    CODEX_COMPANION_SESSION_ID=abc "$DETECT"
+  assert_success
+  assert_output "__UNKNOWN__"
 }
 
 # Copilot is NOT a detectable token, and this test pins that on purpose.

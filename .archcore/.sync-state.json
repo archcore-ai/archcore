@@ -3641,6 +3641,76 @@
       "source": "plugin/prd-spec-plan-content-ownership.adr.md",
       "target": "plugin/get-type-schema-mcp-tool.idea.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/codex-host-verification.rnd.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/codex-host-verification.rnd.md",
+      "target": "plugin/codex-host-support.prd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-adapter-conformance.adr.md",
+      "target": "plugin/codex-host-verification.rnd.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/codex-adapter-conformance.adr.md",
+      "target": "plugin/host-wiring-parity.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-adapter-conformance.adr.md",
+      "target": "plugin/copilot-adapter-design.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-adapter.spec.md",
+      "target": "plugin/codex-adapter-conformance.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/codex-adapter.spec.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/codex-adapter.spec.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-adapter-fixes.plan.md",
+      "target": "plugin/codex-adapter.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/codex-adapter-fixes.plan.md",
+      "target": "plugin/codex-adapter-conformance.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/codex-adapter-fixes.plan.md",
+      "target": "plugin/host-probe-protocol.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-adapter-fixes.plan.md",
+      "target": "plugin/cli-integration-tests.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/codex-adapter-fixes.plan.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/codex-adapter-conformance.adr.md",
+      "target": "plugin/component-registry.doc.md",
+      "type": "related"
     }
   ]
 }

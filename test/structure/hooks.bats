@@ -191,6 +191,39 @@ hook_root_vars() {
   }
 }
 
+# Codex has no `env` field on a hook handler — the documented handler keys are
+# type, command, commandWindows, timeout, statusMessage, additionalContextLimit
+# and async (developers.openai.com/codex/hooks) — so the host id travels as an
+# assignment prefix on the command itself, which Codex runs through a shell.
+#
+# Without it the scripts fall back to the stdin heuristic, and a Codex
+# SessionStart payload carries no turn_id, so the session was read as
+# claude-code: the CLI leaf was called with the wrong dialect and the
+# single-document stdout branch never fired (codex-adapter-conformance.adr).
+@test "codex.hooks.json: every command pins ARCHCORE_HOST=codex" {
+  local cmds cmd
+  cmds=$(jq -r '.hooks | to_entries[] | .value[].hooks[].command' \
+    "$PLUGIN_ROOT/hooks/codex.hooks.json")
+  [ -n "$cmds" ] || fail "codex.hooks.json yielded no commands at all"
+  while IFS= read -r cmd; do
+    case "$cmd" in
+      "ARCHCORE_HOST=codex "*) ;;
+      *) fail "codex hook command must start with ARCHCORE_HOST=codex, got: $cmd" ;;
+    esac
+  done <<< "$cmds"
+}
+
+@test "codex.hooks.json: no other host config pins ARCHCORE_HOST=codex" {
+  local host config vars
+  while IFS='|' read -r host config vars; do
+    [ "$config" = "hooks/codex.hooks.json" ] && continue
+    jq -r '.. | (.command? // .bash?) // empty' "$PLUGIN_ROOT/$config" \
+      | grep -q 'ARCHCORE_HOST=codex' \
+      && fail "$config must not pin the codex host id"
+  done < <(hook_configs)
+  return 0
+}
+
 # --- Consistency ---
 
 @test "every host hook config references the same set of scripts" {

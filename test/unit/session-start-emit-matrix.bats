@@ -40,13 +40,24 @@ setup() {
     || fail "copilot emit is not the bare additionalContext document: '$output'"
 }
 
-@test "emit matrix: cursor, codex, opencode emit plain text (no JSON document)" {
+# Codex left this group in 0.7.3: it takes the claude-code JSON arm, because
+# looks_like_json fires on '[' too and every plain message opens with
+# "[Archcore]" (codex-adapter.spec failure 2). Its own row is the next test.
+@test "emit matrix: codex wraps in hookSpecificOutput/SessionStart JSON" {
+  mock_archcore ""
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "printf '%s' '{\"turn_id\":\"x\"}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  printf '%s' "$output" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' > /dev/null \
+    || fail "codex emit is not the SessionStart hookSpecificOutput wrapper: '$output'"
+}
+
+@test "emit matrix: cursor, opencode emit plain text (no JSON document)" {
   mock_archcore ""
   local host stdin
-  for host in cursor codex opencode; do
+  for host in cursor opencode; do
     case "$host" in
       cursor) stdin='{"conversation_id":"x"}' ;;
-      codex) stdin='{"turn_id":"x"}' ;;
       *) stdin='{}' ;;
     esac
     cd "$BATS_TEST_TMPDIR"

@@ -15,7 +15,27 @@
 #   - precedence claude-code > cursor > codex-cli — a host-spawned subshell
 #     can inherit stray vars from companion plugins (a real Claude session
 #     carries CODEX_COMPANION_SESSION_ID, for instance), so the most specific
-#     signal wins and codex is keyed on CODEX_HOME alone, never CODEX_*.
+#     signal wins and codex is keyed on the two exact names below, never CODEX_*.
+#
+# Codex is keyed on CODEX_THREAD_ID, not on CODEX_HOME. Codex injects
+# CODEX_THREAD_ID into every model-run shell command as the LAST step of
+# create_env (codex-rs/protocol/src/shell_environment.rs), after the
+# include_only filter, so it survives every shell_environment_policy — while
+# CODEX_HOME is read FROM the user to locate the config dir and is exported by
+# nothing: the Codex manual itself spells it ${CODEX_HOME:-$HOME/.codex}. Keyed
+# on CODEX_HOME alone this branch never fired, and every Codex session — CLI
+# and desktop app alike — resolved __UNKNOWN__ (codex-adapter-conformance.adr).
+# CODEX_HOME stays as a second condition: a user who exports it is in Codex.
+#
+# Both Codex surfaces resolve to codex-cli. They share one binary, one
+# ~/.codex/config.toml, and one plugin install, so the desktop app needs no
+# host id of its own (codex-adapter.spec item 13).
+#
+# The precedence cannot resolve a NESTED session in either direction: Codex
+# defaults to shell_environment_policy.inherit = "all", so a Codex session
+# launched from a Claude shell carries CLAUDECODE and resolves claude-code,
+# and the mirror case carries CODEX_THREAD_ID. Both hosts inject their own
+# marker per spawned command; no environment variable separates the two.
 #
 # No GitHub Copilot branch, deliberately. Copilot CLI sets NO environment
 # variable in the shell commands it runs for the agent: every documented
@@ -37,7 +57,7 @@ if [ -n "${CLAUDECODE:-}" ] || [ -n "${CLAUDE_SKILL_DIR:-}" ]; then
   echo "claude-code"
 elif [ -n "${CURSOR_TRACE_ID:-}" ]; then
   echo "cursor"
-elif [ -n "${CODEX_HOME:-}" ]; then
+elif [ -n "${CODEX_THREAD_ID:-}" ] || [ -n "${CODEX_HOME:-}" ]; then
   echo "codex-cli"
 else
   echo "__UNKNOWN__"

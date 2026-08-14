@@ -149,12 +149,17 @@ setup() {
   # than borrowing Claude's name. CLAUDE_PLUGIN_ROOT is intentionally NOT used
   # here (it is a compat alias for porting old Claude plugins, not the right
   # name for a Codex-native hook config).
-  # Plugin hooks require `codex features enable plugin_hooks` (currently
-  # `under development, false` in Codex 0.130.0).
+  # Plugin-bundled hooks load alongside every other hook source and use the
+  # same trust flow (developers.openai.com/codex/hooks, verified live against
+  # Codex 0.147.0); the separate `plugin_hooks` feature flag is `removed`.
+  #
+  # Since 0.7.3 the command carries an ARCHCORE_HOST=codex prefix and quotes
+  # the root — Codex offers no `env` field on a handler, and an unquoted path
+  # would split on a space in the plugin cache directory.
   local file="$PLUGIN_ROOT/hooks/codex.hooks.json"
   while IFS= read -r command; do
-    [[ "$command" == \$\{PLUGIN_ROOT\}/bin/* ]] \
-      || fail "Codex hook command must use \${PLUGIN_ROOT}/bin/... (host-neutral canonical), got: $command"
+    [[ "$command" == *'"${PLUGIN_ROOT}"/bin/'* ]] \
+      || fail "Codex hook command must invoke \"\${PLUGIN_ROOT}\"/bin/... (host-neutral canonical, quoted), got: $command"
   done < <(jq -r '.. | .command? // empty' "$file")
   if grep -q '\${CLAUDE_PLUGIN_ROOT}\|\${CODEX_PLUGIN_ROOT}\|\${CURSOR_PLUGIN_ROOT}' "$file"; then
     fail "codex.hooks.json must not borrow other hosts' env-var names; use \${PLUGIN_ROOT}"

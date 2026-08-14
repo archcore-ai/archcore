@@ -49,6 +49,17 @@ expected_no_archcore_claude() {
 EOF
 }
 
+# Codex takes the claude-code JSON arm, not the plain-text one: looks_like_json
+# (codex-rs/hooks/src/engine/output_parser.rs) fires on '[' as well as '{', and
+# every plain message here opens with "[Archcore]" — emitted bare they parse as
+# a malformed JSON array and fail the hook run (codex-adapter.spec failure 2).
+# The advisory arms fold into one document instead of trailing after it.
+expected_empty_state_codex() {
+  cat <<'EOF'
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"\n\n[Archcore] .archcore/ is empty. Run /archcore:init to seed a stack rule, a run-the-app guide, and (optionally) imports from existing agent-instruction files like CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.\n"}}
+EOF
+}
+
 # Leading blank lines are real: one from the mocked `archcore hooks` call, one
 # from the deliberate spacer echo before the nudge.
 expected_empty_state() {
@@ -109,9 +120,16 @@ seed_substantial_doc() {
   assert_golden "$(expected_cli_missing_claude)"
 }
 
-@test "golden: CLI-missing output is byte-stable (cursor, codex, opencode plain)" {
+@test "golden: CLI-missing output is byte-stable (codex JSON, same arm as claude-code)" {
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "PATH='/usr/bin:/bin'; export PATH; printf '%s' '$(stdin_for_host codex)' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_golden "$(expected_cli_missing_claude)"
+}
+
+@test "golden: CLI-missing output is byte-stable (cursor, opencode plain)" {
   local host
-  for host in cursor codex opencode; do
+  for host in cursor opencode; do
     cd "$BATS_TEST_TMPDIR"
     run sh -c "PATH='/usr/bin:/bin'; export PATH; $(env_for_host "$host") printf '%s' '$(stdin_for_host "$host")' | $(env_for_host "$host") '${PLUGIN_ROOT}/bin/session-start'"
     assert_success
@@ -129,10 +147,18 @@ seed_substantial_doc() {
   assert_golden "$(expected_no_archcore_claude)"
 }
 
-@test "golden: missing-.archcore nudge is byte-stable (cursor, codex, opencode plain)" {
+@test "golden: missing-.archcore nudge is byte-stable (codex JSON, same arm as claude-code)" {
+  mock_archcore ""
+  cd "$BATS_TEST_TMPDIR"
+  run sh -c "printf '%s' '$(stdin_for_host codex)' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_golden "$(expected_no_archcore_claude)"
+}
+
+@test "golden: missing-.archcore nudge is byte-stable (cursor, opencode plain)" {
   mock_archcore ""
   local host
-  for host in cursor codex opencode; do
+  for host in cursor opencode; do
     cd "$BATS_TEST_TMPDIR"
     run sh -c "printf '%s' '$(stdin_for_host "$host")' | $(env_for_host "$host") '${PLUGIN_ROOT}/bin/session-start'"
     assert_success
@@ -142,10 +168,21 @@ seed_substantial_doc() {
 
 # --- empty-state arm ------------------------------------------------------------
 
-@test "golden: empty-state nudge is byte-stable and host-independent" {
+@test "golden: empty-state nudge is byte-stable on codex (folded into one document)" {
+  mock_archcore ""
+  local d="$BATS_TEST_TMPDIR/empty-codex"
+  mkdir -p "$d/.archcore"
+  echo "stub" > "$d/.archcore/stub.md"
+  cd "$d"
+  run sh -c "printf '%s' '$(stdin_for_host codex)' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_golden "$(expected_empty_state_codex)"
+}
+
+@test "golden: empty-state nudge is byte-stable on the plain-text hosts" {
   mock_archcore ""
   local host
-  for host in claude-code cursor codex opencode; do
+  for host in claude-code cursor opencode; do
     local d="$BATS_TEST_TMPDIR/empty-$host"
     mkdir -p "$d/.archcore"
     echo "stub" > "$d/.archcore/stub.md"

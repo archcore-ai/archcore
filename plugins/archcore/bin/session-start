@@ -62,7 +62,7 @@ if ! command -v archcore >/dev/null 2>&1; then
   Copilot only: after installing, wire this project (the plugin cannot ship MCP tools on Copilot): archcore init --agent copilot --project \"\$PWD\" — then restart the session."
   fi
   case "$ARCHCORE_HOST" in
-    claude-code)
+    claude-code | codex)
       _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
       printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}' "$_escaped"
       ;;
@@ -79,13 +79,18 @@ if ! command -v archcore >/dev/null 2>&1; then
   exit 0
 fi
 
-# Emit informational context to the agent (Claude Code: hookSpecificOutput
-# wrapper; Copilot: native top-level additionalContext; others: plain text —
-# the OpenCode bridge consumes plain stdout verbatim).
+# Emit informational context to the agent (Claude Code and Codex:
+# hookSpecificOutput wrapper; Copilot: native top-level additionalContext;
+# others: plain text — the OpenCode bridge consumes plain stdout verbatim).
+#
+# Codex takes the JSON arm rather than plain text for one reason: looks_like_json
+# fires on '[' as well as '{', and every message this function carries opens
+# with "[Archcore]". As plain text they would be parsed as a JSON array, fail,
+# and take the whole hook run down with them (codex-adapter.spec failure 2).
 _archcore_emit_info() {
   _msg="$1"
   case "$ARCHCORE_HOST" in
-    claude-code)
+    claude-code | codex)
       _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
       printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}' "$_escaped"
       ;;
@@ -99,21 +104,40 @@ _archcore_emit_info() {
   esac
 }
 
-# --- Copilot single-document output channel ----------------------------------
-# Copilot removes single-line {"type":"progress"} objects from stdout, then
-# concatenates EVERY remaining line and runs ONE JSON.parse over the result; if
-# that parse fails "the hook is treated as producing no output" (docs.github.com
-# /en/copilot/reference/hooks-reference). So a plain-text advisory printed after
-# the CLI hook's JSON does not append a note to the session — it discards the
-# entire payload, the ~9 KB of Archcore context along with it, and the advisory
-# it was trying to deliver.
+# --- Single-document output channel (Copilot, Codex) -------------------------
+# Two hosts reject stdout that mixes one JSON document with trailing plain
+# text, and both discard the ENTIRE payload when they do — the Archcore context
+# along with the advisory that was being appended:
 #
-# Every advisory on this host is therefore buffered and folded into that one
+#   Copilot removes single-line {"type":"progress"} objects from stdout, then
+#   concatenates EVERY remaining line and runs ONE JSON.parse over the result;
+#   if that parse fails "the hook is treated as producing no output"
+#   (docs.github.com/en/copilot/reference/hooks-reference).
+#
+#   Codex tests only whether the TRIMMED stdout starts with '{' or '[' —
+#   looks_like_json, codex-rs/hooks/src/engine/output_parser.rs. If it does and
+#   the document does not parse against the event shape, the run is marked
+#   Failed with "hook returned invalid session start JSON output" and the
+#   output is dropped (session_start.rs; every sibling event module carries the
+#   same predicate). Stdout that does NOT start with '{' or '[' is taken as
+#   plain-text context verbatim, which is what keeps the missing-.archcore arm
+#   above safe on this host.
+#
+# Every advisory on these hosts is therefore buffered and folded into that one
 # document at the very end. On every other host the same calls print exactly
 # what they printed before, byte for byte — the blank line then the message
 # (pinned by session-start-goldens.bats).
-_ac_cop_hookout=""
-_ac_cop_notes=""
+_ac_buf_hookout=""
+_ac_buf_notes=""
+
+# Hosts whose stdout must stay exactly one document (codex-adapter.spec item 4,
+# copilot-adapter-design.adr). Every buffering branch keys on this predicate.
+_archcore_buffers_stdout() {
+  case "$ARCHCORE_HOST" in
+    copilot|codex) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 
 # JSON-escape for embedding inside a double-quoted value: backslashes, quotes,
 # then newlines as literal \n.
@@ -122,8 +146,8 @@ _archcore_json_escape() {
 }
 
 _archcore_note() {
-  if [ "$ARCHCORE_HOST" = "copilot" ]; then
-    _ac_cop_notes="${_ac_cop_notes}
+  if _archcore_buffers_stdout; then
+    _ac_buf_notes="${_ac_buf_notes}
 
 $1"
   else
@@ -132,38 +156,81 @@ $1"
   fi
 }
 
-# Emit the buffered advisories as part of the CLI hook's document. The splice
+# Emit the buffered advisories as part of the CLI hook's document. Each splice
 # fires only on the exact shape it can take apart; anything else passes through
 # untouched, because corrupting the host's context payload is a worse failure
-# than delivering the advisory through the progress channel instead. Both
-# branches leave stdout parsing as exactly one JSON document.
-_archcore_copilot_flush() {
-  [ "$ARCHCORE_HOST" = "copilot" ] || return 0
+# than losing one advisory. Every branch leaves stdout parsing as exactly one
+# JSON document — or, where the host reads plain text, as no JSON at all.
+_archcore_flush_stdout() {
+  _archcore_buffers_stdout || return 0
 
-  if [ -z "$_ac_cop_notes" ]; then
-    [ -n "$_ac_cop_hookout" ] && printf '%s' "$_ac_cop_hookout"
+  if [ -z "$_ac_buf_notes" ]; then
+    [ -n "$_ac_buf_hookout" ] && printf '%s' "$_ac_buf_hookout"
     return 0
   fi
 
-  case "$_ac_cop_hookout" in
+  if [ "$ARCHCORE_HOST" = "codex" ]; then
+    _archcore_flush_codex
+    return 0
+  fi
+
+  case "$_ac_buf_hookout" in
     '')
       # No CLI payload to join — the advisories are the whole document.
-      _ac_cop_esc=$(_archcore_json_escape "$_ac_cop_notes")
-      printf '{"additionalContext":"%s"}' "$_ac_cop_esc"
+      _ac_buf_esc=$(_archcore_json_escape "$_ac_buf_notes")
+      printf '{"additionalContext":"%s"}' "$_ac_buf_esc"
       ;;
     '{"additionalContext":"'*'"}')
-      _ac_cop_body=${_ac_cop_hookout#'{"additionalContext":"'}
-      _ac_cop_body=${_ac_cop_body%'"}'}
-      _ac_cop_esc=$(_archcore_json_escape "$_ac_cop_notes")
-      printf '{"additionalContext":"%s%s"}' "$_ac_cop_body" "$_ac_cop_esc"
+      _ac_buf_body=${_ac_buf_hookout#'{"additionalContext":"'}
+      _ac_buf_body=${_ac_buf_body%'"}'}
+      _ac_buf_esc=$(_archcore_json_escape "$_ac_buf_notes")
+      printf '{"additionalContext":"%s%s"}' "$_ac_buf_body" "$_ac_buf_esc"
       ;;
     *)
-      printf '%s\n' "$_ac_cop_hookout"
-      printf '%s\n' "$_ac_cop_notes" | while IFS= read -r _ac_cop_line; do
-        [ -n "$_ac_cop_line" ] || continue
-        _ac_cop_esc=$(printf '%s' "$_ac_cop_line" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\n')
-        printf '{"type":"progress","message":"%s"}\n' "$_ac_cop_esc"
+      printf '%s\n' "$_ac_buf_hookout"
+      printf '%s\n' "$_ac_buf_notes" | while IFS= read -r _ac_buf_line; do
+        [ -n "$_ac_buf_line" ] || continue
+        _ac_buf_esc=$(printf '%s' "$_ac_buf_line" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\n')
+        printf '{"type":"progress","message":"%s"}\n' "$_ac_buf_esc"
       done
+      ;;
+  esac
+}
+
+# Codex arm. The CLI hook's document is the Claude shape — additionalContext
+# nested under hookSpecificOutput, optionally followed by a systemMessage — so
+# the notes are appended to the END of that context value by anchoring on the
+# literal that FOLLOWS it. Anchoring on the tail rather than splitting on the
+# opening quote is what keeps escaped quotes inside the value (document titles
+# carry them) out of the arithmetic, with no JSON parser and no jq dependency.
+#
+# Codex has no progress channel to fall back to, so an unrecognized payload
+# leaves stdout byte-identical and the advisory goes to stderr: a hook that
+# prints a second document there fails the whole run (looks_like_json), which
+# is exactly the defect this function exists to remove.
+_archcore_flush_codex() {
+  _ac_buf_esc=$(_archcore_json_escape "$_ac_buf_notes")
+  _ac_cx_mid='","hookEventName":"SessionStart"}'
+  _ac_cx_end='"}}'
+
+  case "$_ac_buf_hookout" in
+    '')
+      # No CLI payload to join — the advisories are the whole document. Not
+      # plain text: they open with "[Archcore]", and looks_like_json fires on
+      # '[' too, so as plain text they would be read as a malformed JSON array.
+      printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}' "$_ac_buf_esc"
+      ;;
+    *'"additionalContext":"'*'","hookEventName":"SessionStart"}'*)
+      printf '%s%s%s%s' \
+        "${_ac_buf_hookout%%"$_ac_cx_mid"*}" "$_ac_buf_esc" \
+        "$_ac_cx_mid" "${_ac_buf_hookout#*"$_ac_cx_mid"}"
+      ;;
+    *'"additionalContext":"'*'"}}')
+      printf '%s%s%s' "${_ac_buf_hookout%"$_ac_cx_end"}" "$_ac_buf_esc" "$_ac_cx_end"
+      ;;
+    *)
+      printf '%s' "$_ac_buf_hookout"
+      printf '%s\n' "$_ac_buf_notes" >&2
       ;;
   esac
 }
@@ -257,17 +324,17 @@ fi
 # strict old CLI rejects a new config field, surface a clear nudge instead of
 # silent emptiness; on any other failure, stay silent and fall through as before.
 #
-# On Copilot the payload is captured rather than streamed: it has to be joined
-# with whatever advisories fire below into a single JSON document, and once the
-# first byte has left for the host that is no longer possible. Other hosts keep
-# streaming exactly as before.
+# On Copilot and Codex the payload is captured rather than streamed: it has to
+# be joined with whatever advisories fire below into a single document, and
+# once the first byte has left for the host that is no longer possible. Other
+# hosts keep streaming exactly as before.
 _ac_err="${TMPDIR:-/tmp}/archcore_ss_err_$$"
 # The shell host id "codex" maps to the CLI agent id "codex-cli"; every other
 # host id matches its CLI dialect name as-is (bin/pre-tool-use does the same).
 _ac_cli_host="$ARCHCORE_HOST"
 [ "$_ac_cli_host" = "codex" ] && _ac_cli_host="codex-cli"
-if [ "$ARCHCORE_HOST" = "copilot" ]; then
-  _ac_cop_hookout=$(printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$_ac_cli_host" session-start 2>"$_ac_err")
+if _archcore_buffers_stdout; then
+  _ac_buf_hookout=$(printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$_ac_cli_host" session-start 2>"$_ac_err")
   _ac_rc=$?
 else
   printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$_ac_cli_host" session-start 2>"$_ac_err"
@@ -370,6 +437,6 @@ if _archcore_due last-update-advisory; then
   fi
 fi
 
-# Copilot only: everything buffered above leaves as one JSON document. A no-op
+# Copilot and Codex: everything buffered above leaves as one document. A no-op
 # on every other host, where the lines have already been printed.
-_archcore_copilot_flush
+_archcore_flush_stdout

@@ -269,6 +269,36 @@ setup() {
     || fail "SKILL.md must keep the __UNKNOWN__ fallback the Copilot path depends on"
 }
 
+# The Codex desktop app carries no host id of its own: it shares one binary,
+# one ~/.codex/config.toml and one plugin install with the CLI. A question that
+# offers only "Codex CLI" leaves a desktop user with no matching option, which
+# is how a real session ended up improvising a host id (codex-adapter.spec
+# item 10).
+@test "init host question names the Codex desktop app, mapped to codex-cli" {
+  grep -qi 'Codex (CLI or desktop app)' "$SKILL" \
+    || fail "SKILL.md Step -1 must offer a Codex option that names the desktop app"
+  grep -qF '`codex-cli`' "$SKILL" \
+    || fail "SKILL.md must map the Codex answer to the 'codex-cli' agent id"
+  grep -qi 'no `codex-desktop`' "$SKILL" \
+    || fail "SKILL.md must state that no codex-desktop agent id exists"
+}
+
+@test "init tells a codex user which consents the wiring waits on" {
+  # Writing .codex/config.toml and .codex/hooks.json changes nothing until the
+  # user trusts the project and approves the hooks; codex exec skips untrusted
+  # hooks without saying why (developers.openai.com/codex/hooks).
+  #
+  # Both anchors are phrases unique to the codex paragraph. A bare `/hooks`
+  # grep passed with that paragraph deleted, because `.github/hooks/…` in the
+  # copilot line matches it — the assertion tested nothing.
+  grep -qi 'MUST name the two consents' "$SKILL" \
+    || fail "SKILL.md closing message must carry the codex two-consents instruction"
+  grep -qi 'trust this project' "$SKILL" \
+    || fail "SKILL.md closing message must name project trust as a codex prerequisite"
+  grep -qi 'reviews and trusts it under' "$SKILL" \
+    || fail "SKILL.md closing message must name the /hooks approval as a codex prerequisite"
+}
+
 @test "init tells a copilot user to restart the session after wiring" {
   # Wiring writes .mcp.json, which Copilot reads only at session start — so the
   # session that just wired the repo still has no document tools. Told nothing,
