@@ -10,6 +10,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 
 	"archcore-cli/internal/sync"
+	"archcore-cli/templates"
 )
 
 func TestHandleCreateDocument_Success(t *testing.T) {
@@ -262,7 +263,7 @@ func TestHandleCreateDocument_AllTypes(t *testing.T) {
 	}{
 		{"adr", "knowledge", "## Decision"},
 		{"rfc", "knowledge", "## Motivation"},
-		{"rule", "knowledge", "Rule as imperative statement"},
+		{"rule", "knowledge", "Applies to"},
 		{"guide", "knowledge", "## Steps"},
 		{"doc", "knowledge", "## Content"},
 		{"spec", "knowledge", "## Normative Behavior"},
@@ -322,7 +323,7 @@ func TestHandleCreateDocument_AllTypes(t *testing.T) {
 // TestNewCreateDocumentTool_SpecNotationGuidance guards the strict-EARS rules
 // carried in the content parameter description — the guidance agents see when
 // writing a spec body manually (without the plugin skills loaded).
-func TestNewCreateDocumentTool_SpecNotationGuidance(t *testing.T) {
+func TestNewCreateDocumentTool_NotationGuidance(t *testing.T) {
 	t.Parallel()
 
 	tool := NewCreateDocumentTool()
@@ -332,13 +333,45 @@ func TestNewCreateDocumentTool_SpecNotationGuidance(t *testing.T) {
 	}
 	desc, _ := prop["description"].(string)
 
+	// The description is the only carrier of the notation for an agent that
+	// writes the body itself instead of taking the template, so it owes both
+	// halves of the prose canon — not just the normative one.
 	for _, rule := range []string{
 		"no subjectless passives",
 		"one modal",
 		"never grammatical subjects",
+		"<= 25 words",
+		"<= 20 words",
+		"no BCP 14 modal in a numbered clause",
+		"[assumption]",
 	} {
 		if !strings.Contains(desc, rule) {
-			t.Errorf("content description missing strict-EARS rule phrase: %q", rule)
+			t.Errorf("content description missing notation phrase: %q", rule)
+		}
+	}
+
+	// The description and the tables have to agree about which section of which
+	// type holds steps. They did not: the description put plan under the types
+	// with no step cap while StepSections applied the 20-word cap to its tasks.
+	for docType, rules := range templates.StepSections {
+		for _, section := range rules {
+			if !strings.Contains(desc, string(docType)+": "+section.Name) {
+				t.Errorf("content description does not name the step section %q of %q", section.Name, docType)
+			}
+		}
+	}
+
+	// Same agreement for the graded-clause sections. The names are checked
+	// without the type prefix because the description joins one type's sections
+	// with "and" rather than repeating "spec:" before each.
+	for docType, rules := range templates.ClauseSections {
+		if !strings.Contains(desc, string(docType)+":") {
+			t.Errorf("content description does not name the clause-carrying type %q", docType)
+		}
+		for _, section := range rules {
+			if !strings.Contains(desc, section.Name) {
+				t.Errorf("content description does not name the clause section %q of %q", section.Name, docType)
+			}
 		}
 	}
 }

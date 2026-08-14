@@ -49,7 +49,7 @@ Ship the update path in two releases: telemetry on the manual path first, the un
 ### Phase 4 — Verify the mechanism ran
 
 21. Build the PostHog queries: replacement rate per release, failure rate by `stage`, `skipped` split by `reason`, `manual` versus `auto` share, and the plugin advisory's impression trend as the control signal.
-22. Update `self-update-command.guide.md` and `install-script-usage.guide.md` for the update behavior and both variables.
+22. Update `self-update-command.doc.md` and `install-script-usage.guide.md` for the update behavior and both variables.
 
 ### Deferred
 

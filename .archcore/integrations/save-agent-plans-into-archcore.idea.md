@@ -136,6 +136,6 @@ public command surface, which the current design deliberately holds at nine comm
   `PreToolUse` handler cheap to add.
 - `.archcore/integrations/hook-runtime.spec.md` — the contract any new handler must satisfy.
 - `.archcore/integrations/supported-ai-agents.doc.md` — host registry.
-- `.archcore/integrations/agent-hooks-integration.guide.md` — integration surfaces.
+- `.archcore/integrations/agent-hooks-integration.doc.md` — integration surfaces.
 - Global `architecture/one-product-two-entry-points` (read-only) — CLI baseline vs plugin runtime
   framing; referenced in prose, not linked (globals are not related to).

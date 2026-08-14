@@ -188,6 +188,50 @@ func TestPrecision_PassiveOutsideANumberedClauseIsIgnored(t *testing.T) {
 	}
 }
 
+// TestPrecision_ReportFindingsCap: the report leaving the hook is bounded by
+// maxReportFindings and states how much it dropped. The findings arrive in
+// fixed check order, so the same document always keeps the same head.
+func TestPrecision_ReportFindingsCap(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+
+	// One clause tripping more checks than the report may show: two missing
+	// sections, empty frontmatter, the body floor, a compound requirement, a
+	// trailing condition, an open-ended list, and a Rule naming no file target.
+	writeArchcoreDoc(t, base, "noisy.rule.md",
+		"---\n---\n## Rule\n1. The developer MUST log the error and MUST NOT retry, etc. when possible.\n")
+
+	got := Precision(base, "mcp__archcore__update_document", "noisy.rule.md")
+
+	lines := strings.Split(got, "\n")
+	// The header, maxReportFindings findings, and the line counting the rest.
+	if len(lines) != maxReportFindings+2 {
+		t.Fatalf("report carries %d lines, want %d:\n%s", len(lines), maxReportFindings+2, got)
+	}
+	if last := lines[len(lines)-1]; !strings.Contains(last, "not shown") {
+		t.Errorf("report does not say what it dropped: %q", last)
+	}
+}
+
+// TestPrecision_ReportUnderCapCarriesNoCutLine: a report that fits is not
+// suffixed with a count of nothing.
+func TestPrecision_ReportUnderCapCarriesNoCutLine(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+
+	writeArchcoreDoc(t, base, "small.rule.md",
+		"---\ntitle: T\nstatus: draft\n---\n## Rule\n1. The developer MUST validate input in `cmd/`.\n## Rationale\nr\n## Enforcement\n`ci`\n")
+
+	got := Precision(base, "mcp__archcore__update_document", "small.rule.md")
+
+	if got == "" {
+		t.Fatal("expected the body-floor finding for a short document")
+	}
+	if strings.Contains(got, "not shown") {
+		t.Errorf("an under-cap report claims a cut:\n%s", got)
+	}
+}
+
 // TestPrecision_SectionHeadingMatching pins the heading rule the section check
 // implements: the name, then whitespace or end of line.
 func TestPrecision_SectionHeadingMatching(t *testing.T) {

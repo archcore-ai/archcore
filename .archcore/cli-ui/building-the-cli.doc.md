@@ -16,7 +16,7 @@ See also: [Supported AI Agents Registry](../integrations/supported-ai-agents.doc
 [Hook Runtime Contract](../integrations/hook-runtime.spec.md),
 [Hook Wire Protocol Per Host](../integrations/hook-wire-protocol.spec.md),
 [Hook Payload Reading](../integrations/hook-payload-reading.spec.md),
-[Agent Integration Guide](../integrations/agent-hooks-integration.guide.md).
+[Agent Integration Reference](../integrations/agent-hooks-integration.doc.md).
 
 ## Prerequisites
 
@@ -313,7 +313,7 @@ apply uniformly to every host.
 6. **Update documentation:**
    - Add the agent to [Supported AI Agents Registry](../integrations/supported-ai-agents.doc.md)
    - Add the event rows to [CLI Hooks Reference](../integrations/cli-hooks-reference.doc.md)
-   - Add config examples to [Agent Integration Guide](../integrations/agent-hooks-integration.guide.md)
+   - Add config examples to [Agent Integration Reference](../integrations/agent-hooks-integration.doc.md)
 
 ## Key Design Patterns
 

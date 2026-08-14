@@ -30,7 +30,7 @@ Agent: search_documents → finds feature-gating-at-command-layer.rule.md → re
 
 ```
 User: "How does sync work?"
-Agent: search_documents → finds sync-how-it-works.guide.md and sync-engine.spec.md → reads them → answers
+Agent: search_documents → finds sync-how-it-works.doc.md and sync-engine.spec.md → reads them → answers
 ```
 
 ### Bad

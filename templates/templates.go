@@ -329,17 +329,13 @@ func GenerateTemplate(documentType DocumentType) string {
 func generateADRTemplate() string {
 	return `## Context
 
-Describe the context and problem statement that motivates this decision.
+State the trigger in 2 to 4 sentences: the situation now, the constraint or
+measurement that turns it into a problem, and what breaks if nothing changes.
+Cite the evidence — @path/to/file, a metric, a commit, an external authority —
+or mark the claim [assumption] when the decision runs ahead of the code.
 
-### Current State
-
-- What is the current situation?
-- What constraints exist?
-- What pain points are we experiencing?
-
-### Problem Statement
-
-Clear, concise description of the problem that needs to be solved.
+Prose only in this section. A bullet list drops the connective tissue between
+those sentences, and that tissue is what makes the decision follow from them.
 
 ## Decision
 
@@ -355,15 +351,12 @@ Explain why this decision was chosen over alternatives:
 
 ## Alternatives Considered
 
-### Alternative 1: [Name]
+One numbered item per alternative, each naming what ruled it out. The reason is
+the part a later reader cannot reconstruct, and an alternative recorded without
+one reads as a preference rather than a choice.
 
-- Description of the alternative
-- Why it was not chosen
-
-### Alternative 2: [Name]
-
-- Description of the alternative
-- Why it was not chosen
+1. [Alternative] — rejected because [the measurement or constraint that ruled it out].
+2. [Alternative] — rejected because [the measurement or constraint that ruled it out].
 
 ## Consequences
 
@@ -526,11 +519,14 @@ Brief description of what this rule covers and why it exists.
 
 ## Rule
 
-State the rule clearly as imperative statements:
+State each rule as one numbered clause carrying one BCP 14 modal (MUST /
+MUST NOT / SHOULD / MAY, uppercase), one named actor, and the scope it governs —
+a path, a glob, or a named situation. Keep a clause at or under 25 words: past
+that it usually carries a second obligation. Put the trigger before the response.
 
-1. [Rule as imperative statement]
-2. [Rule as imperative statement]
-3. [Rule as imperative statement]
+1. The [actor] MUST [response]. Applies to ` + "`path/glob`" + `.
+2. WHEN [trigger], the [actor] MUST [response]. Applies to ` + "`path/glob`" + `.
+3. IF [undesired condition], THEN the [actor] MUST [response]. Applies to [named situation].
 
 ## Rationale
 
@@ -565,10 +561,10 @@ Why this rule exists and what problems it prevents.
 
 ## Enforcement
 
-How this rule is enforced:
+Name the check that catches a violation, or state that none exists:
 
-- Enforcement method 1: Description
-- Enforcement method 2: Description
+- ` + "`lint-rule-or-ci-step`" + ` — what it catches and where it runs.
+- ` + "`manual review`" + ` — for the part no automated check covers.
 `
 }
 
@@ -607,41 +603,36 @@ Approximate time to complete: X minutes
 
 ## Steps
 
-### Step 1: [Title]
+One numbered step per action, each at or under 20 words. A step tells the
+reader what to do now, so it opens with a verb and carries no BCP 14 modal.
 
-Description of what this step accomplishes.
+1. [First action — what to do and where] (@path/to/file)
 
-` + "```" + `
-# Commands or code for this step
-` + "```" + `
+   ` + "```" + `
+   # Commands or code for this step
+   ` + "```" + `
 
-**Expected result:** What you should see after this step.
+   **Expected result:** What you should see after this step.
 
-### Step 2: [Title]
+2. [Second action]
 
-Description of what this step accomplishes.
+   ` + "```" + `
+   # Commands or code for this step
+   ` + "```" + `
 
-` + "```" + `
-# Commands or code for this step
-` + "```" + `
+   **Expected result:** What you should see after this step.
 
-**Expected result:** What you should see after this step.
+3. [Third action]
 
-### Step 3: [Title]
+   ` + "```" + `
+   # Commands or code for this step
+   ` + "```" + `
 
-Description of what this step accomplishes.
+   **Expected result:** What you should see after this step.
 
-` + "```" + `
-# Commands or code for this step
-` + "```" + `
+4. [Final action]
 
-**Expected result:** What you should see after this step.
-
-### Step 4: [Title]
-
-Description of what this step accomplishes.
-
-**Expected result:** What you should see after this step.
+   **Expected result:** What you should see after this step.
 
 ## Verification
 
@@ -932,14 +923,17 @@ Describe the desired outcome in one sentence.
 
 ## Tasks
 
+One numbered task per action, each at or under 20 words. Numbering inside the
+phase, so a task can be cited as "Phase 2, task 1".
+
 ### Phase 1: [Name]
 
-- [ ] Task 1
-- [ ] Task 2
+1. [First task — one action, one place]
+2. [Second task]
 
 ### Phase 2: [Name]
 
-- [ ] Task 1
+1. [First task of this phase]
 
 ## Acceptance Criteria
 

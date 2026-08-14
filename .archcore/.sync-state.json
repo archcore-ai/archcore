@@ -59,16 +59,6 @@
       "type": "related"
     },
     {
-      "source": "cli-ui/building-the-cli.guide.md",
-      "target": "cli-ui/language-setting.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "cli-ui/building-the-cli.guide.md",
-      "target": "cli/optional-settings-omit-defaults.rule.md",
-      "type": "related"
-    },
-    {
       "source": "integrations/cli-hooks-reference.doc.md",
       "target": "integrations/disable-stop-and-prompt-hooks.adr.md",
       "type": "related"
@@ -90,22 +80,12 @@
     },
     {
       "source": "cli-ui/version-in-banners.idea.md",
-      "target": "cli-ui/building-the-cli.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "cli-ui/version-in-banners.idea.md",
       "target": "cli-ui/language-setting.idea.md",
       "type": "related"
     },
     {
       "source": "cli-ui/version-in-banners.idea.md",
       "target": "cli-ui/project-deletion-via-repo.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "dir/categories-and-document-types.doc.md",
-      "target": "dir/archcore-directory-structure.guide.md",
       "type": "related"
     },
     {
@@ -339,11 +319,6 @@
       "type": "related"
     },
     {
-      "source": "code-quality/go-code-quality.rule.md",
-      "target": "cli-ui/building-the-cli.guide.md",
-      "type": "related"
-    },
-    {
       "source": "code-quality/e2e-testing-for-cli.idea.md",
       "target": "code-quality/go-code-quality.rule.md",
       "type": "related"
@@ -366,11 +341,6 @@
     {
       "source": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
       "target": "mcp/tag-update-semantics.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "integrations/agent-hooks-integration.guide.md",
-      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
       "type": "related"
     },
     {
@@ -454,16 +424,6 @@
       "type": "related"
     },
     {
-      "source": "integrations/instruction-nudge-on-init.adr.md",
-      "target": "integrations/agent-hooks-integration.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "integrations/instruction-nudge-on-init.adr.md",
-      "target": "cli-ui/building-the-cli.guide.md",
-      "type": "related"
-    },
-    {
       "source": "globals/global-sources.spec.md",
       "target": "globals/global-sources-via-settings.adr.md",
       "type": "extends"
@@ -529,19 +489,9 @@
       "type": "related"
     },
     {
-      "source": "sync/sync-how-it-works.guide.md",
-      "target": "sync/one-way-push-sync-strategy.adr.md",
-      "type": "related"
-    },
-    {
       "source": "cli/feature-gating-at-command-layer.rule.md",
       "target": "sync/temporarily-disable-sync.adr.md",
       "type": "implements"
-    },
-    {
-      "source": "update/self-update-command.guide.md",
-      "target": "release/version-injection-via-ldflags.rule.md",
-      "type": "related"
     },
     {
       "source": "integrations/backup-invalid-configs.adr.md",
@@ -604,11 +554,6 @@
       "type": "related"
     },
     {
-      "source": "integrations/save-agent-plans-into-archcore.idea.md",
-      "target": "integrations/agent-hooks-integration.guide.md",
-      "type": "related"
-    },
-    {
       "source": "mcp/relation-write-path-graph-growth.idea.md",
       "target": "mcp/read-path-scan-performance.idea.md",
       "type": "related"
@@ -646,11 +591,6 @@
     {
       "source": "sync/sync-engine.spec.md",
       "target": "sync/one-way-push-sync-strategy.adr.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "update/self-update-command.guide.md",
-      "target": "update/resolve-latest-via-github-redirect.adr.md",
       "type": "depends_on"
     },
     {
@@ -699,11 +639,6 @@
       "type": "implements"
     },
     {
-      "source": "dir/free-form-directory-rules.rule.md",
-      "target": "dir/archcore-directory-structure.guide.md",
-      "type": "related"
-    },
-    {
       "source": "sync/sync-path-security.rule.md",
       "target": "dir/free-form-directory-structure.adr.md",
       "type": "depends_on"
@@ -741,11 +676,6 @@
     {
       "source": "globals/vendoring-a-global.guide.md",
       "target": "globals/global-sources-via-settings.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "dir/archcore-directory-structure.guide.md",
-      "target": "dir/free-form-directory-structure.adr.md",
       "type": "related"
     },
     {
@@ -869,31 +799,6 @@
       "type": "related"
     },
     {
-      "source": "cli-ui/building-the-cli.guide.md",
-      "target": "integrations/hook-runtime.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "cli-ui/building-the-cli.guide.md",
-      "target": "cli/docs-package-owns-the-document-model.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "cli-ui/building-the-cli.guide.md",
-      "target": "cli/forward-compatible-settings-parsing.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "integrations/agent-hooks-integration.guide.md",
-      "target": "integrations/cli-hooks-reference.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "integrations/agent-hooks-integration.guide.md",
-      "target": "integrations/plugin-cli-compatibility.rule.md",
-      "type": "related"
-    },
-    {
       "source": "integrations/save-agent-plans-into-archcore.idea.md",
       "target": "integrations/hook-guardrails-in-the-cli.adr.md",
       "type": "related"
@@ -1009,11 +914,6 @@
       "type": "depends_on"
     },
     {
-      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
-      "target": "cli-ui/building-the-cli.guide.md",
-      "type": "related"
-    },
-    {
       "source": "telemetry/cli-update-telemetry.spec.md",
       "target": "telemetry/install-analytics-via-installer-beacon.adr.md",
       "type": "depends_on"
@@ -1100,11 +1000,6 @@
     },
     {
       "source": "update/keeping-the-cli-current-rollout.plan.md",
-      "target": "update/self-update-command.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "update/keeping-the-cli-current-rollout.plan.md",
       "target": "release/install-script-usage.guide.md",
       "type": "related"
     },
@@ -1117,6 +1012,111 @@
       "source": "update/unattended-update.spec.md",
       "target": "update/resolve-latest-via-github-redirect.adr.md",
       "type": "depends_on"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "cli-ui/language-setting.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "cli/optional-settings-omit-defaults.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "cli/forward-compatible-settings-parsing.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/version-in-banners.idea.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/instruction-nudge-on-init.adr.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/agent-hooks-integration.doc.md",
+      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/agent-hooks-integration.doc.md",
+      "target": "integrations/cli-hooks-reference.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/agent-hooks-integration.doc.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/instruction-nudge-on-init.adr.md",
+      "target": "integrations/agent-hooks-integration.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "integrations/agent-hooks-integration.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/sync-how-it-works.doc.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "dir/archcore-directory-structure.doc.md",
+      "target": "dir/free-form-directory-structure.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "dir/categories-and-document-types.doc.md",
+      "target": "dir/archcore-directory-structure.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "dir/free-form-directory-rules.rule.md",
+      "target": "dir/archcore-directory-structure.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "release/version-injection-via-ldflags.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/self-update-command.doc.md",
+      "type": "related"
     }
   ]
 }

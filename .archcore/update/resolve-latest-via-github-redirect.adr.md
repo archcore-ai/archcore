@@ -110,4 +110,4 @@ Cache locally and send `If-None-Match`; a `304` does not count against the budge
 - @install.sh — `parse_version_from_json` deleted; `get_latest_version` reads `%{redirect_url}` and validates the `*/releases/tag/*` shape
 - @install.ps1 — `Get-LatestVersion` reads `Location` off the thrown exception, guarding both the PS7 typed-property and PS5.1 indexer shapes
 - @internal/update/update_test.go, @cmd/update_test.go, @cmd/update_check_test.go — test servers answer a redirect with `Location` instead of JSON; `TestCheckLatest` is table-driven over 302/301/307/308 plus relative-`Location` and dot-segment rows, each asserting no `CheckRedirect` leak; the error table asserts `errContains` per row and covers non-3xx-with-valid-tag, traversal segments, unparseable `Location`, missing `Location`, empty tag, and no-release-published
-- Updated self-update-command.guide.md and install-script-usage.guide.md
+- Updated self-update-command.doc.md (retyped from guide on 2026-08-14) and install-script-usage.guide.md

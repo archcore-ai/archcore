@@ -103,7 +103,7 @@ not run it. Applies to Cursor if it turns out to be UI-only, and to any host wit
 **Command surface.** Add `archcore plugin install|remove|status [--agent <id>]` and have `init`
 call it after confirmation. This mirrors `archcore hooks install` and
 `archcore instructions install` and follows the constructor-command pattern in
-`.archcore/cli-ui/building-the-cli.guide.md`. Note that it grows the public command surface.
+`.archcore/cli-ui/building-the-cli.doc.md`. Note that it grows the public command surface.
 
 ## Risks
 
@@ -158,7 +158,7 @@ call it after confirmation. This mirrors `archcore hooks install` and
   covers a written declaration the host may not act on.
 - `.archcore/release/install-script-usage.guide.md` — the install script this idea makes the
   single entry point.
-- `.archcore/cli-ui/building-the-cli.guide.md` — the command pattern a new `plugin` command
+- `.archcore/cli-ui/building-the-cli.doc.md` — the command pattern a new `plugin` command
   follows.
 - Global `architecture/one-product-two-entry-points` and `architecture/supported-ai-hosts`
   (read-only) — the entry-point framing and the plugin host coverage set; referenced in prose,

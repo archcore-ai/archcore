@@ -5,7 +5,7 @@ tags:
   - "update"
 ---
 
-## Purpose
+## Overview
 
 Explain what `archcore update` does, how to run it, and how to read its failures.
 

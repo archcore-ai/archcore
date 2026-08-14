@@ -36,7 +36,7 @@ func TestGenerateTemplate(t *testing.T) {
 		{
 			name:         "Guide template",
 			documentType: TypeGuide,
-			wantContains: []string{"## Overview", "## Prerequisites", "## Steps", "### Step 1:", "### Step 2:", "### Step 3:", "## Common Issues", "## Verification"},
+			wantContains: []string{"## Overview", "## Prerequisites", "## Steps", "## Common Issues", "## Verification"},
 		},
 		{
 			name:         "Doc template",
@@ -168,8 +168,13 @@ func TestGenerateADRTemplate(t *testing.T) {
 		}
 	}
 
-	if !strings.Contains(template, "Describe") {
-		t.Error("ADR template should include guidance text")
+	// Canonical tokens rather than a prose word: the template owes its author the
+	// evidence obligation, and "[assumption]" is the marker the canon names for
+	// the case where no evidence exists yet.
+	for _, token := range []string{"[assumption]", "@path/to/file"} {
+		if !strings.Contains(template, token) {
+			t.Errorf("ADR template should teach the evidence obligation: missing %q", token)
+		}
 	}
 }
 
@@ -236,10 +241,6 @@ func TestGenerateGuideTemplate(t *testing.T) {
 		"## Overview",
 		"## Prerequisites",
 		"## Steps",
-		"### Step 1:",
-		"### Step 2:",
-		"### Step 3:",
-		"### Step 4:",
 		"## Common Issues",
 		"## Verification",
 		"## Next Steps",
@@ -255,9 +256,13 @@ func TestGenerateGuideTemplate(t *testing.T) {
 		t.Error("Guide template must not contain a Related Resources section listing other archcore documents")
 	}
 
-	stepCount := strings.Count(template, "### Step")
-	if stepCount < 4 {
-		t.Errorf("Guide template should have at least 4 steps, got %d", stepCount)
+	// Numbered steps, not "### Step N:" subsections. StepSections names ## Steps
+	// as the guide's step body and the engine reads a step as a numbered item,
+	// so a subsection-shaped template made every step check unreachable.
+	for _, step := range []string{"\n1. ", "\n2. ", "\n3. ", "\n4. "} {
+		if !strings.Contains(template, step) {
+			t.Errorf("Guide template missing numbered step: %q", step)
+		}
 	}
 }
 
@@ -623,10 +628,17 @@ func TestGeneratePlanTemplate(t *testing.T) {
 		}
 	}
 
-	// Verify checklist format
+	// Numbered tasks under the phases, checkboxes only in Acceptance Criteria.
+	// StepSections names ## Tasks as the plan's step body, and the engine reads
+	// a step as a numbered item — a checkbox list made the cap unreachable.
+	for _, task := range []string{"\n1. ", "\n2. "} {
+		if !strings.Contains(template, task) {
+			t.Errorf("Plan template missing numbered task: %q", task)
+		}
+	}
 	checkboxCount := strings.Count(template, "- [ ]")
-	if checkboxCount < 4 {
-		t.Errorf("Plan template should have at least 4 task checkboxes, got %d", checkboxCount)
+	if checkboxCount < 2 {
+		t.Errorf("Plan template should keep its acceptance checkboxes, got %d", checkboxCount)
 	}
 
 	// Verify table format for dependencies
@@ -988,6 +1000,52 @@ func TestValidTypes_Completeness(t *testing.T) {
 	if len(types) != len(categoryMap) {
 		t.Errorf("ValidTypes() count = %d, categoryMap size = %d; they must match", len(types), len(categoryMap))
 	}
+}
+
+// TestProseProfiles_Completeness pins what the ProseProfiles doc comment claims:
+// every type carries a profile. A missing entry reads as the zero profile, which
+// matches neither half, so the type silently falls out of every profile-driven
+// check instead of failing anywhere.
+func TestProseProfiles_Completeness(t *testing.T) {
+	t.Parallel()
+
+	for _, typ := range ValidTypes() {
+		profile, ok := ProseProfiles[DocumentType(typ)]
+		if !ok {
+			t.Errorf("ProseProfiles has no entry for %q", typ)
+			continue
+		}
+		if profile != ProfileSTE && profile != ProfileISO {
+			t.Errorf("ProseProfiles[%q] = %q, want %q or %q", typ, profile, ProfileSTE, ProfileISO)
+		}
+	}
+	if len(ProseProfiles) != len(ValidTypes()) {
+		t.Errorf("ProseProfiles size = %d, ValidTypes() count = %d; they must match",
+			len(ProseProfiles), len(ValidTypes()))
+	}
+}
+
+// TestClauseAndStepSections_NameRealHeadings pins the cheaper half of the
+// table/template agreement: a section rule must name a heading the type's own
+// template emits. The engine-side test (advisory.TestSectionTables_MatchTemplates)
+// pins the other half — that the heading holds numbered items.
+func TestClauseAndStepSections_NameRealHeadings(t *testing.T) {
+	t.Parallel()
+
+	check := func(t *testing.T, label string, table map[DocumentType][]SectionRule) {
+		t.Helper()
+		for docType, rules := range table {
+			body := GenerateTemplate(docType)
+			for _, rule := range rules {
+				if !strings.Contains(body, "## "+rule.Name) {
+					t.Errorf("%s[%q] names %q, which the %s template does not emit",
+						label, docType, rule.Name, docType)
+				}
+			}
+		}
+	}
+	check(t, "ClauseSections", ClauseSections)
+	check(t, "StepSections", StepSections)
 }
 
 func TestWalkArchcoreFiles(t *testing.T) {

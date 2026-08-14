@@ -6,10 +6,9 @@ This repository develops the Archcore CLI, MCP server, host integrations, and do
 
 Write technical documentation so that human readers and AI agents can identify the subject, understand the constraints, and apply the information without guessing.
 
-Use:
+Two profiles govern every document: an ASD-STE100-inspired profile constrains the sentence, and an ISO 24495-1-inspired profile constrains the structure. Both apply everywhere; the document type decides which half binds and which half advises.
 
-- an ASD-STE100-inspired controlled technical writing style for procedures, requirements, rules, specifications, CLI instructions, MCP tool instructions, and agent workflows;
-- ISO 24495-1-inspired plain-language principles for document organization, reader orientation, architecture explanations, ADRs, RFCs, README content, and product documents.
+The assignment — profile, line format, and metric per document type — lives in the shared Archcore rule `concepts/document-prose-canon`, mounted read-only from the `archcore` global source. Do not restate that assignment here, and do not classify a document into a profile by hand when the rule already assigns one to its type.
 
 This policy is an internal writing profile. It is not a claim of compliance, certification, or approval by ASD, ISO, or any standards organization.
 

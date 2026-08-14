@@ -2,10 +2,7 @@
 
 Read and follow `AGENTS.md` before creating or editing technical documentation, Archcore documents, CLI help, MCP tool descriptions, prompts, agent instructions, or user-facing Markdown.
 
-The writing policy in `AGENTS.md` uses:
-
-- an ASD-STE100-inspired profile for procedures, requirements, rules, specifications, CLI instructions, MCP contracts, and agent workflows;
-- ISO 24495-1-inspired plain-language principles for architecture explanations, ADRs, RFCs, README content, and product documents.
+The writing policy in `AGENTS.md` applies two profiles: an ASD-STE100-inspired profile constrains the sentence, and an ISO 24495-1-inspired profile constrains the structure. The document type decides which half binds. The per-type assignment — profile, line format, and metric — lives in the shared Archcore rule `concepts/document-prose-canon`.
 
 Do not claim formal ASD-STE100 or ISO 24495-1 compliance.
 
@@ -13,7 +10,7 @@ Do not claim formal ASD-STE100 or ISO 24495-1 compliance.
 
 When researching patterns, decisions, or conventions in this project, always search `.archcore/` documents first (`list_documents` → `get_document`) before grepping the codebase or using external sources.
 
-The canonical architecture and how-to reference is `.archcore/cli-ui/building-the-cli.guide.md`. Consult it before adding a command, document type, MCP tool, hook, or agent.
+The canonical architecture and how-to reference is `.archcore/cli-ui/building-the-cli.doc.md`. Consult it before adding a command, document type, MCP tool, hook, or agent.
 
 ## Archcore Operations
 
@@ -93,7 +90,7 @@ Commands are registered under `cmd/`.
 
 When adding a command:
 
-1. Read `.archcore/cli-ui/building-the-cli.guide.md`.
+1. Read `.archcore/cli-ui/building-the-cli.doc.md`.
 2. Use the constructor-command pattern.
 3. Keep command logic in testable functions.
 4. Add co-located tests.
