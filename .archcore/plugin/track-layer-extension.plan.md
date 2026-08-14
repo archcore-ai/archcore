@@ -1,6 +1,6 @@
 ---
 title: "Track-Layer Extension Implementation — research, closeout, decision.resolve, Gate Edits"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "plugin"

@@ -17,7 +17,7 @@ Static tests prove the wiring is *shaped* right. Only a live session proves the 
 
 ## Surface
 
-- **Probe ids** — `P0` (gate), `A`, `A-d`, `B`, `C`, `D`. One probe per shipped guard, not one guard observed three ways.
+- **Probe ids** — `P0` (gate), `A`, `A-d`, `B`, `C`, `D`. One probe per shipped guard behavior, not one launcher observed three ways.
 - **`@test/probe/mkprobe`** — builds a disposable probe tree; never writes inside `plugins/archcore/`.
 - **Records table** — append-only, between the HTML `PROBE-RECORDS` markers below.
 - **Structure tests** — `probe-hygiene.bats` (no probe residue under `plugins/`), `probe-records.bats` (every enrolled host has a well-formed row), `probe-wrapper.bats` (the harness wrapper is transparent).
@@ -27,11 +27,13 @@ Static tests prove the wiring is *shaped* right. Only a live session proves the 
 | Probe | Guard exercised | Action in a live session |
 |---|---|---|
 | P0 | `bin/session-start` | start a session; its output must prove the **probe tree** was loaded |
-| A | `bin/check-code-alignment` | main session writes `src/probe/alpha.ts` |
+| A | `bin/pre-tool-use` — code-alignment advisory | main session writes `src/probe/alpha.ts` |
 | A-d | same, via delegation | a sub-agent writes `src/probe/beta.ts` |
-| B | `bin/check-archcore-write` | write `.archcore/probe/p.adr.md`; the host must refuse and show the reason |
-| C | `bin/validate-archcore` | `update_document` through MCP |
+| B | `bin/pre-tool-use` — write guard | write a probe document under `.archcore/probe/`; the host must refuse and show the reason |
+| C | `bin/post-tool-use` | `update_document` through MCP |
 | D | host timeout path | repeat B with a slowed guard |
+
+Since v0.7.0 (`cli-owns-layers-4-5.adr`) each launcher delegates to `archcore hooks <host> <leaf>`, so a probe exercises the launcher, the host wiring, and the CLI leaf as one path. Probes A and B share `bin/pre-tool-use` and stay distinct probes because they exercise two decisions: advise on a source edit, refuse an `.archcore/` write. Item 11 exists because both launchers exit 0 silently against a pre-0.7 CLI, which makes every probe on such a session indistinguishable from a passing one. Failure Behavior item 4 grades a self-report down because Cursor may drop `additional_context`, so an agent's claim that it saw context proves nothing.
 
 ## Normative Behavior
 
@@ -43,14 +45,16 @@ Static tests prove the wiring is *shaped* right. Only a live session proves the 
 6. WHEN probe C runs, the operator MUST observe validation output for the MCP call.
 7. WHEN a probe run completes, the operator MUST append one row to the records table.
 8. WHEN a probe run completes, the operator MUST paste the captured evidence verbatim into the commit body.
-9. WHEN a probe run captures host stdin, the operator MUST add it to `@test/fixtures/stdin/` under the host's directory, so the payload shape becomes a CI assertion.
+9. WHEN a probe run captures host stdin, the operator MUST add it to `@test/fixtures/stdin/` under the host's directory.
 10. The operator MUST NOT record `pass` for a probe by analogy with another host.
+11. IF the `archcore` CLI on PATH is older than 0.7.0, THEN the operator MUST NOT record a row.
 
 ## Constraints & Invariants
 
 - Constraint: the harness MUST live under `test/`, which `release.yml` strips from `main`.
 - Constraint: `mkprobe` MUST copy the working tree to a temporary directory and wrap scripts **in the copy**, so no probe line ever reaches a shipped file (`hooks-validation-system.spec` conformance 13).
 - Constraint: `mkprobe` MUST stamp a sentinel version into the copied manifests. A version equal to a cached install lets the host serve the cache instead of the probe tree, which is exactly how the first attempt failed (`jtbd1-phase2-hardening-delegated.plan`).
+- Constraint: `mkprobe` MUST write a settings file the current CLI parser accepts. A file missing `sync` opens every recap with `invalid .archcore/settings.json`, which turns P0 into a judgement call about whether the tree loaded or the project is broken.
 - Constraint: the probe project MUST be a **sibling** of the plugin copy, never nested inside it. `bin/session-start` walks upward for plugin manifests and would otherwise silence P0.
 - Constraint: a table cell MUST NOT contain `|`. A pipe shifts every column after it, and the outcome checks would then read the wrong fields and pass on garbage. Write the method as `<how>+<grade>`, for example `install+log`.
 - Invariant: a row, once written, is never edited; a re-run appends.
@@ -59,9 +63,8 @@ Static tests prove the wiring is *shaped* right. Only a live session proves the 
 
 1. IF the host offers no delegation surface, THEN the operator MUST record A-d as `n/a:no-delegation-surface (<host> <ver>)`.
 2. IF a probe cannot be run yet, THEN the operator MUST record it as `deferred:<reason>` rather than omit it.
-3. IF probe D shows the guard bypassed on timeout, THEN the operator MUST record `fail-open-confirmed`.
-4. IF probe D shows the host still denying, THEN the operator MUST record `fail-closed-observed`.
-5. IF the host's self-report is the only evidence for a probe, THEN the operator MUST grade it `report` rather than `log`. On Cursor `additional_context` may be dropped, so an agent's claim that it saw context proves nothing.
+3. WHEN probe D runs, the operator MUST record `fail-open-confirmed` if the guard was bypassed, `fail-closed-observed` otherwise.
+4. IF the host's self-report is the only evidence for a probe, THEN the operator MUST grade it `report` rather than `log`.
 
 ## Records
 
@@ -71,14 +74,14 @@ Evidence pointer is `<commit-sha>:<probe-id>`; the log itself lives in that comm
 
 | Date | Host | Host ver | Plugin ver | Method | P0 | A | A-d | B | C | D | Evidence |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| — | claude-code | — | — | — | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | — |
-| — | cursor | — | — | — | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | — |
-| — | codex | — | — | — | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | — |
-| — | copilot | — | — | — | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | deferred:not-yet-run | — |
+| 2026-08-14 | claude-code | 2.1.232 | 0.0.0-probe | wired+log | pass | pass | pass | pass | pass | fail-open-confirmed | pending-commit |
+| 2026-08-14 | cursor | — | — | — | deferred:not-installed-on-probe-machine | deferred:not-installed-on-probe-machine | deferred:not-installed-on-probe-machine | deferred:not-installed-on-probe-machine | deferred:not-installed-on-probe-machine | deferred:not-installed-on-probe-machine | — |
+| 2026-08-14 | codex | 0.147.0 | 0.0.0-probe | install+log | pass | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | pending-commit |
+| — | copilot | 1.0.76 | — | — | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | — |
 
 <!-- PROBE-RECORDS:END -->
 
-Every row starts at `deferred:not-yet-run` deliberately. Before this document existed, the contract demanded dated probe results for every host and none were recorded anywhere — a silent gap. The rows make that gap visible and testable, and each is replaced as a run happens.
+**Run of 2026-08-14.** Claude Code reached the tree through `--plugin-dir`, so its method is `wired`, not `install`; probe C additionally needed `--mcp-config` and `--allowedTools`, because headless `-p` exposes no plugin MCP server and gates MCP tools behind a prompt no non-interactive session can answer — the accommodation makes the tools reachable and changes nothing about the hook under test. **Probe D is the finding of this run: with a 5-second delay injected into the wrapper against a 2-second `timeout`, the write into `.archcore/` landed with no error, no hook output, and no timeout message** — Claude Code fails open on a PreToolUse timeout exactly as Copilot does, and silently, so the latency budget is a correctness concern on this host too. Codex reached P0 through a real marketplace install of the sentinel version and logged host `codex`; its remaining probes stopped at an unauthenticated isolated `CODEX_HOME`, a property of the probe machine rather than of the adapter. Cursor is not installed here, and Copilot has no isolated-home path that authenticates.
 
 ## Conformance
 

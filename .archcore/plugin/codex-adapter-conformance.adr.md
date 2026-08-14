@@ -1,6 +1,6 @@
 ---
 title: "Codex Adapter Conformance — Runtime Env Marker for Detection and Single-Document Hook Stdout"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "codex"

@@ -1,6 +1,6 @@
 ---
 title: "Codex Host Contract — Source-Verified Facts for the CLI and the Desktop App"
-status: draft
+status: accepted
 tags:
   - "codex"
   - "hooks"

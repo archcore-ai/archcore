@@ -1,6 +1,6 @@
 ---
 title: "Track-Layer Extension — Flow Coverage for rnd, rfc Resolution, and Closeout"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "plugin"

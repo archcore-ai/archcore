@@ -1,6 +1,6 @@
 ---
 title: "Document Status Transitions — Confirmed Closeout Ceremony, No Autonomous Acceptance"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "plugin"

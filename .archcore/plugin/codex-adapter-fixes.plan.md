@@ -1,6 +1,6 @@
 ---
 title: "Codex Adapter Fixes — Detection Marker, Single-Document Stdout, Host Ask Wording"
-status: draft
+status: accepted
 tags:
   - "codex"
   - "hooks"

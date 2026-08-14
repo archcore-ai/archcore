@@ -3423,11 +3423,6 @@
       "type": "depends_on"
     },
     {
-      "source": "plugin/track-layer.spec.md",
-      "target": "plugin/scenario-track-skills.idea.md",
-      "type": "implements"
-    },
-    {
       "source": "plugin/elicitation-contract.spec.md",
       "target": "plugin/skill-level-elicitation-pass.idea.md",
       "type": "implements"
@@ -3528,11 +3523,6 @@
       "type": "extends"
     },
     {
-      "source": "plugin/track-layer.spec.md",
-      "target": "plugin/skills-system.spec.md",
-      "type": "extends"
-    },
-    {
       "source": "plugin/command-surface-v2.spec.md",
       "target": "plugin/commands-system.spec.md",
       "type": "extends"
@@ -3550,11 +3540,6 @@
     {
       "source": "plugin/plugin-v2-implementation.plan.md",
       "target": "plugin/intent-skill-implementation.plan.md",
-      "type": "extends"
-    },
-    {
-      "source": "plugin/track-layer.spec.md",
-      "target": "plugin/scenario-track-skills-implementation.plan.md",
       "type": "extends"
     },
     {
@@ -3710,6 +3695,16 @@
     {
       "source": "plugin/codex-adapter-conformance.adr.md",
       "target": "plugin/component-registry.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/actualize-docs-after-layer-move.task-type.md",
+      "target": "plugin/actualize-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/actualize-docs-after-layer-move.task-type.md",
+      "target": "plugin/cli-owns-layers-4-5.adr.md",
       "type": "related"
     }
   ]

@@ -1,6 +1,6 @@
 ---
 title: "Codex Adapter — Detection, Hook Stdout, and Project Wiring Contract"
-status: draft
+status: accepted
 tags:
   - "codex"
   - "hooks"

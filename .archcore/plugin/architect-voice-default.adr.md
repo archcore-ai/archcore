@@ -28,7 +28,7 @@ Under that standard, `@path/to/file` references, identifiers, measurements, and 
 - [expected] An `adr`, `rfc`, `prd`, `plan`, or `spec` produced without an explicit user override contains argued rationale rather than implementation detail, making it shorter and faster for an AI agent to process.
 - [expected] Tradeoff: per-composition token overhead from the Rule 6 and agent-definition additions is about 190 tokens, roughly 6–8% on a typical `create_document` workflow.
 - Tradeoff: a user who needs inline code in a non-code-native type must request it explicitly. The escape hatch is always available but is not the default.
-- Rule 6 is a behavioral default rather than a structural gate; `bin/check-precision` does not enforce it.
+- Rule 6 is a behavioral default rather than a structural gate, and nothing enforces it mechanically. The precision check moved into the CLI at v0.7.0 (`cli-owns-layers-4-5.adr`) and `ca6dfb4` deleted the `bin/check-precision` script that predated it; the successor reports the forbidden lexicon, the mandatory sections, and the Rule 7 line form, and the Enforcement section of `precision-rules.md` states that Rules 3, 4, and 6 carry no automated check.
 
 ## Superseded when
 

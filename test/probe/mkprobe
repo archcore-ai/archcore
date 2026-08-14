@@ -116,8 +116,12 @@ status: accepted
 Everything under src/probe/ follows this rule. Probe A is confirmed when a
 source edit there surfaces this document.
 EOF
+# The CLI's settings parser requires "sync". A file without it makes every
+# session-start recap open with `invalid .archcore/settings.json`, which
+# degrades P0 into a judgement call about whether the tree loaded or the
+# project is simply broken. Keep this in step with `archcore init` output.
 cat > "$PROBE_PROJECT/.archcore/settings.json" <<'EOF'
-{ "version": 1 }
+{ "sync": "none" }
 EOF
 (cd "$PROBE_PROJECT" && git init -q 2>/dev/null || true)
 

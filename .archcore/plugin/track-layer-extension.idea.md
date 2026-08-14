@@ -1,6 +1,6 @@
 ---
 title: "Track-Layer Extension — Research, Closeout, and RFC Resolution"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "plugin"
