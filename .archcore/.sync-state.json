@@ -987,6 +987,136 @@
       "source": "code-quality/go-code-quality.rule.md",
       "target": "code-quality/bounded-and-deterministic-output.rule.md",
       "type": "related"
+    },
+    {
+      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "extends"
+    },
+    {
+      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "target": "integrations/report-effective-hook-state.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "target": "release/install-script-usage.guide.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "target": "cli-ui/building-the-cli.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "telemetry/cli-update-telemetry.spec.md",
+      "target": "telemetry/install-analytics-via-installer-beacon.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "update/who-triggers-a-cli-update.rfc.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "telemetry/cli-update-telemetry.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "update/install-provenance-receipt.spec.md",
+      "target": "release/install-script-usage.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "update/who-triggers-a-cli-update.rfc.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "update/install-provenance-receipt.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "update/mcp-background-update.spec.md",
+      "target": "update/unattended-update.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/mcp-background-update.spec.md",
+      "target": "update/who-triggers-a-cli-update.rfc.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/prd-spec-plan-content-ownership.adr.md",
+      "target": "document-types/spec-type-usage.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/prd-spec-plan-content-ownership.adr.md",
+      "target": "document-types/source-to-specification-relations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/prd-spec-plan-content-ownership.adr.md",
+      "target": "code-quality/bounded-and-deterministic-output.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/keeping-the-cli-current.prd.md",
+      "target": "update/who-triggers-a-cli-update.rfc.md",
+      "type": "related"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/unattended-update.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/mcp-background-update.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "telemetry/cli-update-telemetry.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/install-provenance-receipt.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/self-update-command.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "release/install-script-usage.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "telemetry/cli-update-telemetry.spec.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "depends_on"
     }
   ]
 }
