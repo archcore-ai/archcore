@@ -12,6 +12,14 @@ Decision-shaped requests ("we chose X", standards, proposals) belong to the
 decision track (`skills/_shared/tracks/decision.md`); the `document` skill
 classifies before entering this file.
 
+## Callable mode
+
+WHEN the calling skill pre-fills the scope — the subject, its files, and the
+evidence — `describe.read` runs question-free, and its entry conditions are
+satisfied by the pre-filled scope. The conductor uses this entry on an
+amendment route that finds no covering `spec` (sequencing rule 11 in
+`skills/_shared/delta-routing.md`).
+
 ## Type heuristics
 
 Ported from the v1 capture flow. Applied with the `describe.read` evidence in
@@ -61,8 +69,9 @@ was `adr`, a type the decision track now owns.
 - Exit checks:
   - blocking: a draft of the chosen type exists, created via `create_document`.
   - blocking: a `spec` draft carries the sections `skills/_shared/spec-contract.md` requires, composed after reading that contract and `skills/_shared/precision-rules.md`.
-  - blocking: a `doc` draft covers Overview, Content, and Examples; a `guide` draft covers Prerequisites, numbered Steps, Verification, and Common Issues — ported v1 composition targets; no shared contract exists for these two types.
-- Next: `describe.clarify`; the decision track (`skills/_shared/tracks/decision.md`) when the type answer is "a decision".
+  - blocking: a `doc` draft covers Overview, Content, and Examples — a ported v1 composition target; no shared contract exists for this type.
+  - blocking: a `guide` draft carries every section `skills/_shared/guide-contract.md` requires, composed after reading that contract.
+- Next: `describe.clarify`. WHEN the type answer is "a decision", the executing skill records it via the decision track (`skills/_shared/tracks/decision.md`) instead of continuing on this track.
 
 ### gate: describe.clarify
 

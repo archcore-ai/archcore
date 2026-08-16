@@ -187,7 +187,7 @@ setup() {
   # never on Write/Edit PostToolUse (would fork a shell repo-wide for no benefit).
   local file="$PLUGIN_ROOT/hooks/codex.hooks.json"
   local has_write_path
-  has_write_path=$(jq -r '.hooks.PostToolUse[]? | select(.matcher | test("^Write|Edit$")) | .matcher' < "$file")
+  has_write_path=$(jq -r '.hooks.PostToolUse[]? | select(.matcher | test("(^|\\|)Write(\\||$)") and test("(^|\\|)Edit(\\||$)")) | .matcher' < "$file")
   [ -z "$has_write_path" ]
 }
 

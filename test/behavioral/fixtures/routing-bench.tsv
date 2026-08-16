@@ -1,0 +1,46 @@
+# Behavioral routing bench fixtures — derived from .archcore/plugin/delta-routing-bench.doc.md (42 rows).
+# Columns (tab-separated): id, task, grounding (what the canon search and code read established), expected_route.
+# expected_route is the conductor-contract route name; package details stay in the bench document.
+# Rows 23 and 37 carry open bench-triage notes in the bench document (legacy plan expectations).
+1	Add a before/after diagram to the README	no canon delta; no covering document; no risk word	null
+2	Remove stale test references from the suite	no canon delta; cleanup only	null
+3	Add a CI size guard for demo.gif	no canon delta; tooling only	null
+4	Add a security test asserting no env values land in the config doc	no capability change; R: security-compliance on the test zone	null
+5	Run the host probe protocol on all four hosts	executes an accepted spec; refreshes dated records; no delta	null
+6	Fix the marketplace install failure on Codex	modifies install behavior; the zone is accepted canon; no covering spec for install behavior	amendment
+7	Block shell writes to .archcore/ from all hosts	modifies the accepted write-protection capability; covering spec exists; R: external-contract	amendment
+8	Move empty-state detection from the plugin to the CLI	settled decision recorded in the request; modifies two covered capabilities; stone zone	amendment
+9	Re-sync imported instruction documents on demand	creates one consumer-relied capability; pencil zone; grounding answers all needs	capability
+10	Build the OpenCode host adapter	creates one capability; adapter contract is accepted canon (stone); R: external-contract; OpenCode host facts unverified (world)	capability
+11	Build the Copilot host adapter	creates one capability plus a settled adapter-design decision; stone zone; host facts world-sourced	capability
+12	Enforce .archcore/ immutability via filesystem flags	creates one capability; adoption is contested (undecided); platform mechanics world-sourced; stone zone; R: irreversibility	capability
+13	Analyze the import graph to derive domain boundaries	creates one capability; only building the analysis answers feasibility (empirical); pencil	capability
+14	Add context-injection telemetry	creates one capability; effect is measurable only empirically; pencil	capability
+15	Button misaligned in Safari	no canon delta; bug location citable in code	null
+16	Fix a typo in UI copy	no canon delta	null
+17	Stabilize a flaky test	no canon delta	null
+18	Fix an N+1 query in the order listing	no recorded NFR line; behavior unchanged for consumers	null
+19	Fix an SSR hydration bug	modifies rendering behavior consumers rely on; no covering spec; pencil zone	amendment
+20	Fix a crash on device rotation	the crash path is not consumer-relied behavior; no covering spec; no canon zone	null
+21	Migrate the build from CRA to Vite	settled tooling decision; consumers see unchanged behavior; multi-task implementation	decision
+22	Swap the ORM	settled decision; zero capability change; multi-task implementation	decision
+23	Upgrade React to the next major	no capability change; no settled decision recorded; new patterns world-sourced	null
+24	Add dark mode	creates one capability; intent fits the capability purpose; scope and defaults live with the user	capability
+25	Add i18n support	creates one capability; intent fits the capability purpose; user-sourced scope	capability
+26	Add rate limiting to the public API	modifies the covered API contract; stone; R: external-contract	amendment
+27	Add pagination to an endpoint	modifies the covered endpoint contract; stone; R: external-contract	amendment
+28	Split the user name column into first and last	modifies the covered data contract; R: data-migration; multi-task implementation	amendment
+29	Build the webhook subsystem	creates three capabilities (subscriptions, delivery, retry); product intent beyond one capability; stone; R: external-contract	umbrella
+30	Add push notifications	creates one capability; APNs and FCM facts world-sourced	capability
+31	Extract a design system from the app	creates several capabilities; product intent beyond one capability; pencil moving to stone	umbrella
+32	Add an ML pipeline feature	creates one capability; feasibility answerable only empirically; pencil	capability
+33	Fix training data leakage	settled process decision; zero capability change; R: security-compliance	decision
+34	Change the LLM prompt	modifies a covered behavior — evals recorded as the executable canon; pencil	amendment
+35	Migrate the CI provider	settled decision; zero capability change; R: multi-team; multi-task implementation	decision
+36	Add canary deploys	creates one capability; platform facts world-sourced	capability
+37	Upgrade the Kubernetes cluster	no capability change; no settled decision recorded; R: irreversibility and data-migration	null
+38	Rotate all secrets after a leak	no canon delta; the procedure is a human-actor guide via /archcore:document	null
+39	Implement GDPR data deletion	creates one capability; legal requirements world-sourced; product scope user-sourced; R: security-compliance on the capability	capability
+40	Integrate with the cross-team SAP system	creates one capability; the approach is undecided; R: multi-team and external-contract	capability
+41	Plan the new product MVP	creates several capabilities; product-scale intent gap; user and world sources; pencil	umbrella
+42	Run a vector-search proof of concept	no canon delta; the question is answerable only by building (empirical)	null

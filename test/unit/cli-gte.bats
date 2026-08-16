@@ -77,6 +77,15 @@ MOCK
   assert_output "yes"
 }
 
+@test "cli-gte: missing patch field does not pass a higher min" {
+  # Directional twin of the test above: counting a missing field as 1 would
+  # also pass "v0.6 >= 0.6.0", but would wave this old CLI past 0.6.1.
+  mock_version "v0.6"
+  run "$GTE" 0.6.1
+  assert_success
+  assert_output "no"
+}
+
 @test "cli-gte: banner prefix and pre-release suffix are tolerated" {
   mock_version "archcore v0.7.2-beta.1 (darwin/arm64)"
   run "$GTE" 0.6.0

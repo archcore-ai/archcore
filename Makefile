@@ -13,7 +13,7 @@ JSON_FILES := .agents/plugins/marketplace.json .claude-plugin/marketplace.json .
               $(PLUGIN_REL)/hooks/copilot.hooks.json \
               $(PLUGIN_REL)/.claude.mcp.json docs/cursor.mcp.example.json
 
-.PHONY: test test-unit test-structure test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
+.PHONY: test test-unit test-structure test-routing-bench test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
 
 all: check-json check-perms lint test
 
@@ -28,6 +28,10 @@ test-unit:
 test-structure:
 	@command -v bats >/dev/null 2>&1 || { echo "bats-core not found. Install: brew install bats-core"; exit 1; }
 	@PLUGIN_ROOT=$(PLUGIN_ROOT) REPO_ROOT=$(REPO_ROOT) bats test/structure/
+
+# LLM-in-the-loop routing bench — spends model tokens; on demand only, never CI.
+test-routing-bench:
+	@sh test/behavioral/route-bench.sh
 
 test-codex-smoke:
 	@command -v bats >/dev/null 2>&1 || { echo "bats-core not found. Install: brew install bats-core"; exit 1; }

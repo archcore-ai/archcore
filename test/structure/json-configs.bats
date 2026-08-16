@@ -77,7 +77,7 @@ setup() {
 }
 
 @test "cursor.hooks.json has camelCase event keys" {
-  run jq -e '.hooks | has("sessionStart", "preToolUse")' "$PLUGIN_ROOT/hooks/cursor.hooks.json"
+  run jq -e '.hooks | has("sessionStart") and has("preToolUse")' "$PLUGIN_ROOT/hooks/cursor.hooks.json"
   assert_success
 }
 

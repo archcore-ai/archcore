@@ -8,6 +8,11 @@ description: "Review branch changes against Archcore docs, or report project hea
 
 Review the changes on the current branch against the `.archcore/` knowledge base, in both directions: whether the changed code still matches the documents that claim it, and whether the changed documents still match the code they describe. On the default branch, or with an empty diff, the skill reports project health instead. Write affinity: experience types — `cpat` and `task-type` land through the experience track.
 
+Command tense: `/archcore:plan` declares a future canon delta, `/archcore:document`
+records the present state — including work that shipped without a plan — and
+`/archcore:review` reconciles a past declared delta. Δ vocabulary:
+`skills/_shared/delta-routing.md`.
+
 ## When to use
 
 - "Review my branch" / "Review the changes before merge" → branch review
@@ -33,6 +38,8 @@ Review the changes on the current branch against the `.archcore/` knowledge base
 | Path, tag, or scope argument | → the named scope narrows or replaces the branch scope |
 | Completion signals: "close out the feature", "ship the feature and close it out" — an explicit completion or acceptance verb, not mere branch readiness. A plain "review my branch" stays on branch review even for a merge-ready branch | → closeout track (`skills/_shared/tracks/closeout.md`), scope pre-filled from the step 1 `branch-state` block; exits into the step 4 experience offer |
 | Named track or type (`actualize`, `experience`, `closeout`, `cpat`, `task-type`) | → execute the named path without routing |
+
+On the closeout track, `closeout.verify` reconciles the plan's `## Declared Delta` section against the branch diff and reports drift as unplanned Δ — details in `skills/_shared/tracks/closeout.md`.
 
 ## Execution
 
@@ -81,7 +88,7 @@ Each conflict finding carries exactly one verdict: `spec-wrong` (the document is
 
 ### Step 3: Actualize gate
 
-WHEN step 2 surfaces a drift signal — any `spec-wrong` or `code-wrong` finding — or the user passed `--deep` or `--drift`, route into the actualize track (`skills/_shared/tracks/actualize.md`) and run its gates: `actualize.scope` (pre-filled with the step 1 `branch-state` block), `actualize.verdict`, `actualize.fix`. With `--deep`, widen the scope to all documents and report coverage gaps, relation health, status, and consistency findings alongside the drift verdicts.
+WHEN step 2 surfaces a drift signal — any `spec-wrong` or `code-wrong` finding — or the user passed `--deep` or `--drift`, route into the actualize track (`skills/_shared/tracks/actualize.md`) and run its gates: `actualize.scope` (pre-filled with the step 1 `branch-state` block), `actualize.verdict`, `actualize.fix`. With `--deep`, widen the scope to all documents and report coverage gaps, relation health, status, and consistency findings alongside the drift verdicts. Verdict vocabulary lives in `skills/_shared/verdict-contract.md`.
 
 ### Step 4: Experience offer
 

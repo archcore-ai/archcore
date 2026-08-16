@@ -6,7 +6,7 @@
 
 Archcore brings spec-driven development and automatic project context to **Claude Code**, **Cursor**, **Codex CLI**, and **GitHub Copilot CLI**. Specs, architecture, decisions, rules, and plans live in Git and are applied as the agent works.
 
-The plugin pairs with [Archcore CLI](https://github.com/archcore-ai/cli): the CLI provides the git-native context layer and MCP tools; the plugin adds skills, slash commands, gated tracks, routing, and guardrails.
+The plugin pairs with [Archcore CLI](https://github.com/archcore-ai/cli): the CLI provides the git-native context layer and MCP tools; the plugin adds skills, slash commands, computed routing over gated instruments, and guardrails.
 
 [Spec-driven development](https://archcore.ai/spec-driven-development/) defines intent. [Context engineering](https://archcore.ai/context-engineering/) supplies the broader project understanding needed to execute that intent correctly — a spec is one part of context, not the whole context.
 
@@ -18,24 +18,24 @@ The agent pulls in the rules and decisions that apply — no command needed — 
 
 ## Commands
 
-Describe what you want in plain English — Archcore routes it. The slash commands below are shortcuts to the same tracks.
+Describe what you want in plain English — Archcore computes the route. The slash commands below are shortcuts to the same instruments.
 
 | Command              | Outcome                                             | When to use                                                                                                                                                                                                                                               |
 | -------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/archcore:init`     | Make your repo legible to AI agents                 | First-time setup — detects your repo's scale, seeds a first-day pack (stack rule, run guide, architecture overview, specs for hotspot modules) in one preview, wires host configs, and imports your `CLAUDE.md` / `AGENTS.md` / `.cursorrules` if present |
-| `/archcore:plan`     | Turn an idea into a scoped implementation plan      | New feature, refactor, or initiative — escalates into full spec-driven or requirements-cascade flows when the work needs that depth                                                                                                                       |
+| `/archcore:plan`     | Turn an idea into a scoped implementation plan      | New feature, refactor, or initiative — the route is computed from what the work changes: a small fix exits with no documents, one capability gets a spec and a plan, a large initiative gets an umbrella PRD with one spec per capability                 |
 | `/archcore:document` | Record a decision or document what lives in code    | A decision was made (ADR/RFC, optionally codified as a team rule), or a module, API, or integration has tribal knowledge but no doc yet                                                                                                                   |
 | `/archcore:review`   | Check your changes and your docs against each other | Before merge — reviews the branch against recorded rules and decisions; add `--drift` for code/doc staleness, `--deep` for a full documentation audit                                                                                                     |
 
 Everyday context needs no command at all: hooks inject the applicable rules and specs when the agent edits a file, and the session starts with a recap of what's decided and in progress.
 
-### Inside the commands: tracks
+### Inside the commands: the conductor and instruments
 
-The three work commands route into small gated flows — tracks. Each track is a short chain of gates that produces typed, linked documents in `.archcore/`:
+`/archcore:plan` computes its route instead of running one fixed flow. Grounding derives what the request changes in the recorded canon (the delta), where the missing information lives, how hardened the touched zone is, and which risk flags apply — then the conductor assembles the matching document package and announces it in one line. A layout fix takes the null route and produces no documents; one new capability gets a spec and a plan; a large initiative gets an umbrella PRD with one spec per capability. `/archcore:document` and `/archcore:review` route by wording into the same instrument set — decision, describe, actualize, closeout, experience:
 
-![The three work commands routing into tracks: plan → sdd / research / requirements-cascade, document → decision / decision.resolve / describe, review → branch review / actualize / closeout / experience](3-commands.png)
+![The three commands and their instruments: plan → conductor (computed route) / research · spike / acquisition · iso links / runbook, document → decision / decision.resolve / describe, review → branch review / actualize / closeout / experience](3-commands.png)
 
-You never pick a track — the wording of the request routes it (naming one works too: `plan research`, `review closeout`). Every gate skips itself when an existing document already covers it, so a fully-specified request runs question-free; a vague one stays within 5 questions. An interrupted flow resumes in a later session — the draft document carries the track state.
+You never pick a route or a size — the announcement names both before any document is created (naming an expert path still works: `plan research`, `plan iso`, `review closeout`). Every gate skips itself when an existing document already covers it, so a fully-specified request runs question-free; a vague one stays within 5 questions. An interrupted flow resumes in a later session — the draft document carries the route state.
 
 ## Install
 

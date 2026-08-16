@@ -49,7 +49,10 @@ not apply on this track.
 ### gate: closeout.verify
 
 - Purpose: Establish that the branch work fulfills the plan — judge every
-  plan task and acceptance criterion against the branch diff.
+  plan task and acceptance criterion against the branch diff. WHEN the
+  scoped plan carries a `## Declared Delta` section, judge each declared Δ
+  entry against the branch diff too. A document-versus-code direction takes
+  its label vocabulary from `skills/_shared/verdict-contract.md`.
 - Entry conditions:
   - skip_when: the branch scope matches no `plan` document — the merge and
     accept gates run over the diff-matched documents alone.
@@ -67,6 +70,10 @@ not apply on this track.
     not-judgeable verdict cites the specific check attempted.
   - blocking: every unfulfilled verdict cites its evidence — the missing
     change, the failing check, or the absent file.
+  - blocking: WHEN the scoped plan carries a `## Declared Delta` section,
+    every declared Δ entry carries one verdict — confirmed by the diff, or
+    missing with its evidence; undeclared change found at this gate is
+    appended to the report as unplanned Δ.
   - advisory: the report ends with a one-line count summary per verdict.
 - Next: `closeout.merge`.
 
@@ -117,5 +124,30 @@ not apply on this track.
   - blocking: the executing skill modified no code file.
   - advisory: the final report groups documents by transition applied,
     declined, and skipped.
-- Next: exit — the `review` skill runs the repeated-pattern offer per
+  - advisory: the final report lists each discharge candidate per the
+    Discharge report section in this file, or states that no candidate
+    exists.
+- Next: exit — report discharge candidates per the Discharge report section
+  in this file, then the `review` skill runs the repeated-pattern offer per
   `skills/_shared/tracks/experience.md`.
+
+## Discharge report
+
+Report only. WHEN `closeout.accept` completes its status transitions, the
+executing skill MUST list the discharge candidates in the final report — the
+scoped documents whose unique information is absorbed elsewhere — per these
+type defaults:
+
+- `spec` and `adr` stay canon; neither is ever a discharge candidate.
+- A completed `plan` discharges into `task-type` capture for an agent-actor
+  procedure, or into `guide` capture for a human-actor procedure, plus git
+  history.
+- A `prd` holds until its success metrics verify.
+- An `idea` becomes a candidate after `closeout.accept` transitions every
+  document that implements it.
+- A spike `rnd` keeps only its Findings section.
+
+The `archived` status value does not exist in the kernel. WHILE that value
+is absent, the executing skill MUST NOT apply a discharge transition — this
+track's only transition stays draft → accepted. The report leaves each
+candidate's status unchanged for the user's later action.

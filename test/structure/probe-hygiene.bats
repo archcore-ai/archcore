@@ -44,12 +44,12 @@ setup() {
   # here even if it never uses the string ARCHCORE_PROBE.
   local dest before after
   dest="$BATS_TEST_TMPDIR/probe"
-  before=$(find "$PLUGIN_ROOT" -type f | sort | md5 2>/dev/null || find "$PLUGIN_ROOT" -type f | sort | md5sum)
+  before=$(find "$PLUGIN_ROOT" -type f -exec md5 {} + 2>/dev/null | sort | md5 2>/dev/null || find "$PLUGIN_ROOT" -type f -exec md5sum {} + | sort | md5sum)
 
   run env REPO_ROOT="$REPO_ROOT" "$REPO_ROOT/test/probe/mkprobe" "$dest"
   assert_success
 
-  after=$(find "$PLUGIN_ROOT" -type f | sort | md5 2>/dev/null || find "$PLUGIN_ROOT" -type f | sort | md5sum)
+  after=$(find "$PLUGIN_ROOT" -type f -exec md5 {} + 2>/dev/null | sort | md5 2>/dev/null || find "$PLUGIN_ROOT" -type f -exec md5sum {} + | sort | md5sum)
   [ "$before" = "$after" ] || fail "mkprobe changed the file list under $PLUGIN_ROOT"
 
   # And it did produce a wrapped copy, so the check above is not vacuous.

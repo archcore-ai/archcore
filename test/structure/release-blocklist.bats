@@ -29,8 +29,10 @@ is_stripped() {
   # would write. Without the prefix group, release.yml could delete skills/,
   # commands/, assets/ and copilot-agents/ and every test here stayed green.
   # The group requires a trailing slash, so `agents` still does not match
-  # `copilot-agents`.
-  grep -qE "^\s*rm\s+(-rf|-f)\s+(\S*/)?${1}(\s|$|#)" "$(YML)"
+  # `copilot-agents`. The optional `/?` after the path accepts the natural
+  # directory spelling `rm -rf assets/` — without it, that form evaded every
+  # negative assertion here (fault-probe finding, 2026-08-16).
+  grep -qE "^\s*rm\s+(-rf|-f)\s+(\S*/)?${1}/?(\s|$|#)" "$(YML)"
 }
 
 # --- Files that MUST ship to main (no blocklist entry) ---------------------

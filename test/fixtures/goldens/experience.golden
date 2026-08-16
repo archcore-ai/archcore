@@ -9,6 +9,6 @@ gate: experience.offer
 skip_when: yes
 budget: 1
 taxonomy: none
-produces: cpat or task-type, per the accepted answer draft
+produces: cpat, task-type, or guide, per the accepted answer draft
 next: end
 

@@ -111,6 +111,24 @@ _run_codex_session_start() {
     || fail "empty-state nudge is not inside additionalContext: '$output'"
 }
 
+@test "codex: end-anchor CLI document (additionalContext last) splices the nudge, one document" {
+  # Exercises the _ac_cx_end arm of _archcore_flush_codex: the CLI document
+  # ends with additionalContext — the shape session-start's own emitter
+  # produces. Before this test that splice arm was unreachable by any mock,
+  # so a fault there shipped corrupt JSON to Codex with the suite green.
+  _mock_hooks_and_update
+  export MOCK_HOOKS_OUTPUT='{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"CORPUS: 3 documents"}}'
+  cd "$(_empty_project)"
+
+  _run_codex_session_start
+  assert_success
+  assert_codex_single_document "$output"
+  printf '%s' "$output" | jq -e '.hookSpecificOutput.hookEventName == "SessionStart"' > /dev/null \
+    || fail "end-anchor splice lost hookEventName: '$output'"
+  printf '%s' "$output" | jq -e '.hookSpecificOutput.additionalContext | contains(".archcore/ is empty")' > /dev/null \
+    || fail "empty-state nudge is not inside additionalContext: '$output'"
+}
+
 @test "codex: pending CLI update splices the advisory into additionalContext, one document" {
   _mock_hooks_and_update
   export MOCK_HOOKS_OUTPUT="$CLI_DOC"

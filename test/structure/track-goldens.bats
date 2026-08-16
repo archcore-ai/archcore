@@ -29,7 +29,13 @@ setup() {
   EXTRACT="$REPO_ROOT/test/helpers/extract-gates.sh"
   TRACKS_DIR="$PLUGIN_ROOT/skills/_shared/tracks"
   GOLDENS_DIR="$FIXTURES/goldens"
-  ALL_TRACKS="decision sdd requirements-cascade describe actualize experience research closeout"
+  # Derived from the directory, not hardcoded: a newly added track file joins
+  # the cross-track tests automatically instead of shipping unguarded.
+  ALL_TRACKS=""
+  local _tf
+  for _tf in "$TRACKS_DIR"/*.md; do
+    ALL_TRACKS="$ALL_TRACKS $(basename "$_tf" .md)"
+  done
 }
 
 # Diff the extractor's live output for one track against its golden; show the
@@ -146,7 +152,7 @@ $(cat "$diff_out")"
   [ -z "$bad" ] || fail "gates without a numeric budget knob in skills/_shared/tracks/:$bad"
 }
 
-@test "gate-contract state-block template lists exactly the six state fields" {
+@test "gate-contract state-block template lists exactly the eight state fields" {
   local contract="$PLUGIN_ROOT/skills/_shared/gate-contract.md"
   local got
   got=$(awk '
@@ -155,6 +161,19 @@ $(cat "$diff_out")"
     f && /^[a-z_]+:/ { n = $0; sub(/:.*/, "", n); out = (out == "" ? n : out " " n) }
     END { print out }
   ' "$contract")
-  [ "$got" = "track gate taxonomy asked budget deferred" ] \
-    || fail "state-block template in skills/_shared/gate-contract.md must list exactly 'track gate taxonomy asked budget deferred' in order; got: '${got}'"
+  [ "$got" = "track gate route delta taxonomy asked budget deferred" ] \
+    || fail "state-block template in skills/_shared/gate-contract.md must list exactly 'track gate route delta taxonomy asked budget deferred' in order; got: '${got}'"
+}
+
+@test "every track file yields gate records and matches a golden (new tracks included)" {
+  # Anti-vacuity guard for the cross-track tests above: their loops pass
+  # silently when the extractor emits zero records (broken '### gate:'
+  # anchors), and a track file absent from the goldens was previously
+  # guarded by nothing.
+  local t
+  for t in $ALL_TRACKS; do
+    [ -n "$("$EXTRACT" "$TRACKS_DIR/${t}.md")" ] \
+      || fail "extractor emitted zero gate records for tracks/${t}.md — '### gate:' anchors broken?"
+    assert_track_golden "$t"
+  done
 }

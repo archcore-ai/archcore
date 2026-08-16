@@ -3706,6 +3706,146 @@
       "source": "plugin/actualize-docs-after-layer-move.task-type.md",
       "target": "plugin/cli-owns-layers-4-5.adr.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-model.idea.md",
+      "target": "plugin/sdd-routing-bases.rnd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/sdd-routing-bases.rnd.md",
+      "target": "plugin/flow-patterns-and-sdd-gates.rnd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-model.idea.md",
+      "target": "plugin/track-layer.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-model.idea.md",
+      "target": "plugin/track-layer-extension.idea.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/delta-routing-bench.doc.md",
+      "target": "plugin/sdd-routing-bases.rnd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-bench.doc.md",
+      "target": "plugin/delta-routing-model.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/track-machinery-enforcement-audit.rnd.md",
+      "target": "plugin/delta-routing-model.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/track-machinery-enforcement-audit.rnd.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/track-machinery-enforcement-audit.rnd.md",
+      "target": "plugin/sdd-routing-bases.rnd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-conductor.spec.md",
+      "target": "plugin/delta-routing-model.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/delta-routing-conductor.spec.md",
+      "target": "plugin/track-layer.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/delta-routing-conductor.spec.md",
+      "target": "plugin/delta-routing-bench.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-instruments.spec.md",
+      "target": "plugin/delta-routing-model.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/delta-routing-instruments.spec.md",
+      "target": "plugin/delta-routing-conductor.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-instruments.spec.md",
+      "target": "plugin/track-layer.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-type-engagement.doc.md",
+      "target": "plugin/delta-routing-conductor.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-type-engagement.doc.md",
+      "target": "plugin/delta-routing-instruments.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-compatibility.doc.md",
+      "target": "plugin/delta-routing-conductor.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-compatibility.doc.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-compatibility.doc.md",
+      "target": "plugin/hooks-validation-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-compatibility.doc.md",
+      "target": "plugin/cli-path-index.rfc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-implementation.plan.md",
+      "target": "plugin/delta-routing-conductor.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/delta-routing-implementation.plan.md",
+      "target": "plugin/delta-routing-instruments.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/archived-status.rfc.md",
+      "target": "plugin/delta-routing-instruments.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/archived-status.rfc.md",
+      "target": "plugin/document-status-transitions.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/archived-status.rfc.md",
+      "target": "plugin/delta-routing-compatibility.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/pi-elicitation-driver.rfc.md",
+      "target": "plugin/delta-routing-conductor.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/pi-elicitation-driver.rfc.md",
+      "target": "plugin/delta-routing-model.idea.md",
+      "type": "related"
     }
   ]
 }

@@ -19,3 +19,10 @@ taxonomy: Constraints & Tradeoffs, Completion Signals
 produces: none
 next: end
 
+gate: research.spike
+skip_when: yes
+budget: 0
+taxonomy: none
+produces: rnd draft
+next: end
+

@@ -1,8 +1,8 @@
 # Spec Content Contract
 
-Plugin runtime asset. Loaded by skills creating specs: `capture` (Step 3, spec path),
-`decide` (architecture cascade in `skills/decide/references/continuations.md`), and
-`plan` (feature flow in `skills/plan/references/feature-flow.md`). Companion to
+Plugin runtime asset. Loaded by skills creating specs: `document` (the describe
+track and the decision track's architecture cascade), `plan` (the contract
+instrument at `sdd.design`), and `init` (Phase E hotspot specs). Companion to
 `skills/_shared/precision-rules.md`.
 
 ## What a spec is
@@ -132,8 +132,7 @@ from a verified one.
 The Archcore CLI reports the mechanical part of this contract in the post-tool-use
 hook: the mandatory sections, `SHALL` in place of a BCP 14 modal, two modals in
 one numbered line, a subjectless passive, a condition placed after the obligation
-it controls, and a clause past 25 words. A CLI that predates a check reports
-nothing for it, and no version blocks a write — the hook always exits 0.
+it controls, and a clause past 25 words.
 
 Two limits are worth knowing. The hook applies the **80-line default** to every
 spec: it cannot tell which subject qualifies for the flagship cap, so a spec
@@ -144,18 +143,14 @@ is not decidable there at any version.
 
 ## Rationale
 
-One form, not profiles: no surveyed spec-driven tool maintains two shapes of one
-artifact — one template, varying content. What Kiro and GitHub Spec Kit call a "spec"
-is a pre-code, per-feature requirements bundle (Spec Kit's own maintainer calls it a
-PRD); Archcore keeps that material in `prd`/`srs` and reserves `spec` for the durable
-behavior contract no surveyed tool names — the gap this type fills. The notation is a
-deliberate hybrid: EARS clause templates carry peer-reviewed defect reduction and force
-the trigger/state to be stated explicitly — exactly where LLM agents otherwise guess —
-while BCP 14 keywords add the MUST/SHOULD/MAY grading that plain-`shall` EARS cannot
-express; protocol RFCs informally combine the two the same way ("When X, the server
-MUST Y"). The "reference, don't reproduce" rule keeps the spec from becoming a second,
-drifting copy of the code it describes — the spec states the contract, the code remains
-the implementation.
+One form, not profiles — one template, varying content: pre-code requirement
+bundles stay in `prd`/`srs`, and `spec` holds the durable behavior contract.
+The notation is a deliberate hybrid: EARS clause templates force the trigger or
+state to be stated explicitly — exactly where LLM agents otherwise guess —
+while BCP 14 keywords add the MUST/SHOULD/MAY grading that plain-`shall` EARS
+cannot express. The "reference, don't reproduce" rule keeps the spec from
+becoming a second, drifting copy of the code it describes — the spec states the
+contract, the code remains the implementation.
 
 ## Examples
 
