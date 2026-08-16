@@ -41,6 +41,15 @@ var rootlessCommands = map[string]string{
 	"archcore":              "root",
 	"archcore hooks":        "parent of install and the hook leaves",
 	"archcore instructions": "parent of install and remove",
+	// Only `plugin install --scope project` writes a repository file. The other
+	// three verbs act on host stores alone, so a --project they accepted and
+	// never read would answer a user who passed it with silence. The `plugin`
+	// group keeps the flag because cobra parses a parent's flag value before it
+	// resolves the subcommand, which is what makes
+	// `archcore plugin --project X install` work.
+	"archcore plugin update": "acts on host plugin stores, reads no project file",
+	"archcore plugin remove": "acts on host plugin stores, reads no project file",
+	"archcore plugin status": "reports host plugin state, reads no project file",
 }
 
 // isHookEventCommand reports whether path names a per-host hook leaf or the

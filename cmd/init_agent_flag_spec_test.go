@@ -69,6 +69,12 @@ func TestInitCmd_AgentAndProjectFlags_WritesUnderProjectRoot_Spec(t *testing.T) 
 // even when .archcore/ already exists. Verified indirectly: the command must
 // complete without a TTY (tests have none) and exit 0.
 func TestInitCmd_AgentFlag_NoPromptsWithoutTTY_Spec(t *testing.T) {
+	// claude-code is a plugin host, and --agent carries the consent to install
+	// its plugin (plugin-delivery.spec §6). Without an empty PATH and a temporary
+	// home this test runs `claude plugin install` against the developer's own
+	// Claude Code and writes the marketplace entry into their real
+	// ~/.claude/settings.json — a passing test that changes the machine it runs on.
+	isolatePluginRun(t)
 
 	project := setupArchcoreDir(t) // .archcore/ already initialized
 

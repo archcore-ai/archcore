@@ -28,11 +28,17 @@ const (
 	// maxPassiveHits caps the subjectless-passive finding.
 	maxPassiveHits = 3
 	// maxReportFindings caps the findings one advisory report injects into the
-	// model's context. A backlogged document can carry a dozen, and past this
-	// the report stops teaching and starts scrolling — the tokens are the
-	// user's. Findings arrive in fixed check order, so the cut is stable and
-	// the count of what it dropped is stated in the report itself.
-	maxReportFindings = 5
+	// model's context. Findings arrive in fixed check order, so the cut is
+	// stable and the count of what it dropped is stated in the report itself.
+	//
+	// 12 rather than the original 5: each check emits at most ONE finding (its
+	// own examples are already capped by maxPrecisionHits above), so the count
+	// here is a count of distinct problem KINDS, not of occurrences. A
+	// backlogged document trips a dozen kinds, and cutting at 5 hid whole
+	// categories on exactly the documents that needed the report most — the cut
+	// line stated a number, never which kinds went missing. 12 covers the
+	// realistic spread per type while still bounding what one write injects.
+	maxReportFindings = 12
 )
 
 var (

@@ -35,7 +35,7 @@ func TestInstallAgents_PluginNoticePrintedOnce(t *testing.T) {
 		agents.ByID(agents.Cursor),
 		agents.ByID(agents.GeminiCLI),
 	}
-	out := captureStdout(t, func() { installAgents(base, list) })
+	out := captureStdout(t, func() { installAgents(base, list, true) })
 
 	if n := strings.Count(out, "An Archcore plugin is installed"); n != 1 {
 		t.Errorf("plugin notice printed %d times, want 1:\n%s", n, out)
@@ -51,7 +51,7 @@ func TestInstallAgents_NoPluginNoPluginNotice(t *testing.T) {
 	base := setupArchcoreDir(t)
 
 	out := captureStdout(t, func() {
-		installAgents(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)})
+		installAgents(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)}, true)
 	})
 
 	if strings.Contains(out, "An Archcore plugin is installed") {

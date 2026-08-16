@@ -9,14 +9,17 @@ tags:
 
 ## Rule
 
-The Archcore plugin lives in the separate `archcore/plugin` repository and ships on its own schedule.
+The Archcore plugin lives in the separate `archcore-ai/plugin` repository and ships on its own schedule.
 Any CLI release therefore meets an unknown plugin version, and any plugin release meets an unknown
 CLI version. These obligations bind the CLI side of that pair.
 
 1. The CLI MUST keep the verbs the plugin invokes: `mcp`, `hooks`, `doctor`, and `--version`.
 2. WHEN the CLI adds a field to an MCP tool response, the field MUST be an addition. The CLI MUST NOT
    remove or repurpose `source_id`, `source_kind`, or `read_only`.
-3. The CLI MUST NOT change what it does based on whether a plugin is installed.
+3. Outside the plugin surface, the CLI MUST NOT change what it does based on whether a plugin is
+   installed. The plugin surface — the `archcore plugin` command and the plugin steps of
+   `archcore update` and `archcore init` — exists to act on the plugin: it MAY read the host's own
+   plugin state, and it MUST NOT change any behavior outside that surface.
 4. WHEN the CLI detects an installed plugin during `hooks install` or `doctor`, the CLI MUST report
    that hooks may run twice until the plugin is updated.
 5. IF plugin detection fails, THEN the CLI MUST omit the notice and MUST NOT change any other
@@ -33,6 +36,10 @@ CLI version. These obligations bind the CLI side of that pair.
 10. WHEN the CLI narrows what a leaf accepts on a host that already ships, the release notes MUST name
     the narrowing. Requirement 9 covers a leaf that answers differently; this covers one that answers
     less, which an existence gate cannot see either.
+11. The CLI MUST NOT change `archcore-ai/plugin`, `archcore-plugins`, or `archcore@archcore-plugins`
+    except in step with the plugin repository. These are the plugin's public identifiers, in the same
+    spirit as requirement 9: a released CLI carrying a renamed identifier addresses a plugin that no
+    longer answers to it.
 
 ## Rationale
 
@@ -44,7 +51,11 @@ what lets a newer plugin call a leaf an older CLI lacks.
 
 Requirements 3 and 5 keep the CLI independent of another repository's install layout. Detection reads
 a cache directory the plugin owns; treating a detection miss as a behavior switch would make the CLI
-break when that layout changes.
+break when that layout changes. The plugin surface carve-out in requirement 3 exists because a
+command whose job is installing, updating, or reporting the plugin cannot do that job blind: it reads
+the host's own answer — a host CLI's exit and output, or the host's plugin registry — and acts only
+within the plugin surface. Skipping a host that answers "not installed" is that surface doing its
+job, not a behavior switch.
 
 Requirement 6 bounds the overlap cost. While an old plugin is installed, its own hooks and the CLI
 entries both fire, and the result is duplicated advisory output and duplicated denies — extra tokens

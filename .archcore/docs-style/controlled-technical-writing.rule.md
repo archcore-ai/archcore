@@ -48,6 +48,6 @@ The shared profile already carries that obligation. Restating it here creates th
 ## Enforcement
 
 - `@CLAUDE.md` routes agents to `@AGENTS.md` before any documentation edit.
-- The post-write precision check in `@internal/advisory/precision.go` measures a document against the canon data in `@templates/precision.go`. The check reports and never blocks. One report carries at most 5 findings and ends with a count of what the cap dropped.
+- The post-write precision check in `@internal/advisory/precision.go` measures a document against the canon data in `@templates/precision.go`. The check reports and never blocks. One report carries at most 12 findings and ends with a count of what the cap dropped.
 - Automated coverage is partial by design. The forbidden lexicon, the heading set per type, the line format per type, and the body metrics are measurable; actor visibility in prose, evidence, and tense are review-time checks.
 - Code review rejects a document that introduces unsupported behavior, a compatibility statement, or a guarantee.

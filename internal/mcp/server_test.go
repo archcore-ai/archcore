@@ -1,10 +1,12 @@
 package mcp
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewServer_HasTools(t *testing.T) {
@@ -124,5 +126,140 @@ func TestNewServer_MissingSettings_FallsBack(t *testing.T) {
 	s := NewServer(base, "test")
 	if s == nil {
 		t.Fatal("NewServer returned nil")
+	}
+}
+
+// runStdioTimeout bounds every wait in the RunStdio tests. They drive a real
+// server loop, so a regression must surface as a failure, never as a suite that
+// hangs until the CI job is killed.
+const runStdioTimeout = 10 * time.Second
+
+// The three tests below drive RunStdio in this process, which swaps fd 1
+// process-wide for the duration. None of them may call t.Parallel(): Go releases
+// parallel tests only after the serial ones finish, and that ordering is what
+// keeps the swap from landing under another test's output.
+
+// The background task must receive the session's own context. The trigger's
+// cancellation story — a host that closes stdio before the delay elapses gets no
+// update attempt at all — is unenforceable if RunStdio hands the task a detached
+// context: the task would outlive the session and reach the policy anyway.
+// mcp-background-update.spec §9.
+func TestRunStdio_BackgroundTaskInheritsSessionContext(t *testing.T) {
+	dir := t.TempDir()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	taskCtx := make(chan context.Context, 1)
+	served := make(chan error, 1)
+	go func() {
+		served <- RunStdio(ctx, dir, "test",
+			func(c context.Context) { taskCtx <- c })
+	}()
+
+	var got context.Context
+	select {
+	case got = <-taskCtx:
+	case <-time.After(runStdioTimeout):
+		t.Fatal("RunStdio never started the background task")
+	}
+
+	cancel()
+
+	select {
+	case <-got.Done():
+	case <-time.After(runStdioTimeout):
+		t.Fatal("cancelling RunStdio's context left the task's context live")
+	}
+	select {
+	case <-served:
+	case <-time.After(runStdioTimeout):
+		t.Fatal("RunStdio did not return after its context was cancelled")
+	}
+}
+
+// Every existing caller and embedder passes no background task, so a nil task
+// must be skipped rather than invoked — a nil call would take the whole process
+// down with the session. The byte-level half of "serves exactly as today" is
+// TestRunStdio_StdoutIdenticalWithAndWithoutBackgroundTask.
+func TestRunStdio_WithoutABackgroundTask_ReturnsWithoutPanicking(t *testing.T) {
+	dir := t.TempDir()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	served := make(chan error, 1)
+	go func() { served <- RunStdio(ctx, dir, "test", nil) }()
+
+	select {
+	case <-served:
+	case <-time.After(runStdioTimeout):
+		t.Fatal("RunStdio did not return under a cancelled context")
+	}
+}
+
+// RunStdio delegates option application to NewServer, so each option runs once.
+// The hazard this pins is the shape RunStdio used to have: it applied the
+// options itself to reach a field NewServer ignored, and the obvious repair —
+// keep the NewServer call and apply them again — would run every
+// side-effecting option twice.
+func TestRunStdio_AppliesEachOptionOnce(t *testing.T) {
+	dir := t.TempDir()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	applied := make(chan struct{}, 8)
+	count := ServerOption(func(*serverConfig) { applied <- struct{}{} })
+
+	served := make(chan error, 1)
+	go func() { served <- RunStdio(ctx, dir, "test", nil, count, count) }()
+
+	select {
+	case <-served:
+	case <-time.After(runStdioTimeout):
+		t.Fatal("RunStdio did not return under a cancelled context")
+	}
+	if got := len(applied); got != 2 {
+		t.Errorf("two options passed: applied %d times, want 2", got)
+	}
+}
+
+// TestRunStdio_CancelsTheBackgroundTaskWhenItReturns closes the lifetime gap.
+//
+// Listen returns on stdin EOF as well as on cancellation, and EOF is how a host
+// normally ends a session. Before RunStdio derived the task's context, a task
+// started under a still-live parent context kept running after RunStdio
+// returned and restore() closed the protocol stream — with a context that still
+// reported itself live. `archcore mcp` exits immediately so nothing showed, but
+// the in-process tests and any embedder kept the goroutine.
+//
+// The task is cancelled, never joined: mcp-background-update.spec §10 says a
+// session must not wait on an attempt.
+func TestRunStdio_CancelsTheBackgroundTaskWhenItReturns(t *testing.T) {
+	dir := t.TempDir()
+
+	taskCtx := make(chan context.Context, 1)
+	served := make(chan error, 1)
+	go func() {
+		// stdin is already at EOF under `go test`, so Listen returns on its own
+		// with the parent context still live — the exact shape that leaked.
+		served <- RunStdio(context.Background(), dir, "test",
+			func(c context.Context) { taskCtx <- c })
+	}()
+
+	var got context.Context
+	select {
+	case got = <-taskCtx:
+	case <-time.After(runStdioTimeout):
+		t.Fatal("RunStdio never started the background task")
+	}
+	select {
+	case <-served:
+	case <-time.After(runStdioTimeout):
+		t.Fatal("RunStdio did not return on stdin EOF")
+	}
+
+	select {
+	case <-got.Done():
+	case <-time.After(runStdioTimeout):
+		t.Error("RunStdio returned but left the background task's context live")
 	}
 }

@@ -3,6 +3,7 @@ package wiring
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -86,6 +87,56 @@ func TestDetectInstalledPlugin(t *testing.T) {
 				t.Errorf("detectInstalledPlugin() found = %v, want %v for layout %q", found, tt.wantFound, tt.layout)
 			}
 		})
+	}
+}
+
+// TestDescribeSelfCausedPluginConflictDropsTheUpdateAdvice covers §15 of
+// plugin-delivery.spec. After this CLI installed or updated the plugin itself,
+// "until it is updated" is false — the plugin IS current, and the overlap that
+// is left belongs to the host session that loaded the old hooks. The two
+// wordings are separate functions because requirement 4 of
+// plugin-cli-compatibility.rule binds the original for `doctor` and
+// `hooks install`, whose callers detect a plugin they did not touch.
+func TestDescribeSelfCausedPluginConflictDropsTheUpdateAdvice(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	if err := os.MkdirAll(filepath.Join(home, ".claude", "plugins", "archcore"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	note := DescribeSelfCausedPluginConflict()
+	if note == "" {
+		t.Fatal("no notice for a detected plugin")
+	}
+	if strings.Contains(note, "Updating the plugin") || strings.Contains(note, "until it is updated") {
+		t.Errorf("the self-caused notice tells the user to update the plugin this run just updated:\n%s", note)
+	}
+	// Compared slash-normalized: DescribeSelfCausedPluginConflict builds the
+	// path with filepath.Join, so a literal forward-slash expectation fails on
+	// windows. The rest of this file already sets USERPROFILE for that platform.
+	if !strings.Contains(filepath.ToSlash(note), ".claude/plugins/archcore") {
+		t.Errorf("the notice names no install path:\n%s", note)
+	}
+	if note == DescribePluginConflict() {
+		t.Error("the self-caused notice repeats the wording requirement 4 binds for doctor and hooks install")
+	}
+}
+
+// TestPluginConflictNoticesAreEmptyWithoutADetection covers requirement 5 of
+// plugin-cli-compatibility.rule for both wordings: a detection that finds
+// nothing produces no notice, and never a sentence about a plugin that is not
+// there.
+func TestPluginConflictNoticesAreEmptyWithoutADetection(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	if note := DescribePluginConflict(); note != "" {
+		t.Errorf("DescribePluginConflict() = %q, want no notice", note)
+	}
+	if note := DescribeSelfCausedPluginConflict(); note != "" {
+		t.Errorf("DescribeSelfCausedPluginConflict() = %q, want no notice", note)
 	}
 }
 

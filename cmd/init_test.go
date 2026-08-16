@@ -541,7 +541,7 @@ func installFromPicker(t *testing.T, baseDir string) {
 		printAgentSelectionStatus(sel)
 		return
 	}
-	installAgents(baseDir, sel.agents)
+	installAgents(baseDir, sel.agents, true)
 }
 
 func TestRunInit_PicksAgentsAndInstalls(t *testing.T) {
@@ -653,5 +653,91 @@ func TestMaybeInstallInstructions_NonInteractiveSkips(t *testing.T) {
 	}
 	if !strings.Contains(out, "non-interactive") {
 		t.Errorf("output should mention 'non-interactive':\n%s", out)
+	}
+}
+
+// TestExistingOrNewSettings_ReinitializeKeepsAConfiguredProject pins what
+// `archcore init` on an existing project does to settings.json.
+//
+// Reinitializing restores the directory and the host wiring. It is not a reset:
+// the sync mode, project id, language and globals the user configured survive
+// it. Before this, the interactive path built config.NewNoneSettings()
+// unconditionally, so `archcore init --yes` in a script silently discarded all
+// four on a configured repository — while the --agent path kept them, which
+// made the two entry points disagree about what init means.
+func TestExistingOrNewSettings_ReinitializeKeepsAConfiguredProject(t *testing.T) {
+	// Cloud settings make runInit probe the server, so it has to be a local
+	// one: no test may reach app.archcore.ai.
+	srv := httptest.NewServer(healthyHandler())
+	defer srv.Close()
+	orig := config.CloudServerURL
+	config.CloudServerURL = srv.URL
+	defer func() { config.CloudServerURL = orig }()
+
+	base := t.TempDir()
+	if err := config.InitDir(base); err != nil {
+		t.Fatalf("InitDir: %v", err)
+	}
+	configured := config.NewCloudSettings()
+	configured.Language = "ru"
+	if err := config.Save(base, configured); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	settings, kept := existingOrNewSettings(base)
+	if !kept {
+		t.Fatal("kept = false for a project that carries settings.json")
+	}
+	if settings.Sync != config.SyncTypeCloud {
+		t.Errorf("Sync = %q, want the configured %q", settings.Sync, config.SyncTypeCloud)
+	}
+	if settings.Language != "ru" {
+		t.Errorf("Language = %q, want the configured %q", settings.Language, "ru")
+	}
+
+	// And the write-back keeps them on disk, which is what a caller observes.
+	if _, err := runInit(context.Background(), base, settings); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+	reloaded, err := config.Load(base)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if reloaded.Sync != config.SyncTypeCloud || reloaded.Language != "ru" {
+		t.Errorf("reinitializing wrote back %+v, want the configured settings", reloaded)
+	}
+}
+
+// The other half: a directory with no .archcore/ gets the defaults, and says it
+// created rather than kept them.
+func TestExistingOrNewSettings_FreshProjectTakesTheDefaults(t *testing.T) {
+	settings, kept := existingOrNewSettings(t.TempDir())
+	if kept {
+		t.Error("kept = true for a directory with no .archcore/")
+	}
+	if settings.Sync != config.SyncTypeNone {
+		t.Errorf("Sync = %q, want the default %q", settings.Sync, config.SyncTypeNone)
+	}
+}
+
+// An unreadable settings.json falls back to the defaults instead of refusing.
+// Reinitializing is the repair for exactly that state, so failing here would
+// leave the project unable to run the command that fixes it.
+func TestExistingOrNewSettings_UnreadableSettingsFallBackToTheDefaults(t *testing.T) {
+	base := t.TempDir()
+	if err := config.InitDir(base); err != nil {
+		t.Fatalf("InitDir: %v", err)
+	}
+	path := filepath.Join(base, ".archcore", "settings.json")
+	if err := os.WriteFile(path, []byte(`{ "sync": `), 0o644); err != nil {
+		t.Fatalf("writing broken settings: %v", err)
+	}
+
+	settings, kept := existingOrNewSettings(base)
+	if kept {
+		t.Error("kept = true for settings.json that does not parse")
+	}
+	if settings.Sync != config.SyncTypeNone {
+		t.Errorf("Sync = %q, want the default %q", settings.Sync, config.SyncTypeNone)
 	}
 }

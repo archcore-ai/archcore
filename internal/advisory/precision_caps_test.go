@@ -188,6 +188,27 @@ func TestPrecision_PassiveOutsideANumberedClauseIsIgnored(t *testing.T) {
 	}
 }
 
+// noisySpecBody trips more distinct checks than maxReportFindings admits, so the
+// cap test exercises the cut rather than the happy path. Written as concatenated
+// lines because the body carries a fenced code block.
+var noisySpecBody = "---\n---\n" +
+	"## Normative Behavior\n\n" +
+	"1. The gateway SHALL retry the appropriate request and MUST NOT exceed the configured ceiling, etc. when the upstream is slow and the operator has enabled the flag.\n" +
+	"2. Requests are validated before they reach the handler.\n" +
+	"3. Compare with .archcore/plugin/one.adr.md and .archcore/plugin/two.spec.md for the rest of the contract.\n\n" +
+	"## Notes\n\n" +
+	"Pasted implementation detail rather than an @path reference:\n\n" +
+	"```go\n" +
+	"func handle() {\n" +
+	"\tvalidate()\n" +
+	"\tforward()\n" +
+	"\tlog()\n" +
+	"\treturn\n" +
+	"}\n" +
+	"```\n" +
+	// Padding past MaxSpecBodyLines, so the body-length check fires too.
+	strings.Repeat("Filler prose line carrying no obligation.\n", 80)
+
 // TestPrecision_ReportFindingsCap: the report leaving the hook is bounded by
 // maxReportFindings and states how much it dropped. The findings arrive in
 // fixed check order, so the same document always keeps the same head.
@@ -195,18 +216,21 @@ func TestPrecision_ReportFindingsCap(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
 
-	// One clause tripping more checks than the report may show: two missing
-	// sections, empty frontmatter, the body floor, a compound requirement, a
-	// trailing condition, an open-ended list, and a Rule naming no file target.
-	writeArchcoreDoc(t, base, "noisy.rule.md",
-		"---\n---\n## Rule\n1. The developer MUST log the error and MUST NOT retry, etc. when possible.\n")
+	// A spec tripping more distinct checks than the report may show: empty
+	// frontmatter (title, status), every required section missing but Normative
+	// Behavior, a foreign section, vague wording, cross-document links, a pasted
+	// code block, SHALL in place of a BCP 14 modal, a compound requirement, a
+	// subjectless passive, a trailing condition, an open-ended list, and clauses
+	// past the word cap.
+	writeArchcoreDoc(t, base, "noisy.spec.md", noisySpecBody)
 
-	got := Precision(base, "mcp__archcore__update_document", "noisy.rule.md")
+	got := Precision(base, "mcp__archcore__update_document", "noisy.spec.md")
 
 	lines := strings.Split(got, "\n")
 	// The header, maxReportFindings findings, and the line counting the rest.
 	if len(lines) != maxReportFindings+2 {
-		t.Fatalf("report carries %d lines, want %d:\n%s", len(lines), maxReportFindings+2, got)
+		t.Fatalf("report carries %d lines, want %d (fixture must trip more than the cap — strengthen noisySpecBody if the cap grew):\n%s",
+			len(lines), maxReportFindings+2, got)
 	}
 	if last := lines[len(lines)-1]; !strings.Contains(last, "not shown") {
 		t.Errorf("report does not say what it dropped: %q", last)

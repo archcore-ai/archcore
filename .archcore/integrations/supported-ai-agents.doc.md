@@ -8,26 +8,26 @@ tags:
 ## Summary
 
 Archcore integrates with 8 AI coding agents. Each agent has its own combination of hooks support
-(lifecycle event interception), MCP support (document tool access), and an instruction-nudge file
-(discovery hint).
+(lifecycle event interception), MCP support (document tool access), an instruction-nudge file
+(discovery hint), and — for four of them — a shipping Archcore plugin the CLI can install and update.
 
 The canonical, tool-agnostic host roster lives in the `archcore` global source
 (`architecture/supported-ai-hosts`). This document is the CLI's per-host integration reference: config
-paths, hook formats, detection, and the add-an-agent recipe. The CLI hooks reference carries the event
-matrix and the per-host protocol dialects.
+paths, hook formats, detection, plugin delivery, and the add-an-agent recipe. The CLI hooks reference
+carries the event matrix and the per-host protocol dialects.
 
 ## Agent registry
 
-| Agent | ID | Hooks | MCP | Detection Marker | Link |
-|-------|----|-------|-----|------------------|------|
-| Claude Code | `claude-code` | Yes | Yes | `.claude/` dir | [docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code) |
-| Cursor | `cursor` | Yes | Yes | `.cursor/` dir | [cursor.com](https://www.cursor.com/) |
-| Gemini CLI | `gemini-cli` | Yes | Yes | `.gemini/` dir | [github.com/google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) |
-| Codex CLI | `codex-cli` | Yes | Yes | `.codex/` dir | [github.com/openai/codex](https://github.com/openai/codex) |
-| GitHub Copilot | `copilot` | Yes | Yes | `.github/copilot-instructions.md` file | [github.com/features/copilot](https://github.com/features/copilot) |
-| OpenCode | `opencode` | Via plugin | Yes | `opencode.json` file or `.opencode/` dir | [opencode.ai](https://opencode.ai/) |
-| Roo Code | `roo-code` | No | Yes | `.roo/` dir | [roocode.com](https://roocode.com/) |
-| Cline | `cline` | No | Manual | `.clinerules/` dir | [cline.bot](https://cline.bot/) |
+| Agent | ID | Hooks | MCP | Plugin | Detection Marker | Link |
+|-------|----|-------|-----|--------|------------------|------|
+| Claude Code | `claude-code` | Yes | Yes | Yes | `.claude/` dir | [docs.anthropic.com](https://docs.anthropic.com/en/docs/claude-code) |
+| Cursor | `cursor` | Yes | Yes | UI only | `.cursor/` dir | [cursor.com](https://www.cursor.com/) |
+| Gemini CLI | `gemini-cli` | Yes | Yes | No | `.gemini/` dir | [github.com/google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) |
+| Codex CLI | `codex-cli` | Yes | Yes | Yes | `.codex/` dir | [github.com/openai/codex](https://github.com/openai/codex) |
+| GitHub Copilot | `copilot` | Yes | Yes | Yes | `.github/copilot-instructions.md` file | [github.com/features/copilot](https://github.com/features/copilot) |
+| OpenCode | `opencode` | Via plugin | Yes | No | `opencode.json` file or `.opencode/` dir | [opencode.ai](https://opencode.ai/) |
+| Roo Code | `roo-code` | No | Yes | No | `.roo/` dir | [roocode.com](https://roocode.com/) |
+| Cline | `cline` | No | Manual | No | `.clinerules/` dir | [cline.bot](https://cline.bot/) |
 
 ## Integration levels
 
@@ -68,6 +68,44 @@ Agent: Cline.
 Cline stores its MCP config in the VS Code `globalStorage`, not in a project-level file. The user adds
 the Archcore MCP server through Cline's MCP settings interface. Archcore prints a hint when it detects
 Cline.
+
+## Archcore plugin per host
+
+The Archcore plugin ships from the separate `archcore-ai/plugin` repository. Four hosts carry it:
+Claude Code, Cursor, Codex CLI, and GitHub Copilot. OpenCode's plugin is a different artifact and is
+not part of this surface; Gemini CLI, Roo Code, and Cline have none.
+
+Three frozen identifiers address it everywhere — repository `archcore-ai/plugin`, marketplace
+`archcore-plugins`, plugin id `archcore@archcore-plugins`. `plugin-cli-compatibility.rule`
+requirement 11 binds them: a released CLI carrying a renamed identifier addresses a plugin that no
+longer answers to it.
+
+Three entry points reach the plugin, and all three run one planner and one executor:
+
+- `archcore plugin install|update|remove|status` — the direct command. A typed verb is the consent.
+- `archcore update` — refreshes the plugin on each host that already carries it, after the binary
+  phase. `updating-the-plugin.spec` is normative.
+- `archcore init` — installs the plugin for a host the user checked in the agent picker, or named
+  with `--agent`. `plugin-delivery.spec` is normative.
+
+The CLI asks each host for its own answer before it acts. With the host CLI on `PATH`, it reads that
+host's read-only plugin listing; with the CLI absent, it reads the host's on-disk plugin registry. A
+host that reports no plugin produces no output at all, and no mutating command runs there.
+
+| Host | CLI | Install | Update |
+|---|---|---|---|
+| Claude Code | `claude` | `plugin marketplace add`, then `plugin install` | `plugin marketplace update`, then `plugin update` |
+| GitHub Copilot | `copilot` | `plugin install archcore-ai/plugin:plugins/archcore` [assumption on the subpath] | `plugin update archcore@archcore-plugins` |
+| Codex CLI | `codex` | `plugin marketplace add`, then `plugin add` | `plugin marketplace upgrade archcore-plugins` |
+| Cursor | none | print the UI instruction | print the UI instruction |
+
+Claude Code additionally gets an `autoUpdate: true` marketplace entry merged into
+`~/.claude/settings.json`, so the host refreshes the plugin on its own. The redundancy with
+`archcore update`'s step is deliberate: the step is the deterministic path and covers the hosts with
+no host-side auto-update.
+
+The unattended update policy and the MCP background trigger never reach this surface. A background
+binary replacement runs zero plugin commands.
 
 ## Instruction nudge files
 
@@ -125,7 +163,11 @@ the payload's `cwd` key, and the process's own working directory is the host's.
 - MCP format: standard `mcpServers` JSON (`{"command": "archcore", "args": ["mcp"]}`)
 - Instruction file: `CLAUDE.md` (fenced upsert, read natively by Claude Code) and `AGENTS.md` (fenced
   upsert, for the plugin and other hosts)
-- Source: `@internal/agents/claude_code.go`, `@internal/wiring/hooks_agents.go`
+- Plugin: installed at user scope; `--scope project` writes the marketplace entry into the
+  repository's `.claude/settings.json` instead, which the CLI discloses at write time because the
+  committed file reaches every teammate
+- Source: `@internal/agents/claude_code.go`, `@internal/wiring/hooks_agents.go`,
+  `@internal/plugin/claude_settings.go`
 
 ### Cursor
 
@@ -137,6 +179,8 @@ the payload's `cwd` key, and the process's own working directory is the host's.
   no matcher
 - MCP format: standard `mcpServers` JSON
 - Instruction file: `AGENTS.md` (fenced upsert)
+- Plugin: no CLI mechanism. Cursor manages plugins in its UI, so the CLI prints a one-line instruction
+  and runs no command
 - Source: `@internal/agents/cursor.go`, `@internal/wiring/hooks_agents.go`
 
 ### Gemini CLI
@@ -148,6 +192,8 @@ the payload's `cwd` key, and the process's own working directory is the host's.
 - Hook format: matcher-wrapped entries with timeouts in **milliseconds**
 - MCP format: standard `mcpServers` JSON inside the same `settings.json`
 - Instruction file: `GEMINI.md` (fenced upsert; Gemini CLI's default `contextFileName`)
+- Plugin: none. `archcore init --agent gemini-cli` stays a valid wiring run and delivers no plugin;
+  `archcore plugin --agent gemini-cli` errors and names the four hosts that have one
 - Source: `@internal/agents/gemini_cli.go`, `@internal/wiring/hooks_agents.go`
 - [assumption] The tool events are wired from the published reference and are not confirmed against a
   running host. Their event names, tool names, and timeout unit all differ from every other host.
@@ -164,6 +210,8 @@ the payload's `cwd` key, and the process's own working directory is the host's.
 - MCP format: the TOML block `[mcp_servers.archcore]` with `command` and `args`
 - Note: the only agent that uses a TOML config format for MCP
 - Instruction file: `AGENTS.md` (fenced upsert)
+- Plugin: installed machine-level, not per project. Codex has no per-plugin update command, so
+  refreshing the marketplace snapshot is the update
 - Source: `@internal/agents/codex_cli.go`, `@internal/wiring/hooks_agents.go`
 - Hooks are experimental and off by default (`[features]` with `hooks = true`, spelled
   `codex_hooks = true` before Codex 0.129.0), unavailable on Windows, and project-local hooks load only
@@ -191,6 +239,8 @@ the payload's `cwd` key, and the process's own working directory is the host's.
 - Detection: the `.github/copilot-instructions.md` file
 - Instruction file: `AGENTS.md` (fenced upsert, read natively alongside
   `.github/copilot-instructions.md`)
+- Plugin: installed machine-level, not per project. The `copilot` binary is often absent from `PATH`
+  because VS Code manages the install, so the printed-command tier is the common outcome here
 - Source: `@internal/agents/copilot.go`, `@internal/wiring/hooks_agents.go`
 - Copilot's `preToolUse` carries only a permission decision, so the write guard runs and the
   code-alignment injection does not. Copilot also reads `.claude/settings.json`; in a repository wired
@@ -225,6 +275,8 @@ the payload's `cwd` key, and the process's own working directory is the host's.
   and its registry replaces both with `apply_patch` for `gpt-` models. The guard reads the camelCase
   key and the patch body for that reason.
 - Instruction file: `AGENTS.md` (fenced upsert)
+- Plugin: the Archcore OpenCode plugin is a separate artifact from `archcore@archcore-plugins` and is
+  not delivered by `archcore plugin`
 - Source: `@internal/agents/opencode.go`, `@cmd/hook_dialect.go`, `@cmd/hook_payload.go`
 
 ### Roo Code
@@ -270,8 +322,12 @@ the payload's `cwd` key, and the process's own working directory is the host's.
    finds no target, allows, and an unprotected session looks exactly like a clean one.
 10. IF the host can accept a written config and still not run it, THEN add its case to
     `EffectiveHookNotes` in `@internal/wiring/hooks_effective.go`.
-11. Add the agent to the registry table and to the instruction-nudge table in this document.
-12. Update the CLI hooks reference, the agent-hooks integration guide, and the building-the-CLI guide.
+11. IF the host ships an Archcore plugin, THEN add its row to the host table in
+    `@internal/plugin/hosts.go` and map its agent id to a host in `@internal/plugin/plugin.go`. The row
+    carries the CLI name, the read-only listing command, the on-disk registry path, and the install,
+    update, and remove commands. A host with no CLI mechanism carries a UI note instead.
+12. Add the agent to the registry table and to the instruction-nudge table in this document.
+13. Update the CLI hooks reference, the agent-hooks integration guide, and the building-the-CLI guide.
 
 ## Adding a new MCP tool
 

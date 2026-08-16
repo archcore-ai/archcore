@@ -1,6 +1,6 @@
 ---
 title: "CLI Update Telemetry Contract"
-status: draft
+status: accepted
 tags:
   - "cli"
   - "telemetry"
@@ -11,17 +11,17 @@ tags:
 
 This spec is normative for the telemetry emitted by the CLI's update path — `@cmd/update.go` and the unattended policy in `internal/update`. Dependents: `src/lib/analytics/events.ts` in `archcore-ai/landing`, which declares the event names under `ExternalAnalyticsEventMap`; PostHog queries that join CLI events to installer events; and `@install.sh` and `@install.ps1`, which share the identifier file this contract reads and writes.
 
-Out of scope: the installer beacon's own events and payload, and every CLI event other than the three named here.
+Out of scope: the installer beacon's own events and payload, and every CLI event other than the three named here. The plugin-update step inside `archcore update` emits no event (`.archcore/update/updating-the-plugin.spec.md`), which preserves the one-event-per-invocation invariant.
 
 ## Surface
 
-- Command surface: `archcore update` and `archcore update --check` — `@cmd/update.go`. The unattended path carries no flag in phase 1; its only caller is the MCP trigger.
+- Command surface: `archcore update` and `archcore update --check` — `@cmd/update.go`. In this release, the unattended path carries no flag; its only caller is the MCP trigger.
 - Sender: `internal/telemetry` [planned] — a package-level key variable, populated by `-X` ldflags in `@.goreleaser.yaml` at release, empty in every other build.
 - Endpoint: `POST https://ph.archcore.ai/i/v0/e/`, PostHog capture payload — the endpoint `send_event()` in `@install.sh` already uses.
 - Events: `cli_updated`, `cli_update_failed`, `cli_update_skipped`.
 - Identifier: `${XDG_STATE_HOME:-$HOME/.local/state}/archcore/install-id`, the path `install_id_path()` in `@install.sh` writes and `updateCheckCachePath()` in `@cmd/update.go` mirrors.
 - Stage categories on `cli_update_failed`, derived from the failure points of `@internal/update/update.go`: `check`, `download`, `checksum`, `extract`, `replace`.
-- Reason categories on `cli_update_skipped`: `optout`, `current`, `not_writable`.
+- Reason categories on `cli_update_skipped`: `current`, `not_writable`.
 - Common properties: `$lib` (`archcore-cli`), `$lib_version` (the running version), `source` (`cli`), `os`, `arch`, `ci`, `trigger` (`manual` or `auto`).
 
 ## Normative Behavior
@@ -30,7 +30,7 @@ Out of scope: the installer beacon's own events and payload, and every CLI event
 2. WHEN the CLI sends `cli_updated`, the CLI MUST set `from_version` to the running binary's version and `to_version` to the resolved latest tag.
 3. WHEN `CheckLatest` or `Apply` returns an error, the CLI MUST send exactly one `cli_update_failed` event carrying `stage` set to one of the five stage categories.
 4. WHEN an unattended attempt stops at a condition the update policy marks reportable, the CLI MUST send exactly one `cli_update_skipped` event.
-5. WHEN the CLI sends `cli_update_skipped`, the CLI MUST set `reason` to `optout`, `current`, or `not_writable`.
+5. WHEN the CLI sends `cli_update_skipped`, the CLI MUST set `reason` to `current` or `not_writable`.
 6. WHEN a user typed `archcore update` and the running version equals the resolved latest tag, the CLI MUST NOT send an event.
 7. WHEN the user runs `archcore update --check`, the CLI MUST NOT send an event.
 8. The CLI MUST resolve `distinct_id` from the `install-id` file.
@@ -38,7 +38,7 @@ Out of scope: the installer beacon's own events and payload, and every CLI event
 10. The CLI MUST set `trigger` to `manual` on an invocation a user typed.
 11. The CLI MUST set `trigger` to `auto` on an invocation an orchestrator made.
 12. The CLI MUST NOT send `cli_update_skipped` on a `manual` invocation.
-13. WHEN an event is accepted by the endpoint on a `manual` invocation, the CLI MUST print one disclosure line naming an opt-out variable and `https://archcore.ai/privacy`.
+13. WHEN the endpoint accepts a `manual` event, the CLI MUST print one disclosure line naming a telemetry opt-out variable (`DO_NOT_TRACK` or `ARCHCORE_TELEMETRY_OPTOUT`) and `https://archcore.ai/privacy`.
 14. WHILE the endpoint has not accepted a payload, the CLI MUST NOT print the disclosure line.
 15. WHILE the invocation is `auto`, the CLI MUST NOT print the disclosure line.
 16. WHILE the CLI emits `auto` events, the published privacy page MUST carry the disclosure the runtime cannot print.
@@ -46,6 +46,7 @@ Out of scope: the installer beacon's own events and payload, and every CLI event
 ## Constraints & Invariants
 
 - Constraint: the CLI MUST NOT send when the key variable lacks the `phc_` prefix. Rationale: a `go build`, a `go install`, a fork, and a CI build are inert by construction, which is the property the installer beacon obtains from deploy-time substitution.
+- Constraint: the release pipeline MUST assert the published artifact is non-inert — the injected key and the official-build marker are present — before the release is downloadable. Rationale: a release built with the secret missing ships silent, and its dashboards read "the mechanism never ran" for the whole release.
 - Constraint: the CLI MUST NOT send when `DO_NOT_TRACK` or `ARCHCORE_TELEMETRY_OPTOUT` holds any value other than empty or `0`.
 - Constraint: the CLI MUST evaluate all three guards before it reads or creates the identifier file. Rationale: an opt-out leaves no trace on disk.
 - Constraint: `cli_update_skipped` MUST fall inside the update policy's claim window. Rationale: unbounded, the series would count MCP server starts rather than machines, and a host that restarts its servers often would outweigh every other machine.
@@ -56,7 +57,7 @@ Out of scope: the installer beacon's own events and payload, and every CLI event
 - Invariant: one `archcore update` invocation produces at most one event.
 - Invariant: one unattended attempt produces at most one event.
 - Invariant: `trigger` separates evidence of user intent from evidence that a mechanism ran. A query that measures adoption filters on `manual`.
-- Invariant: the three events partition every outcome of an unattended attempt — it replaced, it tried and failed, or it declined for a named reason. A silent series means the mechanism never ran.
+- Invariant: the three events partition every outcome of an unattended attempt that reached its terminal state. Two edges stay unmeasurable by design: a process that dies mid-attempt emits nothing and holds its claim, and an opted-out machine emits nothing. With the non-inertness gate holding, a silent series from a given machine otherwise means the mechanism never ran there.
 - Invariant: the identifier file format is identical across `@install.sh`, `@install.ps1`, and the CLI, so one machine resolves to one `distinct_id`.
 
 ## Failure Behavior

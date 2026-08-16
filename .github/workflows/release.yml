@@ -32,3 +32,15 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The official-build marker. Its absence is what stops a fork, or a
+          # repackaged build, from replacing itself with this project's release —
+          # a takeover of a binary this project does not own. It is therefore
+          # gated on the repository, not merely on this workflow file, which a
+          # fork gets a copy of — unattended-update.spec §3.
+          ARCHCORE_OFFICIAL_BUILD: ${{ github.repository == 'archcore-ai/cli' && 'archcore-official-build' || '' }}
+          # The same PostHog project key install.sh is deployed with. It is a
+          # write-only ingestion key that ships inside every downloaded binary,
+          # so it is a repository variable rather than a secret — masking a value
+          # that users can read out of the artifact buys nothing and would only
+          # break the post-build assertion that it was embedded at all.
+          POSTHOG_KEY: ${{ github.repository == 'archcore-ai/cli' && vars.POSTHOG_KEY || '' }}

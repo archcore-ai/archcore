@@ -3,12 +3,14 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/api"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
+	"archcore-cli/internal/update"
 	"archcore-cli/internal/wiring"
 
 	"github.com/spf13/cobra"
@@ -60,7 +62,15 @@ func newDoctorCmd(version string) *cobra.Command {
 
 			// Early return if .archcore/ doesn't exist — settings and
 			// server checks depend on it.
+			//
+			// The update advisory goes above it, not below with the other
+			// checks: it diagnoses the tool rather than the project, so it is
+			// the one line here that an uninitialized directory must not
+			// suppress. That is also where an out-of-date binary is most
+			// likely to be met — a machine running `doctor` somewhere it has
+			// not run `init`.
 			if !config.DirExists(cwd) {
+				reportCachedUpdate(os.Stdout, version, update.CachePath())
 				fmt.Println()
 				fmt.Println(display.Warn.Render(fmt.Sprintf("  %d issue(s) found", issues)))
 				return ErrAlreadyReported
@@ -98,6 +108,13 @@ func newDoctorCmd(version string) *cobra.Command {
 					}
 				}
 			}
+
+			// A newer release, when some other path already resolved one. Last
+			// of the checks because it diagnoses the tool rather than the
+			// project. The uninitialized path prints it above instead, so the
+			// one check that does not depend on .archcore/ is never lost to
+			// the early return.
+			reportCachedUpdate(os.Stdout, version, update.CachePath())
 
 			fmt.Println()
 			if issues == 0 {
@@ -148,6 +165,38 @@ func reportEffectiveHooks(baseDir string) {
 	if !printed && wired > 0 {
 		fmt.Println(display.CheckLine("Wired hosts can act on their hook configs"))
 	}
+}
+
+// reportCachedUpdate prints one line when the freshness cache already holds a
+// version newer than the running one. It reads that cache and nothing else: a
+// lookup here would put a local health check behind github.com being reachable,
+// and the answer another path already paid for is the one the doctor advisory is
+// meant to spend — unattended-update.spec.
+//
+// The writer is a parameter, as in warnUnknownConfigFields, so the advisory is
+// exercisable without a doctor run.
+//
+// It never touches the issue counter. A user whose only finding is "a newer
+// archcore exists" has a healthy project and must still get exit 0 —
+// reportEffectiveHooks warns on the same terms.
+func reportCachedUpdate(w io.Writer, current, cachePath string) {
+	latest, fresh := update.ReadCachedLatest(cachePath)
+	// Empty content inside the window is the update path's failure stamp — a
+	// recent lookup failed — and not a release. Reading it as an answer would
+	// advertise an upgrade to a version nobody ever resolved
+	// — unattended-update.spec §8.
+	if !fresh || latest == "" {
+		return
+	}
+	// NewerSemver, not NeedsUpdate: NeedsUpdate falls back to "dev is always
+	// behind", which nags every locally built binary, and a version that does not
+	// parse on either side must stay silent rather than read as one to move to
+	// — unattended-update.spec §12.
+	if newer, ok := update.NewerSemver(current, latest); !ok || !newer {
+		return
+	}
+	fmt.Fprintln(w, display.WarnLine(fmt.Sprintf(
+		"A newer archcore is available: %s (current: %s) — run 'archcore update'", latest, current)))
 }
 
 // convergeHostWiring re-runs the host-wiring installers in converge mode for

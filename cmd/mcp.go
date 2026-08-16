@@ -1,15 +1,18 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
 	"archcore-cli/internal/docs"
 	mcpserver "archcore-cli/internal/mcp"
+	"archcore-cli/internal/update"
 
 	"github.com/spf13/cobra"
 )
@@ -48,6 +51,7 @@ func newMCPCmd(version string) *cobra.Command {
 			}
 
 			return mcpserver.RunStdio(cmd.Context(), baseDir, version,
+				backgroundUpdateTask(version),
 				mcpserver.WithHostWiring(hostWiringExecutor(baseDir)))
 		},
 	}
@@ -57,6 +61,80 @@ func newMCPCmd(version string) *cobra.Command {
 
 	cmd.AddCommand(newMCPInstallCmd())
 	return cmd
+}
+
+// --- the background update trigger -------------------------------------------
+//
+// A long-lived `archcore mcp` is the one process that reliably outlives the
+// moment a release lands, so it is where an unattended attempt is worth making
+// — mcp-background-update.spec. Everything about the update stack stays on this
+// side of the option: internal/mcp takes an opaque func and must never link
+// internal/update.
+
+// backgroundUpdateDelay keeps the attempt out of the session's opening moments,
+// where a download would contend with the host's initialize and tools/list
+// round-trips — mcp-background-update.spec §3.
+//
+// A variable so a test does not spend a minute per case.
+var backgroundUpdateDelay = 60 * time.Second
+
+// runUnattendedUpdate is a seam: the real policy resolves a release host, claims
+// a cross-process stamp and replaces the running binary, none of which a test of
+// the trigger may do.
+var runUnattendedUpdate = update.RunUnattended
+
+// backgroundUpdateTask builds the work RunStdio runs beside the session: wait
+// out the delay, then hand the decision to the unattended policy. It writes to
+// stderr only, and only when a replacement completed.
+func backgroundUpdateTask(version string) func(context.Context) {
+	// Cleaned here because root.go hands `mcp` the raw version while every other
+	// command is constructed with the cleaned one. A build that reports
+	// "1.2.3+dirty" reaches NewerSemver unparseable, which refuses the attempt —
+	// silently, since a refusal sends no event — for the life of the install.
+	// Cleaning also spells from_version the way the typed `archcore update`
+	// spells it, and leaves "dev" alone so the policy's development-build
+	// refusal still fires — unattended-update.spec §12, §4.
+	ver := cleanVersion(version)
+
+	// The delay is read here, on the caller's goroutine, rather than inside the
+	// closure. Nothing joins the goroutine below, so it can still be starting
+	// when a test's t.Cleanup restores this seam — a real data race the race
+	// detector reports. Reading the value while the task is built puts the read
+	// and the restore on the same goroutine and settles it.
+	delay := backgroundUpdateDelay
+
+	return func(ctx context.Context) {
+		select {
+		case <-ctx.Done():
+			// The session ended inside the delay: no policy call, so no claim
+			// stamp is spent on a process that is already going away —
+			// mcp-background-update.spec §9.
+			return
+		case <-time.After(delay):
+		}
+
+		// updateDeps is now shared with `archcore update`: the release repo and
+		// the binary name are spelled once, so an unattended attempt can never
+		// resolve a different artifact than the command a user types.
+		u, tel := updateDeps(ver)
+		res := runUnattendedUpdate(ctx, update.UnattendedOptions{
+			Updater:   u,
+			Version:   ver,
+			Telemetry: tel,
+		})
+		if !res.Updated {
+			// A refusal, a skip and a failure are all silent. They are already
+			// recorded in telemetry, and a line here would put update chatter in
+			// the host's log for a session that got nothing —
+			// mcp-background-update.spec §8.
+			return
+		}
+		// stderr only: fd 1 carries JSON-RPC frames, and RunStdio's shield is not
+		// guaranteed to still stand over this goroutine — §6. The write error is
+		// dropped because an unwritable stderr costs the line and nothing else.
+		_, _ = fmt.Fprintln(os.Stderr, display.Dim.Render(fmt.Sprintf(
+			"  Updated archcore to %s — takes effect on the next launch", res.NewVersion)))
+	}
 }
 
 // checkGlobals validates the project's declared global sources before the MCP

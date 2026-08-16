@@ -14,6 +14,23 @@ builds:
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
+      # Both variables are injected only when the release workflow supplies them,
+      # and both default to empty — the state a `go build`, a fork's pipeline and
+      # a local `goreleaser build` all produce. Empty is the safe value in each
+      # case: an empty key leaves telemetry off (the `phc_` guard refuses it), and
+      # an empty marker makes the unattended policy refuse before it touches the
+      # network — unattended-update.spec §3, cli-update-telemetry.spec.
+      #
+      # `-X` on a path that no longer names a real variable is a silent no-op, so
+      # the post hook below re-checks the values against the built binary rather
+      # than trusting that these two lines still point somewhere.
+      - '{{ if index .Env "POSTHOG_KEY" }}-X archcore-cli/internal/telemetry.apiKey={{ .Env.POSTHOG_KEY }}{{ end }}'
+      - '{{ if index .Env "ARCHCORE_OFFICIAL_BUILD" }}-X archcore-cli/internal/update.officialBuild={{ .Env.ARCHCORE_OFFICIAL_BUILD }}{{ end }}'
+    hooks:
+      post:
+        # Runs per built binary, after the link and before archiving, so a build
+        # that would ship inert fails the release while nothing is downloadable.
+        - cmd: ./scripts/assert-not-inert.sh "{{ .Path }}"
 
 archives:
   - format: tar.gz

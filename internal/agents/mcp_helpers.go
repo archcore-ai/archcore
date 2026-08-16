@@ -52,12 +52,12 @@ func writeMCPConfig(filePath, serversKey string, entry any, mode mcpWriteMode) (
 
 	servers := jsonfile.NewDoc()
 	if err := jsonfile.UnmarshalSection(doc, serversKey, servers); err != nil {
-		return false, err
+		return false, fmt.Errorf("reading the %s section of %s: %w", serversKey, filePath, err)
 	}
 
 	entryJSON, err := json.Marshal(entry)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("encoding the archcore MCP entry: %w", err)
 	}
 
 	if existing, exists := servers.Get("archcore"); exists {
@@ -67,7 +67,7 @@ func writeMCPConfig(filePath, serversKey string, entry any, mode mcpWriteMode) (
 		// mcpConverge: merge, don't replace — only the fields archcore owns
 		// (those present in the desired entry) are overwritten; a user-added
 		// field like "env" on the archcore entry survives the converge.
-		merged, changed := mergeEntryFields(existing, entryJSON)
+		merged, changed := jsonfile.MergeEntryFields(existing, entryJSON)
 		if !changed {
 			return false, nil
 		}
@@ -77,50 +77,14 @@ func writeMCPConfig(filePath, serversKey string, entry any, mode mcpWriteMode) (
 
 	serversJSON, err := json.Marshal(servers)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("encoding the %s section of %s: %w", serversKey, filePath, err)
 	}
 	doc.Set(serversKey, json.RawMessage(serversJSON))
 
 	if err := jsonfile.SaveDoc(filePath, doc); err != nil {
-		return false, err
+		return false, fmt.Errorf("writing %s: %w", filePath, err)
 	}
 	return true, nil
-}
-
-// mergeEntryFields overlays the desired entry's fields onto the existing
-// archcore entry, preserving any extra fields the user added (e.g. "env").
-// Key order of the existing entry is kept; desired-only keys append. A
-// non-object existing entry is replaced wholesale. Reports whether the merge
-// result differs semantically from the existing entry.
-func mergeEntryFields(existing, desired json.RawMessage) (json.RawMessage, bool) {
-	entry := jsonfile.NewDoc()
-	if json.Unmarshal(existing, entry) != nil {
-		return desired, !jsonEqual(existing, desired)
-	}
-	fields := jsonfile.NewDoc()
-	if json.Unmarshal(desired, fields) != nil {
-		return desired, !jsonEqual(existing, desired)
-	}
-	for pair := fields.Oldest(); pair != nil; pair = pair.Next() {
-		entry.Set(pair.Key, pair.Value)
-	}
-	merged, err := json.Marshal(entry)
-	if err != nil {
-		return desired, !jsonEqual(existing, desired)
-	}
-	return merged, !jsonEqual(existing, merged)
-}
-
-// jsonEqual reports semantic equality of two JSON values (key order and
-// whitespace insensitive).
-func jsonEqual(a, b json.RawMessage) bool {
-	var av, bv any
-	if json.Unmarshal(a, &av) != nil || json.Unmarshal(b, &bv) != nil {
-		return false
-	}
-	ac, errA := json.Marshal(av)
-	bc, errB := json.Marshal(bv)
-	return errA == nil && errB == nil && string(ac) == string(bc)
 }
 
 var (

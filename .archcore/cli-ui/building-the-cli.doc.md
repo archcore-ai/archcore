@@ -35,23 +35,36 @@ golangci-lint run ./...    # The analyzers CI runs; config in .golangci.yml
 ## Getting Started
 
 ```bash
-./archcore init       # Interactive setup wizard (directories, agent detection)
-./archcore doctor     # Health check: structure + settings + host wiring
-./archcore status     # Structural checks only (naming, frontmatter, categories)
-./archcore update     # Self-update to the latest release
+./archcore init           # Interactive setup wizard (directories, agent detection)
+./archcore doctor         # Health check: structure + settings + host wiring
+./archcore status         # Structural checks only (naming, frontmatter, categories)
+./archcore update         # Self-update to the latest release
+./archcore plugin status  # Report the Archcore plugin per host
 ```
 
 `init` creates `.archcore/` with a free-form directory structure — documents are organized by
 domain/feature/team, and category is derived from the filename suffix (`slug.type.md`). Settings go in
 `.archcore/settings.json`. It also auto-detects AI agents, installs hooks and MCP config for all found
 agents, reports whether each host can actually run its hooks, then offers (opt-in) to write a
-usage-nudge instruction file per agent.
+usage-nudge instruction file per agent. A host the user checks in the agent picker also gets the
+Archcore plugin installed; a host detected without a picker does not, because a detection is not a
+consent.
 
 ## Command Surface
 
-The public surface is nine commands: `init`, `config`, `doctor`, `status`, `hooks`, `mcp`,
-`instructions`, `sync`, `update`. Hook event handlers are hidden leaves under `hooks`, not new
-commands — they are a protocol surface, not a user surface.
+The public surface is ten commands: `init`, `config`, `doctor`, `status`, `hooks`, `mcp`,
+`instructions`, `sync`, `update`, `plugin`. Hook event handlers are hidden leaves under `hooks`, not
+new commands — they are a protocol surface, not a user surface.
+
+`plugin` installs, updates, removes, and reports the Archcore plugin per host. It shares one planner
+and one executor with the plugin step of `archcore update` and the delivery step of `archcore init`;
+the three entry points differ only in which actions they select and how they word their output. See
+[Plugin Delivery](../integrations/plugin-delivery.spec.md).
+
+Two commands carry update behavior beyond their own surface. `update` runs the plugin step after its
+binary phase. `mcp` starts one unattended update attempt on a background goroutine 60 s after it
+begins serving; that attempt never writes to stdout, which the JSON-RPC stream owns. See
+[How archcore update Works](../update/self-update-command.doc.md).
 
 ## Settings and Configuration
 
@@ -114,6 +127,10 @@ contract's constraint on reading project state once per invocation.
    `resolveProjectRoot` also refuses a root inside a host's plugin install cache, which hosts have
    been observed spawning agents into (host-cwd-misrouting.adr).
    `TestCommands_OfferProjectFlag` walks the tree and fails on a command that does neither.
+7. If the command has verbs, bind the shared flags once and apply that binding to the group and to
+   every verb, so `archcore x --flag verb` and `archcore x verb --flag` are one invocation. Give the
+   group and every verb `cobra.NoArgs`: a group without it answers a misspelled verb with usage text
+   on stdout and exit 0.
 
 A command that prints a report separates the report from the printer: `collectStatus` builds a
 `statusReport` as data, and `writeTo` renders it. The hook path needs the data form, because on a hook
@@ -203,6 +220,11 @@ a `ServerOption` instead of unconditionally: the handler takes an executor funct
 cmd→internal/mcp import cycle and guarantees headless/test servers built without the option do not
 expose the tool. See [install_host_config Tool Contract](../mcp/install-host-config-tool-contract.adr.md).
 
+The same option seam carries the background update task: `WithBackgroundTask(func(ctx))` takes an
+opaque function that `RunStdio` starts between the stdout shield and `Listen`. The function is opaque
+so `internal/mcp` never links the update stack; `TestPackage_DoesNotLinkTheUpdateStack` walks the
+import graph and fails if it ever does.
+
 ## How to Modify Hooks
 
 Hooks intercept host lifecycle events. Three events are active — `SessionStart`, `PreToolUse`, and
@@ -267,6 +289,8 @@ These are the rules a change to the hook path must not break. The specs above st
   would otherwise run unguarded and look no different from a guarded session.
 - The pre-write path runs inside a one-second host budget. State a verdict reads is read once per
   invocation and only when a verdict needs it.
+- The background update trigger is not added here. A hook leaf is short-lived, runs on a budget of
+  seconds, and its stdout is the host's protocol channel.
 
 ### Modifying the Injected Context
 
@@ -313,7 +337,12 @@ apply uniformly to every host.
    - If the host can accept the config and still not run it, add its case to `EffectiveHookNotes` in
      `@internal/wiring/hooks_effective.go`
 
-6. **Update documentation:**
+6. **If the host ships an Archcore plugin:** add its row to the host table in `@internal/plugin/hosts.go`
+   — the CLI name, the read-only listing command, the on-disk registry path, and the install, update,
+   and remove commands. A host with no CLI mechanism carries a UI note instead. Nothing else changes:
+   the planner reads the row, and the three entry points share it.
+
+7. **Update documentation:**
    - Add the agent to [Supported AI Agents Registry](../integrations/supported-ai-agents.doc.md)
    - Add the event rows to [CLI Hooks Reference](../integrations/cli-hooks-reference.doc.md)
    - Add config examples to [Agent Integration Reference](../integrations/agent-hooks-integration.doc.md)
@@ -332,6 +361,9 @@ apply uniformly to every host.
 - **One document model** — `internal/docs` owns the scan, the cache, and the path guards. The write
   guard and the MCP write tools call the same predicate, so a path MCP refuses cannot be reached by
   editing the file directly.
+- **Pure planner, one executor** — `internal/plugin` decides from host evidence and acts in one place.
+  Silence for a host without the plugin is structural: it falls out of the evidence, and no code path
+  reads a host's error text.
 - **Guard or advisory, never both** — every read of external state declares which it serves, and the
   two fail in opposite directions. See
   [Fail-Open or Fail-Closed Reads](../code-quality/fail-open-or-fail-closed-reads.rule.md).
@@ -353,6 +385,8 @@ apply uniformly to every host.
   install`/`remove` write a discovery hint per agent into `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`. All
   targets use an idempotent fenced upsert that preserves user content.
 - **Co-located tests** — every command and package has adjacent `_test.go` files using `t.TempDir()`
-  and table-driven subtests.
+  and table-driven subtests. A test that can reach a host CLI or a host settings file isolates `HOME`,
+  `USERPROFILE`, `XDG_STATE_HOME`, and `PATH` first; without that isolation the suite mutates the
+  developer's own machine and stays green while doing it.
 - **Invalid config backup** — corrupted config files are backed up as `.bak` before being overwritten.
   See [Backup Invalid Configs](../integrations/backup-invalid-configs.adr.md).

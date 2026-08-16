@@ -57,6 +57,18 @@ jobs:
       - name: Test
         run: go test ./...
 
+      # The release pipeline's only guard against shipping a binary that never
+      # self-updates and never reports is scripts/assert-not-inert.sh, run from
+      # the goreleaser post-build hook. It is a shell script with no Go test to
+      # cover it, and its first version was inert against the very case it was
+      # written to catch: `go build` records the whole -ldflags argument in the
+      # binary's build info, so grepping for the injected value matched the
+      # command line whether or not the -X symbol path named a real variable.
+      # This step builds a binary with a misspelled path and requires the guard
+      # to reject it, so the guard cannot silently stop guarding.
+      - name: Self-test the release inertness guard
+        run: ./scripts/assert-not-inert-selftest.sh
+
       # `go test` (TestShippedInstructionFixtures) already pins every shipped
       # instruction file — examples/ and the repo root's own AGENTS.md /
       # CLAUDE.md / GEMINI.md — to the current writer output, so it fails on

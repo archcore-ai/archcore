@@ -102,6 +102,28 @@ func withStdin(t *testing.T, input string) {
 	})
 }
 
+// withOpenStdin points os.Stdin at a pipe that stays open, and returns the
+// write end so the caller decides when the session ends.
+//
+// withStdin cannot serve a test that has to observe something while the session
+// is still live: a file is at EOF the moment it is opened, so RunStdio's Listen
+// returns immediately and the session is over before the assertion runs.
+func withOpenStdin(t *testing.T) *os.File {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdin pipe: %v", err)
+	}
+	old := os.Stdin
+	os.Stdin = r
+	t.Cleanup(func() {
+		os.Stdin = old
+		_ = w.Close()
+		_ = r.Close()
+	})
+	return w
+}
+
 // withHookExit captures the exit code the hook layer selects instead of ending
 // the process. The returned pointer holds 0 until hookExit is called.
 func withHookExit(t *testing.T) *int {

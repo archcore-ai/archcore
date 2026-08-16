@@ -1,10 +1,16 @@
 package jsonfile
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -221,7 +227,66 @@ func TestWriteAtomic(t *testing.T) {
 		if _, err := os.Stat(path + ".tmp"); !os.IsNotExist(err) {
 			t.Error("tmp file must not remain")
 		}
+		assertOnlyEntries(t, filepath.Dir(path), "out.json")
 	})
+
+	// The mode is the half of the contract no content assertion can see: drop
+	// it and every file this helper publishes — the sync manifest, a host
+	// config, the update freshness cache — silently changes permission while
+	// every test that reads its content back stays green.
+	//
+	// A rename replaces the destination's mode along with its content, so the
+	// two directions are separate cases. A file that already exists keeps its
+	// own mode: this helper writes ~/.claude/settings.json and .cursor/mcp.json,
+	// files archcore does not own, and a user who tightened one to 0o600 must
+	// not have it widened back on the next merge. 0o644 is the mode the rule
+	// tabulates for a file this helper creates —
+	// choosing-an-atomic-write.rule.
+	t.Run("preserves an existing mode and creates at 0o644", func(t *testing.T) {
+		t.Parallel()
+		if runtime.GOOS == "windows" {
+			t.Skip("windows does not carry unix mode bits")
+		}
+		tests := []struct {
+			name   string
+			mode   fs.FileMode
+			create bool
+			want   fs.FileMode
+		}{
+			{name: "fresh target", create: false, want: 0o644},
+			{name: "tightened target", create: true, mode: 0o600, want: 0o600},
+			{name: "widened target", create: true, mode: 0o664, want: 0o664},
+			{name: "already 0o644", create: true, mode: 0o644, want: 0o644},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+				path := filepath.Join(t.TempDir(), "target.json")
+				if tt.create {
+					if err := os.WriteFile(path, []byte("old"), tt.mode); err != nil {
+						t.Fatal(err)
+					}
+					// os.WriteFile is umask-masked; force the mode we mean to test.
+					if err := os.Chmod(path, tt.mode); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := WriteAtomic(path, []byte("data")); err != nil {
+					t.Fatal(err)
+				}
+				info, err := os.Stat(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got := info.Mode().Perm(); got != tt.want {
+					t.Errorf("published at %#o, want %#o", got, tt.want)
+				}
+			})
+		}
+	})
+
+	// The umask half of this contract needs syscall.Umask, which does not exist
+	// on windows, so it lives in jsonfile_umask_unix_test.go.
 
 	t.Run("rename failure removes tmp", func(t *testing.T) {
 		t.Parallel()
@@ -236,7 +301,110 @@ func TestWriteAtomic(t *testing.T) {
 		if _, err := os.Stat(target + ".tmp"); !os.IsNotExist(err) {
 			t.Error("tmp file must be removed after failed rename")
 		}
+		assertOnlyEntries(t, dir, "occupied")
 	})
+
+	// Two processes rewriting one target is the update freshness cache: the
+	// unattended policy refreshes it from a background goroutine while
+	// hook-driven `archcore update --check` runs rewrite it too. A shared temp
+	// name lets one writer truncate the other's half-written temp and the
+	// rename publish those bytes, so a reader sees a value neither writer
+	// wrote. Every read here must return one whole input.
+	t.Run("concurrent writers never publish a torn file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		path := filepath.Join(dir, "cache")
+
+		// The payloads differ in length as well as in content: a same-length
+		// pair would hide a half-write that happened to land on a boundary.
+		payloads := [][]byte{
+			bytes.Repeat([]byte("a"), 4096),
+			bytes.Repeat([]byte("bb"), 16384),
+			bytes.Repeat([]byte("ccc"), 8192),
+		}
+		whole := make(map[string]bool, len(payloads))
+		for _, p := range payloads {
+			whole[string(p)] = true
+		}
+
+		var writers, reader sync.WaitGroup
+		stop := make(chan struct{})
+		readErr := make(chan error, 1)
+
+		// One reader, running for the whole write storm.
+		reader.Add(1)
+		go func() {
+			defer reader.Done()
+			fail := func(err error) {
+				select {
+				case readErr <- err:
+				default:
+				}
+			}
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				data, err := os.ReadFile(path)
+				if os.IsNotExist(err) {
+					continue // no writer has published yet
+				}
+				if err != nil {
+					fail(err)
+					return
+				}
+				if !whole[string(data)] {
+					fail(fmt.Errorf("read a torn file: %d bytes, prefix %.16q", len(data), data))
+					return
+				}
+			}
+		}()
+
+		for _, payload := range payloads {
+			writers.Add(1)
+			go func(data []byte) {
+				defer writers.Done()
+				for n := 0; n < 40; n++ {
+					if err := WriteAtomic(path, data); err != nil {
+						t.Errorf("WriteAtomic: %v", err)
+						return
+					}
+				}
+			}(payload)
+		}
+
+		writers.Wait()
+		close(stop)
+		reader.Wait()
+
+		select {
+		case err := <-readErr:
+			t.Error(err)
+		default:
+		}
+		assertOnlyEntries(t, dir, "cache")
+	})
+}
+
+// assertOnlyEntries fails when dir holds anything besides want — a temp file
+// the writer did not clean up shows here and nowhere else.
+func assertOnlyEntries(t *testing.T, dir string, want ...string) {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, e := range entries {
+		got = append(got, e.Name())
+	}
+	slices.Sort(got)
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		t.Errorf("directory holds %v, want %v", got, want)
+	}
 }
 
 func TestSaveDoc_RoundTripFidelity(t *testing.T) {

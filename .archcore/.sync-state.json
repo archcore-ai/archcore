@@ -1187,6 +1187,116 @@
       "source": "globals/globals-are-read-only-everywhere.rule.md",
       "target": "globals/session-globals-disclosure.spec.md",
       "type": "related"
+    },
+    {
+      "source": "update/updating-the-plugin.spec.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/updating-the-plugin.spec.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/updating-the-plugin.spec.md",
+      "target": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/plugin-delivery.spec.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/plugin-delivery.spec.md",
+      "target": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/plugin-delivery.spec.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/updating-the-plugin.spec.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/mcp-background-update.spec.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/mcp-background-update.spec.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "update/unattended-update.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "update/mcp-background-update.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "telemetry/cli-update-telemetry.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "release/install-script-usage.guide.md",
+      "target": "update/self-update-command.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "release/install-script-usage.guide.md",
+      "target": "telemetry/cli-update-telemetry.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/supported-ai-agents.doc.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/supported-ai-agents.doc.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
     }
   ]
 }

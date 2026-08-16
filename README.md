@@ -300,7 +300,7 @@ archcore config set <key> <value>  # set a value
 
 ## Ecosystem
 
-- **[Archcore Plugin](https://github.com/archcore-ai/archcore-plugin)** — using Claude Code or Cursor? The plugin pairs with the CLI: same engine, plus skills, intent commands, and guardrails. One product, two entry points — the CLI on its own covers every other agent.
+- **[Archcore Plugin](https://github.com/archcore-ai/plugin)** — using Claude Code or Cursor? The plugin pairs with the CLI: same engine, plus skills, intent commands, and guardrails. One product, two entry points — the CLI on its own covers every other agent.
 - **[docs.archcore.ai](https://docs.archcore.ai)** — full documentation.
 - **[`.archcore/` in this repo](https://github.com/archcore-ai/cli/tree/main/.archcore)** — a living example: the CLI is built with its own context layer.
 
@@ -317,6 +317,6 @@ go test ./...            # run all tests
 
 - **Documentation:** [docs.archcore.ai](https://docs.archcore.ai)
 - **Website:** [archcore.ai](https://archcore.ai)
-- **Plugin (Claude Code, Cursor):** [github.com/archcore-ai/archcore-plugin](https://github.com/archcore-ai/archcore-plugin)
+- **Plugin (Claude Code, Cursor):** [github.com/archcore-ai/plugin](https://github.com/archcore-ai/plugin)
 - **Issues:** [github.com/archcore-ai/cli/issues](https://github.com/archcore-ai/cli/issues)
 - **License:** [Apache 2.0](LICENSE)

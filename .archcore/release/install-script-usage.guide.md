@@ -107,6 +107,14 @@ WSL provides a full Linux environment, so this path uses the macOS and Linux scr
 6. On Unix, check whether the install directory is in `$PATH` and print shell-specific guidance when it is not. On Windows, append the install directory to the user `PATH` through `HKCU\Environment` and prompt for a new terminal session.
 7. Send one anonymous install event, then print a one-line notice that the event was sent. See "Install analytics" below. An opt-out or a script copy without an injected key skips this step silently.
 
+## After the install: the CLI keeps itself current
+
+The installed binary updates itself. A user runs `archcore update` for the manual path. The MCP server runs an unattended attempt in the background of a session, 60 s after it begins serving. `self-update-command.doc` describes both paths and the conditions the unattended one requires.
+
+No environment variable disables unattended update. To stop a machine from replacing its own binary, make the install directory writable only by root: the CLI checks write access before it downloads anything, and reports a skip.
+
+An installer with a pinned `ARCHCORE_VERSION` does not pin the installed binary. The pin selects what to download; the installed binary still updates itself afterwards.
+
 ## Environment variables
 
 | Variable | Default (Unix) | Default (Windows) | Description |
@@ -114,16 +122,18 @@ WSL provides a full Linux environment, so this path uses the macOS and Linux scr
 | `ARCHCORE_VERSION` | (latest) | (latest) | Pin a specific release tag, for example `v1.0.0`. Skips the version lookup. |
 | `ARCHCORE_INSTALL_DIR` | `~/.local/bin` | `%LOCALAPPDATA%\Programs\archcore` | Override the install directory. |
 | `GITHUB_TOKEN` | (none) | (none) | GitHub token for authenticated asset downloads from a private repository. Version resolution does not use it; that reads a public redirect with no rate limit. |
-| `DO_NOT_TRACK` | (none) | (none) | Set to any value other than `0` to disable install analytics. The [consoledonottrack.com](https://consoledonottrack.com) convention. |
-| `ARCHCORE_TELEMETRY_OPTOUT` | (none) | (none) | Set to any value other than `0` to disable install analytics. Tool-specific equivalent of `DO_NOT_TRACK`. |
+| `DO_NOT_TRACK` | (none) | (none) | Set to any value other than `0` to disable analytics in the installer and in the installed CLI. The [consoledonottrack.com](https://consoledonottrack.com) convention. |
+| `ARCHCORE_TELEMETRY_OPTOUT` | (none) | (none) | Set to any value other than `0` to disable analytics in the installer and in the installed CLI. Tool-specific equivalent of `DO_NOT_TRACK`. |
 
 On Windows, set an environment variable with PowerShell syntax before the `irm | iex` pipeline: `$env:ARCHCORE_VERSION = 'v1.0.0'`.
+
+Neither opt-out variable affects updating. Both stop analytics and leave the update paths working.
 
 ## Install analytics
 
 The installers published at `https://archcore.ai/install.sh` and `https://archcore.ai/install.ps1` send one anonymous event when an install finishes or fails. The user-facing policy is at `https://archcore.ai/privacy`.
 
-The installed CLI binary sends nothing. Only the installer reports.
+The installed CLI reports its own update outcomes under the same two opt-out variables and the same install identifier. `cli-update-telemetry.spec` carries that contract; this guide covers the installer.
 
 ### What the event contains
 
@@ -152,9 +162,9 @@ The `distinct_id` is a random 32-character hexadecimal value. The installers sto
 
 The value is not derived from the hostname, the user name, or any hardware identifier. Delete the file to get a new identifier.
 
-This path matches `updateCheckCachePath` in `@cmd/update.go`, which applies the same `.local/state` layout on every platform including Windows. Do not move the identifier to a platform-idiomatic location such as `%LOCALAPPDATA%`. The CLI's own telemetry must be able to read the same identifier and join "installed" to "used" without a second identifier.
+The CLI resolves the same path through `StateDir` in `@internal/xdg/xdg.go`, which `@internal/telemetry/telemetry.go` and the freshness cache in `@internal/update/cache.go` both call. The `.local/state` layout applies on every platform including Windows. Do not move the identifier to a platform-idiomatic location such as `%LOCALAPPDATA%`. The CLI's own telemetry reads the same identifier and joins "installed" to "used" without a second identifier.
 
-`install.sh` writes 32 lowercase hexadecimal characters from `/dev/urandom`. `install.ps1` writes `[guid]::NewGuid().ToString('N')`, which produces the same format. A machine that has used both installers therefore counts once.
+`install.sh` writes 32 lowercase hexadecimal characters from `/dev/urandom`. `install.ps1` writes `[guid]::NewGuid().ToString('N')`, which produces the same format. The CLI accepts an existing identifier verbatim and generates one in the same format when the file is absent. A machine that has used both installers therefore counts once.
 
 ### Procedure — opt out
 
@@ -174,6 +184,8 @@ $env:DO_NOT_TRACK = '1'; irm https://archcore.ai/install.ps1 | iex
 
 Expected result: the installer sends no event, writes no identifier file, and prints no analytics notice. An opt-out leaves no trace on disk.
 
+Set the same variable in the environment the CLI runs in to keep the installed binary silent too. The CLI reads both variables before any filesystem access, so an opted-out machine also creates no identifier file.
+
 ### Why a copy from the repository sends nothing
 
 `@install.sh` and `@install.ps1` in this repository carry a `__POSTHOG_KEY__` placeholder in place of a PostHog project key. The `archcore-ai/landing` deploy workflow substitutes the real key while it copies the scripts into `public/`. Both installers send an event only when the key has the `phc_` prefix.
@@ -188,6 +200,8 @@ Rules:
 - Do not commit a PostHog key to this repository.
 - Keep exactly one occurrence of `__POSTHOG_KEY__` per script. The landing deploy fails when the count is not 1, because a renamed placeholder produces an installer that reports nothing — a state indistinguishable from "nobody is installing".
 - Do not compare against the placeholder text to detect the unsubstituted state. Test for the `phc_` prefix instead, so the substitution cannot rewrite its own off-switch.
+
+The CLI applies the same rule to its own key, which `@.goreleaser.yaml` injects at link time. A build without an injected key sends nothing, so `go build` and a fork's pipeline both produce a silent binary. `@scripts/assert-not-inert.sh` fails the release when the official pipeline produces one by accident.
 
 ## Verification
 
@@ -209,3 +223,4 @@ Expected result: `archcore <version> (commit: <sha>)`.
 - Windows antivirus false positive — a Go static binary occasionally trips Defender heuristics. Add `%LOCALAPPDATA%\Programs\archcore` to the allowlist, or report the detection to the antivirus vendor. Code-signed builds are planned, not implemented.
 - The install succeeds but no analytics notice appears — the script has no injected key, or an opt-out variable is set. This never affects the install.
 - The install analytics show no events after a release — check that the `POSTHOG_KEY` repository variable is still set on `archcore-ai/landing`. Its deploy fails loudly when the variable is missing or when the placeholder count is wrong.
+- A binary installed with `go install` never updates itself — that build carries no official-build marker. Reinstall with the install script, or run `archcore update` by hand.

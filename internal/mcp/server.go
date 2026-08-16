@@ -199,6 +199,22 @@ func WithHostWiring(fn tools.HostWiringFunc) ServerOption {
 	return func(cfg *serverConfig) { cfg.hostWiring = fn }
 }
 
+// BackgroundTask is work RunStdio runs alongside the session, on a goroutine it
+// starts once per process. A nil BackgroundTask starts nothing.
+//
+// It is a parameter of RunStdio rather than a ServerOption on purpose. Only
+// RunStdio can start a goroutine, so an option form would be accepted by
+// NewServer and then silently dropped — the task would never run, and nothing
+// would say so. As a bare func rather than an update-policy type it also keeps
+// this package from importing the update stack: serving documents over stdio is
+// the whole contract here, and an embedder must not inherit a self-update side
+// effect by linking the server. The delay, the policy and the telemetry live in
+// the closure the cmd layer builds — mcp-background-update.spec.
+//
+// A BackgroundTask owns its own stream discipline. RunStdio's shield is not
+// guaranteed to outlive it (see RunStdio), so it must write to stderr only.
+type BackgroundTask func(context.Context)
+
 // NewServer creates a new MCP server with archcore tools. version is the CLI
 // build version threaded from main (never a package-level global).
 func NewServer(baseDir, version string, opts ...ServerOption) *server.MCPServer {
@@ -259,11 +275,38 @@ func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPS
 // the shield is Go-level only — see stdio_shield_windows.go for the residual
 // invariant. The swap is process-global: RunStdio must stay the sole purpose
 // of its process.
-func RunStdio(ctx context.Context, baseDir, version string, opts ...ServerOption) error {
+//
+// background task: background carries work that is not the server's — the
+// update trigger the cmd layer wires. Its placement in this function is the
+// contract, not an implementation detail: mcp-background-update.spec §2 puts it
+// after the shield and before Listen.
+func RunStdio(ctx context.Context, baseDir, version string, background BackgroundTask, opts ...ServerOption) error {
 	s := NewServer(baseDir, version, opts...)
 
 	protocolOut, restore := shieldStdout()
 	defer restore()
+
+	// The task's context ends when this function does. Listen returns on stdin
+	// EOF as well as on cancellation, and EOF is how a host normally ends a
+	// session — without this the task would keep running against a context that
+	// still says "live" after restore() closed the protocol stream. `archcore
+	// mcp` exits immediately either way, so this is for every other caller: the
+	// in-process tests and any embedder.
+	taskCtx, cancelTask := context.WithCancel(ctx)
+	defer cancelTask()
+
+	// Nothing joins this goroutine, deliberately: a session that waited would
+	// stall its host on a download, and an attempt killed mid-flight leaves the
+	// running binary intact anyway — mcp-background-update.spec §10. Cancelling
+	// is not joining: it signals, it does not wait.
+	//
+	// The unwaited goroutine outliving the deferred restore() is the cost. Once
+	// restore() fires fd 1 is the host's protocol channel again, so the task
+	// cannot lean on the shield to catch a stray print; it writes to stderr
+	// only, which the shield never moves — mcp-background-update.spec §6.
+	if background != nil {
+		go background(taskCtx)
+	}
 
 	return server.NewStdioServer(s).Listen(ctx, os.Stdin, protocolOut)
 }

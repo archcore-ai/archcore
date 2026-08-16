@@ -56,6 +56,29 @@ func DescribePluginConflict() string {
 		"An Archcore plugin is installed (%s). Until it is updated, its own hooks and these may both fire and you will see duplicated context. Updating the plugin resolves it.", p)
 }
 
+// DescribeSelfCausedPluginConflict reports the same overlap for a run that
+// installed or updated the plugin itself, or "" when none is found —
+// plugin-delivery.spec §15.
+//
+// The sentence above is false right after this surface acted: the plugin is the
+// current one, so "until it is updated" points the user at work that is already
+// done. What remains is the host session that started before the plugin
+// changed, and the action that ends it is a restart, not an update.
+//
+// It is a sibling rather than a parameter on DescribePluginConflict because the
+// two have different callers with different obligations. Requirement 4 of
+// plugin-cli-compatibility.rule binds the original wording for `doctor` and
+// `hooks install`, which detect a plugin this process did not touch, and those
+// callers must not change.
+func DescribeSelfCausedPluginConflict() string {
+	p, found := detectInstalledPlugin()
+	if !found {
+		return ""
+	}
+	return fmt.Sprintf(
+		"The Archcore plugin is installed and current (%s). Its own hooks and these may both fire in the session that is already open, so expect duplicated context there. Restart the host session to clear it.", p)
+}
+
 var (
 	// codexTableRe matches a TOML table header, which scopes the keys below it.
 	codexTableRe = regexp.MustCompile(`^\s*\[([^\]]+)\]`)

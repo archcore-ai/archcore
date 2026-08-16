@@ -156,15 +156,25 @@ func runHooksInstallAutoDetect(baseDir string) error {
 		return nil
 	}
 
-	installAgents(baseDir, sel.agents)
+	installAgents(baseDir, sel.agents, true)
 	return nil
 }
 
 // installAgents installs hooks (when supported) and MCP config for each agent
 // in list, logging per-agent failures as warnings without aborting the loop.
 // Shared by 'archcore init' and 'archcore hooks install' auto-detect paths.
-func installAgents(baseDir string, list []*agents.Agent) {
-	anyHooks := false
+// reportOverlap decides who owes the duplicate-hook notice. A caller that ends
+// here — `hooks install --auto` — passes true and gets it printed. The init
+// paths pass false and print it themselves after their plugin delivery step,
+// because only then is it known which of the two wordings is true: a run that
+// just installed the plugin owes "restart the session", and a run that found one
+// already in place owes "until it is updated". Printed from both places, one
+// init emitted the two contradicting each other, and paid the bounded plugin
+// walk twice to do it.
+//
+// The return value is whether any agent got hooks, which is the other half of
+// that decision — an agent set with no hook wiring has no overlap to report.
+func installAgents(baseDir string, list []*agents.Agent, reportOverlap bool) (anyHooks bool) {
 	for _, agent := range list {
 		installed, err := wiring.InstallHooksForAgent(baseDir, agent)
 		if err != nil {
@@ -179,7 +189,8 @@ func installAgents(baseDir string, list []*agents.Agent) {
 			fmt.Println(display.WarnLine(fmt.Sprintf("%s MCP: %v", agent.DisplayName, err)))
 		}
 	}
-	if anyHooks {
+	if anyHooks && reportOverlap {
 		printPluginConflictNote()
 	}
+	return anyHooks
 }
