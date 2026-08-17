@@ -101,6 +101,32 @@ trigger/state clauses when writing or editing a line whose behavior is condition
   extra room goes to Normative Behavior / Constraints & Invariants, never to
   reproducing source.
 
+### Over the cap — decompose, never compress
+
+A subject that does not fit the cap is a routing signal, not a formatting problem.
+WHEN a draft exceeds its body cap, the composing skill MUST apply the first remedy
+below that the evidence supports.
+
+1. The skill MUST replace pasted source, schemas, and inventories with
+   `@path/to/file` citations (Forbidden section below).
+2. The skill MUST route foreign content to its owning type — rationale to an `adr`,
+   stories and metrics to a `prd`, reference material to a `doc`, steps to a `guide`.
+3. WHEN the subject exposes two or more independently consumable sub-surfaces, the
+   skill MUST compose one spec per sub-surface, each inside the default cap
+   (`filename=<subject-slug>-<sub-surface-slug>`).
+4. The skill MUST link sub-specs to each other with `related` via
+   `mcp__archcore__add_relation`.
+5. IF no sub-surface boundary is unambiguous, THEN the skill MUST keep the subject as
+   one spec — a cohesive contract is not split to satisfy a line count.
+6. WHEN a spec stays over the cap under rule 5, the skill MUST name the excess and its
+   reason in the closing report.
+7. The skill MUST NOT delete normative content to fit the cap.
+
+Rule 7 is the point of the whole section: truncation loses the contract, decomposition
+preserves it. Sizing a delta's capability list follows the same boundary — see
+`skills/_shared/capability-granularity.md`, which routes an over-cap capability to a
+split by the same sub-surface test.
+
 ## Status (init-synthesized specs)
 
 A hotspot `spec` synthesized by `/archcore:init` (Tier-2) is created with

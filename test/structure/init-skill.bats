@@ -155,35 +155,41 @@ setup() {
   [ "$status" -ne 0 ] || fail "init lib/ or grounding/ still references pre-rebalance imports/* directories: $output"
 }
 
-# Cross-file cap guard: SKILL.md's Depth axis table and detect-hotspots.md's "Top-N by
-# mode" table must agree on the large-mode per-selected-domain spec caps. These verbatim
-# "min N, cap M" tokens are the highest drift-risk surface after the flat-cap → per-domain
-# rebalance (the fix for the 24-domain-repo-gets-3-specs thinness — magic-first-day-init.adr).
-@test "SKILL.md and detect-hotspots.md agree on the large-mode per-domain caps" {
-  local f
-  for f in "$SKILL" "$GROUNDING/detect-hotspots.md"; do
-    grep -qF "min 6, cap 12"  "$f" || fail "$(basename "$f") missing large/light cap (min 6, cap 12)"
-    grep -qF "min 10, cap 24" "$f" || fail "$(basename "$f") missing large/standard cap (min 10, cap 24)"
-    grep -qF "min 14, cap 40" "$f" || fail "$(basename "$f") missing large/deep cap (min 14, cap 40)"
-  done
-  # Consistency oracle for the large/light figure: it lives in SKILL.md TWICE
-  # (Depth-axis table '2-per-domain (min 6, cap 12)' and mode-scaling prose
-  # '2/domain, min 6, cap 12'). A whole-file presence grep passes while one
-  # copy drifts, so extract EVERY light-tier token and require them identical.
-  local light_caps n bad
-  light_caps=$(grep -oE '2[-/](per-)?domain[ (,]*min [0-9]+, cap [0-9]+' "$SKILL" \
-    | grep -oE 'min [0-9]+, cap [0-9]+' || true)
-  n=$(printf '%s\n' "$light_caps" | grep -c 'min' || true)
-  [ "$n" -ge 2 ] \
-    || fail "SKILL.md must carry the large/light cap in BOTH the Depth-axis table and the mode-scaling prose — found $n 'min N, cap M' light-tier token(s), expected >= 2"
-  bad=$(printf '%s\n' "$light_caps" | grep -v '^min 6, cap 12$' || true)
-  [ -z "$bad" ] \
-    || fail "SKILL.md large/light caps disagree — every light-tier token must read 'min 6, cap 12', got: $bad"
+# Cross-file budget guard: SKILL.md's Depth axis table and detect-hotspots.md's
+# "Spec budget by coverage rate" section must agree on the per-depth rate and floor.
+# The spec budget is a share of the ranked pool with NO absolute maximum — a constant
+# ceiling is exactly what kept a 773-module repo at 24 specs (magic-first-day-init.adr).
+@test "SKILL.md and detect-hotspots.md agree on the per-depth coverage rates" {
+  local hotspots="$GROUNDING/detect-hotspots.md"
+  # detect-hotspots.md owns the formula and the numeric rate/floor table.
+  grep -qF 'budget = max(floor(depth), round(rate(depth) × pool_size))' "$hotspots" \
+    || fail "detect-hotspots.md must carry the budget formula"
+  grep -qE '^\| `light` \(opt-down\) \| 0\.10 \| 3 \|'      "$hotspots" || fail "detect-hotspots.md missing light rate/floor (0.10 / 3)"
+  grep -qE '^\| `standard` \(default\) \| 0\.25 \| 4 \|'    "$hotspots" || fail "detect-hotspots.md missing standard rate/floor (0.25 / 4)"
+  grep -qE '^\| `deep` \(opt-up\) \| 0\.60 \| 6 \|'         "$hotspots" || fail "detect-hotspots.md missing deep rate/floor (0.60 / 6)"
+  # SKILL.md restates the same three tiers as percentages + floors.
+  grep -qF '10% of the ranked pool, floor 3' "$SKILL" || fail "SKILL.md Depth axis missing light tier (10%, floor 3)"
+  grep -qF '25% of the ranked pool, floor 4' "$SKILL" || fail "SKILL.md Depth axis missing standard tier (25%, floor 4)"
+  grep -qF '60% of the ranked pool, floor 6' "$SKILL" || fail "SKILL.md Depth axis missing deep tier (60%, floor 6)"
 }
 
-@test "init Phase A collects hotspots up to the deep ceiling, not the standard baseline" {
-  grep -q "deep.-depth ceiling" "$SKILL" \
-    || fail "SKILL.md Step A.3 must collect candidates up to the deep-depth ceiling, not just the standard baseline"
+# The whole point of the redesign: no constant ceiling may creep back in.
+@test "the spec budget carries no absolute maximum" {
+  grep -qi "no absolute maximum" "$GROUNDING/detect-hotspots.md" \
+    || fail "detect-hotspots.md must state that the budget has no absolute maximum"
+  grep -qi "no absolute maximum" "$SKILL" \
+    || fail "SKILL.md must state that the spec budget has no absolute maximum"
+  local stale
+  stale=$(grep -nE 'cap (12|24|40)|min (6|10|14),' "$SKILL" "$GROUNDING/detect-hotspots.md" || true)
+  [ -z "$stale" ] \
+    || fail "stale clamp constants from the superseded per-domain cap survive: $stale"
+}
+
+@test "init Phase A collects the whole eligible hotspot pool, not a per-depth slice" {
+  grep -q "whole eligible ranked pool" "$SKILL" \
+    || fail "SKILL.md Step A.3 must collect signal data for the whole eligible pool — pool_size feeds every depth's budget"
+  grep -q "whole eligible pool" "$GROUNDING/detect-hotspots.md" \
+    || fail "detect-hotspots.md must state that Detect collects the whole eligible pool"
 }
 
 # Depth/breadth re-balance guards (foundation-thinness fix): cross-cutting runs at EVERY
@@ -197,11 +203,16 @@ setup() {
     || fail "SKILL.md must state cross-cutting runs at every depth"
 }
 
-@test "large-mode hotspot budget scales per selected domain" {
-  grep -q "per selected domain" "$GROUNDING/detect-hotspots.md" \
-    || fail "detect-hotspots.md must scale the large-mode cap per selected domain"
-  grep -qiE "per.selected.domain|per-domain" "$SKILL" \
-    || fail "SKILL.md must document per-domain spec scaling in large mode"
+# The domain dialog allocates the budget; it no longer sizes it (the pool does).
+# What must survive: no domain the user named ends the run with zero specs.
+@test "large-mode allocation floors every selected domain at one spec" {
+  grep -qi "per-selected-domain floor" "$GROUNDING/detect-hotspots.md" \
+    || fail "detect-hotspots.md must define the per-selected-domain floor"
+  local f
+  for f in "$SKILL" "$GROUNDING/detect-hotspots.md"; do
+    grep -qF "floor of ≥ 1 spec" "$f" \
+      || fail "$(basename "$f") must guarantee a floor of >= 1 spec per selected domain"
+  done
 }
 
 @test "init preview surfaces a coverage line" {

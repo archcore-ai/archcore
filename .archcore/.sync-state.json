@@ -3846,6 +3846,26 @@
       "source": "plugin/pi-elicitation-driver.rfc.md",
       "target": "plugin/delta-routing-model.idea.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/decompose-over-truncate.adr.md",
+      "target": "plugin/precision-over-coverage.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/decompose-over-truncate.adr.md",
+      "target": "plugin/magic-first-day-init.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/decompose-over-truncate.adr.md",
+      "target": "plugin/spec-single-narrative-ears-bcp14.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/decompose-over-truncate.adr.md",
+      "target": "plugin/prd-spec-plan-content-ownership.adr.md",
+      "type": "related"
     }
   ]
 }

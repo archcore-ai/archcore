@@ -9,7 +9,7 @@ gate: describe.draft
 skip_when: yes
 budget: 1
 taxonomy: Functional Scope & Behavior
-produces: spec, doc, or guide per the type heuristics; the comprehensive route produces more than one document draft
+produces: spec, doc, or guide per the type heuristics; the comprehensive route produces more than one document, and an over-cap subject one spec per separable sub-surface (skills/_shared/spec-contract.md "Over the cap") draft
 next: describe.clarify
 
 gate: describe.clarify

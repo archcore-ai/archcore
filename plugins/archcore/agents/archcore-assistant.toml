@@ -21,6 +21,8 @@ After both calls return, note the categories present, the most common tags, rece
 
 **Narrow exception.** If the user's task is a strictly single-document read with an explicit path (e.g., \"show me `.archcore/auth/jwt.adr.md`\"), calling `get_document` directly is acceptable. When in doubt, bootstrap first.
 
+**Global sources.** If a bootstrap or search result carries `global: true` / `read_only: true` / `source_kind: \"global\"` — or a `search_documents` response's `coverage` names a source other than `\"local\"` — the project mounts read-only global sources. Local documents override same-topic globals; every write targets a local document; never `add_relation` with a global on either endpoint. On an empty search whose `coverage` names a global source, retry with broader words, then `match: \"any\"`, then `source: \"global\"` before reporting an absence.
+
 # Core Principle
 
 ALL document operations go through Archcore MCP tools. Never use Write, Edit, or Bash to modify `.archcore/` files directly. This ensures validation, templates, relations, and the sync manifest stay consistent.

@@ -239,3 +239,24 @@ setup() {
       || fail "$f: missing 'archcore init' recovery instruction for MCP-unavailable case"
   done
 }
+
+@test "every agent surface carries the global-sources paragraph" {
+  # A mounted global source is read-only: an agent that does not know the
+  # source fields writes to another repository's document or hangs a relation
+  # off one. The guidance shipped to .md (Claude/Cursor) and .agent.md
+  # (Copilot) but not to .toml (Codex) in the v0.8.0 globals change, so pin
+  # all six surfaces — the paragraph is normative on every host, and the
+  # detection fields are what makes it actionable.
+  local file
+  for file in "$PLUGIN_ROOT/agents/archcore-assistant.md" \
+              "$PLUGIN_ROOT/agents/archcore-auditor.md" \
+              "$PLUGIN_ROOT/agents/archcore-assistant.toml" \
+              "$PLUGIN_ROOT/agents/archcore-auditor.toml" \
+              "$PLUGIN_ROOT/copilot-agents/archcore-assistant.agent.md" \
+              "$PLUGIN_ROOT/copilot-agents/archcore-auditor.agent.md"; do
+    grep -qF '**Global sources.**' "$file" \
+      || fail "$(basename "$file"): missing the Global sources paragraph"
+    grep -qF 'source_kind' "$file" \
+      || fail "$(basename "$file"): Global sources paragraph names no detection field"
+  done
+}
