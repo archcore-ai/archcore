@@ -17,5 +17,19 @@ skip_when: yes
 budget: 1 question per draft document in scope
 taxonomy: Completion Signals
 produces: none
+next: closeout.capture
+
+gate: closeout.capture
+skip_when: yes
+budget: 1 question per named residue
+taxonomy: Completion Signals, Constraints & Tradeoffs
+produces: task-type or guide per the actor boundary rule in skills/_shared/tracks/experience.md; for a settled standard or choice, whatever skills/_shared/tracks/decision.md (entry decision.classify) produces, restricted to its standard cascade draft
+next: closeout.discharge
+
+gate: closeout.discharge
+skip_when: yes
+budget: 1
+taxonomy: Completion Signals
+produces: none
 next: end
 

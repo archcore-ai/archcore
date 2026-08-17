@@ -1,6 +1,6 @@
 ---
 title: "Archived Status Value — Kernel Enum Extension for Discharged Documents"
-status: draft
+status: rejected
 tags:
   - "architecture"
   - "plugin"

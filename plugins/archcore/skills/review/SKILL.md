@@ -6,7 +6,7 @@ description: "Review branch changes against Archcore docs, or report project hea
 
 # /archcore:review
 
-Review the changes on the current branch against the `.archcore/` knowledge base, in both directions: whether the changed code still matches the documents that claim it, and whether the changed documents still match the code they describe. On the default branch, or with an empty diff, the skill reports project health instead. Write affinity: experience types — `cpat` and `task-type` land through the experience track.
+Review the changes on the current branch against the `.archcore/` knowledge base, in both directions: whether the changed code still matches the documents that claim it, and whether the changed documents still match the code they describe. On the default branch, or with an empty diff, the skill reports project health instead. Write affinity: experience types — `cpat` and `task-type` land through the experience track. This is also the only skill that removes a document: `closeout.discharge` removes a completed `plan`, and `actualize.fix` may remove a long-stale draft of any type — both via `mcp__archcore__remove_document`, each under its own confirmation.
 
 Command tense: `/archcore:plan` declares a future canon delta, `/archcore:document`
 records the present state — including work that shipped without a plan — and
@@ -103,5 +103,6 @@ WHEN the reviewed changes repeat an undocumented pattern, offer a `cpat` or `tas
 
 - Branch review: findings grouped by verdict — `spec-wrong` / `code-wrong` / `ok` — with evidence, applied fixes, and declined fixes.
 - Health fallback: the dashboard, data only.
-- Closeout: per-task verdicts from `closeout.verify`, applied and declined document updates from `closeout.merge`, and status transitions grouped applied / declined / skipped from `closeout.accept`.
-- Produced documents grouped by category — experience: a `cpat` or `task-type` draft from the experience offer; knowledge / vision: documents updated at `actualize.fix` or `closeout.merge`.
+- Closeout: per-task verdicts from `closeout.verify`, applied and declined document updates from `closeout.merge`, status transitions grouped applied / declined / skipped from `closeout.accept`, residue routed at `closeout.capture` with the instrument that took it, and removed plans from `closeout.discharge`.
+- Produced documents grouped by category — experience: a `cpat` or `task-type` draft from the experience offer or from `closeout.capture`; knowledge: a `guide`, or an `adr` plus its standard cascade (`rule`, `guide`), when `closeout.capture` routes residue through the decision instrument; knowledge / vision: documents updated at `actualize.fix` or `closeout.merge`.
+- Removed documents: each `plan` that `closeout.discharge` removed, and each long-stale draft `actualize.fix` removed on the user's confirmation — each named with the commit that still carries the file.
