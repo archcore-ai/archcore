@@ -1,0 +1,37 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "archcore hooks claude-code session-start"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "archcore hooks claude-code pre-tool-use"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "mcp__archcore__(create_document|update_document|remove_document|add_relation|remove_relation)|mcp__plugin_archcore_archcore__(create_document|update_document|remove_document|add_relation|remove_relation)|mcp_archcore_(create_document|update_document|remove_document|add_relation|remove_relation)|archcore-(create_document|update_document|remove_document|add_relation|remove_relation)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "archcore hooks claude-code post-tool-use"
+          }
+        ]
+      }
+    ]
+  }
+}

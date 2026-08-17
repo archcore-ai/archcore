@@ -1,6 +1,6 @@
 ---
 title: "Keeping the CLI Current"
-status: draft
+status: accepted
 tags:
   - "cli"
   - "integrations"

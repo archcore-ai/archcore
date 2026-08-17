@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "archcore": {
+      "command": "archcore",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

@@ -1,6 +1,6 @@
 ---
 title: "Who Triggers a CLI Update"
-status: draft
+status: accepted
 tags:
   - "cli"
   - "integrations"

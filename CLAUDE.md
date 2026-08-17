@@ -85,8 +85,9 @@ Commands are registered under `cmd/`.
 - `config` reads and updates `.archcore/settings.json`.
 - `hooks` manages lifecycle hooks.
 - `instructions` manages agent instruction files.
+- `plugin` installs, updates, removes, and reports the Archcore plugin on hosts that ship one.
 - `sync` pushes `.archcore/` state to a configured server.
-- `update` updates the CLI.
+- `update` updates the CLI and the plugin. `archcore mcp` runs the same update unattended, under the policy in `internal/update`.
 
 When adding a command:
 
@@ -106,7 +107,10 @@ When adding a command:
 - `internal/wiring/` implements host wiring.
 - `internal/sync/` implements sync state, hashing, and payload construction.
 - `internal/api/` implements the server API client.
-- `internal/update/` implements self-update.
+- `internal/update/` implements self-update and the unattended update policy.
+- `internal/plugin/` plans and executes plugin actions per host.
+- `internal/telemetry/` sends the update events.
+- `internal/xdg/` resolves the shared state directory.
 - `internal/git/` detects repository metadata.
 - `internal/display/` formats terminal output.
 - `templates/` defines document templates and document types.
@@ -124,6 +128,9 @@ Preserve these constraints:
 - Co-located table-driven Go tests.
 - Optional settings omit defaults where defined.
 - Global Archcore sources are read-only.
+- Unattended update refuses without the official-build marker.
+- Telemetry stays inert without an injected key.
+- The plugin surface never changes behavior outside itself.
 
 ## Out-of-scope Directories
 

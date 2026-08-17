@@ -233,9 +233,28 @@ Documents link with directed relations: `related` (general association), `implem
 | `archcore hooks install` | Install hooks for detected AI agents             |
 | `archcore mcp`           | Run the MCP stdio server                         |
 | `archcore mcp install`   | Install MCP config for detected agents           |
+| `archcore instructions`  | Manage the Archcore hint in instruction files    |
+| `archcore plugin`        | Install, update, or report the Archcore plugin   |
 | `archcore update`        | Update Archcore to the latest version            |
 
-`archcore update` checks GitHub Releases, downloads the newer version, verifies the SHA-256 checksum, and atomically replaces the binary.
+`archcore update` checks GitHub Releases, downloads the newer version, verifies the SHA-256 checksum, and atomically replaces the binary. It then updates the Archcore plugin on each host that already has it installed, and prints the command to run for a host whose CLI it cannot reach.
+
+`archcore plugin` manages that plugin directly on Claude Code, Cursor, Codex CLI, and GitHub Copilot. `archcore init` installs it for the hosts you select there.
+
+</details>
+
+<details>
+<summary><strong>Updating &amp; telemetry</strong></summary>
+
+### Unattended update
+
+From v0.8.0 the CLI also updates itself with nobody watching. `archcore mcp` — the server your agent starts — runs the same check in the background, at most once every 24 hours per machine, and replaces the binary only with a release published by this project, after running the downloaded binary once to prove it starts. The running process is never restarted or interrupted; a new version takes effect the next time the binary launches. Builds you compile yourself, forks, and CI runners never self-update.
+
+No variable and no `.archcore/settings.json` key disables this. If a machine must not update itself, install the binary into a directory its user cannot write — a root-owned location — and every attempt stops before it downloads anything.
+
+### Update analytics
+
+A release build sends one event per update attempt: the versions it moved between, your OS and CPU architecture, whether the run looked like CI, whether you typed the command or the background check ran it, and which step failed when one did. It never sends an error message, a path, a user name, a hostname, or anything about your repository. Set `DO_NOT_TRACK=1` or `ARCHCORE_TELEMETRY_OPTOUT=1` to send nothing at all. Both variables govern analytics only — neither stops the CLI from updating itself. Full detail: [archcore.ai/privacy](https://archcore.ai/privacy).
 
 </details>
 
