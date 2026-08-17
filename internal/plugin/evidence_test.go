@@ -307,6 +307,67 @@ func TestParseJSONListingReadsAKeyedEnvelope(t *testing.T) {
 	}
 }
 
+// TestParseJSONListingCountsOnlyAnInstalledPlugin covers the two answers that
+// name the plugin without installing it. Both once read as a presence claim,
+// and presence is the reading that authorizes a mutating host command
+// (updating-the-plugin.spec §6) and turns an install into a reported no-op that
+// never installs (plugin-delivery.spec §9).
+//
+// The first is a host that lists what a registered marketplace offers beside
+// what is installed: `codex plugin list --json --available` prints exactly that,
+// with `"installed": false` on the offered entries. The second is the marketplace
+// id carried in an identity value — the case the key reading already excluded
+// while the value reading did not.
+func TestParseJSONListingCountsOnlyAnInstalledPlugin(t *testing.T) {
+	tests := []struct {
+		name       string
+		answer     string
+		wantListed bool
+	}{
+		{
+			name:   "an entry the host reports as not installed",
+			answer: `{"installed":[],"available":[{"pluginId":"archcore@archcore-plugins","name":"archcore","installed":false}]}`,
+		},
+		{
+			name:   "a quoted installation flag reading false",
+			answer: `[{"id":"archcore@archcore-plugins","installed":"false","version":"1.0.0"}]`,
+		},
+		{
+			name:   "an installation flag of an unreadable shape",
+			answer: `[{"id":"archcore@archcore-plugins","installed":{"state":"pending"}}]`,
+		},
+		{
+			name:   "the marketplace id in an identity value",
+			answer: `[{"name":"archcore-plugins","version":"1.0.0"}]`,
+		},
+		{
+			name:   "the marketplace id in a bare array of ids",
+			answer: `["archcore-plugins"]`,
+		},
+		{
+			name:   "an entry keyed by the plugin id and reported as not installed",
+			answer: `{"archcore@archcore-plugins":{"version":"1.0.0","installed":false}}`,
+		},
+		{
+			name:       "an installed entry beside the offered ones",
+			answer:     `{"installed":[{"pluginId":"archcore@archcore-plugins","installed":true,"version":"0.8.0"}],"available":[{"pluginId":"other@else","installed":false}]}`,
+			wantListed: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseJSONListing(tt.answer)
+			if !got.ok {
+				t.Fatalf("parsed %+v, want an answered host", got)
+			}
+			if got.listed != tt.wantListed {
+				t.Errorf("parsed %+v, want listed=%v", got, tt.wantListed)
+			}
+		})
+	}
+}
+
 // TestParseJSONListingKeepsItsBoundsOverKeys keeps the key reading inside the
 // ceilings the walk already had: a keyed entry nested past the depth cap is not
 // found, because the walk that would reach it is what the cap stops —
@@ -378,6 +439,12 @@ func TestParseTextListingReadsAPlainAnswer(t *testing.T) {
 		{
 			name:   "other plugins only",
 			answer: "some-other-plugin  1.0.0\n",
+		},
+		{
+			// A marketplace named on its own line is a registration, not an
+			// installation — the plain-text twin of the identity-value case.
+			name:   "a marketplace section with nothing under it",
+			answer: "MARKETPLACE       ROOT\narchcore-plugins  /home/someone/.codex/.tmp/marketplaces\n",
 		},
 		{
 			name:   "no plugins installed",

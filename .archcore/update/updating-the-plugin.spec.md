@@ -17,7 +17,7 @@ Out of scope: the unattended update policy and the MCP background trigger — bo
 
 - Caller: manual `archcore update` only.
 - Frozen identifiers: repository `archcore-ai/plugin`, marketplace `archcore-plugins`, plugin id `archcore@archcore-plugins`.
-- Evidence order: the host's own answer first. With the host CLI on `PATH`, its read-only listing — `claude plugin list --json`, `copilot plugin list`, `codex plugin list --json`; with the CLI absent, the host's on-disk registry — `~/.claude/plugins`, `~/.cursor/plugins`, `~/.copilot/installed-plugins` [assumption], `~/.codex` marketplace snapshots [assumption].
+- Evidence order: the host's own answer first. With the host CLI on `PATH`, its read-only listing — `claude plugin list --json`, `copilot plugin list`, `codex plugin list --json`; with the CLI absent, the host's on-disk registry — `~/.claude/plugins`, `~/.cursor/plugins`, `~/.copilot/installed-plugins` [assumption], `~/.codex` marketplace snapshots [assumption]. Each listing command enumerates installed plugins only — verified 2026-08-17 for the two JSON listings; `copilot plugin list` unverified [assumption] — and a flag that adds uninstalled marketplace entries, `codex plugin list --available`, stays out of these command lines. A listing shows the Archcore plugin when it carries an entry that names the plugin itself, not the marketplace it ships in, and that the host does not report as uninstalled.
 - Timeouts: 30 s per host command [assumption]; the whole step bounded at 120 s [assumption].
 - Output: one progress line before each command run; one line per addressed host — the command run, the exact command to run, or the Cursor UI instruction; and, when the step updated a plugin, one line reporting the session overlap the update caused. A host without the plugin produces no line.
 - Exit code: `archcore update` exits with the binary phase's result; this step never changes it.
@@ -51,6 +51,8 @@ OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. The step do
 14. The plugin-update step MUST NOT send a telemetry event.
 15. WHEN the step updated at least one plugin, the CLI MUST print the self-caused overlap notice exactly once.
 16. IF no host command succeeded, THEN the CLI MUST NOT print the self-caused overlap notice.
+17. IF a host reports a listing entry as not installed, THEN the CLI MUST read that entry as not showing the plugin.
+18. IF a listing name identifies the marketplace rather than the plugin, THEN the CLI MUST read it as not showing the plugin.
 
 ## Constraints & Invariants
 
@@ -81,3 +83,5 @@ OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. The step do
 An implementation is conformant when the step runs only from manual `archcore update`, after a binary phase that did not fail and never under `--check`; queries each present host's listing before any mutating command and mutates only on a confirmed plugin; prints the exact command for a registry-listed host without its CLI and on every nonzero exit or timeout; stays silent for every host without the plugin; bounds each command at 30 s and the step at 120 s; sends no telemetry event; and leaves the exit code of `archcore update` untouched.
 
 Given a machine with `claude` on `PATH` and no Archcore plugin installed, when `archcore update` finishes its binary phase, then the step runs one listing query, the listing shows no plugin, the step prints nothing for Claude Code, no mutating command runs, and `archcore update` exits with the binary phase's code.
+
+Given a machine where a host registered the marketplace and installed no plugin from it, when `archcore update` runs the step, then the listing shows no plugin, no mutating command runs, and the step prints nothing for that host.

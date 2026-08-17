@@ -304,6 +304,40 @@ func TestPlanUpdateTiers(t *testing.T) {
 	})
 }
 
+// TestPlanSkipsAHostOfferingAnUninstalledPlugin joins the two halves the tests
+// above prove separately: the tier matrix drives Evidence values a collector
+// never produced, and the parser tests stop at the parsed answer. A host that
+// offers the plugin without installing it is the case where a gap between them
+// costs something — an update command on a machine that never installed the
+// plugin, and an install that reports itself a no-op and never installs.
+func TestPlanSkipsAHostOfferingAnUninstalledPlugin(t *testing.T) {
+	t.Parallel()
+
+	// The shape of `codex plugin list --json --available`: the registered
+	// marketplace offers the plugin, and nothing is installed.
+	const answer = `{"installed":[],"available":[{"pluginId":"archcore@archcore-plugins","name":"archcore","installed":false}]}`
+
+	parsed := parseJSONListing(answer)
+	if !parsed.ok {
+		t.Fatalf("parsed %+v, want an answered host", parsed)
+	}
+	evidence := []Evidence{{
+		Host:       HostCodexCLI,
+		CLIPresent: true,
+		ListingOK:  parsed.ok,
+		Listed:     parsed.listed,
+	}}
+
+	if actions := Plan(VerbUpdate, evidence); len(actions) != 0 {
+		t.Errorf("update planned %+v, want a host skipped in silence", actions)
+	}
+
+	installed := Plan(VerbInstall, evidence)
+	if len(installed) != 1 || installed[0].Kind != ActionRun {
+		t.Fatalf("install planned %+v, want one install run", installed)
+	}
+}
+
 // TestPlanInstallTiers walks the full evidence matrix for the install verb.
 // Install carries explicit consent, so a failed listing does not refuse it —
 // the asymmetry with update. The one refusal is a listing that names the

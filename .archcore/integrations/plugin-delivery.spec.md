@@ -20,7 +20,7 @@ Out of scope: the unattended update policy and the MCP background trigger — ne
 - Selection screen: init's existing agent multi-select — the project-detection-driven list init already shows for wiring. The four plugin-capable hosts are marked inside that same list; no separate screen and no second prompt exist.
 - Init integration: selecting a host in that multi-select is the consent for that host — hooks, MCP config, and the plugin arrive together.
 - Frozen identifiers: repository `archcore-ai/plugin`, marketplace `archcore-plugins`, plugin id `archcore@archcore-plugins` (`plugin-cli-compatibility.rule`, requirement 11).
-- Host evidence: the host CLI on `PATH` (`exec.LookPath`), the host's read-only plugin listing, and the on-disk registries named in the update-step spec.
+- Host evidence: the host CLI on `PATH` (`exec.LookPath`), the host's read-only plugin listing, and the on-disk registries named in the update-step spec. A listing shows the plugin under the definition in the Surface of `updating-the-plugin.spec`, which requirements 9 and 25 below read: a registered marketplace with nothing installed under it is not a plugin.
 - Timeouts: 30 s per host command, 120 s for the whole delivery step [assumption] — the same pairing as the update step. The seam is `@internal/git/git.go` with stderr captured.
 - Claude Code auto-update key: `extraKnownMarketplaces["archcore-plugins"]` with `"autoUpdate": true` in `~/.claude/settings.json` — documented Claude Code behavior; the host then refreshes the plugin in the background after session start.
 

@@ -1297,6 +1297,31 @@
       "source": "integrations/supported-ai-agents.doc.md",
       "target": "integrations/plugin-cli-compatibility.rule.md",
       "type": "related"
+    },
+    {
+      "source": "update/listing-evidence-counts-only-installed.plan.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/listing-evidence-counts-only-installed.plan.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/listing-evidence-counts-only-installed.plan.md",
+      "target": "code-quality/fail-open-or-fail-closed-reads.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/listing-evidence-counts-only-installed.plan.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/listing-evidence-counts-only-installed.plan.md",
+      "target": "update/keeping-the-cli-current-rollout.plan.md",
+      "type": "related"
     }
   ]
 }

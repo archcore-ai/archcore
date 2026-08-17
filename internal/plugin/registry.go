@@ -60,8 +60,8 @@ func registryListsPlugin(spec HostSpec) bool {
 // (cache/<marketplace>/<plugin>), so a namesPlugin test matched the marketplace
 // directory and returned before the plugin level was ever read — reporting the
 // plugin installed on a machine that only ever ran `marketplace add`, which
-// install then treats as a no-op and never installs. keyNamesPlugin draws the
-// same line for the JSON listing; this is its on-disk twin.
+// install then treats as a no-op and never installs. identifiesPlugin draws the
+// same line for the host's listing; this is its on-disk twin.
 //
 // The extension is trimmed so a marketplace snapshot stored as archcore.json
 // answers the same as a directory called archcore.

@@ -60,6 +60,11 @@ type listing struct {
 // answer counts as no answer: parsing a prefix would let a cap that fired
 // halfway through the entries report the plugin as absent, and absence is the
 // verdict that silently skips the host.
+//
+// Guard, not advisory: this answer is the only evidence that authorizes a
+// mutating host command, so an unreadable or ambiguous listing refuses it
+// rather than degrading into a presence claim —
+// fail-open-or-fail-closed-reads.rule, requirement 2.
 func readListing(ctx context.Context, spec HostSpec) listing {
 	if spec.Listing.Name == "" {
 		return listing{}
@@ -108,6 +113,14 @@ var listingIdentityKeys = map[string]bool{
 // listingVersionKeys are the object fields a host may report a version in.
 var listingVersionKeys = map[string]bool{
 	"version": true, "pluginversion": true, "plugin_version": true,
+}
+
+// listingInstalledKeys are the object fields a host may report installation
+// state in. A host that carries one answers the question this package asks
+// directly; a host that omits it leaves the answer to the listing command,
+// which enumerates installed plugins only — updating-the-plugin.spec, Surface.
+var listingInstalledKeys = map[string]bool{
+	"installed": true, "isinstalled": true, "is_installed": true,
 }
 
 // listingVersionRe matches the version token a plain-text listing prints beside
@@ -162,8 +175,15 @@ func findPluginEntry(value any, depth int, budget *int) (string, bool) {
 
 	switch node := value.(type) {
 	case map[string]any:
-		if version, ok := objectNamesPlugin(node); ok {
-			return version, true
+		if entryNamesPlugin(node) {
+			// The host has answered for this entry, so the walk stops here either
+			// way. Descending into an entry it just rejected would read the very
+			// id the entry was recognized by a second time, as one of the bare
+			// strings below — and that reading has no installation flag beside it.
+			if entryReportsUninstalled(node) {
+				return "", false
+			}
+			return versionInEntry(node), true
 		}
 		keys := slices.Sorted(maps.Keys(node))
 		for _, key := range keys {
@@ -175,10 +195,13 @@ func findPluginEntry(value any, depth int, budget *int) (string, bool) {
 		// reports the version of the entry nested below it rather than stopping
 		// at the group.
 		for _, key := range keys {
-			if !keyNamesPlugin(key) {
+			if !identifiesPlugin(key) {
 				continue
 			}
 			entry, _ := node[key].(map[string]any)
+			if entryReportsUninstalled(entry) {
+				continue
+			}
 			return versionInEntry(entry), true
 		}
 	case []any:
@@ -190,14 +213,14 @@ func findPluginEntry(value any, depth int, budget *int) (string, bool) {
 	case string:
 		// A host that answers a bare list of plugin ids names the plugin here and
 		// reports no version.
-		if namesPlugin(node) {
+		if identifiesPlugin(node) {
 			return "", true
 		}
 	}
 	return "", false
 }
 
-// keyNamesPlugin reports whether an object key names the plugin itself.
+// identifiesPlugin reports whether a name in a listing names the plugin itself.
 //
 // It is tighter than namesPlugin, which answers true for the marketplace id as
 // well. A host that groups its entries under `{"archcore-plugins": {…}}` names
@@ -205,25 +228,63 @@ func findPluginEntry(value any, depth int, budget *int) (string, bool) {
 // under it is the opposite of an installation: reading it as presence would
 // report the plugin installed on a machine that only ever added the
 // marketplace, which install then treats as a no-op and never installs.
-func keyNamesPlugin(key string) bool {
-	return namesPlugin(key) && strings.ToLower(key) != MarketplaceID
+//
+// Every place a listing name is read goes through here — object keys, identity
+// values, and the bare strings of a host that answers a plain array of ids. The
+// line was drawn for keys alone once, which left the same marketplace id
+// counting as an installation when a host carried it in a value instead.
+// registryNamesPlugin is the on-disk twin.
+func identifiesPlugin(name string) bool {
+	return namesPlugin(name) && strings.ToLower(name) != MarketplaceID
 }
 
-// objectNamesPlugin reports whether one listing entry names the Archcore plugin,
-// and returns the version that entry carries.
-func objectNamesPlugin(entry map[string]any) (string, bool) {
-	named := false
+// entryNamesPlugin reports whether one listing entry is about the Archcore
+// plugin. It answers the identity question alone; whether that entry is an
+// installation is entryReportsUninstalled's answer, and the two are separate
+// because a host names the plugin in the very entry that says it is not
+// installed.
+func entryNamesPlugin(entry map[string]any) bool {
 	for _, key := range slices.Sorted(maps.Keys(entry)) {
 		text, isText := entry[key].(string)
-		if isText && listingIdentityKeys[strings.ToLower(key)] && namesPlugin(text) {
-			named = true
-			break
+		if isText && listingIdentityKeys[strings.ToLower(key)] && identifiesPlugin(text) {
+			return true
 		}
 	}
-	if !named {
-		return "", false
+	return false
+}
+
+// entryReportsUninstalled reports whether a listing entry carries the host's own
+// statement that this plugin is not installed.
+//
+// The listing is a guard (see readListing), so the affirmative reading is the
+// narrow one: a host that answers anything other than a true installation flag
+// has not confirmed the plugin, and the planner then skips that host in silence
+// — fail-open-or-fail-closed-reads.rule, requirement 2.
+//
+// An entry with no such field is not a refusal. Three hosts list what is
+// installed and nothing else, and Codex prints its uninstalled marketplace
+// entries only under the `--available` flag this package never passes, so the
+// absent field means "the command already answered that" rather than "unknown".
+func entryReportsUninstalled(entry map[string]any) bool {
+	for _, key := range slices.Sorted(maps.Keys(entry)) {
+		if listingInstalledKeys[strings.ToLower(key)] {
+			return !installedFlagIsTrue(entry[key])
+		}
 	}
-	return versionInEntry(entry), true
+	return false
+}
+
+// installedFlagIsTrue reads one host's installation flag. A bool is the shape
+// every observed host uses; a string is read too, because the flag arrives as
+// JSON another project writes and a quoted boolean costs nothing to accept.
+func installedFlagIsTrue(value any) bool {
+	switch flag := value.(type) {
+	case bool:
+		return flag
+	case string:
+		return strings.EqualFold(flag, "true")
+	}
+	return false
 }
 
 // versionInEntry returns the version one listing entry carries, or nothing when
@@ -245,7 +306,7 @@ func parseTextListing(stdout string) listing {
 	for line := range strings.Lines(stdout) {
 		fields := strings.Fields(line)
 		for _, field := range fields {
-			if !namesPlugin(field) {
+			if !identifiesPlugin(field) {
 				continue
 			}
 			return listing{ok: true, listed: true, version: boundedVersion(versionInFields(fields))}
