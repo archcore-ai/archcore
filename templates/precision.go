@@ -346,7 +346,23 @@ const (
 	MaxStepWords   = 20
 	// MaxSpecBodyLines caps a spec. Past it the document is describing rather
 	// than specifying.
-	MaxSpecBodyLines = 80
+	//
+	// 120, raised from 80. Two measurements moved it. First, the cap counts every
+	// body line, and blank lines plus headings take ~19 of them on the six-section
+	// form — a quarter of the old budget went to structure before a single
+	// requirement was written. Second, the old number was stricter than the median
+	// of the closest comparable corpus (OpenSpec's 36 dogfooded per-capability
+	// specs run ~110 lines), and no comparable tool caps by line count at all;
+	// they decompose instead. 120 also collapses the flagship exemption that
+	// /archcore:init carried for hotspot synthesis: one number, which the engine
+	// can actually check, replaces two of which it knew only one.
+	//
+	// The cap is a proxy and a coarse one — line length across this repository's
+	// own specs spans 64 to 187 characters, so 120 lines buys anywhere from 1.5k
+	// to 5k tokens. It stays a line count because that is what an author can see
+	// while writing. What it cannot see, the split path handles: past the cap the
+	// answer is decomposition, not a larger document.
+	MaxSpecBodyLines = 120
 	// MaxCodeBlockLines is the longest code block an architect-voice document
 	// carries before it should reference the source instead.
 	MaxCodeBlockLines = 5

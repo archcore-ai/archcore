@@ -128,7 +128,9 @@ func TestPrecision_PassiveCapDropsLaterClauses(t *testing.T) {
 	}
 }
 
-// TestPrecision_SpecBodyLineCap covers the 80-line boundary in both directions.
+// TestPrecision_SpecBodyLineCap covers the MaxSpecBodyLines boundary in both
+// directions. It reads the constant rather than a literal, so raising the cap
+// moves the boundary the test pins instead of breaking it.
 func TestPrecision_SpecBodyLineCap(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -206,8 +208,11 @@ var noisySpecBody = "---\n---\n" +
 	"\treturn\n" +
 	"}\n" +
 	"```\n" +
-	// Padding past MaxSpecBodyLines, so the body-length check fires too.
-	strings.Repeat("Filler prose line carrying no obligation.\n", 80)
+	// Padding past MaxSpecBodyLines, so the body-length check fires too. Derived
+	// from the constant: a literal count silently stops clearing the cap the
+	// first time the cap is raised, and the fixture then drops a finding without
+	// failing on the reason.
+	strings.Repeat("Filler prose line carrying no obligation.\n", templates.MaxSpecBodyLines)
 
 // TestPrecision_ReportFindingsCap: the report leaving the hook is bounded by
 // maxReportFindings and states how much it dropped. The findings arrive in

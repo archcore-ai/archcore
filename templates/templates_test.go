@@ -342,9 +342,12 @@ func TestGenerateSpecTemplate(t *testing.T) {
 		}
 	}
 
-	// The template must stay lean — the spec body cap is 80 lines.
+	// The template must stay lean. Deliberately a fixed 80 rather than
+	// MaxSpecBodyLines: the template is the scaffolding an author starts from, so
+	// it has to leave room for the requirements. Tying it to the cap would let a
+	// raised cap silently license a fatter template.
 	if lines := strings.Count(template, "\n"); lines > 80 {
-		t.Errorf("Spec template is %d lines, must stay within the 80-line spec body cap", lines)
+		t.Errorf("Spec template is %d lines, must stay within the 80-line template leanness bound", lines)
 	}
 
 	// Code block markers stay balanced (one Given/When/Then example block).

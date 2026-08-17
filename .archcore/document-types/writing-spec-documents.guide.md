@@ -63,7 +63,11 @@ What makes an implementation correct: satisfies all MUST requirements, all invar
 
 ## Body Cap
 
-**≤ 80 lines.** The "reference, don't reproduce" rule is what keeps a spec this short even for a complex subject. (The raised 120-line flagship cap applies only to `/archcore:init` hotspot synthesis, not to authored specs.)
+**≤ 120 lines**, measured over the whole body — headings and blank lines counted, and on the six-section form those alone take about 19 lines. The "reference, don't reproduce" rule is what keeps a spec inside the cap even for a complex subject.
+
+One number now covers every path. The separate 120-line flagship allowance that `/archcore:init` carried for hotspot synthesis is folded into the default, so a synthesized spec and an authored one are measured alike. The engine reads @templates/precision.go `MaxSpecBodyLines`; the finding is advisory and never blocks a write.
+
+Past the cap the answer is decomposition, not a longer document: split by sub-surface and relate the parts (Issue 6 below).
 
 ## Forbidden in the Body
 
@@ -84,7 +88,7 @@ After writing, check:
 - [ ] Event responses (commands, requests, state changes) open with `WHEN <trigger>,` — the event is never the grammatical subject
 - [ ] Error paths sit in Failure Behavior as `IF …, THEN …`
 - [ ] Interfaces referenced by identifier + `@path`, never reproduced
-- [ ] Body ≤ 80 lines
+- [ ] Body ≤ 120 lines
 - [ ] No rationale, stories, reference dumps, how-to steps, or related-documents sections
 
 ## Common Issues
