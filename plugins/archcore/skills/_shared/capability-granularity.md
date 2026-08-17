@@ -8,7 +8,7 @@ Plugin runtime asset. Loaded by the `plan` skill together with
 
 A capability is one behavior an external consumer relies on — external code, a
 team, users/UI, or a sibling module — recordable as one `spec` within the
-80-line body cap of `skills/_shared/spec-contract.md`.
+120-line body cap of `skills/_shared/spec-contract.md`.
 
 ## Rules
 

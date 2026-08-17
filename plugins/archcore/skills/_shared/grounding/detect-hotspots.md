@@ -154,30 +154,32 @@ architecture-overview register (`compose-overview.md` Part 3) as `→ /archcore:
 rows, so the full map of load-bearing modules stays visible at ~0 token cost while only
 the budgeted candidates pay for synthesis.
 
-## Flagship specs (size/churn-gated: raised cap or decomposition)
+## Flagship specs (size/churn-gated: decomposition eligibility)
 
 A hotspot module that clears EITHER `LOC > 3000` OR falls in the **top quartile of
 churn** among the ranked candidate pool (its `commits_last_90_days` score, from the
 git-activity bonus below, ranks in the top 25% of candidates that have git history)
-is a **flagship** candidate. `SKILL.md` Phase E gives it one of two treatments, chosen
-by whether its contract is genuinely separable — never both, and never the raised cap
-AND a split just to look thorough:
+is a **flagship** candidate. Flagship status buys one thing: `SKILL.md` Phase E may
+decompose the module instead of composing it as one spec.
 
-- **Default — one spec, raised body cap.** Compose under `_shared/spec-contract.md`'s
-  flagship cap (≤ 120 lines instead of the default ≤ 80) — the extra room goes to
-  Normative Behavior / Constraints & Invariants, never to reproducing source.
+- **Default — one spec.** Compose under `_shared/spec-contract.md`'s ≤ 120-line cap,
+  the same cap every other spec is measured against. Flagship status no longer raises
+  a cap: the contract carries one number for every path, so there is nothing left to
+  raise.
 - **Decomposition — only with genuine separable sub-contracts.** When the module
   exposes ≥ 2 independently-consumable sub-surfaces with distinct external consumers
   (e.g. a 6000-LOC service with a read/query surface and a separate command/mutation
-  surface) — split into **≤ 3 sub-specs**, one per sub-surface, each back at the
-  DEFAULT ≤ 80-line cap: `filename=<module-slug>-<sub-surface-slug>`,
+  surface) — split into **≤ 3 sub-specs**, one per sub-surface, each inside the same
+  ≤ 120-line cap: `filename=<module-slug>-<sub-surface-slug>`,
   `directory=<domain-or-'architecture'>`. Relate the sub-specs to each other
   (`related`) in addition to the standard overview edge.
 
 **Never split to pad.** A large or hot file with one cohesive contract (no separable
-sub-surface) stays a single flagship spec at the raised cap — "prefer omission over a
-guess" governs the split decision exactly as it governs candidate selection in the
-first place: when the sub-surface boundary is not unambiguous, do not split.
+sub-surface) stays a single spec — "prefer omission over a guess" governs the split
+decision exactly as it governs candidate selection in the first place: when the
+sub-surface boundary is not unambiguous, do not split. A body that then runs past the
+cap follows `_shared/spec-contract.md` "Over the cap", whose rule 5 reaches the same
+answer and whose rule 6 makes the excess visible in the closing report.
 
 Flagship status does not change the hotspot's rank or its consumption of the depth's
 spec budget ("Spec budget by coverage rate" above) — a decomposed flagship still
