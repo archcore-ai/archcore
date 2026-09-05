@@ -219,7 +219,7 @@ func NewSearchDocumentsTool() mcp.Tool {
 }
 
 // HandleSearchDocuments handles the search_documents tool call.
-func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		pathRefFilter := strings.TrimSpace(request.GetString("path_ref", ""))
 		contentFilter := request.GetString("content", "")
@@ -247,6 +247,8 @@ func HandleSearchDocuments(baseDir string) func(ctx context.Context, request mcp
 			matchMode = matchModeAll
 		}
 		sourceFilter := strings.TrimSpace(request.GetString("source", ""))
+		baseDir := root.Root(ctx)
+
 		// Validate the scope before scanning ("validate then act"): a typo'd
 		// source must fail loudly, not return an empty page that an agent could
 		// read as a verified absence.

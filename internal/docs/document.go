@@ -8,6 +8,7 @@
 package docs
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -122,11 +123,11 @@ func ReadDocumentContent(baseDir, relPath string) (Document, error) {
 func WriteFileAtomic(absPath string, data []byte) error {
 	tmp := absPath + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return err
+		return fmt.Errorf("writing document: %w", err)
 	}
 	if err := os.Rename(tmp, absPath); err != nil {
 		_ = os.Remove(tmp)
-		return err
+		return fmt.Errorf("replacing document: %w", err)
 	}
 	InvalidateCache(absPath)
 	return nil

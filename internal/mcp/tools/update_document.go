@@ -53,13 +53,14 @@ Returns: JSON with the path of the updated file, its type, category, title, stat
 }
 
 // HandleUpdateDocument handles the update_document tool call.
-func HandleUpdateDocument(baseDir string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		relPath, err := request.RequireString("path")
 		if err != nil {
 			return errorResult(err.Error()), nil
 		}
 
+		baseDir := root.Root(ctx)
 		// Validate path.
 		globals, guardFail := loadGlobalsFailClosed(baseDir)
 		if guardFail != nil {

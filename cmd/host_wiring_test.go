@@ -26,7 +26,7 @@ func TestHostWiringExecutor_ClaudeCode_FreshProject(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
 
-	raw, err := hostWiringExecutor(base)("claude-code", false)
+	raw, err := hostWiringExecutor(base, "claude-code", false)
 	if err != nil {
 		t.Fatalf("executor: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestHostWiringExecutor_ClaudeCode_UpgradeFromLegacy(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	raw, err := hostWiringExecutor(base)("claude-code", false)
+	raw, err := hostWiringExecutor(base, "claude-code", false)
 	if err != nil {
 		t.Fatalf("executor: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestHostWiringExecutor_ReportHasNoAbsolutePaths(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
 
-	raw, err := hostWiringExecutor(base)("claude-code", false)
+	raw, err := hostWiringExecutor(base, "claude-code", false)
 	if err != nil {
 		t.Fatalf("executor: %v", err)
 	}
@@ -145,7 +145,7 @@ func TestHostWiringExecutor_AgentErrorsAreSanitized(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	raw, err := hostWiringExecutor(base)("claude-code", false)
+	raw, err := hostWiringExecutor(base, "claude-code", false)
 	if err != nil {
 		t.Fatalf("executor must report per-agent errors, not fail: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestHostWiringExecutor_UnknownHostErrorsBeforeWrites(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
 
-	_, err := hostWiringExecutor(base)("not-an-agent", false)
+	_, err := hostWiringExecutor(base, "not-an-agent", false)
 
 	if err == nil {
 		t.Fatal("expected error for unknown host")
@@ -187,7 +187,7 @@ func TestHostWiringExecutor_AllDetectedAddsMarkedAgents(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	raw, err := hostWiringExecutor(base)("claude-code", true)
+	raw, err := hostWiringExecutor(base, "claude-code", true)
 	if err != nil {
 		t.Fatalf("executor: %v", err)
 	}
@@ -223,7 +223,7 @@ func TestHostWiringExecutor_MixedAgents_InstructionAttribution(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	raw, err := hostWiringExecutor(base)("claude-code", true)
+	raw, err := hostWiringExecutor(base, "claude-code", true)
 	if err != nil {
 		t.Fatalf("executor: %v", err)
 	}
@@ -260,14 +260,14 @@ func TestHostWiringExecutor_MixedAgents_InstructionAttribution(t *testing.T) {
 func TestHostWiringExecutor_IdempotentSecondRun(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
-	exec := hostWiringExecutor(base)
+	exec := hostWiringExecutor
 
 	// Byte-stability is asserted for every file the executor writes on this
 	// path — the MCP config AND both instruction targets. The instruction
 	// upserts are the seam where a duplicate managed block would appear.
 	tracked := []string{".mcp.json", "CLAUDE.md", "AGENTS.md"}
 
-	if _, err := exec("claude-code", false); err != nil {
+	if _, err := exec(base, "claude-code", false); err != nil {
 		t.Fatal(err)
 	}
 	first := map[string][]byte{}
@@ -279,7 +279,7 @@ func TestHostWiringExecutor_IdempotentSecondRun(t *testing.T) {
 		first[rel] = data
 	}
 
-	raw, err := exec("claude-code", false)
+	raw, err := exec(base, "claude-code", false)
 	if err != nil {
 		t.Fatal(err)
 	}

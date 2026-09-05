@@ -10,9 +10,10 @@ tags:
 
 ## Prerequisites
 
-- Go 1.22+ (for `slices`, `t.Context()`)
+- Go 1.25+
 - Familiarity with Go's `testing` package
 - Read `go-code-quality.rule.md` for general conventions
+- Read `comments-are-the-exception.rule.md` before commenting a test
 
 ## Steps
 
@@ -27,6 +28,8 @@ internal/mcp/tools/ → internal/mcp/tools/create_document_test.go (package tool
 ```
 
 Use `t.Parallel()` at the start of tests that have no global state mutations (no `os.Chdir`, no shared package-level vars).
+
+Every non-`main` package carries tests. `internal/projectroot` was the last package without them and now has `plugincache_test.go`.
 
 ### 2. Table-Driven Tests (Primary Pattern)
 
@@ -73,7 +76,7 @@ func TestCheckSyncPreconditions(t *testing.T) {
 
 - `name string` is always the first field.
 - Common fields: `setup func(t, baseDir)`, `wantErr bool`, `errContains string`, domain-specific `want*` fields.
-- Loop variable: `tt` (not `tc` or `test`).
+- Loop variable: `tt` (not `tc`, `c`, or `test`). See `strict-go-naming-conventions.rule` §K.
 - Each subtest is fully independent — no shared state between iterations.
 
 ### 3. Assertions
@@ -150,7 +153,27 @@ if os.Getuid() == 0 {
 }
 ```
 
-### 5. HTTP Testing
+### 5. TestMain and Ambient State
+
+`t.TempDir()` contains a test's own writes. It does not contain a write the code under test aims at
+`$HOME`, an XDG state directory, or a host CLI on `PATH`.
+
+If the package reaches any of those, arm the isolation in `TestMain`:
+
+```go
+var isolation *testsupport.Isolation
+
+func TestMain(m *testing.M) {
+    testsupport.IsolateGit()
+    isolation = testsupport.IsolateAmbientState()
+    os.Exit(isolation.Finish(m.Run()))
+}
+```
+
+Seven packages do this today. The full procedure, the incident behind it, and how to guard the guard
+are in `isolating-the-machine-from-the-test-suite.guide`.
+
+### 6. HTTP Testing
 
 Use `httptest.NewServer` with inline handlers:
 
@@ -182,7 +205,7 @@ func (t *testRewriteTransport) RoundTrip(req *http.Request) (*http.Response, err
 }
 ```
 
-### 6. Mocking
+### 7. Mocking
 
 Define a **minimal interface in the source file**, implement a mock struct in the test file:
 
@@ -213,7 +236,14 @@ func (m *mockSyncClient) Sync(_ context.Context, payload *archsync.SyncPayload) 
 - Factory helpers for common test preconditions: `testPreconditions(baseDir)`.
 - Verify mock state after execution: `if !mock.called { t.Fatal("...") }`.
 
-### 7. MCP Tool Testing
+For a package-level variable that exists so a test can replace behavior, see
+`registry-agreement-and-test-seams.guide` — a seam carries a comment saying production never
+reassigns it.
+
+### 8. MCP Tool Testing
+
+A handler takes a `RootProvider`, not a base directory. Unit tests use `StaticRoot`. See
+`the-shape-of-an-mcp-tool-file.rule`.
 
 Use a `callTool` helper that wraps MCP request construction:
 
@@ -228,7 +258,7 @@ func callTool(handler func(ctx context.Context, request mcp.CallToolRequest) (*m
 **Assert error results:**
 
 ```go
-result, _ := callTool(HandleGetDocument(base), map[string]any{"path": ".archcore/../etc/passwd"})
+result, _ := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{"path": ".archcore/../etc/passwd"})
 if !result.IsError {
     t.Error("expected error for path traversal")
 }
@@ -246,7 +276,10 @@ if doc.Title != "Expected Title" {
 }
 ```
 
-### 8. Test Data
+A test that must cross tool boundaries — one handler writes, another reads — belongs in
+`internal/mcp/integration/` instead. See `in-process-mcp-integration-tests.adr`.
+
+### 9. Test Data
 
 Use **inline strings** — not fixture files:
 
@@ -271,25 +304,27 @@ func buildTestArchive(t *testing.T, files map[string][]byte) []byte {
 }
 ```
 
-### 9. Stdout Capture
+### 10. Benchmarks
 
-For commands that print to stdout:
+A benchmark over a document corpus builds it with `testsupport.BuildCorpus(tb, dir, n)`.
+
+Do not hand-roll a corpus of one document type. `corpusTypes` in @internal/testsupport/corpus.go spans
+both halves of the code-alignment allowlist — the five ranked types and the seven ignored ones — so a
+benchmark measures the filter rather than a corpus that happens to be all one type. Every generated
+body mentions `src/api/`, so code-alignment correlation has something to match.
+
+Four benchmarks exist: `BenchmarkRealisticReadTools` and `BenchmarkReadToolsScaling` in
+`internal/mcp/tools`, `BenchmarkCodeAlignment` and `BenchmarkPrecision` in `internal/advisory`.
+
+Report allocations. A read-path regression in this repository has historically shown up as allocation
+count before it showed up as wall clock:
 
 ```go
-r, w, _ := os.Pipe()
-oldStdout := os.Stdout
-os.Stdout = w
-defer func() { os.Stdout = oldStdout }()
-
-// Execute command here
-
-w.Close()
-var out bytes.Buffer
-out.ReadFrom(r)
-// Assert on out.String()
+b.ReportAllocs()
+b.ResetTimer()
 ```
 
-### 10. Test Naming
+### 11. Test Naming
 
 **Function names:** `Test<FunctionName>` or `Test<Feature>_<Scenario>`:
 
@@ -308,16 +343,23 @@ TestHandleCreateDocument_DuplicatePrevented — tool + edge case
 "healthy", "not ready", "server error"
 ```
 
-## Verification
+**Property-pinning files.** A test file that pins normative properties rather than coverage is named
+`<subject>_spec_test.go` and carries a doc comment listing them —
+`strict-go-naming-conventions.rule` §I. Seven such files exist; use one when the thing under test is a
+contract another document states, not an implementation detail.
 
-After writing tests, verify with:
+## Verification
 
 ```bash
 go test ./...                    # Run all tests
 go test -v ./cmd/ -run TestXxx   # Run specific test with verbose output
 go test -race ./...              # Check for race conditions
 go test -count=1 ./...           # Disable test caching
+go test -bench=. -benchmem ./internal/mcp/tools/   # Run benchmarks with allocations
 ```
+
+A test that passes is not yet a test that guards. Break the behavior deliberately and confirm the test
+fails, then restore. A test that stays green against an injected fault pins nothing.
 
 ## Common Issues
 
@@ -327,6 +369,10 @@ go test -count=1 ./...           # Disable test caching
 - Ensure no hardcoded paths — always use `t.TempDir()`.
 - Check for `t.Parallel()` races on shared state.
 
+### The suite is green and the machine changed
+
+The package is missing `TestMain`, or `Isolation.Finish` is not on the exit path. See step 5.
+
 ### Flaky HTTP tests
 
 - Always `defer srv.Close()` — leaked servers cause port exhaustion.
@@ -334,8 +380,13 @@ go test -count=1 ./...           # Disable test caching
 
 ### Filesystem test pollution
 
-- Never `os.Chdir()` without saving and restoring the original directory.
-- When `os.Chdir` is necessary, do NOT use `t.Parallel()` — working directory is process-global.
+- Never `os.Chdir()` without saving and restoring the original directory; prefer `t.Chdir`.
+- When the working directory must move, do NOT use `t.Parallel()` — it is process-global.
+
+### A test asserts a platform property and fails elsewhere
+
+`filepath.ToSlash` and friends are no-ops off Windows. A property that depends on the host OS belongs
+in a build-tagged file — see `platform-splits-are-files.rule` §7.
 
 ### MCP tool test assertion failures
 

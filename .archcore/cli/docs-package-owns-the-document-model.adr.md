@@ -26,11 +26,13 @@ Move the document model out of the MCP tool layer into `internal/docs`, and reac
 
 - `@internal/docs/document.go` — `Document`, `EnrichedDocument`, `DocumentRelation`,
   `ReadDocumentContent`, `NormalizeRelPath`, `WriteFileAtomic`.
-- `@internal/docs/scan.go` — `Scan`, `ScanFull`, `ScanLocal`, `BuildDoc`.
-- `@internal/docs/cache.go` — the mtime-and-size-keyed per-file cache and `InvalidateCache`.
-- `@internal/docs/guard.go` — `GuardWritablePath`, `ValidateReadPath`, `ValidateArchcorePath`,
-  `CheckSymlinkContainment`.
-- `@internal/docs/globals.go` — `IsGlobalPath`, `IsReservedGlobalDir`, `IsReadOnlyGlobalPath`,
+- `@internal/docs/scan.go` — `Scan`, `ScanFull`, `ScanTypes`, `ScanLocal`, `ScanLocalTypes`,
+  `ScanCount`, and the package-private `buildDoc` they share.
+- `@internal/docs/cache.go` — the mtime-and-size-keyed per-file cache, `InvalidateCache`, `ResetCache`.
+- `@internal/docs/relpath.go` — `RelativeToBase`.
+- `@internal/docs/guard.go` — `GuardWritablePath`, `ValidateReadPath`, `ValidateArchcorePath`, and the
+  package-private `checkSymlinkContainment` they layer.
+- `@internal/docs/globals.go` — `IsGlobalPath`, `IsReservedGlobalDir`, `IsExternalGlobalDocument`,
   `AnnotateSource`.
 - `@internal/docs/inspect.go` — `InspectGlobals`, `GlobalState`, `GlobalInspection`.
 - `@internal/mcp/tools/docs_bridge.go` — the seam. It aliases `LocalDocument` to `docs.Document` and
@@ -59,5 +61,10 @@ is part of the MCP response shape that the plugin reads.
   guard calls the same function.
 - `internal/mcp/tools` keeps its short call sites. Only `docs_bridge.go` knows where the helpers now
   live, so a further move touches one file.
+- `internal/docs` sits in the domain tier and imports no surface package, which is what lets both the
+  hook path and the MCP tool layer depend on it — `architecture/package-dependency-direction.rule`.
 - Documents that reference `internal/mcp/tools/common.go`, `scan_cache.go`, or `globals_inspect.go`
   point at paths that no longer exist and need updating when they are next touched.
+- The symbol list above drifted once already: it named `CheckSymlinkContainment` and
+  `IsReadOnlyGlobalPath` after both had been renamed. Verify it against `grep -n '^func [A-Z]'
+  internal/docs/*.go` when this document is next touched.

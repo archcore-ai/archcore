@@ -285,3 +285,84 @@ func TestWriteGuard_PatchIsGuardedOnEveryHostThatMatchesIt(t *testing.T) {
 		})
 	}
 }
+
+// TestWriteGuard_UnreadableSettingsFailsClosedOutsideTheProject: the globals
+// list is a guard input, not an advisory one (fail-open-or-fail-closed-reads.rule
+// §2). Read through the degrading variant, an unparseable settings.json reported
+// "no globals are declared", and IsExternalGlobalDocument then answered false for
+// every path — so a write into a declared external mount was permitted exactly
+// when the guard could not verify the mount list. Nothing about the allow looked
+// different from an ordinary source edit.
+//
+// The refusal is narrowed to a path outside the project: an in-project .md is
+// not where an external mount lives, and denying those would block a README edit
+// on a settings.json typo.
+func TestWriteGuard_UnreadableSettingsFailsClosedOutsideTheProject(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		// file is joined onto the fixture root, unless asBaseRelative is set, in
+		// which case it is passed to the guard verbatim and read against base.
+		file           string
+		asBaseRelative bool
+		wantDeny       bool
+	}{
+		{name: "a markdown file outside the project", file: "company/.archcore/x.rule.md", wantDeny: true},
+		{name: "a markdown file in an undeclared sibling", file: "vendor/notes.md", wantDeny: true},
+		// The form a patch body carries. patchPaths yields the path exactly as
+		// "*** Update File:" wrote it, which is normally relative — and
+		// docs.RelativeToBase calls every relative path in-project, so this
+		// escaping target sat on the in-project side of the narrowing and was
+		// allowed while its absolute twin above was denied.
+		{name: "an escaping relative markdown target", file: "../company/.archcore/x.rule.md", asBaseRelative: true, wantDeny: true},
+		// Its in-project counterpart in the same form, which must stay writable.
+		{name: "an in-project relative markdown target", file: "README.md", asBaseRelative: true},
+		// Not markdown: a global source mounts nothing else, so the list cannot
+		// change this verdict and there is nothing to fail closed about.
+		{name: "a non-markdown file outside the project", file: "company/build.sh"},
+		// In-project and outside .archcore/: an ordinary repository file. It must
+		// stay writable, or a settings.json typo blocks every doc edit in the repo.
+		{name: "a markdown file inside the project", file: "project/README.md"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			base := filepath.Join(root, "project")
+			if err := os.MkdirAll(filepath.Join(base, ".archcore"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			settings := filepath.Join(base, ".archcore", "settings.json")
+			if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[`), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			target := filepath.FromSlash(tt.file)
+			if !tt.asBaseRelative {
+				target = filepath.Join(root, target)
+			}
+			if dec := writeGuardDecision(base, target); dec.deny != tt.wantDeny {
+				t.Errorf("writeGuardDecision(%q).deny = %v, want %v", target, dec.deny, tt.wantDeny)
+			}
+		})
+	}
+}
+
+// TestWriteGuard_UnreadableSettingsStillAllowsRepairingIt: the file that has to
+// be edited to leave the unreadable state must not be the one the guard blocks.
+func TestWriteGuard_UnreadableSettingsStillAllowsRepairingIt(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(base, ".archcore"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	settings := filepath.Join(base, ".archcore", "settings.json")
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if dec := writeGuardDecision(base, settings); dec.deny {
+		t.Error("a corrupt settings.json blocked the edit that repairs it")
+	}
+}

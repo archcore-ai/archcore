@@ -21,7 +21,7 @@ func callTool(handler func(ctx context.Context, request mcp.CallToolRequest) (*m
 func TestHandleListDocuments_Empty(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
-	result, err := callTool(HandleListDocuments(base), nil)
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestHandleListDocuments_AllDocs(t *testing.T) {
 	writeDoc(t, base, "knowledge", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n")
 	writeDoc(t, base, "vision", "b.prd.md", "---\ntitle: B\nstatus: accepted\n---\n")
 
-	result, err := callTool(HandleListDocuments(base), nil)
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestHandleListDocuments_FilterByType(t *testing.T) {
 	writeDoc(t, base, "knowledge", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n")
 	writeDoc(t, base, "knowledge", "b.rfc.md", "---\ntitle: B\nstatus: draft\n---\n")
 
-	result, err := callTool(HandleListDocuments(base), map[string]any{
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), map[string]any{
 		"types": []any{"adr"},
 	})
 	if err != nil {
@@ -92,7 +92,7 @@ func TestHandleListDocuments_FilterByCategory(t *testing.T) {
 	writeDoc(t, base, "knowledge", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n")
 	writeDoc(t, base, "vision", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n")
 
-	result, err := callTool(HandleListDocuments(base), map[string]any{
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), map[string]any{
 		"category": "vision",
 	})
 	if err != nil {
@@ -118,7 +118,7 @@ func TestHandleListDocuments_FilterByStatus(t *testing.T) {
 	writeDoc(t, base, "knowledge", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n")
 	writeDoc(t, base, "knowledge", "b.rfc.md", "---\ntitle: B\nstatus: accepted\n---\n")
 
-	result, err := callTool(HandleListDocuments(base), map[string]any{
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), map[string]any{
 		"status": "accepted",
 	})
 	if err != nil {
@@ -145,7 +145,7 @@ func TestHandleListDocuments_FilterByTags(t *testing.T) {
 	writeDoc(t, base, "knowledge", "b.rfc.md", "---\ntitle: B\nstatus: draft\ntags:\n  - backend\n---\n")
 	writeDoc(t, base, "vision", "c.prd.md", "---\ntitle: C\nstatus: draft\n---\n")
 
-	result, err := callTool(HandleListDocuments(base), map[string]any{
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), map[string]any{
 		"tags": []any{"frontend"},
 	})
 	if err != nil {
@@ -165,7 +165,7 @@ func TestHandleListDocuments_FilterByTags(t *testing.T) {
 	}
 
 	// OR semantics: either tag matches.
-	result2, err := callTool(HandleListDocuments(base), map[string]any{
+	result2, err := callTool(HandleListDocuments(StaticRoot(base)), map[string]any{
 		"tags": []any{"frontend", "backend"},
 	})
 	if err != nil {
@@ -185,7 +185,7 @@ func TestHandleListDocuments_InvalidFilterTags(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleListDocuments(base), map[string]any{
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), map[string]any{
 		"tags": []any{"INVALID"},
 	})
 	if err != nil {
@@ -212,7 +212,7 @@ func TestHandleListDocuments_ScanError(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chmod(subDir, 0o755) })
 
-	result, err := callTool(HandleListDocuments(base), nil)
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +232,7 @@ func TestHandleListDocuments_TagsAndTypeFilter(t *testing.T) {
 	writeDoc(t, base, "knowledge", "a.adr.md", "---\ntitle: A\nstatus: draft\ntags:\n  - frontend\n---\n")
 	writeDoc(t, base, "knowledge", "b.rfc.md", "---\ntitle: B\nstatus: draft\ntags:\n  - frontend\n---\n")
 
-	result, err := callTool(HandleListDocuments(base), map[string]any{
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), map[string]any{
 		"types": []any{"adr"},
 		"tags":  []any{"frontend"},
 	})
@@ -293,7 +293,7 @@ func TestHandleListDocuments_Pagination(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := callTool(HandleListDocuments(base), tt.args)
+			result, err := callTool(HandleListDocuments(StaticRoot(base)), tt.args)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -325,7 +325,7 @@ func TestHandleListDocuments_Pagination(t *testing.T) {
 func TestHandleListDocuments_EmptyDocumentsIsArray(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
-	result, err := callTool(HandleListDocuments(base), nil)
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

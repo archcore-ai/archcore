@@ -188,3 +188,28 @@ func TestResolveProjectRoot_RelativePath(t *testing.T) {
 		t.Errorf("got %q, want %q", got, wantChild)
 	}
 }
+
+// TestRootIsPinned pins the mapping from the two root sources onto
+// WithPinnedRoot. Nothing else holds it: the option is passed from one branch in
+// newMCPCmd's RunE, so deleting that branch left the whole suite green while the
+// server silently started following the client's working directory.
+func TestRootIsPinned(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name, flagValue, envValue string
+		want                      bool
+	}{
+		{name: "flag states the root", flagValue: "/p", want: true},
+		{name: "env states the root", envValue: "/p", want: true},
+		{name: "both state the root", flagValue: "/p", envValue: "/q", want: true},
+		{name: "neither states the root"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := rootIsPinned(tt.flagValue, tt.envValue); got != tt.want {
+				t.Errorf("rootIsPinned(%q, %q) = %v, want %v", tt.flagValue, tt.envValue, got, tt.want)
+			}
+		})
+	}
+}

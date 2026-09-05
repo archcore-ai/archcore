@@ -18,7 +18,7 @@ func TestHandleUpdateDocument_TitleOnly(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDoc)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":  ".archcore/knowledge/my-adr.adr.md",
 		"title": "New Title",
 	})
@@ -50,7 +50,7 @@ func TestHandleUpdateDocument_StatusOnly(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDoc)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":   ".archcore/knowledge/my-adr.adr.md",
 		"status": "accepted",
 	})
@@ -83,7 +83,7 @@ func TestHandleUpdateDocument_BrokenFrontmatterFails(t *testing.T) {
 	brokenDoc := "---\ntitle: [broken\nstatus: draft\ntags:\n  - keep-me\n---\n\nBody must survive."
 	writeDoc(t, base, "knowledge", "broken.adr.md", brokenDoc)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":   ".archcore/knowledge/broken.adr.md",
 		"status": "accepted",
 	})
@@ -112,7 +112,7 @@ func TestHandleUpdateDocument_ContentOnly(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDoc)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":    ".archcore/knowledge/my-adr.adr.md",
 		"content": "## Updated\nNew body here.",
 	})
@@ -147,7 +147,7 @@ func TestHandleUpdateDocument_AllFields(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDoc)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":    ".archcore/knowledge/my-adr.adr.md",
 		"title":   "All New",
 		"status":  "accepted",
@@ -198,7 +198,7 @@ func TestHandleUpdateDocument_InvalidStatus(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDoc)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":   ".archcore/knowledge/my-adr.adr.md",
 		"status": "proposed",
 	})
@@ -218,7 +218,7 @@ func TestHandleUpdateDocument_PathTraversal(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":   "../etc/passwd",
 		"status": "hacked",
 	})
@@ -238,7 +238,7 @@ func TestHandleUpdateDocument_NonArchcorePath(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":   "src/main.go",
 		"status": "draft",
 	})
@@ -254,7 +254,7 @@ func TestHandleUpdateDocument_MissingFile(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":   ".archcore/knowledge/nonexistent.adr.md",
 		"status": "accepted",
 	})
@@ -271,7 +271,7 @@ func TestHandleUpdateDocument_NoFieldsProvided(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDoc)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/my-adr.adr.md",
 	})
 	if err != nil {
@@ -288,7 +288,7 @@ func TestHandleUpdateDocument_ContentWithFrontmatter(t *testing.T) {
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDoc)
 
 	// Simulate an AI agent passing content that already includes frontmatter.
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":    ".archcore/knowledge/my-adr.adr.md",
 		"content": "---\ntitle: Ignored Title\nstatus: accepted\n---\n\n## Updated\nNew body here.",
 	})
@@ -328,7 +328,7 @@ func TestHandleUpdateDocument_CategoryDerivedFromType(t *testing.T) {
 	// Place a PRD (vision type) in a custom "auth" directory — category must be "vision", not "auth".
 	writeDoc(t, base, "auth", "oauth.prd.md", "---\ntitle: OAuth PRD\nstatus: draft\n---\n\nBody.")
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":  ".archcore/auth/oauth.prd.md",
 		"title": "Updated OAuth PRD",
 	})
@@ -358,7 +358,7 @@ func TestHandleUpdateDocument_RootLevelDoc(t *testing.T) {
 	// Doc at .archcore/ root (no subdirectory).
 	writeDoc(t, base, "", "my-idea.idea.md", "---\ntitle: My Idea\nstatus: draft\n---\n\nBody.")
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":   ".archcore/my-idea.idea.md",
 		"status": "accepted",
 	})
@@ -388,7 +388,7 @@ func TestHandleUpdateDocument_AddTags(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDoc)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/my-adr.adr.md",
 		"tags": []any{"frontend", "auth"},
 	})
@@ -417,7 +417,7 @@ func TestHandleUpdateDocument_ReplaceTags(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDocWithTags)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/my-adr.adr.md",
 		"tags": []any{"new-tag"},
 	})
@@ -446,7 +446,7 @@ func TestHandleUpdateDocument_ClearTags(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDocWithTags)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/my-adr.adr.md",
 		"tags": []any{},
 	})
@@ -473,7 +473,7 @@ func TestHandleUpdateDocument_PreserveTags(t *testing.T) {
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDocWithTags)
 
 	// Update only the title, tags should be preserved.
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":  ".archcore/knowledge/my-adr.adr.md",
 		"title": "New Title",
 	})
@@ -502,7 +502,7 @@ func TestHandleUpdateDocument_InvalidTags(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDoc)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/my-adr.adr.md",
 		"tags": []any{"INVALID"},
 	})
@@ -531,7 +531,7 @@ func TestHandleUpdateDocument_ReadPermissionError(t *testing.T) {
 	}
 	t.Cleanup(func() { os.Chmod(path, 0o644) })
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":  ".archcore/knowledge/my-adr.adr.md",
 		"title": "New Title",
 	})
@@ -554,7 +554,7 @@ func TestHandleUpdateDocument_TagsOnly(t *testing.T) {
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDoc)
 
 	// Provide only tags — should be accepted as a valid update.
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/my-adr.adr.md",
 		"tags": []any{"new-tag"},
 	})

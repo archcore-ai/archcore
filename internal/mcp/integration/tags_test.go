@@ -4,13 +4,13 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/client"
-
 	"archcore-cli/internal/mcp/tools"
+
+	"github.com/mark3labs/mcp-go/client"
 )
 
 // TestUpdateDocumentTagSemantics covers the three-way tag update contract
-// from .archcore/mcp/tag-update-semantics.rule.md, end-to-end through the
+// from tag-update-semantics.rule, end-to-end through the
 // real server: create_document writes initial tags → update_document
 // applies the semantic → list_documents and get_document confirm the
 // observable result.

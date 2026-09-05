@@ -76,6 +76,17 @@ type UnattendedResult struct {
 	NewVersion string
 }
 
+// probeForAttempt is a seam so a test about the policy is not also a test of the
+// probe's wall-clock budget. Production never reassigns it
+// (registry-agreement-and-test-seams.guide §6).
+//
+// healthProbe forks the staged binary and waits out probeTimeout, which is sized
+// for a real machine printing a version string. Under `go test -race ./...` the
+// whole suite competes for the same cores, and a fork that normally costs
+// milliseconds has been observed passing 3 s — failing a case that is about the
+// claim, not about the probe.
+var probeForAttempt = healthProbe
+
 // UnattendedOptions carries what one unattended attempt needs.
 type UnattendedOptions struct {
 	Updater   *Updater
@@ -198,7 +209,7 @@ func RunUnattended(ctx context.Context, opts UnattendedOptions) UnattendedResult
 	// holds that pointer — the typed `archcore update` path deliberately runs
 	// without one, and the policy must not reach across and change it.
 	attempt := *opts.Updater
-	attempt.PreCommitProbe = healthProbe
+	attempt.PreCommitProbe = probeForAttempt
 	// The resolved path, so the file the claim names and the file Apply replaces
 	// are provably the same one.
 	attempt.ExecPath = target

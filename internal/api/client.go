@@ -17,7 +17,22 @@ import (
 	archsync "archcore-cli/internal/sync"
 )
 
-const maxResponseSize = 10 << 20 // 10 MB
+const (
+	// maxResponseSize bounds a decoded server response, so a server that answers
+	// with an unbounded stream cannot exhaust the CLI's memory.
+	maxResponseSize = 10 << 20
+	// maxErrorBodyBytes bounds the excerpt quoted back to the user from a failed
+	// response. It protects the terminal, not the heap.
+	maxErrorBodyBytes = 512
+	// healthTimeout bounds the readiness probe, which answers from memory on a
+	// healthy server and must not hold a command open on an unhealthy one.
+	healthTimeout = 10 * time.Second
+	// syncPushTimeout bounds the whole push. The http.Client timeout is TOTAL —
+	// it includes uploading the request body, and a first sync sends the full
+	// content of every document in one POST, which the health budget cannot carry
+	// on a slow uplink.
+	syncPushTimeout = 120 * time.Second
+)
 
 // SyncAcceptedEntry represents a file that was successfully processed.
 type SyncAcceptedEntry struct {
@@ -49,20 +64,17 @@ func NewClient(serverURL string) *Client {
 	return &Client{
 		BaseURL: strings.TrimRight(serverURL, "/") + "/api/v1",
 		HTTPClient: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: healthTimeout,
 		},
 	}
 }
 
-// NewSyncClient creates a client tuned for sync pushes. The http.Client
-// timeout is TOTAL (it includes uploading the request body), and a first sync
-// sends the full content of every document in one POST — the default 10s
-// client can time out mid-upload on a slow uplink and never succeed.
+// NewSyncClient creates a client tuned for sync pushes.
 func NewSyncClient(serverURL string) *Client {
 	return &Client{
 		BaseURL: strings.TrimRight(serverURL, "/") + "/api/v1",
 		HTTPClient: &http.Client{
-			Timeout: 120 * time.Second,
+			Timeout: syncPushTimeout,
 		},
 	}
 }
@@ -73,9 +85,17 @@ func (c *Client) applyAuth(req *http.Request) {
 	}
 }
 
-// readErrorBody reads up to 512 bytes from the response body for error context.
+// readErrorBody quotes the start of a failed response back to the user. It reads
+// one byte past the cap so an oversized body is reported as truncated instead of
+// arriving as a valid-looking prefix.
 func readErrorBody(body io.Reader) string {
-	b, _ := io.ReadAll(io.LimitReader(body, 512))
+	b, _ := io.ReadAll(io.LimitReader(body, maxErrorBodyBytes+1))
+	if len(b) > maxErrorBodyBytes {
+		// The cut lands at a byte offset, so a non-ASCII body can end on half a
+		// rune and reach the terminal as a replacement glyph.
+		cut := strings.ToValidUTF8(string(b[:maxErrorBodyBytes]), "")
+		return strings.TrimSpace(cut) + "… (truncated)"
+	}
 	return strings.TrimSpace(string(b))
 }
 
@@ -113,7 +133,7 @@ func (c *Client) CheckHealth(ctx context.Context) error {
 		Ready bool `json:"ready"`
 	}
 	if err := c.get(ctx, "/status", &result); err != nil {
-		return err
+		return fmt.Errorf("checking server readiness: %w", err)
 	}
 	if !result.Ready {
 		return errors.New("server is not ready")

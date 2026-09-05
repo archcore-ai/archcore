@@ -36,7 +36,7 @@ func listFixture(t *testing.T, nLocal, nGlobal int) string {
 
 func callList(t *testing.T, base string, args map[string]any) listDocumentsResult {
 	t.Helper()
-	res, err := HandleListDocuments(base)(t.Context(), reqWith(args))
+	res, err := HandleListDocuments(StaticRoot(base))(t.Context(), reqWith(args))
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestListDocuments_InvalidSourceIsError(t *testing.T) {
 	t.Parallel()
 	base := listFixture(t, 1, 1)
 
-	res, err := HandleListDocuments(base)(t.Context(), reqWith(map[string]any{"source": "orgg"}))
+	res, err := HandleListDocuments(StaticRoot(base))(t.Context(), reqWith(map[string]any{"source": "orgg"}))
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}

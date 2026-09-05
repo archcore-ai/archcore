@@ -14,7 +14,7 @@ import (
 // plugin) discover and invoke the MCP tools. Under Tool Search, MCP tools are
 // deferred — only names load at startup — so an always-on instruction nudge is
 // the discovery trigger. See
-// .archcore/integrations/instruction-nudge-on-init.adr.md.
+// instruction-nudge-on-init.adr.
 //
 // All targets are shared user files written with a fenced-block upsert —
 // archcore only ever touches the span between its markers, never surrounding

@@ -22,7 +22,8 @@ If no changed `.go` files found, ask the user which files or directories to revi
 
 Use the archcore MCP tools to load project-specific conventions that the review must check against.
 
-1. Call `list_documents` with `tags: ["code-review"]` to find all code review agreement documents.
+1. Call `list_documents` with `tags: ["code-quality"]` to find every binding coding agreement. Do not
+   narrow the tag: `code-review` returns only a subset of `.archcore/code-quality/`.
 2. For each returned document, call `get_document` with its path to retrieve the full content.
 3. Collect all document contents — these are the **project-specific review rules** that supplement the general Go review areas.
 
@@ -41,7 +42,7 @@ The `golang-pro` agent does NOT have Context7 MCP tools — fetch docs now.
 
 ## Step 4: Launch golang-pro Agent for Review
 
-Use the `Agent` tool with `subagent_type: "ivklgn:golang-pro"`. Pass a prompt that includes:
+Use the `Agent` tool with `subagent_type: "ai-kit:golang-pro"`. Pass a prompt that includes:
 
 - The list of changed `.go` file paths (source and test files)
 - The **full text** of all archcore code review documents from Step 2
@@ -59,7 +60,7 @@ You are reviewing Go code changes in the archcore CLI project. Read each file li
 ## Project Code Quality Agreements
 The following documents define the established conventions for this project. Check changed code against these rules. Flag any violations.
 
-{full content of each archcore document retrieved with tag "code-review"}
+{full content of each archcore document retrieved with tag "code-quality"}
 
 ## Library Documentation Context
 {pre-fetched Context7 docs for third-party libraries used in these files}

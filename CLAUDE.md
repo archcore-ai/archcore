@@ -10,7 +10,66 @@ Do not claim formal ASD-STE100 or ISO 24495-1 compliance.
 
 When researching patterns, decisions, or conventions in this project, always search `.archcore/` documents first (`list_documents` → `get_document`) before grepping the codebase or using external sources.
 
-The canonical architecture and how-to reference is `.archcore/cli-ui/building-the-cli.doc.md`. Consult it before adding a command, document type, MCP tool, hook, or agent.
+`.archcore/architecture/` holds the structure of the system: `system-overview.doc` is the map,
+`package-dependency-direction.rule` binds the import graph, `process-and-concurrency-model.spec` binds
+shared state, and `advisory-subsystem.doc` describes the hook advisories. Read the map before a change
+that crosses a package boundary.
+
+`.archcore/cli-ui/building-the-cli.doc.md` holds the procedures. Consult it before adding a command,
+document type, MCP tool, hook, or agent.
+
+## Go Code Quality — Mandatory
+
+`.archcore/code-quality/` holds the binding coding agreements for this repository. They are not
+advisory.
+
+Before you write or edit any `.go` file in `cmd/`, `internal/`, `templates/`, or `main.go`, load the
+code-quality documents. Load them once per session and keep them in context for the rest of the
+session.
+
+1. Call `list_documents` with `tags: ["code-quality"]`.
+2. Call `get_document` for each returned path.
+3. Apply every clause to the code you write.
+
+The documents and what each one governs:
+
+| Document | Binds |
+| --- | --- |
+| `go-code-quality.rule` | Error handling, exit codes, package layout, imports, allocation, general Go conventions. |
+| `strict-go-naming-conventions.rule` | Every identifier name. Absolute for new code. |
+| `comments-are-the-exception.rule` | Whether a comment is written at all. The default is none. |
+| `fail-open-or-fail-closed-reads.rule` | Every read of `settings.json`, a host config, the filesystem, or git. |
+| `choosing-an-atomic-write.rule` | Every write that must not be observable half-finished. |
+| `bounded-and-deterministic-output.rule` | Every collection or stream that leaves the process. |
+| `cite-the-governing-document-from-code.rule` | Comments on code that exists because of a recorded decision. |
+| `shared-guards-return-classified-sentinels.rule` | A predicate more than one surface consults. |
+| `rendering-happens-at-the-boundary.rule` | What a domain package returns, and who formats it. |
+| `platform-splits-are-files.rule` | Behavior that differs by `GOOS` or `GOARCH`. |
+| `the-shape-of-an-mcp-tool-file.rule` | Every file under `internal/mcp/tools/` that adds a tool. |
+| `unit-testing-patterns.guide` | Every `_test.go` file. |
+| `isolating-the-machine-from-the-test-suite.guide` | `TestMain` in a package whose code reaches `$HOME`, XDG state, a host CLI, or git. |
+| `registry-agreement-and-test-seams.guide` | A new registry, a matcher over one, or a test seam into production code. |
+| `in-process-mcp-integration-tests.adr` | Tests that cross MCP tool boundaries. |
+| `e2e-testing-for-cli.idea` | End-to-end coverage layers. Historical record; read the ADR above for current state. |
+
+`.archcore/architecture/package-dependency-direction.rule` binds Go source too. It governs which
+package may import which.
+
+The pre-write hook injects the documents that name the directory you are editing — see
+`.archcore/architecture/advisory-subsystem.doc`. That injection is a safety net over a directory
+match, not the delivery mechanism for the set: a rule that names no directory reaches you only through
+the tag load above.
+
+Rules to follow when the agreements bind:
+
+1. Apply the rule. Do not restate it in the response.
+2. IF a change must deviate from a clause, THEN add an inline comment that names the clause and the
+   reason.
+3. IF the code raises a question no document answers, THEN state the gap and propose a document
+   rather than inventing an undocumented convention.
+4. Run `golangci-lint run ./...` before you report Go work as complete. The configuration in
+   `.golangci.yml` enforces a subset of `strict-go-naming-conventions.rule`; passing the linter is
+   not proof that the other documents are satisfied.
 
 ## Archcore Operations
 
@@ -99,10 +158,14 @@ When adding a command:
 
 ### Internal packages
 
-- `internal/config/` manages settings and initialization.
-- `internal/mcp/` implements the MCP server.
+There are 18 packages under `internal/`. Keep this list complete.
+
+- `internal/docs/` owns the `.archcore/` document domain: the document model, the filesystem scan, the global-source predicates, and the path guards. It carries no MCP dependency.
+- `internal/config/` manages settings, initialization, and globals resolution.
+- `internal/mcp/` implements the MCP server, the session-following root provider, and the stdio shield.
 - `internal/mcp/tools/` implements MCP tools.
 - `internal/mcp/integration/` contains in-process MCP integration tests.
+- `internal/advisory/` implements the four hook advisories: code alignment, precision, restatement, and staleness.
 - `internal/agents/` defines supported agent integrations.
 - `internal/wiring/` implements host wiring.
 - `internal/sync/` implements sync state, hashing, and payload construction.
@@ -110,9 +173,13 @@ When adding a command:
 - `internal/update/` implements self-update and the unattended update policy.
 - `internal/plugin/` plans and executes plugin actions per host.
 - `internal/telemetry/` sends the update events.
+- `internal/stamp/` records cross-process claims in the shared state directory.
 - `internal/xdg/` resolves the shared state directory.
 - `internal/git/` detects repository metadata.
+- `internal/jsonfile/` performs order-preserving atomic surgery on JSON config files archcore does not own.
+- `internal/projectroot/` holds the checks a project root must pass before it is served.
 - `internal/display/` formats terminal output.
+- `internal/testsupport/` holds test-only helpers shared by more than one package.
 - `templates/` defines document templates and document types.
 
 ### Design constraints

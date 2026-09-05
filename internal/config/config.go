@@ -470,11 +470,11 @@ func Save(baseDir string, s *Settings) error {
 	}
 	dir := filepath.Join(baseDir, dirName)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
+		return fmt.Errorf("creating %s: %w", dirName, err)
 	}
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("encoding settings: %w", err)
 	}
 	data = append(data, '\n')
 	// Atomic write: a crash mid-write must never leave a truncated

@@ -248,7 +248,7 @@ func TestSearchDocuments_InvalidInputs(t *testing.T) {
 // callSearch invokes the handler with args and returns the raw tool result.
 func callSearch(t *testing.T, base string, args map[string]any) *mcp.CallToolResult {
 	t.Helper()
-	res, err := HandleSearchDocuments(base)(t.Context(), reqWith(args))
+	res, err := HandleSearchDocuments(StaticRoot(base))(t.Context(), reqWith(args))
 	if err != nil {
 		t.Fatalf("handler error: %v", err)
 	}

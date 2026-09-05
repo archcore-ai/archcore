@@ -695,9 +695,22 @@ func TestRunUnattended_NoRefusalReportsAFailure(t *testing.T) {
 // Two callers that start at the same moment produce exactly one attempt. The
 // cache is pre-seeded with a fresh newer version, so nothing but the claim
 // separates them: without it both would stage over the same file at once.
+// withInstantProbe replaces the pre-commit probe for one test. Use it in a case
+// that is about the policy rather than about the probe: healthProbe forks the
+// staged binary and is bounded by probeTimeout, so under a loaded suite it can
+// fail a case that has nothing to do with binary health. The probe's own
+// behavior is covered by the healthProbe tests.
+func withInstantProbe(t *testing.T) {
+	t.Helper()
+	original := probeForAttempt
+	probeForAttempt = func(context.Context, string) error { return nil }
+	t.Cleanup(func() { probeForAttempt = original })
+}
+
 func TestRunUnattended_ConcurrentCallersMakeOneAttempt(t *testing.T) {
 	requiresExec(t)
 	unattendedEnv(t)
+	withInstantProbe(t)
 
 	rec := newTelemetryRecorder(t)
 	host := newReleaseHost(t, "v2.0.0", []byte(healthyPayload))

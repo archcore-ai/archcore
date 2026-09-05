@@ -11,6 +11,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -190,6 +191,27 @@ type ServerOption func(*serverConfig)
 
 type serverConfig struct {
 	hostWiring tools.HostWiringFunc
+	// pinnedRoot marks a server whose root was stated explicitly, with
+	// --project or ARCHCORE_PROJECT_ROOT. Such a server never follows the
+	// client's working directory (project-root-resolution.spec §1).
+	pinnedRoot bool
+	// warnTo receives the root provider's refusal lines. Tests supply a buffer;
+	// production leaves it nil, which means stderr.
+	warnTo io.Writer
+}
+
+// WithPinnedRoot declares that the project root came from --project or
+// ARCHCORE_PROJECT_ROOT. The server then serves that root for its whole life
+// and asks the client for nothing.
+func WithPinnedRoot() ServerOption {
+	return func(cfg *serverConfig) { cfg.pinnedRoot = true }
+}
+
+// WithRootWarnings redirects the root provider's refusal lines, which default
+// to stderr. A test reads them from a buffer; an embedder that already owns a
+// log stream sends them there.
+func WithRootWarnings(w io.Writer) ServerOption {
+	return func(cfg *serverConfig) { cfg.warnTo = w }
 }
 
 // WithHostWiring registers the install_host_config tool backed by the given
@@ -243,19 +265,24 @@ func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPS
 		server.WithInstructions(buildInstructions(language, config.ReadGlobals(baseDir))),
 	)
 
-	s.AddTool(tools.NewInitProjectTool(), tools.HandleInitProject(baseDir))
-	s.AddTool(tools.NewListDocumentsTool(), tools.HandleListDocuments(baseDir))
-	s.AddTool(tools.NewGetDocumentTool(), tools.HandleGetDocument(baseDir))
-	s.AddTool(tools.NewSearchDocumentsTool(), tools.HandleSearchDocuments(baseDir))
-	s.AddTool(tools.NewCreateDocumentTool(), tools.HandleCreateDocument(baseDir))
-	s.AddTool(tools.NewUpdateDocumentTool(), tools.HandleUpdateDocument(baseDir))
-	s.AddTool(tools.NewRemoveDocumentTool(), tools.HandleRemoveDocument(baseDir))
-	s.AddTool(tools.NewAddRelationTool(), tools.HandleAddRelation(baseDir))
-	s.AddTool(tools.NewRemoveRelationTool(), tools.HandleRemoveRelation(baseDir))
-	s.AddTool(tools.NewListRelationsTool(), tools.HandleListRelations(baseDir))
+	// One provider serves every tool: the root is resolved per call, and the
+	// decision is shared so a session pays for at most one roots/list query per
+	// cache window however many tools it calls (project-root-resolution.spec).
+	root := newSessionRootProvider(baseDir, cfg.pinnedRoot, cfg.warnTo)
+
+	s.AddTool(tools.NewInitProjectTool(), tools.HandleInitProject(root))
+	s.AddTool(tools.NewListDocumentsTool(), tools.HandleListDocuments(root))
+	s.AddTool(tools.NewGetDocumentTool(), tools.HandleGetDocument(root))
+	s.AddTool(tools.NewSearchDocumentsTool(), tools.HandleSearchDocuments(root))
+	s.AddTool(tools.NewCreateDocumentTool(), tools.HandleCreateDocument(root))
+	s.AddTool(tools.NewUpdateDocumentTool(), tools.HandleUpdateDocument(root))
+	s.AddTool(tools.NewRemoveDocumentTool(), tools.HandleRemoveDocument(root))
+	s.AddTool(tools.NewAddRelationTool(), tools.HandleAddRelation(root))
+	s.AddTool(tools.NewRemoveRelationTool(), tools.HandleRemoveRelation(root))
+	s.AddTool(tools.NewListRelationsTool(), tools.HandleListRelations(root))
 
 	if cfg.hostWiring != nil {
-		s.AddTool(tools.NewInstallHostConfigTool(), tools.HandleInstallHostConfig(cfg.hostWiring))
+		s.AddTool(tools.NewInstallHostConfigTool(), tools.HandleInstallHostConfig(root, cfg.hostWiring))
 	}
 
 	return s

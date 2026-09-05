@@ -1,13 +1,13 @@
 package tools
 
 import (
-	"archcore-cli/internal/docs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"archcore-cli/internal/config"
+	"archcore-cli/internal/docs"
 )
 
 // assertNoAbsPath fails if msg embeds the absolute base path — a regression guard

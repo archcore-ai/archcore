@@ -9,11 +9,15 @@ import (
 )
 
 // HostWiringFunc executes the host-wiring installation for one agent id (plus,
-// optionally, every agent auto-detected in the project) and returns a
-// marshaled JSON report. The implementation is injected by the cmd layer —
-// the installers live there next to the CLI commands that share them — which
-// also keeps this package free of an import cycle (cmd → internal/mcp).
-type HostWiringFunc func(host string, allDetected bool) ([]byte, error)
+// optionally, every agent auto-detected in the project) under baseDir, and
+// returns a marshaled JSON report. The implementation is injected by the cmd
+// layer — the installers live there next to the CLI commands that share them —
+// which also keeps this package free of an import cycle (cmd → internal/mcp).
+//
+// baseDir is passed per call rather than captured: the tool writes host config
+// under the project root the session is on now, which a worktree switch can
+// move (project-root-resolution.spec §3).
+type HostWiringFunc func(baseDir, host string, allDetected bool) ([]byte, error)
 
 func agentIDStrings() []string {
 	ids := agents.AllIDs()
@@ -48,7 +52,7 @@ Returns: JSON report per agent — artifact paths written (project-relative), ho
 	)
 }
 
-func HandleInstallHostConfig(wire HostWiringFunc) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func HandleInstallHostConfig(root RootProvider, wire HostWiringFunc) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		host := request.GetString("host", "")
 		if host == "" {
@@ -56,7 +60,7 @@ func HandleInstallHostConfig(wire HostWiringFunc) func(ctx context.Context, requ
 		}
 		allDetected := request.GetBool("all_detected", false)
 
-		report, err := wire(host, allDetected)
+		report, err := wire(root.Root(ctx), host, allDetected)
 		if err != nil {
 			return errorResult(sanitizeError("installing host config", err)), nil
 		}

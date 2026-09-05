@@ -97,7 +97,7 @@ func TestHandleInitProject(t *testing.T) {
 			t.Parallel()
 			base := t.TempDir()
 
-			result, err := callTool(HandleInitProject(base), tt.args)
+			result, err := callTool(HandleInitProject(StaticRoot(base)), tt.args)
 			if err != nil {
 				t.Fatalf("handler returned Go error: %v", err)
 			}
@@ -136,11 +136,11 @@ func TestHandleInitProject_Idempotent(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
 
-	if _, err := callTool(HandleInitProject(base), map[string]any{"language": "ru"}); err != nil {
+	if _, err := callTool(HandleInitProject(StaticRoot(base)), map[string]any{"language": "ru"}); err != nil {
 		t.Fatalf("first init: %v", err)
 	}
 
-	result, err := callTool(HandleInitProject(base), map[string]any{"language": "en"})
+	result, err := callTool(HandleInitProject(StaticRoot(base)), map[string]any{"language": "en"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func TestHandleInitProject_CorruptSettingsNotOverwritten(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := callTool(HandleInitProject(base), nil)
+	result, err := callTool(HandleInitProject(StaticRoot(base)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

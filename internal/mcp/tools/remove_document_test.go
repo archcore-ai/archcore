@@ -17,7 +17,7 @@ func TestHandleRemoveDocument_Success(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", "---\ntitle: My ADR\nstatus: draft\n---\n\nbody")
 
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/my-adr.adr.md",
 	})
 	if err != nil {
@@ -69,7 +69,7 @@ func TestHandleRemoveDocument_WithRelationCleanup(t *testing.T) {
 	}
 
 	// Remove A — should clean up A→B, but B→C survives.
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/a.adr.md",
 	})
 	if err != nil {
@@ -104,7 +104,7 @@ func TestHandleRemoveDocument_FileNotFound(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/nonexistent.adr.md",
 	})
 	if err != nil {
@@ -123,7 +123,7 @@ func TestHandleRemoveDocument_InvalidPrefix(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": "src/main.go",
 	})
 	if err != nil {
@@ -151,7 +151,7 @@ func TestHandleRemoveDocument_PathTraversal(t *testing.T) {
 			t.Parallel()
 			base := setupTestArchcore(t)
 
-			result, err := callTool(HandleRemoveDocument(base), map[string]any{
+			result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 				"path": tt.path,
 			})
 			if err != nil {
@@ -168,7 +168,7 @@ func TestHandleRemoveDocument_MissingPath(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{})
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +183,7 @@ func TestHandleRemoveDocument_NoManifest(t *testing.T) {
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", "---\ntitle: My ADR\nstatus: draft\n---\n\nbody")
 
 	// No manifest file exists — should still succeed.
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/my-adr.adr.md",
 	})
 	if err != nil {
@@ -224,7 +224,7 @@ func TestHandleRemoveDocument_BothDirectionRelations(t *testing.T) {
 	}
 
 	// Remove B — both relations should be cleaned up.
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/b.prd.md",
 	})
 	if err != nil {
@@ -271,7 +271,7 @@ func TestHandleRemoveDocument_StaleRelationsNotCounted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/a.adr.md",
 	})
 	if err != nil {

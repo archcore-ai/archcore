@@ -50,6 +50,12 @@ linters:
 
     exhaustive:
       # A switch that ends in default has stated what it does with the rest.
+      #
+      # The four switches this setting suppresses all use default as meaningful
+      # behavior, and GlobalState.Fatal depends on it to make a new state fatal
+      # by default. The cost is that strict-go-naming-conventions.rule §G is
+      # linted only for default-less switches; a defaulted switch over a typed
+      # enum is a review item, and that rule's Enforcement section says so.
       default-signifies-exhaustive: true
 
     errcheck:

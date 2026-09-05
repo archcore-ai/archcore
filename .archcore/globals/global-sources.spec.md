@@ -14,7 +14,7 @@ This specification defines the canonical contract for **global sources** — rea
 It is normative for:
 
 - The declaration schema in `Settings.Globals` (@internal/config/config.go).
-- Path resolution and source-health classification in @internal/config/globals.go (`ResolveGlobalPath`, `CheckGlobalDir`, `DescribeGlobalDirError`).
+- Path resolution and source-health classification in @internal/config/globals.go (`ResolveGlobalPath`, `ResolveGlobalPathFrom`, `CheckGlobalDir`, `DescribeGlobalDirError`).
 - The two-phase scan in @internal/docs/scan.go (`Scan`, `ScanFull`).
 - Source-health reporting in @internal/docs/inspect.go (`InspectGlobals`, `GlobalState`).
 - Source annotation and read-only enforcement across the MCP read/write tools.
@@ -28,7 +28,7 @@ The document model, the scan, and the path guards live in `internal/docs`; @inte
 ### Covers
 
 - The `globals` array schema and per-entry validation.
-- Path resolution (relative, `../`, absolute) and the reserved `.archcore/global/` directory.
+- Path resolution (relative, `../`, absolute), the resolution anchor a linked git worktree uses, and the reserved `.archcore/global/` directory.
 - The two-phase document scan and source tagging (`source_id`, `source_kind`, `global`, `read_only`).
 - Read-only enforcement on `create_document`, `update_document`, `remove_document`, and `add_relation` (relation endpoints), plus the reserved `.archcore/global/` tree.
 - Source-health classification at scan time and at MCP startup (missing / not-a-directory / unreadable / self-overlap / duplicate / empty), and startup rejection of an invalid `settings.json`.
@@ -45,12 +45,13 @@ The document model, the scan, and the path guards live in `internal/docs`; @inte
 
 ## Authority
 
-This document is the normative specification for global-source behavior. If the implementation, tests, or consumers diverge from it, this specification takes precedence until amended. The originating decision is @.archcore/globals/global-sources-via-settings.adr.md; that every declared source is mandatory (no `required` flag) is @.archcore/globals/globals-are-mandatory.adr.md. The consolidated, plain-language statement of what globals may and may not do is @.archcore/globals/globals-are-read-only-everywhere.rule.md.
+This document is the normative specification for global-source behavior. If the implementation, tests, or consumers diverge from it, this specification takes precedence until amended. The originating decision is @.archcore/globals/global-sources-via-settings.adr.md; that every declared source is mandatory (no `required` flag) is @.archcore/globals/globals-are-mandatory.adr.md. That an escaping relative path anchors on the repository main checkout is @.archcore/globals/relative-globals-resolve-from-main-checkout.adr.md. The consolidated, plain-language statement of what globals may and may not do is @.archcore/globals/globals-are-read-only-everywhere.rule.md.
 
 ### Related Artifacts
 
 - Schema &amp; validation: @internal/config/config.go (`GlobalSource`, `Settings.Globals`, `Validate`, `ReadGlobals`, `LoadGlobals`, `globalIDRe`)
-- Resolution &amp; health classification: @internal/config/globals.go (`ResolveGlobalPath`, `CheckGlobalDir`, `DescribeGlobalDirError`, `ErrGlobalMissing`/`ErrGlobalNotDir`/`ErrGlobalUnreadable`/`ErrGlobalSelfOverlap`)
+- Resolution &amp; health classification: @internal/config/globals.go (`ResolveGlobalPath`, `ResolveGlobalPathFrom`, `CheckGlobalDir`, `DescribeGlobalDirError`, `ErrGlobalMissing`/`ErrGlobalNotDir`/`ErrGlobalUnreadable`/`ErrGlobalSelfOverlap`)
+- Working-tree queries behind the resolution anchor: @internal/git/git.go (`WorktreeRoots`, `Toplevel`, `MainCheckout`, `Roots`, `ErrNoMainWorktree`)
 - Scan: @internal/docs/scan.go (`Scan`, `ScanFull`, `ScanLocal`, `BuildDoc`)
 - Annotation &amp; global matching: @internal/docs/globals.go (`IsGlobalPath`, `IsReservedGlobalDir`, `IsExternalGlobalDocument`, `AnnotateSource`)
 - Document model: @internal/docs/document.go (`Document`, aliased as `LocalDocument` by @internal/mcp/tools/docs_bridge.go)
@@ -72,6 +73,9 @@ This document is the normative specification for global-source behavior. If the 
 | Primary | The project the MCP server runs against: cwd, the single `--project` value, or `ARCHCORE_PROJECT_ROOT`. Always writable. |
 | Global source | A read-only knowledge base declared by the primary in its `settings.json` `globals` array. |
 | External global source | A declared source whose resolved directory sits outside the primary's `.archcore/`, because its `path` is `../…` or absolute. Its documents render with a leading `..`, which the write-path validator rejects lexically (§5.5). |
+| Escaping path | A relative `path` whose cleaned resolution against the primary falls outside the primary. It anchors on the resolution anchor (§1). |
+| In-tree path | A relative `path` whose cleaned resolution against the primary stays inside it. It always anchors on the primary. |
+| Resolution anchor | The directory an escaping path resolves against: the primary's own position inside the repository main checkout, or the primary itself when no usable anchor exists (§1). |
 | `source_id` | The explicit `id` of a global source, the literal `"local"` for primary documents, or `"__global__"` for undeclared reserved-tree content. |
 | Reserved directory | Any directory named `global` under `.archcore/`, **at any depth**, and anything inside it — read-only global mount space: skipped in the local scan, and never a write target or relation endpoint, even for undeclared content under it. The match is on whole path segments, so a sibling like `.archcore/global-ish/` is not reserved. The read scan matches the name exactly; the write guard additionally matches it **case-insensitively** (§5.4). |
 | Document root | The `.archcore` directory a `path` resolves to; documents live under it (`<root>/knowledge/x.rule.md`). |
@@ -93,11 +97,20 @@ Every declared source is **mandatory at runtime** — there is no per-entry opt-
 
 ### §1 Path resolution
 
-Resolution lives in one place, `config.ResolveGlobalPath(baseDir, path)`, shared by the scan, the read-path validation, and the startup check.
+Resolution lives in one place, `config.ResolveGlobalPath(baseDir, path)`, shared by the scan, the read-path validation, and the startup check. Its pure core is `config.ResolveGlobalPathFrom(baseDir, anchor, path)`, which runs no subprocess and reads no filesystem.
 
 1. `ResolveGlobalPath` MUST return `filepath.Clean(path)` when `path` is absolute.
-2. Otherwise it MUST return `filepath.Clean(filepath.Join(baseDir, path))`. Relative `../` segments are permitted and resolve outside `baseDir`.
-3. There MUST NOT be a path-escape restriction in `Settings.Validate` — `../` and absolute paths are valid by design.
+2. WHEN `filepath.Clean(filepath.Join(baseDir, path))` stays inside `baseDir`, `ResolveGlobalPath` MUST return that value. Such a source is version-controlled, so a linked worktree reads its own branch's copy.
+3. WHEN that value falls outside `baseDir`, `ResolveGlobalPath` MUST resolve `path` against the resolution anchor instead. Relative `../` segments are permitted and resolve outside `baseDir`.
+4. The resolution anchor MUST be the primary's own position inside the repository main checkout: the main working tree joined with the primary's path relative to its own working tree root. A primary below its working tree root therefore keeps resolving as it did before this rule.
+5. The anchor derivation MUST use `git.WorktreeRoots` and MUST evaluate symlinks on both working trees and on `baseDir` before it computes that relative position.
+6. IF the current working tree equals the main working tree, THEN there MUST be no anchor and clause 2's resolution stands.
+7. The derived anchor MUST be accepted only when it is an existing directory holding `.archcore/`. This rejects the answer git reports inside a submodule, where the working tree is `<super>/.git/modules/<name>` rather than the checkout.
+8. IF the derivation fails, is rejected, or git is unavailable, THEN `ResolveGlobalPath` MUST resolve `path` against `baseDir`.
+9. The anchor MUST be looked up at most once per `baseDir` per process, and MUST NOT be looked up for an absolute or in-tree `path`.
+10. There MUST NOT be a path-escape restriction in `Settings.Validate` — `../` and absolute paths are valid by design.
+
+Resolution changes where a source is looked for; it never changes whether a missing source is fatal (§6).
 
 ### §2 Two-phase scan
 
@@ -118,7 +131,7 @@ Documents from both phases are returned in a single flat list, in walk order (lo
 
 1. `docs.Document` MUST carry `source_id` (always), `source_kind` (always), `global` (omit when false), and `read_only` (omit when false). The same four fields MUST also appear on `search_documents` result rows, so all three read tools (`list_documents`, `get_document`, `search_documents`) expose the local/global distinction identically.
 2. `get_document` MUST call `docs.AnnotateSource(&amp;doc, baseDir, globals)`, which matches the document's resolved absolute path against each declared global's resolved directory **first**; on a prefix match it sets the global tags with that source's `id`. A path in the reserved `global/` tree (§3) that is NOT declared is still annotated `source_id="__global__"`, `source_kind="global"`, `global=true`, `read_only=true`, so the read label matches the write guard. The `__global__` sentinel carries underscores, which the `id` pattern (§7.2) forbids, so it can never collide with a declared source id. Otherwise `source_id="local"`, `source_kind="local"`.
-3. `AnnotateSource` and the scan MUST agree: a document listed as global by one MUST be annotated global by the other. Annotation keeps **exact-case** matching (`IsReservedGlobalDir`, global path matching) — case-folding on the read path would reclassify scan results on case-sensitive filesystems; only the write guard folds (§5.4).
+3. `AnnotateSource` and the scan MUST agree: a document listed as global by one MUST be annotated global by the other. Both derive a global's directory from §1, so an escaping source is anchored identically on both paths. Annotation keeps **exact-case** matching (`IsReservedGlobalDir`, global path matching) — case-folding on the read path would reclassify scan results on case-sensitive filesystems; only the write guard folds (§5.4).
 4. `get_document` MUST validate its `path` with `docs.ValidateReadPath(baseDir, path, ReadGlobals(baseDir))`, which accepts every path `ValidateArchcorePath` accepts **and additionally** a document that resolves strictly inside a declared external global. The external-global branch MUST be hardened: relative-only input, `.md`-only, lexical containment under a declared global root (blocks `../` traversal), and symlink-evaluated containment (blocks a symlink inside the mount from escaping it). A path under a declared global pointing at a missing file MUST yield an ordinary `document not found`. The write tools MUST NOT use this relaxation — they keep the strict guard (§5.4), so an external global stays unwritable and non-linkable (§5.5).
 5. Every hook surface that opens a document at a host-supplied path MUST validate it with `docs.ValidateReadPath` as well. Lexical validation alone lets a symlinked ancestor (`.archcore/escape -> /elsewhere`) resolve out of the store, and the post-write precision advisory reports the file's own wording and its document links — so an escape puts an outside document in front of the model. The advisory passes nil globals: it fires only after a write, and a global is never written.
 
@@ -184,6 +197,7 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 | Resolved-path uniqueness | enforced at resolution (§6) | Two sources at one directory would double every document. |
 | Path traversal | unrestricted (`../`, absolute) | Cross-project references are the core use case. |
 | Self-overlap | rejected (§6) | A global may not re-mount the primary's own `.archcore`. |
+| Anchor lookups per primary | at most 1 per process | The lookup spawns git; the answer cannot change while one process serves one checkout. |
 | Declared source presence | mandatory | A fatal source (missing / not-a-directory / unreadable / self-overlap / duplicate) fails fast (§6); an empty source warns. No silent-skip. |
 | Source classification | shared (`config.CheckGlobalDir`) | Startup and runtime classify identically; no startup-passes-but-runtime-fails gap. |
 | Global mutability via MCP or direct write | none | All global documents are read-only through the tools and through the pre-write hook guard, in-tree and external alike, and are never relation endpoints. The write guard matches global space case-insensitively (§5.4). |
@@ -195,6 +209,7 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 - The same repository scanned as a primary is fully writable; scanned as another project's global it is read-only. Read-only is a property of the *mount*, not the repository.
 - Every document carries exactly one `source_id`; primary documents use `"local"`.
 - Two identical scans against an unchanged tree (primary + globals) MUST produce the same document set and tags.
+- A primary and a linked worktree of the same commit resolve every declared source to the same directory.
 - No global document path is ever passed to a write tool successfully — including case-variant spellings of global space on any filesystem.
 - The MCP write tools and the pre-write hook guard reach the same verdict for the same path. Under `.archcore/` they call one function; for an external global, which the tools cannot address at all, the hook refuses through `IsExternalGlobalDocument` (§5.9) rather than allowing what the tools reject.
 - No relation edge references a global document, in either direction; `add_relation` rejects a global on either endpoint.
@@ -214,6 +229,7 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 | Global source unreadable, at the top level or in a subdirectory | `global source "<id>" at "<path>" is not readable` (startup + scan abort; no absolute path leaked) |
 | Global resolves to the project's own `.archcore` (self-overlap) | `global source "<id>" at "<path>" resolves to the project's own .archcore` (startup + scan abort) |
 | Two globals resolve to the same path (duplicate) | `global sources "<a>" and "<b>" resolve to the same path "<path>"` (startup + scan abort) |
+| Anchor derivation fails, is rejected, or git is unavailable | silent fallback to resolution against the primary (§1.8); a source that is then missing reports the missing-source message |
 | Global exists but holds no documents (empty) | visible warning naming the source on startup (stderr), `status`, and SessionStart; not an issue, not blocking |
 | Invalid `settings.json` at MCP startup | `invalid .archcore/settings.json: …` (server refuses to start) |
 | Write to global (in-tree path, including a nested `global/` directory at any depth, in any case variant) | `cannot {create,update,remove} … read-only global source …` |
@@ -232,7 +248,7 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 
 ## Conformance
 
-An implementation conforms if it satisfies all MUST/MUST NOT statements in §§1–7, the invariants, and the error-handling rows, and passes the tests in @internal/docs/guard_test.go, @internal/docs/inspect_test.go, @internal/mcp/tools/globals_test.go, @internal/mcp/tools/globals_edge_test.go, @internal/mcp/tools/globals_reserved_test.go, @internal/mcp/tools/guard_writable_path_test.go, @internal/mcp/integration/globals_test.go, the globals cases in @internal/config/config_test.go and @internal/config/globals_test.go, and the surface tests in @cmd/mcp_test.go, @cmd/status_test.go, @cmd/hooks_common_test.go, @cmd/hooks_globals_block_test.go, @cmd/hook_write_guard_test.go, and @internal/advisory/precision_path_test.go.
+An implementation conforms if it satisfies all MUST/MUST NOT statements in §§1–7, the invariants, and the error-handling rows, and passes the tests in @internal/docs/guard_test.go, @internal/docs/inspect_test.go, @internal/mcp/tools/globals_test.go, @internal/mcp/tools/globals_edge_test.go, @internal/mcp/tools/globals_reserved_test.go, @internal/mcp/tools/guard_writable_path_test.go, @internal/mcp/integration/globals_test.go, @internal/mcp/integration/globals_worktree_test.go, the globals cases in @internal/config/config_test.go, @internal/config/globals_test.go and @internal/config/globals_anchor_test.go, the anchor queries in @internal/git/main_checkout_test.go, and the surface tests in @cmd/mcp_test.go, @cmd/mcp_worktree_test.go, @cmd/status_test.go, @cmd/hooks_common_test.go, @cmd/hooks_globals_block_test.go, @cmd/hook_write_guard_test.go, and @internal/advisory/precision_path_test.go.
 
 ## Examples
 
@@ -244,7 +260,7 @@ An implementation conforms if it satisfies all MUST/MUST NOT statements in §§1
   "globals": [ { "id": "company-standards", "path": "../_global_/company-standards/.archcore" } ] }
 ```
 
-`archcore mcp` run in `05-global-single-source/` → `list_documents` returns 2 local (writable) + 4 global (`read_only: true`, `source_id: company-standards`). The same `company-standards` opened directly (`archcore mcp` in `_global_/company-standards/`) returns its 4 documents as writable local. An editor writing into `../_global_/company-standards/.archcore/` from the primary is refused by the hook guard (§5.9).
+`archcore mcp` run in `05-global-single-source/` → `list_documents` returns 2 local (writable) + 4 global (`read_only: true`, `source_id: company-standards`). The same `company-standards` opened directly (`archcore mcp` in `_global_/company-standards/`) returns its 4 documents as writable local. An editor writing into `../_global_/company-standards/.archcore/` from the primary is refused by the hook guard (§5.9). The example sits below its working tree root, so §1.4 anchors it on its own directory and the resolution is the same in the main checkout and in a worktree.
 
 ### In-tree vendored global
 
@@ -253,7 +269,16 @@ An implementation conforms if it satisfies all MUST/MUST NOT statements in §§1
   "globals": [ { "id": "company", "path": ".archcore/global/company" } ] }
 ```
 
-Documents at `.archcore/global/company/knowledge/*.md` are mounted read-only as `source_id: company`. Undeclared content elsewhere under `.archcore/global/` stays invisible (§3) and is still read-only and non-linkable (§5) — annotated read-only with the reserved `source_id: __global__`. A write to such a document returns the clean read-only message (§5.5). A write addressed as `.archcore/Global/company/…` is rejected identically — the guard folds case (§5.4).
+Documents at `.archcore/global/company/knowledge/*.md` are mounted read-only as `source_id: company`. The path stays inside the primary, so §1.2 anchors it on the primary and a worktree reads its own branch's copy. Undeclared content elsewhere under `.archcore/global/` stays invisible (§3) and is still read-only and non-linkable (§5) — annotated read-only with the reserved `source_id: __global__`. A write to such a document returns the clean read-only message (§5.5). A write addressed as `.archcore/Global/company/…` is rejected identically — the guard folds case (§5.4).
+
+### Escaping path in a linked worktree
+
+```json
+{ "sync": "none",
+  "globals": [ { "id": "archcore", "path": "../global/.archcore" } ] }
+```
+
+The primary sits at its working tree root. In the main checkout `../global/.archcore` resolves next to it. In a worktree at `<main>/.claude/worktrees/wt` the same declaration resolves against the anchor — the main checkout — and reaches the same directory, so the worktree serves the same corpus. Without §1.3 it would resolve to `<main>/.claude/worktrees/global/.archcore`, which does not exist, and every scan would fail.
 
 ### Several globals (no collision)
 
@@ -280,5 +305,6 @@ Both directories are named `standards`, but `source_id` is the explicit `id`, so
 
 - Global sources are read-only through the MCP tools and through the pre-write hook guard; no content can be created, modified, or deleted in them, and they are never relation endpoints. The write guard matches global space case-insensitively, so a case-variant path cannot bypass it on APFS/NTFS, and it covers external sources the MCP tools cannot address (§5.9).
 - `path` may resolve outside the primary (`../`, absolute). This is intentional for cross-project references; mitigations are that the source is read-only, only recognized-type archcore document files are walked, the declaration is committed and PR-reviewed, and a source may not re-mount the primary's own `.archcore` (self-overlap is rejected).
+- The resolution anchor moves an escaping path onto a directory the same repository already controls, and it is accepted only when it holds `.archcore/` (§1.7). It widens no path the declaration did not already reach from the main checkout.
 - Write tools additionally refuse to follow a symlinked ancestor outside the real `.archcore/` root (§5.4e) and refuse non-document targets (§5.4b), so a repo-shipped symlink or a meta-file path cannot route a mutation outside the knowledge base. The read surfaces apply the same containment (§4.4, §4.5), so a symlink cannot route a *read* outside it either — including the hook advisories, which report what they find to the model.
 - Source-health checks (missing / not-a-directory / unreadable / self-overlap / duplicate) run before serving so the agent never operates against a broken mount configuration. Error messages never embed an absolute filesystem path.

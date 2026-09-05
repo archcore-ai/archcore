@@ -151,8 +151,14 @@ per-agent file — the ADR on running the guardrails in the CLI records that con
 
 Every command that reads or writes `.archcore/` resolves its project root through
 `resolveProjectRoot`, which honors `--project` and `ARCHCORE_PROJECT_ROOT` and refuses a root inside a
-host's plugin install cache. The hook leaves are the exception: there the host names the project in
-the payload's `cwd` key, and the process's own working directory is the host's.
+host's plugin install cache. Two surfaces resolve differently, and both matter when wiring a host:
+
+- The hook leaves: the host names the project in the payload's `cwd` key, and the process's own
+  working directory is the host's.
+- `archcore mcp`: `resolveProjectRoot` decides the root the server starts on, and each tool call then
+  resolves again from the client's `roots/list` reply, so a session that enters a git worktree takes
+  the server with it. A wiring that passes `--project` — Cursor's does — pins the root instead and the
+  server asks the client nothing. @.archcore/mcp/project-root-resolution.spec.md is normative.
 
 ### Claude Code
 
@@ -168,6 +174,8 @@ the payload's `cwd` key, and the process's own working directory is the host's.
   committed file reaches every teammate
 - Source: `@internal/agents/claude_code.go`, `@internal/wiring/hooks_agents.go`,
   `@internal/plugin/claude_settings.go`
+- Declares the `roots` capability and reports the session's live working directories, so an MCP server
+  wired without `--project` follows a mid-session worktree switch.
 
 ### Cursor
 
@@ -182,6 +190,8 @@ the payload's `cwd` key, and the process's own working directory is the host's.
 - Plugin: no CLI mechanism. Cursor manages plugins in its UI, so the CLI prints a one-line instruction
   and runs no command
 - Source: `@internal/agents/cursor.go`, `@internal/wiring/hooks_agents.go`
+- The MCP entry ships `--project ${workspaceFolder}`, so the root never depends on spawn cwd and the
+  server serves that root for its whole life.
 
 ### Gemini CLI
 
@@ -247,6 +257,8 @@ the payload's `cwd` key, and the process's own working directory is the host's.
   for both hosts, `hooks install` reports the possible duplicate run.
 - Its matcher names `apply_patch` too, so the patch-body scan applies here on the same terms as on
   Codex CLI.
+- [assumption] Whether this host declares the MCP `roots` capability is unverified. A host that does
+  not declare it is never queried, and the server serves the root it started on.
 
 ### OpenCode
 
@@ -328,6 +340,8 @@ the payload's `cwd` key, and the process's own working directory is the host's.
     update, and remove commands. A host with no CLI mechanism carries a UI note instead.
 12. Add the agent to the registry table and to the instruction-nudge table in this document.
 13. Update the CLI hooks reference, the agent-hooks integration guide, and the building-the-CLI guide.
+14. IF the host's MCP wiring passes no `--project`, THEN record whether it declares the `roots`
+    capability, because that is what decides whether its MCP server can follow a worktree switch.
 
 ## Adding a new MCP tool
 

@@ -33,8 +33,11 @@ type manifestStore struct {
 	entries map[string]manifestEntry
 }
 
-// sharedManifestStore is package-level: one MCP server process serves one
-// primary, and the per-baseDir keying keeps parallel tests isolated.
+// sharedManifestStore is package-level, keyed by baseDir. The keying is
+// load-bearing rather than a test convenience: a session that moves into a git
+// worktree moves the server's project root with it, so one process can serve
+// several primaries over its life (project-root-resolution.spec). It also keeps
+// parallel tests isolated.
 var sharedManifestStore = manifestStore{entries: map[string]manifestEntry{}}
 
 // load returns the parsed manifest for reading. Callers MUST NOT mutate the

@@ -38,7 +38,7 @@ func TestRunHooksInstall_FreshInstall(t *testing.T) {
 		t.Fatalf("Unmarshal: %v", err)
 	}
 
-	var hooks map[string][]hookMatcher
+	var hooks map[string][]hookMatcherGroup
 	if err := json.Unmarshal(raw["hooks"], &hooks); err != nil {
 		t.Fatalf("Unmarshal hooks: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestRunHooksInstall_Idempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var hooks map[string][]hookMatcher
+	var hooks map[string][]hookMatcherGroup
 	if err := json.Unmarshal(raw["hooks"], &hooks); err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func TestRunHooksInstall_PreservesExistingHooks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var hooks map[string][]hookMatcher
+	var hooks map[string][]hookMatcherGroup
 	if err := json.Unmarshal(raw["hooks"], &hooks); err != nil {
 		t.Fatal(err)
 	}

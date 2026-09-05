@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
-
 	"archcore-cli/internal/mcp/tools"
+
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // TestToolRegistrationCanary asserts that the in-process server registers

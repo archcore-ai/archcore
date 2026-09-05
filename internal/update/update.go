@@ -31,8 +31,12 @@ import (
 )
 
 const (
-	maxArchiveSize   = 50 << 20 // 50 MB
-	maxChecksumsSize = 1 << 20  // 1 MB
+	// maxArchiveSize bounds the release archive written to disk, so a wrong or
+	// hostile asset cannot fill the user's filesystem during an update.
+	maxArchiveSize = 50 << 20
+	// maxChecksumsSize bounds the checksums file, which holds one short line per
+	// released artifact and is never near this size in a correct release.
+	maxChecksumsSize = 1 << 20
 )
 
 // Updater checks for and applies updates from GitHub Releases.

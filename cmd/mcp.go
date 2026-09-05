@@ -28,10 +28,12 @@ func newMCPCmd(version string) *cobra.Command {
 		// not silently start the server ignoring it.
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			baseDir, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
+			envRoot := os.Getenv("ARCHCORE_PROJECT_ROOT")
+			baseDir, err := resolveProjectRoot(projectFlag, envRoot)
 			if err != nil {
 				return err
 			}
+			pinned := rootIsPinned(projectFlag, envRoot)
 
 			fmt.Fprintln(os.Stderr, display.WelcomeBanner(version))
 			fmt.Fprintln(os.Stderr)
@@ -50,9 +52,12 @@ func newMCPCmd(version string) *cobra.Command {
 				}
 			}
 
+			opts := []mcpserver.ServerOption{mcpserver.WithHostWiring(hostWiringExecutor)}
+			if pinned {
+				opts = append(opts, mcpserver.WithPinnedRoot())
+			}
 			return mcpserver.RunStdio(cmd.Context(), baseDir, version,
-				backgroundUpdateTask(version),
-				mcpserver.WithHostWiring(hostWiringExecutor(baseDir)))
+				backgroundUpdateTask(version), opts...)
 		},
 	}
 

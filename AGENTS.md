@@ -64,6 +64,24 @@ Before researching project behavior, architecture, conventions, or implementatio
 
 Treat mounted global Archcore documents as read-only defaults. Do not edit them or create relations to them.
 
+## Go code quality
+
+`.archcore/code-quality/` holds the binding coding agreements for this repository. This writing
+policy governs prose; those documents govern Go source.
+
+Before writing or editing any `.go` file in `cmd/`, `internal/`, `templates/`, or `main.go`:
+
+1. Call `list_documents` with `tags: ["code-quality"]`.
+2. Call `get_document` for each returned path.
+3. Apply every clause to the code you write.
+4. IF a change must deviate from a clause, THEN add an inline comment that names the clause and the
+   reason.
+5. IF the code raises a question no document answers, THEN state the gap and propose a document
+   rather than inventing an undocumented convention.
+6. Run `golangci-lint run ./...` before reporting Go work as complete.
+
+`CLAUDE.md` lists which document binds which kind of change. Do not restate the clauses here.
+
 ## General writing rules
 
 1. Identify the intended reader and the task that the text supports.

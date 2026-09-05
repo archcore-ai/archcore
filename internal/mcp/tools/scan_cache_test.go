@@ -12,7 +12,7 @@ import (
 
 func listTitles(t *testing.T, base string) map[string]string {
 	t.Helper()
-	result, err := callTool(HandleListDocuments(base), nil)
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestHandleListDocuments_ConcurrentWarmScans(t *testing.T) {
 	for _, name := range []string{"a.adr.md", "b.rule.md", "c.guide.md"} {
 		writeDoc(t, base, "knowledge", name, "---\ntitle: Doc\nstatus: draft\n---\n\nbody\n")
 	}
-	handler := HandleListDocuments(base)
+	handler := HandleListDocuments(StaticRoot(base))
 
 	var wg sync.WaitGroup
 	for range 8 {
@@ -116,7 +116,7 @@ func TestPopulateNearbyDocuments_FiltersNonDocuments(t *testing.T) {
 	writeDoc(t, base, "auth", "notes.txt", "not a doc")
 	writeDoc(t, base, "auth", "junk.md", "no type segment")
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "rule",
 		"filename":  "fresh",
 		"directory": "auth",

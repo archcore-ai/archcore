@@ -264,7 +264,7 @@ func TestWriteStandardMCPJSON_PreservesTopLevelKeyOrder(t *testing.T) {
 }
 
 // TestWriteStandardMCPJSON_BackupWriteFailureAborts pins the abort policy from
-// backup-invalid-configs.adr.md: if the .bak cannot be written, the original
+// backup-invalid-configs.adr: if the .bak cannot be written, the original
 // corrupted file must stay untouched and the install must fail.
 func TestWriteStandardMCPJSON_BackupWriteFailureAborts(t *testing.T) {
 	t.Parallel()

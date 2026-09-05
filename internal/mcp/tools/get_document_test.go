@@ -18,7 +18,7 @@ func TestHandleGetDocument_Success(t *testing.T) {
 	content := "---\ntitle: My ADR\nstatus: accepted\n---\n\n## Context\nDetails here."
 	writeDoc(t, base, "knowledge", "my-adr.adr.md", content)
 
-	result, err := callTool(HandleGetDocument(base), map[string]any{
+	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/my-adr.adr.md",
 	})
 	if err != nil {
@@ -44,7 +44,7 @@ func TestHandleGetDocument_PathTraversal(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleGetDocument(base), map[string]any{
+	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/../etc/passwd",
 	})
 	if err != nil {
@@ -70,7 +70,7 @@ func TestHandleGetDocument_PathTraversalNoLeak(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := callTool(HandleGetDocument(base), map[string]any{
+	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/../secret.adr.md",
 	})
 	if err != nil {
@@ -88,7 +88,7 @@ func TestHandleGetDocument_InvalidPrefix(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleGetDocument(base), map[string]any{
+	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
 		"path": "etc/passwd",
 	})
 	if err != nil {
@@ -107,7 +107,7 @@ func TestHandleGetDocument_NotFound(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleGetDocument(base), map[string]any{
+	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/nonexistent.adr.md",
 	})
 	if err != nil {
@@ -122,7 +122,7 @@ func TestHandleGetDocument_MissingPath(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleGetDocument(base), map[string]any{})
+	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestHandleGetDocument_WithRelations(t *testing.T) {
 	}
 
 	// Check source doc has outgoing.
-	result, err := callTool(HandleGetDocument(base), map[string]any{
+	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/source.adr.md",
 	})
 	if err != nil {
@@ -167,7 +167,7 @@ func TestHandleGetDocument_WithRelations(t *testing.T) {
 	}
 
 	// Check target doc has incoming.
-	result2, _ := callTool(HandleGetDocument(base), map[string]any{
+	result2, _ := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/vision/target.prd.md",
 	})
 	var enriched2 EnrichedDocument
@@ -187,7 +187,7 @@ func TestHandleGetDocument_NoRelations(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "solo.adr.md", "---\ntitle: Solo\nstatus: draft\n---\n\nbody")
 
-	result, _ := callTool(HandleGetDocument(base), map[string]any{
+	result, _ := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/solo.adr.md",
 	})
 
@@ -208,7 +208,7 @@ func TestHandleGetDocument_NoManifest(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "no-manifest.adr.md", "---\ntitle: No Manifest\nstatus: draft\n---\n\nbody")
 
-	result, err := callTool(HandleGetDocument(base), map[string]any{
+	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/no-manifest.adr.md",
 	})
 	if err != nil {

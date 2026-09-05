@@ -94,10 +94,10 @@ func TestScalingOutputSizes(t *testing.T) {
 	t.Logf("%-8s %12s %12s %12s %12s", "N", "list_B", "snip_B", "full_B", "get_B")
 	for _, n := range benchTiers {
 		base := buildLocalCorpus(t, n)
-		listB := len(mustText(t, HandleListDocuments(base), map[string]any{}))
-		snipB := len(mustText(t, HandleSearchDocuments(base), map[string]any{"content": "lorem"}))
-		fullB := len(mustText(t, HandleSearchDocuments(base), map[string]any{"content": "lorem", "mode": "full"}))
-		getB := len(mustText(t, HandleGetDocument(base), map[string]any{"path": getPath}))
+		listB := len(mustText(t, HandleListDocuments(StaticRoot(base)), map[string]any{}))
+		snipB := len(mustText(t, HandleSearchDocuments(StaticRoot(base)), map[string]any{"content": "lorem"}))
+		fullB := len(mustText(t, HandleSearchDocuments(StaticRoot(base)), map[string]any{"content": "lorem", "mode": "full"}))
+		getB := len(mustText(t, HandleGetDocument(StaticRoot(base)), map[string]any{"path": getPath}))
 		t.Logf("%-8d %12d %12d %12d %12d", n, listB, snipB, fullB, getB)
 	}
 }
@@ -111,18 +111,18 @@ func BenchmarkReadToolsScaling(b *testing.B) {
 			h    benchHandler
 			args map[string]any
 		}{
-			{"list", HandleListDocuments(base), map[string]any{}},
-			{"search-snip", HandleSearchDocuments(base), map[string]any{"content": "lorem"}},
-			{"search-full", HandleSearchDocuments(base), map[string]any{"content": "lorem", "mode": "full"}},
-			{"get", HandleGetDocument(base), map[string]any{"path": getPath}},
+			{"list", HandleListDocuments(StaticRoot(base)), map[string]any{}},
+			{"search-snip", HandleSearchDocuments(StaticRoot(base)), map[string]any{"content": "lorem"}},
+			{"search-full", HandleSearchDocuments(StaticRoot(base)), map[string]any{"content": "lorem", "mode": "full"}},
+			{"get", HandleGetDocument(StaticRoot(base)), map[string]any{"path": getPath}},
 		}
-		for _, c := range cases {
-			b.Run(fmt.Sprintf("%s/N=%d", c.name, n), func(b *testing.B) {
-				req := reqWith(c.args)
+		for _, tt := range cases {
+			b.Run(fmt.Sprintf("%s/N=%d", tt.name, n), func(b *testing.B) {
+				req := reqWith(tt.args)
 				b.ReportAllocs()
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					r, err := c.h(context.Background(), req)
+					r, err := tt.h(context.Background(), req)
 					if err != nil || r.IsError {
 						b.Fatal("handler failed")
 					}

@@ -7,17 +7,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
-
 	"archcore-cli/internal/sync"
 	"archcore-cli/templates"
+
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 func TestHandleCreateDocument_Success(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "use-postgres",
 		"title":    "Use PostgreSQL",
@@ -62,7 +62,7 @@ func TestHandleCreateDocument_DefaultTitleAndStatus(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "rfc",
 		"filename": "oauth-tokens",
 	})
@@ -90,7 +90,7 @@ func TestHandleCreateDocument_CustomContent(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "custom",
 		"content":  "## My Custom Content\n\nCustom body here.",
@@ -120,7 +120,7 @@ func TestHandleCreateDocument_ContentWithFrontmatter(t *testing.T) {
 	base := setupTestArchcore(t)
 
 	// Simulate an AI agent passing content that already includes frontmatter.
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "frontmatter-dup",
 		"title":    "Real Title",
@@ -160,7 +160,7 @@ func TestHandleCreateDocument_DuplicatePrevented(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	_, err := callTool(HandleCreateDocument(base), map[string]any{
+	_, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "dup-test",
 	})
@@ -168,7 +168,7 @@ func TestHandleCreateDocument_DuplicatePrevented(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "dup-test",
 	})
@@ -184,7 +184,7 @@ func TestHandleCreateDocument_InvalidType(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "invalid",
 		"filename": "test",
 	})
@@ -200,7 +200,7 @@ func TestHandleCreateDocument_EmptyFilename(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "  ",
 	})
@@ -216,7 +216,7 @@ func TestHandleCreateDocument_PathSeparator(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "../etc/passwd",
 	})
@@ -236,7 +236,7 @@ func TestHandleCreateDocument_InvalidStatus(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "test",
 		"status":   "proposed",
@@ -287,7 +287,7 @@ func TestHandleCreateDocument_AllTypes(t *testing.T) {
 			t.Parallel()
 			base := setupTestArchcore(t)
 
-			result, err := callTool(HandleCreateDocument(base), map[string]any{
+			result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 				"type":     tt.docType,
 				"filename": "test-doc",
 			})
@@ -380,7 +380,7 @@ func TestHandleCreateDocument_WithDirectory(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "adr",
 		"filename":  "jwt-strategy",
 		"title":     "JWT Strategy",
@@ -414,7 +414,7 @@ func TestHandleCreateDocument_DirectoryTraversal(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "adr",
 		"filename":  "evil",
 		"directory": "../etc",
@@ -431,7 +431,7 @@ func TestHandleCreateDocument_NestedDirectory(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "adr",
 		"filename":  "k8s-migration",
 		"title":     "K8s Migration",
@@ -462,7 +462,7 @@ func TestHandleCreateDocument_AbsoluteDirectory(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "adr",
 		"filename":  "evil",
 		"directory": "/etc",
@@ -479,7 +479,7 @@ func TestHandleCreateDocument_DirectoryWithWhitespace(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "adr",
 		"filename":  "trimmed",
 		"directory": "  auth  ",
@@ -508,7 +508,7 @@ func TestHandleCreateDocument_NearbyDocuments(t *testing.T) {
 	// Create an existing doc in the "auth" directory.
 	writeDoc(t, base, "auth", "existing.adr.md", "---\ntitle: Existing\nstatus: draft\n---\n\nbody")
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "rule",
 		"filename":  "new-rule",
 		"directory": "auth",
@@ -569,7 +569,7 @@ func TestHandleCreateDocument_NearbyDocuments_Capped(t *testing.T) {
 			"---\ntitle: "+slug+"\nstatus: draft\n---\n\nbody")
 	}
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "rule",
 		"filename":  "new-rule",
 		"directory": "crowded",
@@ -615,7 +615,7 @@ func TestHandleCreateDocument_NearbyDocuments_Empty(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "adr",
 		"filename":  "lonely",
 		"directory": "empty-dir",
@@ -640,7 +640,7 @@ func TestHandleCreateDocument_MissingFilename(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type": "adr",
 	})
 	if err != nil {
@@ -655,7 +655,7 @@ func TestHandleCreateDocument_ContentOnlyFrontmatter(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "frontmatter-only",
 		"title":    "Frontmatter Only",
@@ -745,7 +745,7 @@ func TestHandleCreateDocument_SlugValidation(t *testing.T) {
 			t.Parallel()
 			base := setupTestArchcore(t)
 
-			result, err := callTool(HandleCreateDocument(base), map[string]any{
+			result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 				"type":     "adr",
 				"filename": tt.filename,
 			})
@@ -770,7 +770,7 @@ func TestHandleCreateDocument_NearbyDocuments_SameRoot(t *testing.T) {
 	// Create an existing doc at root.
 	writeDoc(t, base, "", "root-doc.adr.md", "---\ntitle: Root\nstatus: draft\n---\n\nbody")
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "rule",
 		"filename": "another-root",
 	})
@@ -805,7 +805,7 @@ func TestHandleCreateDocument_WithTags(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "tagged-doc",
 		"title":    "Tagged Doc",
@@ -847,7 +847,7 @@ func TestHandleCreateDocument_InvalidTags(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "bad-tags",
 		"tags":     []any{"Invalid_Tag"},
@@ -868,7 +868,7 @@ func TestHandleCreateDocument_NoTags(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":     "adr",
 		"filename": "no-tags",
 	})

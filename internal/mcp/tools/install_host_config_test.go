@@ -16,7 +16,7 @@ func callInstallHostConfig(t *testing.T, wire HostWiringFunc, args map[string]an
 	req := mcp.CallToolRequest{}
 	req.Params.Name = "install_host_config"
 	req.Params.Arguments = args
-	res, err := HandleInstallHostConfig(wire)(context.Background(), req)
+	res, err := HandleInstallHostConfig(StaticRoot(t.TempDir()), wire)(context.Background(), req)
 	if err != nil {
 		t.Fatalf("handler must never return a Go error, got: %v", err)
 	}
@@ -26,7 +26,7 @@ func callInstallHostConfig(t *testing.T, wire HostWiringFunc, args map[string]an
 func TestHandleInstallHostConfig_MissingHostParam(t *testing.T) {
 	t.Parallel()
 	called := false
-	wire := func(host string, allDetected bool) ([]byte, error) {
+	wire := func(baseDir, host string, allDetected bool) ([]byte, error) {
 		called = true
 		return nil, nil
 	}
@@ -48,7 +48,7 @@ func TestHandleInstallHostConfig_PassesArgsThrough(t *testing.T) {
 	t.Parallel()
 	var gotHost string
 	var gotAll bool
-	wire := func(host string, allDetected bool) ([]byte, error) {
+	wire := func(baseDir, host string, allDetected bool) ([]byte, error) {
 		gotHost, gotAll = host, allDetected
 		return []byte(`{"agents":[]}`), nil
 	}
@@ -72,7 +72,7 @@ func TestHandleInstallHostConfig_ExecutorErrorSanitized(t *testing.T) {
 	// A *fs.PathError embedding an absolute path must reach the client as a
 	// path-free I/O class (no-absolute-paths-in-mcp-errors.rule).
 	pathErr := &fs.PathError{Op: "mkdir", Path: "/Users/someone/project/.claude", Err: fs.ErrPermission}
-	wire := func(host string, allDetected bool) ([]byte, error) {
+	wire := func(baseDir, host string, allDetected bool) ([]byte, error) {
 		return nil, fmt.Errorf("installing: %w", pathErr)
 	}
 
@@ -92,7 +92,7 @@ func TestHandleInstallHostConfig_ExecutorErrorSanitized(t *testing.T) {
 
 func TestHandleInstallHostConfig_PlainErrorTextKept(t *testing.T) {
 	t.Parallel()
-	wire := func(host string, allDetected bool) ([]byte, error) {
+	wire := func(baseDir, host string, allDetected bool) ([]byte, error) {
 		return nil, errors.New(`unknown agent "nope"`)
 	}
 

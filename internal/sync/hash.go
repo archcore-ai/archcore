@@ -45,12 +45,19 @@ func ScanFiles(baseDir string) ([]FileState, error) {
 	archcoreDir := filepath.Join(baseDir, ".archcore")
 	var files []FileState
 
+	// A guard, not an advisory: this list is the only thing keeping a read-only
+	// mount out of the push, so an unreadable settings.json must stop the scan
+	// rather than report that no globals are declared.
+	globals, err := config.LoadGlobals(baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("cannot verify global sources: %w", err)
+	}
 	var globalDirs []string
-	for _, gs := range config.ReadGlobals(baseDir) {
+	for _, gs := range globals {
 		globalDirs = append(globalDirs, filepath.ToSlash(config.ResolveGlobalPath(baseDir, gs.Path)))
 	}
 
-	err := templates.WalkArchcoreFilesSkipping(archcoreDir, []string{"global"}, func(path string, d fs.DirEntry) error {
+	err = templates.WalkArchcoreFilesSkipping(archcoreDir, []string{"global"}, func(path string, d fs.DirEntry) error {
 		slashPath := filepath.ToSlash(path)
 		for _, dir := range globalDirs {
 			if slashPath == dir || strings.HasPrefix(slashPath, dir+"/") {

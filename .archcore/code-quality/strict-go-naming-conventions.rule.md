@@ -74,6 +74,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
   ```
 
 - **MUST**: The constant name carries a type-derived prefix when bare names would collide or be ambiguous: `TypeADR` (DocumentType), `RelRelated` (RelationType), `StatusDraft` (DocStatus), `CategoryVision` (Category), `SyncTypeNone` (SyncType). The prefix may be omitted when the constants are themselves a singular vocabulary (e.g., `AgentID` constants `ClaudeCode`, `Cursor`).
+- **MAY**: A closed set that never crosses a process boundary — not marshalled, not written to disk, not part of a tool result — stay untyped when a comment at the declaration says so and names why. Everything that reaches a wire, a file, or an MCP result is covered by the MUST above with no exception. Example: `refKindExplicit` / `refKindMention` at `@internal/mcp/tools/search_documents.go`, the internal candidate kinds the wire-facing `matchKind` values derive from.
 - **MUST**: Validate enum values exhaustively. Either form is acceptable:
   - A `map[<Type>]bool` lookup (concise; preferred when the set is also iterated).
   - A `switch` listing every constant, with no `default: false` fallback (paired with the `exhaustive` linter).
@@ -82,7 +83,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 
 - **MUST**: Fields referencing the enum use the typed alias, not bare `string`. `Settings.Sync` MUST be `SyncType`, not `string`. `Frontmatter.Status` MUST be `DocStatus`, not `string`.
 - **MUST**: Key a map on the typed enum with the constants, never with string literals. `map[DocumentType]int{"rul": 1}` compiles and silently yields the zero value; `{TypeRule: 1}` does not.
-- **MUST NOT**: Define a closed-set string as untyped constants. The compiler must be able to enforce the domain.
+- **MUST NOT**: Define a closed-set string as untyped constants, except under the MAY above.
 - **MUST**: A `switch` that deliberately handles a subset carries `//exhaustive:ignore` with the reason on the same comment. Silencing the analyzer without saying why is a deviation under the closing clause of this rule.
 - **NUMERIC ENUMS**: Use `iota` with a typed alias: `type Level int` + `const ( LevelDebug Level = iota; LevelInfo; ... )`.
 
@@ -99,7 +100,8 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 - **MUST**: snake_case, ASCII letters and digits only — `hooks_claude_code.go`, `gemini_cli.go`, `mcp_helpers.go`.
 - **MUST**: When a file is keyed to a slug-valued enum (e.g., `AgentID = "claude-code"`), the file basename mirrors the slug with `-` replaced by `_`. The triple `AgentID = "claude-code"` ↔ file `claude_code.go` ↔ identifier `ClaudeCode` MUST align.
 - **MUST**: Tests live alongside source as `<basename>_test.go`. No separate `tests/` directories inside Go packages.
-- **MAY**: A test file that pins normative properties rather than coverage is named `<subject>_spec_test.go` and carries a doc comment before `package` listing them.
+- **MUST**: A file carrying a `//go:build` platform constraint is named `<subject>_<constraint>.go`. See `platform-splits-are-files.rule`.
+- **MAY**: A test file that pins normative properties rather than coverage is named `<subject>_spec_test.go` and carries a doc comment listing them before the first declaration. Placement before `package` is preferred but not required; four of the seven spec files put it after.
 
 ### J. Error names and messages
 
@@ -121,7 +123,8 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 
 - **MUST**: Single-method interfaces use the `<Method>er` form: `Reader` (`Read`), `Writer` (`Write`), `Closer` (`Close`).
 - **MUST**: Multi-method interfaces are named for the role, not the methods: `Storage`, `Repository`, `Picker`.
-- **MUST NOT**: Suffix struct types with `-er` if they are not interfaces. The existing `internal/update.Updater` struct is grandfathered to avoid in-flight churn; **new** struct types must not use the `-er` suffix. Renaming `Updater` is a fine follow-up but not required by this rule.
+- **MUST NOT**: Suffix a struct with `-er` when the struct is a data record rather than a behavior. `hookMatcher` in `@internal/wiring/hooks_agents.go` was the shape this forbids — a `{Matcher, Hooks}` JSON record that matched nothing — and was renamed to `hookMatcherGroup` in September 2026.
+- **MAY**: Name a struct after the interface it implements. `pluginReporter` (`plugin.Reporter`), `capWriter` (`io.Writer`), and `sessionRootProvider` (`tools.RootProvider`) are correct, and so is the stdlib practice they follow (`bufio.Writer`, `gzip.Reader`). `internal/update.Updater` predates this clause and is now conforming rather than grandfathered.
 
 ## Rationale
 
@@ -131,7 +134,7 @@ The codebase already follows ~95% of these rules organically. Codifying them pre
 2. **Bikeshedding in review.** A clear MUST resolves every "should this be `Url` or `URL`?" question instantly. Reviewers cite a clause; authors fix and move on.
 3. **Type-system erosion.** Typed string enums atrophy without a mandate; the original three bare-string domains were migrated, and the rule keeps new ones from appearing.
 
-The strictness is deliberate: every clause maps to a decision the codebase has already made organically. There is no aspirational rule.
+The strictness is deliberate: every clause maps to a decision the codebase has already made organically. There is no aspirational rule. §L was narrowed in September 2026 for exactly that reason — the blanket `-er` prohibition contradicted four conforming call sites and ordinary Go practice, so it now forbids only the shape it was aiming at.
 
 ## Examples
 
@@ -187,6 +190,15 @@ return fmt.Errorf("GitHub API returned status %d", resp.StatusCode) // proper no
 
 // §I File ↔ identifier ↔ slug
 // AgentID = "claude-code" → file claude_code.go → const ClaudeCode
+
+// §L A struct named for the interface it implements
+type capWriter struct{ buf []byte } // io.Writer
+
+// §L A data record named for what it holds
+type hookMatcherGroup struct {
+    Matcher string      `json:"matcher"`
+    Hooks   []hookEntry `json:"hooks"`
+}
 ```
 
 ### Bad
@@ -228,7 +240,7 @@ var typePriority = map[templates.DocumentType]int{"rul": 1} // MUST be templates
 func valid(s SyncType) bool {
     switch s {
     case SyncTypeNone: return true
-    default: return false                 // MUST list every constant; let exhaustive linter enforce
+    default: return false                 // MUST list every constant
     }
 }
 
@@ -240,6 +252,12 @@ func (mfst *Manifest) RemoveRelation(...) // MUST be single letter `m`
 type AgentInfo struct { ... }             // package agents — MUST be Agent
 type UserStruct struct { ... }            // MUST be User
 type IReader interface { ... }            // MUST be Reader
+
+// §L A data record wearing a behavior suffix
+type hookMatcher struct {                 // MUST be hookMatcherGroup
+    Matcher string      `json:"matcher"`
+    Hooks   []hookEntry `json:"hooks"`
+}
 
 // §K Hungarian notation
 var strName string                        // MUST be name
@@ -265,8 +283,13 @@ repository root; CI runs `golangci-lint` as its own step after `go vet`.
   `//nolint:staticcheck // ST1003: <reason>`.
 - `errname` — enforces §J `Err*` and `*Error` patterns automatically.
 - `errcheck` — flags ignored errors. A deliberate drop is written `_ = f()`, not left bare.
-- `exhaustive` — required for §G typed enums; flags non-exhaustive switches. A deliberate subset
-  carries `//exhaustive:ignore` with the reason.
+- `exhaustive` — flags a non-exhaustive `switch` **that has no `default` clause**. The config sets
+  `default-signifies-exhaustive: true`, so a switch ending in `default` is not reported. That is
+  deliberate: the four switches it would otherwise flag all use `default` as meaningful behavior, and
+  one of them — `GlobalState.Fatal` at `@internal/docs/inspect.go` — depends on it to make a new
+  state fatal by default. The consequence is that §G's exhaustiveness requirement is **linted only
+  for default-less switches**; a defaulted switch is a review item, and the `//exhaustive:ignore`
+  comments in the tree carry the reasons.
 - `unconvert` — flags redundant type conversions (catches over-casting at typed-enum boundaries).
 
 **Code review** (human or AI via `review-go` skill) covers what linters cannot:
@@ -275,19 +298,19 @@ repository root; CI runs `golangci-lint` as its own step after `go vet`.
 - File ↔ identifier slug correspondence.
 - Receiver-name uniformity per type across files.
 - Field types using the typed enum, not bare `string`.
+- Whether a `default` in a switch over a typed enum is meaningful behavior or a silent fallthrough.
 - Stuttering with package name in exposed identifiers.
 - `%w` vs `%v` choice in error wrapping.
 - Default-to-unexported judgment (§A).
 - Whether an `//exhaustive:ignore` reason is true.
 
-**Known existing deviations** (new code MUST conform; existing violations are migrated opportunistically when the surrounding code is touched):
+**Known existing deviations**: none. Every entry that stood here has been closed.
 
-- `internal/mcp/tools/search_documents.go` declares its match-kind and search-mode vocabularies as
-  named constants without a typed alias, and `searchMatch.Kind` is bare `string` where §G asks for
-  one. These are the last two.
-- Historical note: the deviations previously listed here are closed. `SyncType`, `DocStatus` and
-  `Category` were migrated by the July 2026 audit; `LocalDocument.Type`, `searchResult.Type` and
-  `source_kind` are now `templates.DocumentType` and `docs.SourceKind` respectively, verified against
-  the source in August 2026.
+Historical note. `SyncType`, `DocStatus` and `Category` were migrated by the July 2026 audit;
+`LocalDocument.Type`, `searchResult.Type` and `source_kind` are now `templates.DocumentType` and
+`docs.SourceKind`. The `search_documents.go` entry that stood here until September 2026 was already
+stale when written: `searchMode` and `matchKind` are typed aliases and `searchMatch.Kind` is
+`matchKind`, verified against the source. The `refKind*` constants it also named are now covered by
+§G's MAY. The §L entry was closed by renaming `hookMatcher` to `hookMatcherGroup`.
 
-**New code** MUST be conforming. A deviation requires a one-line comment naming the reason and the clause: `// §L: grandfathered; in-flight churn risk.`. Silent deviations are review-blocking.
+**New code** MUST be conforming. A deviation requires a one-line comment naming the reason and the clause: `// §L: <reason>.`. Silent deviations are review-blocking.

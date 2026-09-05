@@ -35,13 +35,14 @@ Use this tool when you need to:
 }
 
 // HandleGetDocument handles the get_document tool call.
-func HandleGetDocument(baseDir string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func HandleGetDocument(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		reqPath, err := request.RequireString("path")
 		if err != nil {
 			return errorResult(err.Error()), nil
 		}
 
+		baseDir := root.Root(ctx)
 		// Validate path safety. Reads additionally allow a document that resolves
 		// inside a declared read-only external global source; the write tools keep
 		// the strict validateArchcorePath and never reach this relaxation.

@@ -24,10 +24,11 @@ Optionally filter by a specific document path (with or without ".archcore/" pref
 	)
 }
 
-func HandleListRelations(baseDir string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func HandleListRelations(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		path := request.GetString("path", "")
 
+		baseDir := root.Root(ctx)
 		// A present-but-invalid manifest is a tool error — silently reporting an
 		// empty graph hides real relation state (missing file = empty manifest).
 		m, err := sharedManifestStore.load(baseDir)

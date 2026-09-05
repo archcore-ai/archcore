@@ -16,12 +16,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/client"
-	"github.com/mark3labs/mcp-go/mcp"
-
 	mcpserver "archcore-cli/internal/mcp"
 	"archcore-cli/internal/mcp/tools"
 	"archcore-cli/internal/sync"
+
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // initArchcore creates a fresh tempdir with an empty .archcore/ directory and

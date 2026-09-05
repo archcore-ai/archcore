@@ -13,7 +13,7 @@ package wiring
 import (
 	"errors"
 	"fmt"
-	"os"
+	"io/fs"
 
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
@@ -55,7 +55,7 @@ type Report struct {
 func EnsureProjectInitialized(baseDir string) (created bool, err error) {
 	if _, err := config.Load(baseDir); err == nil {
 		return false, nil
-	} else if !errors.Is(err, os.ErrNotExist) {
+	} else if !errors.Is(err, fs.ErrNotExist) {
 		return false, fmt.Errorf("existing .archcore/ settings unreadable: %w", err)
 	}
 	if err := config.InitDir(baseDir); err != nil {

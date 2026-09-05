@@ -37,7 +37,7 @@ Returns: {"removed": true} if found and removed, {"removed": false} if not found
 	)
 }
 
-func HandleRemoveRelation(baseDir string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func HandleRemoveRelation(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		source, err := request.RequireString("source")
 		if err != nil {
@@ -67,6 +67,8 @@ func HandleRemoveRelation(baseDir string) func(ctx context.Context, request mcp.
 		}
 
 		var removed bool
+		baseDir := root.Root(ctx)
+
 		if err := sharedManifestStore.mutate(baseDir, func(m *sync.Manifest) bool {
 			removed = m.RemoveRelation(source, target, sync.RelationType(relType))
 			return removed

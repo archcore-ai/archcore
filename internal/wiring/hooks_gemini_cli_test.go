@@ -25,7 +25,7 @@ func TestGeminiCLIWriteHooksConfig_NewFile(t *testing.T) {
 		t.Fatalf("Unmarshal: %v", err)
 	}
 
-	var hooks map[string][]hookMatcher
+	var hooks map[string][]hookMatcherGroup
 	if err := json.Unmarshal(raw["hooks"], &hooks); err != nil {
 		t.Fatalf("Unmarshal hooks: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestGeminiCLIWriteHooksConfig_Idempotent(t *testing.T) {
 		t.Fatalf("Unmarshal: %v", err)
 	}
 
-	var hooks map[string][]hookMatcher
+	var hooks map[string][]hookMatcherGroup
 	if err := json.Unmarshal(raw["hooks"], &hooks); err != nil {
 		t.Fatalf("Unmarshal hooks: %v", err)
 	}

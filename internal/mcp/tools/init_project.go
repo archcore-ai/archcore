@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
+	"io/fs"
 	"strings"
 
 	"archcore-cli/internal/config"
@@ -39,7 +39,7 @@ Returns: JSON with { initialized: true, settings: {...}, already_initialized: bo
 	)
 }
 
-func HandleInitProject(baseDir string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func HandleInitProject(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		language := strings.TrimSpace(request.GetString("language", ""))
 		if strings.Contains(language, " ") {
@@ -54,11 +54,12 @@ func HandleInitProject(baseDir string) func(ctx context.Context, request mcp.Cal
 			syncMode = config.SyncTypeNone
 		}
 
+		baseDir := root.Root(ctx)
 		existing, err := config.Load(baseDir)
 		switch {
 		case err == nil:
 			return initResultPayload(existing, true), nil
-		case !errors.Is(err, os.ErrNotExist):
+		case !errors.Is(err, fs.ErrNotExist):
 			return errorResult(sanitizeError("existing settings unreadable", err)), nil
 		}
 

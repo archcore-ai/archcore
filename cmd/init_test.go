@@ -189,7 +189,7 @@ func TestRunInit_InstallsHooksAndMCP(t *testing.T) {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	var hooks map[string][]hookMatcher
+	var hooks map[string][]hookMatcherGroup
 	if err := json.Unmarshal(raw["hooks"], &hooks); err != nil {
 		t.Fatalf("Unmarshal hooks: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestRunInit_HooksIdempotent(t *testing.T) {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	var hooks map[string][]hookMatcher
+	var hooks map[string][]hookMatcherGroup
 	if err := json.Unmarshal(raw["hooks"], &hooks); err != nil {
 		t.Fatalf("Unmarshal hooks: %v", err)
 	}

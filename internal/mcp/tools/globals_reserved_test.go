@@ -71,7 +71,7 @@ func TestUpdateDocument_RejectsNestedReservedGlobalDir(t *testing.T) {
 	writeGlobalDoc(t, base, ".archcore/integrations/global", "knowledge", "deep.rule.md",
 		"---\ntitle: \"Deep Nested\"\nstatus: accepted\n---\n\nbody\n")
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":  ".archcore/integrations/global/knowledge/deep.rule.md",
 		"title": "Hijacked",
 	})
@@ -95,7 +95,7 @@ func TestGetDocument_ReservedDirIsReadOnly(t *testing.T) {
 	writeGlobalDoc(t, base, ".archcore/global/vendored", "knowledge", "sample.rule.md",
 		"---\ntitle: \"Sample Vendored\"\nstatus: accepted\n---\n\nbody\n")
 
-	result, err := callTool(HandleGetDocument(base), map[string]any{
+	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/global/vendored/knowledge/sample.rule.md",
 	})
 	if err != nil {
@@ -158,7 +158,7 @@ func TestSearchDocuments_AnnotatesSource(t *testing.T) {
 	}
 
 	t.Run("content branch", func(t *testing.T) {
-		result, err := callTool(HandleSearchDocuments(base), map[string]any{"content": "sharedterm"})
+		result, err := callTool(HandleSearchDocuments(StaticRoot(base)), map[string]any{"content": "sharedterm"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -166,7 +166,7 @@ func TestSearchDocuments_AnnotatesSource(t *testing.T) {
 	})
 
 	t.Run("full mode", func(t *testing.T) {
-		result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		result, err := callTool(HandleSearchDocuments(StaticRoot(base)), map[string]any{
 			"content": "sharedterm",
 			"mode":    "full",
 		})
@@ -177,7 +177,7 @@ func TestSearchDocuments_AnnotatesSource(t *testing.T) {
 	})
 
 	t.Run("metadata branch", func(t *testing.T) {
-		result, err := callTool(HandleSearchDocuments(base), map[string]any{
+		result, err := callTool(HandleSearchDocuments(StaticRoot(base)), map[string]any{
 			"types": []any{"rule"},
 		})
 		if err != nil {
@@ -194,7 +194,7 @@ func TestSearchDocuments_AnnotatesSource(t *testing.T) {
 func TestCreateDocument_RejectsNestedReservedGlobalDir(t *testing.T) {
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "rule",
 		"filename":  "injected",
 		"directory": "integrations/global/knowledge",
@@ -219,7 +219,7 @@ func TestRemoveDocument_RejectsNestedReservedGlobalDir(t *testing.T) {
 	writeGlobalDoc(t, base, ".archcore/integrations/global", "knowledge", "deep.rule.md",
 		"---\ntitle: \"Deep Nested\"\nstatus: accepted\n---\n\nbody\n")
 
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/integrations/global/knowledge/deep.rule.md",
 	})
 	if err != nil {
@@ -255,16 +255,16 @@ func TestAddRelation_RejectsNestedReservedGlobalEndpoint(t *testing.T) {
 		{"nested as target", local, nested},
 		{"nested as source", nested, local},
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			result, err := callTool(HandleAddRelation(base), map[string]any{
-				"source": tc.source, "target": tc.target, "type": "related",
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
+				"source": tt.source, "target": tt.target, "type": "related",
 			})
 			if err != nil {
 				t.Fatalf("unexpected transport error: %v", err)
 			}
 			if !result.IsError {
-				t.Fatalf("expected error relating %q -> %q, got success", tc.source, tc.target)
+				t.Fatalf("expected error relating %q -> %q, got success", tt.source, tt.target)
 			}
 			if got := result.Content[0].(mcp.TextContent).Text; got != "cannot add a relation involving a read-only global source document — relations connect local documents only" {
 				t.Errorf("message = %q, want clean read-only message", got)

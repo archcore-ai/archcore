@@ -16,7 +16,7 @@ func TestHandleAddRelation_Success(t *testing.T) {
 	writeDoc(t, base, "knowledge", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
 	writeDoc(t, base, "vision", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
 
-	result, err := callTool(HandleAddRelation(base), map[string]any{
+	result, err := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": "knowledge/a.adr.md",
 		"target": "vision/b.prd.md",
 		"type":   "implements",
@@ -49,13 +49,13 @@ func TestHandleAddRelation_Duplicate(t *testing.T) {
 	writeDoc(t, base, "knowledge", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
 	writeDoc(t, base, "vision", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
 
-	callTool(HandleAddRelation(base), map[string]any{
+	callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": "knowledge/a.adr.md",
 		"target": "vision/b.prd.md",
 		"type":   "implements",
 	})
 
-	result, _ := callTool(HandleAddRelation(base), map[string]any{
+	result, _ := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": "knowledge/a.adr.md",
 		"target": "vision/b.prd.md",
 		"type":   "implements",
@@ -74,7 +74,7 @@ func TestHandleAddRelation_InvalidType(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, _ := callTool(HandleAddRelation(base), map[string]any{
+	result, _ := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": "a.adr.md",
 		"target": "b.prd.md",
 		"type":   "blocks",
@@ -88,7 +88,7 @@ func TestHandleAddRelation_SourceEqualsTarget(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, _ := callTool(HandleAddRelation(base), map[string]any{
+	result, _ := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": "a.adr.md",
 		"target": "a.adr.md",
 		"type":   "related",
@@ -103,7 +103,7 @@ func TestHandleAddRelation_SourceNotFound(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "vision", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
 
-	result, _ := callTool(HandleAddRelation(base), map[string]any{
+	result, _ := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": "nonexistent.adr.md",
 		"target": "vision/b.prd.md",
 		"type":   "related",
@@ -122,7 +122,7 @@ func TestHandleAddRelation_TargetNotFound(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
 
-	result, _ := callTool(HandleAddRelation(base), map[string]any{
+	result, _ := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": "knowledge/a.adr.md",
 		"target": "nonexistent.prd.md",
 		"type":   "related",
@@ -140,7 +140,7 @@ func TestHandleAddRelation_PathTraversal(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, _ := callTool(HandleAddRelation(base), map[string]any{
+	result, _ := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": "../etc/passwd",
 		"target": "b.prd.md",
 		"type":   "related",
@@ -160,7 +160,7 @@ func TestHandleAddRelation_NormalizesPrefix(t *testing.T) {
 	writeDoc(t, base, "knowledge", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
 	writeDoc(t, base, "vision", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
 
-	result, err := callTool(HandleAddRelation(base), map[string]any{
+	result, err := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": ".archcore/knowledge/a.adr.md",
 		"target": ".archcore/vision/b.prd.md",
 		"type":   "related",
@@ -190,7 +190,7 @@ func TestHandleAddRelation_AllTypes(t *testing.T) {
 			writeDoc(t, base, "", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
 			writeDoc(t, base, "", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
 
-			result, err := callTool(HandleAddRelation(base), map[string]any{
+			result, err := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 				"source": "a.adr.md",
 				"target": "b.prd.md",
 				"type":   rt,

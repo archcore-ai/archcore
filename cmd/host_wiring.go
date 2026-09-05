@@ -32,40 +32,39 @@ type wiringReport struct {
 	Agents              []wiringAgentReport `json:"agents"`
 }
 
-// hostWiringExecutor returns the tools.HostWiringFunc backing the
-// install_host_config MCP tool. It closes over the server's baseDir — the
-// one root that is correct by construction — and adapts wiring.Apply for the
-// MCP boundary: absolute paths become project-relative, raw per-agent errors
-// are sanitized (no-absolute-paths-in-mcp-errors.rule).
-func hostWiringExecutor(baseDir string) tools.HostWiringFunc {
-	return func(host string, allDetected bool) ([]byte, error) {
-		result, err := wiring.Apply(baseDir, agents.AgentID(host), allDetected)
-		if err != nil {
-			return nil, err
-		}
-
-		report := wiringReport{ArchcoreInitialized: result.ArchcoreInitialized}
-		for _, a := range result.Agents {
-			r := wiringAgentReport{
-				Agent:          string(a.Agent),
-				MCPManualHint:  a.MCPManualHint,
-				HooksSupported: a.HooksSupported,
-			}
-			if a.MCPConfigPath != "" {
-				r.MCPConfigPath = wiring.DisplayPath(baseDir, a.MCPConfigPath)
-			}
-			if a.Instructions != "" {
-				r.Instructions = wiring.DisplayPath(baseDir, a.Instructions)
-			}
-			for _, p := range a.ExtraInstructions {
-				r.InstructionsExtra = append(r.InstructionsExtra, wiring.DisplayPath(baseDir, p))
-			}
-			for _, e := range a.Errors {
-				r.Errors = append(r.Errors, tools.SanitizeError(e.Action, e.Err))
-			}
-			report.Agents = append(report.Agents, r)
-		}
-
-		return json.Marshal(report)
+// hostWiringExecutor is the tools.HostWiringFunc backing the
+// install_host_config MCP tool. baseDir arrives per call from the server's root
+// provider rather than from a closure, so the wiring lands under the project
+// root the session is on now (project-root-resolution.spec §3). It adapts
+// wiring.Apply for the MCP boundary: absolute paths become project-relative,
+// raw per-agent errors are sanitized (no-absolute-paths-in-mcp-errors.rule).
+var hostWiringExecutor tools.HostWiringFunc = func(baseDir, host string, allDetected bool) ([]byte, error) {
+	result, err := wiring.Apply(baseDir, agents.AgentID(host), allDetected)
+	if err != nil {
+		return nil, err
 	}
+
+	report := wiringReport{ArchcoreInitialized: result.ArchcoreInitialized}
+	for _, a := range result.Agents {
+		r := wiringAgentReport{
+			Agent:          string(a.Agent),
+			MCPManualHint:  a.MCPManualHint,
+			HooksSupported: a.HooksSupported,
+		}
+		if a.MCPConfigPath != "" {
+			r.MCPConfigPath = wiring.DisplayPath(baseDir, a.MCPConfigPath)
+		}
+		if a.Instructions != "" {
+			r.Instructions = wiring.DisplayPath(baseDir, a.Instructions)
+		}
+		for _, p := range a.ExtraInstructions {
+			r.InstructionsExtra = append(r.InstructionsExtra, wiring.DisplayPath(baseDir, p))
+		}
+		for _, e := range a.Errors {
+			r.Errors = append(r.Errors, tools.SanitizeError(e.Action, e.Err))
+		}
+		report.Agents = append(report.Agents, r)
+	}
+
+	return json.Marshal(report)
 }

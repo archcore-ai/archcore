@@ -139,7 +139,9 @@ func TestScanFiles(t *testing.T) {
 			name: "skips meta files",
 			setup: func(t *testing.T, baseDir string) {
 				os.MkdirAll(filepath.Join(baseDir, ".archcore"), 0o755)
-				os.WriteFile(filepath.Join(baseDir, ".archcore", "settings.json"), []byte(`{}`), 0o644)
+				// A valid settings.json: ScanFiles now reads the globals list
+				// fail-closed, so an unparseable one is a refusal, not a skip.
+				os.WriteFile(filepath.Join(baseDir, ".archcore", "settings.json"), []byte(`{"sync":"none"}`), 0o644)
 				os.WriteFile(filepath.Join(baseDir, ".archcore", ".sync-state.json"), []byte(`{}`), 0o644)
 				os.WriteFile(filepath.Join(baseDir, ".archcore", "real.adr.md"), []byte("adr"), 0o644)
 			},
@@ -243,5 +245,28 @@ func TestScanFiles_SkipsGlobalSpace(t *testing.T) {
 	}
 	if files[0].RelPath != "knowledge/local.adr.md" {
 		t.Errorf("RelPath = %q, want the local document", files[0].RelPath)
+	}
+}
+
+// TestScanFiles_UnreadableSettingsRefuses: the globals list is the only thing
+// keeping a read-only mount out of the push. Read through the degrading
+// variant, an unparseable settings.json reported that no globals are declared,
+// and every mounted global document was scanned as a local document of this
+// project. `archcore sync` refuses earlier on the same file, so this is the
+// second line rather than the first — and the reason ScanFiles is safe to call
+// from anywhere.
+func TestScanFiles_UnreadableSettingsRefuses(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(base, ".archcore"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(base, ".archcore", "settings.json"),
+		[]byte(`{"sync":"none","globals":[`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ScanFiles(base); err == nil {
+		t.Fatal("ScanFiles accepted an unparseable settings.json; a mounted global would be pushed as a local document")
 	}
 }

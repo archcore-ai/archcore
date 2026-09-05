@@ -181,8 +181,8 @@ func TestAddRelationAcceptsBothPathForms(t *testing.T) {
 	const wantSrc = "alpha.adr.md"
 	const wantTgt = "beta.adr.md"
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			base := initArchcore(t)
 			c := newTestClient(t, base)
@@ -193,23 +193,23 @@ func TestAddRelationAcceptsBothPathForms(t *testing.T) {
 			createADR(t, c, "", "beta")
 
 			mustCallTool(t, c, "add_relation", map[string]any{
-				"source": tc.source,
-				"target": tc.target,
+				"source": tt.source,
+				"target": tt.target,
 				"type":   "related",
 			})
 
 			snap := loadManifest(t, base).Relations
 			if len(snap) != 1 {
-				t.Fatalf("%s: manifest has %d relations, want 1", tc.name, len(snap))
+				t.Fatalf("%s: manifest has %d relations, want 1", tt.name, len(snap))
 			}
 			if snap[0].Source != wantSrc {
-				t.Errorf("%s: manifest source = %q, want %q (prefix must be stripped)", tc.name, snap[0].Source, wantSrc)
+				t.Errorf("%s: manifest source = %q, want %q (prefix must be stripped)", tt.name, snap[0].Source, wantSrc)
 			}
 			if snap[0].Target != wantTgt {
-				t.Errorf("%s: manifest target = %q, want %q (prefix must be stripped)", tc.name, snap[0].Target, wantTgt)
+				t.Errorf("%s: manifest target = %q, want %q (prefix must be stripped)", tt.name, snap[0].Target, wantTgt)
 			}
 			if snap[0].Type != sync.RelRelated {
-				t.Errorf("%s: manifest type = %q, want related", tc.name, snap[0].Type)
+				t.Errorf("%s: manifest type = %q, want related", tt.name, snap[0].Type)
 			}
 		})
 	}

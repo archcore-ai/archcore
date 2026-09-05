@@ -135,7 +135,7 @@ func TestHandleUpdateDocument_SettingsJSONBlocked(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":  ".archcore/settings.json",
 		"title": "Pwned",
 	})
@@ -165,7 +165,7 @@ func TestHandleRemoveDocument_SyncStateBlocked(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/.sync-state.json",
 	})
 	if err != nil {
@@ -186,7 +186,7 @@ func TestHandleCreateDocument_CaseVariantGlobalBlocked(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "rule",
 		"filename":  "sneaky",
 		"directory": "Global/corp",
@@ -210,7 +210,7 @@ func TestHandleUpdateDocument_CaseVariantGlobalBlocked(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "global/corp", "x.rule.md", "---\ntitle: G\nstatus: accepted\n---\n\nbody\n")
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":  ".archcore/Global/corp/x.rule.md",
 		"title": "Pwned",
 	})
@@ -228,7 +228,7 @@ func TestHandleUpdateDocument_CaseVariantGlobalBlocked(t *testing.T) {
 func TestHandleCreateDocument_ConcurrentSamePath(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
-	handler := HandleCreateDocument(base)
+	handler := HandleCreateDocument(StaticRoot(base))
 	args := map[string]any{
 		"type":      "adr",
 		"filename":  "raced",

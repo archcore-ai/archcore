@@ -93,7 +93,7 @@ Line form follows the type. Graded clauses (spec: Normative Behavior and Failure
 }
 
 // HandleCreateDocument handles the create_document tool call.
-func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func HandleCreateDocument(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		docType, err := request.RequireString("type")
 		if err != nil {
@@ -147,6 +147,8 @@ func HandleCreateDocument(baseDir string) func(ctx context.Context, request mcp.
 		}
 
 		category := templates.CategoryForType(templates.DocumentType(docType))
+
+		baseDir := root.Root(ctx)
 
 		// Build target directory: .archcore/<directory>/ or .archcore/ root.
 		var dir string

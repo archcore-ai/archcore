@@ -41,7 +41,7 @@ Also run `git diff HEAD -- <file>` (or `git diff --cached -- <file>`) to see exa
 
 ### Step 3: Delegate to prompt-engineer agent
 
-Launch the `ivklgn:prompt-engineer` agent with all extracted prompt content and diffs. Ask it to review each changed prompt on these four axes:
+Launch the `ai-kit:prompt-engineer` agent with all extracted prompt content and diffs. Ask it to review each changed prompt on these four axes:
 
 1. **Effectiveness** — Does the prompt clearly communicate intent? Are instructions unambiguous and actionable? Would an AI agent follow them correctly without guessing?
 

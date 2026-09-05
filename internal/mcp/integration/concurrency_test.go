@@ -9,9 +9,9 @@ import (
 	gosync "sync"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
-
 	"archcore-cli/internal/sync"
+
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // writeConcDoc creates a minimal valid document file directly on disk.

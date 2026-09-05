@@ -250,7 +250,7 @@ func TestPatchPaths_ScansUpToTheLimit(t *testing.T) {
 func TestArchcoreMCPTools_MatchesTheServer(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
-	srv := mcpserver.NewServer(base, "test", mcpserver.WithHostWiring(hostWiringExecutor(base)))
+	srv := mcpserver.NewServer(base, "test", mcpserver.WithHostWiring(hostWiringExecutor))
 
 	registered := srv.ListTools()
 	// ListTools returns nil for a server holding nothing, which every assertion

@@ -168,12 +168,12 @@ func setSettingsValue(s *config.Settings, key, value string) error {
 		}
 		value = strings.TrimRight(value, "/")
 		if value == "" {
-			return fmt.Errorf("archcore_url must not be empty")
+			return errors.New("archcore_url must not be empty")
 		}
 		s.ArchcoreURL = value
 	case "language":
 		if value == "" {
-			return fmt.Errorf("language must not be empty")
+			return errors.New("language must not be empty")
 		}
 		s.Language = value
 	default:

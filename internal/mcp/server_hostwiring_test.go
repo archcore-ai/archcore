@@ -17,7 +17,7 @@ func TestNewServer_HostWiringToolRegistration(t *testing.T) {
 	}
 
 	wired := NewServer(base, "v0.0.0-test",
-		WithHostWiring(func(host string, allDetected bool) ([]byte, error) {
+		WithHostWiring(func(baseDir, host string, allDetected bool) ([]byte, error) {
 			return []byte(`{}`), nil
 		}))
 	if wired.GetTool("install_host_config") == nil {

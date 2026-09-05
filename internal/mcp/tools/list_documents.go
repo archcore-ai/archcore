@@ -76,7 +76,7 @@ Use the returned paths directly as input to get_document. Do not construct paths
 }
 
 // HandleListDocuments handles the list_documents tool call.
-func HandleListDocuments(baseDir string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func HandleListDocuments(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		rawTypes := request.GetStringSlice("types", nil)
 		types := make([]templates.DocumentType, len(rawTypes))
@@ -120,6 +120,8 @@ func HandleListDocuments(baseDir string) func(ctx context.Context, request mcp.C
 			return errorResult("offset must be non-negative"), nil
 		}
 		sourceFilter := strings.TrimSpace(request.GetString("source", ""))
+		baseDir := root.Root(ctx)
+
 		// Validate the scope before scanning ("validate then act"): a typo'd
 		// source must fail loudly, not return an empty page that an agent could
 		// read as an empty corpus.

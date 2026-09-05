@@ -7,6 +7,11 @@ import (
 	"testing"
 )
 
+// TestResolveGlobalPath covers the resolutions that never consult the anchor
+// lookup. An escaping relative path does consult it, and is covered by
+// TestResolveGlobalPath_AnchorLookup, which installs the seam — driving one
+// here would spawn two real git subprocesses against a directory that does not
+// exist, inside a parallel test, and would seed the process-wide memo.
 func TestResolveGlobalPath(t *testing.T) {
 	t.Parallel()
 	base := filepath.FromSlash("/a/b")
@@ -14,14 +19,13 @@ func TestResolveGlobalPath(t *testing.T) {
 		name, in, want string
 	}{
 		{"relative", "c/.archcore", filepath.FromSlash("/a/b/c/.archcore")},
-		{"parent-relative", "../c/.archcore", filepath.FromSlash("/a/c/.archcore")},
 		{"absolute", filepath.FromSlash("/x/y"), filepath.FromSlash("/x/y")},
 		{"absolute-uncleaned", filepath.FromSlash("/x/y/../z"), filepath.FromSlash("/x/z")},
 	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := ResolveGlobalPath(base, tc.in); got != tc.want {
-				t.Errorf("ResolveGlobalPath(%q, %q) = %q, want %q", base, tc.in, got, tc.want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ResolveGlobalPath(base, tt.in); got != tt.want {
+				t.Errorf("ResolveGlobalPath(%q, %q) = %q, want %q", base, tt.in, got, tt.want)
 			}
 		})
 	}
@@ -110,9 +114,9 @@ func TestDescribeGlobalDirError(t *testing.T) {
 		{ErrGlobalUnreadable, `global source "company" at "../company/.archcore" is not readable`},
 		{ErrGlobalSelfOverlap, `global source "company" at "../company/.archcore" resolves to the project's own .archcore`},
 	}
-	for _, tc := range tests {
-		if got := DescribeGlobalDirError(gs, tc.err); got != tc.want {
-			t.Errorf("DescribeGlobalDirError(%v) = %q, want %q", tc.err, got, tc.want)
+	for _, tt := range tests {
+		if got := DescribeGlobalDirError(gs, tt.err); got != tt.want {
+			t.Errorf("DescribeGlobalDirError(%v) = %q, want %q", tt.err, got, tt.want)
 		}
 	}
 }

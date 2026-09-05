@@ -172,7 +172,7 @@ func TestCreateDocument_RejectsGlobalPath(t *testing.T) {
 		{ID: "company", Path: ".archcore/global/company"},
 	})
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "rule",
 		"filename":  "injected",
 		"directory": "global/company/knowledge",
@@ -194,7 +194,7 @@ func TestUpdateDocument_RejectsGlobalPath(t *testing.T) {
 	writeGlobalDoc(t, base, ".archcore/global/company", "knowledge", "react-query.rule.md",
 		"---\ntitle: \"React Query (Company)\"\nstatus: accepted\n---\n\nbody\n")
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":  ".archcore/global/company/knowledge/react-query.rule.md",
 		"title": "Hijacked",
 	})
@@ -220,7 +220,7 @@ func TestRemoveDocument_RejectsGlobalPath(t *testing.T) {
 	writeGlobalDoc(t, base, ".archcore/global/company", "knowledge", "security-policy.rule.md",
 		"---\ntitle: \"Security Policy\"\nstatus: accepted\n---\n\nbody\n")
 
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/global/company/knowledge/security-policy.rule.md",
 	})
 	if err != nil {
@@ -243,7 +243,7 @@ func TestCreateDocument_FailsClosedOnUnreadableSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "rule",
 		"filename":  "doc",
 		"directory": "knowledge",
@@ -493,16 +493,16 @@ func TestAddRelation_RejectsGlobalEndpoint(t *testing.T) {
 		{"global as source", global, local},
 		{"undeclared reserved-dir target", local, undeclared},
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			res, err := callTool(HandleAddRelation(base), map[string]any{
-				"source": tc.source, "target": tc.target, "type": "related",
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
+				"source": tt.source, "target": tt.target, "type": "related",
 			})
 			if err != nil {
 				t.Fatalf("transport error: %v", err)
 			}
 			if !res.IsError {
-				t.Errorf("expected error relating %q -> %q, got success", tc.source, tc.target)
+				t.Errorf("expected error relating %q -> %q, got success", tt.source, tt.target)
 			}
 		})
 	}
@@ -514,7 +514,7 @@ func TestAddRelation_RejectsGlobalEndpoint(t *testing.T) {
 func TestCreateDocument_RejectsReservedGlobalDir(t *testing.T) {
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "rule",
 		"filename":  "sneaky",
 		"directory": "global/foo",
@@ -539,7 +539,7 @@ func TestUpdateDocument_FailsClosedOnUnreadableSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":  ".archcore/knowledge/doc.rule.md",
 		"title": "New",
 	})
@@ -561,7 +561,7 @@ func TestRemoveDocument_FailsClosedOnUnreadableSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/doc.rule.md",
 	})
 	if err != nil {

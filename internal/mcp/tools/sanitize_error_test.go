@@ -108,7 +108,7 @@ func TestHandleAddRelation_UnreadableManifest_NoPathLeak(t *testing.T) {
 	}
 	chmodWithRestore(t, manifestFile, 0o000)
 
-	result, err := callTool(HandleAddRelation(base), map[string]any{
+	result, err := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": "knowledge/a.adr.md",
 		"target": "knowledge/b.adr.md",
 		"type":   "related",
@@ -137,7 +137,7 @@ func TestHandleAddRelation_CorruptManifest_ValidationTextSurvives(t *testing.T) 
 		t.Fatal(err)
 	}
 
-	result, err := callTool(HandleAddRelation(base), map[string]any{
+	result, err := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": "knowledge/a.adr.md",
 		"target": "knowledge/b.adr.md",
 		"type":   "related",
@@ -165,7 +165,7 @@ func TestReadTools_CorruptManifestIsToolError(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		handler func(string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error)
+		handler func(RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error)
 		args    map[string]any
 	}{
 		{
@@ -194,7 +194,7 @@ func TestReadTools_CorruptManifestIsToolError(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			result, err := callTool(tt.handler(base), tt.args)
+			result, err := callTool(tt.handler(StaticRoot(base)), tt.args)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -219,7 +219,7 @@ func TestHandleGetDocument_UnreadableFile_NoPathLeak(t *testing.T) {
 	writeDoc(t, base, "knowledge", "a.adr.md", sanitizeTestDoc)
 	chmodWithRestore(t, filepath.Join(base, ".archcore", "knowledge", "a.adr.md"), 0o000)
 
-	result, err := callTool(HandleGetDocument(base), map[string]any{
+	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/a.adr.md",
 	})
 	if err != nil {
@@ -243,7 +243,7 @@ func TestHandleUpdateDocument_UnwritableFile_NoPathLeak(t *testing.T) {
 	// replaceable; a read-only DIRECTORY blocks creating the temp file.
 	chmodWithRestore(t, filepath.Join(base, ".archcore", "knowledge"), 0o555)
 
-	result, err := callTool(HandleUpdateDocument(base), map[string]any{
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
 		"path":  ".archcore/knowledge/a.adr.md",
 		"title": "New Title",
 	})
@@ -269,7 +269,7 @@ func TestHandleCreateDocument_UnwritableDir_NoPathLeak(t *testing.T) {
 	}
 	chmodWithRestore(t, subDir, 0o555)
 
-	result, err := callTool(HandleCreateDocument(base), map[string]any{
+	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
 		"type":      "adr",
 		"filename":  "new-doc",
 		"directory": "frozen",
@@ -294,7 +294,7 @@ func TestHandleListDocuments_UnreadableSubdir_NoPathLeak(t *testing.T) {
 	writeDoc(t, base, "hidden", "b.adr.md", sanitizeTestDoc)
 	chmodWithRestore(t, filepath.Join(base, ".archcore", "hidden"), 0o000)
 
-	result, err := callTool(HandleListDocuments(base), map[string]any{})
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), map[string]any{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +318,7 @@ func TestHandleRemoveDocument_UnreadableManifest_NoPathLeak(t *testing.T) {
 	}
 	chmodWithRestore(t, manifestFile, 0o000)
 
-	result, err := callTool(HandleRemoveDocument(base), map[string]any{
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
 		"path": ".archcore/knowledge/a.adr.md",
 	})
 	if err != nil {

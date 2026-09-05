@@ -13,7 +13,7 @@ func TestHandleListRelations_Empty(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleListRelations(base), map[string]any{})
+	result, err := callTool(HandleListRelations(StaticRoot(base)), map[string]any{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,11 +37,11 @@ func TestHandleListRelations_All(t *testing.T) {
 	writeDoc(t, base, "", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
 	writeDoc(t, base, "", "c.rfc.md", "---\ntitle: C\nstatus: draft\n---\n\nbody")
 
-	callTool(HandleAddRelation(base), map[string]any{"source": "a.adr.md", "target": "b.prd.md", "type": "implements"})
-	callTool(HandleAddRelation(base), map[string]any{"source": "b.prd.md", "target": "c.rfc.md", "type": "related"})
-	callTool(HandleAddRelation(base), map[string]any{"source": "a.adr.md", "target": "c.rfc.md", "type": "depends_on"})
+	callTool(HandleAddRelation(StaticRoot(base)), map[string]any{"source": "a.adr.md", "target": "b.prd.md", "type": "implements"})
+	callTool(HandleAddRelation(StaticRoot(base)), map[string]any{"source": "b.prd.md", "target": "c.rfc.md", "type": "related"})
+	callTool(HandleAddRelation(StaticRoot(base)), map[string]any{"source": "a.adr.md", "target": "c.rfc.md", "type": "depends_on"})
 
-	result, _ := callTool(HandleListRelations(base), map[string]any{})
+	result, _ := callTool(HandleListRelations(StaticRoot(base)), map[string]any{})
 
 	var resp map[string][]sync.Relation
 	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &resp); err != nil {
@@ -59,11 +59,11 @@ func TestHandleListRelations_FilterByPath(t *testing.T) {
 	writeDoc(t, base, "", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
 	writeDoc(t, base, "", "c.rfc.md", "---\ntitle: C\nstatus: draft\n---\n\nbody")
 
-	callTool(HandleAddRelation(base), map[string]any{"source": "a.adr.md", "target": "b.prd.md", "type": "implements"})
-	callTool(HandleAddRelation(base), map[string]any{"source": "b.prd.md", "target": "c.rfc.md", "type": "related"})
-	callTool(HandleAddRelation(base), map[string]any{"source": "a.adr.md", "target": "c.rfc.md", "type": "depends_on"})
+	callTool(HandleAddRelation(StaticRoot(base)), map[string]any{"source": "a.adr.md", "target": "b.prd.md", "type": "implements"})
+	callTool(HandleAddRelation(StaticRoot(base)), map[string]any{"source": "b.prd.md", "target": "c.rfc.md", "type": "related"})
+	callTool(HandleAddRelation(StaticRoot(base)), map[string]any{"source": "a.adr.md", "target": "c.rfc.md", "type": "depends_on"})
 
-	result, _ := callTool(HandleListRelations(base), map[string]any{"path": "b.prd.md"})
+	result, _ := callTool(HandleListRelations(StaticRoot(base)), map[string]any{"path": "b.prd.md"})
 
 	var resp map[string][]sync.Relation
 	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &resp); err != nil {
@@ -78,7 +78,7 @@ func TestHandleListRelations_NoManifest(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, err := callTool(HandleListRelations(base), map[string]any{})
+	result, err := callTool(HandleListRelations(StaticRoot(base)), map[string]any{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,9 +101,9 @@ func TestHandleListRelations_NormalizesPrefix(t *testing.T) {
 	writeDoc(t, base, "", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
 	writeDoc(t, base, "", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
 
-	callTool(HandleAddRelation(base), map[string]any{"source": "a.adr.md", "target": "b.prd.md", "type": "related"})
+	callTool(HandleAddRelation(StaticRoot(base)), map[string]any{"source": "a.adr.md", "target": "b.prd.md", "type": "related"})
 
-	result, _ := callTool(HandleListRelations(base), map[string]any{"path": ".archcore/a.adr.md"})
+	result, _ := callTool(HandleListRelations(StaticRoot(base)), map[string]any{"path": ".archcore/a.adr.md"})
 
 	var resp map[string][]sync.Relation
 	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &resp); err != nil {

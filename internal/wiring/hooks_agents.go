@@ -28,8 +28,9 @@ type hookEntry struct {
 	Command string `json:"command"`
 }
 
-// hookMatcher represents a matcher with its hooks array.
-type hookMatcher struct {
+// hookMatcherGroup is one matcher and the hooks it selects, as the host config
+// stores them.
+type hookMatcherGroup struct {
 	Matcher string      `json:"matcher"`
 	Hooks   []hookEntry `json:"hooks"`
 }
@@ -49,7 +50,7 @@ type copilotHookEntry struct {
 	TimeoutSec int    `json:"timeoutSec,omitempty"`
 }
 
-// geminiHookEntry mirrors hookMatcher but carries a millisecond timeout —
+// geminiHookEntry mirrors hookMatcherGroup but carries a millisecond timeout —
 // Gemini is the one host that does not measure hook timeouts in seconds.
 type geminiHookEntry struct {
 	Matcher string            `json:"matcher"`
@@ -192,19 +193,19 @@ func claudeShapedEvents(host, writeMatcher string) []hookEventInstall {
 		{
 			Event:   "SessionStart",
 			Command: cmd("session-start"),
-			Entry:   hookMatcher{Hooks: []hookEntry{{Type: "command", Command: cmd("session-start")}}},
+			Entry:   hookMatcherGroup{Hooks: []hookEntry{{Type: "command", Command: cmd("session-start")}}},
 		},
 		{
 			Event:   "PreToolUse",
 			Command: cmd("pre-tool-use"),
 			Matcher: writeMatcher,
-			Entry:   hookMatcher{Matcher: writeMatcher, Hooks: []hookEntry{{Type: "command", Command: cmd("pre-tool-use")}}},
+			Entry:   hookMatcherGroup{Matcher: writeMatcher, Hooks: []hookEntry{{Type: "command", Command: cmd("pre-tool-use")}}},
 		},
 		{
 			Event:   "PostToolUse",
 			Command: cmd("post-tool-use"),
 			Matcher: mcpDocumentTools,
-			Entry:   hookMatcher{Matcher: mcpDocumentTools, Hooks: []hookEntry{{Type: "command", Command: cmd("post-tool-use")}}},
+			Entry:   hookMatcherGroup{Matcher: mcpDocumentTools, Hooks: []hookEntry{{Type: "command", Command: cmd("post-tool-use")}}},
 		},
 	}
 }

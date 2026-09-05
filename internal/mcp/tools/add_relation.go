@@ -50,7 +50,7 @@ Both source and target must be existing documents. Paths can be given with or wi
 	)
 }
 
-func HandleAddRelation(baseDir string) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func HandleAddRelation(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		source, err := request.RequireString("source")
 		if err != nil {
@@ -82,6 +82,7 @@ func HandleAddRelation(baseDir string) func(ctx context.Context, request mcp.Cal
 			return errorResult("source and target must be different documents"), nil
 		}
 
+		baseDir := root.Root(ctx)
 		// Relations connect local documents only. A read-only global source — a
 		// declared source or anything in the reserved .archcore/global/ tree —
 		// must never be a relation endpoint, in either direction. Fail closed if

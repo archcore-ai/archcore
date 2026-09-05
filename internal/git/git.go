@@ -26,7 +26,8 @@ const waitDelay = 100 * time.Millisecond
 // instead of collapsing both into an empty result.
 var ErrGitAbsent = errors.New("git executable not found in PATH")
 
-// lookPath is a seam so tests can simulate a machine without git.
+// lookPath is a seam so tests can simulate a machine without git. Production
+// never reassigns it.
 var lookPath = exec.LookPath
 
 // maxOutput bounds what one git query may return. ChangedSince over a long gap
@@ -132,4 +133,91 @@ func ChangedSince(ctx context.Context, dir, sha string, excludes ...string) ([]s
 		names = names[:len(names)-1]
 	}
 	return names, nil
+}
+
+// Roots names the two working trees a path can be anchored against: Current is
+// the working tree holding the queried directory, Main is the repository's main
+// worktree. They are equal outside a linked worktree.
+type Roots struct {
+	Current string
+	Main    string
+}
+
+// WorktreeRoots reports both working trees for dir in one call, so a caller that
+// must map a path from a linked worktree onto the main checkout gets a
+// consistent pair rather than two independently timed answers.
+//
+// The pair shares one deadline. run bounds each invocation on its own, so
+// without the wrapper two queries could spend 2×callTimeout — the whole
+// one-second budget the package doc comment says a single hook has.
+func WorktreeRoots(ctx context.Context, dir string) (Roots, error) {
+	ctx, cancel := context.WithTimeout(ctx, callTimeout)
+	defer cancel()
+
+	current, err := toplevel(ctx, dir)
+	if err != nil {
+		return Roots{}, err
+	}
+	main, err := mainCheckout(ctx, dir)
+	if err != nil {
+		return Roots{}, err
+	}
+	return Roots{Current: current, Main: main}, nil
+}
+
+// toplevel returns the root of the working tree that holds dir. Inside a linked
+// worktree it returns that worktree, not the main checkout.
+func toplevel(ctx context.Context, dir string) (string, error) {
+	out, _, err := run(ctx, dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return "", err
+	}
+	if out == "" {
+		return "", errNoWorkingTree
+	}
+	return out, nil
+}
+
+// errNoWorkingTree reports that `rev-parse --show-toplevel` succeeded but named
+// no working tree, and errNoMainWorktree that `worktree list --porcelain`
+// printed no "worktree " line. They stay separate because they answer about
+// different subjects: where the caller stands, and the repository as a whole.
+//
+// Both are defensive. git fails outright in the states that would produce them
+// today — a bare repository makes show-toplevel exit non-zero, and worktree list
+// names even a bare repository's own path — so these exist to stop an empty
+// answer from being returned as a valid empty path.
+//
+// Neither is exported: WorktreeRoots is the only caller, and its own caller
+// (config.deriveAnchor) treats every failure alike.
+var (
+	errNoWorkingTree  = errors.New("directory is in no git working tree")
+	errNoMainWorktree = errors.New("repository has no main worktree")
+)
+
+// mainCheckout returns the working tree of the repository's main worktree — the
+// checkout `git worktree add` was run from. Called inside a linked worktree it
+// returns the main checkout, not the caller's tree; called inside the main
+// checkout it returns that checkout.
+//
+// The main worktree is the first entry `git worktree list --porcelain` prints,
+// which is why this uses that query rather than deriving a path from
+// `rev-parse --git-common-dir`: the derivation is the parent of the common
+// directory only when that directory is named ".git", which a bare repository
+// and `git init --separate-git-dir` both break.
+//
+// Inside a submodule the answer is wrong — git reports the worktree as
+// <super>/.git/modules/<name> while the real checkout is <super>/<name> — so a
+// caller MUST validate the returned path before trusting it.
+func mainCheckout(ctx context.Context, dir string) (string, error) {
+	out, _, err := run(ctx, dir, "worktree", "list", "--porcelain")
+	if err != nil {
+		return "", err
+	}
+	for line := range strings.SplitSeq(out, "\n") {
+		if p, ok := strings.CutPrefix(line, "worktree "); ok {
+			return strings.TrimSpace(p), nil
+		}
+	}
+	return "", errNoMainWorktree
 }

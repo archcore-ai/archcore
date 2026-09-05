@@ -14,14 +14,14 @@ func TestHandleRemoveRelation_Success(t *testing.T) {
 	writeDoc(t, base, "vision", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
 
 	// First add.
-	callTool(HandleAddRelation(base), map[string]any{
+	callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
 		"source": "knowledge/a.adr.md",
 		"target": "vision/b.prd.md",
 		"type":   "implements",
 	})
 
 	// Then remove.
-	result, err := callTool(HandleRemoveRelation(base), map[string]any{
+	result, err := callTool(HandleRemoveRelation(StaticRoot(base)), map[string]any{
 		"source": "knowledge/a.adr.md",
 		"target": "vision/b.prd.md",
 		"type":   "implements",
@@ -55,7 +55,7 @@ func TestHandleRemoveRelation_NotFound(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, _ := callTool(HandleRemoveRelation(base), map[string]any{
+	result, _ := callTool(HandleRemoveRelation(StaticRoot(base)), map[string]any{
 		"source": "a.adr.md",
 		"target": "b.prd.md",
 		"type":   "related",
@@ -86,7 +86,7 @@ func TestHandleRemoveRelation_InvalidType(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, _ := callTool(HandleRemoveRelation(base), map[string]any{
+	result, _ := callTool(HandleRemoveRelation(StaticRoot(base)), map[string]any{
 		"source": "a.adr.md",
 		"target": "b.prd.md",
 		"type":   "blocks",
@@ -100,7 +100,7 @@ func TestHandleRemoveRelation_PathTraversal(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
 
-	result, _ := callTool(HandleRemoveRelation(base), map[string]any{
+	result, _ := callTool(HandleRemoveRelation(StaticRoot(base)), map[string]any{
 		"source": "../etc/passwd",
 		"target": "b.prd.md",
 		"type":   "related",

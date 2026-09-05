@@ -1322,6 +1322,306 @@
       "source": "update/listing-evidence-counts-only-installed.plan.md",
       "target": "update/keeping-the-cli-current-rollout.plan.md",
       "type": "related"
+    },
+    {
+      "source": "mcp/worktree-aware-root-and-globals.plan.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/worktree-aware-root-and-globals.plan.md",
+      "target": "globals/relative-globals-resolve-from-main-checkout.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/worktree-aware-root-and-globals.plan.md",
+      "target": "mcp/session-following-project-root.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/project-root-resolution.spec.md",
+      "target": "mcp/session-following-project-root.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/relative-globals-resolve-from-main-checkout.adr.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/relative-globals-resolve-from-main-checkout.adr.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/session-following-project-root.adr.md",
+      "target": "integrations/host-cwd-misrouting.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/session-following-project-root.adr.md",
+      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/session-following-project-root.adr.md",
+      "target": "globals/relative-globals-resolve-from-main-checkout.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/project-root-resolution.spec.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/project-root-resolution.spec.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/session-following-project-root.adr.md",
+      "target": "cli/multi-project-mcp-access.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/supported-ai-agents.doc.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/project-root-resolution.spec.md",
+      "target": "integrations/host-cwd-misrouting.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/project-root-resolution.spec.md",
+      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/package-dependency-direction.rule.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/package-dependency-direction.rule.md",
+      "target": "mcp/install-host-config-tool-contract.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/package-dependency-direction.rule.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/package-dependency-direction.rule.md",
+      "target": "code-quality/registry-agreement-and-test-seams.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/process-and-concurrency-model.spec.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "architecture/process-and-concurrency-model.spec.md",
+      "target": "update/mcp-background-update.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/process-and-concurrency-model.spec.md",
+      "target": "sync/sync-engine.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/process-and-concurrency-model.spec.md",
+      "target": "mcp/read-path-scan-performance.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/system-overview.doc.md",
+      "target": "architecture/package-dependency-direction.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/system-overview.doc.md",
+      "target": "architecture/process-and-concurrency-model.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/system-overview.doc.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/system-overview.doc.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/docs-package-owns-the-document-model.adr.md",
+      "target": "architecture/package-dependency-direction.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/advisory-subsystem.doc.md",
+      "target": "document-types/prd-spec-plan-content-ownership.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/advisory-subsystem.doc.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/advisory-subsystem.doc.md",
+      "target": "architecture/system-overview.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/advisory-subsystem.doc.md",
+      "target": "code-quality/bounded-and-deterministic-output.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/comments-are-the-exception.rule.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "extends"
+    },
+    {
+      "source": "code-quality/comments-are-the-exception.rule.md",
+      "target": "code-quality/cite-the-governing-document-from-code.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/comments-are-the-exception.rule.md",
+      "target": "code-quality/fail-open-or-fail-closed-reads.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/comments-are-the-exception.rule.md",
+      "target": "code-quality/bounded-and-deterministic-output.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "target": "architecture/package-dependency-direction.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "target": "mcp/install-host-config-tool-contract.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/isolating-the-machine-from-the-test-suite.guide.md",
+      "target": "code-quality/unit-testing-patterns.guide.md",
+      "type": "extends"
+    },
+    {
+      "source": "code-quality/isolating-the-machine-from-the-test-suite.guide.md",
+      "target": "code-quality/registry-agreement-and-test-seams.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/shared-guards-return-classified-sentinels.rule.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/shared-guards-return-classified-sentinels.rule.md",
+      "target": "code-quality/fail-open-or-fail-closed-reads.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/rendering-happens-at-the-boundary.rule.md",
+      "target": "architecture/package-dependency-direction.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "code-quality/rendering-happens-at-the-boundary.rule.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/platform-splits-are-files.rule.md",
+      "target": "code-quality/strict-go-naming-conventions.rule.md",
+      "type": "extends"
+    },
+    {
+      "source": "code-quality/platform-splits-are-files.rule.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/unit-testing-patterns.guide.md",
+      "target": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/unit-testing-patterns.guide.md",
+      "target": "code-quality/platform-splits-are-files.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "architecture/process-and-concurrency-model.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "code-quality/rendering-happens-at-the-boundary.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "code-quality/shared-guards-return-classified-sentinels.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "architecture/advisory-subsystem.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "code-quality/isolating-the-machine-from-the-test-suite.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "architecture/system-overview.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/modern-go-guidelines-integration.idea.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/modern-go-guidelines-integration.idea.md",
+      "target": "code-quality/strict-go-naming-conventions.rule.md",
+      "type": "related"
     }
   ]
 }

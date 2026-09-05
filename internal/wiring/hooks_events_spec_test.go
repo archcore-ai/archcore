@@ -126,8 +126,8 @@ func TestInstallHookEvents_RejectsDuplicateEventKeys(t *testing.T) {
 		Path:  filepath.Join(base, ".claude", "settings.json"),
 		Probe: matcherEntryHasCommand,
 		Events: []hookEventInstall{
-			{Event: "PostToolUse", Command: "archcore hooks claude-code post-tool-use", Entry: hookMatcher{}},
-			{Event: "PostToolUse", Command: "archcore hooks claude-code other", Entry: hookMatcher{}},
+			{Event: "PostToolUse", Command: "archcore hooks claude-code post-tool-use", Entry: hookMatcherGroup{}},
+			{Event: "PostToolUse", Command: "archcore hooks claude-code other", Entry: hookMatcherGroup{}},
 		},
 	}
 

@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-// hookEntry / hookMatcher are the decode shapes cmd tests use to assert on
+// hookEntry / hookMatcherGroup are the decode shapes cmd tests use to assert on
 // Claude-style hook configs; the production types live in internal/wiring.
 type hookEntry struct {
 	Type    string `json:"type"`
 	Command string `json:"command"`
 }
 
-type hookMatcher struct {
+type hookMatcherGroup struct {
 	Matcher string      `json:"matcher"`
 	Hooks   []hookEntry `json:"hooks"`
 }

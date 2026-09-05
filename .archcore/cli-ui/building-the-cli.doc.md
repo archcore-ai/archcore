@@ -11,6 +11,10 @@ Guide for building, testing, and extending the Archcore CLI — a Go tool that m
 `.archcore/` directory of structured documents and integrates with AI coding agents (Claude Code,
 Cursor, Gemini CLI, Codex CLI, GitHub Copilot, and others) via MCP and hooks.
 
+This document holds the procedures. For the structure of the system — the surfaces, the package
+tiers, the state stores — read [Archcore CLI System Overview](../architecture/system-overview.doc.md)
+first.
+
 See also: [Supported AI Agents Registry](../integrations/supported-ai-agents.doc.md),
 [CLI Hooks Reference](../integrations/cli-hooks-reference.doc.md),
 [Hook Runtime Contract](../integrations/hook-runtime.spec.md),
@@ -53,8 +57,9 @@ consent.
 ## Command Surface
 
 The public surface is ten commands: `init`, `config`, `doctor`, `status`, `hooks`, `mcp`,
-`instructions`, `sync`, `update`, `plugin`. Hook event handlers are hidden leaves under `hooks`, not
-new commands — they are a protocol surface, not a user surface.
+`instructions`, `plugin`, `sync`, `update` — registered in one `root.AddCommand` call at
+`@cmd/root.go`. Hook event handlers are hidden leaves under `hooks`, not new commands — they are a
+protocol surface, not a user surface.
 
 `plugin` installs, updates, removes, and reports the Archcore plugin per host. It shares one planner
 and one executor with the plugin step of `archcore update` and the delivery step of `archcore init`;
@@ -88,7 +93,9 @@ Settings live in `.archcore/settings.json`. Use the `config` command to read and
 
 `language` controls the language the MCP server uses when generating document content. It is
 sync-independent. `codeAlignment.sourceRoots` replaces the built-in list of directories treated as
-source code by the `PreToolUse` injection; the CLI never writes this key itself.
+source code by the `PreToolUse` injection; the CLI never writes this key itself. See
+[The Advisory Subsystem](../architecture/advisory-subsystem.doc.md) for what that injection does with
+it.
 
 See [Sync Mode Field Validation](../sync/sync-mode-field-validation.rule.md) for per-sync-mode field
 rules, [Optional Settings Omit Defaults](../cli/optional-settings-omit-defaults.rule.md) for the
@@ -131,6 +138,9 @@ contract's constraint on reading project state once per invocation.
    every verb, so `archcore x --flag verb` and `archcore x verb --flag` are one invocation. Give the
    group and every verb `cobra.NoArgs`: a group without it answers a misspelled verb with usage text
    on stdout and exit 0.
+8. Choose the stdout handle by what the output is — a self-contained report goes through
+   `cmd.OutOrStdout()`, an interleaved run goes through `os.Stdout`. The go-code-quality rule states
+   the criterion.
 
 A command that prints a report separates the report from the printer: `collectStatus` builds a
 `statusReport` as data, and `writeTo` renders it. The hook path needs the data form, because on a hook
@@ -184,6 +194,10 @@ both true with no conversion layer. The bridge's re-exports are package-private 
 `scanDocumentsFull`, `readDocumentContent`, `guardWritablePath`, `validateReadPath`,
 `annotateSource`); a caller outside `internal/mcp/tools` uses the exported `docs.*` name instead.
 
+The guards return classified sentinels rather than messages, so the MCP tools and the hook render the
+same verdict in their own words — see
+[A Shared Guard Returns Classified Sentinels](../code-quality/shared-guards-return-classified-sentinels.rule.md).
+
 ## How to Add a New MCP Tool
 
 The MCP server (`archcore mcp`) exposes eleven tools: `init_project`, `list_documents`,
@@ -192,22 +206,35 @@ The MCP server (`archcore mcp`) exposes eleven tools: `init_project`, `list_docu
 registered — see below). The server declares no prompts capability; see the ADR on removing the MCP
 track prompts.
 
-1. Create `internal/mcp/tools/<name>.go` returning `(mcp.Tool, server.ToolHandlerFunc)`
-2. Create `internal/mcp/tools/<name>_test.go`
-3. Register in `@internal/mcp/server.go` via `s.AddTool()`
-4. Use the helpers re-exported by `@internal/mcp/tools/docs_bridge.go` (`scanDocuments`,
+The file shape is normative and is stated once, in
+[The Shape of an MCP Tool File](../code-quality/the-shape-of-an-mcp-tool-file.rule.md). Read it before
+step 1; the steps below are the surrounding wiring, not the shape.
+
+1. Create `internal/mcp/tools/<name>.go` exporting the pair `New<Name>Tool() mcp.Tool` and
+   `Handle<Name>(root RootProvider) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error)`
+2. Resolve the project root inside the returned closure with `root.Root(ctx)`. Never capture a
+   `baseDir` at construction: a session that moves into a git worktree moves the server's root with
+   it (project-root-resolution.spec §3), and a captured root silently serves the old project.
+3. Create `internal/mcp/tools/<name>_test.go`, using `StaticRoot(base)` as the provider
+4. Register in `@internal/mcp/server.go` via `s.AddTool()`
+5. Use the helpers re-exported by `@internal/mcp/tools/docs_bridge.go` (`scanDocuments`,
    `scanDocumentsFull`, `readDocumentContent`, `guardWritablePath`, `validateReadPath`)
-5. Validate inputs and check path safety (no `..`, must resolve inside `.archcore/`)
-6. Never expose absolute filesystem paths in error messages — see
+6. Validate inputs and check path safety (no `..`, must resolve inside `.archcore/`)
+7. Return a user-caused refusal as `errorResult(...)`; return a Go error only for the process's own
+   failure, such as marshalling the result
+8. Never expose absolute filesystem paths in error messages — see
    [No Absolute Paths in MCP Errors](../mcp/no-absolute-paths-in-mcp-errors.rule.md)
-7. Add the tool name to `archcoreMCPTools` in `@cmd/hook_payload.go`.
+9. Add the tool name to `archcoreMCPTools` in `@cmd/hook_payload.go`.
    `TestArchcoreMCPTools_MatchesTheServer` fails otherwise. Three hosts flatten an MCP tool name by
    joining the server name to the tool name with one separator, and that separator also occurs inside
    names, so the fold accepts only a tool this list knows. A tool missing from it is read by the write
    guard as a direct edit and denied on those hosts.
-8. If the tool mutates the knowledge base, add it to `mutatingMCPTools` in the same file and to
-   `mcpDocumentTools` in `@internal/wiring/hooks_agents.go`, which is the host-side matcher that
-   decides whether the post-write process starts at all
+10. If the tool mutates the knowledge base, add it to `mutatingMCPTools` in the same file and to
+    `mcpDocumentTools` in `@internal/wiring/hooks_agents.go`, which is the host-side matcher that
+    decides whether the post-write process starts at all
+11. If the tool crosses another tool's state — one handler writes, another reads — add the scenario to
+    `internal/mcp/integration/` rather than to the per-tool unit file
+    (in-process-mcp-integration-tests.adr)
 
 ### Conditionally Registered Tools (executor injection)
 
@@ -215,15 +242,18 @@ A tool whose implementation lives in the cmd layer (because it reuses CLI instal
 a `ServerOption` instead of unconditionally: the handler takes an executor function type defined in
 `internal/mcp/tools`, and `NewServer` adds the tool only when the option supplies one.
 `install_host_config` is the pattern's example — `@cmd/mcp.go` passes
-`mcpserver.WithHostWiring(hostWiringExecutor(baseDir))`, where the executor adapts
-`internal/wiring.Apply` for the MCP boundary (project-relative paths, sanitized errors). This avoids a
-cmd→internal/mcp import cycle and guarantees headless/test servers built without the option do not
-expose the tool. See [install_host_config Tool Contract](../mcp/install-host-config-tool-contract.adr.md).
+`mcpserver.WithHostWiring(hostWiringExecutor())`. The executor takes no `baseDir`: the root arrives
+per call from the server's root provider, so the wiring lands under the project root the session is on
+now (project-root-resolution.spec §3). It adapts `internal/wiring.Apply` for the MCP boundary —
+project-relative paths, sanitized errors. This avoids a cmd→internal/mcp import cycle and guarantees
+headless/test servers built without the option do not expose the tool. See
+[install_host_config Tool Contract](../mcp/install-host-config-tool-contract.adr.md).
 
 The same option seam carries the background update task: `WithBackgroundTask(func(ctx))` takes an
 opaque function that `RunStdio` starts between the stdout shield and `Listen`. The function is opaque
 so `internal/mcp` never links the update stack; `TestPackage_DoesNotLinkTheUpdateStack` walks the
-import graph and fails if it ever does.
+import graph and fails if it ever does. Both seams are obligations, not conveniences — see
+[Package Dependency Direction](../architecture/package-dependency-direction.rule.md).
 
 ## How to Modify Hooks
 
@@ -261,9 +291,7 @@ The advisory work the hooks call lives in `internal/advisory/`, not in `cmd/`.
 | `@cmd/hooks_common.go` | `buildSessionContext()` — the injected session-start text |
 | `@cmd/hook_write_guard.go` | The one blocking guard, and the per-invocation `writeGuard` that caches what its verdicts read |
 | `@cmd/hook_post_tool_use.go` | Post-write dispatcher: validation, cascade |
-| `@internal/advisory/code_alignment.go` | Pre-write context injection |
-| `@internal/advisory/precision.go` | Post-write precision findings; canon in `@templates/precision.go` |
-| `@internal/advisory/staleness.go` | Drift advisory, rate-limited to 24 hours |
+| `@internal/advisory/` | The four advisory engines: `code_alignment.go`, `precision.go`, `restatement.go`, `staleness.go`. See [The Advisory Subsystem](../architecture/advisory-subsystem.doc.md) for their triggers, settings, and bounds. |
 | `@internal/stamp/` | Dedup stamp claim, one directory per scope |
 
 Installed commands are recognized across CLI versions by the `archcore hooks ` prefix — see
@@ -282,6 +310,10 @@ These are the rules a change to the hook path must not break. The specs above st
 - `safeHandle` converts a panic into an allow. Without it a defect would exit non-zero, which several
   hosts read as an explicit deny.
 - The write guard runs first and alone. Advisory work happens after the verdict.
+- The write guard reads the globals list fail-closed for a path outside the project, and fail-open for
+  a path inside `.archcore/` — otherwise an unreadable `settings.json` would block the edit that
+  repairs it. See
+  [Fail-Open or Fail-Closed Reads](../code-quality/fail-open-or-fail-closed-reads.rule.md).
 - On Copilot, stdout carries exactly one JSON document. Every diagnostic goes to stderr.
 - An unknown host or event writes an empty stdout and exits 0.
 - A file-mutation tool that names no path still has a target. `apply_patch` names its files inside the
@@ -342,10 +374,17 @@ apply uniformly to every host.
    and remove commands. A host with no CLI mechanism carries a UI note instead. Nothing else changes:
    the planner reads the row, and the three entry points share it.
 
-7. **Update documentation:**
+7. **Add the host CLI to the test trap** — `hostCLIs` in `@internal/testsupport/isolate.go`, so a test
+   that reaches the real binary is caught instead of changing the developer's machine. See
+   [Isolating the Developer's Machine](../code-quality/isolating-the-machine-from-the-test-suite.guide.md).
+
+8. **Update documentation:**
    - Add the agent to [Supported AI Agents Registry](../integrations/supported-ai-agents.doc.md)
    - Add the event rows to [CLI Hooks Reference](../integrations/cli-hooks-reference.doc.md)
    - Add config examples to [Agent Integration Reference](../integrations/agent-hooks-integration.doc.md)
+
+A host is therefore described by five registries in four packages. That split is deliberate — see the
+accepted trade-offs in [Archcore CLI System Overview](../architecture/system-overview.doc.md).
 
 ## Key Design Patterns
 
@@ -361,6 +400,11 @@ apply uniformly to every host.
 - **One document model** — `internal/docs` owns the scan, the cache, and the path guards. The write
   guard and the MCP write tools call the same predicate, so a path MCP refuses cannot be reached by
   editing the file directly.
+- **Layered imports** — a package imports its own tier or a lower one, never a surface. See
+  [Package Dependency Direction](../architecture/package-dependency-direction.rule.md).
+- **Rendering at the boundary** — a domain package returns absolute paths and raw errors; the terminal
+  and MCP boundaries each transform them. See
+  [Rendering Happens at the Boundary](../code-quality/rendering-happens-at-the-boundary.rule.md).
 - **Pure planner, one executor** — `internal/plugin` decides from host evidence and acts in one place.
   Silence for a host without the plugin is structural: it falls out of the evidence, and no code path
   reads a host's error text.
@@ -370,6 +414,12 @@ apply uniformly to every host.
 - **Bounded, ordered output** — anything leaving the process is capped by a named constant and sorted
   before it is cut. See
   [Bounded and Deterministic Output](../code-quality/bounded-and-deterministic-output.rule.md).
+- **Comments are the exception** — the code carries the meaning; a comment records a workaround or a
+  reason the code cannot hold. See
+  [Code Carries No Comment Unless the Code Cannot Speak](../code-quality/comments-are-the-exception.rule.md).
+- **Platform variance is a file split** — a `//go:build` variant per platform, never a `runtime.GOOS`
+  branch. See
+  [Platform Splits Are Files](../code-quality/platform-splits-are-files.rule.md).
 - **One hook entry per (host, event)** — the process dispatches by tool name internally, so three
   post-write checks cost one process start.
 - **Dialect table, not per-host code** — a host is a row describing its protocol; the handlers are
@@ -385,8 +435,8 @@ apply uniformly to every host.
   install`/`remove` write a discovery hint per agent into `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`. All
   targets use an idempotent fenced upsert that preserves user content.
 - **Co-located tests** — every command and package has adjacent `_test.go` files using `t.TempDir()`
-  and table-driven subtests. A test that can reach a host CLI or a host settings file isolates `HOME`,
-  `USERPROFILE`, `XDG_STATE_HOME`, and `PATH` first; without that isolation the suite mutates the
-  developer's own machine and stays green while doing it.
+  and table-driven subtests. A package whose code reaches `$HOME`, an XDG state directory, a host CLI,
+  or git arms the isolation in `TestMain`; without it the suite mutates the developer's own machine
+  and stays green while doing it.
 - **Invalid config backup** — corrupted config files are backed up as `.bak` before being overwritten.
   See [Backup Invalid Configs](../integrations/backup-invalid-configs.adr.md).

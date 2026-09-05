@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
 
 	"archcore-cli/internal/config"
@@ -25,6 +26,13 @@ const writeGuardReason = `Direct writes to .archcore/ documents are not allowed.
 - remove_document: delete a document
 This ensures validation, templates, and the sync manifest stay consistent.`
 
+// writeGuardUnverifiableReason is the refusal when the guard cannot read the
+// list it needs to judge the path. It names the file to repair, because the
+// write that unblocks this state is an edit to settings.json.
+const writeGuardUnverifiableReason = `Cannot verify global sources: .archcore/settings.json is unreadable.
+Writes to Markdown files outside the project are refused until it parses.
+Fix .archcore/settings.json, then retry.`
+
 // writeGuard answers for one hook invocation. It exists because a single call
 // can carry many targets: an apply-patch document names up to maxPatchLines of
 // them, and the project state every verdict consults is the same for all of
@@ -47,6 +55,7 @@ type writeGuard struct {
 	storeRead bool
 
 	globals     []config.GlobalSource
+	globalsErr  error
 	globalsRead bool
 }
 
@@ -65,15 +74,39 @@ func (g *writeGuard) storeExists() bool {
 // declaredGlobals reads settings.json at most once, and only when a verdict
 // actually needs it.
 //
+// A guard, not an advisory (fail-open-or-fail-closed-reads.rule §2): config.ReadGlobals
+// reports an unreadable settings.json as "no globals are declared", which reads as
+// "not a global" and permits the write this guard exists to refuse.
+//
 // Lazy rather than eager, because the branch below that skips it is load-bearing:
 // an ordinary source edit is the overwhelming majority of what this hook sees,
 // and reading settings.json in the constructor would make that case pay for the
 // rare one on every single write.
-func (g *writeGuard) declaredGlobals() []config.GlobalSource {
+func (g *writeGuard) declaredGlobals() ([]config.GlobalSource, error) {
 	if !g.globalsRead {
-		g.globals, g.globalsRead = config.ReadGlobals(g.baseDir), true
+		g.globals, g.globalsErr = config.LoadGlobals(g.baseDir)
+		g.globalsRead = true
 	}
-	return g.globals
+	return g.globals, g.globalsErr
+}
+
+// outsideProject reports whether filePath resolves to a location outside
+// baseDir.
+//
+// It resolves before it classifies. docs.RelativeToBase reports every
+// non-absolute path as in-project, because a relative path is read against
+// baseDir — but the patch bodies patchPaths parses carry exactly that form, so
+// classifying "../company/.archcore/x.rule.md" straight from the raw string put
+// an escaping target on the in-project side of the fail-closed branch below.
+// Joining first is what IsExternalGlobalDocument already does with the same
+// input, so the two answers now agree on the same path.
+func (g *writeGuard) outsideProject(filePath string) bool {
+	resolved := filePath
+	if !filepath.IsAbs(resolved) {
+		resolved = filepath.Join(g.baseDir, filePath)
+	}
+	_, inProject := docs.RelativeToBase(g.baseDir, resolved)
+	return !inProject
 }
 
 // writeGuardDecision reports whether a file write must be blocked. It is the
@@ -100,9 +133,14 @@ func (g *writeGuard) decide(filePath string) hookDecision {
 	}
 	// Lexical containment is GuardWritablePath's own first step, so checking it
 	// here separates "not under .archcore/" from every other refusal.
-	if rel, inProject := docs.RelativeToBase(baseDir, filePath); inProject {
+	rel, inProject := docs.RelativeToBase(baseDir, filePath)
+	if inProject {
 		if cleaned, err := docs.ValidateArchcorePath(rel); err == nil {
-			if _, err := docs.GuardWritablePath(baseDir, cleaned, g.declaredGlobals()); errors.Is(err, docs.ErrPathNotDocument) {
+			// The error is dropped here and only here: a missing list cannot turn
+			// a document into a non-document, so an unreadable settings.json still
+			// denies. Failing closed instead would deny settings.json itself.
+			globals, _ := g.declaredGlobals()
+			if _, err := docs.GuardWritablePath(baseDir, cleaned, globals); errors.Is(err, docs.ErrPathNotDocument) {
 				return allowHook() // settings.json, .sync-state.json, a non-markdown file
 			}
 			return denyHook(writeGuardReason)
@@ -121,7 +159,15 @@ func (g *writeGuard) decide(filePath string) hookDecision {
 	if !strings.HasSuffix(filePath, ".md") {
 		return allowHook()
 	}
-	if docs.IsExternalGlobalDocument(baseDir, filePath, g.declaredGlobals()) {
+	globals, globalsErr := g.declaredGlobals()
+	if globalsErr != nil && g.outsideProject(filePath) {
+		// An unreadable list answers "not a declared mount" for every path, which
+		// is the allow this guard exists to refuse. Narrowed to a path that
+		// resolves outside the project, where an external mount lives: refusing
+		// every in-project .md would block a README edit on a settings.json typo.
+		return denyHook(writeGuardUnverifiableReason)
+	}
+	if docs.IsExternalGlobalDocument(baseDir, filePath, globals) {
 		return denyHook(writeGuardReason)
 	}
 	return allowHook()
