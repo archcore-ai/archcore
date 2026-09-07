@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"gopkg.in/yaml.v3"
 )
 
 const testDoc = "---\ntitle: Original Title\nstatus: draft\n---\n\n## Context\nOriginal body."
@@ -576,5 +578,171 @@ func TestHandleUpdateDocument_TagsOnly(t *testing.T) {
 	arr := tagsVal.([]any)
 	if len(arr) != 1 || arr[0] != "new-tag" {
 		t.Errorf("tags = %v, want [new-tag]", arr)
+	}
+}
+
+const retainedFrontmatterDoc = `---
+zeta: "false"
+title: Original Title
+nothing: null
+status: draft
+enabled: true
+count: 17
+fraction: 1.25
+tags: [zebra, alpha]
+items: [one, 2, false]
+settings: &settings
+  nested: {url: "https://example.test/a#b", values: [null, true]}
+copy: *settings
+multiline: |
+  First line.
+  Second line.
+alpha: !!str 123
+---
+
+Original body.
+`
+
+func decodeFrontmatterValues(t *testing.T, data string) (map[string]any, []string, string) {
+	t.Helper()
+	parts := strings.SplitN(data, "---", 3)
+	if len(parts) != 3 {
+		t.Fatalf("no delimited frontmatter: %q", data)
+	}
+	var values map[string]any
+	if err := yaml.Unmarshal([]byte(parts[1]), &values); err != nil {
+		t.Fatalf("decode persisted YAML: %v", err)
+	}
+	var root yaml.Node
+	if err := yaml.Unmarshal([]byte(parts[1]), &root); err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	for i := 0; i < len(root.Content[0].Content); i += 2 {
+		key := root.Content[0].Content[i].Value
+		if key != "title" && key != "status" && key != "tags" {
+			keys = append(keys, key)
+		}
+	}
+	return values, keys, strings.TrimSpace(parts[2])
+}
+
+func TestHandleUpdateDocument_PreservesUnknownFrontmatter(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		args       map[string]any
+		wantTitle  string
+		wantStatus string
+		wantTags   []any
+		wantBody   string
+	}{
+		{name: "body", args: map[string]any{"content": "Revised body."}, wantTitle: "Original Title", wantStatus: "draft", wantTags: []any{"zebra", "alpha"}, wantBody: "Revised body."},
+		{name: "title", args: map[string]any{"title": "Revised Title"}, wantTitle: "Revised Title", wantStatus: "draft", wantTags: []any{"zebra", "alpha"}, wantBody: "Original body."},
+		{name: "status", args: map[string]any{"status": "accepted"}, wantTitle: "Original Title", wantStatus: "accepted", wantTags: []any{"zebra", "alpha"}, wantBody: "Original body."},
+		{name: "replace tags", args: map[string]any{"tags": []string{"new", "label"}}, wantTitle: "Original Title", wantStatus: "draft", wantTags: []any{"label", "new"}, wantBody: "Original body."},
+		{name: "clear tags", args: map[string]any{"tags": []string{}}, wantTitle: "Original Title", wantStatus: "draft", wantBody: "Original body."},
+		{name: "embedded metadata cannot replace retained values", args: map[string]any{"content": "---\nzeta: poisoned\n---\n\nRevised body."}, wantTitle: "Original Title", wantStatus: "draft", wantTags: []any{"zebra", "alpha"}, wantBody: "Revised body."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupTestArchcore(t)
+			writeDoc(t, base, "", "material.evidence.md", retainedFrontmatterDoc)
+			want, wantKeys, _ := decodeFrontmatterValues(t, retainedFrontmatterDoc)
+			tt.args["path"] = ".archcore/material.evidence.md"
+			for pass := range 2 {
+				result, err := callTool(HandleUpdateDocument(StaticRoot(base)), tt.args)
+				if err != nil || result.IsError {
+					t.Fatalf("update %d: result=%+v err=%v", pass, result, err)
+				}
+				data, err := os.ReadFile(filepath.Join(base, ".archcore", "material.evidence.md"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				got, keys, body := decodeFrontmatterValues(t, string(data))
+				if !reflect.DeepEqual(keys, wantKeys) {
+					t.Errorf("retained order = %v, want %v", keys, wantKeys)
+				}
+				for _, key := range wantKeys {
+					value, ok := got[key]
+					if !ok || !reflect.DeepEqual(value, want[key]) {
+						t.Errorf("retained %s = %#v (present %v), want %#v", key, value, ok, want[key])
+					}
+				}
+				if got["title"] != tt.wantTitle || got["status"] != tt.wantStatus || body != tt.wantBody {
+					t.Errorf("owned values = %#v / body %q", got, body)
+				}
+				if tt.wantTags == nil {
+					if _, ok := got["tags"]; ok {
+						t.Error("tags were not cleared")
+					}
+				} else if !reflect.DeepEqual(got["tags"], tt.wantTags) {
+					t.Errorf("tags = %#v, want %#v", got["tags"], tt.wantTags)
+				}
+				if strings.Index(string(data), "zeta:") < strings.Index(string(data), "status:") {
+					t.Error("extras precede owned fields")
+				}
+			}
+		})
+	}
+}
+
+func TestHandleUpdateDocument_UnpreservableFrontmatterUnchanged(t *testing.T) {
+	t.Parallel()
+	tests := []struct{ name, input, want string }{
+		{name: "alias to reconstructed owned field", input: "---\ntitle: &title Original\nstatus: draft\ncustom: *title\n---\n\nBody", want: "frontmatter cannot be preserved"},
+		{name: "shadowed owned anchor", input: "---\nfirst: &name Earlier\ntitle: &name Later\ncustom: *name\n---\n\nBody", want: "frontmatter cannot be preserved"},
+		{name: "preserved status needs YAML quoting", input: "---\ntitle: Original\nstatus: \"draft: bad\"\ncustom: retained\n---\n\nBody", want: "frontmatter cannot be preserved"},
+		{name: "reconstructed alias error hides document content", input: "---\ntitle: Original\nstatus: \"*sensitiveAnchor\"\ncustom: retained\n---\n\nBody", want: "frontmatter cannot be preserved"},
+		{name: "unknown anchor", input: "---\ntitle: Original\ncustom: *missing\n---\n\nBody", want: "not valid YAML"},
+		{name: "duplicate unknown key", input: "---\ntitle: Original\ncustom: first\ncustom: second\n---\n\nBody", want: "not valid YAML"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupTestArchcore(t)
+			writeDoc(t, base, "", "material.evidence.md", tt.input)
+			result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{"path": ".archcore/material.evidence.md", "title": "Changed"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !result.IsError {
+				t.Fatal("unsafe metadata rewrite succeeded")
+			}
+			msg := result.Content[0].(mcp.TextContent).Text
+			if !strings.Contains(msg, tt.want) || !strings.Contains(msg, "manually") || strings.Contains(msg, base) || strings.Contains(msg, "sensitiveAnchor") || strings.Contains(msg, "repair YAML aliases") {
+				t.Errorf("error = %q", msg)
+			}
+			data, err := os.ReadFile(filepath.Join(base, ".archcore", "material.evidence.md"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(data) != tt.input {
+				t.Errorf("refusal changed original file: %q", data)
+			}
+		})
+	}
+}
+
+func TestHandleUpdateDocument_MergedTagsCanBeCleared(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	input := "---\n<<: {title: Original, status: draft, tags: [old], custom: {nested: true}}\n---\n\nBody"
+	writeDoc(t, base, "", "material.evidence.md", input)
+	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{"path": ".archcore/material.evidence.md", "tags": []string{}})
+	if err != nil || result.IsError {
+		t.Fatalf("clear merged tags: %+v / %v", result, err)
+	}
+	data, err := os.ReadFile(filepath.Join(base, ".archcore", "material.evidence.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	values, _, _ := decodeFrontmatterValues(t, string(data))
+	if tags, ok := values["tags"].([]any); !ok || len(tags) != 0 {
+		t.Errorf("merged tags survived clearing: %#v", values["tags"])
+	}
+	if !reflect.DeepEqual(values["custom"], map[string]any{"nested": true}) {
+		t.Errorf("merged metadata changed: %#v", values)
 	}
 }

@@ -113,3 +113,30 @@ func TestHandleListRelations_NormalizesPrefix(t *testing.T) {
 		t.Errorf("expected 1 relation with normalized prefix, got %d", len(resp["relations"]))
 	}
 }
+
+func TestHandleListRelations_ResearchVocabulary(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{"supports", "contradicts", "supersedes"} {
+		t.Run(value, func(t *testing.T) {
+			t.Parallel()
+			base := setupTestArchcore(t)
+			manifest := sync.NewManifest()
+			want := sync.Relation{Source: "source.evidence.md", Target: "target.research.md", Type: sync.RelationType(value)}
+			manifest.Relations = []sync.Relation{want}
+			if err := sync.SaveManifest(base, manifest); err != nil {
+				t.Fatal(err)
+			}
+			result, err := callTool(HandleListRelations(StaticRoot(base)), map[string]any{"path": ".archcore/target.research.md"})
+			if err != nil || result.IsError {
+				t.Fatalf("list: %v, %+v", err, result)
+			}
+			var response struct{ Relations []sync.Relation }
+			if err := json.Unmarshal([]byte(resultText(t, result)), &response); err != nil {
+				t.Fatal(err)
+			}
+			if len(response.Relations) != 1 || response.Relations[0] != want {
+				t.Fatalf("relations = %+v, want %+v", response.Relations, want)
+			}
+		})
+	}
+}

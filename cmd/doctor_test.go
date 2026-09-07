@@ -257,3 +257,39 @@ func TestDoctor_FixKeepsValidRelations(t *testing.T) {
 		t.Errorf("expected kept relation target b.prd.md, got %s", m.Relations[0].Target)
 	}
 }
+
+func TestDoctor_ResearchVocabularyManifest(t *testing.T) {
+	dir := t.TempDir()
+	if err := config.InitDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.Save(dir, config.NewNoneSettings()); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"one.evidence.md", "two.research.md"} {
+		if err := os.WriteFile(filepath.Join(dir, ".archcore", name), []byte("---\ntitle: Material\nstatus: draft\n---\n\nBody"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m := sync.NewManifest()
+	for _, value := range []sync.RelationType{sync.RelRelated, sync.RelImplements, sync.RelExtends, sync.RelDependsOn, sync.RelSupports, sync.RelContradicts, sync.RelSupersedes} {
+		m.AddRelation("one.evidence.md", "two.research.md", value)
+	}
+	if err := sync.SaveManifest(dir, m); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runCmdInDir(t, dir, "doctor")
+	if err != nil {
+		t.Fatalf("doctor: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Sync manifest valid") {
+		t.Errorf("manifest not verified: %s", out)
+	}
+	loaded, err := sync.LoadManifest(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Relations) != 7 {
+		t.Errorf("doctor changed relations: %+v", loaded.Relations)
+	}
+}

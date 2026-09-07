@@ -42,6 +42,8 @@ Document types (sections shown are core — full templates auto-generated when c
   prd       — Product requirements · sections: Vision, Problem, Goals & Metrics, Requirements
   idea      — Concept worth exploring · sections: Idea, Value, Possible Implementation, Risks
   plan      — Implementation plan · sections: Goal, Tasks, Acceptance Criteria, Dependencies
+  research  — Territory investigation · sections: Goal, Scope, Coverage, Sources, Findings, Synthesis, Open Gaps
+  evidence  — One external material · sections: Locator, Extract, Notes
   rnd       — Bounded research · sections: Goal, Questions, Approach, Findings, Recommendation, Next Action
   task-type — Recurring task pattern · sections: What, When, Steps, Example, Pitfalls
   cpat      — Code pattern change · sections: What Changed, Why, Before, After, Scope
@@ -77,7 +79,7 @@ Returns: JSON with path, type, category, title, status, tags (when present), and
 		mcp.WithString("content",
 			mcp.Description(`Markdown body of the document. RECOMMENDED: omit this parameter to use the auto-generated template for the chosen type (it contains all required sections with guidance placeholders). If providing content manually, omit the top-level heading and follow the template section order for the chosen type.
 
-Line form follows the type. Graded clauses (spec: Normative Behavior and Failure Behavior; rule: Rule): one requirement per numbered clause, one modal, one active-voice obligated subject — "WHEN <trigger>, the <actor> MUST <response>", error paths as "IF <condition>, THEN ..."; no subjectless passives ("tokens MUST be rotated" obligates nobody); commands, requests, and state changes are WHEN triggers, never grammatical subjects; a clause stays <= 25 words, and a spec body stays <= 120 lines (past it, split the contract by sub-surface rather than growing the document). Procedure steps (guide: Steps; task-type: Steps; plan: Tasks): one numbered step per action, imperative, no modal, <= 20 words. Claim-recording types (adr, rfc, doc, prd, plan, idea, rnd, cpat, mrd, brd, urd): no BCP 14 modal in a numbered clause — carry the evidence instead (@path, a metric, a commit), or mark the claim [assumption]. ISO 29148 types (brs, strs, syrs, srs): requirements go in the identified table rows the template provides, one requirement ID per row.`),
+Line form follows the type. Graded clauses (spec: Normative Behavior and Failure Behavior; rule: Rule): one requirement per numbered clause, one modal, one active-voice obligated subject — "WHEN <trigger>, the <actor> MUST <response>", error paths as "IF <condition>, THEN ..."; no subjectless passives ("tokens MUST be rotated" obligates nobody); commands, requests, and state changes are WHEN triggers, never grammatical subjects; a clause stays <= 25 words, and a spec body stays <= 120 lines (past it, split the contract by sub-surface rather than growing the document). Procedure steps (guide: Steps; task-type: Steps; plan: Tasks): one numbered step per action, imperative, no modal, <= 20 words. Claim-recording types (adr, rfc, doc, prd, plan, idea, rnd, research, evidence, cpat, mrd, brd, urd): no BCP 14 modal in a numbered clause — carry the evidence instead (@path, a metric, a commit), or mark the claim [assumption]. ISO 29148 types (brs, strs, syrs, srs): requirements go in the identified table rows the template provides, one requirement ID per row.`),
 		),
 		mcp.WithString("directory",
 			mcp.Description(`Optional subdirectory inside .archcore/ where the file should be created. Use to organize documents by domain, feature, or team (e.g. "auth", "payments", "infrastructure/k8s"). If omitted, the file is created in the .archcore/ root. Must not contain ".." or start with "/".`),
@@ -190,7 +192,10 @@ func HandleCreateDocument(root RootProvider) func(ctx context.Context, request m
 			body = stripFrontmatter(body)
 		}
 
-		fileContent := buildDocumentFile(title, status, tags, body)
+		fileContent, err := buildDocumentFile(templates.Frontmatter{Title: title, Status: status, Tags: tags}, body)
+		if err != nil {
+			return nil, err
+		}
 
 		// O_EXCL closes the stat-then-write race: with concurrent creates of the
 		// same path exactly one call succeeds, the other reports the existing file.

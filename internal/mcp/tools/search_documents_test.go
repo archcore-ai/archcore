@@ -1065,3 +1065,26 @@ func TestParseMtimeAfter(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleSearchDocuments_ResearchDefaultPriority(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	for _, name := range []string{"a.research.md", "b.evidence.md", "z.task-type.md"} {
+		writeDoc(t, base, "", name, "---\ntitle: Match\nstatus: draft\n---\n\nmatch")
+		setMtime(t, base, ".archcore/"+name, time.Unix(1700000000, 0))
+	}
+	result, err := callTool(HandleSearchDocuments(StaticRoot(base)), map[string]any{"content": "match"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hits := unmarshalSearch(t, result)
+	want := []string{".archcore/z.task-type.md", ".archcore/a.research.md", ".archcore/b.evidence.md"}
+	if len(hits) != len(want) {
+		t.Fatalf("hits = %v", hits)
+	}
+	for i, path := range want {
+		if hits[i].Path != path {
+			t.Errorf("rank %d = %s, want %s", i, hits[i].Path, path)
+		}
+	}
+}

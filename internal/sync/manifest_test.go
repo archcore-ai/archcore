@@ -917,3 +917,51 @@ func TestLoadSaveManifest_WithRelations(t *testing.T) {
 		t.Errorf("relation[0].Type = %q", loaded.Relations[0].Type)
 	}
 }
+
+func TestManifest_SevenRelationValues(t *testing.T) {
+	t.Parallel()
+	want := []string{"related", "implements", "extends", "depends_on", "supports", "contradicts", "supersedes"}
+	got := ValidRelationTypes()
+	if len(got) != len(want) || len(validRelationTypes) != len(want) {
+		t.Fatalf("relation registries = %v / %v", got, validRelationTypes)
+	}
+	for i, value := range want {
+		if got[i] != value || !IsValidRelationType(value) {
+			t.Errorf("relation %q missing from registry", value)
+		}
+	}
+	for _, value := range append(want, "blocks") {
+		t.Run(value, func(t *testing.T) {
+			t.Parallel()
+			base := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(base, ".archcore"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			input := fmt.Sprintf(`{"version":1,"files":{},"relations":[{"source":"one.evidence.md","target":"two.research.md","type":%q}]}`, value)
+			path := filepath.Join(base, ".archcore", ManifestFile)
+			if err := os.WriteFile(path, []byte(input), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			m, err := LoadManifest(base)
+			if value == "blocks" {
+				if err == nil {
+					t.Fatal("unknown relation accepted")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(m.Relations) != 1 || string(m.Relations[0].Type) != value {
+				t.Fatalf("relations = %+v", m.Relations)
+			}
+			if err := SaveManifest(base, m); err != nil {
+				t.Fatal(err)
+			}
+			m, err = LoadManifest(base)
+			if err != nil || string(m.Relations[0].Type) != value {
+				t.Fatalf("reload = %+v / %v", m, err)
+			}
+		})
+	}
+}

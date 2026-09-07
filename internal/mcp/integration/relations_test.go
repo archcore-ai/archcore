@@ -1,11 +1,13 @@
 package integration
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
 	"archcore-cli/internal/mcp/tools"
 	"archcore-cli/internal/sync"
+	"archcore-cli/templates"
 )
 
 // listRelationsResponse mirrors the JSON shape returned by list_relations.
@@ -254,5 +256,70 @@ func TestRemoveRelationUndoesAddRelation(t *testing.T) {
 	}
 	if got := loadManifest(t, base).Relations; len(got) != 0 {
 		t.Errorf("manifest relations after remove = %d, want 0", len(got))
+	}
+}
+
+func TestResearchVocabulary_RelationRoundTrip(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{"supports", "contradicts", "supersedes"} {
+		t.Run(value, func(t *testing.T) {
+			t.Parallel()
+			for _, pair := range [][2]string{{"evidence", "research"}, {"adr", "rnd"}} {
+				t.Run(strings.Join(pair[:], "-"), func(t *testing.T) {
+					t.Parallel()
+					base := initArchcore(t)
+					c := newTestClient(t, base)
+					var paths [2]string
+					for i, typ := range pair {
+						name := []string{"material", "statement"}[i]
+						created := decodeJSON[map[string]any](t, mustCallTool(t, c, "create_document", map[string]any{"type": typ, "filename": name, "status": "accepted"}))
+						path, ok := created["path"].(string)
+						if !ok || path == "" {
+							t.Fatalf("create_document returned no path: %v", created)
+						}
+						paths[i] = path
+					}
+					args := map[string]any{"source": paths[0], "target": paths[1], "type": value}
+					for _, wantAdded := range []bool{true, false} {
+						added := decodeJSON[map[string]any](t, mustCallTool(t, c, "add_relation", args))
+						if added["added"] != wantAdded {
+							t.Errorf("added = %v, want %v", added, wantAdded)
+						}
+					}
+					want := []sync.Relation{{Source: strings.TrimPrefix(paths[0], ".archcore/"), Target: strings.TrimPrefix(paths[1], ".archcore/"), Type: sync.RelationType(value)}}
+					listed := decodeJSON[listRelationsResponse](t, mustCallTool(t, c, "list_relations", nil))
+					if !reflect.DeepEqual(listed.Relations, want) || !reflect.DeepEqual(loadManifest(t, base).Relations, want) {
+						t.Errorf("relation direction or value changed: %+v", listed)
+					}
+					for i, path := range paths {
+						doc := decodeJSON[tools.EnrichedDocument](t, mustCallTool(t, c, "get_document", map[string]any{"path": path}))
+						if doc.Status != templates.StatusAccepted {
+							t.Errorf("relation changed status: %+v", doc)
+						}
+						got, inverse := doc.OutgoingRelations, doc.IncomingRelations
+						if i == 1 {
+							got, inverse = doc.IncomingRelations, doc.OutgoingRelations
+						}
+						if len(got) != 1 || got[0].Path != paths[1-i] || got[0].Type != value || len(inverse) != 0 {
+							t.Errorf("get relation = %+v, inverse = %+v", got, inverse)
+						}
+					}
+					hits := decodeJSON[struct {
+						Results []searchHit `json:"results"`
+					}](t, mustCallTool(t, c, "search_documents", map[string]any{"types": pair[:]})).Results
+					first := findHit(t, hits, paths[0])
+					if len(first.OutgoingRelations) != 1 || first.OutgoingRelations[0].Type != value {
+						t.Errorf("search relation = %+v", first)
+					}
+					removed := decodeJSON[map[string]any](t, mustCallTool(t, c, "remove_relation", args))
+					if removed["removed"] != true {
+						t.Errorf("remove = %v", removed)
+					}
+					if got := decodeJSON[listRelationsResponse](t, mustCallTool(t, c, "list_relations", nil)); len(got.Relations) != 0 || len(loadManifest(t, base).Relations) != 0 {
+						t.Errorf("relation survived removal: %+v", got)
+					}
+				})
+			}
+		})
 	}
 }

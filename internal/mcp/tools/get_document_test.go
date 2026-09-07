@@ -133,52 +133,60 @@ func TestHandleGetDocument_MissingPath(t *testing.T) {
 
 func TestHandleGetDocument_WithRelations(t *testing.T) {
 	t.Parallel()
-	base := setupTestArchcore(t)
-	writeDoc(t, base, "knowledge", "source.adr.md", "---\ntitle: Source\nstatus: draft\n---\n\nbody")
-	writeDoc(t, base, "vision", "target.prd.md", "---\ntitle: Target\nstatus: draft\n---\n\nbody")
+	for _, value := range []string{"related", "implements", "extends", "depends_on", "supports", "contradicts", "supersedes"} {
+		t.Run(value, func(t *testing.T) {
+			t.Parallel()
+			base := setupTestArchcore(t)
+			writeDoc(t, base, "knowledge", "source.adr.md", "---\ntitle: Source\nstatus: draft\n---\n\nbody")
+			writeDoc(t, base, "vision", "target.prd.md", "---\ntitle: Target\nstatus: draft\n---\n\nbody")
 
-	// Add a relation via manifest.
-	m := sync.NewManifest()
-	m.AddRelation("knowledge/source.adr.md", "vision/target.prd.md", sync.RelImplements)
-	if err := sync.SaveManifest(base, m); err != nil {
-		t.Fatal(err)
-	}
+			// Add a relation via manifest.
+			m := sync.NewManifest()
+			m.AddRelation("knowledge/source.adr.md", "vision/target.prd.md", sync.RelationType(value))
+			if err := sync.SaveManifest(base, m); err != nil {
+				t.Fatal(err)
+			}
 
-	// Check source doc has outgoing.
-	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
-		"path": ".archcore/knowledge/source.adr.md",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+			// Check source doc has outgoing.
+			result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
+				"path": ".archcore/knowledge/source.adr.md",
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	var enriched EnrichedDocument
-	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &enriched); err != nil {
-		t.Fatal(err)
-	}
-	if len(enriched.OutgoingRelations) != 1 {
-		t.Fatalf("expected 1 outgoing, got %d", len(enriched.OutgoingRelations))
-	}
-	if enriched.OutgoingRelations[0].Path != ".archcore/vision/target.prd.md" {
-		t.Errorf("outgoing path = %q", enriched.OutgoingRelations[0].Path)
-	}
-	if enriched.OutgoingRelations[0].Type != "implements" {
-		t.Errorf("outgoing type = %q", enriched.OutgoingRelations[0].Type)
-	}
+			var enriched EnrichedDocument
+			if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &enriched); err != nil {
+				t.Fatal(err)
+			}
+			if len(enriched.OutgoingRelations) != 1 {
+				t.Fatalf("expected 1 outgoing, got %d", len(enriched.OutgoingRelations))
+			}
+			if enriched.OutgoingRelations[0].Path != ".archcore/vision/target.prd.md" {
+				t.Errorf("outgoing path = %q", enriched.OutgoingRelations[0].Path)
+			}
+			if enriched.OutgoingRelations[0].Type != value {
+				t.Errorf("outgoing type = %q", enriched.OutgoingRelations[0].Type)
+			}
 
-	// Check target doc has incoming.
-	result2, _ := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
-		"path": ".archcore/vision/target.prd.md",
-	})
-	var enriched2 EnrichedDocument
-	if err := json.Unmarshal([]byte(result2.Content[0].(mcp.TextContent).Text), &enriched2); err != nil {
-		t.Fatal(err)
-	}
-	if len(enriched2.IncomingRelations) != 1 {
-		t.Fatalf("expected 1 incoming, got %d", len(enriched2.IncomingRelations))
-	}
-	if enriched2.IncomingRelations[0].Path != ".archcore/knowledge/source.adr.md" {
-		t.Errorf("incoming path = %q", enriched2.IncomingRelations[0].Path)
+			// Check target doc has incoming.
+			result2, _ := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
+				"path": ".archcore/vision/target.prd.md",
+			})
+			var enriched2 EnrichedDocument
+			if err := json.Unmarshal([]byte(result2.Content[0].(mcp.TextContent).Text), &enriched2); err != nil {
+				t.Fatal(err)
+			}
+			if len(enriched2.IncomingRelations) != 1 {
+				t.Fatalf("expected 1 incoming, got %d", len(enriched2.IncomingRelations))
+			}
+			if enriched2.IncomingRelations[0].Path != ".archcore/knowledge/source.adr.md" {
+				t.Errorf("incoming path = %q", enriched2.IncomingRelations[0].Path)
+			}
+			if enriched2.IncomingRelations[0].Type != value || len(enriched2.OutgoingRelations) != 0 || len(enriched.IncomingRelations) != 0 {
+				t.Errorf("relation value or direction changed: source=%+v target=%+v", enriched, enriched2)
+			}
+		})
 	}
 }
 

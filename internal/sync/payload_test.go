@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -493,5 +494,39 @@ func TestBuildPayload_WithoutTags(t *testing.T) {
 	}
 	if payload.Created[0].Frontmatter.Tags != nil {
 		t.Errorf("tags = %v, want nil", payload.Created[0].Frontmatter.Tags)
+	}
+}
+
+func TestBuildPayload_CustomMetadataStaysInContent(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(base, ".archcore"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := "---\ntitle: Evidence\nstatus: draft\ncustom: {nested: [1, true]}\n---\n\nMaterial"
+	if err := os.WriteFile(filepath.Join(base, ".archcore", "material.evidence.md"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	payload, err := BuildPayload(base, []DiffEntry{{RelPath: "material.evidence.md", Action: ActionCreated, Hash: testHash1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(payload.Created) != 1 {
+		t.Fatalf("created = %v", payload.Created)
+	}
+	entry := payload.Created[0]
+	if entry.Content != content || entry.DocType != "evidence" || entry.Category != templates.CategoryKnowledge {
+		t.Errorf("entry = %+v", entry)
+	}
+	data, err := json.Marshal(entry.Frontmatter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatal(err)
+	}
+	if len(fields) != 2 || fields["title"] != "Evidence" || fields["status"] != "draft" {
+		t.Errorf("structured frontmatter grew: %s", data)
 	}
 }

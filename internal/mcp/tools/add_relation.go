@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"archcore-cli/internal/sync"
@@ -23,15 +24,20 @@ func NewAddRelationTool() mcp.Tool {
 
 Relations are stored in the sync manifest and represent semantic links between documents.
 
+Relation axes: structural (related, implements, extends, depends_on), evidential (supports, contradicts), temporal (supersedes).
+
 Relation types:
   related     — general association (e.g., two ADRs on the same topic)
   implements  — source implements what target specifies (e.g., plan implements prd)
   extends     — source builds upon target (e.g., rfc extends an existing adr)
   depends_on  — source requires target to proceed (e.g., plan depends_on adr)
+  supports    — material points to the statement it backs
+  contradicts — challenger points to the statement it disputes
+  supersedes  — newer document points to the older document it replaces
 
 For requirements-layer guidance (Sources vs Specifications, ISO cascade), see server instructions REQUIREMENTS LAYERS section.
 
-Both source and target must be existing documents. Paths can be given with or without the ".archcore/" prefix.`),
+Both source and target must be distinct existing local documents. Global sources cannot be relation endpoints. Paths must remain inside the project. The tool mutates the manifest only; it does not change document status or resolve contradictions. An invalid input or manifest leaves the manifest unchanged. Successful calls return whether the relation was added. Paths can be given with or without the ".archcore/" prefix.`),
 		mcp.WithString("source",
 			mcp.Description("Path to the source document (e.g. \"auth/jwt-strategy.adr.md\" or \".archcore/auth/jwt-strategy.adr.md\")"),
 			mcp.Required(),
@@ -41,7 +47,7 @@ Both source and target must be existing documents. Paths can be given with or wi
 			mcp.Required(),
 		),
 		mcp.WithString("type",
-			mcp.Description("Semantic type: related (general), implements (source fulfills target), extends (source builds on target), depends_on (source requires target)"),
+			mcp.Description("Semantic type: related (general), implements (source fulfills target), extends (source builds on target), depends_on (source requires target), supports (material backs target), contradicts (challenger disputes target), supersedes (newer replaces older)"),
 			mcp.Required(),
 			mcp.Enum(sync.ValidRelationTypes()...),
 		),
@@ -72,14 +78,14 @@ func HandleAddRelation(root RootProvider) func(ctx context.Context, request mcp.
 		source = normalizeRelPath(source)
 		target = normalizeRelPath(target)
 
+		if filepath.IsAbs(source) || filepath.IsAbs(target) {
+			return errorResult("relation paths must be relative and within .archcore/"), nil
+		}
 		if strings.Contains(source, "..") {
 			return errorResult("source path must not contain '..'"), nil
 		}
 		if strings.Contains(target, "..") {
 			return errorResult("target path must not contain '..'"), nil
-		}
-		if source == target {
-			return errorResult("source and target must be different documents"), nil
 		}
 
 		baseDir := root.Root(ctx)
@@ -91,8 +97,10 @@ func HandleAddRelation(root RootProvider) func(ctx context.Context, request mcp.
 		if guardFail != nil {
 			return guardFail, nil
 		}
-		for _, endpoint := range []string{source, target} {
-			if _, err := guardWritablePath(baseDir, ".archcore/"+endpoint, globals); err != nil {
+		endpoints := []string{source, target}
+		for i, endpoint := range endpoints {
+			cleaned, err := guardWritablePath(baseDir, ".archcore/"+endpoint, globals)
+			if err != nil {
 				switch {
 				case errors.Is(err, errPathReadOnlyGlobal):
 					return errorResult("cannot add a relation involving a read-only global source document — relations connect local documents only"), nil
@@ -102,6 +110,11 @@ func HandleAddRelation(root RootProvider) func(ctx context.Context, request mcp.
 					return errorResult(err.Error()), nil
 				}
 			}
+			endpoints[i] = normalizeRelPath(cleaned)
+		}
+		source, target = endpoints[0], endpoints[1]
+		if source == target {
+			return errorResult("source and target must be different documents"), nil
 		}
 
 		// Verify both documents exist.

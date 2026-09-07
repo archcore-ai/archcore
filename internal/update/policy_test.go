@@ -882,6 +882,7 @@ func TestRunUnattended_ClaimKeyIsTheResolvedPath(t *testing.T) {
 func TestRunUnattended_FreshFailureStampLeadsToALookup(t *testing.T) {
 	requiresExec(t)
 	unattendedEnv(t)
+	withInstantProbe(t)
 
 	rec := newTelemetryRecorder(t)
 	host := newReleaseHost(t, "v2.0.0", []byte(healthyPayload))

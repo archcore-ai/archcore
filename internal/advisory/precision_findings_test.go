@@ -512,3 +512,29 @@ func TestPrecisionFindings_BodyLengthCountsCharacters(t *testing.T) {
 		})
 	}
 }
+
+func TestPrecision_ResearchSections(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		typ      templates.DocumentType
+		sections []string
+	}{
+		{name: "research", typ: templates.TypeResearch, sections: []string{"Goal", "Scope", "Coverage", "Sources", "Findings", "Synthesis", "Open Gaps"}},
+		{name: "evidence", typ: templates.TypeEvidence, sections: []string{"Locator", "Extract", "Notes"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			for _, section := range tt.sections {
+				t.Run(section, func(t *testing.T) {
+					body := strings.Replace(templates.GenerateTemplate(tt.typ), "## "+section+"\n", "## Removed\n", 1)
+					findings := PrecisionFindings(tt.typ, templates.Frontmatter{Title: "T", Status: templates.StatusDraft}, body)
+					if !strings.Contains(strings.Join(findings, "\n"), "missing section: ## "+section) {
+						t.Errorf("missing %s not reported: %v", section, findings)
+					}
+				})
+			}
+		})
+	}
+}

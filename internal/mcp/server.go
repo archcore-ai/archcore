@@ -36,21 +36,29 @@ Example structures:
   .archcore/my-doc.rule.md                   → virtual category: knowledge (root level)
 
 Document types and their virtual categories:
-  knowledge: adr (decisions), rfc (proposals), rule (standards), guide (how-tos), doc (reference), spec (contracts)
-  vision:    prd (requirements), idea (concepts), plan (action plans), rnd (research), mrd (market requirements), brd (business requirements), urd (user requirements), brs (business req spec), strs (stakeholder req spec), syrs (system req spec), srs (software req spec)
+  knowledge: adr (decisions), rfc (proposals), rule (standards), guide (how-tos), doc (reference), spec (contracts), evidence (external materials)
+  vision:    prd (requirements), idea (concepts), plan (action plans), rnd (decision-bound research), research (territory investigations), mrd (market requirements), brd (business requirements), urd (user requirements), brs (business req spec), strs (stakeholder req spec), syrs (system req spec), srs (software req spec)
   experience: task-type (typical task patterns), cpat (code pattern changes)
 
 DOCUMENT RELATIONS:
 Documents can be linked with directed relations stored in the sync manifest.
+  Axes: structural (related, implements, extends, depends_on), evidential (supports, contradicts), temporal (supersedes).
   Relation types:
     related     — general association (e.g., two ADRs on the same topic)
     implements  — source implements what target specifies (e.g., plan implements prd)
     extends     — source builds upon target (e.g., rfc extends an existing adr)
     depends_on  — source requires target to proceed (e.g., plan depends_on adr)
+    supports    — material points to the statement it backs
+    contradicts — challenger points to the statement it disputes
+    supersedes  — newer document points to the older document it replaces
 
   After creating a document, check the nearby_documents hint in the response.
   Use add_relation to link related documents. Use list_relations to see existing links.
-  Research (rnd) conventions (advisory): idea related rnd; prd/plan/adr depends_on rnd; rfc extends rnd; rnd related rnd. Do not use "implements" for research.
+  Research (rnd) conventions (advisory): idea related rnd; prd/plan/adr depends_on rnd; rfc extends rnd; rnd related rnd. Do not use "implements" for rnd.
+  The research type takes neither implements nor extends by convention; use rnd depends_on research.
+  The engine accepts relation values independently of document type or category. Endpoints must be distinct existing local documents; global sources are never endpoints.
+  New evidential and temporal relations do not trigger cascades, move content, change statuses, or resolve contradictions.
+  Keep a contradicts edge until the disputed document names both materials and records the resolution in prose.
 
 TAGS:
 Use tags when a document is relevant to multiple teams or domains.
@@ -58,6 +66,7 @@ Use tags when a document is relevant to multiple teams or domains.
   Tag filtering uses OR semantics — a document matches if it has any of the specified tags.
   Tags narrow results but don't guarantee completeness — combine with type/category filters.
   If a tag-filtered query returns 0 results, retry without the tag filter.
+  Source-class conventions: source:primary, source:secondary, source:measurement, source:interview, source:dataset. These tags are not a closed enum.
 
 WHEN TO SEARCH CONTENT:
 Use search_documents to find documents by path reference, content substring, or metadata filters — not by topic guess. Unlike list_documents, it scans bodies. Prefer it over grep over .archcore/ when you need "which docs mention X".
@@ -85,6 +94,8 @@ WHEN TO CREATE:
 - A product concept or technical idea needs capturing → idea
 - An implementation plan with tasks is formed → plan
 - A bounded investigation is needed to answer a question before deciding or building → rnd
+- An investigation maps a territory and closes on coverage → research
+- One external material needs a reusable record with a locator and extract → evidence
 - Product requirements with goals, scope, and acceptance criteria → prd
 - Market analysis with TAM/SAM/SOM, competitive landscape, and market needs → mrd
 - Business justification with objectives, ROI, stakeholders, and budget → brd
@@ -109,6 +120,9 @@ WHEN TO DELETE (use remove_document):
 TYPE SELECTION RULES (use these to disambiguate):
 - rule vs doc: A rule contains imperative statements ("Always do X", "Never do Y") with good/bad code examples and enforcement info. A doc is non-behavioral reference material (tables, registries, glossaries). If the content describes what exists rather than prescribing behavior, use doc.
 - adr vs rfc: An adr records a decision already made. An rfc proposes a change open for review. If the decision is final, use adr; if still open for feedback, use rfc.
+- rnd vs research: A verdict closes rnd; coverage of the declared scope closes research. Research can be revised as the territory changes.
+- research vs doc: Research records external knowledge with dated sources and gaps. A doc records reference information the team controls and can verify from its system.
+- evidence vs statement: Evidence is one material, never one statement. Record a source as a row first; create evidence when two documents rely on it, a contradiction involves it, or a newer material supersedes it.
 - rnd vs idea: An rnd INVESTIGATES an open question and must end in a recommendation (proceed/refine/defer/stop) plus a next action. An idea PROPOSES a concept worth exploring. Use rnd for "should we / which way"; use idea for "we could".
 - rnd vs adr: An rnd INVESTIGATES to inform a decision that is still pending. An adr COMMITS to a decision already made. Gather evidence in an rnd, then record the resulting decision as an adr (adr depends_on rnd).
 - rnd vs rfc: An rnd explores an open QUESTION with no position yet. An rfc puts a concrete PROPOSAL up for review. If there is nothing to propose yet, use rnd.
@@ -148,6 +162,10 @@ VALID STATUS VALUES:
   accepted  — finalized or approved; set only when the human confirms
   rejected  — superseded, abandoned, or declined; preserves history
   For an rnd, status carries the investigation's verdict: draft = investigating; accepted = proceed/refine; rejected = defer/stop. A "rejected" rnd ("we investigated and decided not to") is a first-class outcome — keep it, do not delete it; it preserves the dead end.
+
+  For research, accepted means the synthesis is current as of its last revision; rejected means abandoned or fully replaced.
+  For evidence, draft means recorded; accepted means a second reader confirmed existence and the extract; rejected means retracted or unreliable. These are authoring conventions; the engine does not verify them.
+  Evidence stores a locator and extract, not the raw file. Keep snapshots outside the repository or in an ignored directory. No engine tool fetches, hashes, or verifies sources.
 
 CODE REFERENCES (optional):
 Documents may reference source code paths using @-notation (e.g., @cmd/sync.go, @internal/config/).

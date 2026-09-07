@@ -136,7 +136,7 @@ Each `searchResult` object has the following fields:
 | `specificity` | integer | Per-match specificity value (see Normative Behavior §6).                                      |
 | `excerpt`     | string  | ≤ ~120-character window around the match, padded with `...` if truncated. Always valid UTF-8. |
 
-`Relation` fields (reuses `DocumentRelation` from @internal/mcp/tools/docs_bridge.go, aliased to `docs.DocumentRelation`): `path`, `type` (one of `related`, `implements`, `extends`, `depends_on`).
+`Relation` fields (reuses `DocumentRelation` from @internal/mcp/tools/docs_bridge.go, aliased to `docs.DocumentRelation`): `path`, `type` (one of `related`, `implements`, `extends`, `depends_on`, `supports`, `contradicts`, `supersedes`).
 
 ## Normative Behavior
 

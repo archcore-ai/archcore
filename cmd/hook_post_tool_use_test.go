@@ -76,6 +76,9 @@ func TestCascadeAdvisory(t *testing.T) {
 		{name: "implements is reported", tool: "mcp__archcore__update_document", relation: "implements", wantText: "impl.plan.md"},
 		{name: "depends_on is reported", tool: "mcp__archcore__update_document", relation: "depends_on", wantText: "impl.plan.md"},
 		{name: "extends is reported", tool: "mcp__archcore__update_document", relation: "extends", wantText: "impl.plan.md"},
+		{name: "supports is ignored", tool: "mcp__archcore__update_document", relation: "supports"},
+		{name: "contradicts is ignored", tool: "mcp__archcore__update_document", relation: "contradicts"},
+		{name: "supersedes is ignored", tool: "mcp__archcore__update_document", relation: "supersedes"},
 		{name: "related is ignored", tool: "mcp__archcore__update_document", relation: "related"},
 		{name: "create_document does not cascade", tool: "mcp__archcore__create_document", relation: "implements"},
 	}

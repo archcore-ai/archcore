@@ -146,6 +146,20 @@ var RequiredSections = map[DocumentType][]SectionRule{
 		{Name: "Recommendation"},
 		{Name: "Next Action"},
 	},
+	TypeResearch: {
+		{Name: "Goal"},
+		{Name: "Scope"},
+		{Name: "Coverage"},
+		{Name: "Sources"},
+		{Name: "Findings"},
+		{Name: "Synthesis"},
+		{Name: "Open Gaps"},
+	},
+	TypeEvidence: {
+		{Name: "Locator"},
+		{Name: "Extract"},
+		{Name: "Notes"},
+	},
 	TypeTaskType: {
 		{Name: "When to Use", Aliases: []string{"When to use"}},
 		{Name: "Steps"},
@@ -292,6 +306,7 @@ var ProseProfiles = map[DocumentType]ProseProfile{
 	TypeADR: ProfileISO, TypeRFC: ProfileISO, TypeDoc: ProfileISO,
 	TypePRD: ProfileISO, TypePlan: ProfileISO, TypeIdea: ProfileISO,
 	TypeRnD: ProfileISO, TypeCPAT: ProfileISO,
+	TypeResearch: ProfileISO, TypeEvidence: ProfileISO,
 	TypeMRD: ProfileISO, TypeBRD: ProfileISO, TypeURD: ProfileISO,
 }
 

@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"archcore-cli/templates"
+
+	"gopkg.in/yaml.v3"
 )
 
 func setupTestArchcore(t *testing.T) string {
@@ -457,7 +459,10 @@ func TestNormalizeTags_DoesNotMutateInput(t *testing.T) {
 
 func TestBuildDocumentFile_WithTags(t *testing.T) {
 	t.Parallel()
-	result := buildDocumentFile("Test Title", "draft", []string{"auth", "frontend"}, "## Body\nContent.")
+	result, err := buildDocumentFile(templates.Frontmatter{Title: "Test Title", Status: templates.StatusDraft, Tags: []string{"auth", "frontend"}}, "## Body\nContent.")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.Contains(result, "tags:\n  - \"auth\"\n  - \"frontend\"\n") {
 		t.Errorf("expected YAML tags block, got:\n%s", result)
 	}
@@ -472,7 +477,10 @@ func TestBuildDocumentFile_WithTags(t *testing.T) {
 	}
 
 	// No tags case.
-	noTags := buildDocumentFile("T", "draft", nil, "Body")
+	noTags, err := buildDocumentFile(templates.Frontmatter{Title: "T", Status: templates.StatusDraft}, "Body")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if strings.Contains(noTags, "tags:") {
 		t.Error("should not contain tags block when tags is nil")
 	}
@@ -548,5 +556,81 @@ func TestValidateArchcorePath(t *testing.T) {
 				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestBuildDocumentFile_RetainedFrontmatter(t *testing.T) {
+	t.Parallel()
+	fm, body, err := templates.SplitDocument([]byte(retainedFrontmatterDoc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := buildDocumentFile(fm, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, wantKeys, wantBody := decodeFrontmatterValues(t, retainedFrontmatterDoc)
+	got, keys, gotBody := decodeFrontmatterValues(t, result)
+	if !reflect.DeepEqual(got, want) || !reflect.DeepEqual(keys, wantKeys) || gotBody != wantBody {
+		t.Errorf("round trip changed values: %#v / %v / %q", got, keys, gotBody)
+	}
+}
+
+func TestBuildDocumentFile_OwnedFieldsAgreeWithSchema(t *testing.T) {
+	t.Parallel()
+	owned := make(map[string]bool)
+	for _, field := range reflect.VisibleFields(reflect.TypeFor[templates.Frontmatter]()) {
+		key, _, _ := strings.Cut(field.Tag.Get("yaml"), ",")
+		if key != "" && key != "-" {
+			owned[key] = true
+		}
+	}
+	if len(owned) == 0 {
+		t.Fatal("frontmatter schema declares no owned fields")
+	}
+	encoded, err := yaml.Marshal(templates.Frontmatter{Title: "Original", Status: templates.StatusDraft, Tags: []string{"source:primary"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture map[string]any
+	if err := yaml.Unmarshal(encoded, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	for key := range owned {
+		if _, ok := fixture[key]; !ok {
+			t.Fatalf("fixture omits owned field %q", key)
+		}
+	}
+	fm, body, err := templates.SplitDocument([]byte("---\n" + string(encoded) + "custom: retained\n---\n\nBody"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fm.Extra) != 2 || fm.Extra[0].Value != "custom" || fm.Extra[1].Value != "retained" {
+		t.Fatalf("parser retained unexpected fields: %+v", fm.Extra)
+	}
+	result, err := buildDocumentFile(fm, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var root yaml.Node
+	if err := yaml.Unmarshal([]byte(result), &root); err != nil {
+		t.Fatal(err)
+	}
+	if len(root.Content) != 1 || root.Content[0].Kind != yaml.MappingNode {
+		t.Fatal("serializer emitted no frontmatter mapping")
+	}
+	counts := make(map[string]int)
+	fields := root.Content[0].Content
+	for i := 0; i < len(fields); i += 2 {
+		counts[fields[i].Value]++
+	}
+	for key := range owned {
+		if counts[key] != 1 {
+			t.Errorf("owned field %q emitted %d times, want 1", key, counts[key])
+		}
+		delete(counts, key)
+	}
+	if len(counts) != 1 || counts["custom"] != 1 {
+		t.Errorf("unowned emitted fields = %v, want custom exactly once", counts)
 	}
 }

@@ -27,6 +27,8 @@ const (
 	TypePlan     DocumentType = "plan"
 	TypeRnD      DocumentType = "rnd"
 	TypeSpec     DocumentType = "spec"
+	TypeResearch DocumentType = "research"
+	TypeEvidence DocumentType = "evidence"
 	TypeMRD      DocumentType = "mrd"
 	TypeBRD      DocumentType = "brd"
 	TypeURD      DocumentType = "urd"
@@ -65,6 +67,9 @@ type Frontmatter struct {
 	Title  string    `yaml:"title" json:"title"`
 	Status DocStatus `yaml:"status" json:"status,omitempty"`
 	Tags   []string  `yaml:"tags" json:"tags,omitempty"`
+	// Extra retains author-owned YAML in order without expanding the sync wire schema.
+	// See document-update-frontmatter.spec.
+	Extra []*yaml.Node `yaml:"-" json:"-"`
 }
 
 // SkipFiles are non-document meta files that live in .archcore/ and should be
@@ -105,24 +110,26 @@ func IsValidCategory(c Category) bool {
 }
 
 var categoryMap = map[DocumentType]Category{
-	TypePRD:  CategoryVision,
-	TypeIdea: CategoryVision,
-	TypePlan: CategoryVision,
-	TypeRnD:  CategoryVision,
-	TypeMRD:  CategoryVision,
-	TypeBRD:  CategoryVision,
-	TypeURD:  CategoryVision,
-	TypeBRS:  CategoryVision,
-	TypeStRS: CategoryVision,
-	TypeSyRS: CategoryVision,
-	TypeSRS:  CategoryVision,
+	TypePRD:      CategoryVision,
+	TypeIdea:     CategoryVision,
+	TypePlan:     CategoryVision,
+	TypeRnD:      CategoryVision,
+	TypeResearch: CategoryVision,
+	TypeMRD:      CategoryVision,
+	TypeBRD:      CategoryVision,
+	TypeURD:      CategoryVision,
+	TypeBRS:      CategoryVision,
+	TypeStRS:     CategoryVision,
+	TypeSyRS:     CategoryVision,
+	TypeSRS:      CategoryVision,
 
-	TypeADR:   CategoryKnowledge,
-	TypeRFC:   CategoryKnowledge,
-	TypeRule:  CategoryKnowledge,
-	TypeGuide: CategoryKnowledge,
-	TypeDoc:   CategoryKnowledge,
-	TypeSpec:  CategoryKnowledge,
+	TypeADR:      CategoryKnowledge,
+	TypeRFC:      CategoryKnowledge,
+	TypeRule:     CategoryKnowledge,
+	TypeGuide:    CategoryKnowledge,
+	TypeDoc:      CategoryKnowledge,
+	TypeSpec:     CategoryKnowledge,
+	TypeEvidence: CategoryKnowledge,
 
 	TypeTaskType: CategoryExperience,
 	TypeCPAT:     CategoryExperience,
@@ -145,6 +152,8 @@ func ValidTypes() []string {
 		string(TypeGuide),
 		string(TypeDoc),
 		string(TypeSpec),
+		string(TypeResearch),
+		string(TypeEvidence),
 		string(TypeTaskType),
 		string(TypeCPAT),
 		string(TypePRD),
@@ -224,8 +233,26 @@ func SplitDocument(data []byte) (Frontmatter, string, error) {
 }
 
 func parseFrontmatterYAML(content string, fm *Frontmatter) error {
-	if err := yaml.Unmarshal([]byte(content), fm); err != nil {
+	var root yaml.Node
+	if err := yaml.Unmarshal([]byte(content), &root); err != nil {
 		return fmt.Errorf("invalid frontmatter YAML: %w", err)
+	}
+	if err := root.Decode(fm); err != nil {
+		return fmt.Errorf("invalid frontmatter YAML: %w", err)
+	}
+	if len(root.Content) == 0 || root.Content[0].Kind != yaml.MappingNode {
+		return nil
+	}
+	fields := root.Content[0].Content
+	for i := 0; i < len(fields); i += 2 {
+		key := fields[i]
+		var name string
+		if err := key.Decode(&name); err != nil {
+			return fmt.Errorf("invalid frontmatter key: %w", err)
+		}
+		if name != "title" && name != "status" && name != "tags" {
+			fm.Extra = append(fm.Extra, key, fields[i+1])
+		}
 	}
 	return nil
 }
@@ -295,6 +322,10 @@ func GenerateTemplate(documentType DocumentType) string {
 		return generateDocTemplate()
 	case TypeSpec:
 		return generateSpecTemplate()
+	case TypeResearch:
+		return generateResearchTemplate()
+	case TypeEvidence:
+		return generateEvidenceTemplate()
 	case TypeTaskType:
 		return generateTaskTypeTemplate()
 	case TypeCPAT:
@@ -946,6 +977,59 @@ phase, so a task can be cited as "Phase 2, task 1".
 |------------|------|--------|
 
 ## Notes
+`
+}
+
+func generateResearchTemplate() string {
+	return `## Goal
+
+State the territory this investigation maps and the questions it covers.
+
+## Scope
+
+Describe the boundaries, revision date, and method used to gather the material.
+
+## Coverage
+
+| Question or area | Coverage | Remaining gap |
+|---|---|---|
+| [AREA REQUIRED] | [COVERAGE REQUIRED] | [GAP REQUIRED] |
+
+## Sources
+
+| Material | Address | Access date | Contribution |
+|---|---|---|---|
+| [MATERIAL REQUIRED] | [ADDRESS REQUIRED] | [DATE REQUIRED] | [CONTRIBUTION REQUIRED] |
+
+## Findings
+
+State each finding with its supporting material. Distinguish observations from assumptions.
+
+## Synthesis
+
+Explain what the findings establish across the declared scope as of this revision.
+
+## Open Gaps
+
+State unresolved questions, missing coverage, and conflicting evidence.
+`
+}
+
+func generateEvidenceTemplate() string {
+	return `## Locator
+
+Address: [ADDRESS REQUIRED]
+Access date: [DATE REQUIRED]
+Publication date: [DATE UNKNOWN]
+Publisher: [PUBLISHER UNKNOWN]
+
+## Extract
+
+Record the extract from this one material that the relying document uses.
+
+## Notes
+
+State the material's limitations and the context needed to interpret the extract.
 `
 }
 

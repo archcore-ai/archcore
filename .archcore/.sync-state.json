@@ -1622,6 +1622,76 @@
       "source": "code-quality/modern-go-guidelines-integration.idea.md",
       "target": "code-quality/strict-go-naming-conventions.rule.md",
       "type": "related"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "relations/local-relations-in-sync-state.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "relations/no-auto-relations-on-create-document.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "sync/sync-engine.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/research-and-evidence-types.spec.md",
+      "target": "document-types/research-and-evidence-vocabulary.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "relations/evidential-and-temporal-relations.spec.md",
+      "target": "document-types/research-and-evidence-vocabulary.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "relations/evidential-and-temporal-relations.spec.md",
+      "target": "sync/sync-engine.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/document-update-frontmatter.spec.md",
+      "target": "document-types/research-and-evidence-vocabulary.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/document-update-frontmatter.spec.md",
+      "target": "mcp/tag-update-semantics.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "document-types/research-and-evidence-types.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "relations/evidential-and-temporal-relations.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "mcp/document-update-frontmatter.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "release/release-infrastructure.doc.md",
+      "type": "depends_on"
     }
   ]
 }

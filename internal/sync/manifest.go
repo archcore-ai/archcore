@@ -18,19 +18,24 @@ import (
 type RelationType string
 
 const (
-	RelRelated    RelationType = "related"
-	RelImplements RelationType = "implements"
-	RelExtends    RelationType = "extends"
-	RelDependsOn  RelationType = "depends_on"
+	RelRelated     RelationType = "related"
+	RelImplements  RelationType = "implements"
+	RelExtends     RelationType = "extends"
+	RelDependsOn   RelationType = "depends_on"
+	RelSupports    RelationType = "supports"
+	RelContradicts RelationType = "contradicts"
+	RelSupersedes  RelationType = "supersedes"
 )
 
 var validRelationTypes = map[RelationType]bool{
 	RelRelated: true, RelImplements: true, RelExtends: true, RelDependsOn: true,
+	RelSupports: true, RelContradicts: true, RelSupersedes: true,
 }
 
 // ValidRelationTypes returns all supported relation type strings.
 func ValidRelationTypes() []string {
-	return []string{string(RelRelated), string(RelImplements), string(RelExtends), string(RelDependsOn)}
+	return []string{string(RelRelated), string(RelImplements), string(RelExtends), string(RelDependsOn),
+		string(RelSupports), string(RelContradicts), string(RelSupersedes)}
 }
 
 // IsValidRelationType reports whether t is a recognised relation type.

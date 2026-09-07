@@ -17,7 +17,7 @@ Original baseline: **~5,600 tokens/session** fixed overhead (system instructions
 
 ### Shipped (safe)
 
-- **Compressed `create_document` description** (partial Item 1). The 18 document types are still enumerated in the tool description, but each entry is now one or two lines instead of a full multi-line section list. Section detail is delegated to the auto-generated template. The `tags` and `content` parameter descriptions were also tightened, with longer reference text pushed to server instructions. Net effect: roughly half the tokens of the original create_document schema, without removing type guidance.
+- **Compressed `create_document` description** (partial Item 1). The current 21 document types are enumerated in the tool description, but each entry is now one or two lines instead of a full multi-line section list. Section detail is delegated to the auto-generated template. The `tags` and `content` parameter descriptions were also tightened, with longer reference text pushed to server instructions. Net effect: roughly half the tokens of the original create_document schema, without removing type guidance.
 - **`nearby_documents` cap** (Item 5). `populateNearbyDocuments` in `@internal/mcp/tools/create_document.go` sorts results alphabetically and caps at `maxNearbyDocuments = 5`. Bounds the response size in large directories.
 - **Instruction trim** (partial Item 4). The `REQUIREMENTS TRACKS`, `RESEARCH GATE`, and `WORKFLOW PROMPTS` sections were cut from `mcpServerInstructions` when the MCP track prompts were removed — about 1,900 bytes. `REQUIREMENTS LAYERS` stays, because the `add_relation` description refers to it. See the ADR on removing the MCP track prompts.
 - **Prompts capability removed.** The server no longer declares prompts, so the prompt list is not part of session overhead at all.
@@ -75,7 +75,7 @@ Minimal descriptions yield 25–40% error rate (wrong type, missing sections). T
 ## Possible Implementation
 
 ### 1. Deduplicate `create_document` description (~500–700 tokens saved) — *partial*
-The tool description re-lists all 18 types with required sections (~700 tokens) that already exist in system instructions. The compressed shipped version keeps a one-line summary per type; a future change could replace it with a single reference: "See system instructions for required sections per type."
+The tool description re-lists all 21 types with required sections (~700 tokens) that already exist in system instructions. The compressed shipped version keeps a one-line summary per type; a future change could replace it with a single reference: "See system instructions for required sections per type."
 
 ### 2. Remove `filename` + `slug` from `list_documents` response (~430 tokens per 50 docs) — *open*
 Both are mechanically derivable from `path`. Strip from the JSON response.

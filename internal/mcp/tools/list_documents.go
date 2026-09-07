@@ -46,11 +46,11 @@ Returns: JSON {"documents": [...], "total": N, "offset": N, "returned": N, "trun
 
 Use the returned paths directly as input to get_document. Do not construct paths manually.`),
 		mcp.WithArray("types",
-			mcp.Description("Filter by one or more document types. Valid values: adr, rfc, rule, guide, doc, spec, prd, idea, plan, rnd, task-type, cpat, mrd, brd, urd, brs, strs, syrs, srs. Example: [\"adr\", \"rule\"] returns only decision records and standards."),
+			mcp.Description("Filter by one or more document types. Valid values: adr, rfc, rule, guide, doc, spec, research, evidence, prd, idea, plan, rnd, task-type, cpat, mrd, brd, urd, brs, strs, syrs, srs. Example: [\"adr\", \"rule\"] returns only decision records and standards."),
 			mcp.WithStringItems(),
 		),
 		mcp.WithString("category",
-			mcp.Description(`Filter by virtual category (derived from document type, not directory). Use "knowledge" for decisions/standards/guides/specs/docs/proposals, "vision" for requirements/ideas/plans, "experience" for task patterns and code pattern changes.`),
+			mcp.Description(`Filter by virtual category (derived from document type, not directory). Use "knowledge" for decisions/standards/guides/specs/docs/proposals/evidence, "vision" for requirements/ideas/plans/investigations, "experience" for task patterns and code pattern changes.`),
 			mcp.Enum(templates.ValidCategoryStrings()...),
 		),
 		mcp.WithString("status",

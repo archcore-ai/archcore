@@ -164,8 +164,8 @@ Document types map to virtual categories:
 
 | Category | Types |
 |----------|-------|
-| `knowledge` | adr, rfc, rule, guide, doc, spec |
-| `vision` | prd, idea, plan, rnd, mrd, brd, urd, brs, strs, syrs, srs |
+| `knowledge` | adr, rfc, rule, guide, doc, spec, evidence |
+| `vision` | prd, idea, plan, rnd, mrd, brd, urd, brs, strs, syrs, srs, research |
 | `experience` | task-type, cpat |
 
 Files follow the naming convention: `<slug>.<type>.md` (e.g., `use-postgres.adr.md`). The directory

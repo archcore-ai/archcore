@@ -12,6 +12,7 @@ import (
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
+	"gopkg.in/yaml.v3"
 )
 
 // loadGlobalsFailClosed loads declared global sources for a write guard. On
@@ -103,20 +104,54 @@ func describeIOClass(err error) string {
 }
 
 // buildDocumentFile reconstructs a full document file from frontmatter fields and body.
-func buildDocumentFile(title string, status templates.DocStatus, tags []string, body string) string {
+func buildDocumentFile(fm templates.Frontmatter, body string) (string, error) {
 	var buf strings.Builder
 	buf.WriteString("---\n")
-	fmt.Fprintf(&buf, "title: %q\n", title)
-	fmt.Fprintf(&buf, "status: %s\n", status)
-	if len(tags) > 0 {
+	fmt.Fprintf(&buf, "title: %q\n", fm.Title)
+	fmt.Fprintf(&buf, "status: %s\n", fm.Status)
+	if len(fm.Tags) > 0 {
 		buf.WriteString("tags:\n")
-		for _, tag := range tags {
+		for _, tag := range fm.Tags {
 			fmt.Fprintf(&buf, "  - %q\n", tag)
+		}
+	} else {
+		for i := 0; i < len(fm.Extra); i += 2 {
+			if fm.Extra[i].Tag == "!!merge" {
+				// An explicit empty value prevents a retained YAML merge from restoring cleared tags.
+				buf.WriteString("tags: []\n")
+				break
+			}
+		}
+	}
+	if len(fm.Extra) > 0 {
+		retained := make(map[*yaml.Node]bool, len(fm.Extra))
+		nodes := slices.Clone(fm.Extra)
+		for i := 0; i < len(nodes); i++ {
+			retained[nodes[i]] = true
+			nodes = append(nodes, nodes[i].Content...)
+		}
+		// Checking identity prevents a reused anchor name from silently rebinding
+		// an alias after its original owned target disappears — document-update-frontmatter.spec.
+		for _, node := range nodes {
+			if node.Kind == yaml.AliasNode && !retained[node.Alias] {
+				return "", errors.New("retained frontmatter aliases an owned field")
+			}
+		}
+		extra, err := yaml.Marshal(&yaml.Node{Kind: yaml.MappingNode, Content: fm.Extra})
+		if err != nil {
+			return "", fmt.Errorf("encoding retained frontmatter: %w", err)
+		}
+		buf.Write(extra)
+		// Owned fields are emitted manually: a preserved status can become invalid
+		// unquoted YAML. Refuse before writing — document-update-frontmatter.spec.
+		var root yaml.Node
+		if err := yaml.Unmarshal([]byte(buf.String()), &root); err != nil {
+			return "", fmt.Errorf("validating retained frontmatter: %w", err)
 		}
 	}
 	buf.WriteString("---\n\n")
 	buf.WriteString(body)
-	return buf.String()
+	return buf.String(), nil
 }
 
 // stripFrontmatter removes YAML frontmatter from content if present.

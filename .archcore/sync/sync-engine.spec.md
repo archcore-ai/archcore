@@ -42,7 +42,9 @@ State file: `.archcore/.sync-state.json` — `version`, `files` (path relative t
 - The manifest MUST NOT exceed 10,000 file entries or 50,000 relations (bounds memory use on corrupt or hostile input).
 - Every stored hash MUST match `^[0-9a-f]{64}$`.
 - Every manifest and payload path MUST be relative and confined to `.archcore/` — no `..` escape, no absolute paths.
-- Relation `type` MUST be one of `related`, `implements`, `extends`, `depends_on`; source and target MUST differ; duplicate triples are invalid.
+- The manifest validator MUST accept only `related`, `implements`, `extends`, `depends_on`, `supports`, `contradicts`, and `supersedes` as relation types.
+- The manifest validator MUST reject a relation whose source equals its target.
+- The manifest validator MUST reject duplicate relation triples.
 - Unknown manifest root fields fail closed — the manifest is machine-owned state, and rewriting it MUST NOT silently drop fields written by a newer binary.
 
 ## Failure Behavior
@@ -53,6 +55,8 @@ State file: `.archcore/.sync-state.json` — `version`, `files` (path relative t
 - IF a file's frontmatter cannot be split or its `status` is invalid, THEN `BuildPayload` MUST return an error naming the relative path.
 - IF the rename step fails, THEN `SaveManifest` MUST remove the temp file and return an error.
 - IF a relation's source or target file no longer exists on disk, THEN `CleanupRelations` MUST drop that relation and return the removed count.
+
+Older binaries reject manifests containing the three new values. The expanded enum retains manifest version 1; no downgrade conversion is provided — @internal/sync/manifest.go.
 
 ## Conformance
 

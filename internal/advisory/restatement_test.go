@@ -61,6 +61,9 @@ func TestRestatement(t *testing.T) {
 		relType  archsync.RelationType
 		wantHit  bool
 	}{
+		{name: "supports carries no content", upstream: numberedDoc(copiedLine), written: numberedDoc(copiedLine), relType: archsync.RelSupports},
+		{name: "contradicts carries no content", upstream: numberedDoc(copiedLine), written: numberedDoc(copiedLine), relType: archsync.RelContradicts},
+		{name: "supersedes carries no content", upstream: numberedDoc(copiedLine), written: numberedDoc(copiedLine), relType: archsync.RelSupersedes},
 		{
 			name:     "verbatim copy is reported",
 			upstream: numberedDoc(copiedLine),

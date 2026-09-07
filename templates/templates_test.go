@@ -659,11 +659,12 @@ func TestGeneratePlanTemplate(t *testing.T) {
 func TestSplitDocument(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name     string
-		input    string
-		wantFM   Frontmatter
-		wantBody string
-		wantErr  bool
+		name      string
+		input     string
+		wantFM    Frontmatter
+		wantExtra []string
+		wantBody  string
+		wantErr   bool
 	}{
 		{
 			name:  "standard frontmatter",
@@ -751,13 +752,14 @@ func TestSplitDocument(t *testing.T) {
 			wantBody: "Body",
 		},
 		{
-			name:  "unknown fields ignored",
+			name:  "unknown fields preserved",
 			input: "---\ntitle: Extra Fields\nstatus: draft\ncustom: value\n---\n\nBody",
 			wantFM: Frontmatter{
 				Title:  "Extra Fields",
 				Status: "draft",
 			},
-			wantBody: "Body",
+			wantExtra: []string{"custom", "value"},
+			wantBody:  "Body",
 		},
 		{
 			name:  "YAML special values as tags",
@@ -849,6 +851,13 @@ func TestSplitDocument(t *testing.T) {
 			}
 			if !reflect.DeepEqual(fm.Tags, tt.wantFM.Tags) {
 				t.Errorf("tags = %v, want %v", fm.Tags, tt.wantFM.Tags)
+			}
+			var extra []string
+			for _, node := range fm.Extra {
+				extra = append(extra, node.Value)
+			}
+			if !reflect.DeepEqual(extra, tt.wantExtra) {
+				t.Errorf("extra frontmatter = %v, want %v", extra, tt.wantExtra)
 			}
 			if body != tt.wantBody {
 				t.Errorf("body = %q, want %q", body, tt.wantBody)
@@ -1161,5 +1170,60 @@ func TestWalkArchcoreFilesSkipping_SkipsSymlinks(t *testing.T) {
 	}
 	if len(visited) != 1 || visited[0] != "real.adr.md" {
 		t.Fatalf("visited = %v, want only [real.adr.md] (symlinks must be skipped)", visited)
+	}
+}
+
+func TestResearchVocabulary_Templates(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		typ      DocumentType
+		category Category
+		sections []string
+	}{
+		{name: "research", typ: TypeResearch, category: CategoryVision, sections: []string{"Goal", "Scope", "Coverage", "Sources", "Findings", "Synthesis", "Open Gaps"}},
+		{name: "evidence", typ: TypeEvidence, category: CategoryKnowledge, sections: []string{"Locator", "Extract", "Notes"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if !IsValidType(string(tt.typ)) || CategoryForType(tt.typ) != tt.category {
+				t.Fatalf("category for %s = %s, want %s", tt.name, CategoryForType(tt.typ), tt.category)
+			}
+			body := GenerateTemplate(tt.typ)
+			var headings []string
+			for line := range strings.Lines(body) {
+				if heading, ok := strings.CutPrefix(line, "## "); ok {
+					headings = append(headings, strings.TrimSpace(heading))
+				}
+			}
+			if !reflect.DeepEqual(headings, tt.sections) {
+				t.Errorf("sections = %v, want %v", headings, tt.sections)
+			}
+			var required []string
+			for _, section := range RequiredSections[tt.typ] {
+				required = append(required, section.Name)
+				if len(section.Aliases) != 0 {
+					t.Errorf("new section %q has aliases: %v", section.Name, section.Aliases)
+				}
+			}
+			if !reflect.DeepEqual(required, tt.sections) || ProseProfiles[tt.typ] != ProfileISO {
+				t.Errorf("precision canon = %v / %s", required, ProseProfiles[tt.typ])
+			}
+			if tt.typ == TypeResearch {
+				for _, name := range []string{"Coverage", "Sources"} {
+					_, section, _ := strings.Cut(body, "## "+name+"\n")
+					section, _, _ = strings.Cut(section, "\n## ")
+					if !strings.Contains(section, "|---|") || !strings.Contains(section, "REQUIRED]") {
+						t.Errorf("%s has no table placeholder: %s", name, section)
+					}
+				}
+			} else {
+				want := "## Locator\n\nAddress: [ADDRESS REQUIRED]\nAccess date: [DATE REQUIRED]\nPublication date: [DATE UNKNOWN]\nPublisher: [PUBLISHER UNKNOWN]\n"
+				if !strings.HasPrefix(body, want) {
+					t.Errorf("Locator lines differ: %s", body)
+				}
+			}
+		})
 	}
 }

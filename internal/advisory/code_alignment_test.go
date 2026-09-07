@@ -221,3 +221,19 @@ func TestCodeAlignment_RejectedExcluded(t *testing.T) {
 		t.Errorf("a rejected document was injected:\n%s", got)
 	}
 }
+
+func TestCodeAlignment_ExcludesResearchVocabulary(t *testing.T) {
+	t.Parallel()
+	for _, typ := range []string{"research", "evidence"} {
+		t.Run(typ, func(t *testing.T) {
+			t.Parallel()
+			base := setupArchcoreDir(t)
+			writeAlignmentDoc(t, base, "world."+typ+".md", "World", "Applies to src/api/ handlers.")
+			writeAlignmentDoc(t, base, "local.rule.md", "Local API Rule", "Applies to src/api/ handlers.")
+			got := CodeAlignment(base, "src/api/handlers.go")
+			if !strings.Contains(got, "local.rule.md") || strings.Contains(got, "world."+typ+".md") {
+				t.Errorf("CodeAlignment = %q; want local rule only", got)
+			}
+		})
+	}
+}

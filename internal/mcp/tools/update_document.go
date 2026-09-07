@@ -142,7 +142,15 @@ func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request m
 		}
 
 		// Reconstruct the file.
-		fileContent := buildDocumentFile(title, status, tags, body)
+		existingFM.Title = title
+		existingFM.Status = status
+		existingFM.Tags = tags
+		fileContent, err := buildDocumentFile(existingFM, body)
+		if err != nil {
+			// YAML errors can quote document content; omit it from the refusal
+			// to satisfy document-update-frontmatter.spec's path-disclosure constraint.
+			return errorResult(fmt.Sprintf("cannot update %s: frontmatter cannot be preserved — repair frontmatter manually before updating", relPath)), nil
+		}
 
 		if err := writeFileAtomic(absPath, []byte(fileContent)); err != nil {
 			return errorResult(sanitizeError("writing "+relPath, err)), nil
