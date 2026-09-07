@@ -51,7 +51,13 @@ var apiKey string
 
 const (
 	// defaultEndpoint is the PostHog capture path install.sh already posts to.
-	defaultEndpoint = "https://ph.archcore.ai/i/v0/e/"
+	//
+	// This is hardcoded with no environment override, so a released binary
+	// reports here for the rest of its life. That is why the host it names can
+	// only be retired once builds carrying the new one have propagated, and
+	// why ph.archcore.ai is kept alive alongside edge.archcore.ai — see
+	// analytics-host-must-reach-posthog.adr.md in archcore-ai/landing.
+	defaultEndpoint = "https://edge.archcore.ai/i/v0/e/"
 
 	// keyPrefix marks a real PostHog project key. The guard tests the prefix
 	// rather than comparing against a placeholder, so the release substitution

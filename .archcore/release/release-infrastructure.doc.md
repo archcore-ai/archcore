@@ -84,7 +84,7 @@ The contract, the event properties, and the opt-out procedure are in install-scr
 | `GITHUB_TOKEN` | this repo (automatic) | yes | Publishes the release. GitHub Actions provides it; nothing to configure. |
 | `LANDING_DISPATCH_TOKEN` | this repo (secret) | no | A PAT with `contents: write` on `archcore-ai/landing`, used by `notify-landing.yml`. While it is absent, the job emits a warning and exits 0 — archcore.ai still picks the installer up on its next deploy, so a missing secret never turns a CLI push red. |
 | `POSTHOG_KEY` | `archcore-ai/landing` (variable) | yes, for analytics | Public PostHog project key. Substituted into the installers at landing deploy time. A missing or non-`phc_` value fails the landing deploy. |
-| `POSTHOG_HOST` | `archcore-ai/landing` (variable) | no | Ingestion host, `https://ph.archcore.ai`. Falls back to the same value when unset. |
+| `POSTHOG_HOST` | `archcore-ai/landing` (variable) | no | Ingestion host, `https://edge.archcore.ai`. Falls back to the same value when unset. |
 
 The pipeline needs no signing keys and no notarization credentials.
 

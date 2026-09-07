@@ -30,7 +30,7 @@ An npm distribution channel was proposed first, on the theory that npm download 
 
 Measure installs in two independent ways, both reporting into the PostHog project that already serves archcore.ai.
 
-1. **An installer beacon.** `install.sh` and `install.ps1` send one anonymous event per run — `cli_installed` on success, `cli_install_failed` with a `stage` category on failure — to `https://ph.archcore.ai/i/v0/e/`, the existing first-party ingestion proxy.
+1. **An installer beacon.** `install.sh` and `install.ps1` send one anonymous event per run — `cli_installed` on success, `cli_install_failed` with a `stage` category on failure — to `https://edge.archcore.ai/i/v0/e/`, the first-party ingestion proxy.
 2. **A release-counter bridge.** `.github/workflows/install-stats.yml` in `archcore-ai/landing` reports the GitHub `download_count` totals to PostHog on a daily schedule, sending both the denoised `checksums.txt` figure and the raw archive figure so the noise floor stays visible on the same chart.
 
 The two measure different populations — the bridge counts asset fetches including automation, the beacon counts consenting machines — so each is the other's sanity check.
@@ -71,7 +71,7 @@ Honest, and useless for this metric — install-time opt-in rates are near zero.
 
 ### Alternative 4: An endpoint on archcore.ai that forwards to PostHog
 
-Not available. archcore.ai is static GitHub Pages with no server, no edge functions, and no middleware, per the hosting ADR. The existing `ph.archcore.ai` proxy is the only first-party ingestion path.
+Not available. archcore.ai is static GitHub Pages with no server, no edge functions, and no middleware, per the hosting ADR. The `edge.archcore.ai` proxy is the only first-party ingestion path.
 
 ## Consequences
 
@@ -85,7 +85,7 @@ Not available. archcore.ai is static GitHub Pages with no server, no edge functi
 ### Negative
 
 - **A published privacy promise was reversed.** `/privacy` previously stated "No telemetry. We do not collect usage analytics, crash reports, identifiers, or any data from the plugin or CLI." The page now scopes that promise to the installed tools and documents the installer beacon separately. Any future change to what the beacon sends must update that copy in the same change.
-- `ph.archcore.ai` resolves to Vercel, the platform the project migrated away from because it is unreliable in Russia. Beacons from affected users fail silently, so install geography is systematically skewed. The bridge is unaffected and partly compensates.
+- The proxy is a single point of silent failure, and this was not hypothetical: `ph.archcore.ai` pointed at a Vercel deployment that the landing site's move to GitHub Pages deleted, and every beacon got a 404 for months without anything failing. It now runs on `edge.archcore.ai`, a PostHog managed reverse proxy behind Cloudflare, and CI proves the host reachable before a deploy ships against it. Cloudflare is more reachable from Russia than Vercel was, but not guaranteed, so install geography can still skew. The bridge is unaffected and partly compensates. See `analytics-host-must-reach-posthog.adr.md` in `archcore-ai/landing`.
 - The beacon adds up to 3 s to an install on a network where the proxy is unreachable.
 - The bridge's historical mode reports a per-release total *as of the day it runs*. The GitHub API exposes no historical series, so a true daily backfill is impossible; charted at publish dates it answers "which releases got picked up", not "installs per week".
 - **A red or flaky `Install Smoke` run now blocks installer publication**, where previously the redeploy fired regardless. `Notify Landing` keeps its `workflow_dispatch` as the manual override.

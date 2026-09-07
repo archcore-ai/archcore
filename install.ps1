@@ -17,7 +17,7 @@ $BINARY_NAME    = 'archcore'
 # PostHog project key rather than comparing against the placeholder text, so the
 # substitution can never accidentally rewrite its own off-switch.
 $POSTHOG_KEY  = '__POSTHOG_KEY__'
-$POSTHOG_HOST = 'https://ph.archcore.ai'
+$POSTHOG_HOST = 'https://edge.archcore.ai'
 
 # Reported as `$lib_version` alongside `$lib`. The script is fetched fresh on
 # every run and carries no other version marker, so this is the only way to tell

@@ -147,7 +147,7 @@ func TestFrozenWireIdentifiers(t *testing.T) {
 		got  string
 		want string
 	}{
-		{"capture endpoint", defaultEndpoint, "https://ph.archcore.ai/i/v0/e/"},
+		{"capture endpoint", defaultEndpoint, "https://edge.archcore.ai/i/v0/e/"},
 		{"$lib", libName, "archcore-cli"},
 		{"source", sourceCLI, "cli"},
 		{"project key prefix", keyPrefix, "phc_"},
@@ -753,7 +753,7 @@ func TestNewClient(t *testing.T) {
 	if c.Version != "1.2.3" {
 		t.Errorf("Version = %q, want %q", c.Version, "1.2.3")
 	}
-	if want := "https://ph.archcore.ai/i/v0/e/"; c.endpoint() != want {
+	if want := "https://edge.archcore.ai/i/v0/e/"; c.endpoint() != want {
 		t.Errorf("endpoint() = %q, want %q", c.endpoint(), want)
 	}
 	if c.key() != apiKey {
