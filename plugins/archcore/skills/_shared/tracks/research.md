@@ -25,9 +25,12 @@ requirements chain belongs to `skills/_shared/tracks/requirements-cascade.md`.
 A proposed technical choice belongs to the decision instrument.
 
 Gate order: `research.frame` → `research.gather` → `research.conclude`.
-An explicit `evidence` enters gather and exits there. `research.spike` remains
-the conductor's separate entry for an `empirical` Π source; its code is
-throwaway. Spike code MUST NOT merge into the mainline.
+An explicit `evidence` (`/archcore:document evidence`) enters gather and exits
+there. `/archcore:plan research` and `/archcore:document research` enter frame
+and select the investigation type by the closing test below; neither command
+exposes `rnd` as an entry. `research.spike` remains the conductor's separate
+entry for an `empirical` Π source; its code is throwaway.
+Spike code MUST NOT merge into the mainline.
 
 Gates check recorded content, not the method the executor used. Scope
 (`research`) or Approach (`rnd`) records the method used. Each gate budget is
@@ -40,12 +43,12 @@ an expert maximum; auto mode uses the shared ceiling.
 3. On a supported engine, include `research`, `evidence`, `rnd`, `idea`, and `prd` in the duplicate check.
 4. On an older engine, use `rnd`, `idea`, and `prd` in the duplicate check.
 5. If a result is global, load `skills/_shared/globals.md`.
-6. If an expert invocation names a type, fix the artifact type to that type, subject to the compatibility fallback.
-7. Otherwise, if the request names a pending decision or a set of candidates to choose between, select `rnd`.
-8. Otherwise, select `research`.
+6. If the request is an explicit `evidence` entry, fix the artifact type to `evidence`, subject to the compatibility fallback.
+7. Otherwise, if the request names a pending decision or a set of candidates to choose between, select `rnd`; a supplied report that ends in a recommendation names a pending decision.
+8. Otherwise, select `research`. The path name `research` selects this instrument, not the type.
 9. Record the artifact type in the artifact's `artifact_type` state field per `skills/_shared/gate-contract.md`.
 10. If an existing artifact has no `artifact_type`, derive the artifact type from its filename type.
-11. Keep the existing artifact's type on resume; the new alias binding does not convert an `rnd`.
+11. Keep the existing artifact's type on resume; the closing test does not convert an existing `rnd` or `research`.
 12. If a complete matching local artifact exists and the request does not ask to redo, refresh, or extend it, exit without writes.
 13. If a matching local draft exists, resume it at its earliest unmet check.
 14. If the request asks to redo, refresh, or extend a complete matching artifact, resume that artifact at `research.gather` and record the request under Clarifications.

@@ -19,9 +19,9 @@ This matrix verifies that every shipped document type keeps at least one produce
 | `prd` | `sdd.require` — every full sdd run | umbrella route (`creates` ≥ 2); capability route with `intent_gap` present | narrowed |
 | `spec` | `sdd.design`; `decision.cascade` architecture branch; `describe.draft` | capability and umbrella routes — one per capability; amendment target for `modifies`; describe path unchanged | widened |
 | `plan` | `sdd.decompose`; `decision.cascade` architecture branch | every executable route; additionally carries the declared Δ and route rationale | widened |
-| `rnd` | `research.frame` | Recommendation-based research or explicit `rnd`; spike remains Goal, Questions, Findings | widened |
-| `research` | `research.frame` | Coverage-based investigation, `plan research`, or `document research`; vision | added |
-| `evidence` | `research.gather` | Promoted material or explicit `plan evidence` / `document evidence`; knowledge | added |
+| `rnd` | `research.frame` | Research instrument when the request names a pending decision or a candidate set (closing test), the spike (Goal, Questions, Findings), or the compatibility fallback; no command exposes `rnd` as an entry | widened |
+| `research` | `research.frame` | Research instrument when the request names no pending decision — the computed route's `world` source, `plan research`, or `document research`; vision | added |
+| `evidence` | `research.gather` | Promoted material inside an investigation, or explicit `document evidence`; knowledge | added |
 | `adr` | `decision.adr`; `decision.resolve` | decision route (`decision` delta); Π `undecided`; a refactor's decision delta | widened |
 | `rfc` | `decision.rfc` | decision instrument; solution-shape uncertainty (judged panel of alternatives) | unchanged |
 | `rule` | `decision.cascade` standard branch | same producer — the `/archcore:document` path is untouched; input role at grounding stays (conductor reads rules as constraints) | unchanged |

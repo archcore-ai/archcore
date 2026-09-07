@@ -130,9 +130,11 @@ then formal document.
 | acquisition | `mrd`, `brd`, `urd` | `skills/_shared/tracks/requirements-cascade.md`, gate `requirements-cascade.mrd` |
 | iso links | `brs`, `strs`, `syrs`, `srs` | `skills/_shared/tracks/requirements-cascade.md`, gate `requirements-cascade.brs` |
 
-The research instrument fixes its product by the closing test or the explicit
-type. Its gather gate may also produce evidence; an explicit evidence invocation
-enters gather directly. This is an exception to single-type production. Apply
+The research instrument fixes its product by the closing test: a named pending
+decision or candidate set closes on a recommendation (`rnd`); any other
+investigation closes on scope coverage (`research`). Its gather gate may also
+produce evidence; an explicit `/archcore:document evidence` invocation enters
+gather directly. This is an exception to single-type production. Apply
 `skills/_shared/research-compatibility.md` before using new vocabulary.
 
 The decision instrument's `decision.cascade` gate additionally creates its
@@ -182,11 +184,15 @@ replaces the announcement with the named path.
 | `sdd` | full package: intent → contract (per capability) → decompose, at per-gate maxima |
 | `sources` | acquisition instrument, entry `requirements-cascade.mrd` |
 | `iso` | iso links, entry `requirements-cascade.brs` |
-| `research` | research instrument, entry `research.frame`, type fixed to `research` |
-| `rnd` | research instrument, entry `research.frame`, type fixed to `rnd` |
-| `evidence` | research instrument, entry `research.gather`, standalone material |
+| `research` | research instrument, entry `research.frame`; the instrument selects `research` or `rnd` by its closing test |
 | a route name — `null`, `decision`, `amendment`, `capability`, `umbrella` | that route — Derivation still runs to fill Δ; the name fixes the route and the label only |
-| a document type the registry lists | the producing instrument's entry gate |
+
+The four paths and the five route names are the whole expert surface of
+`/archcore:plan`. A document type name is not an entry: `rnd` is produced only
+by the research instrument's closing test, the spike, or the compatibility
+fallback; a standalone `evidence` material enters through
+`/archcore:document evidence`. Any other leading word is topic text and goes
+through route computation.
 
 ## State carrier
 

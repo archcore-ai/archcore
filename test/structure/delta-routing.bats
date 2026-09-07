@@ -129,7 +129,16 @@ ROWS
   grep -F -q '| `sdd` | full package: intent → contract (per capability) → decompose, at per-gate maxima |' "$CONTRACT" || fail "sdd row"
   grep -F -q '| `sources` | acquisition instrument, entry `requirements-cascade.mrd` |' "$CONTRACT" || fail "sources row"
   grep -F -q '| `iso` | iso links, entry `requirements-cascade.brs` |' "$CONTRACT" || fail "iso row"
-  grep -F -q '| `research` | research instrument, entry `research.frame`, type fixed to `research` |' "$CONTRACT" || fail "research row"
+  grep -F -q '| `research` | research instrument, entry `research.frame`; the instrument selects `research` or `rnd` by its closing test |' "$CONTRACT" || fail "research row"
+}
+
+@test "expert invocation map exposes no document-type entry: rnd and evidence are not plan paths" {
+  grep -F -q 'A document type name is not an entry' "$CONTRACT" \
+    || fail "delta-routing.md lost the 'document type name is not an entry' rule"
+  ! grep -E -q '^\| `(rnd|evidence)` \|' "$CONTRACT" \
+    || fail "expert invocation map still carries an rnd or evidence row"
+  ! grep -F -q 'a document type the registry lists' "$CONTRACT" \
+    || fail "expert invocation map still carries the registry-type catch-all row"
 }
 
 @test "verdict contract is wired into every consumer" {

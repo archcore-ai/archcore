@@ -37,7 +37,7 @@ Everyday context needs no command at all: hooks inject the applicable rules and 
 
 You never pick a route or a size — the announcement names both before any document is created (naming an expert path still works: `plan research`, `plan iso`, `review closeout`). Every gate skips itself when an existing document already covers it, so a fully-specified request runs question-free; a vague one stays within 5 questions. An interrupted flow resumes in a later session — the draft document carries the route state.
 
-`plan research <topic>` produces a `research` document (a territory survey closed by scope coverage); `plan rnd <topic>` produces an `rnd` (an investigation closed by a recommendation); `plan evidence <material>` and `document evidence <material>` file one external material as an `evidence` document. The `research` and `evidence` types and the `supports`, `contradicts`, and `supersedes` relations require Archcore CLI ≥ v0.8.3; on an older CLI, `plan research` falls back to an `rnd` and reports the required version.
+`plan research <topic>` runs the research instrument, which produces either a `research` document (a territory survey closed by scope coverage) or an `rnd` (an investigation closed by a recommendation, selected when the request names a pending decision or a set of candidates); `document research <report>` files a ready report the same way; `document evidence <material>` files one external material as an `evidence` document. The `research` and `evidence` types and the `supports`, `contradicts`, and `supersedes` relations require Archcore CLI ≥ v0.8.3; on an older CLI, `plan research` falls back to an `rnd` and reports the required version.
 
 ## Install
 

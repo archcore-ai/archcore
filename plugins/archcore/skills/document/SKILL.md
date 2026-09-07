@@ -91,8 +91,9 @@ ladder applies. Never modify a global document and never target one with
 
 If the invocation names a type, execute the named path without routing:
 
-- `research` → research track at `research.frame`, type fixed to `research`;
-  the supplied report satisfies frame inputs without an interview.
+- `research` → research track at `research.frame`; the track selects `research`
+  or `rnd` by its closing test — a report that ends in a recommendation is an
+  `rnd`, a report that covers a scope is a `research`; the supplied report satisfies frame inputs without an interview.
 - `evidence` → research track at `research.gather`, standalone material;
   the request satisfies frame, recorded in the evidence draft's Clarifications.
   This entry needs no parent investigation and exits after gather. Follow the
@@ -142,7 +143,7 @@ per-gate maxima.
 Report the produced documents grouped by category:
 
 - **knowledge** — `adr`, `rfc`, `spec`, `doc`, `guide`, `rule`, `evidence`
-- **vision** — `research` (report), `rnd` (compatibility fallback), `plan` (architecture cascade)
+- **vision** — `research` (scope-covering report), `rnd` (recommendation-closed report, or compatibility fallback), `plan` (architecture cascade)
 - **experience** — `cpat` (standard cascade opt-in)
 
 List each document's path and relation edges. Close with one recommended next

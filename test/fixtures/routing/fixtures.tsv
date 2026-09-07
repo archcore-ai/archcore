@@ -49,7 +49,5 @@ fresh clone	init	-	-
 
 # --- research vocabulary expert forms ---
 plan research	plan	skills/_shared/tracks/research.md:research.frame	2
-plan rnd	plan	skills/_shared/tracks/research.md:research.frame	2
-plan evidence	plan	skills/_shared/tracks/research.md:research.gather	0
 document research	document	skills/_shared/tracks/research.md:research.frame	2
 document evidence	document	skills/_shared/tracks/research.md:research.gather	0

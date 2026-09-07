@@ -1,7 +1,7 @@
 ---
 name: plan
-argument-hint: "[topic] [sdd | sources | iso | research | rnd | evidence]"
-description: "Plan a feature or initiative through a computed route: the conductor derives the canon delta and assembles the document package — from a zero-document null route for small fixes to an umbrella PRD with one spec per capability for large initiatives. Expert paths: sdd (full package), sources mode (MRD → BRD → URD) for market research and discovery, iso mode (BRS → StRS → SyRS → SRS) for ISO 29148 and regulated work, research for scope coverage, rnd for an investigation ending in a recommendation. Explicit forms: plan research, plan rnd, plan evidence. Use for 'plan the X redesign', 'create a roadmap', 'plan a new feature', 'I need market research before we plan', 'we're regulated — start the ISO requirements cascade', 'investigate X before we plan', 'compare the alternatives for Y'. Not for recording a decision or documenting existing code — use /archcore:document. Not for checking docs against code — use /archcore:review."
+argument-hint: "[topic] [sdd | sources | iso | research]"
+description: "Plan a feature or initiative through a computed route: the conductor derives the canon delta and assembles the document package — from a zero-document null route for small fixes to an umbrella PRD with one spec per capability for large initiatives. Expert paths: sdd (full package), sources mode (MRD → BRD → URD) for market research and discovery, iso mode (BRS → StRS → SyRS → SRS) for ISO 29148 and regulated work, research for an investigation that the research instrument closes either by scope coverage (a research document) or by a recommendation (an rnd). Explicit form: plan research. Use for 'plan the X redesign', 'create a roadmap', 'plan a new feature', 'I need market research before we plan', 'we're regulated — start the ISO requirements cascade', 'investigate X before we plan', 'compare the alternatives for Y'. Not for recording a decision or documenting existing code — use /archcore:document. Not for checking docs against code — use /archcore:review."
 ---
 
 # /archcore:plan
@@ -23,9 +23,7 @@ precedent.
 - "I need market research before we plan" → acquisition instrument (`sources` expert path)
 - "We're regulated — start the ISO requirements cascade" → iso links (`iso` expert path)
 - "Investigate X before we plan" → research instrument, `research`; "Compare the alternatives for Y" → research instrument, `rnd` — a named pending decision or candidate set selects `rnd`, otherwise `research`
-- `plan research <topic>` → open investigation closed by scope coverage
-- `plan rnd <topic>` → decision-bound investigation closed by a recommendation
-- `plan evidence <material>` → standalone material at gather
+- `plan research <topic>` → research instrument; the instrument selects `research` (closed by scope coverage) or `rnd` (closed by a recommendation) by its closing test
 
 **Not plan:**
 
@@ -40,7 +38,7 @@ Apply in this order:
 
 | Signal | Route |
 |---|---|
-| The user names an alias (`sdd`, `sources`, `iso`, `research`) or a registry document type | The named instrument per the expert invocation map in `skills/_shared/delta-routing.md`, without route computation |
+| The user names a path (`sdd`, `sources`, `iso`, `research`) | The named instrument per the expert invocation map in `skills/_shared/delta-routing.md`, without route computation |
 | The user names a route | Fix that route; run Derivation to compute its package per `skills/_shared/delta-routing.md` |
 | Any other request | Compute Δ, Π, M, and R per the Derivation section of `skills/_shared/delta-routing.md`; its route table decides the package |
 | A decision surfaces at a gate | Record the `adr` through the decision instrument (`skills/_shared/tracks/decision.md`), then return to the open gate |
@@ -48,7 +46,10 @@ Apply in this order:
 Research boundary: discovery feeding an `mrd` → `brd` → `urd` requirements
 chain belongs to acquisition. A request naming a pending decision or a set of
 candidates to choose between produces `rnd`; any other investigation produces
-`research`. A request proposing a specific
+`research`. The path name `research` selects the instrument, not the type; the
+same test applies. Neither `rnd` nor `evidence` is an entry on this command: an
+`rnd` comes only from that test, the spike, or the compatibility fallback, and a
+standalone material is filed through `/archcore:document evidence`. A request proposing a specific
 target for team acceptance ("should we switch to Y", "let's adopt Y") belongs
 to `/archcore:document`'s decision instrument.
 
@@ -120,7 +121,7 @@ WHEN the package produced a `plan` document:
 3. Confirm the plan carries its `## Declared Delta` section per sequencing rule 9 of `skills/_shared/delta-routing.md`.
 
 WHEN the package produced no `plan` document (the `null`, `decision`, and
-`amendment` routes, the acquisition and standalone research, rnd, and evidence paths), skip to Result — the
+`amendment` routes, the acquisition and research paths), skip to Result — the
 exit gate or the announcement names the follow-ups.
 
 ### 6. Implement fork

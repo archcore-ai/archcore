@@ -119,24 +119,26 @@ gate_text() {
 
 @test "resume preserves old rnd types and makes artifact_type optional" {
   grep -Fq 'derive the artifact type from its filename type' "$TRACK" || { fail "missing phrase: derive the product from its filename type"; return 1; }
-  grep -Fq 'new alias binding does not convert an `rnd`' "$TRACK" || { fail "missing phrase: new alias binding does not convert an rnd"; return 1; }
+  grep -Fq 'closing test does not convert an existing `rnd` or `research`' "$TRACK" || { fail "missing phrase: closing test does not convert an existing rnd or research"; return 1; }
   grep -Fq 'artifact_type: research|rnd|evidence' "$PLUGIN_ROOT/skills/_shared/gate-contract.md" || { fail "missing phrase: artifact_type: research|rnd|evidence"; return 1; }
   grep -Fq 'field is optional on older artifacts' "$PLUGIN_ROOT/skills/_shared/gate-contract.md" || { fail "missing phrase: field is optional on older artifacts"; return 1; }
   grep -Fq 'contradicts the filename is a blocking state error' "$PLUGIN_ROOT/skills/_shared/gate-contract.md" || { fail "missing phrase: contradicts the filename is a blocking state error"; return 1; }
 }
 
-@test "expert map fixes research and rnd products and exposes evidence entry" {
+@test "expert map routes the research path through the closing test and exposes no rnd or evidence entry" {
   local conductor="$PLUGIN_ROOT/skills/_shared/delta-routing.md"
-  grep -Fq '| `research` | research instrument, entry `research.frame`, type fixed to `research` |' "$conductor" || { fail "missing phrase: | research | research instrument, entry research.frame, type fixed to research |"; return 1; }
-  grep -Fq '| `rnd` | research instrument, entry `research.frame`, type fixed to `rnd` |' "$conductor" || { fail "missing phrase: | rnd | research instrument, entry research.frame, type fixed to rnd |"; return 1; }
-  grep -Fq '| `evidence` | research instrument, entry `research.gather`, standalone material |' "$conductor" || { fail "missing phrase: | evidence | research instrument, entry research.gather, standalone material |"; return 1; }
+  grep -Fq '| `research` | research instrument, entry `research.frame`; the instrument selects `research` or `rnd` by its closing test |' "$conductor" || { fail "missing phrase: research row selects research or rnd by its closing test"; return 1; }
+  ! grep -Fq '| `rnd` |' "$conductor" || { fail "expert map still exposes an rnd entry"; return 1; }
+  ! grep -Fq '| `evidence` |' "$conductor" || { fail "expert map still exposes an evidence entry"; return 1; }
+  grep -Fq '`/archcore:document evidence`' "$conductor" || { fail "missing phrase: standalone evidence is filed through /archcore:document evidence"; return 1; }
+  grep -Fq 'neither command' "$TRACK" || { fail "missing phrase in research.md: neither command exposes rnd as an entry"; return 1; }
 }
 
 @test "standalone research products bypass the plan implement fork" {
   local step
   step=$(sed -n '/### 5. Map tasks/,/### 6. Implement fork/p' "$PLUGIN_ROOT/skills/plan/SKILL.md" | tr '\n' ' ')
   [[ "$step" == *'WHEN the package produced no `plan` document'* ]] || { fail "missing phrase: WHEN the package produced no plan document"; return 1; }
-  [[ "$step" == *'standalone research, rnd, and evidence paths), skip to Result'* ]] || { fail "missing phrase: standalone research, rnd, and evidence paths), skip to Result"; return 1; }
+  [[ "$step" == *'the acquisition and research paths), skip to Result'* ]] || { fail "missing phrase: the acquisition and research paths), skip to Result"; return 1; }
 }
 
 @test "both skill entry points gate new search filters before grounding" {
