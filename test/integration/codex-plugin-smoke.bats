@@ -1,16 +1,13 @@
 #!/usr/bin/env bats
 # Integration smoke checks for Codex plugin packaging + discovery.
 #
-# Regression coverage for issue #2 ("Codex marketplace install does not
-# discover Archcore"). The marketplace catalog lives at the repo root and
-# points `source.path` at `./plugins/archcore`. The first three tests exercise
-# the REAL discovery path — marketplace add -> plugin list -> plugin add —
-# rather than a symlinked fake. The symlink shortcut (used by the last two
-# tests, which probe skill/MCP loading) is exactly what let issue #2 ship
-# green: it bypasses marketplace resolution entirely.
+# Every loading check installs through the real marketplace path. Hand-written
+# cache layouts bypass the host's installed-plugin registration and can pass
+# against a layout that users never load.
 
 setup() {
   load '../helpers/common'
+  bats_require_minimum_version 1.5.0
   common_setup
 
   command -v codex >/dev/null 2>&1 || skip "codex CLI not installed"
@@ -18,6 +15,8 @@ setup() {
   TEST_HOME="$BATS_TEST_TMPDIR/home"
   mkdir -p "$TEST_HOME"
   export TEST_HOME
+  # A project MCP registration must not hide a broken plugin MCP registration.
+  cd "$TEST_HOME"
 }
 
 @test "codex marketplace add accepts the repo-root marketplace" {
@@ -53,47 +52,28 @@ setup() {
   assert_output --partial 'Added plugin `archcore`'
 }
 
+install_archcore() {
+  run env HOME="$TEST_HOME" codex plugin marketplace add "$REPO_ROOT"
+  assert_success || return 1
+  run env HOME="$TEST_HOME" codex plugin add archcore@archcore-plugins
+  assert_success || return 1
+}
+
 @test "codex debug prompt-input loads Archcore skills when plugin is enabled" {
-  local installed_root="$TEST_HOME/.codex/plugins/cache/archcore-plugins/archcore/LOCAL"
-  mkdir -p "$installed_root"
-  ln -s "$PLUGIN_ROOT/.codex-plugin" "$installed_root/.codex-plugin"
-  ln -s "$PLUGIN_ROOT/skills" "$installed_root/skills"
-  ln -s "$PLUGIN_ROOT/agents" "$installed_root/agents"
-  ln -s "$PLUGIN_ROOT/hooks" "$installed_root/hooks"
-  ln -s "$PLUGIN_ROOT/bin" "$installed_root/bin"
-  ln -s "$PLUGIN_ROOT/.codex.mcp.json" "$installed_root/.codex.mcp.json"
+  install_archcore
 
-  mkdir -p "$TEST_HOME/.codex"
-  {
-    printf '[marketplaces.archcore-plugins]\n'
-    printf 'last_updated = "2026-05-04T00:00:00Z"\n'
-    printf 'source_type = "local"\n'
-    printf 'source = "%s"\n' "$REPO_ROOT"
-    printf '\n[plugins."archcore@archcore-plugins"]\n'
-    printf 'enabled = true\n'
-  } >> "$TEST_HOME/.codex/config.toml"
-
-  run env HOME="$TEST_HOME" codex debug prompt-input "use archcore review"
+  run --separate-stderr env HOME="$TEST_HOME" codex debug prompt-input "use archcore review"
   assert_success
-  assert_output --partial 'archcore:review'
-  assert_output --partial 'skills/review/SKILL.md'
+  local skills
+  skills=$(jq -r '.[] | select(.role == "developer") | .content[] | .text? // empty | select(contains("<skills_instructions>"))' <<< "$output")
+  grep -q '^- archcore:review:' <<< "$skills" || { fail "installed review skill is absent from the host catalog"; return 1; }
+  # Codex may abbreviate installed skill paths through its rN root aliases.
+  grep -Eq '\(file: (r[0-9]+/review/SKILL.md|/[^)]*/skills/review/SKILL.md)\)' <<< "$skills" \
+    || { fail "review skill has no resolvable file reference"; return 1; }
 }
 
 @test "codex mcp list includes plugin-managed Archcore MCP when plugin is enabled" {
-  local installed_root="$TEST_HOME/.codex/plugins/cache/archcore-plugins/archcore/LOCAL"
-  mkdir -p "$installed_root"
-  ln -s "$PLUGIN_ROOT/.codex-plugin" "$installed_root/.codex-plugin"
-  ln -s "$PLUGIN_ROOT/.codex.mcp.json" "$installed_root/.codex.mcp.json"
-
-  mkdir -p "$TEST_HOME/.codex"
-  {
-    printf '[marketplaces.archcore-plugins]\n'
-    printf 'last_updated = "2026-05-04T00:00:00Z"\n'
-    printf 'source_type = "local"\n'
-    printf 'source = "%s"\n' "$REPO_ROOT"
-    printf '\n[plugins."archcore@archcore-plugins"]\n'
-    printf 'enabled = true\n'
-  } >> "$TEST_HOME/.codex/config.toml"
+  install_archcore
 
   run env HOME="$TEST_HOME" codex mcp list --json
   assert_success

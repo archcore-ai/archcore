@@ -1,6 +1,6 @@
 ---
 description: First-time Archcore setup — detect the repo, compose the full first-day seed in one preview, create it on one confirm, and wire host configs.
-argument-hint: "[--depth=light|standard|deep] [--mode=small|medium|large] [--refresh]"
+argument-hint: "[--depth=light|standard|deep] [--mode=small|medium|large] [--domain=<slug>] [--refresh]"
 ---
 
 # /archcore:init

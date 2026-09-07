@@ -43,7 +43,7 @@ Notes on the test environment, non-normative:
    make test-codex-smoke
    ```
 
-   Expected result: exit 0. These tests use an isolated temporary `HOME` and run the real discovery cycle — `codex plugin marketplace add "$REPO_ROOT"` accepts the repo marketplace, `codex plugin list` discovers `archcore@archcore-plugins` from the subdirectory, and `codex plugin add archcore@archcore-plugins` succeeds, which is the issue #2 regression. They also simulate an installed plugin cache to check skill loading and plugin-managed MCP registration. They are a fast regression check, not a replacement for an actual `/plugins` install.
+   Expected result: exit 0. These tests use an isolated temporary `HOME` and run the real discovery cycle — `codex plugin marketplace add "$REPO_ROOT"` accepts the repo marketplace, `codex plugin list` discovers `archcore@archcore-plugins` from the subdirectory, and `codex plugin add archcore@archcore-plugins` succeeds, which is the issue #2 regression. Every loading check performs that real installation. Skill assertions inspect the developer catalog and accept the host's abbreviated root paths; MCP assertions inspect plugin-managed registration. They are a fast regression check, not a replacement for an actual `/plugins` install.
 
 3. If a smoke test fails, inspect the Codex package contract directly.
 
@@ -164,7 +164,7 @@ Notes on the test environment, non-normative:
 - `codex mcp list --json` includes an enabled `archcore` server with `command: "archcore"` and `args: ["mcp"]`.
 - From a directory outside the plugin source repo, `mcp__archcore__list_documents` returns documents from that directory's `.archcore/`.
 - A new Codex thread discovers Archcore slash commands through `/archcore:` and Archcore skills through `@`, with no manual `codex mcp add`.
-- Optional: with `codex features enable plugin_hooks`, `plugins/archcore/hooks/codex.hooks.json` loads the `SessionStart`, `PreToolUse`, and `PostToolUse` guardrails. Keep this a runtime smoke test, because `plugin_hooks` is `under development, false` by default in Codex 0.130.0.
+- Optional: with `codex features enable hooks`, `plugins/archcore/hooks/codex.hooks.json` loads the `SessionStart`, `PreToolUse`, and `PostToolUse` guardrails. Keep this a runtime smoke test, because `codex features list` on Codex 0.153.4 reports `hooks` as stable and enabled; `plugin_hooks` is removed. Plugin hook execution still requires the host's trust flow.
 
 ## Common Issues
 
@@ -212,7 +212,7 @@ Codex installs a copy into `~/.codex/plugins/cache/...`. Restart Codex after sou
 
 ### Hook guardrails do not fire
 
-The plugin can package `plugins/archcore/hooks/codex.hooks.json`, but live hook execution depends on Codex's `plugin_hooks` feature flag. Run `codex features enable plugin_hooks` and retest with a fresh session. If the feature is unavailable in your Codex version — it is `under development, false` by default in Codex 0.130.0 — upgrade Codex or treat plugin hooks as best-effort until it stabilizes.
+The plugin can package `plugins/archcore/hooks/codex.hooks.json`, but live hook execution depends on Codex's `hooks` feature flag. Run `codex features enable plugin_hooks` and retest with a fresh session. If the feature is unavailable in your Codex version — `hooks` is stable on the verified Codex 0.153.4 — upgrade Codex or treat plugin hooks as best-effort until it stabilizes.
 
 ### `codex debug prompt-input` fails with session permission errors
 

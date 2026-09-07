@@ -1,33 +1,33 @@
 gate: closeout.verify
-skip_when: yes
+skip_when: the branch scope matches no plan document
 budget: 2
 taxonomy: Completion Signals, Functional Scope & Behavior
 produces: none
 next: closeout.merge
 
 gate: closeout.merge
-skip_when: yes
+skip_when: no scoped document's claims diverge from the branch result
 budget: 1 question per document awaiting an update
 taxonomy: Terminology & Consistency, Misc / Placeholders
 produces: none
 next: closeout.accept
 
 gate: closeout.accept
-skip_when: yes
+skip_when: no scoped document carries status: draft
 budget: 1 question per draft document in scope
 taxonomy: Completion Signals
 produces: none
 next: closeout.capture
 
 gate: closeout.capture
-skip_when: yes
+skip_when: the branch scope matches no plan document, or the plan tasks, the verify report, and the merge report name no residue beyond the delivered work itself
 budget: 1 question per named residue
 taxonomy: Completion Signals, Constraints & Tradeoffs
 produces: task-type or guide per the actor boundary rule in skills/_shared/tracks/experience.md; for a settled standard or choice, whatever skills/_shared/tracks/decision.md (entry decision.classify) produces, restricted to its standard cascade draft
 next: closeout.discharge
 
 gate: closeout.discharge
-skip_when: yes
+skip_when: the branch scope matches no plan document; or a plan task or acceptance criterion carries a verdict other than fulfilled; or the plan file appears in the uncommitted-changes block of skills/_shared/branch-state.md. The gate names the unmet condition in the report and exits
 budget: 1
 taxonomy: Completion Signals
 produces: none

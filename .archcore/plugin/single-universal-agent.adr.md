@@ -13,7 +13,7 @@ The plugin needs subagent capability for documentation tasks that exceed what a 
 
 ## Decision
 
-Ship one universal agent, **`archcore-assistant`**, defined in `@plugins/archcore/agents/archcore-assistant.md`, carrying knowledge of all 18 document types, the three requirements-engineering tracks, and the four relation types, and restricted to the archcore MCP tools plus the read-only file tools Read, Grep, and Glob, with no Write, Edit, or Bash access to `.archcore/` files.
+Ship one universal agent, **`archcore-assistant`**, defined in `@plugins/archcore/agents/archcore-assistant.md`, carrying knowledge of the engine-supported document types, the three requirements-engineering tracks, and the engine-supported relation vocabulary, and restricted to the archcore MCP tools plus the read-only file tools Read, Grep, and Glob, with no Write, Edit, or Bash access to `.archcore/` files.
 
 Its knowledge covers each document type's template, required sections, and selection criteria; the product track (`prd`, `idea`, `plan`), the sources track (`mrd`, `brd`, `urd`), and the ISO 29148 cascade (`brs`, `strs`, `syrs`, `srs`); when to use `implements`, `extends`, `depends_on`, and `related`, along with the common flows; and documentation review — gaps, staleness, missing relations, orphaned documents, and inconsistent statuses.
 
@@ -28,7 +28,7 @@ Its knowledge covers each document type's template, required sections, and selec
 - One system prompt and one set of tool restrictions to maintain, covering the full spectrum of documentation tasks.
 - The user never chooses between agents, and the host can invoke this one whenever a documentation task exceeds skill-level complexity.
 - Tool restrictions enforce the MCP-only principle inside agentic mode as well as inside skills.
-- Tradeoff: the system prompt grows as it covers all 18 types plus the engineering patterns.
+- Tradeoff: the system prompt grows as it covers the engine's type vocabulary plus the engineering patterns.
 - Tradeoff: no domain specialization. [assumption] A dedicated requirements engineer might produce better ISO 29148 cascades; this has not been measured.
 - Extended rather than replaced by `add-read-only-auditor-agent.adr`, which added `archcore-auditor` for read-only audit work while leaving this agent's role unchanged.
 
@@ -36,3 +36,7 @@ Its knowledge covers each document type's template, required sections, and selec
 
 - The system prompt exceeds the 2000-line constraint recorded in `agent-system.spec`, which would force a split by domain.
 - A measured comparison shows a specialized requirements agent producing materially better ISO 29148 cascades than the universal agent.
+
+## Vocabulary revision — 2026-09-07
+
+The research update preserves the single-agent decision. On a supporting engine, the runtime covers 21 types and seven relation values; @plugins/archcore/skills/_shared/research-compatibility.md gates the new vocabulary. Research and rnd belong to vision; evidence belongs to knowledge.

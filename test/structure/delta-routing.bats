@@ -129,7 +129,7 @@ ROWS
   grep -F -q '| `sdd` | full package: intent → contract (per capability) → decompose, at per-gate maxima |' "$CONTRACT" || fail "sdd row"
   grep -F -q '| `sources` | acquisition instrument, entry `requirements-cascade.mrd` |' "$CONTRACT" || fail "sources row"
   grep -F -q '| `iso` | iso links, entry `requirements-cascade.brs` |' "$CONTRACT" || fail "iso row"
-  grep -F -q '| `research` | research instrument, entry `research.frame` |' "$CONTRACT" || fail "research row"
+  grep -F -q '| `research` | research instrument, entry `research.frame`, type fixed to `research` |' "$CONTRACT" || fail "research row"
 }
 
 @test "verdict contract is wired into every consumer" {

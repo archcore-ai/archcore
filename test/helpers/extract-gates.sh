@@ -8,7 +8,7 @@
 # record. Each record has exactly these six lines in this fixed order:
 #
 #   gate: <track>.<stage>       gate name from the '### gate:' heading
-#   skip_when: yes|no           do the gate's Entry conditions declare skip_when?
+#   skip_when: <condition>      normalized skip condition, or empty if absent
 #   budget: <value>             the Elicitation knobs budget value
 #   taxonomy: <value>           the taxonomy knob, comma-joined ('none' if none)
 #   produces: <type> <status>   Produces type + status, or 'none'
@@ -124,7 +124,10 @@ function flushline(   line, v, sb) {
   } else if (line ~ /^[ \t]+- /) {
     sb = line
     sub(/^[ \t]+- /, "", sb)
-    if (topf == "entry" && sb ~ /^skip_when:/) skipw = 1
+    if (topf == "entry" && sb ~ /^skip_when:/) {
+      sub(/^skip_when:/, "", sb)
+      skip_raw = (trim(skip_raw) == "") ? sb : skip_raw " | " sb
+    }
     else if (topf == "knobs" && sb ~ /^budget:/) { sub(/^budget:/, "", sb); budget_raw = sb }
     else if (topf == "knobs" && sb ~ /^taxonomy:/) { sub(/^taxonomy:/, "", sb); tax_raw = sb }
     else if (topf == "produces" && sb ~ /^type:/) { sub(/^type:/, "", sb); ptype_raw = sb }
@@ -136,7 +139,7 @@ function flushgate(   prod) {
   if (gate == "") return
   flushline()
   print "gate: " gate
-  print "skip_when: " (skipw ? "yes" : "no")
+  print "skip_when: " normval(skip_raw)
   print "budget: " normval(budget_raw)
   print "taxonomy: " normtax(tax_raw)
   if (trim(produces_inline) != "") prod = normval(produces_inline)
@@ -148,7 +151,7 @@ function flushgate(   prod) {
   print "produces: " prod
   print "next: " normnext(next_raw)
   print ""
-  gate = ""; skipw = 0; topf = ""
+  gate = ""; skip_raw = ""; topf = ""
   budget_raw = ""; tax_raw = ""; produces_inline = ""
   ptype_raw = ""; pstat_raw = ""; next_raw = ""
 }

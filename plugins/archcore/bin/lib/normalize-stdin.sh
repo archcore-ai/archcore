@@ -15,6 +15,8 @@
 #   archcore_hook_block "reason"  — block operation, exit (PreToolUse)
 #   archcore_hook_info  "message" — emit info to agent (PostToolUse)
 #   archcore_hook_allow           — allow operation silently, exit 0
+#   archcore_cursor_qualify_mcp_tool — print the payload with Cursor's bare
+#                                 archcore tool name qualified (see below)
 #
 # OpenCode bridge contract (host-adapter-contract.spec): the TS bridge spawns
 # these scripts with ARCHCORE_HOST=opencode in env and a Claude-shaped
@@ -174,6 +176,52 @@ case "$ARCHCORE_TOOL_NAME" in
     ARCHCORE_TOOL_NAME="mcp__archcore__${ARCHCORE_TOOL_NAME#archcore-}"
     ;;
 esac
+
+# --- Cursor post-event tool-name qualification ---
+# Cursor's afterMCPExecution payload carries a BARE tool name ("update_document")
+# plus "mcp_server_name", the server's key in mcp.json. The CLI recognizes the
+# qualified spellings only (mcp__archcore__*, mcp__plugin_archcore_archcore__*,
+# archcore-*, …), so a bare name reaches its post-tool-use gate as a foreign
+# tool and the write gets no validation, cascade, or precision report — silently.
+#
+# This prints a copy of the raw payload with that ONE value qualified, and
+# returns 0, when every condition below holds; otherwise prints nothing and
+# returns 1, and the caller keeps the raw payload:
+#   - host is cursor and the event is afterMCPExecution;
+#   - mcp_server_name is exactly "archcore" — the key `archcore init --agent
+#     cursor` writes and docs/cursor.mcp.example.json documents. A payload
+#     without the field cannot prove Archcore owns the tool; a bare name that
+#     merely looks like ours is not evidence (a foreign server may register an
+#     update_document too), so it stays untouched;
+#   - tool_name is a bare name the archcore server registers (the CLI folds
+#     nothing else);
+#   - the payload holds exactly one unescaped "tool_name" key. tool_input and
+#     result_json are JSON *strings* in this event, so a tool_name inside them
+#     is escaped (\"tool_name\") and never matches; a second real key means a
+#     shape this translation was not written for, and guessing would be worse
+#     than the silent no-op.
+# The rewrite is anchored on the key AND the exact bare value, so document
+# content and nested strings are never touched. Policy stays in the CLI: this
+# is a name translation, not a gate — the CLI still decides whether the event
+# triggers a scan.
+archcore_cursor_qualify_mcp_tool() {
+  [ "$ARCHCORE_HOST" = "cursor" ] || return 1
+  [ "$(_archcore_json_val "hook_event_name")" = "afterMCPExecution" ] || return 1
+  [ "$(_archcore_json_val "mcp_server_name")" = "archcore" ] || return 1
+  _bare=$(_archcore_json_val "tool_name")
+  case "$_bare" in
+    init_project|install_host_config|list_documents|get_document|search_documents|\
+    create_document|update_document|remove_document|add_relation|remove_relation|list_relations)
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  _keys=$(printf '%s' "$ARCHCORE_RAW_STDIN" | grep -o '"tool_name"[[:space:]]*:' | wc -l | tr -d ' ')
+  [ "$_keys" = "1" ] || return 1
+  printf '%s' "$ARCHCORE_RAW_STDIN" | \
+    sed "s/\"tool_name\"[[:space:]]*:[[:space:]]*\"${_bare}\"/\"tool_name\":\"mcp__archcore__${_bare}\"/"
+}
 
 # --- Output helpers ---
 

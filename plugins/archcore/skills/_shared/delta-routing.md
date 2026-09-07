@@ -124,11 +124,16 @@ then formal document.
 | decompose | `plan` | `skills/_shared/tracks/sdd.md`, gate `sdd.decompose` |
 | runbook | `guide` | `skills/_shared/tracks/sdd.md`, gate `sdd.runbook` |
 | decision | `adr`, `rfc` | `skills/_shared/tracks/decision.md`, gate `decision.classify` |
-| research | `rnd` | `skills/_shared/tracks/research.md`, gate `research.frame` |
+| research | `research`, `rnd`; optional `evidence` | `skills/_shared/tracks/research.md`, gate `research.frame` |
 | spike | timeboxed `rnd` | `skills/_shared/tracks/research.md`, gate `research.spike` |
 | describe | `spec`, `doc`, `guide` | `skills/_shared/tracks/describe.md`, gate `describe.read` |
 | acquisition | `mrd`, `brd`, `urd` | `skills/_shared/tracks/requirements-cascade.md`, gate `requirements-cascade.mrd` |
 | iso links | `brs`, `strs`, `syrs`, `srs` | `skills/_shared/tracks/requirements-cascade.md`, gate `requirements-cascade.brs` |
+
+The research instrument fixes its product by the closing test or the explicit
+type. Its gather gate may also produce evidence; an explicit evidence invocation
+enters gather directly. This is an exception to single-type production. Apply
+`skills/_shared/research-compatibility.md` before using new vocabulary.
 
 The decision instrument's `decision.cascade` gate additionally creates its
 cascade documents (`rule`, `guide`, `spec`, `plan`, `cpat`) inside the
@@ -177,7 +182,9 @@ replaces the announcement with the named path.
 | `sdd` | full package: intent → contract (per capability) → decompose, at per-gate maxima |
 | `sources` | acquisition instrument, entry `requirements-cascade.mrd` |
 | `iso` | iso links, entry `requirements-cascade.brs` |
-| `research` | research instrument, entry `research.frame` |
+| `research` | research instrument, entry `research.frame`, type fixed to `research` |
+| `rnd` | research instrument, entry `research.frame`, type fixed to `rnd` |
+| `evidence` | research instrument, entry `research.gather`, standalone material |
 | a route name — `null`, `decision`, `amendment`, `capability`, `umbrella` | that route — Derivation still runs to fill Δ; the name fixes the route and the label only |
 | a document type the registry lists | the producing instrument's entry gate |
 

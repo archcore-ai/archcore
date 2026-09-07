@@ -14,10 +14,10 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 ## Surface
 
 - Track files: `skills/_shared/tracks/<track-id>.md`; gates as `### gate: <track>.<stage>` sections.
-- Catalog: `sdd` (frame → require → design → decompose), `requirements-cascade` (`mode: sources` = mrd → brd → urd; `mode: iso` = brs → strs → syrs → srs), `decision` (classify → adr | rfc → cascade; resolution entry `decision.resolve` on an existing rfc draft), `describe` (read code → draft spec/doc/guide → clarify gaps), `actualize` (scope diff → per-finding verdict → confirmed fixes), `experience` (detect repeated pattern → cpat | task-type offer), `research` (frame questions → gather evidence → conclude with recommendation), `closeout` (verify plan against branch diff → confirmed canon merge → confirmed draft → accepted status transitions).
-- Primary executors: `plan` → sdd, requirements-cascade, research; `document` → describe, decision; `review` → actualize, experience, closeout; `decision` is callable from all three.
+- Catalog: `sdd` (frame → require → design → decompose), `requirements-cascade` (`mode: sources` = mrd → brd → urd; `mode: iso` = brs → strs → syrs → srs), `decision` (classify → adr | rfc → cascade; resolution entry `decision.resolve` on an existing rfc draft), `describe` (read code → draft spec/doc/guide → clarify gaps), `actualize` (scope diff → per-finding verdict → confirmed fixes), `experience` (detect repeated pattern → cpat | task-type offer), `research` (frame → gather → coverage synthesis or recommendation; standalone evidence exits at gather), `closeout` (verify plan against branch diff → confirmed canon merge → confirmed draft → accepted status transitions).
+- Primary executors: `plan` → sdd, requirements-cascade, research; `document` → describe, decision, research; `review` → actualize, experience, closeout; `decision` is callable from all three.
 - Gate record fields, fixed order: Purpose; Entry conditions with `skip_when`; Elicitation knobs (trigger, taxonomy, budget); Produces (type, status, relations); Exit checks tagged `blocking` or `advisory`; Next.
-- Track state block inside the draft artifact: `<!-- archcore:track -->` with fields `track`, `gate`, `taxonomy`, `asked`, `budget`, `deferred`.
+- Track state block inside the draft artifact: `<!-- archcore:track -->` with fields `track`, `gate`, `route`, `delta`, `taxonomy`, `asked`, `budget`, `deferred`; research may append `artifact_type`.
 
 ## Normative Behavior
 
@@ -34,8 +34,25 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 11. WHILE resuming, the executing skill MUST NOT re-ask questions recorded in `taxonomy` or `## Clarifications`.
 12. The review skill MAY run a gate in the reverse direction (code → document) with entry evidence pre-filled from git.
 13. WHEN a gate closes, the executing skill MUST persist answers and the state block in one `update_document` call.
-14. A document status MUST change only through an explicitly confirmed action — `closeout.accept` for draft → accepted, `decision.resolve` for an rfc verdict, or a direct user-driven `update_document` — per `document-status-transitions.adr`.
+14. WHEN the user confirms a status transition, the executing skill MAY apply that transition through the owning gate or `update_document`.
 15. A hook or subagent MUST NOT change a document status.
+
+16. WHEN an expert invocation names `research`, the research instrument MUST fix its product to `research`, subject to the engine gate.
+17. WHEN an expert invocation names `rnd`, the research instrument MUST fix its product to `rnd`.
+18. WHEN no type is fixed, the research instrument MUST choose the product by its closing test.
+19. The research instrument MUST close `research` on declared scope coverage.
+20. The research instrument MUST close `rnd` on an evidenced recommendation.
+21. WHEN resuming an artifact, the research instrument MUST preserve its filename type.
+22. WHEN an explicit request names `evidence`, the research instrument MUST enter gather without a parent investigation.
+23. WHEN standalone evidence has no identified consumer, the research instrument MAY create its draft without a relation.
+24. WHEN gather creates dependent evidence, the research instrument MUST persist pending paths and edges before the evidence write.
+25. WHEN gather creates dependent evidence, the research instrument MUST add its first evidential edge before gate close.
+26. WHEN an evidence operation fails, the research instrument MUST retain successful writes for retry.
+27. WHEN an evidence operation fails, the research instrument MUST leave gather open.
+28. WHEN resuming a pending evidence operation, the research instrument MUST reconcile existing documents and edges before retrying.
+29. WHEN using new vocabulary, the executing skill MUST apply @plugins/archcore/skills/_shared/research-compatibility.md before the first affected MCP call.
+30. WHEN standalone evidence completes gather, the research instrument MUST exit the track.
+31. WHEN a research state field contradicts the filename type, the research instrument MUST report a blocking state error.
 
 ## Constraints & Invariants
 
@@ -45,14 +62,19 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 - Constraint: a gate MUST reference shared contracts by path.
 - Constraint: a gate MUST NOT restate a shared contract's rules.
 - Invariant: adding a track changes one new track file plus one routing-table row per calling skill, and no other file.
+- Exception: research gather may checkpoint pending evidence operations before its single gate-close update; the shared gate contract owns the exception.
+- Constraint: research and rnd belong to vision; evidence belongs to knowledge.
+- Constraint: explicit standalone evidence satisfies frame through the request; no upstream investigation is required.
+- Constraint: required research and evidence sections follow the CLI templates; the track records method without prescribing one.
 - Invariant: the draft artifact is the only carrier of track state; no session memory or side file holds it.
 
 ## Failure Behavior
 
 1. IF a `blocking` exit check fails, THEN the executing skill MUST stop at the current gate and report the failed check.
 2. IF an upstream document required by an entry condition is missing, THEN the executing skill MUST route to the earliest gate that produces it.
-3. IF the state block names a stage absent from the track file, THEN the executing skill MUST resume at the first gate whose entry conditions fail and preserve recorded clarifications.
+3. IF a recorded stage is absent, THEN the executing skill MUST resume at the first gate with unmet entry conditions.
+4. WHEN recovering from an absent stage, the executing skill MUST preserve recorded clarifications.
 
 ## Conformance
 
-A track file and its executing skills are conformant when they satisfy behaviors 1–15, hold all invariants, and degrade per the failure rules.
+A track file and its executing skills are conformant when they satisfy behaviors 1–31, hold all invariants, and degrade per the failure rules.

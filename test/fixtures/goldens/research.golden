@@ -1,26 +1,26 @@
 gate: research.frame
-skip_when: yes
+skip_when: a matching local artifact already satisfies this gate's exit checks and the request does not ask to redo, refresh, or extend it; reuse it and continue at gather
 budget: 2
 taxonomy: Functional Scope & Behavior, Constraints & Tradeoffs
-produces: rnd draft
+produces: research or rnd draft
 next: research.gather
 
 gate: research.gather
-skip_when: yes
+skip_when: the local artifact satisfies this gate's exit checks and no intended evidence write or relation remains pending
 budget: 0
 taxonomy: none
-produces: none
-next: research.conclude
+produces: evidence draft
+next: research.conclude end
 
 gate: research.conclude
-skip_when: yes
+skip_when: the artifact satisfies every type-specific exit check below
 budget: 2
 taxonomy: Constraints & Tradeoffs, Completion Signals
 produces: none
 next: end
 
 gate: research.spike
-skip_when: yes
+skip_when: existing evidence (code, git history, .archcore/, recorded measurements) already answers the empirical question
 budget: 0
 taxonomy: none
 produces: rnd draft

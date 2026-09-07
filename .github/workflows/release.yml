@@ -29,17 +29,9 @@ permissions:
 
 jobs:
   test-before-release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-
-      - name: Install bats-core
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq bats shellcheck
-
-      - name: Verify dev distribution is releasable
-        run: make all
+    uses: ./.github/workflows/test.yml
+    with:
+      source_ref: ${{ github.event.inputs.source_ref || github.ref }}
 
   release:
     needs: test-before-release
@@ -98,7 +90,7 @@ jobs:
           done
           # Any leftover reference to the plugin's own .archcore docs is
           # a hard failure (mirrors test/structure/no-bundled-archcore-refs.bats)
-          pattern='\.archcore/(plugin|knowledge|vision|experience)/[a-zA-Z0-9_-]+\.(adr|spec|prd|plan|idea|rule|guide|doc|task-type|cpat|rfc|mrd|brd|urd|brs|strs|syrs|srs)\.md'
+          pattern='\.archcore/(plugin|knowledge|vision|experience)/[a-zA-Z0-9_-]+\.(adr|spec|prd|plan|idea|rule|guide|doc|task-type|cpat|rfc|rnd|research|evidence|mrd|brd|urd|brs|strs|syrs|srs)\.md'
           if grep -rEn "$pattern" plugins/archcore/skills plugins/archcore/agents plugins/archcore/commands plugins/archcore/rules plugins/archcore/hooks plugins/archcore/bin README.md 2>/dev/null | \
               grep -v -E '\.archcore/<' | \
               grep -v -E '\.archcore/auth/jwt-strategy\.adr\.md' | \

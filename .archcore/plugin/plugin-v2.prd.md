@@ -22,7 +22,7 @@ One tool, four commands, at the moments a developer already inhabits: connect on
 
 - A fully-specified request produces its documents with zero questions; a vague request stays within 5 (measured by the trigger and golden-transcript suites).
 - An interrupted multi-stage flow resumes in a new session without repeating one answered question.
-- Every one of the 18 document types is producible through a command path, and each ranks first in at least one injection moment. [expected]
+- Every engine-supported document type is producible through a command path, and each ranks first in at least one injection moment. [expected]
 - On a fresh repo, `init` to the first accepted document fits in one session.
 
 ## Requirements

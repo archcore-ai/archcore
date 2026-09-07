@@ -328,20 +328,22 @@ fi
 # be joined with whatever advisories fire below into a single document, and
 # once the first byte has left for the host that is no longer possible. Other
 # hosts keep streaming exactly as before.
-_ac_err="${TMPDIR:-/tmp}/archcore_ss_err_$$"
+# Without a private file the diagnostic is dropped, not the payload.
+_ac_err=$(mktemp "${TMPDIR:-/tmp}/archcore_ss_err.XXXXXX" 2>/dev/null) || _ac_err=""
+[ -n "$_ac_err" ] && trap 'rm -f "$_ac_err"' 0
 # The shell host id "codex" maps to the CLI agent id "codex-cli"; every other
 # host id matches its CLI dialect name as-is (bin/pre-tool-use does the same).
 _ac_cli_host="$ARCHCORE_HOST"
 [ "$_ac_cli_host" = "codex" ] && _ac_cli_host="codex-cli"
 if _archcore_buffers_stdout; then
-  _ac_buf_hookout=$(printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$_ac_cli_host" session-start 2>"$_ac_err")
+  _ac_buf_hookout=$(printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$_ac_cli_host" session-start 2>"${_ac_err:-/dev/null}")
   _ac_rc=$?
 else
-  printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$_ac_cli_host" session-start 2>"$_ac_err"
+  printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$_ac_cli_host" session-start 2>"${_ac_err:-/dev/null}"
   _ac_rc=$?
 fi
 
-if [ "$_ac_rc" -ne 0 ] && _archcore_config_rejected "$_ac_err" && _archcore_due last-cli-advisory; then
+if [ "$_ac_rc" -ne 0 ] && [ -n "$_ac_err" ] && _archcore_config_rejected "$_ac_err" && _archcore_due last-cli-advisory; then
   _archcore_emit_info "[Archcore] This project's .archcore/settings.json uses a newer setting (e.g. global sources) that the installed archcore CLI is too old to understand — so its MCP server and context are unavailable here until you update. Update the CLI:
   macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash
   Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex
@@ -349,10 +351,10 @@ if [ "$_ac_rc" -ne 0 ] && _archcore_config_rejected "$_ac_err" && _archcore_due 
   Docs: https://docs.archcore.ai/cli/install/
   Archcore context will work again once the CLI is updated."
   _archcore_stamp_now last-cli-advisory
-  rm -f "$_ac_err"
+  [ -n "$_ac_err" ] && rm -f "$_ac_err"
   exit 0
 fi
-rm -f "$_ac_err"
+[ -n "$_ac_err" ] && rm -f "$_ac_err"
 
 # Empty-state nudge: .archcore/ exists but carries no substantive documents.
 # Goes through _archcore_note: plain text on hosts that read plain text, folded

@@ -36,7 +36,7 @@ The original plugin at v0.0.1 was a thin wrapper that registered the MCP server 
 
 **Success metrics.**
 
-- All 18 document types are reachable through the four commands or directly through MCP, with no per-type skill required.
+- All 21 document types on a supporting engine are reachable through the four commands or directly through MCP, with no per-type skill required.
 - The commands cover the common workflows: onboarding, documentation, decisions with the standard cascade, any forward-looking flow, health and drift, the on-demand pull, and help.
 - The PreToolUse guard intercepts every direct Write or Edit attempt on a `.archcore/` file.
 - Users never explain Archcore conventions to the model by hand.
@@ -50,7 +50,7 @@ The original plugin at v0.0.1 was a thin wrapper that registered the MCP server 
 
 **FR-2 — slash commands.** The user-invoked surface is `/archcore:{init,plan,document,review}` per `command-surface-v2.spec`. `capture` and `decide` are absorbed by `document`; `audit` becomes `review`; `context` is removed, with CLI hooks and command grounding absorbing the pull moment; `help` is removed, with command descriptions and CLI help absorbing it. For any type, `mcp__archcore__create_document(type=<any>)` remains a direct path that bypasses skill mediation.
 
-**FR-3 — the universal agent.** One subagent, `archcore-assistant`, covers every documentation scenario: full knowledge of all 18 document types and their templates, requirements-engineering expertise across the product flow, sources flow, and ISO 29148 cascade, relation-pattern knowledge across the four relation types, and a tool set restricted to the archcore MCP tools plus Read, Grep, and Glob with no Write or Edit on `.archcore/`. It is invokable manually or automatically. Alongside it, `archcore-auditor` runs read-only documentation health checks in the background with a restricted tool set.
+**FR-3 — the universal agent.** One subagent, `archcore-assistant`, covers every documentation scenario: full knowledge of all engine-supported document types and their templates, requirements-engineering expertise across the product flow, sources flow, and ISO 29148 cascade, relation-pattern knowledge across the engine-supported relation values, and a tool set restricted to the archcore MCP tools plus Read, Grep, and Glob with no Write or Edit on `.archcore/`. It is invokable manually or automatically. Alongside it, `archcore-auditor` runs read-only documentation health checks in the background with a restricted tool set.
 
 **FR-4 — validation hooks.** The pre-mutation block guard denies a Write or Edit whose target matches `.archcore/**/*.md` and returns a message naming the MCP tool to use. The pre-mutation injection guard, for a target outside `.archcore/` and inside a configured source root, scans for documents referencing the path and injects the top 3 by specificity and then type priority, without ever blocking. The post-mutation validator runs `archcore doctor` after each document mutation and reports issues. The cascade hook lists, after an update, the documents that reference the updated one through `implements`, `depends_on`, or `extends`. The precision hook emits soft warnings for forbidden vague words, missing mandatory sections, frontmatter gaps, and stub-length bodies, and never blocks. SessionStart loads the project context — the document index, tags, and relation count — and runs the staleness check, rate-limited to once per 24 hours.
 

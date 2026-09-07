@@ -17,6 +17,9 @@
 setup() {
   load '../helpers/common'
   common_setup
+  # Compare wrapper transport independently of CLI caches and fixture cwd paths.
+  mock_archcore_multi
+  export MOCK_HOOKS_OUTPUT='probe wrapper transport sentinel'
 
   PROBE_TREE="$BATS_TEST_TMPDIR/probe"
   run env REPO_ROOT="$REPO_ROOT" "$REPO_ROOT/test/probe/mkprobe" "$PROBE_TREE"

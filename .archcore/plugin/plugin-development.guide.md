@@ -16,10 +16,10 @@ Set up a local development environment for the Archcore plugin, change a skill, 
 - Git.
 - bats-core for tests. macOS: `brew install bats-core`.
 - jq for JSON validation. macOS: `brew install jq`.
-- ShellCheck, optional. macOS: `brew install shellcheck`.
-- The Archcore CLI installed globally through the official installer at https://docs.archcore.ai/cli/install/ — `curl -fsSL https://archcore.ai/install.sh | bash` on macOS, Linux, and WSL, or `irm https://archcore.ai/install.ps1 | iex` on Windows PowerShell 5.1 or later. Verify with `archcore --version`. The hook launchers require CLI v0.7.0 or later and fail open silently on anything older.
+- ShellCheck. macOS: `brew install shellcheck`.
+- The Archcore CLI installed globally through the official installer at https://docs.archcore.ai/cli/install/ — `curl -fsSL https://archcore.ai/install.sh | bash` on macOS, Linux, and WSL, or `irm https://archcore.ai/install.ps1 | iex` on Windows PowerShell 5.1 or later. Verify with `archcore --version`. The hook launchers require CLI v0.7.0 or later and fail open silently on anything older. `make verify` requires CLI v0.8.3 or later for the real MCP integration suite.
 
-The plugin bundles no launcher; it assumes the CLI is on PATH. MCP registers automatically for Claude Code through the plugin-root `.mcp.json`, and for Codex CLI through `.codex-plugin/plugin.json` pointing at the plugin-root `.codex.mcp.json`. Both name `archcore` as the command, and the host runtime resolves it through PATH.
+The plugin bundles no launcher; it assumes the CLI is on PATH. MCP registers automatically for Claude Code through `.claude-plugin/plugin.json` pointing at the plugin-root `.claude.mcp.json`, and for Codex CLI through `.codex-plugin/plugin.json` pointing at the plugin-root `.codex.mcp.json`. Both name `archcore` as the command, and the host runtime resolves it through PATH.
 
 Two hosts get no plugin-shipped MCP, deliberately, because each launches a plugin's MCP child outside the user's project, where a plugin-shipped server would read and write the wrong tree:
 
@@ -115,11 +115,11 @@ Two Copilot hook semantics differ from every other host, and both are load-beari
 
 Hooks are narrower than plugins on this host: hooks-reference names exactly two supported surfaces, Copilot CLI and Copilot cloud agent. VS Code agent mode is not one of them, even though Copilot Chat ships its own CLI binary under the extension's `globalStorage` and hook machinery has been observed firing there.
 
-Plugin-shipped Codex hooks require `codex features enable plugin_hooks` before they fire; the `plugin_hooks` feature is `under development, false` by default in Codex 0.130.0. `codex-path-resolution.adr` holds the full mechanism.
+On Codex CLI 0.153.4, `codex features list` reports `hooks` as stable and enabled by default. Check that feature on the installed host. The historical `plugin_hooks` flag is removed.
 
 ### 6. Modify an agent
 
-1. Edit `agents/archcore-assistant.md` or `agents/archcore-auditor.md`. The frontmatter carries `name`, `description`, `model`, `maxTurns`, and `tools`. Keep the auditor read-only, holding only `list_documents`, `get_document`, and `list_relations`. List every MCP naming: `mcp__archcore__*`, `mcp__plugin_archcore_archcore__*`, and Copilot's flat `archcore-<tool>`.
+1. Edit `agents/archcore-assistant.md` or `agents/archcore-auditor.md`. The frontmatter carries `name`, `description`, `model`, `maxTurns`, and `tools`. Keep the auditor read-only, allowing `list_documents`, `search_documents`, `get_document`, and `list_relations`. List every MCP naming: `mcp__archcore__*`, `mcp__plugin_archcore_archcore__*`, and Copilot's flat `archcore-<tool>`.
 2. Propagate the change to `agents/<name>.toml` for Codex, keeping the TOML and MD `developer_instructions` content identical.
 3. Propagate it to `copilot-agents/<name>.agent.md` for Copilot as a byte-identical copy, checked with `cmp`, because Copilot's loader accepts only the `*.agent.md` extension.
 
@@ -128,13 +128,14 @@ Keep the Copilot copy in `copilot-agents/`, never beside the original: `.agent.m
 ### 7. Run the tests
 
 ```bash
-make verify    # full check: JSON + permissions + shellcheck + tests
+make verify    # JSON + permissions + ShellCheck + unit/structure + real MCP
 ```
 
 Or run individual checks:
 
 ```bash
-make test               # all bats tests
+make test               # unit and structure Bats tests
+make test-integration   # real MCP tests with CLI >= 0.8.3
 make test-unit          # unit tests (bin script logic)
 make test-structure     # structure tests (configs, frontmatter)
 make test-codex-smoke   # install smoke, skips without the codex CLI
@@ -155,7 +156,7 @@ make check-perms        # executable permissions
 - MCP availability: confirm `archcore --version` works.
 - Codex: from a directory outside the plugin source repo, such as `cd $(mktemp -d)`, call any `mcp__archcore__*` tool and confirm the MCP starts.
 - Cursor: after copying `docs/cursor.mcp.example.json` into `.cursor/mcp.json`, open an empty project. Expected result: `list_documents` returns empty rather than the plugin's own dev documents. If it returns dev documents, the plugin-install-dir guards regressed; file an issue against this repo and `archcore-ai/cli`.
-- Copilot: `copilot mcp list` will show a plugin-contributed `archcore` server — settled 2026-08-03, because the host auto-discovers a plugin-root `.mcp.json` regardless of the manifest. Confirm instead that this server **fails to start** with the plugin-cache guard error on CLI v0.6.7 or later, and that the project-wired server from the repo-root `.mcp.json` is the one serving tools. A plugin server that starts and serves is the regression.
+- Copilot: run `make test-copilot-smoke`. Confirm that installation contributes no MCP server and preserves the project-wired `archcore` command. The plugin ships `.claude.mcp.json`, not the `.mcp.json` filename that Copilot auto-discovers.
 - Copilot: session start must not print `archcore: plugin root unresolved`. If it does, no candidate variable was injected and every guard is silently disabled for that session — capture which load path produced it, because that is the open question in `copilot-adapter-design.adr`.
 - Integrity: `make verify`.
 
@@ -203,7 +204,7 @@ For the questions no manual checklist can settle — whether a deny is honored o
 - Confirm the installed CLI is v0.7.0 or later: `bin/cli-gte 0.7.0` must print `yes`. On anything older the launchers exit 0 silently — no guard, no injection, no validation.
 - Confirm the hook JSON structure matches the expected format for that host.
 - Test the launcher manually: `echo '{"tool_name":"Write","tool_input":{"file_path":".archcore/test.adr.md"}}' | bin/pre-tool-use` — expected: the deny message on stderr and exit 2.
-- On Codex, hooks require `codex features enable plugin_hooks`. Without the flag, Codex does not run plugin-shipped hooks.
+- On Codex, inspect `codex features list` and enable `hooks` if it is disabled.
 - On Copilot, confirm the entry uses `bash` rather than `command` and `timeoutSec` rather than `timeout`. A config written in Claude's shape loads without error and does nothing.
 
 ### `/bin/sh: /bin/<script>: No such file or directory` on GitHub Copilot CLI
@@ -224,7 +225,7 @@ Either way the cause is the same, and on `preToolUse` the consequence is severe:
 
 ### MCP server not connecting on Claude Code or Codex CLI
 
-The plugin ships `.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI. Diagnose in this order:
+The plugin ships `.claude.mcp.json` for Claude Code and `.codex.mcp.json` for Codex CLI. Diagnose in this order:
 
 1. Plugin loaded? `/plugin` on Claude Code, or `codex mcp list --json` on Codex CLI, should show `archcore`. If `.mcp.json`, `.codex.mcp.json`, or the Codex `mcpServers` pointer was modified or removed, the server will not register; restore it from git.
 2. CLI available? Run `archcore --version` from a terminal. Expected result: it prints a version. If it is not found, install through the official installer at https://docs.archcore.ai/cli/install/. If permission is denied, confirm the CLI binary is executable.

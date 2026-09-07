@@ -24,7 +24,7 @@ DIST_DIRS="skills agents commands rules hooks bin"
 DIST_FILES="README.md"
 
 @test "no distributable file references bundled .archcore/<category>/<slug>.<type>.md paths" {
-  local pattern='\.archcore/(plugin|knowledge|vision|experience)/[a-zA-Z0-9_-]+\.(adr|spec|prd|plan|idea|rule|guide|doc|task-type|cpat|rfc|mrd|brd|urd|brs|strs|syrs|srs)\.md'
+  local pattern='\.archcore/(plugin|knowledge|vision|experience)/[a-zA-Z0-9_-]+\.(adr|spec|prd|plan|idea|rule|guide|doc|task-type|cpat|rfc|rnd|research|evidence|mrd|brd|urd|brs|strs|syrs|srs)\.md'
   local hits
   hits=$({ cd "$PLUGIN_ROOT" && grep -rEn "$pattern" $DIST_DIRS 2>/dev/null; cd "$REPO_ROOT" && grep -rEn "$pattern" $DIST_FILES 2>/dev/null; } \
     | grep -v -E '\.archcore/<' \

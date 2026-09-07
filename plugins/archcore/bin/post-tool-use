@@ -10,8 +10,15 @@
 #   2. fail OPEN when the CLI is absent or older than 0.7.0 — a pre-0.7 CLI
 #      has no post-tool-use leaf and would exit non-zero on every tool call;
 #   3. map the shell host id "codex" to the CLI agent id "codex-cli";
-#   4. hand the raw payload through and propagate stdout and the exit code
-#      unchanged.
+#   4. hand the payload through and propagate stdout and the exit code
+#      unchanged. One bounded exception to byte-transparency: on Cursor an
+#      afterMCPExecution payload names the tool bare ("update_document") and
+#      identifies the server separately in mcp_server_name; the CLI gates on
+#      the qualified spelling, so without translation every Cursor document
+#      write passes the gate as a foreign tool and gets no advisory. When
+#      lib/normalize-stdin.sh can prove the event is Archcore's, that ONE
+#      value is qualified; anything ambiguous goes through untouched.
+#      ARCHCORE_RAW_STDIN stays the original capture.
 
 SCRIPT_DIR=$(dirname "$0")
 # shellcheck source=lib/normalize-stdin.sh
@@ -25,5 +32,10 @@ archcore_plugin_cache_guard
 ARCHCORE_CLI_HOST="$ARCHCORE_HOST"
 [ "$ARCHCORE_CLI_HOST" = "codex" ] && ARCHCORE_CLI_HOST="codex-cli"
 
-printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_CLI_HOST" post-tool-use
+ARCHCORE_CLI_STDIN="$ARCHCORE_RAW_STDIN"
+if [ "$ARCHCORE_HOST" = "cursor" ]; then
+  _ac_qualified=$(archcore_cursor_qualify_mcp_tool) && ARCHCORE_CLI_STDIN="$_ac_qualified"
+fi
+
+printf '%s' "$ARCHCORE_CLI_STDIN" | archcore hooks "$ARCHCORE_CLI_HOST" post-tool-use
 exit $?

@@ -2986,6 +2986,16 @@
       "source": "plugin/plan-discharge-implementation.plan.md",
       "target": "plugin/plan-discharge-by-deletion.adr.md",
       "type": "depends_on"
+    },
+    {
+      "source": "plugin/track-layer.spec.md",
+      "target": "plugin/research-runtime-category-and-evidence-entry.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/command-surface-v2.spec.md",
+      "target": "plugin/research-runtime-category-and-evidence-entry.adr.md",
+      "type": "implements"
     }
   ]
 }

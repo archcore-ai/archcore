@@ -4,7 +4,8 @@
 # Pins the load-bearing gate fields of every track under
 # plugins/archcore/skills/_shared/tracks/ — routing structure (Next targets),
 # skip paths (skip_when), budgets, taxonomy knobs, and Produces type/status —
-# so any silent drift in gate semantics fails CI. The normalized records come
+# so changes to these fields fail CI. Exit-check prose needs separate tests.
+# The normalized records come
 # from test/helpers/extract-gates.sh; the pinned values live in
 # test/fixtures/goldens/<track>.golden.
 #

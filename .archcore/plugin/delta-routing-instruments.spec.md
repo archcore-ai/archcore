@@ -21,7 +21,7 @@ Instrument registry — instrument → produced type → current carrier:
 - decompose → `plan` — `sdd.decompose`.
 - runbook → `guide` — package member, composed from the route's operational and verification tasks.
 - decision → `adr`, `rfc` — the decision track gates.
-- research → `rnd` — the research track gates.
+- research → `research` or `rnd` — the research track gates; gather optionally produces `evidence`, and explicit evidence enters gather directly.
 - spike → timeboxed `rnd` holding Goal, Questions, and Findings only.
 - describe → `spec`, `doc`, `guide` — the describe track gates.
 - acquisition → `mrd`, `brd`, `urd` — the requirements-cascade sources gates.
@@ -62,10 +62,11 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 ## Constraints & Invariants
 
 - Invariant: command tenses — `plan` declares future Δ, `document` records the present state, `review` reconciles past Δ.
-- Invariant: instruments produce only the 19 shipped document types.
+- Invariant: instruments produce only types supported by the engine gate; the vocabulary release exposes 21 types.
 - Invariant: `plan` is the only type any track removes at closeout.
 - Invariant: residue capture at closeout owns no document type — every document it creates comes from the instrument it routes to.
 - Constraint: the decision instrument's `decision.cascade` gate creates its cascade documents (`rule`, `guide`, `spec`, `plan`, `cpat`) inside the instrument — a recorded exception to single-type production.
+- Constraint: research gather may create evidence and relations inside the instrument; the shared gate contract defines its pending-write checkpoint exception.
 - Constraint: at `closeout.capture` the decision instrument runs its standard cascade only; the architecture cascade is out of scope there.
 - Constraint: the acquisition instrument engages on a product-scale `intent_gap` or an expert invocation, never by default.
 - Constraint: iso links engage per flagged capability, never as a whole-initiative mode.

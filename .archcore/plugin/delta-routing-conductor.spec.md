@@ -56,10 +56,10 @@ Controlled vocabulary — one term per concept, no synonyms:
 
 ## Constraints & Invariants
 
-- Invariant: every produced document carries one of the 19 shipped types and a status in `draft`/`accepted`/`rejected` — the MCP tool schemas enum exactly these values.
+- Invariant: every produced document carries one of the 21 types supported by the vocabulary release, or a legacy type below its engine gate and a status in `draft`/`accepted`/`rejected` — the MCP tool schemas enum exactly these values.
 - Invariant: Steps 1, 3, 5, and 6 of `@plugins/archcore/skills/plan/SKILL.md` keep their purpose and order; the conductor replaces Steps 2 and 4, and touches the other steps only where a numbered behavior of this spec requires it.
 - Constraint: WHEN two or more of behaviors 4–8 match, the conductor composes the union of their packages and announces the highest route — `umbrella` over `capability` over `amendment` over `decision`.
-- Constraint: expert aliases `sdd`, `sources`, `iso`, and `research` stay valid; each maps to one computed-era path.
+- Constraint: expert aliases `sdd`, `sources`, `iso`, and `research` stay valid; each maps to one computed-era path. From the 2026-09-07 decision, `research` fixes the research type; `rnd` selects the recommendation-based path by name; `evidence` enters gather directly.
 - Constraint: capability granularity binds through the granularity contract under `_shared/` — a phase-1 exit condition, not a follow-up.
 - Constraint: `retires` entries route to closeout discharge; the conductor performs no status transition.
 

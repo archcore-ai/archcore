@@ -49,6 +49,10 @@ Apply instructions in this order:
 
 When a type-specific contract conflicts with a general rule in this file, follow the type-specific contract.
 
+## Changelog files
+
+1. The agent MUST NOT create or generate a file named `CHANGELOG.md`, regardless of letter case.
+
 ## General writing rules
 
 1. Identify the intended reader and the task that the document supports.
@@ -213,6 +217,7 @@ Before finalizing technical documentation, silently verify:
 Revise known violations before returning the document. Do not include the checklist or a writing-quality score in the generated document unless the user asks for a review report.
 
 <!-- archcore:start --> managed by `archcore init` — edit outside these markers
+
 ## Archcore — project context for this repo
 
 This repo's architecture, decisions, rules, specs and patterns live in `.archcore/`,
@@ -231,4 +236,5 @@ treat them as defaults a local doc can override — never edit or relate to one.
 
 The search is cheap — lean on it. Skip it only for turns this repo would have no
 opinion on: syntax trivia, throwaway snippets, pure mechanics.
+
 <!-- archcore:end -->

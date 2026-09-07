@@ -1,33 +1,33 @@
 gate: decision.classify
-skip_when: yes
+skip_when: the request names the target type adr or rfc
 budget: 1
 taxonomy: Constraints & Tradeoffs, Completion Signals
 produces: none
 next: decision.adr decision.rfc
 
 gate: decision.adr
-skip_when: yes
+skip_when: decision.classify selected decision.rfc
 budget: 2
 taxonomy: Constraints & Tradeoffs, Completion Signals
 produces: adr draft
 next: decision.cascade
 
 gate: decision.rfc
-skip_when: yes
+skip_when: decision.classify selected decision.adr
 budget: 2
 taxonomy: Functional Scope & Behavior, Constraints & Tradeoffs
 produces: rfc draft
 next: decision.cascade
 
 gate: decision.resolve
-skip_when: yes
+skip_when: no rfc draft covers the topic
 budget: 1
 taxonomy: Completion Signals, Constraints & Tradeoffs
 produces: adr draft
 next: decision.cascade end
 
 gate: decision.cascade
-skip_when: yes
+skip_when: the track produced an rfc, or the ADR content matches neither signal set below
 budget: 1
 taxonomy: Constraints & Tradeoffs, Integration & External Dependencies, Completion Signals
 produces: rule and guide (standard cascade), or spec and plan (architecture cascade); when the decision describes a before/after code-pattern shift, the executing skill MAY create a cpat before the rule draft

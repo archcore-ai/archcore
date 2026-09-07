@@ -12,6 +12,9 @@ tools:
   - mcp__archcore__list_documents
   - mcp__plugin_archcore_archcore__list_documents
   - archcore-list_documents
+  - mcp__archcore__search_documents
+  - mcp__plugin_archcore_archcore__search_documents
+  - archcore-search_documents
   - mcp__archcore__get_document
   - mcp__plugin_archcore_archcore__get_document
   - archcore-get_document
@@ -34,7 +37,9 @@ Before any other action in every invocation, call in parallel:
 
 These MUST be your first tool calls. Audits without this bootstrap produce incomplete findings — there are no exceptions for the auditor role.
 
-After both calls return, note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding with the audit.
+If `list_documents` returns `truncated: true`, request the next page with `offset` increased by `returned`. Repeat until `truncated: false`. If a truncated page returns zero documents, report an incomplete inventory and stop inventory-based conclusions.
+
+After every inventory page and the relation graph return, note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding with the audit.
 
 **Why this is mandatory.** Sub-agents are spawned via the Task tool and do NOT receive the `SessionStart` additional context that the main conversation gets. Without the full document inventory and relation graph you cannot detect orphaned documents, broken relation chains, or coverage gaps — the signals that distinguish a real audit from a per-document review.
 
@@ -84,7 +89,7 @@ You ONLY read and analyze. You never create, update, or delete documents. Your o
 ## 6. Code-Document Correlation
 
 - Documents that reference source code paths (src/, lib/, etc.) where files have changed since the document was last modified
-- Use `Grep` to find path references in document content, then `Bash` with `git log` to check if those paths changed
+- Use `search_documents` to find document references to code paths. Compare those paths with the scoped diff and git history supplied by the caller. If history is unavailable, report the affected drift check as unverified; do not infer freshness.
 - Flag documents whose referenced code has diverged from the documented behavior
 - Prioritize specs, ADRs, and guides that describe specific code modules
 
@@ -110,6 +115,15 @@ Structure your audit report as:
 ## Recommendations
 [Prioritized list of actions to improve documentation health]
 ```
+
+# Type-specific Status Checks
+
+Apply the connected engine's status conventions for each document type. A
+complete evidence draft can await a second reader; completeness alone does
+not require acceptance. An accepted evidence record can retain visible
+placeholders for an unknown publisher or publication date. Those placeholders
+alone are not a defect. Check the locator and extract against the recorded
+verification evidence.
 
 # MCP Unavailability
 

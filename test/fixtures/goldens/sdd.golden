@@ -1,33 +1,33 @@
 gate: sdd.frame
-skip_when: yes
+skip_when: an idea, prd, rnd, or research covering the topic exists in .archcore/
 budget: 3
 taxonomy: Functional Scope & Behavior, Constraints & Tradeoffs
 produces: idea draft
 next: end
 
 gate: sdd.require
-skip_when: yes
+skip_when: a prd covering the topic exists in .archcore/; or the request is feature-scoped and an idea, rnd, research, or adr covering the topic already records the problem and the goals
 budget: 5
 taxonomy: Functional Scope & Behavior, Interaction & UX Flow, Non-Functional Quality Attributes, Completion Signals
 produces: prd draft
 next: end
 
 gate: sdd.design
-skip_when: yes
+skip_when: a spec covering the capability this invocation designs exists in .archcore/, or no consumer relies on the planned behavior as a contract, per the routing gate in skills/_shared/spec-contract.md
 budget: 3
 taxonomy: Domain & Data Model, Integration & External Dependencies, Edge Cases & Failure Handling, Constraints & Tradeoffs
 produces: spec draft
 next: end
 
 gate: sdd.decompose
-skip_when: yes
+skip_when: a plan covering the topic exists in .archcore/
 budget: 0
 taxonomy: none
 produces: plan draft
 next: end
 
 gate: sdd.runbook
-skip_when: yes
+skip_when: the declared Δ introduces no operational procedure, or a guide covering the procedure exists in .archcore/
 budget: 1
 taxonomy: Edge Cases & Failure Handling, Completion Signals
 produces: guide draft

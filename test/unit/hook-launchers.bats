@@ -11,7 +11,11 @@
 #   2. map the shell host id "codex" to the CLI agent id "codex-cli";
 #   3. hand stdin through byte-for-byte and propagate stdout and the exit code
 #      unchanged — exit 2 + stderr IS the deny protocol on claude-compat hosts;
-#   4. refuse to run from a plugin-cache cwd even when the CLI is present.
+#   4. refuse to run from a plugin-cache cwd even when the CLI is present;
+#   5. post-tool-use only, Cursor only: qualify the bare archcore tool name of an
+#      afterMCPExecution event whose mcp_server_name is "archcore", touching
+#      that one value and nothing else; every ambiguous shape passes through
+#      unchanged (hooks-validation-system.spec, Normative Behavior 5 and 22–27).
 
 setup() {
   load '../helpers/common'
@@ -159,4 +163,145 @@ CODEX_PAYLOAD='{"turn_id":"t1","tool_name":"Write","tool_input":{"file_path":"/t
   assert_success
   assert_output ""
   [ ! -f "$BATS_TEST_TMPDIR/cli-args" ]
+}
+
+# --- Cursor afterMCPExecution tool-name qualification -------------------------
+
+# cursor_payload <tool_name> <server-json-fragment> [<tool_input-json-string>]
+# Builds one afterMCPExecution payload. The fragment is inserted verbatim so a
+# test can omit mcp_server_name entirely.
+CURSOR_TOOL_INPUT='"{\"path\":\"auth/jwt.adr.md\",\"content\":\"# Updated\"}"'
+cursor_payload() {
+  local tool="$1" server="$2" input="${3:-$CURSOR_TOOL_INPUT}"
+  printf '{"conversation_id":"c1","hook_event_name":"afterMCPExecution","tool_name":"%s","tool_input":%s%s,"result_json":"{}","duration":12}' \
+    "$tool" "$input" "$server"
+}
+
+@test "post-tool-use: cursor afterMCPExecution from server archcore → bare tool_name qualified, rest byte-identical" {
+  make_cli "0.7.0"
+  local payload expected
+  payload=$(cursor_payload update_document ',"mcp_server_name":"archcore"')
+  expected=${payload/\"tool_name\":\"update_document\"/\"tool_name\":\"mcp__archcore__update_document\"}
+  run "$PLUGIN_ROOT/bin/post-tool-use" <<< "$payload"
+  assert_success
+  run cat "$BATS_TEST_TMPDIR/cli-args"
+  assert_output "hooks cursor post-tool-use "
+  printf '%s' "$expected" | diff - "$BATS_TEST_TMPDIR/cli-stdin"
+  # the qualified stdin is still one JSON object with the same fields
+  jq -e '.tool_name == "mcp__archcore__update_document" and .mcp_server_name == "archcore" and (.tool_input | fromjson | .path) == "auth/jwt.adr.md"' \
+    "$BATS_TEST_TMPDIR/cli-stdin" >/dev/null
+}
+
+@test "post-tool-use: cursor fixture afterMCPExecution-update-archcore.json → qualified" {
+  make_cli "0.7.0"
+  run "$PLUGIN_ROOT/bin/post-tool-use" < "$FIXTURES/stdin/cursor/afterMCPExecution-update-archcore.json"
+  assert_success
+  jq -e '.tool_name == "mcp__archcore__update_document"' "$BATS_TEST_TMPDIR/cli-stdin" >/dev/null
+}
+
+@test "post-tool-use: cursor afterMCPExecution from a foreign server → payload unchanged" {
+  make_cli "0.7.0"
+  run "$PLUGIN_ROOT/bin/post-tool-use" < "$FIXTURES/stdin/cursor/afterMCPExecution-update-foreign.json"
+  assert_success
+  diff "$FIXTURES/stdin/cursor/afterMCPExecution-update-foreign.json" "$BATS_TEST_TMPDIR/cli-stdin"
+}
+
+@test "post-tool-use: cursor afterMCPExecution without mcp_server_name → payload unchanged (ownership unproven)" {
+  make_cli "0.7.0"
+  run "$PLUGIN_ROOT/bin/post-tool-use" < "$FIXTURES/stdin/cursor/mcp-update.json"
+  assert_success
+  printf '%s' "$(cat "$FIXTURES/stdin/cursor/mcp-update.json")" | diff - "$BATS_TEST_TMPDIR/cli-stdin"
+}
+
+@test "post-tool-use: cursor afterMCPExecution, server archcore, tool not registered by archcore → unchanged" {
+  make_cli "0.7.0"
+  local payload
+  payload=$(cursor_payload deploy_document ',"mcp_server_name":"archcore"')
+  run "$PLUGIN_ROOT/bin/post-tool-use" <<< "$payload"
+  assert_success
+  printf '%s' "$payload" | diff - "$BATS_TEST_TMPDIR/cli-stdin"
+}
+
+@test "post-tool-use: cursor afterMCPExecution with an already qualified tool_name → unchanged" {
+  make_cli "0.7.0"
+  local payload
+  payload=$(cursor_payload mcp__archcore__update_document ',"mcp_server_name":"archcore"')
+  run "$PLUGIN_ROOT/bin/post-tool-use" <<< "$payload"
+  assert_success
+  printf '%s' "$payload" | diff - "$BATS_TEST_TMPDIR/cli-stdin"
+}
+
+@test "post-tool-use: cursor afterMCPExecution, server name that merely contains archcore → unchanged" {
+  make_cli "0.7.0"
+  local payload
+  payload=$(cursor_payload update_document ',"mcp_server_name":"archcore_docs"')
+  run "$PLUGIN_ROOT/bin/post-tool-use" <<< "$payload"
+  assert_success
+  printf '%s' "$payload" | diff - "$BATS_TEST_TMPDIR/cli-stdin"
+}
+
+@test "post-tool-use: cursor qualification never rewrites a tool_name inside nested JSON strings" {
+  make_cli "0.7.0"
+  # Document content that quotes the key: inside tool_input it is an escaped
+  # string, so it must survive byte for byte while the top-level key changes.
+  local input='"{\"path\":\"auth/jwt.adr.md\",\"content\":\"{\\\"tool_name\\\":\\\"update_document\\\"} and \\\"tool_name\\\": \\\"update_document\\\"\"}"'
+  local payload expected
+  payload=$(cursor_payload update_document ',"mcp_server_name":"archcore"' "$input")
+  expected=${payload/\"tool_name\":\"update_document\"/\"tool_name\":\"mcp__archcore__update_document\"}
+  run "$PLUGIN_ROOT/bin/post-tool-use" <<< "$payload"
+  assert_success
+  printf '%s' "$expected" | diff - "$BATS_TEST_TMPDIR/cli-stdin"
+  # exactly one qualified spelling: the top-level key
+  [ "$(grep -o 'mcp__archcore__update_document' "$BATS_TEST_TMPDIR/cli-stdin" | wc -l | tr -d ' ')" -eq 1 ]
+  # the nested content still holds the bare spelling, untouched
+  jq -e '.tool_input | fromjson | .content | contains("\"tool_name\":\"update_document\"")' "$BATS_TEST_TMPDIR/cli-stdin" >/dev/null
+}
+
+@test "post-tool-use: cursor afterMCPExecution with two real tool_name keys → unchanged (ambiguous shape)" {
+  make_cli "0.7.0"
+  # tool_input as an OBJECT carrying its own tool_name key is not the
+  # documented event shape; the launcher must not guess which key to rewrite.
+  local payload
+  payload=$(cursor_payload update_document ',"mcp_server_name":"archcore"' '{"path":"auth/jwt.adr.md","tool_name":"update_document"}')
+  run "$PLUGIN_ROOT/bin/post-tool-use" <<< "$payload"
+  assert_success
+  printf '%s' "$payload" | diff - "$BATS_TEST_TMPDIR/cli-stdin"
+}
+
+@test "post-tool-use: malformed cursor payload → passed through unchanged, no JSON invented" {
+  make_cli "0.7.0"
+  local payload='{"conversation_id":"c1","hook_event_name":"afterMCPExecution","tool_name":"update_document","mcp_server_name":"archcore"'
+  run "$PLUGIN_ROOT/bin/post-tool-use" <<< "$payload"
+  assert_success
+  # Truncated JSON: the launcher must not turn it into something the CLI would
+  # act on. What reaches the CLI is either the original bytes or, at most, the
+  # same bytes with the one value qualified — never a different document.
+  run jq -e . "$BATS_TEST_TMPDIR/cli-stdin"
+  assert_failure
+  printf '%s' "$payload" | diff - "$BATS_TEST_TMPDIR/cli-stdin" \
+    || printf '%s' "${payload/\"tool_name\":\"update_document\"/\"tool_name\":\"mcp__archcore__update_document\"}" | diff - "$BATS_TEST_TMPDIR/cli-stdin"
+}
+
+@test "post-tool-use: cursor preToolUse payload → unchanged (qualification is post-event only)" {
+  make_cli "0.7.0"
+  run "$PLUGIN_ROOT/bin/post-tool-use" < "$FIXTURES/stdin/cursor/write-archcore.json"
+  assert_success
+  printf '%s' "$(cat "$FIXTURES/stdin/cursor/write-archcore.json")" | diff - "$BATS_TEST_TMPDIR/cli-stdin"
+}
+
+@test "post-tool-use: claude-code payload carrying mcp_server_name → unchanged (cursor-only branch)" {
+  make_cli "0.7.0"
+  local payload='{"session_id":"s1","hook_event_name":"afterMCPExecution","tool_name":"update_document","tool_input":{"path":"auth/jwt.adr.md"},"mcp_server_name":"archcore"}'
+  run "$PLUGIN_ROOT/bin/post-tool-use" <<< "$payload"
+  assert_success
+  run cat "$BATS_TEST_TMPDIR/cli-args"
+  assert_output "hooks claude-code post-tool-use "
+  printf '%s' "$payload" | diff - "$BATS_TEST_TMPDIR/cli-stdin"
+}
+
+@test "pre-tool-use: cursor afterMCPExecution from server archcore → unchanged (launcher stays transparent)" {
+  make_cli "0.7.0"
+  run "$PLUGIN_ROOT/bin/pre-tool-use" < "$FIXTURES/stdin/cursor/afterMCPExecution-update-archcore.json"
+  assert_success
+  diff "$FIXTURES/stdin/cursor/afterMCPExecution-update-archcore.json" "$BATS_TEST_TMPDIR/cli-stdin"
 }

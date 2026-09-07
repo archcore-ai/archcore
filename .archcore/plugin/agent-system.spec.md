@@ -36,6 +36,7 @@ Copilot's copies sit in a directory of their own rather than beside the original
 | Tool | assistant | auditor |
 |------|-----------|---------|
 | list_documents | Yes | Yes |
+| search_documents | Yes | Yes |
 | get_document | Yes | Yes |
 | create_document | Yes | No |
 | update_document | Yes | No |
@@ -50,30 +51,40 @@ Copilot's copies sit in a directory of their own rather than beside the original
 
 **Invocation triggers.** The host invokes `archcore-assistant` when the user requests several related documents, when the task decomposes requirements ("break this PRD into specifications"), when existing documentation structure is refactored, or when a decision needs the full relation graph. The host invokes `archcore-auditor` when the user asks for an audit, health check, or review; when the user asks what is missing or what needs attention; proactively after a batch of documents has been created; before a release or milestone; or to check documentation against current code.
 
-**Shared domain knowledge.** Both agents cover all 18 document types across the three categories — knowledge (`adr`, `rfc`, `rule`, `guide`, `doc`, `spec`), vision (`prd`, `idea`, `plan`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`), and experience (`task-type`, `cpat`) — including each type's purpose, its trigger, its required sections, and its differentiation from similar types. They cover three coexisting requirements tracks: product (idea → prd → plan), sources (mrd + brd + urd → prd), and ISO 29148 (brs → strs → syrs → srs). They cover the four relation types: `implements` (source fulfills target), `extends` (source builds on target), `depends_on` (source requires target), and `related` (general association).
+**Shared domain knowledge.** Both agents cover all 21 document types on a supporting engine across the three categories — knowledge (`adr`, `rfc`, `rule`, `guide`, `doc`, `spec`, `evidence`), vision (`prd`, `idea`, `plan`, `rnd`, `research`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`), and experience (`task-type`, `cpat`) — including each type's purpose, its trigger, its required sections, and its differentiation from similar types. They cover three coexisting requirements tracks: product (idea → prd → plan), sources (mrd + brd + urd → prd), and ISO 29148 (brs → strs → syrs → srs). They cover the engine-supported relation vocabulary. The legacy relations are `implements` (source fulfills target), `extends` (source builds on target), `depends_on` (source requires target), and `related` (general association). The vocabulary release adds `supports`, `contradicts`, and `supersedes`; @plugins/archcore/skills/_shared/research-compatibility.md gates new types, filters, and edges.
 
 **Output contracts.** `archcore-assistant` returns created and updated documents, relation changes, and the reasoning behind its choices. `archcore-auditor` returns a structured report with Audit Summary (counts, issue totals), Critical Issues (broken references, misleading content), Warnings (quality gaps), Code-Document Correlation (documents referencing source paths where code changed after the document was last modified), Info (suggestions), and Recommendations (prioritized actions).
 
 ## Normative Behavior
 
 1. Each agent MUST call `list_documents` and `list_relations` in parallel as the first tool calls of every invocation, before any domain action.
-2. WHEN both bootstrap calls return, the agent MUST note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding. This synthesis is a read-only transformation over data already in hand and adds no tool call.
+2. WHEN every inventory page and the relation graph return, the agent MUST summarize categories, common tags, recent accepted decisions, and draft plans before proceeding.
 3. Each agent's system prompt MUST carry a `# First Step — Bootstrap Knowledge Tree` section as the first content section after the YAML frontmatter.
 4. That preamble MUST cross-reference `subagent-knowledge-tree-bootstrap.adr` for the rationale.
 5. That preamble MUST cross-reference `remove-skill-verify-mcp-preamble.cpat`, so the section is not removed by analogy with the retired MCP-verification preamble.
 6. Each agent MUST perform every `.archcore/` operation through an MCP tool.
-7. Each agent MUST list every MCP tool it uses under all three namings, so the definition works whether the server was registered by the project, by the plugin, or by Copilot's flattening.
-8. Each agent SHOULD explain its reasoning when it chooses a document type or a relation type.
-9. `archcore-assistant` MUST create a relation between documents it creates whenever a semantic link exists.
+7. Each agent MUST list every MCP tool it uses under the three namings defined in Surface.
+8. WHEN choosing a document or relation type, the agent SHOULD explain its reasoning.
+9. WHEN created documents have a semantic link, `archcore-assistant` MUST create the corresponding relation.
 10. `archcore-assistant` SHOULD present a plan for user approval before creating several documents.
 11. `archcore-assistant` MUST NOT create more than 10 documents in one invocation without user confirmation.
-12. `archcore-assistant` MAY skip `list_relations` during the bootstrap only when the task is a strictly single-document read with an explicit path; `list_documents` remains required.
+12. WHEN reading one explicitly named document, `archcore-assistant` MAY skip bootstrap `list_relations`.
+
+The exception in item 12 does not waive `list_documents`.
 13. `archcore-auditor` MUST NOT create, update, or delete a document.
 14. `archcore-auditor` MUST perform the full bootstrap with no exception, because an audit without the graph produces incomplete findings.
 15. `archcore-auditor` MUST return a structured audit report rather than free-form commentary.
 16. `archcore-auditor` SHOULD cross-reference documentation against code through Read, Grep, and Glob.
-17. `archcore-auditor` SHOULD use `Grep` to find path references in document bodies and then check with `git log` whether those paths changed after the document was last modified.
-18. `archcore-auditor` SHOULD prioritize specs, ADRs, and guides describing specific code modules when correlating documents with code.
+17. `archcore-auditor` SHOULD compare document path references against the scoped diff and git history supplied by its caller.
+18. WHEN correlating documents with code, `archcore-auditor` SHOULD prioritize specs, ADRs, and guides describing specific modules.
+
+19. WHEN `list_documents` returns `truncated: true`, the agent MUST request the next page with `offset` increased by `returned`.
+20. IF a truncated page returns zero documents, the agent MUST report the inventory as incomplete before drawing inventory-based conclusions.
+21. BEFORE delegating research or evidence work, the caller MUST supply the current invocation's vocabulary probe result.
+22. BEFORE delegating research or evidence work, the caller MUST supply the absolute plugin root.
+23. IF a shell-less assistant receives no vocabulary probe, the assistant MUST return `needs-vocabulary-probe` to the caller.
+24. IF git history is unavailable to the auditor, the auditor MUST label the affected drift check as unverified.
+25. The auditor MUST apply the connected engine's type-specific status conventions, including evidence drafts awaiting a second reader and permitted provenance placeholders.
 
 ## Constraints & Invariants
 
@@ -93,7 +104,8 @@ Copilot's copies sit in a directory of their own rather than beside the original
 
 1. IF the MCP server is unavailable, THEN the agent MUST inform the user and exit without further tool calls.
 2. IF a document operation fails, THEN the agent MUST report the error and continue with the remaining tasks.
-3. IF a relation target does not exist, THEN the agent MUST skip that relation and report the skip to the user.
+3. IF a relation target does not exist, THEN the agent MUST report the unresolved relation to the caller.
+4. IF an evidence write or required relation remains pending, the assistant MUST keep the affected gather gate open per @plugins/archcore/skills/_shared/tracks/research.md.
 
 ## Conformance
 
@@ -105,4 +117,5 @@ An agent is conformant when:
 4. It satisfies the normative behavior for its role.
 5. `archcore-auditor` produces no mutation, and `archcore-assistant` produces structured output.
 6. Its system prompt carries the `# First Step — Bootstrap Knowledge Tree` section with both cross-references and the grep-able anchor literal `recent accepted decisions`.
-7. `@test/structure/agents.bats` asserts the bootstrap preamble, the synthesis anchor, the three-way tool naming, and byte-identity of the Copilot copies.
+7. @test/structure/agent-contracts.bats asserts the required read-tool set, MD/TOML instruction and description parity, pagination, vocabulary handoff, and auditor evidence constraints.
+8. `@test/structure/agents.bats` asserts the bootstrap preamble, the synthesis anchor, the three-way tool naming, and byte-identity of the Copilot copies.

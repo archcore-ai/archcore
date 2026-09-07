@@ -14,6 +14,7 @@ Run, extend, and debug the Archcore plugin's test suite: the full verification g
 ## Prerequisites
 
 - [bats-core](https://github.com/bats-core/bats-core) — the test runner for shell scripts. macOS: `brew install bats-core`. Linux: `apt install bats`.
+- Archcore CLI 0.8.3 or later on PATH for the real MCP integration suite. Set `ARCHCORE_BIN=/absolute/path/to/archcore` to test another installed binary.
 - `jq`, ShellCheck, and initialized git submodules. `plugin-development.guide` owns the environment setup; `make verify` fails with a named tool when something is missing, and Common Issues below covers the failures that are specific to the suite.
 
 ## Steps
@@ -24,7 +25,7 @@ Run, extend, and debug the Archcore plugin's test suite: the full verification g
 make verify
 ```
 
-Expected result: exit 0 with `All checks passed`. The target runs JSON validation, the permission check, ShellCheck, and the bats tests, in that order. Use this single command before committing.
+Expected result: exit 0 with `All checks passed`. The target runs JSON validation, the permission check, ShellCheck, the unit and structure Bats suites, and the real MCP integration suite. Use this single command before committing.
 
 ### 2. Run only the test suite
 
@@ -49,6 +50,10 @@ PLUGIN_ROOT=$(pwd)/plugins/archcore REPO_ROOT=$(pwd) bats test/unit/hook-launche
 ```
 
 `PLUGIN_ROOT` is worth knowing as more than boilerplate: pointing it at a modified copy of `plugins/archcore` is how fault injection works without touching the tree.
+
+Run the real MCP boundary separately with `make test-integration`. @test/integration/research-vocabulary.bats uses @test/helpers/mcp.bash to start the installed CLI in a temporary project. It checks schemas, templates, categories, directed relations, retry prerequisites, deduplication, and persisted track state. The test uses real storage without model calls.
+
+The CI workflow pins CLI 0.8.3 and verifies the release archive's SHA-256. The release workflow calls the same Linux/macOS verification workflow against the selected release ref.
 
 ### 3. Run the ShellCheck lint
 
@@ -77,6 +82,8 @@ make test-copilot-smoke   # requires the copilot CLI on PATH
 Neither runs as part of `make test`, and both **skip** rather than fail when their host binary is absent — so they ship, stay quiet in CI, and run for free on a contributor's machine that has the host installed. They cover what static tests cannot: that a real install produces a tree the host can load. That is the exact gap issue #2 fell through for Codex, where every structural test was green while marketplace discovery silently found nothing.
 
 The Copilot smoke test asserts filesystem facts rather than CLI output: every path the manifest names survives the install, the hook scripts keep their executable bit, and no plugin MCP server is registered (github/copilot-cli#4234). Host output wording is not a contract the plugin controls; what the plugin promises is what lands on disk.
+
+The Codex smoke suite uses real marketplace installation for every loading check. It accepts Codex's abbreviated `rN` skill paths and inspects the developer skill catalog rather than matching the user prompt.
 
 ### 6. Run the plugin integrity check
 
@@ -190,6 +197,14 @@ Two conventions there are worth copying into any new timing test. Assert on **ma
 ### 14. Run the live-session probes
 
 Some questions no bats test can answer: whether a host loads the hooks config at all, whether its matcher fires on the tool name the model actually chose, and whether a deny is honored or merely displayed. Those belong to `host-probe-protocol.spec`, and `test/probe/mkprobe` builds the disposable tree they run against. Everything mechanically checkable belongs in bats instead — `test/unit/hook-launchers.bats` is the model, turning "does the launcher reach the right CLI leaf with the payload intact" from a live question into a CI assertion.
+
+### 15. Check model routing and test sensitivity
+
+Run `make test-routing-bench` only when model calls are intended. @test/behavioral/route-bench.sh evaluates every configured fixture, saves raw responses, and separates route mismatches from CLI errors. Set `ROUTE_BENCH_OUTPUT_DIR` to retain the run in a chosen directory. Empty or malformed fixture corpora fail before a model call.
+
+@test/unit/route-bench.bats checks the harness with a fake model process. That suite verifies harness behavior; the live target verifies model routing.
+
+Before trusting a changed test, introduce one contract defect in an isolated copy. Preserve its exact diff. Confirm the relevant test fails for that defect, restore the original bytes, and confirm the test passes. Gate goldens now retain normalized `skip_when` conditions; they do not represent all exit-check prose.
 
 ## Verification
 

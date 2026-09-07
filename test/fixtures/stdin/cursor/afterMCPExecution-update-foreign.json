@@ -1,0 +1,1 @@
+{"conversation_id":"conv_abc123","generation_id":"gen_1","hook_event_name":"afterMCPExecution","tool_name":"update_document","tool_input":"{\"path\":\"auth/jwt-strategy.adr.md\",\"content\":\"# Updated\"}","mcp_server_name":"notion","result_json":"{}","duration":12}

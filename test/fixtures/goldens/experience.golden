@@ -1,12 +1,12 @@
 gate: experience.detect
-skip_when: yes
+skip_when: no pattern repeats in the reviewed changes, or a cpat or task-type document already records the pattern
 budget: 0
 taxonomy: none
 produces: none
 next: experience.offer
 
 gate: experience.offer
-skip_when: yes
+skip_when: the invocation's question budget is exhausted per skills/_shared/elicitation-contract.md
 budget: 1
 taxonomy: none
 produces: cpat, task-type, or guide, per the accepted answer draft

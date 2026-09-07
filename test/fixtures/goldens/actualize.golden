@@ -1,19 +1,19 @@
 gate: actualize.scope
-skip_when: yes
+skip_when: the review skill pre-filled the scope with a branch-state output block per skills/_shared/branch-state.md, or the request names an explicit path or topic
 budget: 1
 taxonomy: Functional Scope & Behavior
 produces: none
 next: actualize.verdict
 
 gate: actualize.verdict
-skip_when: yes
+skip_when: zero documents fall in scope
 budget: 2
 taxonomy: Functional Scope & Behavior, Misc / Placeholders
 produces: none
 next: actualize.fix end
 
 gate: actualize.fix
-skip_when: yes
+skip_when: no finding is labeled spec-wrong
 budget: 1 question per document carrying a spec-wrong finding
 taxonomy: Terminology & Consistency, Misc / Placeholders
 produces: none

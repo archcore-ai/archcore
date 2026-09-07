@@ -1,6 +1,6 @@
 ---
-description: Plan a feature or initiative through a computed route — a small fix exits with no documents, one capability gets a spec and a plan, a large initiative gets an umbrella PRD with one spec per capability; name sdd, sources, iso, or research to run that path directly.
-argument-hint: "[topic] [sdd | sources | iso | research]"
+description: Plan a feature or initiative through a computed route — a small fix exits with no documents, one capability gets a spec and a plan, a large initiative gets an umbrella PRD with one spec per capability; name sdd, sources, iso, research, rnd, or evidence to run that path directly.
+argument-hint: "[topic] [sdd | sources | iso | research | rnd | evidence]"
 ---
 
 # /archcore:plan

@@ -1,5 +1,5 @@
 ---
-title: "Delta-Routing Type Engagement — 19-Type Producer Verification Matrix"
+title: "Delta-Routing Type Engagement — 21-Type Producer Matrix"
 status: accepted
 tags:
   - "architecture"
@@ -9,7 +9,7 @@ tags:
 
 ## Overview
 
-This matrix verifies that every shipped document type keeps at least one producer under delta routing (ΔΠMR). Verdict: 19 of 19 types retain a producer; no type is lost. What changes is the engagement condition — today a type fires when its track gate opens and `skip_when` finds no covering document; under delta routing a type fires when the computed Δ, Π, M, R values call for it. "Producer today" cells cite the track files under `@plugins/archcore/skills/_shared/tracks/`.
+This matrix verifies that every shipped document type keeps at least one producer under delta routing (ΔΠMR). The original delta-routing baseline covered 19 types. The research vocabulary adds two producers, for 21 reachable types on a supporting engine; @plugins/archcore/skills/_shared/research-compatibility.md gates the additions. What changes is the engagement condition — today a type fires when its track gate opens and `skip_when` finds no covering document; under delta routing a type fires when the computed Δ, Π, M, R values call for it. "Producer today" cells cite the track files under `@plugins/archcore/skills/_shared/tracks/`.
 
 ## Content
 
@@ -19,7 +19,9 @@ This matrix verifies that every shipped document type keeps at least one produce
 | `prd` | `sdd.require` — every full sdd run | umbrella route (`creates` ≥ 2); capability route with `intent_gap` present | narrowed |
 | `spec` | `sdd.design`; `decision.cascade` architecture branch; `describe.draft` | capability and umbrella routes — one per capability; amendment target for `modifies`; describe path unchanged | widened |
 | `plan` | `sdd.decompose`; `decision.cascade` architecture branch | every executable route; additionally carries the declared Δ and route rationale | widened |
-| `rnd` | `research.frame` | research instrument (Π `world`); new spike form (Π `empirical`, Goal and Questions only) | widened |
+| `rnd` | `research.frame` | Recommendation-based research or explicit `rnd`; spike remains Goal, Questions, Findings | widened |
+| `research` | `research.frame` | Coverage-based investigation, `plan research`, or `document research`; vision | added |
+| `evidence` | `research.gather` | Promoted material or explicit `plan evidence` / `document evidence`; knowledge | added |
 | `adr` | `decision.adr`; `decision.resolve` | decision route (`decision` delta); Π `undecided`; a refactor's decision delta | widened |
 | `rfc` | `decision.rfc` | decision instrument; solution-shape uncertainty (judged panel of alternatives) | unchanged |
 | `rule` | `decision.cascade` standard branch | same producer — the `/archcore:document` path is untouched; input role at grounding stays (conductor reads rules as constraints) | unchanged |
@@ -35,7 +37,7 @@ This matrix verifies that every shipped document type keeps at least one produce
 | `task-type` | `experience.offer` | unchanged producer; new consumption — routing input that de-escalates Π; discharge target for a completed `plan` with an agent-actor procedure | widened |
 | `cpat` | `experience.offer`; `decision.cascade` opt-in | unchanged producers; new consumption — routing input that de-escalates Π | widened |
 
-Legend: narrowed — the type fires under a stricter computed condition than today's gate order; widened — the type gains a producer, a form, or a consumption role; unchanged — producer and condition survive as they are.
+Legend: added — introduced by the research vocabulary release; narrowed — the type fires under a stricter computed condition than today's gate order; widened — the type gains a producer, a form, or a consumption role; unchanged — producer and condition survive as they are.
 
 Consumption-side changes the matrix does not show:
 

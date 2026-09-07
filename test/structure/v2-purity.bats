@@ -110,3 +110,15 @@ CLEAN=(
   done
   [ -z "$viol" ] || fail "Stale v1 command strings in repo-root shipped locations:$viol"
 }
+
+@test "every literal public slash command names one of the four shipped commands" {
+  local command refs
+  refs=$(grep -rhoE '/archcore:[a-z][a-z-]*' "$PLUGIN_ROOT" "$REPO_ROOT/README.md" "$REPO_ROOT/docs" | sort -u)
+  [ -n "$refs" ] || { fail "public command scan found no commands"; return 1; }
+  while IFS= read -r command; do
+    case "$command" in
+      /archcore:init|/archcore:plan|/archcore:document|/archcore:review) ;;
+      *) fail "unknown public command: $command"; return 1 ;;
+    esac
+  done <<< "$refs"
+}
