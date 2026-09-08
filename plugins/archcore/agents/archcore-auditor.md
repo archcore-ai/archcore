@@ -5,7 +5,7 @@ description: >
   missing relations, orphaned documents, stale statuses, coverage gaps,
   and consistency checks across the .archcore/ knowledge base.
 model: sonnet
-maxTurns: 15
+maxTurns: 40
 color: yellow
 background: true
 tools:

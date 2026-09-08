@@ -87,7 +87,7 @@ Every Archcore document type is reachable through an intent skill or directly th
 | `archcore-assistant` | `agents/archcore-assistant.md` | Read/write documentation agent | sonnet | All MCP + Read/Grep/Glob |
 | `archcore-auditor` | `agents/archcore-auditor.md` | Read-only documentation auditor | sonnet | Read MCP + Read/Grep/Glob |
 
-`archcore-assistant` handles complex multi-document tasks — creation, requirements engineering, relation management. Foreground, blue, 20 turns maximum. `archcore-auditor` handles documentation health checks — coverage gaps, orphaned documents, stale statuses, and code-document correlation, which cross-references document path mentions against git history to flag drift. Background, yellow, 15 turns maximum.
+`archcore-assistant` handles complex multi-document tasks — creation, requirements engineering, relation management. Foreground, blue, 20 turns maximum. `archcore-auditor` handles documentation health checks — coverage gaps, orphaned documents, stale statuses, and code-document correlation, which cross-references document path mentions against git history to flag drift. Background, yellow, 40 turns maximum. `agent-system.spec` owns both budgets; the auditor's is the larger because an audit reads the whole corpus one document at a time.
 
 Both ship in three formats, one per loader:
 

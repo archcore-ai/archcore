@@ -27,7 +27,9 @@ Copilot's copies sit in a directory of their own rather than beside the original
 | Agent | Role | model | maxTurns | background |
 |---|---|---|---|---|
 | `archcore-assistant` | complex, multi-step documentation tasks requiring write access | sonnet | 20 | no |
-| `archcore-auditor` | documentation health checks with no mutation capability | sonnet | 15 | yes |
+| `archcore-auditor` | documentation health checks with no mutation capability | sonnet | 40 | yes |
+
+`maxTurns` counts API round-trips, not documents, and an omitted key removes the ceiling rather than restoring a default. The auditor's budget exceeds the assistant's because an audit reads the whole corpus one document at a time, while the assistant writes a bounded set. The TOML variant carries no equivalent key: Codex bounds its own run.
 
 **MCP tool naming.** The same MCP server appears under three names depending on registration: `mcp__archcore__*` (project `.mcp.json`), `mcp__plugin_archcore_archcore__*` (plugin-bundled on Claude Code), and the flat `archcore-<tool>` (Copilot, which joins server and tool with a hyphen). Every allow-list and deny-list in an agent file carries all three. The asymmetry matters: an allow-list missing a name loses a capability, while the auditor's TOML **deny**-list missing a name silently grants the read-only agent the power to mutate.
 
@@ -85,6 +87,8 @@ The exception in item 12 does not waive `list_documents`.
 23. IF a shell-less assistant receives no vocabulary probe, the assistant MUST return `needs-vocabulary-probe` to the caller.
 24. IF git history is unavailable to the auditor, the auditor MUST label the affected drift check as unverified.
 25. The auditor MUST apply the connected engine's type-specific status conventions, including evidence drafts awaiting a second reader and permitted provenance placeholders.
+26. Each agent definition MUST declare `maxTurns` as a positive integer.
+27. The caller MUST NOT present a partial agent result as a finished report.
 
 ## Constraints & Invariants
 
@@ -106,6 +110,9 @@ The exception in item 12 does not waive `list_documents`.
 2. IF a document operation fails, THEN the agent MUST report the error and continue with the remaining tasks.
 3. IF a relation target does not exist, THEN the agent MUST report the unresolved relation to the caller.
 4. IF an evidence write or required relation remains pending, the assistant MUST keep the affected gather gate open per @plugins/archcore/skills/_shared/tracks/research.md.
+5. IF an agent stops at its `maxTurns` ceiling, THEN the caller MUST continue that same agent or narrow the task.
+
+A restart is the wrong recovery from item 5: it repeats the bootstrap and spends the new budget on work already done.
 
 ## Conformance
 
