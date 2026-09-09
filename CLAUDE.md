@@ -2,6 +2,12 @@
 
 Read and follow `AGENTS.md` before creating or editing repository documentation, Archcore documents, skills, agents, rules, or user-facing Markdown.
 
+## Shared agent instructions
+
+`AGENTS.md` is the shared instruction file for every host, including the `## Integrations` section. It is imported below so Claude Code receives it natively.
+
+@AGENTS.md
+
 ## Archcore operations
 
 Use Archcore MCP tools for all `.archcore/` document operations.
