@@ -70,4 +70,4 @@ The `slug.type.md` naming convention is the sole source of category information.
 ## References
 
 - [Rule: Directory Structure and Document Naming Rules](./free-form-directory-rules.rule.md)
-- [Doc: Organizing Your .archcore/ Directory](./archcore-directory-structure.doc.md)
+- `concepts/naming-and-layout` in the `archcore` global source — the layout model, the filename contract, and the layout guidance

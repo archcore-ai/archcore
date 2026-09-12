@@ -57,7 +57,7 @@ Then open your agent and say:
 
 Done — there is now a structured ADR in `.archcore/` that every future session, in any agent, will see.
 
-On **Windows**: `irm https://archcore.ai/install.ps1 | iex`. For WSL, `go install`, and building from source, see [Install methods](#reference) below or the [full install guide](https://docs.archcore.ai/cli/install/).
+On **Windows**: `irm https://archcore.ai/install.ps1 | iex`. For WSL, `go install`, and building from source, see [Install methods](#reference) below or the [full install guide](https://docs.archcore.ai/start/install/).
 
 ## Works with your agent
 
@@ -311,7 +311,7 @@ go build -o archcore .
 
 **Supported platforms:** macOS, Linux, Windows — amd64 and arm64.
 
-For environment variables (`ARCHCORE_VERSION`, `ARCHCORE_INSTALL_DIR`, `GITHUB_TOKEN`) and PATH troubleshooting, see the [full install guide](https://docs.archcore.ai/cli/install/).
+For environment variables (`ARCHCORE_VERSION`, `ARCHCORE_INSTALL_DIR`, `GITHUB_TOKEN`), see [installation settings](https://docs.archcore.ai/cli/configuration/#installation-settings). For PATH issues, see [installation troubleshooting](https://docs.archcore.ai/guides/troubleshooting/#archcore-not-in-path).
 
 </details>
 

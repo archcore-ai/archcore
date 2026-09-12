@@ -1089,21 +1089,6 @@
       "type": "related"
     },
     {
-      "source": "dir/archcore-directory-structure.doc.md",
-      "target": "dir/free-form-directory-structure.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "dir/categories-and-document-types.doc.md",
-      "target": "dir/archcore-directory-structure.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "dir/free-form-directory-rules.rule.md",
-      "target": "dir/archcore-directory-structure.doc.md",
-      "type": "related"
-    },
-    {
       "source": "update/self-update-command.doc.md",
       "target": "release/version-injection-via-ldflags.rule.md",
       "type": "related"

@@ -7,14 +7,16 @@ tags:
 
 ## Purpose
 
-State how directories and document filenames inside `.archcore/` must be formed, so that the CLI, the MCP server, and the server scan, categorize, and sync the same set of documents.
+State what this engine requires of a directory and a document filename inside `.archcore/`, so that the CLI, the MCP server, and the sync server scan, categorize, and sync the same set of documents.
+
+The layout model itself — the filename contract, the slug pattern, what a directory does and does not mean, the reserved files, and the layout guidance — is `concepts/naming-and-layout` in the mounted `archcore` global source. This rule carries the engine's obligations and its enforcement points, not a second copy of the model.
 
 ## Rule
 
 1. The author MAY create any directory structure inside `.archcore/` and MAY nest directories to any depth.
 2. The author MUST name every document file `slug.type.md`.
 3. The author MUST write the slug in lowercase alphanumeric characters and hyphens only. Examples: `use-postgres`, `login-flow`.
-4. The author MUST use one of the 19 valid document types as the type segment: `adr`, `rfc`, `rule`, `guide`, `doc`, `spec`, `task-type`, `cpat`, `prd`, `idea`, `plan`, `rnd`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`.
+4. The author MUST use an accepted document type as the type segment. The accepted vocabulary is owned by `concepts/core-concepts` in the `archcore` global source; this rule does not restate the list. What this binary recognizes is the registry in `@templates/templates.go`, which is 21 types as of v0.8.3.
 5. The author MUST use the `.md` extension.
 6. The CLI and the MCP server MUST derive the category (`vision`, `knowledge`, `experience`) from the document type, never from the directory path.
 7. WHEN a scan reaches a hidden directory (a `.`-prefixed directory such as `.git/`), the scanner MUST skip it.
