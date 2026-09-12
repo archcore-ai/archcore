@@ -50,7 +50,7 @@ if ! command -v archcore >/dev/null 2>&1; then
   macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash
   Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex
   Then verify: archcore --version
-  Docs: https://docs.archcore.ai/cli/install/"
+  Docs: https://docs.archcore.ai/start/install/"
   # Copilot only: the plugin ships no MCP server on this host
   # (copilot-mcp-architecture.adr), so installing the CLI is not enough —
   # without project wiring the session still has no document tools. \"\$PWD\"
@@ -348,7 +348,7 @@ if [ "$_ac_rc" -ne 0 ] && [ -n "$_ac_err" ] && _archcore_config_rejected "$_ac_e
   macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash
   Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex
   Then verify: archcore --version
-  Docs: https://docs.archcore.ai/cli/install/
+  Docs: https://docs.archcore.ai/start/install/
   Archcore context will work again once the CLI is updated."
   _archcore_stamp_now last-cli-advisory
   [ -n "$_ac_err" ] && rm -f "$_ac_err"

@@ -87,7 +87,7 @@ Content voice: default to architectural prose — decisions, rationale, intent. 
 
 ### Pre-flight: CLI availability check
 
-Before any init step, verify that the Archcore CLI is available on PATH. The canonical installer is documented at https://docs.archcore.ai/cli/install/ — use it as the single source of truth; do **not** suggest other channels (`brew`, `go install`, etc.) even if the user mentions them.
+Before any init step, verify that the Archcore CLI is available on PATH. The canonical installer is documented at https://docs.archcore.ai/start/install/ — use it as the single source of truth; do **not** suggest other channels (`brew`, `go install`, etc.) even if the user mentions them.
 
 1. Run: `archcore --version` (via Bash tool)
 2. If it **succeeds** → check the host-wiring version gate with the deterministic helper (never compare versions yourself — lexical comparison breaks on double-digit fields). Resolve `$d` **in this same Bash call** (each Bash invocation is a fresh shell — nothing persists from a later step), exactly as the Step -1 probe below does: run `d="${CLAUDE_SKILL_DIR:-<absolute dir of this SKILL.md>}"; "$d/../../bin/cli-gte" 0.7.0`. It prints exactly one token:
@@ -116,7 +116,7 @@ Before any init step, verify that the Archcore CLI is available on PATH. The can
      > - macOS / Linux / WSL: `curl -fsSL https://archcore.ai/install.sh | bash`
      > - Windows (PowerShell 5.1+): `irm https://archcore.ai/install.ps1 | iex`
      > - Verify: `archcore --version`
-     > - Full docs: https://docs.archcore.ai/cli/install/
+     > - Full docs: https://docs.archcore.ai/start/install/
 
 Do **not** attempt `brew install`, `go install`, package-manager wrappers, or any other install command — they are not the supported path and will produce a CLI that is not version-compatible with the plugin.
 

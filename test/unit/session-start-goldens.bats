@@ -27,13 +27,13 @@ expected_cli_missing_plain() {
   macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash
   Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex
   Then verify: archcore --version
-  Docs: https://docs.archcore.ai/cli/install/
+  Docs: https://docs.archcore.ai/start/install/
 EOF
 }
 
 expected_cli_missing_claude() {
   cat <<'EOF'
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"[Archcore] CLI not found on PATH. Install it first:\n  macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash\n  Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex\n  Then verify: archcore --version\n  Docs: https://docs.archcore.ai/cli/install/\n"}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"[Archcore] CLI not found on PATH. Install it first:\n  macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash\n  Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex\n  Then verify: archcore --version\n  Docs: https://docs.archcore.ai/start/install/\n"}}
 EOF
 }
 

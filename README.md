@@ -51,7 +51,7 @@ curl -fsSL https://archcore.ai/install.sh | bash
 irm https://archcore.ai/install.ps1 | iex
 ```
 
-Verify: `archcore --version` · Update: `archcore update` · Docs: [docs.archcore.ai/cli/install](https://docs.archcore.ai/cli/install/)
+Verify: `archcore --version` · Update: `archcore update` · Docs: [docs.archcore.ai/start/install](https://docs.archcore.ai/start/install/)
 
 Then add the plugin in your host:
 
