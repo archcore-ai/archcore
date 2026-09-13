@@ -33,24 +33,24 @@ session.
 
 The documents and what each one governs:
 
-| Document | Binds |
-| --- | --- |
-| `go-code-quality.rule` | Error handling, exit codes, package layout, imports, allocation, general Go conventions. |
-| `strict-go-naming-conventions.rule` | Every identifier name. Absolute for new code. |
-| `comments-are-the-exception.rule` | Whether a comment is written at all. The default is none. |
-| `fail-open-or-fail-closed-reads.rule` | Every read of `settings.json`, a host config, the filesystem, or git. |
-| `choosing-an-atomic-write.rule` | Every write that must not be observable half-finished. |
-| `bounded-and-deterministic-output.rule` | Every collection or stream that leaves the process. |
-| `cite-the-governing-document-from-code.rule` | Comments on code that exists because of a recorded decision. |
-| `shared-guards-return-classified-sentinels.rule` | A predicate more than one surface consults. |
-| `rendering-happens-at-the-boundary.rule` | What a domain package returns, and who formats it. |
-| `platform-splits-are-files.rule` | Behavior that differs by `GOOS` or `GOARCH`. |
-| `the-shape-of-an-mcp-tool-file.rule` | Every file under `internal/mcp/tools/` that adds a tool. |
-| `unit-testing-patterns.guide` | Every `_test.go` file. |
-| `isolating-the-machine-from-the-test-suite.guide` | `TestMain` in a package whose code reaches `$HOME`, XDG state, a host CLI, or git. |
-| `registry-agreement-and-test-seams.guide` | A new registry, a matcher over one, or a test seam into production code. |
-| `in-process-mcp-integration-tests.adr` | Tests that cross MCP tool boundaries. |
-| `e2e-testing-for-cli.idea` | End-to-end coverage layers. Historical record; read the ADR above for current state. |
+| Document                                          | Binds                                                                                    |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `go-code-quality.rule`                            | Error handling, exit codes, package layout, imports, allocation, general Go conventions. |
+| `strict-go-naming-conventions.rule`               | Every identifier name. Absolute for new code.                                            |
+| `comments-are-the-exception.rule`                 | Whether a comment is written at all. The default is none.                                |
+| `fail-open-or-fail-closed-reads.rule`             | Every read of `settings.json`, a host config, the filesystem, or git.                    |
+| `choosing-an-atomic-write.rule`                   | Every write that must not be observable half-finished.                                   |
+| `bounded-and-deterministic-output.rule`           | Every collection or stream that leaves the process.                                      |
+| `cite-the-governing-document-from-code.rule`      | Comments on code that exists because of a recorded decision.                             |
+| `shared-guards-return-classified-sentinels.rule`  | A predicate more than one surface consults.                                              |
+| `rendering-happens-at-the-boundary.rule`          | What a domain package returns, and who formats it.                                       |
+| `platform-splits-are-files.rule`                  | Behavior that differs by `GOOS` or `GOARCH`.                                             |
+| `the-shape-of-an-mcp-tool-file.rule`              | Every file under `internal/mcp/tools/` that adds a tool.                                 |
+| `unit-testing-patterns.guide`                     | Every `_test.go` file.                                                                   |
+| `isolating-the-machine-from-the-test-suite.guide` | `TestMain` in a package whose code reaches `$HOME`, XDG state, a host CLI, or git.       |
+| `registry-agreement-and-test-seams.guide`         | A new registry, a matcher over one, or a test seam into production code.                 |
+| `in-process-mcp-integration-tests.adr`            | Tests that cross MCP tool boundaries.                                                    |
+| `e2e-testing-for-cli.idea`                        | End-to-end coverage layers. Historical record; read the ADR above for current state.     |
 
 `.archcore/architecture/package-dependency-direction.rule` binds Go source too. It governs which
 package may import which.
@@ -93,24 +93,59 @@ Before creating or updating an Archcore document:
 
 Treat mounted global documents as read-only. Do not edit them or create relations to them.
 
-## Archcore + Serena
+### Archcore + Serena
 
-Applies when Archcore and Serena are both available.
+Applies when the session lists any Serena tool, including a deferred tool that shows only its name.
 
-1. Use Archcore for project knowledge, decisions, specifications, plans, and traceability. Use Serena for symbol-aware code navigation, reference lookup, diagnostics, and semantic edits.
-2. Before changing code, search Archcore for accepted decisions, relevant specifications, and prior records. Treat accepted decisions as constraints.
-3. Activate the project in Serena before querying symbols. Use Serena to inspect relevant symbols and references before a cross-file change, rename, move, or refactor.
-4. Do not use Serena memory as the source of truth for architecture or product decisions. Record durable decisions in Archcore.
-5. When an Archcore specification or accepted decision conflicts with the requested implementation, report the conflict and stop for the user's decision.
-6. When the user names an `/archcore:*` command or Archcore skill, load and follow that skill's instructions before starting implementation work.
-7. After an Archcore planning or documentation command completes, use Serena to validate the affected code structure, dependencies, and references when useful.
-8. For a change covered by an Archcore specification or plan, preserve the link between the code change and its governing record in the task result.
-9. Use Serena's symbol-aware edits for code symbols when available. Use ordinary file edits for prose, configuration, generated files, or changes Serena cannot model safely.
-10. Run the relevant tests after semantic edits. Use Serena diagnostics as additional evidence, not as a replacement for tests.
-11. If Serena is unavailable or cannot analyze a language or file, continue with normal repository tools and name that limitation in the result.
-12. Do not call `init_project` merely because Archcore is present. If no `.archcore/` exists, work from repository files unless the user asks to initialize Archcore.
-13. Create new Archcore records with `status: draft`. Set `status: accepted` only after the user explicitly accepts the record.
-14. If more than one writable `.archcore/` directory exists, ask the user which project owns the new record before writing it.
+Session start:
+
+1. Before the first code read, search Archcore for accepted decisions, specifications, and rules on the affected area.
+2. Treat accepted Archcore records as constraints on the change.
+3. If an accepted Archcore record conflicts with the request, report the conflict to the user.
+4. Make no code edit until the user resolves the Archcore conflict.
+5. If the host shows Serena tools by name only, load their schemas through tool search before the first code read.
+6. Before the first code read, call Serena `initial_instructions` once per session.
+7. If no Serena project is active, call `activate_project` for the current repository.
+
+Tool choice:
+
+8. To find where a symbol is used, call `find_referencing_symbols` instead of text search.
+9. To find where a symbol is defined, call `find_symbol` instead of text search.
+10. To inspect a code file, call `get_symbols_overview` before reading the whole file.
+11. To read one symbol, call `find_symbol` with `include_body`.
+12. To rename a symbol, call `rename_symbol`.
+13. To delete a symbol, call `safe_delete_symbol` when the toolset has it.
+14. To find a string, JSON key, configuration key, path, or prose phrase, use text search.
+15. To find a project decision, call Archcore `search_documents` instead of reading Serena memory.
+
+Changes:
+
+16. Before changing a symbol's name, type, signature, fields, or serialization annotation, call `find_referencing_symbols` on it.
+17. Call `find_referencing_symbols` for a one-line symbol change too.
+18. For serialized field names and string keys, also run a text search across code, configuration, and docs.
+19. When any skill, including `/archcore:*`, or a plan step says to read code, use Serena tools.
+20. To replace a whole symbol, call `replace_symbol_body`.
+21. Use ordinary file edits for local changes inside a symbol, prose, configuration, and generated files.
+22. If a Serena tool is missing, fails, or lacks language support, use ordinary tools for that file.
+23. Name each Serena limitation in the task result.
+24. After code edits, run the relevant tests.
+25. Report `get_diagnostics_for_file` output beside the test results, never instead of them.
+
+Records:
+
+26. Record architecture and product decisions in Archcore, not in Serena memory.
+27. Create every new `.archcore/**/*.md` record with status `draft`.
+28. Set status `accepted` only after the user accepts the record.
+29. If a document carries `read_only: true`, name its owning project instead of writing to it.
+30. If more than one writable `.archcore/` is present, confirm the target project before writing a record.
+31. If the project has no `.archcore/`, do not call `init_project` without the user's request.
+
+Result:
+
+32. After a task that changed code, end with `Serena: <tools used>` or `Serena: not used — <reason>`.
+33. For a change covered by an Archcore specification or plan, name that record in the result.
+34. If another connected recipe conflicts with these instructions, report the conflict in the task result.
+35. If another connected recipe conflicts with these instructions, keep that recipe's applicable contribution.
 
 ## Managed Blocks
 
