@@ -1,7 +1,7 @@
 ---
 name: document
-argument-hint: "[module, topic, or decision] [adr|rfc|spec|doc|guide|rule|research|evidence]"
-description: "Record a decision or document existing code. Use for 'we decided', 'record this decision', 'document why we chose X', 'make it our standard', 'draft an RFC', 'should we switch to Y' proposals, 'resolve the RFC', 'we accepted the proposal', 'document the auth module', 'capture how the payment system works', reference material, or how-to instructions. Use document research to file an existing investigation report, or document evidence to file one external material. Planning a feature → /archcore:plan. Checking docs against code or docs health → /archcore:review."
+argument-hint: "[module, topic, or decision] [adr|rfc|spec|doc|guide|rule|research|evidence|scenario|journey]"
+description: "Record a decision or document existing code. Use for 'we decided', 'record this decision', 'document why we chose X', 'make it our standard', 'draft an RFC', 'should we switch to Y' proposals, 'resolve the RFC', 'we accepted the proposal', 'document the auth module', 'capture how the payment system works', reference material, or how-to instructions. Use document research to file an existing investigation report, or document evidence to file one external material. Use document scenario to record how a user moves through existing behavior with examples that illustrate one spec, and document journey to file the intended path of one user type before a spec exists. Planning a feature → /archcore:plan. Checking docs against code or docs health → /archcore:review."
 ---
 
 # /archcore:document
@@ -45,7 +45,7 @@ Load `skills/_shared/gate-contract.md` and `skills/_shared/elicitation-contract.
 
 | Signal | Route |
 |---|---|
-| The invocation names a type — `adr`, `rfc`, `spec`, `doc`, `guide`, `rule`, `research`, `evidence` | → expert form, no routing (Step 2) |
+| The invocation names a type — `adr`, `rfc`, `spec`, `doc`, `guide`, `rule`, `research`, `evidence`, `scenario`, `journey` | → expert form, no routing (Step 2) |
 | Decision signals: "we decided", "record this decision", "document why we chose X", "make it our standard", "draft an RFC", a "should we switch to Y" proposal. A bare "compare X vs Y" with no proposed target belongs to `/archcore:plan`'s research track; a proposal to add a new capability with no named technical target ("should we add caching?") is feature framing → `/archcore:plan`, sdd track | → decision track — `skills/_shared/tracks/decision.md`, entry at `decision.classify` |
 | Resolution signals: "resolve the RFC", "we accepted the proposal", "reject the RFC" — an `rfc` draft exists on the topic | → decision track — `skills/_shared/tracks/decision.md`, entry at `decision.resolve` |
 | Code-doc signals: "document the auth module", "capture how the payment system works", reference material (registry, glossary, lookup), how-to instructions | → describe track — `skills/_shared/tracks/describe.md`, entry at `describe.read` |
@@ -63,6 +63,12 @@ stop before the first MCP call that names either type.
 Before delegating research or evidence work, pass the current vocabulary probe
 result and absolute plugin root to the assistant. If the assistant returns
 `needs-vocabulary-probe`, run the helper and resume the same task.
+Apply `skills/_shared/actor-subject-compatibility.md` under its own condition 1 —
+a request or named type naming `scenario` or `journey`, or a grounding result of
+either type. When that probe returns `yes`, add `scenario` and `journey` to the
+type filter below. On older engines, keep the legacy filter; an explicit
+`scenario` or `journey` request then reports the required version and exits
+without a write.
 When the probe returns `yes`, add `research` and `evidence` to the type filter
 below. On older engines, keep the legacy filter.
 
@@ -106,6 +112,14 @@ If the invocation names a type, execute the named path without routing:
   carries the evidence.
 - `rule` → decision track, creation at `decision.cascade`; a missing upstream
   document routes per `skills/_shared/gate-contract.md`
+- `scenario` → describe track at `describe.read`; the named type settles
+  `describe.draft`'s type question, and `describe.read` records `features/*.feature`
+  files as evidence when present. A missing covering `spec` routes to the earliest
+  gate that produces it per `skills/_shared/gate-contract.md`.
+- `journey` → sdd track at `sdd.require` in callable mode: the request pre-fills
+  the scope, the gate produces only the `journey` and no `prd`, and the track
+  exits after that gate. This mirrors `document research`: a ready vision
+  artifact filed through a plan-side instrument.
 
 Then go to Step 4.
 

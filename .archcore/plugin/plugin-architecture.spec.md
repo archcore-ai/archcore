@@ -153,7 +153,7 @@ Agents are an escalation path, not the primary interface. Both are restricted to
 - Constraint: the plugin ships at most 2 agents. A third requires an ADR.
 - Constraint: a PreToolUse hook MUST complete within 2 seconds, and a PostToolUse hook within 4 seconds, with enough margin that a host whose pre-mutation timeout fails open never reaches it.
 - Constraint: a `SKILL.md` MUST NOT exceed 300 lines.
-- Constraint: a track file MUST NOT exceed 200 lines.
+- Constraint: a track file MUST NOT exceed 300 lines; `@test/structure/track-file-cap.bats` pins the number, and `track-file-line-cap-300.adr` records why it rose from 200.
 - Constraint: a new host costs a manifest, a hooks config, a normalizer case, a resolvable path from that config to `bin/`, and enrollment in the coverage matrix — and no change to skills, agents, or `bin/` logic.
 - Constraint: the `Makefile` lives at the repository root while the plugin lives in `plugins/archcore/`, so `make verify` runs from the repository root.
 - Invariant: every user-facing entry point maps to one of the four commands.

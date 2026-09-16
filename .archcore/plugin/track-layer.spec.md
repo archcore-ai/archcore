@@ -14,8 +14,8 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 ## Surface
 
 - Track files: `skills/_shared/tracks/<track-id>.md`; gates as `### gate: <track>.<stage>` sections.
-- Catalog: `sdd` (frame → require → design → decompose), `requirements-cascade` (`mode: sources` = mrd → brd → urd; `mode: iso` = brs → strs → syrs → srs), `decision` (classify → adr | rfc → cascade; resolution entry `decision.resolve` on an existing rfc draft), `describe` (read code → draft spec/doc/guide → clarify gaps), `actualize` (scope diff → per-finding verdict → confirmed fixes), `experience` (detect repeated pattern → cpat | task-type offer), `research` (frame → gather → coverage synthesis or recommendation; standalone evidence exits at gather), `closeout` (verify plan against branch diff → confirmed canon merge → confirmed draft → accepted status transitions).
-- Primary executors: `plan` → sdd, requirements-cascade, research; `document` → describe, decision, research; `review` → actualize, experience, closeout; `decision` is callable from all three.
+- Catalog: `sdd` (frame → require, with `journey` beside the `prd` under the illustrate condition → design → illustrate → decompose), `requirements-cascade` (`mode: sources` = mrd → brd → urd; `mode: iso` = brs → strs → syrs → srs), `decision` (classify → adr | rfc → cascade; resolution entry `decision.resolve` on an existing rfc draft), `describe` (read code and feature files → draft spec/doc/guide/scenario → clarify gaps), `actualize` (scope diff → per-finding verdict → confirmed fixes), `experience` (detect repeated pattern → cpat | task-type offer), `research` (frame → gather → coverage synthesis or recommendation; standalone evidence exits at gather), `closeout` (verify plan against branch diff, with scenario readiness and spec coverage reported → confirmed canon merge → confirmed draft → accepted status transitions).
+- Primary executors: `plan` → sdd, requirements-cascade, research; `document` → describe, decision, research, and `sdd.require` in callable mode for `document journey`; `review` → actualize, experience, closeout; `decision` is callable from all three.
 - Gate record fields, fixed order: Purpose; Entry conditions with `skip_when`; Elicitation knobs (trigger, taxonomy, budget); Produces (type, status, relations); Exit checks tagged `blocking` or `advisory`; Next.
 - Track state block inside the draft artifact: `<!-- archcore:track -->` with fields `track`, `gate`, `route`, `delta`, `taxonomy`, `asked`, `budget`, `deferred`; research may append `artifact_type`.
 
@@ -53,6 +53,7 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 29. WHEN using new vocabulary, the executing skill MUST apply @plugins/archcore/skills/_shared/research-compatibility.md before the first affected MCP call.
 30. WHEN standalone evidence completes gather, the research instrument MUST exit the track.
 31. WHEN a research state field contradicts the filename type, the research instrument MUST report a blocking state error.
+32. WHEN using the actor-subject vocabulary, the executing skill MUST apply @plugins/archcore/skills/_shared/actor-subject-compatibility.md before the first affected MCP call.
 
 ## Constraints & Invariants
 
@@ -64,6 +65,7 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 - Invariant: adding a track changes one new track file plus one routing-table row per calling skill, and no other file.
 - Exception: research gather may checkpoint pending evidence operations before its single gate-close update; the shared gate contract owns the exception.
 - Constraint: research and rnd belong to vision; evidence belongs to knowledge.
+- Constraint: scenario belongs to knowledge; journey belongs to vision; `sdd.require` producing a `journey` beside the `prd` is a recorded exception to single-type production.
 - Constraint: explicit standalone evidence satisfies frame through the request; no upstream investigation is required.
 - Constraint: required research and evidence sections follow the CLI templates; the track records method without prescribing one.
 - Invariant: the draft artifact is the only carrier of track state; no session memory or side file holds it.
@@ -77,4 +79,4 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 
 ## Conformance
 
-A track file and its executing skills are conformant when they satisfy behaviors 1–31, hold all invariants, and degrade per the failure rules.
+A track file and its executing skills are conformant when they satisfy behaviors 1–32, hold all invariants, and degrade per the failure rules.

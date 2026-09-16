@@ -67,7 +67,14 @@ of both types on every engine. If this skill has no shell tool, use the probe
 result the host supplied; if none was supplied, report `needs-vocabulary-probe`
 with the helper path and stop before the first MCP call that names either type.
 
-1. Search `.archcore/` with `mcp__archcore__search_documents` and `mcp__archcore__list_documents` across all three categories. Pass a planning-moment type filter — for example `types=["idea", "prd", "plan", "spec", "rnd", "rfc", "adr", "rule", "task-type", "cpat"]` — instead of relying on the global type ranking. Do not exclude a category from reads.
+The actor-subject probe (`skills/_shared/actor-subject-compatibility.md`) runs
+under its own condition 1 — a request naming `scenario` or `journey`, a route
+engaging the illustrate instrument, or a grounding result of either type — and
+adds both types to the filter below only when it returns `yes`. The same
+no-shell rule applies: report `needs-vocabulary-probe` and stop before the first
+MCP call that names either type.
+
+1. Search `.archcore/` with `mcp__archcore__search_documents` and `mcp__archcore__list_documents` across all three categories. Pass a planning-moment type filter — for example `types=["idea", "prd", "plan", "spec", "rnd", "rfc", "adr", "rule", "task-type", "cpat"]` — and add `"scenario"`, `"journey"` when the actor-subject probe returned `yes` — instead of relying on the global type ranking. Do not exclude a category from reads.
 2. WHEN a found document carries `implements` or `related` relations, pull the linked documents one hop via `mcp__archcore__list_relations` and `mcp__archcore__get_document`.
 3. WHEN a found draft on the topic carries an `archcore:track` state block, resume it per the resume rules in `skills/_shared/gate-contract.md` and `skills/_shared/delta-routing.md` instead of opening a new track.
 4. Read git state — current branch, recent commits, working tree — and the code areas the topic names. Record the concrete files and modules for Step 5, and note zone documents whose referenced paths changed after them — the staleness input to Derivation.

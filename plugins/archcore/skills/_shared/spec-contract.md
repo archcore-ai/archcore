@@ -51,7 +51,8 @@ If it answers *"what behavior can consumers rely on right now"*, it is a spec.
 6. **Conformance** — what makes an implementation correct: satisfies all MUST
    requirements, all invariants, and all failure rules. MAY close with ONE
    non-normative example block (≤ 5 lines, Given/When/Then) anchoring the most
-   load-bearing behavior.
+   load-bearing behavior; an example past that allowance belongs in a linked `scenario`
+   (`skills/_shared/scenario-contract.md`, `scenario depends_on spec`).
 
 ## Notation
 

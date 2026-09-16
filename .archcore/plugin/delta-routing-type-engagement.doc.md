@@ -1,5 +1,5 @@
 ---
-title: "Delta-Routing Type Engagement — 21-Type Producer Matrix"
+title: "Delta-Routing Type Engagement — 23-Type Producer Matrix"
 status: accepted
 tags:
   - "architecture"
@@ -9,7 +9,7 @@ tags:
 
 ## Overview
 
-This matrix verifies that every shipped document type keeps at least one producer under delta routing (ΔΠMR). The original delta-routing baseline covered 19 types. The research vocabulary adds two producers, for 21 reachable types on a supporting engine; @plugins/archcore/skills/_shared/research-compatibility.md gates the additions. What changes is the engagement condition — today a type fires when its track gate opens and `skip_when` finds no covering document; under delta routing a type fires when the computed Δ, Π, M, R values call for it. "Producer today" cells cite the track files under `@plugins/archcore/skills/_shared/tracks/`.
+This matrix verifies that every shipped document type keeps at least one producer under delta routing (ΔΠMR). The original delta-routing baseline covered 19 types. The research vocabulary added two producers, for 21 reachable types on CLI 0.8.3; the actor-subject vocabulary adds two more, for 23 reachable types on CLI 0.8.4. @plugins/archcore/skills/_shared/research-compatibility.md gates the first pair and @plugins/archcore/skills/_shared/actor-subject-compatibility.md the second. What changes is the engagement condition — today a type fires when its track gate opens and `skip_when` finds no covering document; under delta routing a type fires when the computed Δ, Π, M, R values call for it. "Producer today" cells cite the track files under `@plugins/archcore/skills/_shared/tracks/`.
 
 ## Content
 
@@ -22,6 +22,8 @@ This matrix verifies that every shipped document type keeps at least one produce
 | `rnd` | `research.frame` | Research instrument when the request names a pending decision or a candidate set (closing test), the spike (Goal, Questions, Findings), or the compatibility fallback; no command exposes `rnd` as an entry | widened |
 | `research` | `research.frame` | Research instrument when the request names no pending decision — the computed route's `world` source, `plan research`, or `document research`; vision | added |
 | `evidence` | `research.gather` | Promoted material inside an investigation, or explicit `document evidence`; knowledge | added |
+| `scenario` | `sdd.illustrate`; `describe.draft` | illustrate instrument, once per capability that meets the illustrate condition, after that capability's `spec`; `describe.draft` for existing behavior; `document scenario`; knowledge | added |
+| `journey` | `sdd.require` | intent instrument beside the `prd` under the illustrate condition; `document journey` through the same gate in callable mode; vision | added |
 | `adr` | `decision.adr`; `decision.resolve` | decision route (`decision` delta); Π `undecided`; a refactor's decision delta | widened |
 | `rfc` | `decision.rfc` | decision instrument; solution-shape uncertainty (judged panel of alternatives) | unchanged |
 | `rule` | `decision.cascade` standard branch | same producer — the `/archcore:document` path is untouched; input role at grounding stays (conductor reads rules as constraints) | unchanged |
@@ -37,7 +39,7 @@ This matrix verifies that every shipped document type keeps at least one produce
 | `task-type` | `experience.offer` | unchanged producer; new consumption — routing input that de-escalates Π; discharge target for a completed `plan` with an agent-actor procedure | widened |
 | `cpat` | `experience.offer`; `decision.cascade` opt-in | unchanged producers; new consumption — routing input that de-escalates Π | widened |
 
-Legend: added — introduced by the research vocabulary release; narrowed — the type fires under a stricter computed condition than today's gate order; widened — the type gains a producer, a form, or a consumption role; unchanged — producer and condition survive as they are.
+Legend: added — introduced by a vocabulary release (research on CLI 0.8.3, actor-subject on CLI 0.8.4); narrowed — the type fires under a stricter computed condition than today's gate order; widened — the type gains a producer, a form, or a consumption role; unchanged — producer and condition survive as they are.
 
 Consumption-side changes the matrix does not show:
 
@@ -46,8 +48,10 @@ Consumption-side changes the matrix does not show:
 - `task-type` and `cpat` move from output-only to routing inputs — the first types the conductor reads, not only writes at review.
 - `guide` gains its first vision-command production path: the runbook instrument adds it to an assembled package, where today no `plan`-command track produces a `guide`.
 - The `guide`-versus-`task-type` boundary is the procedure's actor: human → `guide`, agent → `task-type` (instrument-layer spec, behavior 17).
+- `scenario` is consumed at `closeout.verify` (readiness and coverage reports) and at `sdd.design` (advisory example check); feature files under `features/*.feature` are read as evidence at `describe.read` and never copied into `.archcore/`.
 
 ## Examples
 
 - Issue #25 (OpenCode adapter): `creates` = [opencode-adapter], R = [`external-contract`] → capability route raised to `L`: one `spec`, one `plan`, no `prd` — intent is already recorded by the host-expansion documents. The adapter's local-testing procedure is an operational procedure, so the package adds one `guide` — the artifact the corpus today holds as `codex-local-plugin-testing.guide.md` for the sibling adapter. Types engaged: `spec`, `plan`, `guide`.
 - "Fix the Safari button overflow": all Δ lists empty, no `intent_gap` → `null` route. Types engaged: none — the case ~30% of the 40 bench traces resolve to.
+- "Plan the beginner conversation flow for the English tutor skill": `creates` = 1 with a conversational, user-facing surface → capability route; the illustrate condition holds, so the package is one `spec`, one `scenario` (`depends_on` → the spec), one `plan`. Types engaged: `spec`, `scenario`, `plan`.

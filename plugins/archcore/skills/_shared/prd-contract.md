@@ -89,6 +89,9 @@ write a content kind only into its owner.
 | Hard limits and conditions that always hold | `spec` | Constraints & Invariants |
 | Error, edge, and degradation behavior | `spec` | Failure Behavior |
 | What makes an implementation correct | `spec` | Conformance |
+| Intended user path before a contract exists; the goal-actor-outcome header | `journey` | Journeys; Intent |
+| User-perspective flow with extensions, anchored to code | `scenario` | Flows |
+| Concrete example with data illustrating a clause | `scenario` | Examples |
 | The order of work, its phases and tasks | `plan` | Tasks |
 | The check that the delivered change is complete | `plan` | Acceptance Criteria |
 | Why one option was chosen over another | `adr` | Decision, Alternatives Considered |

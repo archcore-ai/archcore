@@ -44,3 +44,5 @@
 40	Integrate with the cross-team SAP system	creates one capability; the approach is undecided; R: multi-team and external-contract	capability
 41	Plan the new product MVP	creates several capabilities; product-scale intent gap; user and world sources; pencil	umbrella
 42	Run a vector-search proof of concept	no canon delta; the question is answerable only by building (empirical)	null
+43	Plan the beginner conversation flow for the English tutor skill	no covering spec; Δ creates one capability with a conversational, user-facing surface; no BDD runner	capability
+44	Plan pagination for the public listings endpoint in a repo with features/*.feature	accepted spec covers listings; Δ modifies one capability; grounding finds features/listings.feature and a Cucumber runner	amendment
