@@ -347,3 +347,23 @@ func TestCapWriterStopsAtTheCap(t *testing.T) {
 		t.Error("the writer reached the cap without reporting it truncated")
 	}
 }
+
+// TestExecCommandRunsInTheCommandDirectory pins that the working directory
+// reaches the subprocess, which is what makes a scoped Claude Code update
+// address its own project — updating-the-plugin.spec §20.
+func TestExecCommandRunsInTheCommandDirectory(t *testing.T) {
+	skipWithoutPOSIXShell(t)
+	dir := t.TempDir()
+	writeHostCLI(t, dir, "claude", "pwd -P")
+	useHostCLIs(t, dir, "claude")
+	project := t.TempDir()
+
+	out := execCommand(t.Context(), Command{Name: "claude", Dir: project})
+	want, err := filepath.EvalSymlinks(project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Failed || strings.TrimSpace(out.Stdout) != want {
+		t.Errorf("ran in %q (failed %t), want %q", strings.TrimSpace(out.Stdout), out.Failed, want)
+	}
+}

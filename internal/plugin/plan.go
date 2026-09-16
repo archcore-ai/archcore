@@ -1,5 +1,7 @@
 package plugin
 
+import "slices"
+
 // Plan is the whole decision layer: evidence in, actions out. It runs no
 // command, touches no file and reads no environment. That purity is what lets
 // one test prove the update step and `archcore plugin update` produce the same
@@ -74,10 +76,14 @@ func planUpdate(spec HostSpec, ev Evidence) (Action, bool) {
 		return Action{}, false
 	}
 	if ev.CLIPresent {
-		if ev.ListingOK && ev.Listed {
-			return runAction(spec, VerbUpdate, ev), true
+		if !ev.ListingOK || !ev.Listed {
+			return Action{}, false
 		}
-		return Action{}, false
+		action := runAction(spec, VerbUpdate, ev)
+		if action.Kind == ActionRun && len(action.Commands) == 0 {
+			return Action{}, false
+		}
+		return action, true
 	}
 	if ev.RegistryListed {
 		return printCommandAction(spec, VerbUpdate, ev), true
@@ -177,6 +183,9 @@ func runAction(spec HostSpec, verb Verb, ev Evidence) Action {
 	if len(cmds) == 0 {
 		return uiNoteAction(spec, verb, ev)
 	}
+	if verb == VerbUpdate {
+		cmds = addressInstalls(spec, cmds, ev.Installs)
+	}
 	return Action{
 		Host:     spec.Host,
 		Kind:     ActionRun,
@@ -233,4 +242,81 @@ func reportInstalledAction(spec HostSpec, ev Evidence) Action {
 		MergeAutoUpdate: spec.MergeAutoUpdate,
 		Evidence:        ev,
 	}
+}
+
+// maxAddressedInstalls bounds how many installations one host's update
+// addresses. It protects the step budget: each installation costs one host
+// command of about 2 s, and a machine that installs per project in throwaway
+// directories keeps collecting records — updating-the-plugin.spec, Surface.
+const maxAddressedInstalls = 32
+
+// addressInstalls repeats the last command of an update sequence once per
+// listed installation — updating-the-plugin.spec §19 to §22. The commands before
+// it refresh what every installation updates from, so they run once. A host
+// that listed installations and can address none of them updates nothing —
+// updating-the-plugin.spec §25.
+func addressInstalls(spec HostSpec, cmds []Command, installs []Install) []Command {
+	if spec.UpdateAddressing == AddressingNone || len(cmds) == 0 || len(installs) == 0 {
+		return cmds
+	}
+	base := cmds[len(cmds)-1]
+	seen := make(map[string]bool, len(installs))
+	addressed := make([]Command, 0, min(len(installs), maxAddressedInstalls))
+	for _, install := range installs {
+		c, ok := addressInstall(spec.UpdateAddressing, base, install)
+		if !ok || seen[c.String()] {
+			continue
+		}
+		seen[c.String()] = true
+		addressed = append(addressed, c)
+		if len(addressed) == maxAddressedInstalls {
+			break
+		}
+	}
+	if len(addressed) == 0 {
+		return nil
+	}
+	return append(cmds[:len(cmds)-1:len(cmds)-1], addressed...)
+}
+
+// addressInstall builds the update command for one installation. The second
+// result is false for an installation the step must not touch.
+func addressInstall(addressing InstallAddressing, base Command, install Install) (Command, bool) {
+	c := base
+	c.Args = slices.Clone(base.Args)
+	c.ContinueOnFailure = true
+	switch addressing {
+	case AddressingNone:
+		return base, true
+	case AddressingName:
+		// Only a name the host accepts is passed on: any other token a listing line
+		// matched on — a header, a path — would become the argument of a mutating
+		// command — updating-the-plugin.spec §26.
+		if (install.Name != pluginName && install.Name != PluginID) || len(c.Args) == 0 {
+			return Command{}, false
+		}
+		c.Args[len(c.Args)-1] = install.Name
+		return c, true
+	case AddressingScope:
+		switch install.Scope {
+		case "":
+			return c, true
+		case ScopeUser:
+			c.Args = append(c.Args, "--scope", string(ScopeUser))
+			return c, true
+		case ScopeProject, ScopeLocal:
+			// Claude Code updates the first installation of the scope when the
+			// working directory matches none, so an unreachable project is skipped
+			// rather than run from anywhere else — anthropics/claude-code#90519.
+			if !install.ProjectPresent {
+				return Command{}, false
+			}
+			c.Args = append(c.Args, "--scope", string(install.Scope))
+			c.Dir = install.ProjectPath
+			return c, true
+		case ScopeManaged:
+			return Command{}, false
+		}
+	}
+	return Command{}, false
 }

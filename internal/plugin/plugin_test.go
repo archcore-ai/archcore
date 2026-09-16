@@ -119,6 +119,21 @@ func TestCommandString(t *testing.T) {
 			want: "claude plugin update archcore@archcore-plugins",
 		},
 		{
+			name: "a working directory is part of the line",
+			cmd:  Command{Name: "claude", Args: []string{"plugin", "update", PluginID}, Dir: "/work/a"},
+			want: "cd /work/a && claude plugin update archcore@archcore-plugins",
+		},
+		{
+			name: "a working directory with a space is quoted",
+			cmd:  Command{Name: "claude", Dir: "/Users/me/My Project"},
+			want: "cd '/Users/me/My Project' && claude",
+		},
+		{
+			name: "a quote inside the working directory survives the quoting",
+			cmd:  Command{Name: "claude", Dir: "/tmp/it's"},
+			want: `cd '/tmp/it'\''s' && claude`,
+		},
+		{
 			name: "empty name with args stays empty",
 			cmd:  Command{Args: []string{"plugin", "list"}},
 			want: "",

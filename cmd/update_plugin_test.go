@@ -357,12 +357,13 @@ var hostListings = []string{
 	"copilot plugin list",
 }
 
-// emptyListing and installedListing are what a host answers about itself. The
-// text tier reads the JSON one as a line of fields and finds the marketplace id
-// in it, so one payload serves every host.
+// emptyListing and installedListing are what a host answers about itself.
+// Copilot answers in text, and its update takes only a name its listing states
+// in a field of its own, so it gets the text form copilot 1.0.83 prints.
 const (
-	emptyListing     = "[]"
-	installedListing = `[{"id":"archcore@archcore-plugins","version":"1.4.0"}]`
+	emptyListing            = "[]"
+	installedListing        = `[{"id":"archcore@archcore-plugins","version":"1.4.0"}]`
+	installedCopilotListing = "Installed plugins:\n  • archcore (v1.4.0)"
 )
 
 // TestUpdatePluginStepCostsANonInstallerOnlyItsListings is the release criterion
@@ -384,20 +385,23 @@ const (
 // enough to mutate", which a single row of zeroes cannot tell apart.
 func TestUpdatePluginStepCostsANonInstallerOnlyItsListings(t *testing.T) {
 	tests := []struct {
-		name         string
-		listing      string
-		wantMutating int
+		name           string
+		listing        string
+		copilotListing string
+		wantMutating   int
 	}{
 		{
-			name:    "no host has the plugin",
-			listing: emptyListing,
+			name:           "no host has the plugin",
+			listing:        emptyListing,
+			copilotListing: emptyListing,
 		},
 		{
-			// Every host answers the same payload, so all three mutate: Claude
-			// Code runs two commands, Codex CLI and Copilot one each.
-			name:         "every host has the plugin",
-			listing:      installedListing,
-			wantMutating: 4,
+			// Every host lists the plugin, so all three mutate: Claude Code runs
+			// two commands, Codex CLI and Copilot one each.
+			name:           "every host has the plugin",
+			listing:        installedListing,
+			copilotListing: installedCopilotListing,
+			wantMutating:   4,
 		},
 	}
 
@@ -405,9 +409,9 @@ func TestUpdatePluginStepCostsANonInstallerOnlyItsListings(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bin := isolatePluginRun(t)
 			log := filepath.Join(t.TempDir(), "hosts.log")
-			for _, host := range []string{"claude", "codex", "copilot"} {
-				writeListingHostFixture(t, bin, host, log, tt.listing)
-			}
+			writeListingHostFixture(t, bin, "claude", log, tt.listing)
+			writeListingHostFixture(t, bin, "codex", log, tt.listing)
+			writeListingHostFixture(t, bin, "copilot", log, tt.copilotListing)
 
 			out, execErr := runUpdateWithPluginStep(t, "v1.0.0", currentReleaseServer(t, "v1.0.0"), "", nil)
 			if execErr != nil {

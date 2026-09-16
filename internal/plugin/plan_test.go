@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -28,7 +29,7 @@ var (
 	}
 	codexRemoveLines = []string{"codex plugin remove archcore@archcore-plugins"}
 
-	copilotUpdateLines  = []string{"copilot plugin update archcore@archcore-plugins"}
+	copilotUpdateLines  = []string{"copilot plugin update archcore"}
 	copilotInstallLines = []string{"copilot plugin install archcore-ai/plugin:plugins/archcore"}
 	copilotRemoveLines  = []string{"copilot plugin uninstall archcore"}
 )
@@ -203,7 +204,7 @@ func checkHostPlan(t *testing.T, verb Verb, host Host, ev Evidence, want *wantAc
 	if got.RemoveAutoUpdate != want.removeEnt {
 		t.Errorf("%s %s: RemoveAutoUpdate = %v, want %v", host, verb, got.RemoveAutoUpdate, want.removeEnt)
 	}
-	if got.Evidence != ev {
+	if !reflect.DeepEqual(got.Evidence, ev) {
 		t.Errorf("%s %s: evidence = %+v, want the evidence it was planned from %+v", host, verb, got.Evidence, ev)
 	}
 }
@@ -665,9 +666,10 @@ func TestPlanCarriesTheFrozenIdentifiers(t *testing.T) {
 			wantIdentifiers: []string{PluginID},
 		},
 		{
+			// A direct Copilot install answers to the bare plugin name only, so no
+			// frozen identifier appears. The line is pinned instead.
 			name: "copilot update", host: HostCopilot, verb: VerbUpdate, ev: listed,
-			wantLines:       copilotUpdateLines,
-			wantIdentifiers: []string{PluginID},
+			wantLines: copilotUpdateLines,
 		},
 		{
 			name: "copilot install", host: HostCopilot, verb: VerbInstall, ev: notListed,
@@ -763,8 +765,7 @@ func TestPlanFrozenIdentifiersReachEveryPrintedTier(t *testing.T) {
 		},
 		{
 			name: "copilot update", host: HostCopilot, verb: VerbUpdate, ev: registryOnly,
-			wantLines:       copilotUpdateLines,
-			wantIdentifiers: []string{PluginID},
+			wantLines: copilotUpdateLines,
 		},
 		{
 			// Copilot's uninstall takes the bare plugin name, so no frozen
@@ -1023,5 +1024,164 @@ func TestPlanEmitsOneActionPerAddressedHost(t *testing.T) {
 	}
 	if actions[1].Host != HostCopilot || actions[1].Kind != ActionPrintCommand {
 		t.Errorf("second action = %q %s, want copilot print-command", actions[1].Host, actions[1].Kind)
+	}
+}
+
+// TestPlanUpdateAddressesEveryInstallation pins updating-the-plugin.spec §19 to
+// §22. The marketplace refresh runs once; the plugin update runs once per
+// installation, from its own project for project and local scope, and never
+// for an installation the host would resolve to a different project.
+func TestPlanUpdateAddressesEveryInstallation(t *testing.T) {
+	t.Parallel()
+	const claudeScoped = "claude plugin update archcore@archcore-plugins --scope "
+	tests := []struct {
+		name     string
+		host     Host
+		installs []Install
+		want     []string // nil: the host is skipped silently
+	}{
+		{
+			name: "claude code updates every scope it lists",
+			host: HostClaudeCode,
+			installs: []Install{
+				{Name: PluginID, Scope: ScopeUser},
+				{Name: PluginID, Scope: ScopeProject, ProjectPath: "/work/a", ProjectPresent: true},
+				{Name: PluginID, Scope: ScopeLocal, ProjectPath: "/work/b", ProjectPresent: true},
+				{Name: PluginID, Scope: ScopeLocal, ProjectPath: "/work/gone"},
+				{Name: PluginID, Scope: ScopeManaged},
+				{Name: PluginID, Scope: "enterprise"},
+			},
+			want: []string{
+				"claude plugin marketplace update archcore-plugins",
+				claudeScoped + "user",
+				"cd /work/a && " + claudeScoped + "project",
+				"cd /work/b && " + claudeScoped + "local",
+			},
+		},
+		{
+			name: "claude code without a reported scope keeps the plain command",
+			host: HostClaudeCode, installs: []Install{{Name: PluginID}},
+			want: claudeUpdateLines,
+		},
+		{
+			name: "claude code with no installation listed keeps the plain sequence",
+			host: HostClaudeCode,
+			want: claudeUpdateLines,
+		},
+		{
+			name:     "claude code with every project gone is skipped",
+			host:     HostClaudeCode,
+			installs: []Install{{Name: PluginID, Scope: ScopeLocal, ProjectPath: "/work/gone"}},
+		},
+		{
+			name:     "claude code with only a managed installation is skipped",
+			host:     HostClaudeCode,
+			installs: []Install{{Name: PluginID, Scope: ScopeManaged}},
+		},
+		{
+			name: "copilot updates each installation by the name it listed",
+			host: HostCopilot,
+			installs: []Install{
+				{Name: "archcore"},
+				{Name: PluginID},
+				{Name: "archcore"},
+			},
+			want: []string{"copilot plugin update archcore", "copilot plugin update archcore@archcore-plugins"},
+		},
+		{
+			name: "copilot never passes a header or a path as the plugin name",
+			host: HostCopilot,
+			installs: []Install{
+				{Name: "archcore-plugins:"},
+				{Name: "/home/me/.copilot/installed-plugins/archcore-plugins/archcore"},
+			},
+		},
+		{
+			name: "codex cli refreshes its marketplace once whatever it lists",
+			host: HostCodexCLI, installs: []Install{{Name: "archcore"}, {Name: PluginID}},
+			want: codexUpdateLines,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ev := Evidence{Host: tt.host, CLIPresent: true, ListingOK: true, Listed: true, Installs: tt.installs}
+			actions := Plan(VerbUpdate, []Evidence{ev})
+			if tt.want == nil {
+				if len(actions) != 0 {
+					t.Fatalf("actions = %+v, want the host skipped", actions)
+				}
+				return
+			}
+			if len(actions) != 1 || actions[0].Kind != ActionRun {
+				t.Fatalf("actions = %+v, want one run", actions)
+			}
+			if got := commandLines(actions[0].Commands); !slices.Equal(got, tt.want) {
+				t.Errorf("commands = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestPlanUpdateLetsOneInstallationFailAlone pins updating-the-plugin.spec §23:
+// the marketplace refresh still ends its sequence on failure, and each
+// installation's update does not.
+func TestPlanUpdateLetsOneInstallationFailAlone(t *testing.T) {
+	t.Parallel()
+	ev := Evidence{
+		Host: HostClaudeCode, CLIPresent: true, ListingOK: true, Listed: true,
+		Installs: []Install{{Name: PluginID, Scope: ScopeUser}, {Name: PluginID, Scope: ScopeLocal, ProjectPath: "/work/a", ProjectPresent: true}},
+	}
+	actions := Plan(VerbUpdate, []Evidence{ev})
+	if len(actions) != 1 || len(actions[0].Commands) != 3 {
+		t.Fatalf("actions = %+v, want one run of three commands", actions)
+	}
+	got := make([]bool, 0, 3)
+	for _, c := range actions[0].Commands {
+		got = append(got, c.ContinueOnFailure)
+	}
+	if want := []bool{false, true, true}; !slices.Equal(got, want) {
+		t.Errorf("ContinueOnFailure = %v, want %v", got, want)
+	}
+}
+
+// TestPlanUpdatePrintsThePlainCommandWithoutTheCLI keeps the printed tier on
+// the host table's line: without the CLI there is no listing, so no
+// installation can be addressed.
+func TestPlanUpdatePrintsThePlainCommandWithoutTheCLI(t *testing.T) {
+	t.Parallel()
+	ev := Evidence{Host: HostClaudeCode, RegistryListed: true, Installs: []Install{{Name: PluginID, Scope: ScopeUser}}}
+	actions := Plan(VerbUpdate, []Evidence{ev})
+	if len(actions) != 1 || actions[0].Kind != ActionPrintCommand {
+		t.Fatalf("actions = %+v, want one printed command", actions)
+	}
+	if got := commandLines(actions[0].Commands); !slices.Equal(got, claudeUpdateLines) {
+		t.Errorf("printed = %q, want %q", got, claudeUpdateLines)
+	}
+}
+
+// TestPlanUpdateBoundsTheAddressedInstallations pins the ceiling and where it
+// cuts: after the unreachable installations are dropped, so dead records sorted
+// ahead of live ones cannot take the slots — bounded-and-deterministic-output.rule §3.
+func TestPlanUpdateBoundsTheAddressedInstallations(t *testing.T) {
+	t.Parallel()
+	installs := make([]Install, 0, 2*maxAddressedInstalls+2)
+	for i := range maxAddressedInstalls {
+		installs = append(installs, Install{Name: PluginID, Scope: ScopeLocal, ProjectPath: fmt.Sprintf("/dead/%03d", i)})
+	}
+	for i := range maxAddressedInstalls + 2 {
+		installs = append(installs, Install{Name: PluginID, Scope: ScopeLocal, ProjectPath: fmt.Sprintf("/live/%03d", i), ProjectPresent: true})
+	}
+	ev := Evidence{Host: HostClaudeCode, CLIPresent: true, ListingOK: true, Listed: true, Installs: installs}
+
+	actions := Plan(VerbUpdate, []Evidence{ev})
+	if len(actions) != 1 {
+		t.Fatalf("planned %d actions, want 1", len(actions))
+	}
+	addressed := actions[0].Commands[1:]
+	if len(addressed) != maxAddressedInstalls {
+		t.Fatalf("addressed %d installations, want %d", len(addressed), maxAddressedInstalls)
+	}
+	if first, last := addressed[0].Dir, addressed[len(addressed)-1].Dir; first != "/live/000" || last != fmt.Sprintf("/live/%03d", maxAddressedInstalls-1) {
+		t.Errorf("addressed %s through %s, want the first %d live projects", first, last, maxAddressedInstalls)
 	}
 }

@@ -1,9 +1,11 @@
 package plugin
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"maps"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -40,6 +42,7 @@ func CollectEvidence(ctx context.Context, hosts []Host) []Evidence {
 				ev.ListingOK = answer.ok
 				ev.Listed = answer.listed
 				ev.ListedVersion = answer.version
+				ev.Installs = locateProjects(answer.installs)
 			}
 		}
 		ev.RegistryListed = registryListsPlugin(spec)
@@ -51,9 +54,32 @@ func CollectEvidence(ctx context.Context, hosts []Host) []Evidence {
 // listing is one host's answer to its read-only plugin listing. The zero value
 // is "the host did not answer", which is what every failure collapses to.
 type listing struct {
-	ok      bool
-	listed  bool
-	version string
+	ok       bool
+	listed   bool
+	version  string
+	installs []Install
+}
+
+// locateProjects records whether each installation's project directory exists.
+//
+// Guard, not advisory: the answer decides whether a scoped update runs, and
+// Claude Code resolves its working directory before matching it, so a command
+// started anywhere but the resolved project updates a different one — verified
+// 2026-09-16. A path that is relative, missing, unreadable, or not fully resolved
+// therefore reads as absent — fail-open-or-fail-closed-reads.rule §6.
+func locateProjects(installs []Install) []Install {
+	for i, install := range installs {
+		if install.ProjectPath == "" || !filepath.IsAbs(install.ProjectPath) {
+			continue
+		}
+		resolved, err := filepath.EvalSymlinks(install.ProjectPath)
+		if err != nil || resolved != install.ProjectPath {
+			continue
+		}
+		info, err := os.Stat(resolved)
+		installs[i].ProjectPresent = err == nil && info.IsDir()
+	}
+	return installs
 }
 
 // readListing runs a host's listing command and parses the result. A truncated
@@ -64,7 +90,7 @@ type listing struct {
 // Guard, not advisory: this answer is the only evidence that authorizes a
 // mutating host command, so an unreadable or ambiguous listing refuses it
 // rather than degrading into a presence claim —
-// fail-open-or-fail-closed-reads.rule, requirement 2.
+// fail-open-or-fail-closed-reads.rule §2.
 func readListing(ctx context.Context, spec HostSpec) listing {
 	if spec.Listing.Name == "" {
 		return listing{}
@@ -123,6 +149,13 @@ var listingInstalledKeys = map[string]bool{
 	"installed": true, "isinstalled": true, "is_installed": true,
 }
 
+// listingScopeKeys and listingProjectKeys are the object fields a host may
+// report an installation's scope and project directory in.
+var (
+	listingScopeKeys   = map[string]bool{"scope": true}
+	listingProjectKeys = map[string]bool{"projectpath": true, "project_path": true}
+)
+
 // listingVersionRe matches the version token a plain-text listing prints beside
 // a plugin name. Extraction is best-effort: requirement 16 of
 // plugin-delivery.spec asks for the version "when the host reports one", so a
@@ -136,16 +169,149 @@ var listingVersionRe = regexp.MustCompile(`^v?\d+\.\d+(\.\d+)?[0-9A-Za-z.\-+]*$`
 // than pinned to one shape — a parser bound to today's schema would read a
 // changed answer as "not installed", and that verdict is the silent one, so the
 // miss would never surface as an error. It is bounded and ordered instead:
-// object keys are visited in sorted order, so two walks over one answer pick
-// the same entry and report the same version.
+// object keys are visited in sorted order, so two walks over one answer collect
+// the same installations.
 func parseJSONListing(stdout string) listing {
 	var decoded any
 	if err := json.Unmarshal([]byte(stdout), &decoded); err != nil {
 		return listing{}
 	}
+	var installs []Install
 	budget := maxListingNodes
-	version, found := findPluginEntry(decoded, maxListingDepth, &budget)
-	return listing{ok: true, listed: found, version: boundedVersion(version)}
+	findInstalls(decoded, maxListingDepth, &budget, &installs)
+	return listingOf(installs)
+}
+
+// listingOf is a parsed answer built from the installations it named. The
+// plugin is listed exactly when one installation was found, so presence and the
+// installations the update addresses are never two readings of one answer.
+func listingOf(installs []Install) listing {
+	if len(installs) == 0 {
+		return listing{ok: true}
+	}
+	ordered := orderInstalls(installs)
+	return listing{ok: true, listed: true, version: boundedVersion(ordered[0].Version), installs: ordered}
+}
+
+// findInstalls collects every installation a decoded listing reports. Claude
+// Code lists the plugin once per scope and project, so the walk does not stop at
+// the first entry.
+//
+// Keys name a plugin as readily as values do — a host may answer
+// `{"archcore@archcore-plugins": {…}}`, where nothing inside the entry repeats
+// the id. A walk that read values alone would answer "not installed" there, and
+// that verdict is silent — updating-the-plugin.spec §7.
+func findInstalls(value any, depth int, budget *int, out *[]Install) {
+	if depth <= 0 || *budget <= 0 {
+		return
+	}
+	*budget--
+
+	switch node := value.(type) {
+	case map[string]any:
+		if name, named := entryPluginName(node); named {
+			// The host has answered for this entry, so the walk stops here either
+			// way: descending into a rejected entry would read its id again as a
+			// bare string, with no installation flag beside it.
+			if !entryReportsUninstalled(node) {
+				*out = append(*out, installFromEntry(name, node))
+			}
+			return
+		}
+		for _, key := range slices.Sorted(maps.Keys(node)) {
+			if identifiesPlugin(key) {
+				installsUnderKey(key, node[key], depth-1, budget, out)
+				continue
+			}
+			findInstalls(node[key], depth-1, budget, out)
+		}
+	case []any:
+		for _, item := range node {
+			findInstalls(item, depth-1, budget, out)
+		}
+	case string:
+		// A host that answers a bare list of plugin ids reports no version.
+		if identifiesPlugin(node) {
+			*out = append(*out, Install{Name: node})
+		}
+	}
+}
+
+// installsUnderKey reads the value of a key that names the plugin. The key is
+// the identity when the entries below it do not repeat one, as in
+// `{"archcore@archcore-plugins": [{"scope": "user"}, …]}`.
+func installsUnderKey(key string, value any, depth int, budget *int, out *[]Install) {
+	switch node := value.(type) {
+	case map[string]any:
+		if _, named := entryPluginName(node); named {
+			findInstalls(node, depth, budget, out)
+			return
+		}
+		if !entryReportsUninstalled(node) {
+			*out = append(*out, installFromEntry(key, node))
+		}
+	case []any:
+		for _, item := range node {
+			if entry, isEntry := item.(map[string]any); isEntry {
+				installsUnderKey(key, entry, depth, budget, out)
+			}
+		}
+	default:
+		*out = append(*out, Install{Name: key})
+	}
+}
+
+// installFromEntry reads one installation out of a listing entry.
+func installFromEntry(name string, entry map[string]any) Install {
+	install := Install{Name: name}
+	for _, key := range slices.Sorted(maps.Keys(entry)) {
+		text, isText := entry[key].(string)
+		if !isText {
+			continue
+		}
+		switch lowered := strings.ToLower(key); {
+		case listingScopeKeys[lowered]:
+			install.Scope = Scope(strings.ToLower(text))
+		case listingProjectKeys[lowered]:
+			install.ProjectPath = text
+		case listingVersionKeys[lowered] && install.Version == "":
+			install.Version = text
+		}
+	}
+	return install
+}
+
+// scopeRank orders installations so the machine-wide one runs first.
+var scopeRank = map[Scope]int{ScopeUser: 0, ScopeProject: 1, ScopeLocal: 2, ScopeManaged: 3}
+
+// scopeOrder ranks a scope for sorting. A host that reports no scope has one
+// installation for the whole machine, so it ranks with user scope; an
+// unrecognized scope sorts last.
+func scopeOrder(s Scope) int {
+	if s == "" {
+		return scopeRank[ScopeUser]
+	}
+	if r, known := scopeRank[s]; known {
+		return r
+	}
+	return len(scopeRank)
+}
+
+// orderInstalls sorts and deduplicates installations on every field, so the
+// same listing always yields the same sequence. The planner cuts it, after it
+// drops the installations it must not address — bounded-and-deterministic-output.rule §3.
+func orderInstalls(installs []Install) []Install {
+	sorted := slices.Clone(installs)
+	slices.SortFunc(sorted, func(a, b Install) int {
+		return cmp.Or(
+			cmp.Compare(scopeOrder(a.Scope), scopeOrder(b.Scope)),
+			cmp.Compare(a.Scope, b.Scope),
+			cmp.Compare(a.ProjectPath, b.ProjectPath),
+			cmp.Compare(a.Name, b.Name),
+			cmp.Compare(a.Version, b.Version),
+		)
+	})
+	return slices.Compact(sorted)
 }
 
 // boundedVersion returns the token a host reported as its version, or nothing
@@ -158,66 +324,6 @@ func boundedVersion(version string) string {
 		return ""
 	}
 	return version
-}
-
-// findPluginEntry walks a decoded listing for the value that names the plugin
-// and returns the version reported beside it. Keys name a plugin as readily as
-// values do — a host may answer `{"archcore@archcore-plugins": {…}}`, where
-// nothing inside the entry repeats the id — and a walk that reads values alone
-// answers "not installed" there. That verdict is the silent one: an unlisted
-// host is skipped with no output (updating-the-plugin.spec §7), so the miss
-// would never surface as an error pointing at it.
-func findPluginEntry(value any, depth int, budget *int) (string, bool) {
-	if depth <= 0 || *budget <= 0 {
-		return "", false
-	}
-	*budget--
-
-	switch node := value.(type) {
-	case map[string]any:
-		if entryNamesPlugin(node) {
-			// The host has answered for this entry, so the walk stops here either
-			// way. Descending into an entry it just rejected would read the very
-			// id the entry was recognized by a second time, as one of the bare
-			// strings below — and that reading has no installation flag beside it.
-			if entryReportsUninstalled(node) {
-				return "", false
-			}
-			return versionInEntry(node), true
-		}
-		keys := slices.Sorted(maps.Keys(node))
-		for _, key := range keys {
-			if version, ok := findPluginEntry(node[key], depth-1, budget); ok {
-				return version, true
-			}
-		}
-		// Values first, so a listing grouped under the marketplace id still
-		// reports the version of the entry nested below it rather than stopping
-		// at the group.
-		for _, key := range keys {
-			if !identifiesPlugin(key) {
-				continue
-			}
-			entry, _ := node[key].(map[string]any)
-			if entryReportsUninstalled(entry) {
-				continue
-			}
-			return versionInEntry(entry), true
-		}
-	case []any:
-		for _, item := range node {
-			if version, ok := findPluginEntry(item, depth-1, budget); ok {
-				return version, true
-			}
-		}
-	case string:
-		// A host that answers a bare list of plugin ids names the plugin here and
-		// reports no version.
-		if identifiesPlugin(node) {
-			return "", true
-		}
-	}
-	return "", false
 }
 
 // identifiesPlugin reports whether a name in a listing names the plugin itself.
@@ -238,19 +344,18 @@ func identifiesPlugin(name string) bool {
 	return namesPlugin(name) && strings.ToLower(name) != MarketplaceID
 }
 
-// entryNamesPlugin reports whether one listing entry is about the Archcore
-// plugin. It answers the identity question alone; whether that entry is an
-// installation is entryReportsUninstalled's answer, and the two are separate
-// because a host names the plugin in the very entry that says it is not
-// installed.
-func entryNamesPlugin(entry map[string]any) bool {
+// entryPluginName returns the identity value an entry names the plugin by. It
+// answers the identity question alone; whether that entry is an installation is
+// entryReportsUninstalled's answer, and the two are separate because a host
+// names the plugin in the very entry that says it is not installed.
+func entryPluginName(entry map[string]any) (string, bool) {
 	for _, key := range slices.Sorted(maps.Keys(entry)) {
 		text, isText := entry[key].(string)
 		if isText && listingIdentityKeys[strings.ToLower(key)] && identifiesPlugin(text) {
-			return true
+			return text, true
 		}
 	}
-	return false
+	return "", false
 }
 
 // entryReportsUninstalled reports whether a listing entry carries the host's own
@@ -259,7 +364,7 @@ func entryNamesPlugin(entry map[string]any) bool {
 // The listing is a guard (see readListing), so the affirmative reading is the
 // narrow one: a host that answers anything other than a true installation flag
 // has not confirmed the plugin, and the planner then skips that host in silence
-// — fail-open-or-fail-closed-reads.rule, requirement 2.
+// — fail-open-or-fail-closed-reads.rule §2.
 //
 // An entry with no such field is not a refusal. Three hosts list what is
 // installed and nothing else, and Codex prints its uninstalled marketplace
@@ -287,32 +392,18 @@ func installedFlagIsTrue(value any) bool {
 	return false
 }
 
-// versionInEntry returns the version one listing entry carries, or nothing when
-// it carries none. Requirement 16 of plugin-delivery.spec asks for the version
-// "when the host reports one", so an entry without one is still an entry.
-func versionInEntry(entry map[string]any) string {
-	for _, key := range slices.Sorted(maps.Keys(entry)) {
-		if text, isText := entry[key].(string); isText && listingVersionKeys[strings.ToLower(key)] {
-			return text
-		}
-	}
-	return ""
-}
-
 // parseTextListing finds the Archcore plugin inside a host's plain-text
 // listing. A listing that ran and printed nothing recognizable is a parsed
 // answer of "not installed", not a failure: the host was asked and replied.
 func parseTextListing(stdout string) listing {
+	var installs []Install
 	for line := range strings.Lines(stdout) {
 		fields := strings.Fields(line)
-		for _, field := range fields {
-			if !identifiesPlugin(field) {
-				continue
-			}
-			return listing{ok: true, listed: true, version: boundedVersion(versionInFields(fields))}
+		if index := slices.IndexFunc(fields, identifiesPlugin); index >= 0 {
+			installs = append(installs, Install{Name: fields[index], Version: versionInFields(fields)})
 		}
 	}
-	return listing{ok: true}
+	return listingOf(installs)
 }
 
 // versionInFields returns the first version-shaped token on a listing line.

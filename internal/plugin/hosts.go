@@ -77,7 +77,12 @@ type HostSpec struct {
 	Install []Command
 	Remove  []Command
 
-	// NonInteractiveFlag is appended by the executor to a mutating command when
+	// UpdateAddressing says how the last command of Update is repeated once per
+	// listed installation. The printed tier never has the installations, so it
+	// prints Update as written.
+	UpdateAddressing InstallAddressing
+
+	// NonInteractiveFlag is appended by the executor to a command marked Prompts when
 	// the session has no TTY. It lives here as one field, so a host that needs a
 	// different flag is a one-line edit and never a concatenation at the call
 	// site.
@@ -107,6 +112,19 @@ func (s HostSpec) hasCLI() bool {
 	return s.CLI != ""
 }
 
+// InstallAddressing is how an update command names one installation.
+type InstallAddressing int
+
+const (
+	// AddressingNone runs the update once for the whole host.
+	AddressingNone InstallAddressing = iota
+	// AddressingScope appends the installation's scope and runs the command in
+	// its project directory.
+	AddressingScope
+	// AddressingName replaces the last argument with the name the host listed.
+	AddressingName
+)
+
 var hostTable = map[Host]HostSpec{
 	HostClaudeCode: {
 		Host:          HostClaudeCode,
@@ -118,11 +136,14 @@ var hostTable = map[Host]HostSpec{
 		RegistryEntry: pluginDirName,
 		Update: []Command{
 			{Name: "claude", Args: []string{"plugin", "marketplace", "update", MarketplaceID}},
-			{Name: "claude", Args: []string{"plugin", "update", PluginID}},
+			{Name: "claude", Args: []string{"plugin", "update", PluginID}, Prompts: true},
 		},
+		// Without --scope, Claude Code updates the user-scope record alone — verified
+		// 2026-09-16 on claude 2.1.273.
+		UpdateAddressing: AddressingScope,
 		Install: []Command{
 			{Name: "claude", Args: []string{"plugin", "marketplace", "add", RepoID}},
-			{Name: "claude", Args: []string{"plugin", "install", PluginID}},
+			{Name: "claude", Args: []string{"plugin", "install", PluginID}, Prompts: true},
 		},
 		// [assumption] plugin-delivery.spec names the Claude Code uninstall a
 		// "Claude Code equivalent" of the verified Copilot and Codex forms. The
@@ -130,7 +151,7 @@ var hostTable = map[Host]HostSpec{
 		// the plugin and the autoUpdate entry this surface wrote, not the
 		// marketplace another plugin may still use.
 		Remove: []Command{
-			{Name: "claude", Args: []string{"plugin", "uninstall", PluginID}},
+			{Name: "claude", Args: []string{"plugin", "uninstall", PluginID}, Prompts: true},
 		},
 		// [assumption] `-y` for non-TTY safety, per the update spec's Surface table.
 		NonInteractiveFlag: "-y",
@@ -195,9 +216,13 @@ var hostTable = map[Host]HostSpec{
 		// than the others, which makes the entry name below load-bearing.
 		RegistryPath:  ".copilot/installed-plugins",
 		RegistryEntry: copilotPluginDir,
+		// A direct install answers only to the bare name, and the registry evidence
+		// the printed tier reads is the direct-install directory. A failed update
+		// exits 0 with an empty stdout — verified 2026-09-16 on copilot 1.0.83.
 		Update: []Command{
-			{Name: "copilot", Args: []string{"plugin", "update", PluginID}},
+			{Name: "copilot", Args: []string{"plugin", "update", pluginName}, EmptyStdoutFails: true},
 		},
+		UpdateAddressing: AddressingName,
 		// [assumption] plugin-delivery.spec marks the plugins/archcore subpath
 		// unverified until the first live install.
 		Install: []Command{
@@ -206,7 +231,7 @@ var hostTable = map[Host]HostSpec{
 		// Copilot's uninstall takes the bare plugin name, not the marketplace-
 		// qualified id. plugin-delivery.spec records the form verbatim.
 		Remove: []Command{
-			{Name: "copilot", Args: []string{"plugin", "uninstall", "archcore"}},
+			{Name: "copilot", Args: []string{"plugin", "uninstall", pluginName}},
 		},
 		// Copilot installs into its user-level store, outside any repository.
 		MachineScoped: true,

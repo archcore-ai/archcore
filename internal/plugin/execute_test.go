@@ -146,7 +146,7 @@ func TestExecutePrintsTheExactCommandForARegistryListedHost(t *testing.T) {
 	reporter := &recordingReporter{}
 	results := Execute(t.Context(), Plan(VerbUpdate, evidence), reporter, ExecuteOptions{})
 
-	want := []string{"copilot plugin update archcore@archcore-plugins"}
+	want := []string{"copilot plugin update archcore"}
 	if got := reporter.texts("print"); !slices.Equal(got, want) {
 		t.Errorf("printed %q, want %q", got, want)
 	}
@@ -384,18 +384,18 @@ func TestExecuteAnnouncesEachCommandBeforeItRuns(t *testing.T) {
 // failed.
 func TestExecuteReportsTheCommandItActuallyRan(t *testing.T) {
 	setInteractive(t, false)
-	stubRuns(t, func(Command) commandOutcome { return commandOutcome{Failed: true} })
+	stubRuns(t, func(c Command) commandOutcome { return commandOutcome{Failed: c.Prompts} })
 
 	reporter := &recordingReporter{}
 	actions := Plan(VerbUpdate, []Evidence{listedEvidence(HostClaudeCode)})
 	Execute(t.Context(), actions, reporter, ExecuteOptions{})
 
-	want := []string{"claude plugin marketplace update archcore-plugins -y"}
-	if got := reporter.texts("failed"); !slices.Equal(got, want) {
+	ran := "claude plugin update archcore@archcore-plugins -y"
+	if got, want := reporter.texts("failed"), []string{ran}; !slices.Equal(got, want) {
 		t.Errorf("failure lines = %q, want the command as it ran %q", got, want)
 	}
-	if got := reporter.texts("progress"); !slices.Equal(got, want) {
-		t.Errorf("progress lines = %q, want the command as it ran %q", got, want)
+	if got, want := reporter.texts("progress"), []string{"claude plugin marketplace update archcore-plugins", ran}; !slices.Equal(got, want) {
+		t.Errorf("progress lines = %q, want the commands as they ran %q", got, want)
 	}
 }
 
@@ -422,7 +422,7 @@ func TestExecuteAppendsTheNonInteractiveFlagOffATerminal(t *testing.T) {
 		{
 			name: "without a terminal",
 			want: []string{
-				"claude plugin marketplace update archcore-plugins -y",
+				"claude plugin marketplace update archcore-plugins",
 				"claude plugin update archcore@archcore-plugins -y",
 			},
 		},
@@ -599,5 +599,114 @@ func TestExecuteRunsAHostOutsideTheCommandTable(t *testing.T) {
 	}
 	if len(results) != 1 || results[0].Host != unknown || results[0].Failed {
 		t.Errorf("results = %+v, want one successful run for %q", results, unknown)
+	}
+}
+
+// TestExecuteContinuesPastAFailedInstallation pins updating-the-plugin.spec §23
+// against a real subprocess: one project whose update fails does not leave the
+// installations after it on the old version.
+func TestExecuteContinuesPastAFailedInstallation(t *testing.T) {
+	skipWithoutPOSIXShell(t)
+	isolateHome(t)
+	setInteractive(t, true)
+	dir := t.TempDir()
+	writeHostCLI(t, dir, "claude", `case "$*" in *"--scope project"*) exit 1 ;; *) exit 0 ;; esac`)
+	useHostCLIs(t, dir, "claude")
+	projectA, projectB := t.TempDir(), t.TempDir()
+
+	ev := listedEvidence(HostClaudeCode)
+	ev.Installs = []Install{
+		{Name: PluginID, Scope: ScopeUser},
+		{Name: PluginID, Scope: ScopeProject, ProjectPath: projectA, ProjectPresent: true},
+		{Name: PluginID, Scope: ScopeLocal, ProjectPath: projectB, ProjectPresent: true},
+	}
+	reporter := &recordingReporter{}
+	results := Execute(t.Context(), Plan(VerbUpdate, []Evidence{ev}), reporter, ExecuteOptions{})
+
+	if got := len(reporter.texts("progress")); got != 4 {
+		t.Errorf("ran %d commands, want all 4: %q", got, reporter.texts("progress"))
+	}
+	wantFailed := []string{"cd " + shellQuote(projectA) + " && claude plugin update archcore@archcore-plugins --scope project"}
+	if got := reporter.texts("failed"); !slices.Equal(got, wantFailed) {
+		t.Errorf("failure lines = %q, want %q", got, wantFailed)
+	}
+	if len(results) != 1 || !results[0].Failed || !results[0].Changed {
+		t.Errorf("results = %+v, want one run that failed in part and still changed the plugin", results)
+	}
+}
+
+// TestExecuteReportsAChangeOnlyWhenThePluginChanged pins Result.Changed: a
+// marketplace refresh alone changes no plugin, and a sequence that stopped before
+// its plugin command changed nothing.
+func TestExecuteReportsAChangeOnlyWhenThePluginChanged(t *testing.T) {
+	tests := []struct {
+		name        string
+		failing     string
+		wantChanged bool
+		wantFailed  bool
+	}{
+		{name: "every command succeeded", wantChanged: true},
+		{name: "the marketplace refresh failed", failing: "marketplace", wantFailed: true},
+		{name: "the plugin update failed", failing: "--scope", wantFailed: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setInteractive(t, true)
+			stubRuns(t, func(c Command) commandOutcome {
+				return commandOutcome{Stdout: "ok", Failed: tt.failing != "" && strings.Contains(c.String(), tt.failing)}
+			})
+			ev := listedEvidence(HostClaudeCode)
+			ev.Installs = []Install{{Name: PluginID, Scope: ScopeUser}}
+
+			results := Execute(t.Context(), Plan(VerbUpdate, []Evidence{ev}), &recordingReporter{}, ExecuteOptions{})
+			if len(results) != 1 || results[0].Changed != tt.wantChanged || results[0].Failed != tt.wantFailed {
+				t.Errorf("results = %+v, want Changed %t and Failed %t", results, tt.wantChanged, tt.wantFailed)
+			}
+		})
+	}
+}
+
+// TestExecuteReadsAnEmptyStdoutAsFailure pins updating-the-plugin.spec §24:
+// Copilot exits 0 on a refused update and writes the reason to stderr alone.
+func TestExecuteReadsAnEmptyStdoutAsFailure(t *testing.T) {
+	skipWithoutPOSIXShell(t)
+	tests := []struct {
+		name       string
+		mutation   string
+		wantFailed bool
+	}{
+		{name: "a refusal on stderr with exit 0", mutation: `echo "Failed to update plugin" >&2; exit 0`, wantFailed: true},
+		{name: "an update that reports itself", mutation: `echo 'Plugin "archcore" updated successfully'`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolateHome(t)
+			setInteractive(t, true)
+			dir := t.TempDir()
+			writeHostCLI(t, dir, "copilot", tt.mutation)
+			useHostCLIs(t, dir, "copilot")
+
+			reporter := &recordingReporter{}
+			results := Execute(t.Context(), Plan(VerbUpdate, []Evidence{listedEvidence(HostCopilot)}), reporter, ExecuteOptions{})
+			if len(results) != 1 || results[0].Failed != tt.wantFailed {
+				t.Errorf("results = %+v, want Failed %t", results, tt.wantFailed)
+			}
+		})
+	}
+}
+
+// TestExecuteKeepsTheInstallationBesideTheNonInteractiveFlag guards the flag
+// append: rebuilding the command from its name and arguments once dropped
+// everything else, which would run a scoped update from the wrong directory.
+func TestExecuteKeepsTheInstallationBesideTheNonInteractiveFlag(t *testing.T) {
+	setInteractive(t, false)
+	spec, _ := SpecFor(HostClaudeCode)
+	planned := Command{Name: "claude", Args: []string{"plugin", "update"}, Dir: "/work/a", ContinueOnFailure: true, EmptyStdoutFails: true, Prompts: true}
+
+	got := effectiveCommand(spec, planned)
+	want := planned
+	want.Args = []string{"plugin", "update", spec.NonInteractiveFlag}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("effectiveCommand = %+v, want %+v", got, want)
 	}
 }

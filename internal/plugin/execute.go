@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"slices"
+	"strings"
 )
 
 // The one executor. Every entry point — the plugin step of `archcore update`,
@@ -23,8 +24,9 @@ type Reporter interface {
 	// included.
 	Progress(host Host, c Command)
 
-	// CommandFailed reports a nonzero exit or a timeout with the exact command
-	// that produced it — updating-the-plugin.spec §12.
+	// CommandFailed reports a failed command — a nonzero exit, a timeout, or an
+	// empty stdout from a host that exits zero on failure — with the exact command
+	// that produced it — updating-the-plugin.spec §12 and §24.
 	CommandFailed(host Host, c Command)
 
 	// PrintCommand hands the user the commands to run for a host this process
@@ -58,9 +60,16 @@ type Result struct {
 	// caller can tell a printed command from an executed one.
 	Kind ActionKind
 
-	// Failed is true only for an attempted ActionRun whose command exited
-	// nonzero or timed out.
+	// Failed is true only for an attempted ActionRun in which any command
+	// failed. The sequence may still have run on past a command marked
+	// ContinueOnFailure.
 	Failed bool
+
+	// Changed is true for an ActionRun that changed the plugin: a command that
+	// addresses it — the last of the sequence, or one marked ContinueOnFailure —
+	// succeeded. A partly failed update still changed every installation it
+	// reached — updating-the-plugin.spec §15.
+	Changed bool
 }
 
 // ExecuteOptions carries the decisions the environment makes, read at the edge
@@ -142,21 +151,22 @@ func executeAction(ctx context.Context, a Action, r Reporter, opts ExecuteOption
 // the first failure: the later commands of a sequence depend on the earlier
 // ones — a plugin install after a marketplace add that did not happen has
 // nothing to install from — so continuing would only produce a second failure
-// line for one cause.
+// line for one cause. A command marked ContinueOnFailure is the exception: it
+// addresses one installation, and the next one does not depend on it.
 func runHost(ctx context.Context, a Action, r Reporter) (Result, bool) {
 	// A host outside the command table carries no non-interactive flag. The
 	// planned commands still run: the executor performs the plan it was handed.
 	spec, _ := SpecFor(a.Host)
 
 	result := Result{Host: a.Host, Kind: ActionRun}
-	for _, planned := range a.Commands {
+	for i, planned := range a.Commands {
 		if ctx.Err() != nil {
 			return Result{}, false
 		}
 		c := effectiveCommand(spec, planned)
 		r.Progress(a.Host, c)
 
-		if out := runCommand(ctx, c); out.Failed {
+		if out := runCommand(ctx, c); commandFailed(c, out) {
 			// A command cut short by the step bound belongs to the bound, not to
 			// the host: Failure Behavior 5 asks for silence once it elapses, and
 			// Failure Behavior 2 and 4 ask for the command line in every other
@@ -166,7 +176,13 @@ func runHost(ctx context.Context, a Action, r Reporter) (Result, bool) {
 			}
 			r.CommandFailed(a.Host, c)
 			result.Failed = true
-			break
+			if !c.ContinueOnFailure {
+				break
+			}
+			continue
+		}
+		if c.ContinueOnFailure || i == len(a.Commands)-1 {
+			result.Changed = true
 		}
 	}
 	return result, true
@@ -178,8 +194,15 @@ func runHost(ctx context.Context, a Action, r Reporter) (Result, bool) {
 // type at a prompt that does exist, and a flag baked into the plan would reach
 // those lines too.
 func effectiveCommand(spec HostSpec, c Command) Command {
-	if spec.NonInteractiveFlag == "" || interactiveSession() {
+	if spec.NonInteractiveFlag == "" || !c.Prompts || interactiveSession() {
 		return c
 	}
-	return Command{Name: c.Name, Args: append(slices.Clone(c.Args), spec.NonInteractiveFlag)}
+	c.Args = append(slices.Clone(c.Args), spec.NonInteractiveFlag)
+	return c
+}
+
+// commandFailed reports whether one command failed, including on a host that
+// signals failure only by printing nothing — updating-the-plugin.spec §24.
+func commandFailed(c Command, out commandOutcome) bool {
+	return out.Failed || (c.EmptyStdoutFails && strings.TrimSpace(out.Stdout) == "")
 }

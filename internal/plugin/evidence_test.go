@@ -1,6 +1,10 @@
 package plugin
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -162,7 +166,7 @@ func TestCollectEvidenceCoversEveryPluginHost(t *testing.T) {
 		if evidence[i].Host != host {
 			t.Errorf("observation %d is for %q, want %q", i, evidence[i].Host, host)
 		}
-		if evidence[i] != (Evidence{Host: host}) {
+		if !reflect.DeepEqual(evidence[i], Evidence{Host: host}) {
 			t.Errorf("observation for %q = %+v, want no evidence at all", host, evidence[i])
 		}
 	}
@@ -403,7 +407,7 @@ func TestParseJSONListingIsDeterministic(t *testing.T) {
 		t.Fatalf("parsed %+v, want the entry under the first sorted key, version %q", first, wantVersion)
 	}
 	for i := range 50 {
-		if got := parseJSONListing(answer); got != first {
+		if got := parseJSONListing(answer); !reflect.DeepEqual(got, first) {
 			t.Fatalf("walk %d parsed %+v, want the same answer as the first walk %+v", i, got, first)
 		}
 	}
@@ -547,5 +551,137 @@ func TestNamesPluginIsTightEnoughForAProjectDirectory(t *testing.T) {
 				t.Errorf("namesPlugin(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestParseJSONListingCollectsEveryInstallation pins updating-the-plugin.spec
+// §19: Claude Code lists the plugin once per scope and project, and every one
+// of those entries is an installation the update has to address.
+func TestParseJSONListingCollectsEveryInstallation(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		answer string
+		want   []Install
+	}{
+		{
+			name: "one entry per scope, as claude plugin list --json answers",
+			answer: `[
+				{"id":"archcore@archcore-plugins","scope":"local","projectPath":"/work/b","version":"0.8.3"},
+				{"id":"other@elsewhere","scope":"user"},
+				{"id":"archcore@archcore-plugins","scope":"project","projectPath":"/work/a","version":"0.7.1"},
+				{"id":"archcore@archcore-plugins","scope":"user","version":"0.9.0"},
+				{"id":"archcore@archcore-plugins","scope":"local","projectPath":"/work/b","version":"0.8.3"}
+			]`,
+			want: []Install{
+				{Name: PluginID, Scope: ScopeUser, Version: "0.9.0"},
+				{Name: PluginID, Scope: ScopeProject, ProjectPath: "/work/a", Version: "0.7.1"},
+				{Name: PluginID, Scope: ScopeLocal, ProjectPath: "/work/b", Version: "0.8.3"},
+			},
+		},
+		{
+			name:   "entries grouped under the plugin id",
+			answer: `{"archcore@archcore-plugins":[{"scope":"local","projectPath":"/work/a"},{"scope":"user"}]}`,
+			want: []Install{
+				{Name: PluginID, Scope: ScopeUser},
+				{Name: PluginID, Scope: ScopeLocal, ProjectPath: "/work/a"},
+			},
+		},
+		{
+			name: "an uninstalled entry and the marketplace id are not installations",
+			answer: `{"installed":[{"pluginId":"archcore@archcore-plugins","name":"archcore","installed":true}],
+				"available":[{"name":"archcore-plugins"},{"id":"archcore@archcore-plugins","installed":false}]}`,
+			want: []Install{{Name: "archcore"}},
+		},
+		{
+			name:   "a plugin id keyed to a bare value",
+			answer: `{"archcore@archcore-plugins": true}`,
+			want:   []Install{{Name: PluginID}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseJSONListing(tt.answer)
+			if !got.listed {
+				t.Fatalf("listing not read as listed: %+v", got)
+			}
+			if !reflect.DeepEqual(got.installs, tt.want) {
+				t.Errorf("installs = %+v, want %+v", got.installs, tt.want)
+			}
+		})
+	}
+}
+
+// TestParseTextListingNamesTheInstallation pins the name Copilot lists a direct
+// install under, which is the only name its update accepts — verified live on
+// copilot 1.0.83.
+func TestParseTextListingNamesTheInstallation(t *testing.T) {
+	t.Parallel()
+	got := parseTextListing("Installed plugins:\n  • archcore v0.6.1\n")
+	want := []Install{{Name: "archcore", Version: "v0.6.1"}}
+	if !got.listed || got.version != "v0.6.1" || !reflect.DeepEqual(got.installs, want) {
+		t.Errorf("listing = %+v, want listed with installs %+v", got, want)
+	}
+}
+
+// TestCollectEvidenceLocatesInstallationProjects pins updating-the-plugin.spec
+// §21: only an absolute, fully resolved path to an existing directory counts as
+// present. Claude Code matches the resolved working directory, so a recorded
+// symlink would send a scoped update to a different project.
+func TestCollectEvidenceLocatesInstallationProjects(t *testing.T) {
+	isolateHome(t)
+	useHostCLIs(t, t.TempDir(), "claude")
+	present, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(present, "not-a-directory")
+	if err := os.WriteFile(file, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(present, link); err != nil {
+		t.Fatal(err)
+	}
+	answer, err := json.Marshal([]map[string]string{
+		{"id": PluginID, "scope": "local", "projectPath": present},
+		{"id": PluginID, "scope": "local", "projectPath": link},
+		{"id": PluginID, "scope": "local", "projectPath": filepath.Join(present, "gone")},
+		{"id": PluginID, "scope": "local", "projectPath": file},
+		{"id": PluginID, "scope": "project", "projectPath": "relative/project"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stubRuns(t, func(Command) commandOutcome { return commandOutcome{Stdout: string(answer)} })
+
+	evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode})
+	if len(evidence) != 1 {
+		t.Fatalf("collected %d observations, want 1", len(evidence))
+	}
+	got := make(map[string]bool, len(evidence[0].Installs))
+	for _, install := range evidence[0].Installs {
+		got[install.ProjectPath] = install.ProjectPresent
+	}
+	want := map[string]bool{
+		present:                        true,
+		link:                           false,
+		filepath.Join(present, "gone"): false,
+		file:                           false,
+		"relative/project":             false,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("project presence = %v, want %v", got, want)
+	}
+}
+
+// TestParseJSONListingReadsAnUninstalledGroupAsAbsent pins that presence and the
+// installations come from one walk: a group keyed by the plugin id whose only
+// entry is uninstalled lists nothing — updating-the-plugin.spec §17.
+func TestParseJSONListingReadsAnUninstalledGroupAsAbsent(t *testing.T) {
+	t.Parallel()
+	got := parseJSONListing(`{"archcore@archcore-plugins":[{"installed":false,"scope":"user"}]}`)
+	if !got.ok || got.listed || len(got.installs) != 0 {
+		t.Errorf("listing = %+v, want parsed and not listed", got)
 	}
 }

@@ -183,13 +183,13 @@ func pluginVerbLeavesAPluginInstalled(verb plugin.Verb) bool {
 }
 
 // mutatedAPlugin reports whether the run changed a host. Only an executed
-// command did: a printed command, a UI note and an already-installed report all
-// leave the machine exactly as it was, and a failed command left nothing new to
-// fire. None of them puts a second set of hooks into the open session, so none
+// command that changed the plugin did: a printed command, a UI note and an
+// already-installed report all leave the machine exactly as it was, and a run
+// that failed before its plugin command left nothing new to fire. None of them puts a second set of hooks into the open session, so none
 // of them owes the restart sentence.
 func mutatedAPlugin(outcome pluginRunOutcome) bool {
 	for _, res := range outcome.Results {
-		if res.Kind == plugin.ActionRun && !res.Failed {
+		if res.Kind == plugin.ActionRun && res.Changed {
 			return true
 		}
 	}
