@@ -31,7 +31,7 @@ One term per concept. Do not introduce synonyms.
   `amendment`, `capability`, `umbrella`.
 - **size label** — `S`, `M`, `L`, `XL`; derived from the route table, never
   asked.
-- **expert invocation** — the user names a path; computation is bypassed.
+- **expert invocation** — the first word of the arguments is a mode (definition in `skills/_shared/gate-contract.md`, Entry terms); computation is bypassed.
 
 ## Derivation
 
@@ -144,8 +144,8 @@ then formal document.
 The research instrument fixes its product by the closing test: a named pending
 decision or candidate set closes on a recommendation (`rnd`); any other
 investigation closes on scope coverage (`research`). Its gather gate may also
-produce evidence; an explicit `/archcore:document evidence` invocation enters
-gather directly. This is an exception to single-type production. Apply
+produce evidence; one external material supplied to `/archcore:document research`
+enters gather directly. This is an exception to single-type production. Apply
 `skills/_shared/research-compatibility.md` before using new vocabulary.
 
 The decision instrument's `decision.cascade` gate additionally creates its
@@ -203,14 +203,13 @@ replaces the announcement with the named path.
 | `sources` | acquisition instrument, entry `requirements-cascade.mrd` |
 | `iso` | iso links, entry `requirements-cascade.brs` |
 | `research` | research instrument, entry `research.frame`; the instrument selects `research` or `rnd` by its closing test |
-| a route name — `null`, `decision`, `amendment`, `capability`, `umbrella` | that route — Derivation still runs to fill Δ; the name fixes the route and the label only |
 
-The four paths and the five route names are the whole expert surface of
-`/archcore:plan`. A document type name is not an entry: `rnd` is produced only
-by the research instrument's closing test, the spike, or the compatibility
-fallback; a standalone `evidence` material enters through
-`/archcore:document evidence`. Any other leading word is topic text and goes
-through route computation.
+The four modes are the whole expert surface of `/archcore:plan`.
+A route name is not an entry: the conductor always computes the route.
+A document type name is not an entry: `rnd` is produced only by the research
+instrument's closing test, the spike, or the compatibility fallback; a standalone
+`evidence` material enters through `/archcore:document research`. Any other
+leading word is topic text and goes through route computation.
 
 ## State carrier
 

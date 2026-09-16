@@ -31,7 +31,7 @@ The plugin exposes four auto-invocable commands (`init`, `plan`, `document`, `re
 │  /archcore:init     /archcore:plan      /archcore:document      │
 │  /archcore:review                                               │
 │                                                                 │
-│  → Routes user intent to a track, a type, or an analysis mode   │
+│  → Routes user intent to a track through a mode word            │
 │  → Gated tracks under skills/_shared/tracks/                    │
 │  → Content contracts under skills/_shared/                      │
 ├─────────────────────────────────────────────────────────────────┤
@@ -76,10 +76,10 @@ Since v0.7.0 the hook policy executes inside the archcore CLI and the plugin shi
 
 **Invocation paths.** Four paths exist, and every one converges on the MCP tool layer.
 
-1. **Skill invocation.** The user types `/archcore:plan auth-redesign sdd`, or the model auto-invokes from natural language; the routing table picks the track, the skill loads `skills/_shared/tracks/sdd.md` on demand, runs its gates in sequence (evaluate `skip_when` → ask within budget → create → relate), and hooks validate each mutation.
+1. **Skill invocation.** The user types `/archcore:plan sdd auth-redesign`, or the model auto-invokes from natural language; the routing table picks the track, the skill loads `skills/_shared/tracks/sdd.md` on demand, runs its gates in sequence (evaluate `skip_when` → ask within budget → create → relate), and hooks validate each mutation.
 2. **Agent delegation.** The host judges the task complex, or the user asks for agent help; the agent calls MCP tools directly and hooks validate. The definition the host loads depends on its loader — `.md` on Claude Code and Cursor, `.toml` on Codex, `*.agent.md` from `copilot-agents/` on Copilot — same content, three containers.
 3. **Direct MCP.** The model or the user calls `mcp__archcore__create_document(type=<any>, …)`; no skill is required. The server is plugin-shipped on Claude Code and Codex and project-registered on Cursor and Copilot (`cursor-mcp-architecture.adr`, `copilot-mcp-architecture.adr`). Tool names differ with it — `mcp__archcore__*`, `mcp__plugin_archcore_archcore__*`, or Copilot's flat `archcore-<tool>` — which is why every matcher and allow-list carries all three and the normalizer folds them into one.
-4. **Staleness detection.** SessionStart emits the CLI recap, which carries the staleness advisory; the post-tool-use launcher's CLI handler emits the cascade notice after `update_document`; `/archcore:review --drift` runs the actualize track with per-finding verdicts and confirmed fixes.
+4. **Staleness detection.** SessionStart emits the CLI recap, which carries the staleness advisory; the post-tool-use launcher's CLI handler emits the cascade notice after `update_document`; `/archcore:review drift` runs the actualize track with per-finding verdicts and confirmed fixes.
 
 **Direct-write interception.** When a component calls Write or Edit against a `.archcore/` markdown path, the CLI's pre-tool-use handler — reached through `bin/pre-tool-use` — extracts the target from stdin, matches the pattern, denies through the host's mechanism, and the model retries via `create_document` or `update_document`. The deny mechanism is the one architectural detail that cannot be host-neutral: exit 2 plus stderr on Claude Code, Codex, and Cursor; on Copilot the guard writes `{"permissionDecision":"deny",…}` to stdout with exit 0, because there **every** non-zero exit denies and only the JSON form carries the reason back to the user.
 
@@ -100,19 +100,19 @@ Four properties of this matrix are load-bearing. Where a host offers no matcher,
 | Scenario | Component |
 |---|---|
 | "Plan this feature" | `/archcore:plan` (skill; routes to the sdd track) |
-| "Record this decision" | `/archcore:document` (decision track, ADR path) |
-| "Draft an RFC" | `/archcore:document` (decision track, RFC path) |
-| "Resolve the RFC" | `/archcore:document` (decision track, `decision.resolve` entry) |
-| "Establish a standard" | `/archcore:document` (decision track, ADR + rule + guide cascade) |
-| "Document this module" | `/archcore:document` (describe track) |
-| "Investigate X before we plan" | `/archcore:plan` (research track, produces `rnd`) |
+| "Record this decision" | `/archcore:document decision` (decision track, ADR path) |
+| "Draft an RFC" | `/archcore:document decision` (decision track, RFC path) |
+| "Resolve the RFC" | `/archcore:document decision` (decision track, resolution entry) |
+| "Establish a standard" | `/archcore:document decision` (decision track, ADR + rule + guide cascade) |
+| "Document this module" | `/archcore:document code` (describe track) |
+| "Investigate X before we plan" | `/archcore:plan research` (research track, produces `research` or `rnd`) |
 | "Show docs dashboard / counts" | `/archcore:review` (skill, default short mode) |
-| "Audit docs health" | `/archcore:review --deep` (skill) |
-| "Are any docs stale?" | `/archcore:review --drift` (actualize track) |
-| "Close out the feature" | `/archcore:review` (closeout track) |
+| "Audit docs health" | `/archcore:review deep` (actualize track, all documents) |
+| "Are any docs stale?" | `/archcore:review drift` (actualize track) |
+| "Close out the feature" | `/archcore:review closeout` (closeout track) |
 | "What rules apply to src/X/" | CLI hooks + command grounding (no command; `/archcore:context` removed — see `remove-context-command.adr`) |
 | Run ISO requirements cascade | `/archcore:plan iso` (requirements-cascade track, iso mode) |
-| Build full standard with pattern change | `/archcore:document` (decision track; `cpat` offered at the cascade gate) |
+| Build full standard with pattern change | `/archcore:document decision` (decision track; `cpat` offered at the cascade gate) |
 | Create a single niche document directly | direct `mcp__archcore__create_document` |
 | Restructure all auth docs with relations | `archcore-assistant` agent |
 | Audit documentation quality | `archcore-auditor` agent |

@@ -1,8 +1,8 @@
 gate: research.frame
-skip_when: a matching local artifact already satisfies this gate's exit checks and the request does not ask to redo, refresh, or extend it; reuse it and continue at gather
+skip_when: a matching local artifact already satisfies this gate's exit checks and the request does not ask to redo, refresh, or extend it; reuse it and continue at gather. Also skip when the request supplies one external material and no investigation: record artifact_type: evidence and continue at gather
 budget: 2
 taxonomy: Functional Scope & Behavior, Constraints & Tradeoffs
-produces: research or rnd draft
+produces: research or rnd; none when the request supplies one external material draft
 next: research.gather
 
 gate: research.gather

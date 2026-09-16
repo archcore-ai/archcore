@@ -19,8 +19,7 @@ hosts. Gate execution, state block, and resume rules:
 - Under the illustrate condition of `skills/_shared/delta-routing.md`,
   `sdd.require` also produces a `journey` beside the `prd` — a recorded
   exception to single-type production, on the pattern of `decision.cascade`.
-  `document journey` enters `sdd.require` in callable mode with the scope
-  pre-filled from the request, produces only the `journey`, and exits.
+  No `/archcore:document` mode reaches `sdd.require`.
 - Both actor-subject types are gated on
   `skills/_shared/actor-subject-compatibility.md`; the conductor runs the probe
   before invoking either production.
@@ -92,7 +91,7 @@ hosts. Gate execution, state block, and resume rules:
   - skip_when: a `prd` covering the topic exists in `.archcore/`; or the
     request is feature-scoped and an `idea`, `rnd`, `research`, or `adr`
     covering the topic already records the problem and the goals — the compression path in
-    `skills/_shared/prd-contract.md`; in callable mode from `document journey`, a `journey` covering the topic exists.
+    `skills/_shared/prd-contract.md`.
   - The concept and beneficiary are recorded — in an `idea`, `rnd`, or
     `research` document, in a `urd` or `srs` covering the topic (recorded requirement
     sources), under `## Clarifications`, or in the request text.
@@ -105,8 +104,7 @@ hosts. Gate execution, state block, and resume rules:
 - Produces:
   - type: prd; additionally journey under the illustrate condition of
     `skills/_shared/delta-routing.md`, composed per
-    `skills/_shared/journey-contract.md`; journey only in callable mode from
-    `document journey`
+    `skills/_shared/journey-contract.md`
   - status: draft
   - relations: `implements` → the `idea` from `sdd.frame`; none when no
     `idea` exists. `related` → the `mrd`, `brd`, and `urd` on the topic, when

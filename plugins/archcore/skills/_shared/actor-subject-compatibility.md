@@ -38,12 +38,12 @@ vocabulary: <https://github.com/archcore-ai/cli/releases/tag/v0.8.4>.
 
 | Result | Allowed vocabulary |
 |---|---|
-| `yes` | Add `scenario` and `journey` to type filters; allow both types, the `sdd.illustrate` gate, and the `document scenario` and `document journey` entries. |
+| `yes` | Add `scenario` and `journey` to type filters; allow both types, the `sdd.illustrate` gate, and a `scenario` named in the subject of `document code`. |
 | `no` or `__NO_CLI__` | Keep legacy type filters; the illustrate instrument is dropped from the package; the two entries write nothing. |
 
 ## Fallback
 
-1. If the probe does not return `yes` and the explicit type is `scenario` or
+1. If the probe does not return `yes` and the request's subject names `scenario` or
    `journey`, report the required version and exit without a document write.
 2. If the probe does not return `yes` and the route engages the illustrate
    instrument, drop the instrument and report once:

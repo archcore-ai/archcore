@@ -10,6 +10,23 @@ executing skills, not in this file.
 - A track file lives at `skills/_shared/tracks/<track-id>.md`.
 - Each gate is one section with the heading `### gate: <track>.<stage>`.
 
+## Entry terms
+
+Gates and executing skills use these terms with one meaning:
+
+- **Expert invocation** — the first word of the command arguments is a mode that
+  the command's argument hint lists. A gate budget rises to that gate's maximum
+  only under an expert invocation.
+- **The request names a type** — the subject text contains a document type slug
+  (`adr`, `rfc`, `rule`, `spec`, `doc`, `guide`, `scenario`, `research`, `rnd`,
+  `evidence`, and the other registry slugs) as a whole word, in any letter case.
+  A description of a document's shape without the slug ("a proposal for review")
+  does not name a type.
+- **Investigation versus one external material** — supplied text that carries
+  findings, a synthesis, or a recommendation is an investigation. A source
+  excerpt, a measurement, a transcript, or a vendor document without them is
+  one external material.
+
 ## Gate record template
 
 A gate record carries these fields in this fixed order. When adding a gate,

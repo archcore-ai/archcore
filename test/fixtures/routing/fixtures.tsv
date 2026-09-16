@@ -47,10 +47,15 @@ close out the feature	review	skills/_shared/tracks/closeout.md:closeout.verify	2
 set up archcore	init	-	-
 fresh clone	init	-	-
 
-# --- research vocabulary expert forms ---
+# --- modes: the first word of the arguments (command-entry-grammar.adr) ---
 plan research	plan	skills/_shared/tracks/research.md:research.frame	2
+document decision	document	skills/_shared/tracks/decision.md:decision.classify	1
+document code	document	skills/_shared/tracks/describe.md:describe.read	0
 document research	document	skills/_shared/tracks/research.md:research.frame	2
-document evidence	document	skills/_shared/tracks/research.md:research.gather	0
-# --- actor-subject vocabulary expert forms ---
-document scenario	document	skills/_shared/tracks/describe.md:describe.read	0
-document journey	document	skills/_shared/tracks/sdd.md:sdd.require	5
+one external material	document	skills/_shared/tracks/research.md:research.frame	2
+drift for staleness detection	review	skills/_shared/tracks/actualize.md:actualize.scope	1
+deep for a full documentation audit	review	skills/_shared/tracks/actualize.md:actualize.scope	1
+closeout to close a finished feature	review	skills/_shared/tracks/closeout.md:closeout.verify	2
+experience to capture a repeated pattern	review	skills/_shared/tracks/experience.md:experience.detect	0
+init refresh	init	-	-
+init domain <slug>	init	-	-

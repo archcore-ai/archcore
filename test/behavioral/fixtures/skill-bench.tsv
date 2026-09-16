@@ -1,0 +1,33 @@
+# Host skill-selection bench fixtures — a user message that names no /archcore command.
+# Columns (tab-separated): id, message, expected_skill, expected_mode.
+# expected_skill: init | plan | document | review | none (no archcore skill should fire).
+# expected_mode: the first word the host should pass as args; - skips the check;
+# none requires args that do not start with a mode word.
+# --- plan ---
+1	Let's plan CSV export for the reports page	plan	-
+2	Create a roadmap for migrating our API to v2	plan	-
+3	I need market research before we plan the billing product	plan	sources
+4	We're regulated — start the ISO requirements cascade for the payments system	plan	iso
+5	Investigate queue brokers before we plan the event bus	plan	research
+6	Plan the beginner onboarding journey for trial users	plan	-
+# --- document ---
+7	We decided to use PostgreSQL 16 for the orders service, record it	document	decision
+8	Should we switch the internal API from REST to gRPC? Write it up as a proposal	document	decision
+9	Make it our team standard that every handler returns typed errors	document	decision
+10	Document the auth module	document	-
+11	Capture how the payment system works	document	-
+12	File this vendor benchmark as reference material for the cache decision: Redis 7.2 p99 0.8 ms at 50k ops/s (vendor report, March 2026)	document	research
+13	We accepted the gRPC proposal, resolve the RFC	document	decision
+# --- review ---
+14	Review my branch before merge	review	-
+15	Are any docs out of date with the code?	review	drift
+16	Audit the knowledge base for documentation gaps	review	deep
+17	Close out the feature, it shipped	review	closeout
+18	Show me the documentation status of this repo	review	-
+# --- init ---
+19	Set up archcore in this repo	init	-
+20	This is a fresh clone, get archcore context going	init	-
+# --- negatives: no archcore skill ---
+21	Fix the typo in the README title	none	-
+22	What does git rebase --onto do?	none	-
+23	Rename the variable userId to accountId in utils.ts	none	-

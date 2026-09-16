@@ -1,7 +1,7 @@
 ---
 name: review
-argument-hint: "[--deep] [--drift] [path, tag, or scope]"
-description: "Review branch changes against Archcore docs, or report project health. Use for 'review my branch', 'review the changes before merge', 'show status', 'documentation gaps', 'check if docs match code', 'close out the feature', 'ship the feature and close it out', or after a staleness warning. --drift for staleness detection, --deep for a full documentation audit. Not for creating docs — use /archcore:document; not for planning — use /archcore:plan."
+argument-hint: "[drift|deep|closeout|experience] [path, tag, or scope]"
+description: "Review branch changes against Archcore docs, or report project health. Use for 'review my branch', 'review the changes before merge', 'show status', 'documentation gaps', 'check if docs match code', 'close out the feature', 'ship the feature and close it out', or after a staleness warning. Modes, named as the first word: drift for staleness detection, deep for a full documentation audit, closeout to close a finished feature, experience to capture a repeated pattern. Not for creating docs — use /archcore:document; not for planning — use /archcore:plan."
 ---
 
 # /archcore:review
@@ -17,10 +17,11 @@ records the present state — including work that shipped without a plan — and
 
 - "Review my branch" / "Review the changes before merge" → branch review
 - "Show status" / "How many docs do we have?" → project health dashboard
-- "Are any docs out of date?" / "Check if documentation matches the code" → `--drift`
-- "Audit the knowledge base" / "Documentation gaps?" → `--deep`
-- Session-start staleness warning appeared → `--drift`
-- "Close out the feature" / "Ship the feature and close it out" → `closeout` track
+- "Are any docs out of date?" / "Check if documentation matches the code" → `drift`
+- "Audit the knowledge base" / "Documentation gaps?" → `deep`
+- Session-start staleness warning appeared → `drift`
+- "Close out the feature" / "Ship the feature and close it out" → `closeout`
+- "Capture this repeated change as a pattern" → `experience`
 
 **Not review:**
 - Documenting a module, decision, or topic → `/archcore:document`
@@ -33,11 +34,13 @@ records the present state — including work that shipped without a plan — and
 |---|---|
 | No arguments, branch with changes | → branch review, steps 1–4 |
 | On the default branch, or empty diff | → project health dashboard (step 1 fallback) |
-| `--drift` | → actualize track (step 3); scope from step 1 when the branch boundary resolves, all documents on `on-default-branch` or `empty-diff` |
-| `--deep` | → actualize track over all documents, plus coverage and relation findings |
+| First word `drift` | → actualize track (step 3); scope from step 1 when the branch boundary resolves, all documents on `on-default-branch` or `empty-diff` |
+| First word `deep` | → actualize track over all documents, plus coverage and relation findings |
+| First word `closeout` | → closeout track (`skills/_shared/tracks/closeout.md`), scope pre-filled from the step 1 `branch-state` block; exits into the step 4 experience offer |
+| First word `experience` | → experience track (`skills/_shared/tracks/experience.md`) over the branch scope; the detect gate selects `cpat` or `task-type` |
 | Path, tag, or scope argument | → the named scope narrows or replaces the branch scope |
 | Completion signals: "close out the feature", "ship the feature and close it out" — an explicit completion or acceptance verb, not mere branch readiness. A plain "review my branch" stays on branch review even for a merge-ready branch | → closeout track (`skills/_shared/tracks/closeout.md`), scope pre-filled from the step 1 `branch-state` block; exits into the step 4 experience offer |
-| Named track or type (`actualize`, `experience`, `closeout`, `cpat`, `task-type`) | → execute the named path without routing |
+| Any other first word — a track or type name such as `actualize` or `cpat`, or a former flag such as `--drift` | → topic text; route by the signals above |
 
 On the closeout track, `closeout.verify` reconciles the plan's `## Declared Delta` section against the branch diff and reports drift as unplanned Δ — details in `skills/_shared/tracks/closeout.md`.
 
@@ -66,7 +69,7 @@ Handle every sentinel the contract defines:
 | `on-default-branch` | Report project health instead of a branch review. |
 | `empty-diff` | Report project health instead of a branch review. |
 
-With `--drift`, the `on-default-branch` and `empty-diff` sentinels widen the actualize scope to all documents instead of the health fallback.
+In `drift` mode, the `on-default-branch` and `empty-diff` sentinels widen the actualize scope to all documents instead of the health fallback.
 
 **Project health fallback** — compact dashboard, data only, no analysis:
 
@@ -75,7 +78,7 @@ With `--drift`, the `on-default-branch` and `empty-diff` sentinels widen the act
 - orphaned documents (no incoming or outgoing relations);
 - one-line issues summary (orphans, high draft count).
 
-End with: *For staleness detection, run `/archcore:review --drift`. For a full audit, run `/archcore:review --deep`.*
+End with: *For staleness detection, run `/archcore:review drift`. For a full audit, run `/archcore:review deep`.*
 
 Before delegating an audit, supply the resolved branch scope, scoped diff, and
 relevant git history to the auditor. Identify missing history explicitly.
@@ -95,7 +98,7 @@ Each conflict finding carries exactly one verdict: `spec-wrong` (the document is
 
 ### Step 3: Actualize gate
 
-WHEN step 2 surfaces a drift signal — any `spec-wrong` or `code-wrong` finding — or the user passed `--deep` or `--drift`, route into the actualize track (`skills/_shared/tracks/actualize.md`) and run its gates: `actualize.scope` (pre-filled with the step 1 `branch-state` block), `actualize.verdict`, `actualize.fix`. With `--deep`, widen the scope to all documents and report coverage gaps, relation health, status, and consistency findings alongside the drift verdicts. Verdict vocabulary lives in `skills/_shared/verdict-contract.md`.
+WHEN step 2 surfaces a drift signal — any `spec-wrong` or `code-wrong` finding — or the first word is `deep` or `drift`, route into the actualize track (`skills/_shared/tracks/actualize.md`) and run its gates: `actualize.scope` (pre-filled with the step 1 `branch-state` block), `actualize.verdict`, `actualize.fix`. In `deep` mode, widen the scope to all documents and report coverage gaps, relation health, status, and consistency findings alongside the drift verdicts. Verdict vocabulary lives in `skills/_shared/verdict-contract.md`.
 
 ### Step 4: Experience offer
 
@@ -110,6 +113,7 @@ WHEN the reviewed changes repeat an undocumented pattern, offer a `cpat` or `tas
 
 - Branch review: findings grouped by verdict — `spec-wrong` / `code-wrong` / `ok` — with evidence, applied fixes, and declined fixes.
 - Health fallback: the dashboard, data only.
-- Closeout: per-task verdicts from `closeout.verify`, applied and declined document updates from `closeout.merge`, status transitions grouped applied / declined / skipped from `closeout.accept`, residue routed at `closeout.capture` with the instrument that took it, and removed plans from `closeout.discharge`.
-- Produced documents grouped by category — experience: a `cpat` or `task-type` draft from the experience offer or from `closeout.capture`; knowledge: a `guide`, or an `adr` plus its standard cascade (`rule`, `guide`), when `closeout.capture` routes residue through the decision instrument; knowledge / vision: documents updated at `actualize.fix` or `closeout.merge`.
-- Removed documents: each `plan` that `closeout.discharge` removed, and each long-stale draft `actualize.fix` removed on the user's confirmation — each named with the commit that still carries the file.
+- Closeout: per-task verdicts, applied and declined document updates, status transitions grouped applied / declined / skipped, routed residue with the instrument that took it, and removed plans.
+- Produced documents grouped by category — experience: a `cpat` or `task-type` draft from the experience offer or from closeout residue capture; knowledge: a `guide`, or an `adr` plus its standard cascade (`rule`, `guide`), when closeout routes residue through the decision instrument; knowledge / vision: documents updated by a drift fix or a closeout merge.
+- Removed documents: each completed `plan` closeout removed, and each long-stale draft a drift fix removed on the user's confirmation — each named with the commit that still carries the file.
+- Name tracks and steps in plain words; do not print a gate address of the form `<track>.<stage>`.

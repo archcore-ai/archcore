@@ -7,7 +7,9 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
 
 ## Track notes
 
-- Stages: `decision.classify` → `decision.adr` | `decision.rfc` → `decision.cascade`.
+- Stages: `decision.classify` → `decision.adr` | `decision.rfc` → `decision.cascade`;
+  a standard request over an existing local `adr` goes from `decision.classify`
+  to `decision.cascade` directly.
 - Resolution entry: `decision.resolve` is a second entry point on an existing
   `rfc` draft ("resolve the RFC", "we accepted the proposal"), outside the
   classify chain; its accepted verdict rejoins the chain at `decision.cascade`.
@@ -33,19 +35,20 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
 
 ### gate: decision.classify
 
-- Purpose: Select the branch — settled decision (`decision.adr`) or open proposal (`decision.rfc`).
+- Purpose: Select the branch — settled decision (`decision.adr`), open proposal (`decision.rfc`), or a standard over an existing decision (`decision.cascade`).
 - Entry conditions:
-  - skip_when: the request names the target type `adr` or `rfc`.
-  - The request describes one technical decision or proposal.
-  - `list_documents(types=["adr", "rfc"])` returns no existing document that already records this topic (global matches: see Track notes).
+  - skip_when: the subject text names the target type `adr` or `rfc` — the named type selects the branch.
+  - The request describes one technical decision, proposal, or standard.
+  - WHEN the request carries no standard signal, `list_documents(types=["adr", "rfc"])` returns no existing document that already records this topic (global matches: see Track notes).
+  - WHEN the request carries a standard signal — "make it our standard", "we should always", "developers must", or the type `rule` in the subject — no `rfc` records the topic and at most one local `adr` does; that `adr` becomes the upstream of the standard cascade. IF two or more local `adr` documents match, THEN the trigger below fires and asks which one the standard follows.
 - Elicitation knobs:
-  - trigger: the request does not state whether the decision is settled, or open-proposal wording ("thinking about", "should we", "proposing", "design proposal") appears — confirm the RFC branch before routing.
+  - trigger: two or more local `adr` documents match a standard request; or the request does not state whether the decision is settled, or open-proposal wording ("thinking about", "should we", "proposing", "design proposal") appears — confirm the RFC branch before routing.
   - taxonomy: Constraints & Tradeoffs, Completion Signals from `skills/_shared/coverage-taxonomy.md`.
   - budget: 1
 - Produces: none — the `decision.adr` and `decision.rfc` gates produce the document.
 - Exit checks:
-  - blocking: the recorded outcome names `decision.adr` or `decision.rfc`.
-- Next: `decision.adr` when the decision is settled or when no answer marks it open (the default); `decision.rfc` when the user confirms the proposal is open.
+  - blocking: the recorded outcome names `decision.adr`, `decision.rfc`, or `decision.cascade`.
+- Next: `decision.cascade` with the standard cascade selected when the request carries standard signals and one local `adr` on the topic exists; `decision.adr` when the decision is settled, when no answer marks it open (the default), or when standard signals appear and no local `adr` exists; `decision.rfc` when the user confirms the proposal is open.
 
 ### gate: decision.adr
 
@@ -109,7 +112,7 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
 - Purpose: Offer the continuation cascade that matches the ADR — standard (rule + guide) or architecture (spec + plan) — and create the documents the user confirms, per `skills/_shared/precision-rules.md`, `skills/_shared/rule-contract.md` (rule), `skills/_shared/spec-contract.md` (spec), and `skills/_shared/guide-contract.md` (guide).
 - Entry conditions:
   - skip_when: the track produced an `rfc`, or the ADR content matches neither signal set below — the ADR alone is a valid endpoint.
-  - An ADR draft produced by `decision.adr` exists.
+  - An ADR draft produced by `decision.adr` exists, or `decision.classify` selected one local `adr` as the upstream of a standard request.
   - Standard-cascade signals — the decision describes enforceable behavior: "we should always", "developers must", "the team should", "going forward all X must Y".
   - Architecture-cascade signals — the decision establishes or changes a boundary contract (API, interface, schema, protocol) or a feature or subsystem with states, field-driven rules, and invariants: "the X system will provide", "the contract is", "the interface exposes", "the API will be", "the feature must behave", "the states are".
 - Elicitation knobs:

@@ -1,6 +1,6 @@
 ---
-description: Record a decision as an ADR or RFC, or document existing code as a spec, doc, guide, or rule; record a supplied research report or evidence material; routes to the right document type.
-argument-hint: "[module, topic, or decision] [adr|rfc|spec|doc|guide|rule|research|evidence|scenario|journey]"
+description: Record the present state by mode — decision (ADR, RFC, rule), code (spec, doc, guide, scenario), or research (a ready report or one external material); a gate picks the document type.
+argument-hint: "[decision|code|research] [subject]"
 ---
 
 # /archcore:document

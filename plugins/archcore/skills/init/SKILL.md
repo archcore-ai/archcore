@@ -1,7 +1,7 @@
 ---
 name: init
-argument-hint: "[--depth=light|standard|deep] [--mode=small|medium|large] [--domain=<slug>] [--refresh]"
-description: "First-time Archcore setup. Detects repo scale and shape, then composes a full first-day seed — stack rule, run guide, data-model, integrations, config, entry points, public surface, a linked architecture overview, and specs for the top hotspot modules — shown in ONE preview and created on a single confirm, plus host wiring (MCP config, hooks, CLAUDE.md/AGENTS.md managed block). Imports agent-instruction files — aggregate files (CLAUDE.md/AGENTS.md/.cursorrules) as link stubs, modular rule files (.cursor/rules/*.mdc and equivalents) as rule docs by default. Use on a fresh clone, empty `.archcore/`, 'set up archcore', or to wire host configs (MCP/hooks/CLAUDE.md+AGENTS.md). Not for individual docs or planning."
+argument-hint: "[refresh|domain <slug>] [--depth=light|standard|deep] [--scale=small|medium|large]"
+description: "First-time Archcore setup. Detects repo scale and shape, then composes a full first-day seed — stack rule, run guide, data-model, integrations, config, entry points, public surface, a linked architecture overview, and specs for the top hotspot modules — shown in ONE preview and created on a single confirm, plus host wiring (MCP config, hooks, CLAUDE.md/AGENTS.md managed block). Imports agent-instruction files — aggregate files (CLAUDE.md/AGENTS.md/.cursorrules) as link stubs, modular rule files (.cursor/rules/*.mdc and equivalents) as rule docs by default. Use on a fresh clone, empty `.archcore/`, 'set up archcore', or to wire host configs (MCP/hooks/CLAUDE.md+AGENTS.md). Re-run as init refresh to add facts that appeared since, or init domain <slug> to drill into one domain. Not for individual docs or planning."
 ---
 
 # /archcore:init
@@ -10,10 +10,12 @@ First-time onboarding. Detects repo scale (small / medium / large) and shape, co
 
 ## Arguments
 
-- `--depth=light|standard|deep` — synthesis budget (default `standard`), orthogonal to `--mode`. See the Depth axis section below. Also settable via the `depth:<tier>` toggle in the preview.
-- `--mode=small|medium|large` — force a mode, overriding auto-detection.
-- `--domain=<slug>` — re-run focused on one domain (large repos): scopes data-model + hotspot specs to that domain's tree, tops up only its docs. Bypasses the "already seeded" early-exit.
-- `--refresh` — re-run on an already-seeded repo to add facts that appeared since the first init (a new schema, config, or modules) — and to retrofit host wiring on repos seeded before wiring existed. Bypasses the early-exit; existing docs are skipped, missing ones composed.
+The first word selects the run: `refresh` or `domain <slug>`. These two words are the command's modes in the sense of `command-surface-v2.spec`; they are not the scale mode (small, medium, large) that the `--scale` setting forces. `--depth` and `--scale` are settings that change how the run composes, never which run starts. No arguments, or any other first word, including a former flag such as `--refresh`, start a plain init.
+
+- `--depth=light|standard|deep` — synthesis budget (default `standard`), orthogonal to `--scale`. See the Depth axis section below. Also settable via the `depth:<tier>` toggle in the preview.
+- `--scale=small|medium|large` — force the scale mode, overriding auto-detection.
+- `domain <slug>` (first word) — re-run focused on one domain (large repos): scopes data-model + hotspot specs to that domain's tree, tops up only its docs. Bypasses the "already seeded" early-exit.
+- `refresh` (first word) — re-run on an already-seeded repo to add facts that appeared since the first init (a new schema, config, or modules) — and to retrofit host wiring on repos seeded before wiring existed. Bypasses the early-exit; existing docs are skipped, missing ones composed.
 
 ## When to use
 
@@ -37,7 +39,7 @@ First-time onboarding. Detects repo scale (small / medium / large) and shape, co
 | Signal | Route | Seeded (composed when detected) |
 |---|---|---|
 | No manifest AND no top-level source (Step 0b) | → **empty** | no content docs — host wiring only, behind its own mini-confirm |
-| `--mode=X` flag | → forced `X` (detected mode still reported) | per row below |
+| `--scale=X` setting | → forced `X` (detected mode still reported) | per row below |
 | `domain_count ≤ 1` AND `module_count ≤ 15` | → **small** | stack rule, run guide, data-model, integrations, config, entry points, public surface, overview + hotspot specs (coverage rate × ranked pool — see Depth axis) |
 | `domain_count ≤ 2` AND `module_count ≤ 40` | → **medium** | small set + cross-cutting rules (every depth, every candidate clearing the recurrence threshold) + hotspot specs (coverage rate × ranked pool — see Depth axis) |
 | `domain_count ≥ 3` OR `module_count > 40` | → **large** | medium set + top-level map + domain dialog + data-model per schema-bearing domain (all, not only selected) + hotspot specs (coverage rate × ranked pool, plus a floor of ≥ 1 spec per selected domain — see Depth axis) |
@@ -52,14 +54,14 @@ Every non-empty mode also composes the architecture-overview capstone, plans rel
 | Record a decision | `/archcore:document` |
 | Codify a convention as a rule | `/archcore:document` |
 | Plan a feature | `/archcore:plan` |
-| Drill into another domain (large) | `/archcore:init --domain=<slug>` |
-| Add facts that appeared since first init | `/archcore:init --refresh` |
+| Drill into another domain (large) | `/archcore:init domain <slug>` |
+| Add facts that appeared since first init | `/archcore:init refresh` |
 | Scope queries to a domain (large) | `mcp__archcore__search_documents` with the domain tag |
 | See what's loaded | `/archcore:review` |
 
 ## Depth axis (`--depth=light|standard|deep`)
 
-Orthogonal to scale (`--mode`, which measures repo *size*). Depth sets the **synthesis budget**, not the artifact checklist. **Extraction is always on** in every depth — Tier-1 facts, imported authored rules, and the hotspot register are cheap and the highest-value / most-durable layer. Depth scales only the **expensive, staleness-prone synthesis**: spec bodies, cross-cutting rules, and big-file / aggregate extraction. Default: **`standard`** — a good first-day seed, not merely the cheapest one. Init is fully gated (nothing is written before `confirm`, and the preview shows all three depths' costs side by side before the user commits to any of them), so there is no reason to default to the thin tier just to be safe — `light` is the explicit **opt-down** for a cost-conscious user (still never empty — Universality invariant 3); `deep` is the explicit **opt-up** for a max plan.
+Orthogonal to scale (`--scale`, which measures repo *size*). Depth sets the **synthesis budget**, not the artifact checklist. **Extraction is always on** in every depth — Tier-1 facts, imported authored rules, and the hotspot register are cheap and the highest-value / most-durable layer. Depth scales only the **expensive, staleness-prone synthesis**: spec bodies, cross-cutting rules, and big-file / aggregate extraction. Default: **`standard`** — a good first-day seed, not merely the cheapest one. Init is fully gated (nothing is written before `confirm`, and the preview shows all three depths' costs side by side before the user commits to any of them), so there is no reason to default to the thin tier just to be safe — `light` is the explicit **opt-down** for a cost-conscious user (still never empty — Universality invariant 3); `deep` is the explicit **opt-up** for a max plan.
 
 | Depth | Hotspot specs (`rate` × pool, `floor`) | Cross-cutting synth (medium/large) | Big authored (>200) & CLAUDE.md/AGENTS.md | Authored decisions → ADR | Relations |
 |---|---|---|---|---|---|
@@ -67,7 +69,7 @@ Orthogonal to scale (`--mode`, which measures repo *size*). Depth sets the **syn
 | **standard** (default) | 25% of the ranked pool, floor 4 | every candidate clearing the recurrence threshold | link | — | basic |
 | **deep** (opt-up) | 60% of the ranked pool, floor 6 | every candidate clearing the recurrence threshold | **extract + split** | **extract from files** (Route 2), never invent from code | enriched (spec↔rule, spec↔spec) |
 
-**The spec budget scales with the repo and carries no absolute maximum** — `budget = max(floor(depth), round(rate(depth) × pool_size))`, clipped to `pool_size`, where `pool_size` is the eligible ranked hotspot pool (`detect-hotspots.md` "Spec budget by coverage rate"). A 214-module pool budgets ~54 specs at `standard`; a 12-module pool budgets 4. Large mode adds a floor of ≥ 1 spec per domain selected in Step A.0, filling the rest by repo-wide rank; a later `--domain=<slug>` re-run applies the same formula to that domain's narrowed pool. **Cross-cutting synthesis is on at every depth** — it is the highest value-per-token artifact init seeds; depth changes only its scan cost at `light`, never whether it runs and no longer how many candidates survive. A very large or hot hotspot (`LOC > 3000` OR top-quartile churn) may compose as a **flagship** at any depth, which makes it eligible for decomposition into ≤ 3 sub-specs by separable sub-surface instead of one spec (`detect-hotspots.md` "Flagship specs"). Every spec, flagship or not, is composed under the one ≤ 120-line cap in `_shared/spec-contract.md`.
+**The spec budget scales with the repo and carries no absolute maximum** — `budget = max(floor(depth), round(rate(depth) × pool_size))`, clipped to `pool_size`, where `pool_size` is the eligible ranked hotspot pool (`detect-hotspots.md` "Spec budget by coverage rate"). A 214-module pool budgets ~54 specs at `standard`; a 12-module pool budgets 4. Large mode adds a floor of ≥ 1 spec per domain selected in Step A.0, filling the rest by repo-wide rank; a later `domain <slug>` re-run applies the same formula to that domain's narrowed pool. **Cross-cutting synthesis is on at every depth** — it is the highest value-per-token artifact init seeds; depth changes only its scan cost at `light`, never whether it runs and no longer how many candidates survive. A very large or hot hotspot (`LOC > 3000` OR top-quartile churn) may compose as a **flagship** at any depth, which makes it eligible for decomposition into ≤ 3 sub-specs by separable sub-surface instead of one spec (`detect-hotspots.md` "Flagship specs"). Every spec, flagship or not, is composed under the one ≤ 120-line cap in `_shared/spec-contract.md`.
 
 Cost scales with depth AND with the repo — the preview shows the computed total per depth, never a constant. On a large repo `deep` can budget hundreds of specs; that is the intended behavior, and the preview's per-depth estimate is where the user sees the price before confirming. Treat any fixed multiplier as illustrative only.
 
@@ -167,11 +169,11 @@ Call `mcp__archcore__list_documents()` once. **Derive every flag below from loca
 - `has_overview` — any `doc` tagged `architecture-overview`.
 - `has_imports` — any document tagged `imported`.
 
-**Already-seeded early-exit.** If `has_stack_rule` AND `has_run_guide` AND `has_overview` are all true AND **neither `--refresh` nor `--domain` was passed**, reply:
+**Already-seeded early-exit.** If `has_stack_rule` AND `has_run_guide` AND `has_overview` are all true AND **the first word is neither `refresh` nor `domain`**, reply:
 
-> Init already seeded this repo. Applicable context auto-injects on file edits via the code-alignment hook; use `/archcore:review` for the dashboard. To add facts that appeared since (a new schema, config, or modules), re-run `/archcore:init --refresh`; to drill into another domain, `/archcore:init --domain=<slug>`. (Seeded before host wiring existed, or missing the host configs? `--refresh` also adds host wiring — MCP config, SessionStart hook, usage hint.)
+> Init already seeded this repo. Applicable context auto-injects on file edits via the code-alignment hook; use `/archcore:review` for the dashboard. To add facts that appeared since (a new schema, config, or modules), re-run `/archcore:init refresh`; to drill into another domain, `/archcore:init domain <slug>`. (Seeded before host wiring existed, or missing the host configs? `refresh` also adds host wiring — MCP config, SessionStart hook, usage hint.)
 
-Then stop. **With `--refresh` or `--domain`, skip this early-exit and proceed** — every already-present artifact is marked **skip (exists)** in the preview and only missing ones are composed; the Host wiring line appears as usual (its writes are idempotent — already-wired hosts show as skip/converge). (`--domain` additionally scopes the run to one domain; see Step A.0.)
+Then stop. **On a `refresh` or `domain <slug>` run, skip this early-exit and proceed** — every already-present artifact is marked **skip (exists)** in the preview and only missing ones are composed; the Host wiring line appears as usual (its writes are idempotent — already-wired hosts show as skip/converge). (`domain <slug>` additionally scopes the run to one domain; see Step A.0.)
 
 #### Step 0(b) — Source-signal gate (empty-repo early exit)
 
@@ -216,15 +218,15 @@ Compute everything the seed needs in one detection pass. No documents are create
 
 Read `_shared/grounding/detect-scale.md`, `_shared/grounding/detect-domains.md`, `_shared/grounding/detect-modules.md`.
 
-1. **Parse arguments** — `--depth=light|standard|deep` (synthesis budget, default `standard`; see the Depth axis section), `--mode=X` (force the mode), `--domain=<slug>` (force a large-mode single-domain pass; see Step A.0), `--refresh` (already consumed in Step 0a). Depth does NOT affect detection — Phase A ranks hotspots up to the `deep`-depth ceiling (see Step A.3) and detects ALL facts/imports regardless of the active depth; depth only governs how much is synthesized in Phase B.
+1. **Parse arguments** — `--depth=light|standard|deep` (synthesis budget, default `standard`; see the Depth axis section), `--scale=X` (force the scale mode), the `domain <slug>` first word (force a large-mode single-domain pass; see Step A.0), the `refresh` first word (already consumed in Step 0a). Depth does NOT affect detection — Phase A ranks hotspots up to the `deep`-depth ceiling (see Step A.3) and detects ALL facts/imports regardless of the active depth; depth only governs how much is synthesized in Phase B.
 2. **Compute signals:** `domain_count` (per `detect-domains.md`), `module_count` (source files > 100 LOC, excluding tests/generated), `entry_point_count` (per `detect-entry-points.md`, informational).
-3. **Classify** per `detect-scale.md` — apply its evidence-based fallback when the language/layout is unlisted (recompute counts from the dominant code extension and tracked-file breadth; do not default to `small` just because the extension/root lists miss). A forced `--mode` wins but remember the auto-detected one; `--domain` forces large-mode behavior scoped to the named domain.
+3. **Classify** per `detect-scale.md` — apply its evidence-based fallback when the language/layout is unlisted (recompute counts from the dominant code extension and tracked-file breadth; do not default to `small` just because the extension/root lists miss). A forced `--scale` wins but remember the auto-detected one; the `domain <slug>` run forces large-mode behavior scoped to the named domain.
 
 ### Step A.0: Domain selection (large mode only)
 
 Skip unless mode is `large`.
 
-1. **`--domain=<slug>` given** — that domain is the sole selection; skip the dialog. (Tier-1 facts already present are skipped; the run tops up this domain's data-model + hotspot specs by applying the depth's `rate` / `floor` to the pool **narrowed to that domain's tree**, per `detect-hotspots.md`.)
+1. **`domain <slug>` given** — that domain is the sole selection; skip the dialog. (Tier-1 facts already present are skipped; the run tops up this domain's data-model + hotspot specs by applying the depth's `rate` / `floor` to the pool **narrowed to that domain's tree**, per `detect-hotspots.md`.)
 2. **Otherwise** — present the top 5 ranked domains (per `detect-domains.md` ranking) and ask: *"Which domains are you working on now? (pick 1–3 by name or number, or `skip` to defer.)"* Accept a single name, a comma list, or `skip`.
 3. **Allocate the hotspot budget.** Hotspots (A.3) are ranked **repo-wide** (candidate selection is never restricted to a domain's tree in the day-one dialog), and the budget itself comes from the repo-wide pool: `max(floor(depth), round(rate(depth) × pool_size))` per `detect-hotspots.md` "Spec budget by coverage rate". The selection changes **allocation, not size**: every selected domain is guaranteed a floor of ≥ 1 spec; remaining slots fill by repo-wide rank across all domains, selected or not. On `skip`, no domain gets a floor and the whole budget fills by repo-wide rank alone.
 4. **Data-model breadth is decoupled from the dialog.** Seed a data-model doc for **every domain with a detectable schema** (`detect-data-model.md`, names-only — cheap regardless of repo size), not only the domains selected here. The dialog focuses hotspot-spec priority, not data-model breadth. A domain without a schema still appears as a row in the top-level map (`detect-domains.md`).
@@ -272,7 +274,7 @@ In large mode, report the figures for the **selected** domains (selection alread
 
 ## Phase B — COMPOSE (in memory; composition contracts only)
 
-Load the composition contracts and compose every planned artifact **without writing**. Honor each catalog's line cap. Mark any artifact whose `has_*` flag is already true as **skip (exists)**. Exception: in large / `--domain` mode the per-domain data-model doc (`<domain-slug>-data-model`) dedupes by its own filename, not the repo-wide `has_data_model` tag — so a newly-selected domain's data-model is still composed when other domains' already exist.
+Load the composition contracts and compose every planned artifact **without writing**. Honor each catalog's line cap. Mark any artifact whose `has_*` flag is already true as **skip (exists)**. Exception: in large mode or on a `domain <slug>` run the per-domain data-model doc (`<domain-slug>-data-model`) dedupes by its own filename, not the repo-wide `has_data_model` tag — so a newly-selected domain's data-model is still composed when other domains' already exist.
 
 **Apply the active depth** (`## Depth axis`, default `standard`) to this compose pass — it sets only these levers, and everything else is depth-independent:
 - Hotspot spec count = the depth's computed budget (`detect-hotspots.md` "Spec budget by coverage rate"), large mode subject to the per-selected-domain floor; ranked hotspots beyond it go to the register regardless of depth. A flagship candidate (Change: size/churn-gated) composes as one spec or, only with genuine separable sub-contracts, decomposes into ≤ 3 sub-specs — at every depth, not gated by depth.
@@ -410,7 +412,7 @@ Summarize what was created, then make the value-loop visible and list the over-t
 
 > Done. Seeded: workspace stack rule, monorepo run guide, top-level map (T domains), entry points, data-model + integrations + config. Data-model seeded for D of T domains (every domain with a detectable schema, not only the ones you picked below). Architecture overview. Created M hotspot specs — a floor of ≥ 1 per domain you're working in now, the rest by repo-wide rank[, imported K authored rules from the repo's modular rule files], and registered the remaining hotspots in the overview[ plus J cross-cutting rules].
 >
-> Try it now: edit a file under `<a selected-domain hotspot path>` — its spec auto-injects via the code-alignment hook. Other domains: <list>. Run `/archcore:init --domain=<slug>` later to drill into any of them, and `mcp__archcore__search_documents` with the domain tag to scope queries. Over time each domain needs its own ADRs and specs via `/archcore:document`, and task-types via `/archcore:review`'s experience offer when branch changes repeat a pattern; repo-wide cross-cutting rules (logging, errors, auth, transactions, telemetry) accrue via `/archcore:document`.
+> Try it now: edit a file under `<a selected-domain hotspot path>` — its spec auto-injects via the code-alignment hook. Other domains: <list>. Run `/archcore:init domain <slug>` later to drill into any of them, and `mcp__archcore__search_documents` with the domain tag to scope queries. Over time each domain needs its own ADRs and specs via `/archcore:document`, and task-types via `/archcore:review`'s experience offer when branch changes repeat a pattern; repo-wide cross-cutting rules (logging, errors, auth, transactions, telemetry) accrue via `/archcore:document`.
 
 Depth-nudge, keyed off whichever depth actually ran (never assume `standard` ran just because it is the default):
 
@@ -426,7 +428,7 @@ Depth-nudge, keyed off whichever depth actually ran (never assume `standard` ran
 
 Always end with:
 
-> Use `/archcore:review` for the dashboard, `/archcore:review --deep` for a health audit.
+> Use `/archcore:review` for the dashboard, `/archcore:review deep` for a health audit.
 
 ## Result
 
@@ -437,4 +439,4 @@ Mode-appropriate, single-confirm `.archcore/` seed (created only on `confirm`; e
 - **Medium** (pool ~20–30): ~8–16 docs at `standard` (small set + ~5–8 specs + cross-cutting rules + imported authored rules); ~6–10 at `light` (~3 specs); ~16–24 at `deep` (~12–18 specs + extraction).
 - **Large** (pool ~200+): the seed scales with the pool — a 214-module pool yields ~54 specs at `standard`, ~21 at `light`, ~128 at `deep`, plus top-level map, domain dialog, data-model for every schema-bearing domain, cross-cutting rules, and imported authored rules. Every selected domain is guaranteed ≥ 1 spec; the preview's Coverage line and high-volume notice show the count and cost before `confirm`.
 
-Idempotency: the flagged Tier-1 facts, the overview, and imports are skip-on-exists; Tier-2 specs/rules dedupe by filename before create. Host wiring is idempotent end-to-end (existing archcore entries are kept, or updated in place when written by an older CLI; foreign config content is never touched), so re-running init never duplicates hooks or MCP entries. A second `/archcore:init` on a fully-seeded repo early-exits (Step 0a) unless `--refresh` (top up newly-detectable facts) or `--domain` (scoped domain pass) is passed. Tier-2 spec bodies and the overview are composed only after `confirm`, so a `cancel` or deselect spends no source-read cost. The empty route never creates placeholder documents, keeping `.archcore/` functionally empty so the SessionStart nudge keeps pointing here.
+Idempotency: the flagged Tier-1 facts, the overview, and imports are skip-on-exists; Tier-2 specs/rules dedupe by filename before create. Host wiring is idempotent end-to-end (existing archcore entries are kept, or updated in place when written by an older CLI; foreign config content is never touched), so re-running init never duplicates hooks or MCP entries. A second `/archcore:init` on a fully-seeded repo early-exits (Step 0a) unless `refresh` (top up newly-detectable facts) or `domain` (scoped domain pass) is passed. Tier-2 spec bodies and the overview are composed only after `confirm`, so a `cancel` or deselect spends no source-read cost. The empty route never creates placeholder documents, keeping `.archcore/` functionally empty so the SessionStart nudge keeps pointing here.

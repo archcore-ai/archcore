@@ -25,10 +25,11 @@ requirements chain belongs to `skills/_shared/tracks/requirements-cascade.md`.
 A proposed technical choice belongs to the decision instrument.
 
 Gate order: `research.frame` → `research.gather` → `research.conclude`.
-An explicit `evidence` (`/archcore:document evidence`) enters gather and exits
-there. `/archcore:plan research` and `/archcore:document research` enter frame
-and select the investigation type by the closing test below; neither command
-exposes `rnd` as an entry. `research.spike` remains the conductor's separate
+`/archcore:plan research` and `/archcore:document research` enter frame and
+select the investigation type by the closing test below; neither command exposes
+`rnd` or `evidence` as an entry. WHEN `/archcore:document research` supplies one
+external material and no investigation, frame records `artifact_type: evidence`,
+creates no investigation, and continues at gather, which exits there. `research.spike` remains the conductor's separate
 entry for an `empirical` Π source; its code is throwaway.
 Spike code MUST NOT merge into the mainline.
 
@@ -116,19 +117,19 @@ never by the track.
 
 - Purpose: Fix the investigation's goal and its scope or decision questions.
 - Entry conditions:
-  - skip_when: a matching local artifact already satisfies this gate's exit checks and the request does not ask to redo, refresh, or extend it; reuse it and continue at gather.
-  - The request names the subject under investigation or supplies a ready report.
+  - skip_when: a matching local artifact already satisfies this gate's exit checks and the request does not ask to redo, refresh, or extend it; reuse it and continue at gather. Also skip when the request supplies one external material and no investigation: record `artifact_type: evidence` and continue at gather.
+  - The request names the subject under investigation, supplies a ready report, or supplies one external material.
 - Elicitation knobs:
   - trigger: the investigation's goal, closing test, or scope remains unclear after grounding; a ready report can satisfy these inputs.
   - taxonomy: Functional Scope & Behavior, Constraints & Tradeoffs from
     `skills/_shared/coverage-taxonomy.md`.
   - budget: 2
 - Produces:
-  - type: research or rnd
+  - type: research or rnd; none when the request supplies one external material
   - status: draft
   - relations: `related` → an existing local `idea` or `prd` the investigation informs; `rnd depends_on research` when applicable.
 - Exit checks:
-  - blocking: the state records `artifact_type` matching the filename type.
+  - blocking: the state records `artifact_type` matching the filename type, or `evidence` when the gate created no investigation.
   - blocking: an rnd draft contains Goal and numbered Questions.
   - blocking: a research draft contains Goal and Scope, including the scope boundaries; Questions is optional.
   - advisory: an rnd Questions section holds at most 5 questions.
@@ -139,7 +140,7 @@ never by the track.
 - Purpose: Record sourced findings and any reusable materials.
 - Entry conditions:
   - skip_when: the local artifact satisfies this gate's exit checks and no intended evidence write or relation remains pending.
-  - A research or rnd draft has passed frame, or an explicit evidence request supplies one material.
+  - A research or rnd draft has passed frame, or frame recorded `artifact_type: evidence` for one supplied material.
 - Elicitation knobs:
   - trigger: none — the supplied material satisfies standalone evidence framing; investigation gaps are recorded for conclude.
   - taxonomy: none.
