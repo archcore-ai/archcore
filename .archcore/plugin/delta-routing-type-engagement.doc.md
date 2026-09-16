@@ -20,19 +20,19 @@ This matrix verifies that every shipped document type keeps at least one produce
 | `spec` | `sdd.design`; `decision.cascade` architecture branch; `describe.draft` | capability and umbrella routes — one per capability; amendment target for `modifies`; describe path unchanged | widened |
 | `plan` | `sdd.decompose`; `decision.cascade` architecture branch | every executable route; additionally carries the declared Δ and route rationale | widened |
 | `rnd` | `research.frame` | Research instrument when the request names a pending decision or a candidate set (closing test), the spike (Goal, Questions, Findings), or the compatibility fallback; no command exposes `rnd` as an entry | widened |
-| `research` | `research.frame` | Research instrument when the request names no pending decision — the computed route's `world` source, `plan research`, or `document research`; vision | added |
-| `evidence` | `research.gather` | Promoted material inside an investigation, or explicit `document evidence`; knowledge | added |
-| `scenario` | `sdd.illustrate`; `describe.draft` | illustrate instrument, once per capability that meets the illustrate condition, after that capability's `spec`; `describe.draft` for existing behavior; `document scenario`; knowledge | added |
-| `journey` | `sdd.require` | intent instrument beside the `prd` under the illustrate condition; `document journey` through the same gate in callable mode; vision | added |
+| `research` | `research.frame` | Research instrument when the request names no pending decision — the computed route's `world` source, `plan research`, or a report supplied to `document research`; vision | added |
+| `evidence` | `research.gather` | Promoted material inside an investigation, or one external material supplied to `document research`; knowledge | added |
+| `scenario` | `sdd.illustrate`; `describe.draft` | illustrate instrument, once per capability that meets the illustrate condition, after that capability's `spec`; `describe.draft` for existing behavior, including `document code` with `scenario` named in the subject; knowledge | added |
+| `journey` | `sdd.require` | intent instrument beside the `prd` under the illustrate condition; no `document` mode; vision | added |
 | `adr` | `decision.adr`; `decision.resolve` | decision route (`decision` delta); Π `undecided`; a refactor's decision delta | widened |
 | `rfc` | `decision.rfc` | decision instrument; solution-shape uncertainty (judged panel of alternatives) | unchanged |
-| `rule` | `decision.cascade` standard branch | same producer — the `/archcore:document` path is untouched; input role at grounding stays (conductor reads rules as constraints) | unchanged |
+| `rule` | `decision.cascade` standard branch | same producer — `document decision` reaches it through `decision.classify`, directly when one local `adr` already records the decision; input role at grounding stays (conductor reads rules as constraints) | unchanged |
 | `guide` | `decision.cascade` standard branch; `describe.draft` | same producers, plus: runbook instrument — package member when a capability's delta introduces an operational procedure, or when R carries `data-migration`; capture target for human-actor procedures at the experience offer and at plan discharge | widened |
 | `doc` | `describe.draft` | same producer | unchanged |
-| `mrd` | `requirements-cascade.mrd`, sources mode | acquisition instrument — product-scale `intent_gap`, or expert invocation | narrowed |
+| `mrd` | `requirements-cascade.mrd`, sources mode | acquisition instrument — product-scale `intent_gap`, or the `plan sources` mode | narrowed |
 | `brd` | `requirements-cascade.brd`, sources mode | acquisition instrument — same condition | narrowed |
 | `urd` | `requirements-cascade.urd`, sources mode | acquisition instrument — same condition | narrowed |
-| `brs` | `requirements-cascade.brs`, iso mode | iso chain link on a `security-compliance`-flagged capability; full chain via expert invocation | narrowed |
+| `brs` | `requirements-cascade.brs`, iso mode | iso chain link on a `security-compliance`-flagged capability; full chain via the `plan iso` mode | narrowed |
 | `strs` | `requirements-cascade.strs`, iso mode | iso chain link — same condition | narrowed |
 | `syrs` | `requirements-cascade.syrs`, iso mode | iso chain link — same condition | narrowed |
 | `srs` | `requirements-cascade.srs`, iso mode | iso chain link — same condition | narrowed |
@@ -49,6 +49,7 @@ Consumption-side changes the matrix does not show:
 - `guide` gains its first vision-command production path: the runbook instrument adds it to an assembled package, where today no `plan`-command track produces a `guide`.
 - The `guide`-versus-`task-type` boundary is the procedure's actor: human → `guide`, agent → `task-type` (instrument-layer spec, behavior 17).
 - `scenario` is consumed at `closeout.verify` (readiness and coverage reports) and at `sdd.design` (advisory example check); feature files under `features/*.feature` are read as evidence at `describe.read` and never copied into `.archcore/`.
+- No type name is a command entry: a type named in the subject text settles the type question at the gate that selects it.
 
 ## Examples
 

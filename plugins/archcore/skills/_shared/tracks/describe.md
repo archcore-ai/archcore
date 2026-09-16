@@ -31,6 +31,7 @@ hand; settled at `describe.draft`.
 | Reference material — a registry, glossary, or lookup | `doc` |
 | How-to instructions or procedures | `guide` |
 | An actor-subject flow of existing behavior with examples that illustrate a covering `spec` | `scenario` beside the `spec`, `depends_on` → that `spec` |
+| The subject text names a type this track produces — `spec`, `doc`, `guide`, or `scenario` | that type; the type question does not fire |
 | A module described comprehensively ("document everything about X") | `guide`, plus `spec` when others rely on the module's behavior, plus `doc` when the evidence includes reference material (a registry, glossary, or lookup). [assumption] The v1 flow also created an `adr` on this route; a settled decision surfaced by the evidence now routes to the decision track. |
 
 Default after the one type question at `describe.draft`: `spec` when others
@@ -42,6 +43,10 @@ returned `yes`; the executing skill composes it per
 `skills/_shared/scenario-contract.md`. `describe.read` reads a feature file as
 evidence and never copies a feature file into `.archcore/` — a copy is a second
 canon; the scenario cites the file in its `Anchors:` line instead.
+
+This track never produces a `journey`. An intended path of a user type with no
+covering `spec` belongs to `/archcore:plan`; the executing skill names that command
+in the closing report and creates nothing.
 
 ### gate: describe.read
 

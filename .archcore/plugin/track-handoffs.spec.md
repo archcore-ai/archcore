@@ -33,18 +33,18 @@ Transition register. Each row cites the file that owns the edge; a row marked `d
 | 14 | `describe.draft` | decision track | the type answer is "a decision" | this spec, behavior 7 |
 | 15 | `decision.resolve` | `decision.cascade`, or exit | accepted; rejected or open | this spec, behaviors 8–9 |
 | 16 | `decision.rfc` | exit | the track produced an `rfc` | this spec, behavior 10 |
-| 17 | `document` unclear | one classifying question → `document` | git evidence supports both readings | `plugin-architecture.spec`, failure 3–4 |
+| 17 | `document` without a mode, unclear | one classifying question → `document` | git evidence supports both readings | `plugin-architecture.spec`, failure 3–4 |
 | 18 | `review` branch review | `actualize.scope` | a `spec-wrong` or `code-wrong` finding | this spec, behavior 13 |
-| 19 | `review` completion signal | `closeout.verify` | scope from branch state | `@plugins/archcore/skills/review/SKILL.md` |
+| 19 | `review closeout`, or a completion signal | `closeout.verify` | scope from branch state | `@plugins/archcore/skills/review/SKILL.md` |
 | 20 | `closeout.capture` | decision standard cascade, or experience types | named residue | `delta-routing-instruments.spec`, 21–23 |
 | 21 | closeout exit | `experience.detect` | always | this spec, behavior 12 |
 | 22 | `plan` implement fork | later `/archcore:plan` resume | a draft carries a state block | `track-layer.spec`, 10 |
 | 23 | `plan` Declared Delta | `closeout.verify` | plan in branch scope | `delta-routing-instruments.spec`, 18 |
 | 24 | compatibility probe ≠ `yes` | legacy `rnd`; evidence exits without a write | engine below 0.8.3 | `@plugins/archcore/skills/_shared/research-compatibility.md` |
-| 25 | `document journey` | callable `sdd.require`, journey only | `draft` | `actor-subject-compatibility.spec` |
+| 25 | `document decision` / `code` / `research` | `decision.classify` / `describe.read` / `research.frame` | mode word; `draft` | `command-surface-v2.spec`, 17–18, 25–26 |
 | 26 | `sdd.design` | `sdd.illustrate` | illustrate condition; `draft` | `illustrate-instrument.spec` |
 
-Lifecycle sequences, each crossing at least two commands: build — `plan` → implementation → `review` closeout → discharge → experience offer; proposal — `document` rfc → `document` resolve → cascade; investigation — `plan research` → Derivation → package; discovery — `plan sources` → `sdd.require` → contract → decompose; amendment — `plan` verdict → describe callable → decompose → closeout; first day — `init` → SessionStart recap → `plan` or `document`.
+Lifecycle sequences, each crossing at least two commands: build — `plan` → implementation → `review closeout` → discharge → experience offer; proposal — `document decision` (rfc) → `document decision` (resolve) → cascade; investigation — `plan research` → Derivation → package; discovery — `plan sources` → `sdd.require` → contract → decompose; amendment — `plan` verdict → describe callable → decompose → closeout; first day — `init` → SessionStart recap → `plan` or `document`.
 
 ## Normative Behavior
 
@@ -69,8 +69,8 @@ Lifecycle sequences, each crossing at least two commands: build — `plan` → i
 - Invariant: command tenses — `plan` declares a future Δ, `document` records the present state, `review` reconciles a past Δ; a lifecycle crosses commands only in that order or by re-entering `plan`.
 - Invariant: the register adds no edge the owning files lack; a new edge changes its owning track file or skill first and this register second.
 - Invariant: `init` has no track edge; its only return path is the SessionStart empty-state nudge (`hooks-validation-system.spec`).
-- Constraint: rows marked `draft` ship with the actor-subject vocabulary release and bind only after their specs are accepted.
-- Constraint: a callable entry (rows 7, 25) runs scope-question-free per the instruments spec; the caller pre-fills the scope.
+- Constraint: rows marked `draft` ship with the actor-subject vocabulary release and the command entry grammar, and bind only after their specs are accepted.
+- Constraint: a callable entry (row 7) runs scope-question-free per the instruments spec; the caller pre-fills the scope.
 - Constraint: the register lists edges, not gate chains; the chain inside one track stays in its track file and its golden.
 
 ## Failure Behavior

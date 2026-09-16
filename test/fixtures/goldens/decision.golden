@@ -1,9 +1,9 @@
 gate: decision.classify
-skip_when: the request names the target type adr or rfc
+skip_when: the subject text names the target type adr or rfc
 budget: 1
 taxonomy: Constraints & Tradeoffs, Completion Signals
 produces: none
-next: decision.adr decision.rfc
+next: decision.cascade decision.adr decision.rfc
 
 gate: decision.adr
 skip_when: decision.classify selected decision.rfc

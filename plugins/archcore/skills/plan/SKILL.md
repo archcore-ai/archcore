@@ -1,7 +1,7 @@
 ---
 name: plan
-argument-hint: "[topic] [sdd | sources | iso | research]"
-description: "Plan a feature or initiative through a computed route: the conductor derives the canon delta and assembles the document package — from a zero-document null route for small fixes to an umbrella PRD with one spec per capability for large initiatives. Expert paths: sdd (full package), sources mode (MRD → BRD → URD) for market research and discovery, iso mode (BRS → StRS → SyRS → SRS) for ISO 29148 and regulated work, research for an investigation that the research instrument closes either by scope coverage (a research document) or by a recommendation (an rnd). Explicit form: plan research. Use for 'plan the X redesign', 'create a roadmap', 'plan a new feature', 'I need market research before we plan', 'we're regulated — start the ISO requirements cascade', 'investigate X before we plan', 'compare the alternatives for Y'. Not for recording a decision or documenting existing code — use /archcore:document. Not for checking docs against code — use /archcore:review."
+argument-hint: "[sdd|sources|iso|research] [topic]"
+description: "Plan a feature or initiative through a computed route: the conductor derives the canon delta and assembles the document package — from a zero-document null route for small fixes to an umbrella PRD with one spec per capability for large initiatives. Modes, named as the first word: sdd (full package), sources (MRD → BRD → URD) for market research, customer discovery, and business or user requirements, iso (BRS → StRS → SyRS → SRS) for ISO 29148 and regulated work, research for a technical investigation — never market research — that the research instrument closes either by scope coverage (a research document) or by a recommendation (an rnd). Explicit form: plan research <topic>. Use for 'plan the X redesign', 'create a roadmap', 'plan a new feature', 'I need market research before we plan', 'we're regulated — start the ISO requirements cascade', 'investigate X before we plan', 'compare the alternatives for Y' — a new investigation, not a finished report already in hand. Not for recording a decision or documenting existing code — use /archcore:document. Not for checking docs against code — use /archcore:review."
 ---
 
 # /archcore:plan
@@ -20,8 +20,8 @@ precedent.
 - "Create a roadmap for the API migration" → computed route
 - "Plan a new feature for CSV export" → computed route
 - "Plan the notifications platform" → computed route — typically `umbrella`: prd, one spec per capability, one plan
-- "I need market research before we plan" → acquisition instrument (`sources` expert path)
-- "We're regulated — start the ISO requirements cascade" → iso links (`iso` expert path)
+- "I need market research before we plan" → acquisition instrument (`sources` mode)
+- "We're regulated — start the ISO requirements cascade" → iso links (`iso` mode)
 - "Investigate X before we plan" → research instrument, `research`; "Compare the alternatives for Y" → research instrument, `rnd` — a named pending decision or candidate set selects `rnd`, otherwise `research`
 - `plan research <topic>` → research instrument; the instrument selects `research` (closed by scope coverage) or `rnd` (closed by a recommendation) by its closing test
 
@@ -38,8 +38,8 @@ Apply in this order:
 
 | Signal | Route |
 |---|---|
-| The user names a path (`sdd`, `sources`, `iso`, `research`) | The named instrument per the expert invocation map in `skills/_shared/delta-routing.md`, without route computation |
-| The user names a route | Fix that route; run Derivation to compute its package per `skills/_shared/delta-routing.md` |
+| No arguments | Ground per step 1; WHEN a draft on the branch carries a state block, resume it; otherwise ask one question — what to plan — with a recommendation drawn from the branch changes |
+| The first word is a mode (`sdd`, `sources`, `iso`, `research`) | The mapped instrument per the mode map in `skills/_shared/delta-routing.md`, without route computation |
 | Any other request | Compute Δ, Π, M, and R per the Derivation section of `skills/_shared/delta-routing.md`; its route table decides the package |
 | A decision surfaces at a gate | Record the `adr` through the decision instrument (`skills/_shared/tracks/decision.md`), then return to the open gate |
 
@@ -49,7 +49,7 @@ candidates to choose between produces `rnd`; any other investigation produces
 `research`. The path name `research` selects the instrument, not the type; the
 same test applies. Neither `rnd` nor `evidence` is an entry on this command: an
 `rnd` comes only from that test, the spike, or the compatibility fallback, and a
-standalone material is filed through `/archcore:document evidence`. A request proposing a specific
+standalone material is filed through `/archcore:document research`. A request proposing a specific
 target for team acceptance ("should we switch to Y", "let's adopt Y") belongs
 to `/archcore:document`'s decision instrument.
 
@@ -93,15 +93,15 @@ match, proceed as usual.
 
 Compute the route per the Derivation section of
 `skills/_shared/delta-routing.md` and report the route announcement. WHEN the
-user names an alias or a document type, execute its mapped instrument without
-route computation. WHEN the user names a route, fix that route and still run
-Derivation to compute its package. Never ask the user to choose a route or a size label.
+first word is a mode, execute its mapped instrument without route computation.
+A route name or a document type name as the first word is topic text; the
+conductor computes the route. Never ask the user to choose a route or a size label.
 
 ### 3. Budget
 
 Interview mechanics, question form, and ceilings:
 `skills/_shared/elicitation-contract.md`. Auto mode draws every question from
-the shared per-invocation ceiling; an expert invocation raises per-gate
+the shared per-invocation ceiling; a mode entry raises per-gate
 budgets to the maxima the track file declares.
 
 ### 4. Execute the package
@@ -146,4 +146,5 @@ Report:
 - Produced documents grouped by category — vision, knowledge, experience — with each document's path and status.
 - Relations created, plus candidate `mcp__archcore__add_relation` targets among existing documents, or a statement that none match.
 - `retires` entries reported for closeout discharge, when any exist.
-- Next actions, naming only v2 commands: `/archcore:plan` to continue a package, `/archcore:document` to record a decision or document code touched during implementation, `/archcore:review` to check the implementation against the recorded plan and reconcile the declared Δ.
+- Next actions, naming only v2 commands: `/archcore:plan` to continue a package, `/archcore:document decision` to record a decision or `/archcore:document code` to document code touched during implementation, `/archcore:review closeout` to check the implementation against the recorded plan and reconcile the declared Δ.
+- Name instruments and stages in plain words; do not print a gate address of the form `<track>.<stage>`.

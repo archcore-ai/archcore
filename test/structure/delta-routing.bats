@@ -72,13 +72,13 @@ setup() {
   [ -z "$missing" ] || fail "route names missing from skills/_shared/delta-routing.md:$missing"
 }
 
-@test "plan skill argument-hint keeps the four expert aliases" {
+@test "plan skill argument-hint leads with the four modes" {
   local hint
   hint=$(awk '/^---$/ { if (++d == 2) exit; next }
               d == 1 && /^argument-hint:/ { print; exit }' "$PLAN_SKILL")
   [ -n "$hint" ] || fail "plan/SKILL.md frontmatter has no argument-hint: line"
-  printf '%s' "$hint" | grep -F -q 'sdd | sources | iso | research' \
-    || fail "plan/SKILL.md argument-hint lost 'sdd | sources | iso | research'; got: ${hint}"
+  printf '%s' "$hint" | grep -F -q '"[sdd|sources|iso|research] [topic]"' \
+    || fail "plan/SKILL.md argument-hint is not '[sdd|sources|iso|research] [topic]'; got: ${hint}"
 }
 
 @test "route announcement template line appears in the delta-routing contract" {
@@ -139,6 +139,10 @@ ROWS
     || fail "expert invocation map still carries an rnd or evidence row"
   ! grep -F -q 'a document type the registry lists' "$CONTRACT" \
     || fail "expert invocation map still carries the registry-type catch-all row"
+  grep -F -q 'A route name is not an entry' "$CONTRACT" \
+    || fail "delta-routing.md lost the 'route name is not an entry' rule"
+  ! grep -F -q '| a route name' "$CONTRACT" \
+    || fail "expert invocation map still carries the route-name row"
 }
 
 @test "verdict contract is wired into every consumer" {

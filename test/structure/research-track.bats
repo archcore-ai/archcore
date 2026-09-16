@@ -31,7 +31,7 @@ gate_text() {
 @test "standalone evidence enters gather without a parent and exits before conclude" {
   local gather
   gather=$(gate_text gather)
-  [[ "$gather" == *'an explicit evidence request supplies one material'* ]] || { fail "missing phrase: an explicit evidence request supplies one material"; return 1; }
+  [[ "$gather" == *'frame recorded `artifact_type: evidence` for one supplied material'* ]] || { fail "missing phrase: frame recorded artifact_type evidence for one supplied material"; return 1; }
   [[ "$gather" == *'- budget: 0'* ]] || { fail "missing phrase: - budget: 0"; return 1; }
   [[ "$gather" == *'standalone evidence without an identified consumer needs no edge'* ]] || { fail "missing phrase: standalone evidence without an identified consumer needs no edge"; return 1; }
   [[ "$gather" == *'- Next: exit for standalone evidence; otherwise `research.conclude`'* ]] || { fail "missing phrase: - Next: exit for standalone evidence; otherwise research.conclude"; return 1; }
@@ -130,7 +130,7 @@ gate_text() {
   grep -Fq '| `research` | research instrument, entry `research.frame`; the instrument selects `research` or `rnd` by its closing test |' "$conductor" || { fail "missing phrase: research row selects research or rnd by its closing test"; return 1; }
   ! grep -Fq '| `rnd` |' "$conductor" || { fail "expert map still exposes an rnd entry"; return 1; }
   ! grep -Fq '| `evidence` |' "$conductor" || { fail "expert map still exposes an evidence entry"; return 1; }
-  grep -Fq '`/archcore:document evidence`' "$conductor" || { fail "missing phrase: standalone evidence is filed through /archcore:document evidence"; return 1; }
+  grep -Fq 'enters through `/archcore:document research`' "$conductor" || { fail "missing phrase: standalone evidence enters through /archcore:document research"; return 1; }
   grep -Fq 'neither command' "$TRACK" || { fail "missing phrase in research.md: neither command exposes rnd as an entry"; return 1; }
 }
 
@@ -150,7 +150,7 @@ gate_text() {
   grep -Fq 'return `needs-vocabulary-probe` to the caller' "$COMPAT" || { fail "missing phrase: needs-vocabulary-probe branch in compatibility contract"; return 1; }
   grep -Fq 'needs-vocabulary-probe' "$PLUGIN_ROOT/skills/plan/SKILL.md" || { fail "plan/SKILL.md has no no-shell branch"; return 1; }
   grep -Fq 'needs-vocabulary-probe' "$PLUGIN_ROOT/skills/document/SKILL.md" || { fail "document/SKILL.md has no no-shell branch"; return 1; }
-  grep -Fq 'explicit type is `evidence`' "$COMPAT" || { fail "missing phrase: explicit type is evidence"; return 1; }
+  grep -Fq 'one external material to file as `evidence`' "$COMPAT" || { fail "missing phrase: one external material to file as evidence"; return 1; }
   grep -Fq 'exit without a document write' "$COMPAT" || { fail "missing phrase: exit without a document write"; return 1; }
   grep -Fq 'exit without rewriting or converting' "$COMPAT" || { fail "missing phrase: exit without rewriting or converting"; return 1; }
   grep -Fq 'server rejects a new enum after a successful probe' "$COMPAT" || { fail "missing phrase: server rejects a new enum after a successful probe"; return 1; }

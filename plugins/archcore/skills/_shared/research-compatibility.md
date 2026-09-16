@@ -30,7 +30,7 @@ vocabulary: <https://github.com/archcore-ai/cli/releases/tag/v0.8.3>.
 1. If the probe does not return `yes`, route a new investigation through the legacy `rnd` path.
 2. If an investigation takes the fallback, report once: "Research vocabulary requires Archcore CLI 0.8.3; using rnd and legacy relations."
 3. Keep materials under Approach → Inputs of the fallback `rnd`.
-4. If the explicit type is `evidence`, report the required version and exit without a document write.
+4. If the request supplies one external material to file as `evidence`, report the required version and exit without a document write.
 5. If a new-type artifact already exists, report the required version and exit without rewriting or converting that artifact.
 6. If the fallback lacks a supported recommendation, keep the `rnd` incomplete and report the unmet conclude check.
 

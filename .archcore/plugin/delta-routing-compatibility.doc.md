@@ -19,18 +19,19 @@ This register covers version-skew risk when delta routing ships: repositories wh
 | 1 | MCP status enum | `create_document`, `update_document`, `list_documents`, `search_documents` schemas enum `draft`/`accepted`/`rejected` | an `archived` value is refused at the tool boundary by every shipped CLI — discharge cannot ship plugin-side first | the `archived` rfc lands in the CLI first; the plugin gates discharge behind a `cli-gte`-style version probe; until then discharge reports only |
 | 2 | Plugin version skew in one team | the fixed routing table runs from the installed release's skill files | an old-release teammate routes the same corpus through the fixed cascade — a null-route task still yields `idea` + `prd`; duplication, not corruption | corpus-compatibility invariant: the conductor emits only shipped types, statuses, and relation types; old tracks' `skip_when` closes gates on conductor-produced docs, bounding duplication |
 | 3 | In-flight draft state blocks | resume rules re-enter at the earliest unmet gate; an unknown stage falls back to entry-condition evaluation | an old release resuming a conductor-written draft ignores the `route:` and `delta:` fields and degrades the computed route to the fixed cascade | phase 1 keeps `gate:` values within the existing `<track>.<stage>` names; in the other direction the conductor recomputes the route on resume |
-| 4 | Expert aliases | the `plan` argument-hint names `sdd`, `sources`, `iso`, `research`; host command descriptions and user habits reference them | removing an alias breaks recorded invocations and adapter command descriptions | aliases stay valid and map to computed-era paths (conductor spec constraint) |
+| 4 | Plan modes | the `plan` argument-hint names `sdd`, `sources`, `iso`, `research` as its modes; host command descriptions and user habits reference them | removing a mode breaks recorded invocations and adapter command descriptions | the four modes stay valid; the five route names stopped being entries under the command entry grammar and now read as topic text |
 | 5 | Older CLI hook validation | the PostToolUse leaf reports findings per its own version and always exits 0 | conductor-produced documents get no new findings on an old CLI; enforcement stays prompt-side, as today | behavioral routing tests live plugin-side (bench-derived), independent of CLI version |
 | 6 | CLI below 0.7.0 | hook launchers exit 0 without output | no new risk — validation is absent today on those installs | none needed |
 | 7 | Planned status-transition guard | closeout confirms each transition in chat; the server sees only the status write | a strict server-side guard would refuse legitimate accepts from old plugin releases that pass no confirmation payload | advisory-then-enforce rollout, version-gated the same way as row 1 |
 | 8 | Sync manifest growth | 750 relations today; umbrella routes add edges per capability | branch-merge conflicts on the manifest amplify — the shared-mutable-file failure mode the enforcement audit records | raise `cli-path-index.rfc` priority; no manifest format change rides with delta routing itself |
+| 9 | Command entry grammar | the release with the grammar reads the first word as a mode: `document decision\|code\|research`, `review drift\|deep\|closeout\|experience`, `init refresh\|domain <slug>` | recorded invocations `document adr`, `document evidence`, `document journey`, `review --drift`, `init --refresh` become topic text; a mixed team sees two argument hints | the release notes name every retired form; topic text still routes by classification, so a retired form degrades to one classifying question, not to a wrong write |
 
 Historical delta-routing baseline: that release preserved 19 types and four relation values. The research vocabulary changes this assumption: 21 types and seven relations require a supporting CLI. The runtime gate for that vocabulary is @plugins/archcore/skills/_shared/research-compatibility.md; its minimum is 0.8.3, confirmed against the published [CLI v0.8.3](https://github.com/archcore-ai/cli/releases/tag/v0.8.3).
 
 | Research surface | Current containment |
 |---|---|
 | New type filters and writes | Probe before the first affected MCP call; only `yes` enables new enums. |
-| Old or unrecognized CLI | New investigations use `rnd` and legacy relations; explicit evidence exits without writes. Existing new-type artifacts are never converted. |
+| Old or unrecognized CLI | New investigations use `rnd` and legacy relations; one supplied external material exits without writes. Existing new-type artifacts are never converted. |
 | CLI/MCP version mismatch | A rejected new enum stops the affected operation; no retry under a substituted type. |
 | Shared manifest | Older binaries reject new relation values. Upgrade all readers before adding them; the local probe cannot verify teammates. |
 | Resume | Old `rnd` artifacts retain their type; optional `artifact_type` falls back to the filename. |
@@ -42,11 +43,11 @@ The actor-subject vocabulary (`scenario`, `journey`) raises the registry to 23 t
 
 | Actor-subject surface | Current containment |
 |---|---|
-| New type filters and writes | Probe before the first MCP call naming either type; only `yes` enables the names, the `sdd.illustrate` gate, and the `document scenario` / `document journey` entries. |
-| Old or unrecognized CLI | An explicit `scenario` or `journey` request reports the required version and writes nothing; the illustrate instrument is dropped from the package with one report. Existing artifacts of either type are never converted. |
+| New type filters and writes | Probe before the first MCP call naming either type; only `yes` enables the names, the `sdd.illustrate` gate, and a `scenario` named in the subject of `document code`. |
+| Old or unrecognized CLI | A `document code` request whose subject names `scenario` reports the required version and writes nothing; the illustrate instrument is dropped from the package with one report. Existing artifacts of either type are never converted. |
 | Shared corpus, older reader | No relation value changes, so old readers keep reading; they skip `.scenario.md` and `.journey.md` files in the scan and report an invalid type in `status`. |
 | Two compatibility files | Research at 0.8.3 and actor-subject at 0.8.4 run independently; a request engaging both runs both probes. |
-| Restart | The PATH probe identifies the binary a new server would run; a server started before an upgrade keeps the old engine until restarted. |
+| Restart | The PATH probe identifies the binary a new server would run; a server started before an upgrade keeps the old engine until restarted. Observed on 2026-09-16: an MCP server started on 0.8.3 rejected `scenario` while `archcore --version` on PATH reported 0.8.4. |
 
 ### Audit of 2026-09-07 — old readers against a new-vocabulary corpus
 

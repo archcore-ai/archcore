@@ -9,13 +9,14 @@ tags:
 
 ## Purpose
 
-Run, extend, and debug the Archcore plugin's test suite: the full verification gate, the unit and structure suites, the host install smoke tests, and the live-session probes — plus the conventions a new test, a new bin script, or a new host must follow.
+Run, extend, and debug the Archcore plugin's test suite: the full verification gate, the unit and structure suites, the host install smoke tests, the behavioral model benches, and the live-session probes — plus the conventions a new test, a new bin script, or a new host must follow.
 
 ## Prerequisites
 
 - [bats-core](https://github.com/bats-core/bats-core) — the test runner for shell scripts. macOS: `brew install bats-core`. Linux: `apt install bats`.
-- Archcore CLI 0.8.3 or later on PATH for the real MCP integration suite. Set `ARCHCORE_BIN=/absolute/path/to/archcore` to test another installed binary.
+- Archcore CLI 0.8.4 or later on PATH for the real MCP integration suite. Set `ARCHCORE_BIN=/absolute/path/to/archcore` to test another installed binary.
 - `jq`, ShellCheck, and initialized git submodules. `plugin-development.guide` owns the environment setup; `make verify` fails with a named tool when something is missing, and Common Issues below covers the failures that are specific to the suite.
+- The `claude` CLI on PATH, only for the behavioral benches in step 15.
 
 ## Steps
 
@@ -51,9 +52,9 @@ PLUGIN_ROOT=$(pwd)/plugins/archcore REPO_ROOT=$(pwd) bats test/unit/hook-launche
 
 `PLUGIN_ROOT` is worth knowing as more than boilerplate: pointing it at a modified copy of `plugins/archcore` is how fault injection works without touching the tree.
 
-Run the real MCP boundary separately with `make test-integration`. @test/integration/research-vocabulary.bats uses @test/helpers/mcp.bash to start the installed CLI in a temporary project. It checks schemas, templates, categories, directed relations, retry prerequisites, deduplication, and persisted track state. The test uses real storage without model calls.
+Run the real MCP boundary separately with `make test-integration`. @test/integration/research-vocabulary.bats and @test/integration/actor-subject-vocabulary.bats use @test/helpers/mcp.bash to start the installed CLI in a temporary project. They check schemas, templates, categories, directed relations, retry prerequisites, deduplication, and persisted track state. The tests use real storage without model calls.
 
-The CI workflow pins CLI 0.8.3 and verifies the release archive's SHA-256. The release workflow calls the same Linux/macOS verification workflow against the selected release ref.
+The CI workflow pins CLI 0.8.4 and verifies the release archive's SHA-256. The release workflow calls the same Linux/macOS verification workflow against the selected release ref.
 
 ### 3. Run the ShellCheck lint
 
@@ -61,7 +62,7 @@ The CI workflow pins CLI 0.8.3 and verifies the release archive's SHA-256. The r
 make lint
 ```
 
-Expected result: `ShellCheck: all clean`. The target runs `shellcheck -s sh -x` on every `bin/` script; `-x` follows `source` directives so the normalizer library is checked in context.
+Expected result: `ShellCheck: all clean`. The target runs `shellcheck -s sh -x` on every `bin/` script; `-x` follows `source` directives so the normalizer library is checked in context. The same target lints the three bench scripts under `test/behavioral/`.
 
 ### 4. Run the quick structural checks
 
@@ -133,6 +134,8 @@ Structure tests validate configs and files.
 
 Prefer a table over a copy when a test is per-host. Four hosts means four near-identical tests, and the fourth is the one nobody writes. Worse, a copied test can pass on an empty set: `jq '.. | .command?'` returns nothing for `hooks/copilot.hooks.json`, whose entries use `bash`. `test/structure/hooks.bats` shows the shape — one table of `host|config|plugin-root-variable`, a union accessor, an assertion that the extraction was not empty, and an enrollment guard so a fifth config cannot slip past the table.
 
+A change to a command's argument hint, mode list, or description is pinned by `test/structure/command-grammar.bats`; update that file together with the skill, the command wrapper, and `test/fixtures/routing/fixtures.tsv`.
+
 ### 9. Add a stdin fixture
 
 1. Create `test/fixtures/stdin/<host>/<name>.json`.
@@ -200,9 +203,17 @@ Some questions no bats test can answer: whether a host loads the hooks config at
 
 ### 15. Check model routing and test sensitivity
 
-Run `make test-routing-bench` only when model calls are intended. @test/behavioral/route-bench.sh evaluates every configured fixture, saves raw responses, and separates route mismatches from CLI errors. Set `ROUTE_BENCH_OUTPUT_DIR` to retain the run in a chosen directory. Empty or malformed fixture corpora fail before a model call.
+Three behavioral benches spend model tokens, run only on request, and never run in CI. Each saves raw replies when its `*_OUTPUT_DIR` variable is set, separates mismatches (exit 1) from CLI errors (exit 2), rejects an empty or malformed fixture corpus before any model call, and has a harness test under `test/unit/` that uses a fake model process.
 
-@test/unit/route-bench.bats checks the harness with a fake model process. That suite verifies harness behavior; the live target verifies model routing.
+| Target | Script and fixtures | What it measures | Harness test |
+|---|---|---|---|
+| `make test-routing-bench` | @test/behavioral/route-bench.sh, `test/behavioral/fixtures/routing-bench.tsv` | the route the `plan` conductor announces for a task and its grounding | @test/unit/route-bench.bats |
+| `make test-document-bench` | @test/behavioral/document-bench.sh, `test/behavioral/fixtures/document-bench.tsv` | the mode and document type `/archcore:document` selects, including requests with no mode word and no arguments | @test/unit/document-bench.bats |
+| `make test-skill-bench` | @test/behavioral/skill-bench.sh, `test/behavioral/fixtures/skill-bench.tsv` | which of the four skills Claude Code starts, and the mode word it passes, for a message that names no command | @test/unit/skill-bench.bats |
+
+The skill bench loads the plugin with `claude -p --plugin-dir`, allows only the Skill tool, turns hooks off, and leaves the built-in skills competing. It measures Claude Code only; Cursor, Codex, and Copilot route through their own hosts. Run `make test-research-agent` separately for the live assistant with a real MCP server.
+
+A harness test verifies bench behavior; the live target verifies model behavior. One run per fixture is a sample, so rerun a failing row several times before changing a description.
 
 Before trusting a changed test, introduce one contract defect in an isolated copy. Preserve its exact diff. Confirm the relevant test fails for that defect, restore the original bytes, and confirm the test passes. Gate goldens now retain normalized `skip_when` conditions; they do not represent all exit-check prose.
 
@@ -249,6 +260,10 @@ The test suite provides a `timeout` shim automatically. If timeout-related failu
 - Confirm the CI runner has `jq` installed; it is not always pre-installed.
 - On Linux `/bin/sh` is `dash`, which is strict POSIX; on macOS `/bin/sh` is bash in POSIX mode. If a test reveals a bashism in a bin script, fix the script — the bin scripts must be POSIX-compatible.
 - `hook-latency.bats` is the one timing-sensitive file. Suspect an algorithmic regression before suspecting the runner: its bars sit several times above the measured cost, and the regressions they guard are factors of ten. It skips itself when `perl` is unavailable, and its end-to-end case skips without a current CLI.
+
+### An MCP call rejects `scenario` or `journey` while `archcore --version` reports 0.8.4
+
+The MCP server started before the CLI upgrade still runs the old binary. Reconnect the `archcore` server (in Claude Code, `/mcp`), then retry the call.
 
 ### ShellCheck SC2034 in normalize-stdin.sh
 

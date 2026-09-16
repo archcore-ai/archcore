@@ -53,7 +53,7 @@ invoke_assistant() {
 }
 
 @test "live assistant records one standalone evidence draft without a consumer edge" {
-  invoke_assistant "Parent task: execute document evidence for exactly one supplied measurement. Current invocation vocabulary probe: yes (cli-gte 0.8.3). Absolute plugin root: $PLUGIN_ROOT. User authorizes one draft. Supplied material: Address=test://measurement/retry-run-1; Access date=2026-09-07; Publication date=unknown; Publisher=unknown; Extract=The supplied run completed 37 retries with zero duplicate evidence records.; Notes=This is a user-supplied test measurement; no independent verification was performed. No local consumer exists. Follow the standalone evidence path in skills/_shared/tracks/research.md. Do not invent provenance, create an investigation, or add a relation."
+  invoke_assistant "Parent task: execute document research with exactly one supplied external material, filed as evidence. Current invocation vocabulary probe: yes (cli-gte 0.8.3). Absolute plugin root: $PLUGIN_ROOT. User authorizes one draft. Supplied material: Address=test://measurement/retry-run-1; Access date=2026-09-07; Publication date=unknown; Publisher=unknown; Extract=The supplied run completed 37 retries with zero duplicate evidence records.; Notes=This is a user-supplied test measurement; no independent verification was performed. No local consumer exists. Follow the standalone evidence path in skills/_shared/tracks/research.md. Do not invent provenance, create an investigation, or add a relation."
   mcp_tool list_documents '{}'
   mcp_assert '.documents | length == 1'
   mcp_assert '.documents[0].type == "evidence" and .documents[0].status == "draft" and .documents[0].category == "knowledge"'

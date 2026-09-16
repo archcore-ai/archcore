@@ -15,9 +15,11 @@ The same day, the first runtime cut exposed three research entries on `/archcore
 
 ## Decision
 
-Use `research` in vision. Expose one research path on `/archcore:plan`, named `research`, that selects `research` or `rnd` by the closing test: a named pending decision or candidate set produces `rnd`; any other investigation produces `research`. Apply the same test to `document research`, where a report that ends in a recommendation is an `rnd`. Remove `rnd` and `evidence` as entries on `plan`, and remove the registry-type catch-all: the argument hint is the complete expert surface. File a standalone material only through `document evidence`, permit it without a consumer, and decline evidence writes on engines without the vocabulary.
+Use `research` in vision. Expose one research path on `/archcore:plan`, named `research`, that selects `research` or `rnd` by the closing test: a named pending decision or candidate set produces `rnd`; any other investigation produces `research`. Apply the same test to `document research`, where a report that ends in a recommendation is an `rnd`. Remove `rnd` and `evidence` as entries on `plan`, and remove the registry-type catch-all: the argument hint is the complete expert surface. File a standalone material only through `/archcore:document`, permit it without a consumer, and decline evidence writes on engines without the vocabulary.
 
-The global RFC `concepts/research-and-evidence-types` was revised the same day to this surface; its "Command surface" section and this decision agree.
+Amended on 2026-09-16 by the command entry grammar: the standalone material enters through `document research` with one external material, and `research.frame` routes it to gather. The named entry `document evidence` of this decision's first form is retired.
+
+The global RFC `concepts/research-and-evidence-types` was revised on 2026-09-07 to the first form of this surface; it still names `document evidence`, and the plugin departs from that clause.
 
 ## Alternatives Considered
 
@@ -33,7 +35,7 @@ The global RFC `concepts/research-and-evidence-types` was revised the same day t
 ### Enabled
 
 - [expected] Plugin results and taxonomy match the CLI's 12 vision, 7 knowledge, and 2 experience types.
-- [expected] The `plan` argument hint returns to `[sdd | sources | iso | research]`; the hint and the expert invocation map name the same surface.
+- [expected] The `plan` argument hint is `[sdd|sources|iso|research] [topic]`; the hint and the expert invocation map name the same surface.
 - [expected] A user asks for an investigation once; the instrument records the type by what closes it.
 - [expected] A standalone material produces one evidence draft with zero frame questions.
 
@@ -41,7 +43,7 @@ The global RFC `concepts/research-and-evidence-types` was revised the same day t
 
 - [expected] A user who wants an `rnd` for a request with no named decision must phrase the decision or the candidates; there is no type override on `plan`.
 - [expected] Standalone evidence can have no graph edge until a consumer is identified.
-- [expected] An older engine records no document for an explicit evidence request.
+- [expected] An older engine records no document for a supplied external material.
 - The engine gate is CLI 0.8.3, confirmed by the published [CLI v0.8.3](https://github.com/archcore-ai/cli/releases/tag/v0.8.3) and its native MCP probe on 2026-09-07.
 
 ## Superseded when

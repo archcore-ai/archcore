@@ -13,15 +13,15 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 
 ## Surface
 
-- Track files: `skills/_shared/tracks/<track-id>.md`; gates as `### gate: <track>.<stage>` sections.
-- Catalog: `sdd` (frame → require, with `journey` beside the `prd` under the illustrate condition → design → illustrate → decompose), `requirements-cascade` (`mode: sources` = mrd → brd → urd; `mode: iso` = brs → strs → syrs → srs), `decision` (classify → adr | rfc → cascade; resolution entry `decision.resolve` on an existing rfc draft), `describe` (read code and feature files → draft spec/doc/guide/scenario → clarify gaps), `actualize` (scope diff → per-finding verdict → confirmed fixes), `experience` (detect repeated pattern → cpat | task-type offer), `research` (frame → gather → coverage synthesis or recommendation; standalone evidence exits at gather), `closeout` (verify plan against branch diff, with scenario readiness and spec coverage reported → confirmed canon merge → confirmed draft → accepted status transitions).
-- Primary executors: `plan` → sdd, requirements-cascade, research; `document` → describe, decision, research, and `sdd.require` in callable mode for `document journey`; `review` → actualize, experience, closeout; `decision` is callable from all three.
+- Track files: `skills/_shared/tracks/<track-id>.md`; gates as `### gate: <track>.<stage>` sections. A track identifier and a gate address are internal names; command modes are the user-facing names.
+- Catalog: `sdd` (frame → require, with `journey` beside the `prd` under the illustrate condition → design → illustrate → decompose), `requirements-cascade` (`mode: sources` = mrd → brd → urd; `mode: iso` = brs → strs → syrs → srs), `decision` (classify → adr | rfc | standard → cascade; resolution entry `decision.resolve` on an existing rfc draft), `describe` (read code and feature files → draft spec/doc/guide/scenario → clarify gaps), `actualize` (scope diff → per-finding verdict → confirmed fixes), `experience` (detect repeated pattern → cpat | task-type offer), `research` (frame → gather → coverage synthesis or recommendation; standalone evidence exits at gather), `closeout` (verify plan against branch diff, with scenario readiness and spec coverage reported → confirmed canon merge → confirmed draft → accepted status transitions).
+- Primary executors: `plan` → sdd, requirements-cascade, research; `document` → decision (mode `decision`), describe (mode `code`), research (mode `research`); `review` → actualize (modes `drift`, `deep`), closeout (mode `closeout`), experience (mode `experience`); `decision` is callable from all three.
 - Gate record fields, fixed order: Purpose; Entry conditions with `skip_when`; Elicitation knobs (trigger, taxonomy, budget); Produces (type, status, relations); Exit checks tagged `blocking` or `advisory`; Next.
 - Track state block inside the draft artifact: `<!-- archcore:track -->` with fields `track`, `gate`, `route`, `delta`, `taxonomy`, `asked`, `budget`, `deferred`; research may append `artifact_type`.
 
 ## Normative Behavior
 
-1. WHEN routing resolves, the executing skill MUST evaluate signals in this order: explicit expert invocation, document-graph state, branch state, request wording.
+1. WHEN routing resolves, the executing skill MUST evaluate signals in this order: explicit mode, document-graph state, branch state, request wording.
 2. The executing skill MUST NOT ask the user to choose a track.
 3. The executing skill MUST derive the question budget, not the track choice, from input vagueness.
 4. WHEN a gate opens, the executing skill MUST evaluate `skip_when` before any other gate step.
@@ -37,13 +37,13 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 14. WHEN the user confirms a status transition, the executing skill MAY apply that transition through the owning gate or `update_document`.
 15. A hook or subagent MUST NOT change a document status.
 
-16. WHEN an expert invocation names `research`, the research instrument MUST fix its product to `research`, subject to the engine gate.
-17. WHEN an expert invocation names `rnd`, the research instrument MUST fix its product to `rnd`.
+16. WHEN the request text names the type `research`, the research instrument MUST fix its product to `research`, subject to the engine gate.
+17. WHEN the request text names the type `rnd`, the research instrument MUST fix its product to `rnd`.
 18. WHEN no type is fixed, the research instrument MUST choose the product by its closing test.
 19. The research instrument MUST close `research` on declared scope coverage.
 20. The research instrument MUST close `rnd` on an evidenced recommendation.
 21. WHEN resuming an artifact, the research instrument MUST preserve its filename type.
-22. WHEN an explicit request names `evidence`, the research instrument MUST enter gather without a parent investigation.
+22. WHEN a request supplies one external material and no investigation, the research instrument MUST enter gather without a parent investigation.
 23. WHEN standalone evidence has no identified consumer, the research instrument MAY create its draft without a relation.
 24. WHEN gather creates dependent evidence, the research instrument MUST persist pending paths and edges before the evidence write.
 25. WHEN gather creates dependent evidence, the research instrument MUST add its first evidential edge before gate close.
@@ -54,6 +54,9 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 30. WHEN standalone evidence completes gather, the research instrument MUST exit the track.
 31. WHEN a research state field contradicts the filename type, the research instrument MUST report a blocking state error.
 32. WHEN using the actor-subject vocabulary, the executing skill MUST apply @plugins/archcore/skills/_shared/actor-subject-compatibility.md before the first affected MCP call.
+33. WHEN a decision request carries standard signals and a local `adr` on the topic exists, `decision.classify` MUST route to `decision.cascade` with the standard cascade selected.
+34. WHEN a decision request carries standard signals and no local `adr` on the topic exists, `decision.classify` MUST route to `decision.adr` first.
+35. The describe track MUST NOT produce a `journey`.
 
 ## Constraints & Invariants
 
@@ -79,4 +82,4 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 
 ## Conformance
 
-A track file and its executing skills are conformant when they satisfy behaviors 1–32, hold all invariants, and degrade per the failure rules.
+A track file and its executing skills are conformant when they satisfy behaviors 1–35, hold all invariants, and degrade per the failure rules.

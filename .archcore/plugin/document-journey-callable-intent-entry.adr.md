@@ -1,6 +1,6 @@
 ---
 title: "document journey Enters sdd.require in Callable Mode and Produces Only the Journey"
-status: draft
+status: rejected
 tags:
   - "document-types"
   - "plugin"

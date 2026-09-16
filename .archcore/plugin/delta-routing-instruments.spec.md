@@ -22,7 +22,7 @@ Instrument registry — instrument → produced type → current carrier:
 - decompose → `plan` — `sdd.decompose`.
 - runbook → `guide` — package member, composed from the route's operational and verification tasks.
 - decision → `adr`, `rfc` — the decision track gates.
-- research → `research` or `rnd` — the research track gates; gather optionally produces `evidence`, and explicit evidence enters gather directly.
+- research → `research` or `rnd` — the research track gates; gather optionally produces `evidence`, and one supplied external material enters gather directly.
 - spike → timeboxed `rnd` holding Goal, Questions, and Findings only.
 - describe → `spec`, `doc`, `guide`, `scenario` — the describe track gates.
 - acquisition → `mrd`, `brd`, `urd` — the requirements-cascade sources gates.
@@ -68,10 +68,10 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 - Invariant: `plan` is the only type any track removes at closeout.
 - Invariant: residue capture at closeout owns no document type — every document it creates comes from the instrument it routes to.
 - Constraint: the decision instrument's `decision.cascade` gate creates its cascade documents (`rule`, `guide`, `spec`, `plan`, `cpat`) inside the instrument — a recorded exception to single-type production.
-- Constraint: the intent instrument's `journey` beside the `prd` under the illustrate condition is a second recorded exception to single-type production; `document journey` enters the same gate in callable mode and produces only the `journey`.
+- Constraint: the intent instrument's `journey` beside the `prd` under the illustrate condition is a second recorded exception to single-type production; no `document` mode reaches that gate.
 - Constraint: research gather may create evidence and relations inside the instrument; the shared gate contract defines its pending-write checkpoint exception.
 - Constraint: at `closeout.capture` the decision instrument runs its standard cascade only; the architecture cascade is out of scope there.
-- Constraint: the acquisition instrument engages on a product-scale `intent_gap` or an expert invocation, never by default.
+- Constraint: the acquisition instrument engages on a product-scale `intent_gap` or the `plan sources` mode, never by default.
 - Constraint: iso links engage per flagged capability, never as a whole-initiative mode.
 - Constraint: elicitation ceilings and budget mechanics stay per the elicitation contract, unchanged.
 - Constraint: discharge defaults per type — `spec` and `adr` stay canon; a completed `plan` is removed at `closeout.discharge` after `closeout.capture` routes its residue to the owning instrument; a `prd` holds until its success metrics verify; an `idea` discharges after every document that implements it is accepted; a spike `rnd` keeps only its Findings section.

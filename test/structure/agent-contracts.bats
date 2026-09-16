@@ -74,10 +74,10 @@ md_body() {
     || { fail "evidence provenance placeholders can be flagged as defects"; return 1; }
 }
 
-@test "plan route names retain Derivation; research entries sit on plan and document, evidence only on document" {
+@test "route names are topic text on plan; research is a mode on plan and document; no hint lists evidence" {
   local file hint
-  grep -Fq 'Fix that route; run Derivation to compute its package' "$PLUGIN_ROOT/skills/plan/SKILL.md" \
-    || { fail "named routes can skip Derivation"; return 1; }
+  grep -Fq 'A route name or a document type name as the first word is topic text' "$PLUGIN_ROOT/skills/plan/SKILL.md" \
+    || { fail "plan/SKILL.md still accepts a route name as an entry"; return 1; }
   for file in "$PLUGIN_ROOT/skills/plan/SKILL.md" "$PLUGIN_ROOT/commands/plan.md"; do
     hint=$(sed -n '/^argument-hint:/p' "$file")
     [[ "$hint" == *research* ]] || { fail "$file hides research in its hint"; return 1; }
@@ -85,7 +85,8 @@ md_body() {
     [[ "$hint" != *evidence* ]] || { fail "$file advertises evidence as a plan entry"; return 1; }
   done
   hint=$(sed -n '/^argument-hint:/p' "$PLUGIN_ROOT/commands/document.md")
-  [[ "$hint" == *research* && "$hint" == *evidence* ]] || { fail "document hides research or evidence in its hint"; return 1; }
+  [[ "$hint" == *research* ]] || { fail "document hides the research mode in its hint"; return 1; }
+  [[ "$hint" != *evidence* ]] || { fail "document advertises evidence as a mode"; return 1; }
   [[ "$hint" != *'|rnd|'* ]] || { fail "document advertises an unsupported rnd expert entry"; return 1; }
   if grep -Fq '/archcore:plan --track' "$PLUGIN_ROOT/agents/archcore-assistant.md"; then
     fail "assistant prescribes retired --track syntax"; return 1

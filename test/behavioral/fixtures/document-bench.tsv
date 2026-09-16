@@ -1,0 +1,27 @@
+# Behavioral document-entry bench fixtures — the command entry grammar (command-entry-grammar.adr).
+# Columns (tab-separated): id, request (text after /archcore:document), grounding, expected_mode, expected_type.
+# expected_mode: decision | code | research | unclear | plan. expected_type: a type slug, none, or - (not checked).
+# Rows 1–14 carry no mode word: they measure classification of type-less and mode-less requests.
+1	we decided to use PostgreSQL 16 for the orders service	no ADR or RFC on the topic	decision	adr
+2	should we switch the API from REST to gRPC?	no ADR or RFC on the topic	decision	rfc
+3	make it our standard: every handler returns typed errors	a local adr records the typed-errors decision	decision	rule
+4	we accepted the proposal to move to gRPC	an rfc draft on gRPC exists	decision	adr
+5	capture how the payment system works	payment module found under src/payments; no document covers it	code	none
+6	write a guide for the release process	release scripts found; no guide exists	code	guide
+7	create a glossary of the billing terms	billing code found; no doc exists	code	doc
+8	how a buyer requests a refund, with examples, over the refund spec	an accepted refund-policy spec exists	code	scenario
+9	here is our finished investigation of queue brokers; it recommends NATS	the request attaches a report with findings and a recommendation	research	rnd
+10	file this vendor benchmark PDF	the request attaches one benchmark PDF with no findings or recommendation	research	evidence
+11	here is the survey of logging libraries we finished last week	the request attaches a report with a declared scope and coverage, no recommendation	research	research
+12	compare Redis and Memcached for the session cache	no report attached; no decision recorded	plan	-
+13	the intended onboarding path of a trial user	no spec covers onboarding	plan	-
+14	auth	recent commits touch both src/auth and an ADR draft on sessions	unclear	-
+# Rows 15–20 lead with a mode word.
+15	decision rfc for switching to gRPC	no ADR or RFC on the topic	decision	rfc
+16	decision we chose JWT over sessions	no ADR or RFC on the topic	decision	adr
+17	code the auth module	auth module found under src/auth; no document covers it	code	none
+18	code scenario for checkout	an accepted checkout spec exists	code	scenario
+19	research <attached report on caching strategies that closes on scope coverage>	the request attaches the report	research	research
+20	adr we chose Postgres	no ADR on the topic; adr is not a mode	decision	adr
+# Row 21 carries no arguments at all.
+21	(no arguments)	branch changes touch src/auth and add an ADR draft on sessions	unclear	-

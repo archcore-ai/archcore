@@ -48,24 +48,26 @@ setup() {
   [ -f "$COMPAT" ] || fail "referenced compatibility file does not exist"
 }
 
-@test "document argument-hint lists scenario and journey; plan hint does not" {
+@test "no argument-hint lists scenario or journey as a mode" {
   local hint
   hint=$(awk '/^---$/ { if (++d == 2) exit; next }
               d == 1 && /^argument-hint:/ { print; exit }' "$PLUGIN_ROOT/skills/document/SKILL.md")
-  printf '%s' "$hint" | grep -F -q 'adr|rfc|spec|doc|guide|rule|research|evidence|scenario|journey' \
-    || fail "document/SKILL.md argument-hint lacks scenario and journey: $hint"
+  ! printf '%s' "$hint" | grep -E -q 'scenario|journey' \
+    || fail "document/SKILL.md argument-hint exposes an actor-subject type: $hint"
   hint=$(awk '/^---$/ { if (++d == 2) exit; next }
               d == 1 && /^argument-hint:/ { print; exit }' "$PLUGIN_ROOT/skills/plan/SKILL.md")
   ! printf '%s' "$hint" | grep -E -q 'scenario|journey' \
     || fail "plan/SKILL.md argument-hint exposes an actor-subject type: $hint"
 }
 
-@test "document expert form routes scenario to describe.read and journey to callable sdd.require" {
+@test "document code reaches scenario through describe.draft; no document mode produces a journey" {
   local skill="$PLUGIN_ROOT/skills/document/SKILL.md"
-  grep -F -q '`scenario` → describe track at `describe.read`; the named type settles' "$skill" \
-    || fail "document/SKILL.md expert form lacks the scenario entry"
-  grep -F -q '`journey` → sdd track at `sdd.require` in callable mode' "$skill" \
-    || fail "document/SKILL.md expert form lacks the journey entry"
+  grep -F -q '`describe.draft` selects `spec`,' "$skill" \
+    || fail "document/SKILL.md code mode does not name describe.draft as the type selector"
+  grep -F -q 'No mode produces a `journey`' "$skill" \
+    || fail "document/SKILL.md does not rule out journey production"
+  grep -F -q 'This track never produces a `journey`' "$PLUGIN_ROOT/skills/_shared/tracks/describe.md" \
+    || fail "describe.md does not rule out journey production"
   grep -F -q 'skills/_shared/actor-subject-compatibility.md' "$skill" \
     || fail "document/SKILL.md does not load the actor-subject compatibility file"
 }

@@ -27,10 +27,13 @@ tags:
 16. A per-flow reference file under `references/` or `lib/` MUST NOT exceed 200 lines.
 17. The `plan` skill MUST hold its per-flow logic in `skills/plan/references/<flow>.md`.
 18. WHEN a new flow is added to the `plan` skill, the author MUST add a reference file instead of a top-level skill.
+19. Each `argument-hint` MUST open with the command's closed mode list in brackets.
+20. Each `argument-hint` MUST NOT list a document type name or a route name as a mode.
+21. An `argument-hint` flag MUST name a setting, never an entry.
 
 ## Rationale
 
-A fixed file location and a fixed section set let a contributor find each kind of guidance without reading the whole skill, and let a batch update touch every skill the same way. `four-command-palette.adr` fixes the four-command surface and the auto-invocation invariant, so a `disable-model-invocation` flag or an eighth top-level skill breaks routing instead of extending it. `remove-document-type-skills.adr` removed the per-type skill layer, which is why item 9 places per-type elicitation inside `Execution`. Items 13 and 14 exist because an embedded template drifts as soon as the CLI templates change. The trigger and anti-trigger forms in items 6 and 7 are what make model routing between neighboring intents deterministic.
+A fixed file location and a fixed section set let a contributor find each kind of guidance without reading the whole skill, and let a batch update touch every skill the same way. `four-command-palette.adr` fixes the four-command surface and the auto-invocation invariant, so a `disable-model-invocation` flag or an eighth top-level skill breaks routing instead of extending it. `remove-document-type-skills.adr` removed the per-type skill layer, which is why item 9 places per-type elicitation inside `Execution`. Items 13 and 14 exist because an embedded template drifts as soon as the CLI templates change. The trigger and anti-trigger forms in items 6 and 7 are what make model routing between neighboring intents deterministic. Items 19–21 carry `command-entry-grammar.adr`: the first word selects the path, and a gate inside the track selects the document type.
 
 ## Examples
 
@@ -39,8 +42,8 @@ A fixed file location and a fixed section set let a contributor find each kind o
 ```markdown
 ---
 name: document
-argument-hint: "[topic or description]"
-description: "Document a module, component, or system, or record a decision — automatically picks the right type (ADR, spec, doc, guide, or rule). Activate when user says 'document this module', 'capture how X works', 'record this decision', 'write reference docs'. Do NOT activate for planning a feature (use /archcore:plan) or auditing existing documentation (use /archcore:review)."
+argument-hint: "[decision|code|research] [subject]"
+description: "Record a decision, document existing code, or file a supplied research material. Activate when user says 'document this module', 'capture how X works', 'record this decision', 'write reference docs'. Do NOT activate for planning a feature (use /archcore:plan) or auditing existing documentation (use /archcore:review)."
 ---
 
 # /archcore:document
@@ -53,7 +56,7 @@ description: "Document a module, component, or system, or record a decision — 
 | Signal | Route |
 |---|---|
 ## Execution
-Step 3 (per-type creation inlines: ask question → compose sections → create_document → add_relation)
+Step 2 (mode entry: decision → decision.classify, code → describe.read, research → research.frame)
 ...
 ## Result
 ...
@@ -66,25 +69,25 @@ The frontmatter carries no invocation-restricting flag, so the skill auto-invoke
 ```markdown
 ---
 name: plan
-argument-hint: "[topic] [--product|--sources|--iso|--feature]"
+argument-hint: "[sdd|sources|iso|research] [topic]"
 description: "Plan a feature or initiative end-to-end. Activate when user says 'let's plan', 'create a roadmap for X', 'I need to plan Y'. Do NOT activate for recording a decision (use /archcore:document) or documenting an existing module (use /archcore:document)."
 ---
 
 # /archcore:plan
 
 ## Routing Table
-| Flag / signal | Reference loaded |
+| First word / signal | Path |
 |---|---|
-| `--product` or product-flow phrasing | skills/plan/references/product-flow.md |
-| `--sources` or sources phrasing | skills/plan/references/sources-flow.md |
-| `--iso` or ISO-cascade phrasing | skills/plan/references/iso-flow.md |
-| `--feature` or feature phrasing | skills/plan/references/feature-flow.md |
-| (none) | inline single-plan recipe |
+| `sdd` | full package |
+| `sources` or market-research phrasing | acquisition instrument |
+| `iso` or regulated-work phrasing | iso links |
+| `research` or investigation phrasing | research instrument |
+| (none) | computed route |
 
 ## Execution
 - Step 1: Check existing documents via list_documents
 - Step 2: Scope confirmation (one AskUserQuestion if ambiguous)
-- Step 3: Load the matching reference and run its step sequence
+- Step 3: Run the mapped instrument or the computed package
 - Step 4: Cross-relate to existing documents
 ```
 
@@ -99,6 +102,8 @@ description: "Plan a feature or initiative end-to-end. Activate when user says '
 # SKILL.md at 340 lines                          → violates item 15
 # Per-flow reference file at 260 lines           → violates item 16
 # New top-level skill added for a new plan flow  → violates item 18
+# argument-hint: "[topic] [adr|rfc|spec]"        → violates items 19 and 20
+# argument-hint: "[--drift] [scope]"             → violates item 21
 ```
 
 ## Enforcement
@@ -107,4 +112,5 @@ description: "Plan a feature or initiative end-to-end. Activate when user says '
 - `skills-system.spec` defines the normative contract for skill behavior.
 - `plugin-architecture.spec` defines the cross-component invariants.
 - `four-command-palette.adr` fixes the four-command surface and the auto-invocation invariant that item 5 depends on.
+- `@test/structure/command-grammar.bats` checks items 19–21.
 - No lint script checks items 1–18 today. A `bin/` lint script is the intended verifier. [assumption] No implementation date is set.

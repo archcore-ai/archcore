@@ -3134,11 +3134,6 @@
     },
     {
       "source": "plugin/actor-subject-compatibility.spec.md",
-      "target": "plugin/document-journey-callable-intent-entry.adr.md",
-      "type": "implements"
-    },
-    {
-      "source": "plugin/actor-subject-compatibility.spec.md",
       "target": "plugin/actor-subject-compatibility-separate-file.adr.md",
       "type": "implements"
     },
@@ -3170,6 +3165,71 @@
     {
       "source": "plugin/track-file-line-cap-300.adr.md",
       "target": "plugin/illustrate-instrument.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/journey-produced-only-on-plan.adr.md",
+      "target": "plugin/command-entry-grammar.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/journey-produced-only-on-plan.adr.md",
+      "target": "plugin/document-journey-callable-intent-entry.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/command-surface-v2.spec.md",
+      "target": "plugin/command-entry-grammar.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/command-entry-grammar.adr.md",
+      "target": "plugin/research-runtime-category-and-evidence-entry.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/journey-produced-only-on-plan.adr.md",
+      "target": "plugin/illustrate-instrument.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/actor-subject-compatibility.spec.md",
+      "target": "plugin/journey-produced-only-on-plan.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/track-layer.spec.md",
+      "target": "plugin/command-entry-grammar.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/command-entry-grammar.plan.md",
+      "target": "plugin/command-surface-v2.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/command-entry-grammar.plan.md",
+      "target": "plugin/command-entry-grammar.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/command-entry-grammar.plan.md",
+      "target": "plugin/journey-produced-only-on-plan.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/command-entry-grammar.plan.md",
+      "target": "plugin/scenario-and-journey-runtime.plan.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/command-entry-grammar.scenario.md",
+      "target": "plugin/command-surface-v2.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/command-entry-grammar.plan.md",
+      "target": "plugin/command-entry-grammar.scenario.md",
       "type": "related"
     }
   ]
