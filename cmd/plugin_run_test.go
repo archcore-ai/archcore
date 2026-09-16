@@ -1119,3 +1119,42 @@ func TestUnreachedCursorHandsOverNothing(t *testing.T) {
 		}
 	}
 }
+
+// TestMutatedAPluginCountsAPartlyFailedUpdate pins updating-the-plugin.spec §15
+// against the per-installation update: one project that failed does not undo the
+// installations the same run updated, so the overlap is still owed.
+func TestMutatedAPluginCountsAPartlyFailedUpdate(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		results []plugin.Result
+		want    bool
+	}{
+		{
+			name:    "a run that changed every installation",
+			results: []plugin.Result{{Host: plugin.HostClaudeCode, Kind: plugin.ActionRun, Changed: true}},
+			want:    true,
+		},
+		{
+			name:    "a run that failed on one installation and changed the others",
+			results: []plugin.Result{{Host: plugin.HostClaudeCode, Kind: plugin.ActionRun, Failed: true, Changed: true}},
+			want:    true,
+		},
+		{
+			name:    "a run that failed before any installation",
+			results: []plugin.Result{{Host: plugin.HostClaudeCode, Kind: plugin.ActionRun, Failed: true}},
+		},
+		{
+			name:    "a printed command",
+			results: []plugin.Result{{Host: plugin.HostCopilot, Kind: plugin.ActionPrintCommand}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := mutatedAPlugin(pluginRunOutcome{Results: tt.results}); got != tt.want {
+				t.Errorf("mutatedAPlugin = %t, want %t", got, tt.want)
+			}
+		})
+	}
+}

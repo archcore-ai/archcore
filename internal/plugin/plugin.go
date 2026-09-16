@@ -33,6 +33,10 @@ const (
 	PluginID      = "archcore@archcore-plugins"
 )
 
+// pluginName is PluginID without its marketplace: the name Copilot lists a
+// direct install under and the only one its update and uninstall accept for it.
+const pluginName = "archcore"
+
 // Host is one AI coding host with a shipping Archcore plugin. The values match
 // the AgentID values of internal/agents, so a host selected for wiring and a
 // host targeted for plugin delivery are named by the same string.
@@ -115,6 +119,45 @@ type Evidence struct {
 	Listed         bool   // that listing names the plugin (meaningful only when ListingOK)
 	ListedVersion  string // when the host reports one
 	RegistryListed bool   // the host's on-disk registry names the plugin
+
+	// Installs holds every installation the listing reported, ordered and bounded
+	// by the collector. It is empty when the host reports one installation without
+	// naming it, and the update tier then runs the host's plain update sequence.
+	Installs []Install
+}
+
+// Scope is the installation scope a host reports for one installation. Only
+// Claude Code reports one today; the values are its wire spelling.
+type Scope string
+
+const (
+	ScopeUser    Scope = "user"
+	ScopeProject Scope = "project"
+	ScopeLocal   Scope = "local"
+	ScopeManaged Scope = "managed"
+)
+
+// Install is one installation of the plugin a host listing reported. A host
+// that installs per project lists the plugin once per project, and each of
+// those needs its own update command — updating-the-plugin.spec §19.
+type Install struct {
+	// Name is the identity the host listed the plugin under. Copilot lists a
+	// direct install as the bare plugin name and refuses the marketplace id for it.
+	Name string
+
+	// Scope is empty on a host that reports none.
+	Scope Scope
+
+	// ProjectPath is the absolute project directory a project or local
+	// installation belongs to, as the host recorded it.
+	ProjectPath string
+
+	// ProjectPresent reports that ProjectPath is an existing, fully resolved
+	// directory.
+	ProjectPresent bool
+
+	// Version is the version the host reported for this installation, if any.
+	Version string
 }
 
 // Command is one host command line. Name is the executable as it is looked up
@@ -122,19 +165,55 @@ type Evidence struct {
 type Command struct {
 	Name string
 	Args []string
+
+	// Dir is the working directory the command runs in; empty inherits the
+	// process's own. Claude Code picks the project a scoped update addresses by
+	// the working directory, so for that command the directory is part of what
+	// it means — updating-the-plugin.spec §20.
+	Dir string
+
+	// ContinueOnFailure marks a command whose failure does not end its sequence,
+	// because the commands after it address other installations and do not
+	// depend on it — updating-the-plugin.spec §23.
+	ContinueOnFailure bool
+
+	// EmptyStdoutFails marks a command whose host exits zero on failure and
+	// prints nothing on stdout, so an empty stdout is the only failure signal —
+	// updating-the-plugin.spec §24.
+	EmptyStdoutFails bool
+
+	// Prompts marks a command that can stop for confirmation, and so takes the
+	// host's non-interactive flag off a terminal. A host rejects the flag on a
+	// command that never prompts: `claude plugin marketplace update -y` exits
+	// with "unknown option" — verified 2026-09-16 on claude 2.1.273.
+	Prompts bool
 }
 
 // String returns the exact command line. The print tier prints it, and so does
-// every failure line the specs require. No argument in the host table contains
-// a space, so no quoting is applied.
+// every failure line the specs require. Arguments are not quoted: the host table
+// holds none with a space, and a name taken from a listing is one whitespace-free
+// field. A working directory is a user's path and is quoted.
 func (c Command) String() string {
 	if c.Name == "" {
 		return ""
 	}
-	if len(c.Args) == 0 {
-		return c.Name
+	line := c.Name
+	if len(c.Args) > 0 {
+		line += " " + strings.Join(c.Args, " ")
 	}
-	return c.Name + " " + strings.Join(c.Args, " ")
+	if c.Dir == "" {
+		return line
+	}
+	return "cd " + shellQuote(c.Dir) + " && " + line
+}
+
+// shellQuote quotes a path for a POSIX shell when it holds anything beyond
+// characters every shell reads literally.
+func shellQuote(path string) string {
+	if path != "" && strings.Trim(path, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/._-+@:") == "" {
+		return path
+	}
+	return "'" + strings.ReplaceAll(path, "'", `'\''`) + "'"
 }
 
 // ActionKind is what the executor does with one planned action.
@@ -199,7 +278,8 @@ func cloneCommands(cmds []Command) []Command {
 	}
 	out := make([]Command, len(cmds))
 	for i, c := range cmds {
-		out[i] = Command{Name: c.Name, Args: slices.Clone(c.Args)}
+		out[i] = c
+		out[i].Args = slices.Clone(c.Args)
 	}
 	return out
 }

@@ -110,6 +110,7 @@ func execCommand(ctx context.Context, c Command) commandOutcome {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, path, c.Args...)
+	cmd.Dir = c.Dir
 	cmd.WaitDelay = commandWaitDelay
 
 	var stdout capWriter

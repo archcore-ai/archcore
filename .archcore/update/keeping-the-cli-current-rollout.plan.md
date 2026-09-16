@@ -61,8 +61,8 @@ The engine opens the plugin work: task 25 lands before every entry point that co
 
 | Host | Action |
 |---|---|
-| Claude Code | `claude plugin marketplace update archcore-plugins`, then `claude plugin update archcore@archcore-plugins`; append `-y` for non-TTY safety [assumption]. User-scope record only this release. |
-| GitHub Copilot | `copilot plugin update archcore@archcore-plugins`. The binary is often not on `PATH` (VS Code-managed install). |
+| Claude Code | `claude plugin marketplace update archcore-plugins`, then one `claude plugin update archcore@archcore-plugins --scope <scope>` per listed installation, run in its `projectPath` for `project` and `local` scope; off a terminal `-y` goes to `plugin update` only — `updating-the-plugin.spec` §19–§23, re-probed 2026-09-16 on claude 2.1.273. |
+| GitHub Copilot | `copilot plugin update archcore` — a direct install refuses the plugin id, and a failed update exits 0 with empty stdout — `updating-the-plugin.spec` §24 and §26, re-probed 2026-09-16 on copilot 1.0.83. The binary is often not on `PATH` (VS Code-managed install). |
 | Codex CLI | `codex plugin marketplace upgrade archcore-plugins`. The marketplace snapshot refresh is the update. |
 | Cursor | No CLI mechanism (UI-only). Print the one-line UI instruction. |
 

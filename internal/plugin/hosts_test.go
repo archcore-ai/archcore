@@ -96,7 +96,7 @@ func TestSpecForPinsTheCommandTable(t *testing.T) {
 			wantListing:  "copilot plugin list",
 			wantRegistry: ".copilot/installed-plugins",
 			wantRegEntry: "archcore-ai--plugin--plugins-archcore",
-			wantUpdate:   []string{"copilot plugin update archcore@archcore-plugins"},
+			wantUpdate:   []string{"copilot plugin update archcore"},
 			wantInstall:  []string{"copilot plugin install archcore-ai/plugin:plugins/archcore"},
 			wantRemove:   []string{"copilot plugin uninstall archcore"},
 		},
@@ -236,7 +236,7 @@ func TestTableCarriesNoIdentifierVariant(t *testing.T) {
 		RepoID:                       true,
 		MarketplaceID:                true,
 		PluginID:                     true,
-		"archcore":                   true, // copilot plugin uninstall takes the bare name
+		"archcore":                   true, // copilot plugin update and uninstall take the bare name
 		RepoID + ":plugins/archcore": true, // copilot install subpath [assumption]
 	}
 	for _, spec := range Specs() {
@@ -296,6 +296,45 @@ func TestCommandsForAndNoteFor(t *testing.T) {
 			}
 			if !tt.wantEmpty && note == "" {
 				t.Errorf("noteFor(%s) is empty, want an instruction", tt.verb)
+			}
+		})
+	}
+}
+
+// TestSpecForPinsHowAnUpdateAddressesAnInstallation pins the two host facts the
+// per-installation update rests on — updating-the-plugin.spec, Surface. Both
+// were verified live, and both fail silently when they drift: a scope that is
+// not passed updates user scope alone, and an empty stdout Copilot exits 0 on.
+func TestSpecForPinsHowAnUpdateAddressesAnInstallation(t *testing.T) {
+	t.Parallel()
+	type addressingWant struct {
+		addressing       InstallAddressing
+		emptyStdoutFails bool
+	}
+	want := map[Host]addressingWant{
+		HostClaudeCode: {addressing: AddressingScope},
+		HostCursor:     {addressing: AddressingNone},
+		HostCodexCLI:   {addressing: AddressingNone},
+		HostCopilot:    {addressing: AddressingName, emptyStdoutFails: true},
+	}
+	specs := Specs()
+	if len(specs) == 0 {
+		t.Fatal("the host table holds no hosts, so this test proves nothing")
+	}
+	for _, spec := range specs {
+		t.Run(string(spec.Host), func(t *testing.T) {
+			w, stated := want[spec.Host]
+			if !stated {
+				t.Fatalf("no addressing is pinned for %s; a new host must state how its update names an installation", spec.Host)
+			}
+			if spec.UpdateAddressing != w.addressing {
+				t.Errorf("UpdateAddressing = %d, want %d", spec.UpdateAddressing, w.addressing)
+			}
+			if len(spec.Update) == 0 {
+				return
+			}
+			if got := spec.Update[len(spec.Update)-1].EmptyStdoutFails; got != w.emptyStdoutFails {
+				t.Errorf("EmptyStdoutFails on the update command = %t, want %t", got, w.emptyStdoutFails)
 			}
 		})
 	}
