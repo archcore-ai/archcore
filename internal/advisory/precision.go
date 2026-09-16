@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"archcore-cli/internal/docs"
@@ -78,6 +79,11 @@ var (
 	// boundary never holds and the whole alternative could never match. The
 	// shell original relied on grep's Unicode-aware \b.
 	passiveRe = regexp.MustCompile(`\b(MUST|SHOULD)( NOT)? be [a-z]+(ed|en)\b|\b(MUST|SHOULD)( NOT)? \S*(ться|тся)`)
+	// observationLineRe finds a Given/When/Then line — the step form of an
+	// example, which carries no number for the numbered-item collector to see.
+	observationLineRe = regexp.MustCompile(`^\s*(?:Given|When|Then|And|But)\b`)
+	// tableSeparatorRe finds the row under a table header, which names no actor.
+	tableSeparatorRe = regexp.MustCompile(`^:?-+:?$`)
 	// leadingNumberRe strips a clause's own numbering before the words are
 	// counted, so "1." is not charged to the author's word budget.
 	leadingNumberRe = regexp.MustCompile(`^\s*[0-9]+\.\s*`)
@@ -269,8 +275,15 @@ func PrecisionFindings(docType templates.DocumentType, fm templates.Frontmatter,
 			templates.MaxCodeBlockLines, docType))
 	}
 
+	if limit, capped := templates.MaxBodyLines[docType]; capped {
+		if n := strings.Count(strings.TrimSpace(body), "\n") + 1; n > limit {
+			out = append(out, fmt.Sprintf("%s body is %d lines (cap %d) — %s", docType, n, limit, overCapRemedies[docType]))
+		}
+	}
+
 	clauses := sectionItems(lines, templates.ClauseSections[docType])
 	steps := sectionItems(lines, templates.StepSections[docType])
+	steps = append(steps, observationItems(lines, templates.ObservationSections[docType])...)
 	out = append(out, profileFindings(docType, lines, clauses, steps)...)
 
 	//exhaustive:ignore // Only these types own a contract past the shared and
@@ -286,8 +299,18 @@ func PrecisionFindings(docType templates.DocumentType, fm templates.Frontmatter,
 		out = append(out, adrFindings(lines)...)
 	case templates.TypeCPAT:
 		out = append(out, cpatFindings(lines)...)
+	case templates.TypeScenario, templates.TypeJourney:
+		out = append(out, actorSubjectFindings(docType, lines)...)
 	}
 	return out
+}
+
+// overCapRemedies is what a finding tells the author to do past the body cap,
+// per type: the number is shared, the split boundary is not.
+var overCapRemedies = map[templates.DocumentType]string{
+	templates.TypeSpec:     "a spec that long is describing, not specifying",
+	templates.TypeScenario: "split by actor, one document per user type, each linked to the one spec it illustrates",
+	templates.TypeJourney:  "if it has taken on rules or data, move them to the spec; otherwise split by actor",
 }
 
 // profileFindings are the checks the prose canon drives from its own tables:
@@ -447,6 +470,113 @@ func cpatFindings(lines []string) []string {
 	return out
 }
 
+// actorSubjectFindings are the checks that hold a scenario or a journey to line
+// format F6: every flow cites its code, and every step opens with the actor.
+func actorSubjectFindings(docType templates.DocumentType, lines []string) []string {
+	var out []string
+
+	if docType == templates.TypeScenario {
+		if hits := flowsWithoutAnchors(lines); len(hits) > 0 {
+			out = append(out, fmt.Sprintf("flow without an Anchors: line (%s) — cite the code and test files the flow walks with @path",
+				strings.Join(hits, ", ")))
+		}
+	}
+
+	actors := actorNames(lines)
+	if len(actors) == 0 {
+		return out
+	}
+	steps := sectionItems(lines, templates.ActorStepSections[docType])
+	if hits := stepsWithoutActor(steps, actors); len(hits) > 0 {
+		out = append(out, fmt.Sprintf("step opens with no actor (%s) — an actor named in Actors is the subject of every step",
+			strings.Join(hits, "; ")))
+	}
+	return out
+}
+
+// flowsWithoutAnchors names each Flows subsection that cites no code. A Flows
+// section with steps and no subsection is one flow, named after the section.
+// A fenced block is skipped: a pasted sample can hold a heading or an Anchors:
+// line without either being the flow's own structure.
+func flowsWithoutAnchors(lines []string) []string {
+	var hits []string
+	current := ""
+	anchored := false
+	subsections := false
+	flush := func() {
+		if current != "" && !anchored {
+			hits = append(hits, quote(current))
+		}
+	}
+	for line := range strings.Lines(outsideFences(sectionBody(lines, templates.SectionFlows))) {
+		trimmed := strings.TrimSpace(line)
+		if title, ok := strings.CutPrefix(trimmed, "### "); ok {
+			flush()
+			current, anchored, subsections = strings.TrimSpace(title), false, true
+			continue
+		}
+		if strings.HasPrefix(trimmed, "Anchors:") {
+			anchored = true
+			continue
+		}
+		if current == "" && !subsections && numberedLineRe.MatchString(line) {
+			current = templates.SectionFlows.Name
+		}
+	}
+	flush()
+	return distinctCapped(hits, maxPrecisionHits)
+}
+
+// actorNames reads the first column of the Actors table, lowercased, so a step
+// is matched by its opening words alone. GFM makes the outer pipes of a row
+// optional, so a row is any line holding a pipe, not only one that opens with
+// one.
+func actorNames(lines []string) []string {
+	var actors []string
+	header := true
+	for line := range strings.Lines(outsideFences(sectionBody(lines, templates.SectionActors))) {
+		trimmed := strings.TrimSpace(line)
+		if !strings.Contains(trimmed, "|") {
+			continue
+		}
+		cells := strings.Split(strings.Trim(trimmed, "|"), "|")
+		first := strings.TrimSpace(cells[0])
+		if header {
+			header = false
+			continue
+		}
+		if first == "" || tableSeparatorRe.MatchString(first) {
+			continue
+		}
+		actors = append(actors, strings.ToLower(first))
+	}
+	slices.Sort(actors)
+	return slices.Compact(actors)
+}
+
+func stepsWithoutActor(steps, actors []string) []string {
+	var hits []string
+	for _, step := range steps {
+		text := leadingNumberRe.ReplaceAllString(step, "")
+		if observationLineRe.MatchString(text) {
+			continue
+		}
+		lower := strings.ToLower(text)
+		opensWithActor := slices.ContainsFunc(actors, func(actor string) bool {
+			rest, ok := strings.CutPrefix(lower, actor)
+			if !ok {
+				return false
+			}
+			next, _ := utf8.DecodeRuneInString(rest)
+			return rest == "" || !unicode.IsLetter(next) && !unicode.IsDigit(next)
+		})
+		if !opensWithActor {
+			hits = append(hits, quote(step))
+		}
+	}
+	return distinctCapped(hits, maxPrecisionHits)
+}
+
 // distinctCapped keeps the first n distinct entries in sorted order, so the
 // reported set does not depend on where the offenders appear.
 //
@@ -468,11 +598,6 @@ func specFindings(body string, clauses []string) []string {
 
 	if shallRe.MatchString(body) {
 		out = append(out, "spec notation: SHALL found — grade with BCP 14 modals instead (MUST / SHOULD / MAY)")
-	}
-
-	if n := strings.Count(strings.TrimSpace(body), "\n") + 1; n > templates.MaxSpecBodyLines {
-		out = append(out, fmt.Sprintf("spec body is %d lines (cap %d) — a spec that long is describing, not specifying",
-			n, templates.MaxSpecBodyLines))
 	}
 
 	if passives := findPassiveHits(clauses); len(passives) > 0 {
@@ -606,9 +731,6 @@ func sectionNameMatches(heading, name string) bool {
 func collectItems(lines []string, match func(heading string) bool) []string {
 	var out []string
 	var parts []string
-	inScope := match == nil
-	inFence := false
-	paired := fenceCount(lines)%2 == 0
 
 	flush := func() {
 		if len(parts) > 0 {
@@ -617,9 +739,33 @@ func collectItems(lines []string, match func(heading string) bool) []string {
 		}
 	}
 
+	walkSection(lines, match, func(line string, boundary bool) {
+		switch {
+		case boundary, strings.TrimSpace(line) == "":
+			flush()
+		case numberedLineRe.MatchString(line):
+			flush()
+			parts = append(parts, strings.TrimSpace(line))
+		case len(parts) > 0:
+			parts = append(parts, strings.TrimSpace(line))
+		}
+	})
+	flush()
+	return out
+}
+
+// walkSection visits every line inside the sections match accepts, outside
+// fenced blocks; a nil match accepts the whole body. A fence, a heading, or a
+// deeper heading is reported as a boundary with no line, so a caller joining
+// wrapped items can close the item it is building.
+func walkSection(lines []string, match func(heading string) bool, visit func(line string, boundary bool)) {
+	inScope := match == nil
+	inFence := false
+	paired := fenceCount(lines)%2 == 0
+
 	for _, line := range lines {
 		if paired && isFence(line) {
-			flush()
+			visit("", true)
 			inFence = !inFence
 			continue
 		}
@@ -627,7 +773,7 @@ func collectItems(lines []string, match func(heading string) bool) []string {
 			continue
 		}
 		if heading, ok := headingText(line); ok {
-			flush()
+			visit("", true)
 			if match != nil {
 				inScope = match(heading)
 			}
@@ -637,24 +783,13 @@ func collectItems(lines []string, match func(heading string) bool) []string {
 		// part of the item above it either: folded in, "### Error handling" and
 		// the prose under it were charged to the last clause's word budget.
 		if strings.HasPrefix(strings.TrimLeft(line, " \t"), "#") {
-			flush()
+			visit("", true)
 			continue
 		}
-		if !inScope {
-			continue
-		}
-		switch {
-		case numberedLineRe.MatchString(line):
-			flush()
-			parts = append(parts, strings.TrimSpace(line))
-		case strings.TrimSpace(line) == "":
-			flush()
-		case len(parts) > 0:
-			parts = append(parts, strings.TrimSpace(line))
+		if inScope {
+			visit(line, false)
 		}
 	}
-	flush()
-	return out
 }
 
 // isFence reports whether the line opens or closes a fenced block.
@@ -716,6 +851,27 @@ func sectionItems(lines []string, rules []templates.SectionRule) []string {
 // numberedItems returns every numbered item of the body, wherever it sits.
 func numberedItems(lines []string) []string {
 	return collectItems(lines, nil)
+}
+
+// observationItems returns the Given/When/Then lines of the named sections,
+// each one a step, so an example is measured by the word cap and the modal
+// check its numbered siblings already meet.
+func observationItems(lines []string, rules []templates.SectionRule) []string {
+	if len(rules) == 0 {
+		return nil
+	}
+	var out []string
+	inRules := func(heading string) bool {
+		return slices.ContainsFunc(rules, func(rule templates.SectionRule) bool {
+			return ruleMatches(heading, rule)
+		})
+	}
+	walkSection(lines, inRules, func(line string, boundary bool) {
+		if !boundary && observationLineRe.MatchString(line) {
+			out = append(out, strings.TrimSpace(line))
+		}
+	})
+	return out
 }
 
 // sectionBody returns the text under the first heading matching the rule, up to

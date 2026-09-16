@@ -237,3 +237,37 @@ func TestCodeAlignment_ExcludesResearchVocabulary(t *testing.T) {
 		})
 	}
 }
+
+// TestCodeAlignment_ScenarioRankedBetweenSpecAndGuide pins
+// scenario-and-journey-advisory-canon.spec §15: a scenario reaches the edit
+// through its Anchors line, below the spec it illustrates and above a guide.
+func TestCodeAlignment_ScenarioRankedBetweenSpecAndGuide(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	writeAlignmentDoc(t, base, "knowledge/a.guide.md", "Some Guide", "Working in src/api/.")
+	writeAlignmentDoc(t, base, "knowledge/b.scenario.md", "Some Scenario", "Anchors: src/api/handlers.go")
+	writeAlignmentDoc(t, base, "knowledge/c.spec.md", "Some Spec", "Working in src/api/.")
+
+	got := CodeAlignment(base, "src/api/handlers.go")
+
+	spec := strings.Index(got, "Some Spec")
+	scenario := strings.Index(got, "Some Scenario")
+	guide := strings.Index(got, "Some Guide")
+	if spec < 0 || scenario < 0 || guide < 0 {
+		t.Fatalf("expected all three documents:\n%s", got)
+	}
+	if !(spec < scenario && scenario < guide) {
+		t.Errorf("order is not spec, scenario, guide:\n%s", got)
+	}
+}
+
+func TestCodeAlignment_ExcludesJourney(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	writeAlignmentDoc(t, base, "path.journey.md", "Path", "Applies to src/api/ handlers.")
+	writeAlignmentDoc(t, base, "local.rule.md", "Local API Rule", "Applies to src/api/ handlers.")
+	got := CodeAlignment(base, "src/api/handlers.go")
+	if !strings.Contains(got, "local.rule.md") || strings.Contains(got, "path.journey.md") {
+		t.Errorf("CodeAlignment = %q; want local rule only", got)
+	}
+}

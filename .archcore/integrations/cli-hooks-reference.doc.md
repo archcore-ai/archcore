@@ -100,9 +100,10 @@ one-second host budget.
 Code-alignment behavior: source roots default to `src`, `lib`, `app`, `pkg`, `cmd`, `internal`,
 `apps`, `packages`, `modules`, `components`, and `codeAlignment.sourceRoots` in `settings.json`
 replaces that list. A declared root is normalized on load (`./src`, `src/`, and `src` are one root),
-so a root that validates also matches. Only `rule`, `cpat`, `adr`, `spec`, and `guide` documents are
-injected, ranked in that order; at most 3 documents and 2048 runes reach the host. A matching global
-source is included and marked `[global]`. `ARCHCORE_DISABLE_INJECTION=1` turns the injection off.
+so a root that validates also matches. Only `rule`, `cpat`, `adr`, `spec`, `scenario`, and `guide`
+documents are injected, ranked in that order; at most 3 documents and 2048 runes reach the host. A
+matching global source is included and marked `[global]`. `ARCHCORE_DISABLE_INJECTION=1` turns the
+injection off.
 
 Staleness behavior: the advisory compares the last commit that touched `.archcore/` against the
 commits since, names documents that mention the changed directories, and is rate-limited to once per

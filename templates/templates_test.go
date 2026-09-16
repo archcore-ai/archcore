@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -1225,5 +1226,90 @@ func TestResearchVocabulary_Templates(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestActorSubjectVocabulary_Templates(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		typ      DocumentType
+		category Category
+		sections []string
+		wantLine string
+	}{
+		{name: "journey", typ: TypeJourney, category: CategoryVision, sections: []string{"Intent", "Actors", "Journeys", "Open Questions"}, wantLine: "In order to [GOAL REQUIRED]\nAs a [ACTOR REQUIRED]\nI want [OUTCOME REQUIRED]\n"},
+		{name: "scenario", typ: TypeScenario, category: CategoryKnowledge, sections: []string{"Subject", "Actors", "Flows", "Examples", "Open Questions"}, wantLine: "Anchors: @path/to/code, @path/to/test\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if !IsValidType(string(tt.typ)) || CategoryForType(tt.typ) != tt.category {
+				t.Fatalf("category for %s = %s, want %s", tt.name, CategoryForType(tt.typ), tt.category)
+			}
+			body := GenerateTemplate(tt.typ)
+			var headings []string
+			for line := range strings.Lines(body) {
+				if heading, ok := strings.CutPrefix(line, "## "); ok {
+					headings = append(headings, strings.TrimSpace(heading))
+				}
+			}
+			if !reflect.DeepEqual(headings, tt.sections) {
+				t.Errorf("sections = %v, want %v", headings, tt.sections)
+			}
+			var required []string
+			for _, section := range RequiredSections[tt.typ] {
+				required = append(required, section.Name)
+			}
+			if !reflect.DeepEqual(required, tt.sections) || ProseProfiles[tt.typ] != ProfileISO {
+				t.Errorf("precision canon = %v / %s", required, ProseProfiles[tt.typ])
+			}
+			if !strings.Contains(body, tt.wantLine) {
+				t.Errorf("template lacks %q:\n%s", tt.wantLine, body)
+			}
+			if !strings.Contains(body, "| Actor | Who they are | What they want |") {
+				t.Errorf("template lacks the Actors table header:\n%s", body)
+			}
+			stepRe := regexp.MustCompile(`^[0-9]+\. `)
+			steps := 0
+			for line := range strings.Lines(body) {
+				number := stepRe.FindString(line)
+				if number == "" {
+					continue
+				}
+				steps++
+				if !strings.HasPrefix(line, number+"[ACTOR REQUIRED]") {
+					t.Errorf("step does not open with the actor: %q", line)
+				}
+				for _, modal := range []string{"MUST", "SHOULD", "MAY"} {
+					if strings.Contains(line, modal) {
+						t.Errorf("step carries the modal %s: %q", modal, line)
+					}
+				}
+			}
+			if steps < 2 {
+				t.Errorf("template holds %d numbered steps, want at least 2", steps)
+			}
+			if tt.typ == TypeScenario {
+				for _, want := range []string{"Illustrates: clause [N REQUIRED]\n", "Given [ACTOR REQUIRED]", "When [ACTOR REQUIRED]", "Then [ACTOR REQUIRED]"} {
+					if !strings.Contains(body, want) {
+						t.Errorf("template lacks %q", want)
+					}
+				}
+				if strings.Contains(body, "```") {
+					t.Error("examples are fenced; the checker measures unfenced Given/When/Then lines only")
+				}
+			}
+		})
+	}
+	if got := len(ValidTypes()); got != 23 {
+		t.Errorf("registry holds %d types, want 23", got)
+	}
+	counts := map[Category]int{}
+	for _, category := range categoryMap {
+		counts[category]++
+	}
+	if counts[CategoryVision] != 13 || counts[CategoryKnowledge] != 8 || counts[CategoryExperience] != 2 {
+		t.Errorf("category counts = %v, want vision 13, knowledge 8, experience 2", counts)
 	}
 }

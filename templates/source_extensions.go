@@ -23,10 +23,13 @@ var sourceExtensions = map[string]bool{
 	".php":  true,
 	".sh":   true,
 	".sql":  true,
-	".md":   true,
-	".yaml": true,
-	".yml":  true,
-	".json": true,
+	// A Gherkin feature file is the executable half of a scenario, cited from a
+	// spec's Conformance or a scenario's Anchors line — scenario-and-journey-types.spec §14.
+	".feature": true,
+	".md":      true,
+	".yaml":    true,
+	".yml":     true,
+	".json":    true,
 }
 
 // IsSourceExtension reports whether ext is in the curated source-file

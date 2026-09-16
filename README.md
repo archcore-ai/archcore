@@ -103,7 +103,7 @@ claude mcp add --transport stdio archcore -- archcore mcp   # or add the server 
     └── notifications-implementation.plan.md
 ```
 
-The structure is free-form — organize by domain, feature, or team. A document's type lives in its filename (`slug.type.md`): 21 types across three layers — knowledge (ADRs, rules, specs, guides), vision (PRDs, plans, ideas, requirements tracks), and experience (incident patterns, recurring tasks). This repo's own [`.archcore/`](https://github.com/archcore-ai/cli/tree/main/.archcore) is a working example.
+The structure is free-form — organize by domain, feature, or team. A document's type lives in its filename (`slug.type.md`): 23 types across three layers — knowledge (ADRs, rules, specs, guides), vision (PRDs, plans, ideas, requirements tracks), and experience (incident patterns, recurring tasks). This repo's own [`.archcore/`](https://github.com/archcore-ai/cli/tree/main/.archcore) is a working example.
 
 ## Ask your agent
 
@@ -133,10 +133,10 @@ Creates `incidents/connection-pool-exhaustion.cpat.md` with root-cause analysis 
 
 ## Reference
 
-What ships in the box: **21 document types**, **7 relation types**, **10 MCP tools**, hook integrations for 4 agents and MCP integrations for 8.
+What ships in the box: **23 document types**, **7 relation types**, **10 MCP tools**, hook integrations for 4 agents and MCP integrations for 8.
 
 <details>
-<summary><strong>Document types</strong> — 21 types across vision, knowledge, and experience</summary>
+<summary><strong>Document types</strong> — 23 types across vision, knowledge, and experience</summary>
 
 ### Knowledge
 
@@ -149,6 +149,7 @@ What ships in the box: **21 document types**, **7 relation types**, **10 MCP too
 | `doc`   | Document                     | Reference documentation, registries, and descriptive material                        |
 | `spec`  | Specification                | Normative behavior contract for a boundary or feature/subsystem others rely on       |
 | `evidence` | Evidence | One external material with its locator, extract, and interpretation notes |
+| `scenario` | Scenario | Actor-subject flows and Given/When/Then examples that illustrate the clauses of one spec |
 
 ### Vision
 
@@ -158,6 +159,7 @@ What ships in the box: **21 document types**, **7 relation types**, **10 MCP too
 | `idea` | Idea                          | Lightweight capture of a product or technical idea for future exploration |
 | `plan` | Plan                          | Phased task list with acceptance criteria and dependencies                |
 | `rnd`  | Research                      | Time-boxed investigation that answers a question blocking a decision      |
+| `journey` | Journey | Intended path of one user type through the system, before a spec covering this interaction exists |
 | `research` | Research | Territory investigation with scope, coverage, dated sources, findings, and open gaps |
 
 Two additional requirements tracks for teams that need structured discovery or formal decomposition:

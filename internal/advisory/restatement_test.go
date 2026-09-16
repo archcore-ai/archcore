@@ -219,3 +219,24 @@ func TestRestatementMissingUpstreamIsSilent(t *testing.T) {
 		t.Errorf("Restatement() = %q for an unreadable upstream, want no findings", got)
 	}
 }
+
+// TestRestatementReadsScenarioImplementsJourney pins
+// scenario-and-journey-advisory-canon.spec constraint 3: a scenario that keeps
+// its journey's flow word for word is reported through the implements edge.
+func TestRestatementReadsScenarioImplementsJourney(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	writeArchcoreDoc(t, base, "path.journey.md", numberedDoc(copiedLine))
+	writeArchcoreDoc(t, base, "refund.scenario.md", numberedDoc(copiedLine))
+	writeManifest(t, base, archsync.Relation{
+		Source: "refund.scenario.md", Target: "path.journey.md", Type: archsync.RelImplements,
+	})
+
+	got := Restatement(base, ".archcore/refund.scenario.md", bodyOf(t, base, "refund.scenario.md"))
+	if len(got) == 0 {
+		t.Fatal("Restatement() = no findings for a scenario restating its journey")
+	}
+	if !strings.Contains(got[0], ".archcore/path.journey.md") {
+		t.Errorf("finding %q does not name the journey", got[0])
+	}
+}

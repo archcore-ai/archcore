@@ -159,13 +159,19 @@ stdout carries the host protocol and nothing may print to it. See `@cmd/status_r
    types list and the "WHEN TO CREATE" block)
 7. If the type has required sections, add them to `RequiredSections` in `@templates/precision.go`, so
    the post-write precision check measures against the same contract
+8. Give the type a row in `ProseProfiles` — `TestProseProfiles_Completeness` fails otherwise — and, when
+   it carries numbered steps, a body cap, or headings another type owns, rows in `StepSections`,
+   `MaxBodyLines`, and `ForeignSections` in the same file
+9. Extend the type descriptions in `@internal/mcp/tools/create_document.go` and
+   `@internal/mcp/tools/list_documents.go`, and decide the injection rank in
+   `@internal/advisory/code_alignment.go` — a type absent from that map is never injected
 
 Document types map to virtual categories:
 
 | Category | Types |
 |----------|-------|
-| `knowledge` | adr, rfc, rule, guide, doc, spec, evidence |
-| `vision` | prd, idea, plan, rnd, mrd, brd, urd, brs, strs, syrs, srs, research |
+| `knowledge` | adr, rfc, rule, guide, doc, spec, evidence, scenario |
+| `vision` | prd, idea, plan, rnd, mrd, brd, urd, brs, strs, syrs, srs, research, journey |
 | `experience` | task-type, cpat |
 
 Files follow the naming convention: `<slug>.<type>.md` (e.g., `use-postgres.adr.md`). The directory

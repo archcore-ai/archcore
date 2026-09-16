@@ -22,7 +22,7 @@ This file is the CLI repository's entry point to the Archcore document-type mode
 
 ## Research vocabulary in the CLI
 
-The current implementation registers 21 document types, comprising 12 vision, seven knowledge, and two experience types — @templates/templates.go. The registry implements the accepted category revision. Release publication and plugin routing remain separate handoff steps.
+The current implementation registers 23 document types, comprising 13 vision, eight knowledge, and two experience types — @templates/templates.go. Release v0.8.3 shipped 21; the two actor-subject types below are in the working tree and unreleased. The registry implements the accepted category revision. Release publication and plugin routing remain separate handoff steps.
 
 | Type | Category | Stored subject |
 |---|---|---|
@@ -31,3 +31,14 @@ The current implementation registers 21 document types, comprising 12 vision, se
 | `rnd` | `vision` | Decision-bound investigation closed by a recommendation |
 
 The required sections and ISO profile for the two new types live in @templates/precision.go. The Archcore MCP server explains their status and source-tag conventions in @internal/mcp/server.go.
+
+## Actor-subject vocabulary in the CLI
+
+The pair follows `concepts/scenario-and-journey-types` in the `archcore` global source, still `draft` there. Both take the actor as the subject of every step and carry no modal; the rules stay in the `spec`.
+
+| Type | Category | Stored subject |
+|---|---|---|
+| `scenario` | `knowledge` | Realized actor flows and Given/When/Then examples illustrating one linked `spec` |
+| `journey` | `vision` | Intended path of one user type before a `spec` covering that interaction exists |
+
+The routing test between the pair is whether a `spec` covering the interaction exists, not whether the project holds any `spec`. The precision canon, the body cap table, and the injection rank live in @templates/precision.go and @internal/advisory/code_alignment.go; the two local specs under `document-types/` state the contracts.

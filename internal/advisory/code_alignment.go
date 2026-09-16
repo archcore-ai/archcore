@@ -18,7 +18,7 @@ import (
 // finds the documents that mention the file's directory and puts the most
 // specific ones in front of the edit.
 //
-// Cost is bounded by the accept-list, not by corpus size: only the five ranked
+// Cost is bounded by the accept-list, not by corpus size: only the six ranked
 // types are ever opened, so the walk rejects roughly three quarters of the
 // corpus before reading anything. Removing that filter puts the whole corpus
 // back on a path that blocks the user's edit.
@@ -44,11 +44,12 @@ const (
 // A type absent from this map is not injected at all — a plan or an idea is
 // context for a discussion, not a constraint on a line of code.
 var alignmentTypePriority = map[templates.DocumentType]int{
-	templates.TypeRule:  5,
-	templates.TypeCPAT:  4,
-	templates.TypeADR:   3,
-	templates.TypeSpec:  2,
-	templates.TypeGuide: 1,
+	templates.TypeRule:     6,
+	templates.TypeCPAT:     5,
+	templates.TypeADR:      4,
+	templates.TypeSpec:     3,
+	templates.TypeScenario: 2,
+	templates.TypeGuide:    1,
 }
 
 // alignmentTypes is the accept-set the scan filters on, derived from the ranking
@@ -166,7 +167,7 @@ type alignmentMatch struct {
 
 // rankAlignmentMatches finds and ranks the documents that mention any token.
 func rankAlignmentMatches(baseDir string, tokens []string) []alignmentMatch {
-	// Only five of the ~18 document types are ever injected, and the type comes
+	// Only six of the 23 document types are ever injected, and the type comes
 	// from the filename — so the walk rejects roughly three quarters of the
 	// corpus before opening anything. This runs before every source edit, inside
 	// a one-second host budget, so the documents that cannot matter must not be
