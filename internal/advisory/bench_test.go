@@ -5,6 +5,7 @@ import (
 
 	"archcore-cli/internal/docs"
 	"archcore-cli/internal/testsupport"
+	"archcore-cli/templates"
 )
 
 // Benchmarks for the two advisory paths that run inside a host budget.
@@ -57,4 +58,38 @@ func sizeName(n int) string {
 		return string(rune('0'+n/1000)) + "000docs"
 	}
 	return string(rune('0'+n/100)) + "00docs"
+}
+
+// TestBuildCorpus_SpansBothHalvesOfTheAllowlist pins what the benchmark
+// measures: a corpus that misses a ranked type, or holds only ranked types,
+// measures a different filter than the one every source edit runs through.
+// The corpus is read back from disk, not from a second list.
+func TestBuildCorpus_SpansBothHalvesOfTheAllowlist(t *testing.T) {
+	t.Parallel()
+	base := benchCorpus(t, 40)
+	corpus, err := docs.ScanLocal(base, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(corpus) == 0 {
+		t.Fatal("the corpus holds no documents, so this test proves nothing")
+	}
+	present := make(map[templates.DocumentType]bool, len(corpus))
+	for _, doc := range corpus {
+		present[doc.Type] = true
+	}
+	for typ := range alignmentTypePriority {
+		if !present[typ] {
+			t.Errorf("corpus has no %s: the benchmark never opens a document of a ranked type", typ)
+		}
+	}
+	unranked := 0
+	for typ := range present {
+		if _, ranked := alignmentTypePriority[typ]; !ranked {
+			unranked++
+		}
+	}
+	if unranked == 0 {
+		t.Error("corpus holds only ranked types: the benchmark never rejects a document by type")
+	}
 }

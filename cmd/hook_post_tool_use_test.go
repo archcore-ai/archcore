@@ -150,3 +150,19 @@ func TestValidationAdvisory_SilentWhenClean(t *testing.T) {
 		t.Errorf("validationAdvisory = %q, want empty on a clean base", got)
 	}
 }
+
+// TestCascadeAdvisory_ScenarioDependsOnSpec pins
+// scenario-and-journey-advisory-canon.spec constraint 2: a spec edit reaches the
+// scenario that illustrates it through the unchanged depends_on cascade.
+func TestCascadeAdvisory_ScenarioDependsOnSpec(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	writeArchcoreDoc(t, base, ".sync-state.json",
+		`{"version":1,"files":{},"relations":[{"source":"refund.scenario.md","target":"refund.spec.md","type":"depends_on"}]}`)
+
+	got := cascadeAdvisory(base, "mcp__archcore__update_document", ".archcore/refund.spec.md")
+
+	if !strings.Contains(got, "refund.scenario.md") {
+		t.Errorf("cascade does not reach the scenario:\n%s", got)
+	}
+}

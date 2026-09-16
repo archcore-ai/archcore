@@ -19,8 +19,7 @@ Anyone adding a registry, a matcher over one, or a test that needs to reach insi
 
 ## Prerequisites
 
-- Read `unit-testing-patterns.guide.md` for table-driven structure, `t.TempDir()` use, and the
-  stdout-capture rules.
+- Read `unit-testing-patterns.guide.md` for table-driven structure and `t.TempDir()` use.
 - Know which package owns the set you are about to duplicate.
 
 ## Steps

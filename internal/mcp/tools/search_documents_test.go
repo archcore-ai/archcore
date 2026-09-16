@@ -1088,3 +1088,43 @@ func TestHandleSearchDocuments_ResearchDefaultPriority(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleSearchDocuments_ActorSubjectDefaultPriority(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	for _, name := range []string{"a.scenario.md", "b.journey.md", "z.task-type.md"} {
+		writeDoc(t, base, "", name, "---\ntitle: Match\nstatus: draft\n---\n\nmatch")
+		setMtime(t, base, ".archcore/"+name, time.Unix(1700000000, 0))
+	}
+	result, err := callTool(HandleSearchDocuments(StaticRoot(base)), map[string]any{"content": "match"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hits := unmarshalSearch(t, result)
+	want := []string{".archcore/z.task-type.md", ".archcore/a.scenario.md", ".archcore/b.journey.md"}
+	if len(hits) != len(want) {
+		t.Fatalf("hits = %v", hits)
+	}
+	for i, path := range want {
+		if hits[i].Path != path {
+			t.Errorf("rank %d = %s, want %s", i, hits[i].Path, path)
+		}
+	}
+}
+
+func TestHandleSearchDocuments_FeatureFileIsAPathReference(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "", "refund.scenario.md", "---\ntitle: Refund\nstatus: draft\n---\n\nAnchors: features/refund.feature")
+	result, err := callTool(HandleSearchDocuments(StaticRoot(base)), map[string]any{"path_ref": "features/refund.feature"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hits := unmarshalSearch(t, result)
+	if len(hits) != 1 || hits[0].Path != ".archcore/refund.scenario.md" {
+		t.Fatalf("hits = %v, want the refund scenario", hits)
+	}
+	if len(hits[0].Matches) != 1 || hits[0].Matches[0].Kind != matchKindMention {
+		t.Errorf("matches = %+v, want one bare mention", hits[0].Matches)
+	}
+}

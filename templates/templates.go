@@ -29,6 +29,8 @@ const (
 	TypeSpec     DocumentType = "spec"
 	TypeResearch DocumentType = "research"
 	TypeEvidence DocumentType = "evidence"
+	TypeScenario DocumentType = "scenario"
+	TypeJourney  DocumentType = "journey"
 	TypeMRD      DocumentType = "mrd"
 	TypeBRD      DocumentType = "brd"
 	TypeURD      DocumentType = "urd"
@@ -115,6 +117,7 @@ var categoryMap = map[DocumentType]Category{
 	TypePlan:     CategoryVision,
 	TypeRnD:      CategoryVision,
 	TypeResearch: CategoryVision,
+	TypeJourney:  CategoryVision,
 	TypeMRD:      CategoryVision,
 	TypeBRD:      CategoryVision,
 	TypeURD:      CategoryVision,
@@ -130,6 +133,7 @@ var categoryMap = map[DocumentType]Category{
 	TypeDoc:      CategoryKnowledge,
 	TypeSpec:     CategoryKnowledge,
 	TypeEvidence: CategoryKnowledge,
+	TypeScenario: CategoryKnowledge,
 
 	TypeTaskType: CategoryExperience,
 	TypeCPAT:     CategoryExperience,
@@ -154,12 +158,14 @@ func ValidTypes() []string {
 		string(TypeSpec),
 		string(TypeResearch),
 		string(TypeEvidence),
+		string(TypeScenario),
 		string(TypeTaskType),
 		string(TypeCPAT),
 		string(TypePRD),
 		string(TypeIdea),
 		string(TypePlan),
 		string(TypeRnD),
+		string(TypeJourney),
 		string(TypeMRD),
 		string(TypeBRD),
 		string(TypeURD),
@@ -326,6 +332,10 @@ func GenerateTemplate(documentType DocumentType) string {
 		return generateResearchTemplate()
 	case TypeEvidence:
 		return generateEvidenceTemplate()
+	case TypeScenario:
+		return generateScenarioTemplate()
+	case TypeJourney:
+		return generateJourneyTemplate()
 	case TypeTaskType:
 		return generateTaskTypeTemplate()
 	case TypeCPAT:
@@ -1030,6 +1040,97 @@ Record the extract from this one material that the relying document uses.
 ## Notes
 
 State the material's limitations and the context needed to interpret the extract.
+`
+}
+
+func generateJourneyTemplate() string {
+	return `## Intent
+
+In order to [GOAL REQUIRED]
+As a [ACTOR REQUIRED]
+I want [OUTCOME REQUIRED]
+
+Describe in 2-3 sentences the interaction the team wants, before a spec covering it exists.
+No data, no UI mechanics: the actor's words only.
+
+## Actors
+
+| Actor | Who they are | What they want |
+|---|---|---|
+| [ACTOR REQUIRED] | [DESCRIPTION REQUIRED] | [GOAL REQUIRED] |
+
+## Journeys
+
+One subsection per actor. Every step names the actor as its subject and carries no modal.
+
+### [ACTOR REQUIRED]
+
+1. [ACTOR REQUIRED] [does the first thing, in the actor's own words].
+2. [ACTOR REQUIRED] [does the next thing].
+
+Extensions:
+
+- [Alternative path or outcome, in the actor's words.]
+
+## Open Questions
+
+- [What the team does not know yet.]
+`
+}
+
+func generateScenarioTemplate() string {
+	return `## Subject
+
+[SYSTEM REQUIRED] — the system this document illustrates.
+
+Illustrates: clauses [CLAUSES REQUIRED] of the linked spec. Link the spec with a
+depends_on relation; name clauses by number here, never by path.
+
+Depended on by: [who relies on the illustration].
+
+## Actors
+
+| Actor | Who they are | What they want |
+|---|---|---|
+| [ACTOR REQUIRED] | [DESCRIPTION REQUIRED] | [GOAL REQUIRED] |
+
+## Flows
+
+One subsection per actor. An Anchors line cites the code and test files the flow walks.
+Every step names the actor as its subject, then the observable response, and carries no modal.
+
+### [ACTOR REQUIRED]
+
+Anchors: @path/to/code, @path/to/test
+
+1. [ACTOR REQUIRED] [does one thing]; the system [shows one observable response].
+2. [ACTOR REQUIRED] [does the next thing]; the system [responds].
+
+Extensions:
+
+- [Alternative or failure path: what the actor does and what the system shows.]
+
+## Examples
+
+Background:
+
+Given [context shared by every example, past tense]
+
+### [What is special about this example]
+
+Illustrates: clause [N REQUIRED]
+
+Given [ACTOR REQUIRED] [had done something, past tense]
+When [ACTOR REQUIRED] [does one action]
+Then [ACTOR REQUIRED] sees [the observable outcome]
+
+| case | input | outcome | notes |
+|---|---|---|---|
+| [CASE REQUIRED] | [INPUT REQUIRED] | [OUTCOME REQUIRED] | [NOTE] |
+
+## Open Questions
+
+- [What the team does not know yet.]
 `
 }
 

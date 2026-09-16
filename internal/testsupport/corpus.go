@@ -12,8 +12,8 @@ import (
 // allowlist, so a benchmark over a corpus built here measures the filter rather
 // than a corpus that happens to be all one type.
 var corpusTypes = []string{
-	"rule", "cpat", "adr", "spec", "guide", // ranked by code alignment
-	"plan", "idea", "doc", "rfc", "prd", "rnd", "task-type", // not ranked
+	"rule", "cpat", "adr", "spec", "scenario", "guide", // ranked by code alignment
+	"plan", "idea", "doc", "rfc", "prd", "rnd", "task-type", "journey", // not ranked
 }
 
 // bodyTarget keeps a generated body large enough that reading and parsing it is

@@ -16,7 +16,7 @@ The layout model itself — the filename contract, the slug pattern, what a dire
 1. The author MAY create any directory structure inside `.archcore/` and MAY nest directories to any depth.
 2. The author MUST name every document file `slug.type.md`.
 3. The author MUST write the slug in lowercase alphanumeric characters and hyphens only. Examples: `use-postgres`, `login-flow`.
-4. The author MUST use an accepted document type as the type segment. The accepted vocabulary is owned by `concepts/core-concepts` in the `archcore` global source; this rule does not restate the list. What this binary recognizes is the registry in `@templates/templates.go`, which is 21 types as of v0.8.3.
+4. The author MUST use an accepted document type as the type segment. The accepted vocabulary is owned by `concepts/core-concepts` in the `archcore` global source; this rule does not restate the list. What this binary recognizes is the registry in `@templates/templates.go`, which is 23 types in the working tree after the scenario and journey change; v0.8.3 shipped 21.
 5. The author MUST use the `.md` extension.
 6. The CLI and the MCP server MUST derive the category (`vision`, `knowledge`, `experience`) from the document type, never from the directory path.
 7. WHEN a scan reaches a hidden directory (a `.`-prefixed directory such as `.git/`), the scanner MUST skip it.

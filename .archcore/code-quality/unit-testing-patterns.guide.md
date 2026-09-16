@@ -170,7 +170,8 @@ func TestMain(m *testing.M) {
 }
 ```
 
-Seven packages do this today. The full procedure, the incident behind it, and how to guard the guard
+Six packages arm both today; `internal/advisory`, `internal/config`, and `internal/git` arm
+`IsolateGit` alone. The full procedure, the incident behind it, and how to guard the guard
 are in `isolating-the-machine-from-the-test-suite.guide`.
 
 ### 6. HTTP Testing
@@ -309,7 +310,7 @@ func buildTestArchive(t *testing.T, files map[string][]byte) []byte {
 A benchmark over a document corpus builds it with `testsupport.BuildCorpus(tb, dir, n)`.
 
 Do not hand-roll a corpus of one document type. `corpusTypes` in @internal/testsupport/corpus.go spans
-both halves of the code-alignment allowlist — the five ranked types and the seven ignored ones — so a
+both halves of the code-alignment allowlist — the six ranked types and the eight ignored ones — so a
 benchmark measures the filter rather than a corpus that happens to be all one type. Every generated
 body mentions `src/api/`, so code-alignment correlation has something to match.
 
@@ -345,7 +346,7 @@ TestHandleCreateDocument_DuplicatePrevented — tool + edge case
 
 **Property-pinning files.** A test file that pins normative properties rather than coverage is named
 `<subject>_spec_test.go` and carries a doc comment listing them —
-`strict-go-naming-conventions.rule` §I. Seven such files exist; use one when the thing under test is a
+`strict-go-naming-conventions.rule` §I. Nine such files exist; use one when the thing under test is a
 contract another document states, not an implementation detail.
 
 ## Verification

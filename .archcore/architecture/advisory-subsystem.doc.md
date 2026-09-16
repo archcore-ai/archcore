@@ -42,12 +42,13 @@ ones in front of the edit — @internal/advisory/code_alignment.go.
 A file outside every source root gets no injection. `config.CodeAlignment` preserves unknown nested
 keys in `Extra`, so a newer binary's settings survive a write by an older one.
 
-Only five document types are ever injected, ranked by how much they constrain an edit — `rule` 5,
-`cpat` 4, `adr` 3, `spec` 2, `guide` 1. A type absent from that map is not injected: a `plan` or an
+Only six document types are ever injected, ranked by how much they constrain an edit — `rule` 6,
+`cpat` 5, `adr` 4, `spec` 3, `scenario` 2, `guide` 1. A `scenario` reaches an edit through the
+`Anchors:` line of its flows, below the `spec` it illustrates. A type absent from that map is not injected: a `plan` or an
 `idea` is context for a discussion, not a constraint on a line of code. The accept-set is derived from
 the ranking, so the allowlist has one definition.
 
-The filter is a cost control, not a preference. `docs.ScanTypes` opens only the five ranked types, so
+The filter is a cost control, not a preference. `docs.ScanTypes` opens only the six ranked types, so
 the walk rejects roughly three quarters of the corpus before reading anything, on a path that blocks
 the user's edit under a one-second host budget.
 

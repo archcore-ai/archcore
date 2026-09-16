@@ -101,7 +101,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 - **MUST**: When a file is keyed to a slug-valued enum (e.g., `AgentID = "claude-code"`), the file basename mirrors the slug with `-` replaced by `_`. The triple `AgentID = "claude-code"` ↔ file `claude_code.go` ↔ identifier `ClaudeCode` MUST align.
 - **MUST**: Tests live alongside source as `<basename>_test.go`. No separate `tests/` directories inside Go packages.
 - **MUST**: A file carrying a `//go:build` platform constraint is named `<subject>_<constraint>.go`. See `platform-splits-are-files.rule`.
-- **MAY**: A test file that pins normative properties rather than coverage is named `<subject>_spec_test.go` and carries a doc comment listing them before the first declaration. Placement before `package` is preferred but not required; four of the seven spec files put it after.
+- **MAY**: A test file that pins normative properties rather than coverage is named `<subject>_spec_test.go` and carries a doc comment listing them before the first declaration. Placement before `package` is preferred but not required; five of the nine spec files put it after.
 
 ### J. Error names and messages
 

@@ -1677,6 +1677,76 @@
       "source": "document-types/research-and-evidence-vocabulary.plan.md",
       "target": "release/release-infrastructure.doc.md",
       "type": "depends_on"
+    },
+    {
+      "source": "document-types/scenario-and-journey-types.spec.md",
+      "target": "document-types/scenario-and-journey-vocabulary.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/scenario-and-journey-advisory-canon.spec.md",
+      "target": "document-types/scenario-and-journey-vocabulary.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/scenario-and-journey-advisory-canon.spec.md",
+      "target": "document-types/scenario-and-journey-types.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "target": "document-types/scenario-and-journey-types.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "target": "document-types/scenario-and-journey-advisory-canon.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "target": "document-types/research-and-evidence-vocabulary.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/scenario-and-journey-types.spec.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/scenario-and-journey-advisory-canon.spec.md",
+      "target": "document-types/prd-spec-plan-content-ownership.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/scenario-and-journey-advisory-canon.spec.md",
+      "target": "architecture/advisory-subsystem.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/add-a-document-type.task-type.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/add-a-document-type.task-type.md",
+      "target": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/add-a-document-type.task-type.md",
+      "target": "document-types/research-and-evidence-vocabulary.plan.md",
+      "type": "related"
     }
   ]
 }

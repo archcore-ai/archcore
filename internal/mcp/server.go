@@ -36,8 +36,8 @@ Example structures:
   .archcore/my-doc.rule.md                   → virtual category: knowledge (root level)
 
 Document types and their virtual categories:
-  knowledge: adr (decisions), rfc (proposals), rule (standards), guide (how-tos), doc (reference), spec (contracts), evidence (external materials)
-  vision:    prd (requirements), idea (concepts), plan (action plans), rnd (decision-bound research), research (territory investigations), mrd (market requirements), brd (business requirements), urd (user requirements), brs (business req spec), strs (stakeholder req spec), syrs (system req spec), srs (software req spec)
+  knowledge: adr (decisions), rfc (proposals), rule (standards), guide (how-tos), doc (reference), spec (contracts), evidence (external materials), scenario (actor-subject flows and examples illustrating a spec)
+  vision:    prd (requirements), idea (concepts), plan (action plans), rnd (decision-bound research), research (territory investigations), journey (intended user path before a spec covering it exists), mrd (market requirements), brd (business requirements), urd (user requirements), brs (business req spec), strs (stakeholder req spec), syrs (system req spec), srs (software req spec)
   experience: task-type (typical task patterns), cpat (code pattern changes)
 
 DOCUMENT RELATIONS:
@@ -56,6 +56,7 @@ Documents can be linked with directed relations stored in the sync manifest.
   Use add_relation to link related documents. Use list_relations to see existing links.
   Research (rnd) conventions (advisory): idea related rnd; prd/plan/adr depends_on rnd; rfc extends rnd; rnd related rnd. Do not use "implements" for rnd.
   The research type takes neither implements nor extends by convention; use rnd depends_on research.
+  Actor-subject conventions (advisory): scenario depends_on spec (one scenario illustrates one spec; a spec edit then reaches its scenarios); scenario implements journey; journey related prd; journey related idea; scenario related scenario between the parts of a split by actor. No edge runs from spec to scenario. A plan task or backlog item is a tag, never an edge.
   The engine accepts relation values independently of document type or category. Endpoints must be distinct existing local documents; global sources are never endpoints.
   New evidential and temporal relations do not trigger cascades, move content, change statuses, or resolve contradictions.
   Keep a contradicts edge until the disputed document names both materials and records the resolution in prose.
@@ -96,6 +97,8 @@ WHEN TO CREATE:
 - A bounded investigation is needed to answer a question before deciding or building → rnd
 - An investigation maps a territory and closes on coverage → research
 - One external material needs a reusable record with a locator and extract → evidence
+- How a user or external actor moves through a system, with concrete Given/When/Then examples that illustrate the clauses of one existing spec → scenario
+- The intended path of one user type through a system, before a spec covering this interaction exists → journey
 - Product requirements with goals, scope, and acceptance criteria → prd
 - Market analysis with TAM/SAM/SOM, competitive landscape, and market needs → mrd
 - Business justification with objectives, ROI, stakeholders, and budget → brd
@@ -123,6 +126,9 @@ TYPE SELECTION RULES (use these to disambiguate):
 - rnd vs research: A verdict closes rnd; coverage of the declared scope closes research. Research can be revised as the territory changes.
 - research vs doc: Research records external knowledge with dated sources and gaps. A doc records reference information the team controls and can verify from its system.
 - evidence vs statement: Evidence is one material, never one statement. Record a source as a row first; create evidence when two documents rely on it, a contradiction involves it, or a newer material supersedes it.
+- scenario vs spec: the subject of the line decides. A spec clause obligates the component with a modal ("WHEN the user requests a refund, the service MUST approve it"). A scenario step takes the actor as its subject and carries no modal ("Anna requests a refund on 10 Sep; she sees the refund approved"). Rules stay in the spec; the scenario illustrates them.
+- journey vs scenario: a spec that this document illustrates exists → scenario; none exists yet → journey. A journey says "we want the user to be able to…" with no data; a scenario says "the user does… and sees…" with data in its examples. The pair mirrors idea → prd.
+- journey vs urd, scenario vs strs: a journey and a scenario live on the Product track beside prd and spec; urd User Journeys and strs Operational Scenarios belong to the Sources and ISO tracks. Use the Product-track pair unless the project runs those tracks.
 - rnd vs idea: An rnd INVESTIGATES an open question and must end in a recommendation (proceed/refine/defer/stop) plus a next action. An idea PROPOSES a concept worth exploring. Use rnd for "should we / which way"; use idea for "we could".
 - rnd vs adr: An rnd INVESTIGATES to inform a decision that is still pending. An adr COMMITS to a decision already made. Gather evidence in an rnd, then record the resulting decision as an adr (adr depends_on rnd).
 - rnd vs rfc: An rnd explores an open QUESTION with no position yet. An rfc puts a concrete PROPOSAL up for review. If there is nothing to propose yet, use rnd.
@@ -165,6 +171,9 @@ VALID STATUS VALUES:
 
   For research, accepted means the synthesis is current as of its last revision; rejected means abandoned or fully replaced.
   For evidence, draft means recorded; accepted means a second reader confirmed existence and the extract; rejected means retracted or unreliable. These are authoring conventions; the engine does not verify them.
+  For a journey, accepted means the team agreed this is the wanted interaction; rejected means the interaction was abandoned.
+  For a scenario, accepted means a reader confirmed the examples against the running system, by a test run or by hand; rejected means the examples no longer hold and no replacement was written. Archcore executes no scenario; executable examples stay in the test tree (features/*.feature) and are cited by @path.
+  Tags for both carry what Gherkin carries as @tags: actor:<type>, component:<name>, nfr:<concern>.
   Evidence stores a locator and extract, not the raw file. Keep snapshots outside the repository or in an ignored directory. No engine tool fetches, hashes, or verifies sources.
 
 CODE REFERENCES (optional):

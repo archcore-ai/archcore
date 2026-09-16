@@ -79,6 +79,13 @@ var (
 	// SectionBefore and SectionAfter hold a cpat's two code forms.
 	SectionBefore = SectionRule{Name: "Before"}
 	SectionAfter  = SectionRule{Name: "After"}
+	// SectionActors is the table both actor-subject types read their subjects from.
+	SectionActors = SectionRule{Name: "Actors"}
+	// SectionFlows and SectionExamples hold a scenario's realized paths and its
+	// Given/When/Then examples; SectionJourneys holds a journey's intended paths.
+	SectionFlows    = SectionRule{Name: "Flows"}
+	SectionExamples = SectionRule{Name: "Examples"}
+	SectionJourneys = SectionRule{Name: "Journeys"}
 )
 
 // RequiredSections lists the headings each type owes its reader. A type absent
@@ -159,6 +166,19 @@ var RequiredSections = map[DocumentType][]SectionRule{
 		{Name: "Locator"},
 		{Name: "Extract"},
 		{Name: "Notes"},
+	},
+	TypeScenario: {
+		{Name: "Subject"},
+		SectionActors,
+		SectionFlows,
+		SectionExamples,
+		{Name: "Open Questions"},
+	},
+	TypeJourney: {
+		{Name: "Intent"},
+		SectionActors,
+		SectionJourneys,
+		{Name: "Open Questions"},
 	},
 	TypeTaskType: {
 		{Name: "When to Use", Aliases: []string{"When to use"}},
@@ -245,7 +265,19 @@ var ForeignSections = map[DocumentType][]ForeignSection{
 		{Section: SectionRule{Name: "Phases"}, Owner: TypePlan},
 		{Section: SectionRule{Name: "Acceptance Criteria"}, Owner: TypePlan},
 		{Section: SectionAlternatives, Owner: TypeADR},
+		{Section: SectionFlows, Owner: TypeScenario},
+		{Section: SectionExamples, Owner: TypeScenario},
+		{Section: SectionJourneys, Owner: TypeJourney},
 	},
+	// A rule and a doc own an Examples heading of their own, so the scenario
+	// rows are listed for the two types whose templates never emit one.
+	TypeSpec: {
+		{Section: SectionFlows, Owner: TypeScenario},
+		{Section: SectionExamples, Owner: TypeScenario},
+		{Section: SectionJourneys, Owner: TypeJourney},
+	},
+	TypeScenario: actorSubjectForeignSections,
+	TypeJourney:  actorSubjectForeignSections,
 	// A source document captures where a requirement comes from; the formal ISO
 	// structure belongs to the specification layer. Formalization runs one way,
 	// sources to specifications, so ISO structure inside a source means the two
@@ -267,6 +299,16 @@ var sourceForeignSections = []ForeignSection{
 	{Section: SectionRule{Name: "Software Requirements"}, Owner: TypeSRS},
 	{Section: SectionRule{Name: "Verification Approach"}, Owner: TypeSyRS},
 	{Section: SectionRule{Name: "Verification Matrix"}, Owner: TypeSRS},
+}
+
+// actorSubjectForeignSections are the headings a scenario or a journey must not
+// carry: the rules stay in the spec and the wanted outcome in the prd, and a
+// flow that takes them on is the second-spec the type pair was designed against.
+var actorSubjectForeignSections = []ForeignSection{
+	{Section: SectionRule{Name: "Surface"}, Owner: TypeSpec},
+	{Section: SectionRule{Name: "Normative Behavior"}, Owner: TypeSpec},
+	{Section: SectionRule{Name: "Failure Behavior"}, Owner: TypeSpec},
+	{Section: SectionRule{Name: "Requirements"}, Owner: TypePRD},
 }
 
 // ArchitectVoiceTypes are the types that argue rather than instruct. A long code
@@ -307,6 +349,7 @@ var ProseProfiles = map[DocumentType]ProseProfile{
 	TypePRD: ProfileISO, TypePlan: ProfileISO, TypeIdea: ProfileISO,
 	TypeRnD: ProfileISO, TypeCPAT: ProfileISO,
 	TypeResearch: ProfileISO, TypeEvidence: ProfileISO,
+	TypeScenario: ProfileISO, TypeJourney: ProfileISO,
 	TypeMRD: ProfileISO, TypeBRD: ProfileISO, TypeURD: ProfileISO,
 }
 
@@ -343,6 +386,39 @@ var StepSections = map[DocumentType][]SectionRule{
 	TypeGuide:    {{Name: "Steps", Aliases: []string{"Procedure"}}},
 	TypeTaskType: {{Name: "Steps"}},
 	TypePlan:     {{Name: "Tasks"}},
+	TypeScenario: {SectionFlows},
+	TypeJourney:  {SectionJourneys},
+}
+
+// ObservationSections lists, per type, the headings whose Given/When/Then
+// lines are steps. The lines carry no number, so the numbered-item collector
+// never sees them; without this table a scenario's examples would escape the
+// word cap and the modal check that its flows are measured by. The step
+// sections are listed too: an observation under Flows or Journeys is the same
+// step whether or not it carries a number —
+// scenario-and-journey-advisory-canon.spec §6.
+var ObservationSections = map[DocumentType][]SectionRule{
+	TypeScenario: {SectionFlows, SectionExamples},
+	TypeJourney:  {SectionJourneys},
+}
+
+// ActorStepSections lists, per type, the step sections whose every numbered
+// step opens with an actor from the Actors table. It is the line-level test
+// that separates the pair from a spec: component with a modal on one side,
+// actor without one on the other — scenario-and-journey-advisory-canon.spec §8.
+var ActorStepSections = map[DocumentType][]SectionRule{
+	TypeScenario: {SectionFlows},
+	TypeJourney:  {SectionJourneys},
+}
+
+// MaxBodyLines is the body cap per type. The spec cap came first and its
+// reasoning stands below at MaxSpecBodyLines; the two actor-subject types take
+// the same number so one cap reaches every project through the engine. A type
+// absent here carries no body cap.
+var MaxBodyLines = map[DocumentType]int{
+	TypeSpec:     MaxSpecBodyLines,
+	TypeScenario: MaxSpecBodyLines,
+	TypeJourney:  MaxSpecBodyLines,
 }
 
 // Precision thresholds.
@@ -359,8 +435,9 @@ const (
 	// which measures the same predicate the engine reports on.
 	MaxClauseWords = 25
 	MaxStepWords   = 20
-	// MaxSpecBodyLines caps a spec. Past it the document is describing rather
-	// than specifying.
+	// MaxSpecBodyLines caps a spec, and through MaxBodyLines the two
+	// actor-subject types. Past it the document is describing rather than
+	// specifying.
 	//
 	// 120, raised from 80. Two measurements moved it. First, the cap counts every
 	// body line, and blank lines plus headings take ~19 of them on the six-section

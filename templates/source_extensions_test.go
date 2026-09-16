@@ -27,6 +27,8 @@ func TestIsSourceExtension(t *testing.T) {
 		{".sh", true},
 		{".sql", true},
 		{".md", true},
+		{".feature", true},
+		{".FEATURE", true},
 		{".yaml", true},
 		{".yml", true},
 		{".json", true},
