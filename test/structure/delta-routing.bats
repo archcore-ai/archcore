@@ -236,3 +236,11 @@ ROWS
   done
   [ -z "$bad" ] || fail "unresolvable entry references in delta-routing.md:$bad"
 }
+
+@test "instrument registry lists illustrate producing scenario at sdd.illustrate" {
+  grep -F -q '| illustrate | `scenario` | `skills/_shared/tracks/sdd.md`, gate `sdd.illustrate` — once per capability, after that capability'"'"'s `sdd.design` |' "$CONTRACT" \
+    || fail "delta-routing.md instrument registry lacks the illustrate row"
+  grep -F -q 'illustrate condition' "$CONTRACT" || fail "delta-routing.md does not define the illustrate condition"
+  grep -F -q 'skills/_shared/actor-subject-compatibility.md' "$PLAN_SKILL" \
+    || fail "plan/SKILL.md does not load the actor-subject compatibility file"
+}

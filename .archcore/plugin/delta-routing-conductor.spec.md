@@ -23,6 +23,7 @@ Controlled vocabulary — one term per concept, no synonyms:
 - M (maturity) — one value per zone: `pencil` or `stone`.
 - R (risk flags) — `external-contract`, `data-migration`, `security-compliance`, `irreversibility`, `multi-team`.
 - operational procedure — a human-performed sequence the delta introduces: install, migrate, operate, or verify steps.
+- illustrate condition — a capability's Δ names a user-facing surface, or grounding finds `features/*.feature` or a BDD runner; defined in `@plugins/archcore/skills/_shared/delta-routing.md`.
 - route — the package composition: `null`, `decision`, `amendment`, `capability`, `umbrella`.
 - size label — `S` (null, decision, amendment), `M` (capability), `L` (umbrella, or capability raised), `XL` (umbrella raised); derived, never an input choice; capped at `XL`.
 - route announcement — one report line: the route, the size label, and the Δ, Π, M, R values that produced them.
@@ -53,15 +54,18 @@ Controlled vocabulary — one term per concept, no synonyms:
 20. WHEN the intent gap fits one capability's purpose, the conductor MUST record it in that capability's `spec`.
 21. WHEN a `decision` or `amendment` route's implementation spans two or more tasks, the conductor MUST add one `plan` through the decompose instrument.
 22. WHEN iso links engage, the conductor MUST raise the size label one additional step.
+23. WHEN a capability meets the illustrate condition, the conductor MUST add one `scenario` for that capability to the package.
+24. WHEN the actor-subject probe returns other than `yes`, the conductor MUST drop the illustrate instrument and report the required version once.
 
 ## Constraints & Invariants
 
-- Invariant: every produced document carries one of the 21 types supported by the vocabulary release, or a legacy type below its engine gate and a status in `draft`/`accepted`/`rejected` — the MCP tool schemas enum exactly these values.
+- Invariant: every produced document carries one of the 23 types supported on CLI 0.8.4 — 21 on CLI 0.8.3, before the actor-subject vocabulary — or a legacy type below its engine gate, and a status in `draft`/`accepted`/`rejected`; the MCP tool schemas enum exactly these values.
 - Invariant: Steps 1, 3, 5, and 6 of `@plugins/archcore/skills/plan/SKILL.md` keep their purpose and order; the conductor replaces Steps 2 and 4, and touches the other steps only where a numbered behavior of this spec requires it.
 - Constraint: WHEN two or more of behaviors 4–8 match, the conductor composes the union of their packages and announces the highest route — `umbrella` over `capability` over `amendment` over `decision`.
 - Constraint: expert aliases `sdd`, `sources`, `iso`, and `research` stay valid; each maps to one computed-era path. From the 2026-09-07 decision, `research` fixes the research type; `rnd` selects the recommendation-based path by name; `evidence` enters gather directly.
 - Constraint: capability granularity binds through the granularity contract under `_shared/` — a phase-1 exit condition, not a follow-up.
 - Constraint: `retires` entries route to closeout discharge; the conductor performs no status transition.
+- Constraint: the illustrate condition reads Δ and grounding only; the conductor never asks the user whether to illustrate.
 
 ## Failure Behavior
 
@@ -71,7 +75,8 @@ Controlled vocabulary — one term per concept, no synonyms:
 4. IF the question ceiling exhausts before `user` needs resolve, THEN the conductor MUST record the remainder under `deferred` in the state block.
 5. IF a resumed state block lacks the `route:` field, THEN the conductor MUST recompute the route from the recorded gate and clarifications.
 6. IF a computed route contradicts a resumed draft's recorded route, THEN the conductor MUST surface both and ask one confirmation question.
+7. IF grounding cannot decide the illustrate condition, THEN the conductor MUST record it as a `user`-source Π need.
 
 ## Conformance
 
-An implementation is conformant when behaviors 1–22 hold over the 40 recorded bench traces, the invariants hold on every run, and the failure rules produce the stated outcomes. Non-normative example: Given "fix the Safari button overflow", When grounding finds empty Δ lists and no `intent_gap`, Then the conductor announces `route: null` and creates no document.
+An implementation is conformant when behaviors 1–24 hold over the recorded bench traces, the invariants hold on every run, and the failure rules produce the stated outcomes. Non-normative example: Given "fix the Safari button overflow", When grounding finds empty Δ lists and no `intent_gap`, Then the conductor announces `route: null` and creates no document.

@@ -36,7 +36,7 @@ The original plugin at v0.0.1 was a thin wrapper that registered the MCP server 
 
 **Success metrics.**
 
-- All 21 document types on a supporting engine are reachable through the four commands or directly through MCP, with no per-type skill required.
+- All 23 document types on a supporting engine (CLI 0.8.4; 21 on CLI 0.8.3) are reachable through the four commands or directly through MCP, with no per-type skill required.
 - The commands cover the common workflows: onboarding, documentation, decisions with the standard cascade, any forward-looking flow, health and drift, the on-demand pull, and help.
 - The PreToolUse guard intercepts every direct Write or Edit attempt on a `.archcore/` file.
 - Users never explain Archcore conventions to the model by hand.

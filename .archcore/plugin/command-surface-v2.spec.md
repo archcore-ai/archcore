@@ -16,10 +16,10 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 
 - Palette: `/archcore:init` (unchanged), `/archcore:plan`, `/archcore:document`, `/archcore:review`.
 - Removed commands and their absorbing homes: `context` → CLI hook injection; `capture` and `decide` → `document`; `audit` → `review` gate; `help` → command descriptions, the init closing summary, and CLI `archcore help`.
-- Write affinity: `plan` → vision types; `document` → knowledge types, with explicit `research` filing in vision; `review` → experience types.
+- Write affinity: `plan` → vision types; `document` → knowledge types, with explicit `research` and `journey` filing in vision; `review` → experience types.
 - Read scope: all three categories for every command — vision supplies intent and resumption targets, knowledge supplies constraints, experience supplies precedent.
 - Invocation forms: no arguments; vague arguments; specific arguments; expert form `<command> <path|type|mode>`. The accepted expert names are exactly those the command's argument hint lists.
-- Expert names per command: `plan` → `sdd`, `sources`, `iso`, `research`, plus the five route names; `document` → `adr`, `rfc`, `spec`, `doc`, `guide`, `rule`, `research`, `evidence`; `review` → its own hint. `rnd` is not an expert name on any command.
+- Expert names per command: `plan` → `sdd`, `sources`, `iso`, `research`, plus the five route names; `document` → `adr`, `rfc`, `spec`, `doc`, `guide`, `rule`, `research`, `evidence`, `scenario`, `journey`; `review` → its own hint. `rnd` is not an expert name on any command.
 
 ## Normative Behavior
 
@@ -39,7 +39,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 14. WHEN a command reports its result, the skill MUST list produced documents grouped by category.
 
 15. WHEN the user invokes `plan research`, the plan skill MUST enter research frame; the research instrument selects the type per behaviors 22 and 23.
-16. The plan skill MUST NOT expose `rnd` or `evidence` as an entry.
+16. The plan skill MUST NOT expose `rnd`, `evidence`, `scenario`, or `journey` as an entry.
 17. WHEN the user invokes `document research`, the document skill MUST use the supplied report as research frame inputs.
 18. WHEN the user invokes `document evidence`, the document skill MUST enter research gather for one material.
 19. WHEN the package contains no plan, the plan skill MUST bypass the Implement fork.
@@ -48,6 +48,9 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 22. WHEN a research request names a pending decision or a set of candidates to choose between, the research instrument MUST produce `rnd`.
 23. WHEN a research request names no pending decision and no candidate set, the research instrument MUST produce `research`.
 24. WHEN a report supplied to `document research` ends in a recommendation, the research instrument MUST produce `rnd`.
+25. WHEN the user invokes `document scenario`, the document skill MUST enter `describe.read` with the type settled.
+26. WHEN the user invokes `document journey`, the document skill MUST enter `sdd.require` in callable mode and produce only the `journey`.
+27. WHEN the engine lacks the actor-subject vocabulary, the executing skill MUST apply the shared actor-subject compatibility contract.
 
 ## Constraints & Invariants
 
@@ -56,7 +59,8 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 - Constraint: the argument hint of a command and the argument hint of its skill are identical; together they are the command's complete expert surface.
 - Constraint: `rnd` is produced only by the research instrument's closing test, the spike, or the compatibility fallback.
 - Constraint: a standalone material is filed only through `document evidence`.
-- Invariant: every one of the 21 document types is producible through at least one command path when the engine supports the vocabulary.
+- Constraint: the actor-subject entries bind only when the engine gate in @plugins/archcore/skills/_shared/actor-subject-compatibility.md returns `yes`.
+- Invariant: every one of the 23 document types is producible through at least one command path when the engine supports the vocabulary.
 - Invariant: category is computed from the document type; no command asks the user to select a category.
 - Invariant: skill content is byte-identical across hosts.
 
@@ -69,4 +73,4 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 
 ## Conformance
 
-The skill set is conformant when it satisfies behaviors 1–24, holds all invariants, and degrades per the failure rules.
+The skill set is conformant when it satisfies behaviors 1–27, holds all invariants, and degrades per the failure rules.

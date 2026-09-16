@@ -2996,6 +2996,181 @@
       "source": "plugin/command-surface-v2.spec.md",
       "target": "plugin/research-runtime-category-and-evidence-entry.adr.md",
       "type": "implements"
+    },
+    {
+      "source": "plugin/scenario-and-journey-runtime.prd.md",
+      "target": "plugin/plugin-v2.prd.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/actor-subject-content-contracts.spec.md",
+      "target": "plugin/scenario-and-journey-runtime.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/illustrate-instrument.spec.md",
+      "target": "plugin/scenario-and-journey-runtime.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/scenario-evidence-in-describe-and-closeout.spec.md",
+      "target": "plugin/scenario-and-journey-runtime.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/actor-subject-compatibility.spec.md",
+      "target": "plugin/scenario-and-journey-runtime.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/actor-subject-content-contracts.spec.md",
+      "target": "plugin/spec-single-narrative-ears-bcp14.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/actor-subject-content-contracts.spec.md",
+      "target": "plugin/prd-spec-plan-content-ownership.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/actor-subject-content-contracts.spec.md",
+      "target": "plugin/decompose-over-truncate.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/illustrate-instrument.spec.md",
+      "target": "plugin/delta-routing-instruments.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/illustrate-instrument.spec.md",
+      "target": "plugin/track-layer.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/scenario-evidence-in-describe-and-closeout.spec.md",
+      "target": "plugin/track-layer.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/actor-subject-compatibility.spec.md",
+      "target": "plugin/command-surface-v2.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/actor-subject-compatibility.spec.md",
+      "target": "plugin/delta-routing-compatibility.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/actor-subject-compatibility.spec.md",
+      "target": "plugin/research-runtime-category-and-evidence-entry.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/scenario-and-journey-runtime.plan.md",
+      "target": "plugin/actor-subject-content-contracts.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/scenario-and-journey-runtime.plan.md",
+      "target": "plugin/illustrate-instrument.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/scenario-and-journey-runtime.plan.md",
+      "target": "plugin/scenario-evidence-in-describe-and-closeout.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/scenario-and-journey-runtime.plan.md",
+      "target": "plugin/actor-subject-compatibility.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/scenario-and-journey-runtime.plan.md",
+      "target": "plugin/delta-routing-type-engagement.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/scenario-and-journey-runtime.plan.md",
+      "target": "plugin/agent-system.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/track-handoffs.spec.md",
+      "target": "plugin/track-layer.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/track-handoffs.spec.md",
+      "target": "plugin/delta-routing-instruments.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/track-handoffs.spec.md",
+      "target": "plugin/delta-routing-conductor.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/track-handoffs.spec.md",
+      "target": "plugin/command-surface-v2.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/track-handoffs.spec.md",
+      "target": "plugin/plugin-architecture.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/track-handoffs.spec.md",
+      "target": "plugin/illustrate-instrument.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/track-handoffs.spec.md",
+      "target": "plugin/actor-subject-compatibility.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/actor-subject-compatibility.spec.md",
+      "target": "plugin/document-journey-callable-intent-entry.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/actor-subject-compatibility.spec.md",
+      "target": "plugin/actor-subject-compatibility-separate-file.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/document-journey-callable-intent-entry.adr.md",
+      "target": "plugin/research-runtime-category-and-evidence-entry.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/document-journey-callable-intent-entry.adr.md",
+      "target": "plugin/illustrate-instrument.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/actor-subject-compatibility-separate-file.adr.md",
+      "target": "plugin/delta-routing-compatibility.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/track-file-line-cap-300.adr.md",
+      "target": "plugin/plugin-architecture.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/track-file-line-cap-300.adr.md",
+      "target": "plugin/delta-routing-instruments.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/track-file-line-cap-300.adr.md",
+      "target": "plugin/illustrate-instrument.spec.md",
+      "type": "related"
     }
   ]
 }

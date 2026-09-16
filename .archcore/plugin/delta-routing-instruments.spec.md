@@ -16,14 +16,15 @@ This spec defines the instrument layer — the single-type producers the conduct
 Instrument registry — instrument → produced type → current carrier:
 
 - concept → `idea` — `sdd.frame`.
-- intent → `prd` — `sdd.require`.
+- intent → `prd`, plus `journey` under the illustrate condition — `sdd.require`.
 - contract → `spec` — `sdd.design`.
+- illustrate → `scenario` — `sdd.illustrate`, once per capability after that capability's `sdd.design`.
 - decompose → `plan` — `sdd.decompose`.
 - runbook → `guide` — package member, composed from the route's operational and verification tasks.
 - decision → `adr`, `rfc` — the decision track gates.
 - research → `research` or `rnd` — the research track gates; gather optionally produces `evidence`, and explicit evidence enters gather directly.
 - spike → timeboxed `rnd` holding Goal, Questions, and Findings only.
-- describe → `spec`, `doc`, `guide` — the describe track gates.
+- describe → `spec`, `doc`, `guide`, `scenario` — the describe track gates.
 - acquisition → `mrd`, `brd`, `urd` — the requirements-cascade sources gates.
 - iso links → `brs`, `strs`, `syrs`, `srs` — the requirements-cascade iso gates.
 
@@ -58,14 +59,16 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 25. IF a plan task carries a verdict other than fulfilled, THEN the review skill MUST NOT remove that plan.
 26. IF a plan file carries uncommitted changes, THEN the review skill MUST NOT remove that plan.
 27. WHILE the `archived` status is absent from the kernel, the review skill MUST NOT discharge a `prd`, an `idea`, or an `rnd`.
+28. WHEN a capability meets the illustrate condition, the conductor MUST engage the illustrate instrument after that capability's contract instrument.
 
 ## Constraints & Invariants
 
 - Invariant: command tenses — `plan` declares future Δ, `document` records the present state, `review` reconciles past Δ.
-- Invariant: instruments produce only types supported by the engine gate; the vocabulary release exposes 21 types.
+- Invariant: instruments produce only types supported by the engine gate; the vocabulary releases expose 23 types on CLI 0.8.4, gated by `@plugins/archcore/skills/_shared/research-compatibility.md` and `@plugins/archcore/skills/_shared/actor-subject-compatibility.md`.
 - Invariant: `plan` is the only type any track removes at closeout.
 - Invariant: residue capture at closeout owns no document type — every document it creates comes from the instrument it routes to.
 - Constraint: the decision instrument's `decision.cascade` gate creates its cascade documents (`rule`, `guide`, `spec`, `plan`, `cpat`) inside the instrument — a recorded exception to single-type production.
+- Constraint: the intent instrument's `journey` beside the `prd` under the illustrate condition is a second recorded exception to single-type production; `document journey` enters the same gate in callable mode and produces only the `journey`.
 - Constraint: research gather may create evidence and relations inside the instrument; the shared gate contract defines its pending-write checkpoint exception.
 - Constraint: at `closeout.capture` the decision instrument runs its standard cascade only; the architecture cascade is out of scope there.
 - Constraint: the acquisition instrument engages on a product-scale `intent_gap` or an expert invocation, never by default.
@@ -84,4 +87,4 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 
 ## Conformance
 
-An implementation is conformant when behaviors 1–27 hold across the 40 recorded bench traces, the invariants hold on every invocation, and the failure rules produce the stated outcomes. Non-normative example: Given `creates` = 2 with one `undecided` need, When the conductor sequences decision → contract → contract → decompose, Then no instrument's `Next:` field fires and the produced `plan` records the sequence.
+An implementation is conformant when behaviors 1–28 hold across the recorded bench traces, the invariants hold on every invocation, and the failure rules produce the stated outcomes. Non-normative example: Given `creates` = 2 with one `undecided` need, When the conductor sequences decision → contract → contract → decompose, Then no instrument's `Next:` field fires and the produced `plan` records the sequence.

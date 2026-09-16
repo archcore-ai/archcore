@@ -9,7 +9,7 @@ gate: sdd.require
 skip_when: a prd covering the topic exists in .archcore/; or the request is feature-scoped and an idea, rnd, research, or adr covering the topic already records the problem and the goals
 budget: 5
 taxonomy: Functional Scope & Behavior, Interaction & UX Flow, Non-Functional Quality Attributes, Completion Signals
-produces: prd draft
+produces: prd; additionally journey under the illustrate condition of skills/_shared/delta-routing.md, composed per skills/_shared/journey-contract.md; journey only in callable mode from document journey draft
 next: end
 
 gate: sdd.design
@@ -17,6 +17,13 @@ skip_when: a spec covering the capability this invocation designs exists in .arc
 budget: 3
 taxonomy: Domain & Data Model, Integration & External Dependencies, Edge Cases & Failure Handling, Constraints & Tradeoffs
 produces: spec draft
+next: end
+
+gate: sdd.illustrate
+skip_when: a scenario that depends_on the designed spec exists in .archcore/, or the capability does not meet the illustrate condition of skills/_shared/delta-routing.md, or skills/_shared/actor-subject-compatibility.md did not return yes
+budget: 2
+taxonomy: Interaction & UX Flow, Edge Cases & Failure Handling
+produces: scenario draft
 next: end
 
 gate: sdd.decompose

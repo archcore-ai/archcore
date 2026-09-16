@@ -51,3 +51,6 @@ fresh clone	init	-	-
 plan research	plan	skills/_shared/tracks/research.md:research.frame	2
 document research	document	skills/_shared/tracks/research.md:research.frame	2
 document evidence	document	skills/_shared/tracks/research.md:research.gather	0
+# --- actor-subject vocabulary expert forms ---
+document scenario	document	skills/_shared/tracks/describe.md:describe.read	0
+document journey	document	skills/_shared/tracks/sdd.md:sdd.require	5

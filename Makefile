@@ -34,8 +34,8 @@ test-structure:
 
 # Requires the installed CLI. No host account or model calls are needed.
 test-integration:
-	@command -v "$(ARCHCORE_BIN)" >/dev/null 2>&1 || { echo "Install Archcore CLI >= 0.8.3 or set ARCHCORE_BIN"; exit 1; }
-	@ARCHCORE_BIN="$(ARCHCORE_BIN)" PLUGIN_ROOT=$(PLUGIN_ROOT) REPO_ROOT=$(REPO_ROOT) bats test/integration/research-vocabulary.bats test/integration/cursor-post-tool-use.bats
+	@command -v "$(ARCHCORE_BIN)" >/dev/null 2>&1 || { echo "Install Archcore CLI >= 0.8.4 or set ARCHCORE_BIN"; exit 1; }
+	@ARCHCORE_BIN="$(ARCHCORE_BIN)" PLUGIN_ROOT=$(PLUGIN_ROOT) REPO_ROOT=$(REPO_ROOT) bats test/integration/research-vocabulary.bats test/integration/actor-subject-vocabulary.bats test/integration/cursor-post-tool-use.bats
 
 # LLM-in-the-loop routing bench — spends model tokens; on demand only, never CI.
 test-routing-bench:
@@ -43,7 +43,7 @@ test-routing-bench:
 
 # Live model + MCP behavior, explicitly requested and never part of CI.
 test-research-agent:
-	@command -v "$(ARCHCORE_BIN)" >/dev/null 2>&1 || { echo "Install Archcore CLI >= 0.8.3 or set ARCHCORE_BIN"; exit 1; }
+	@command -v "$(ARCHCORE_BIN)" >/dev/null 2>&1 || { echo "Install Archcore CLI >= 0.8.4 or set ARCHCORE_BIN"; exit 1; }
 	@ARCHCORE_BIN="$(ARCHCORE_BIN)" PLUGIN_ROOT=$(PLUGIN_ROOT) REPO_ROOT=$(REPO_ROOT) bats test/integration/research-agent.bats
 
 test-codex-smoke:

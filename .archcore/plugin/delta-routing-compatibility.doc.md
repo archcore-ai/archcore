@@ -25,7 +25,7 @@ This register covers version-skew risk when delta routing ships: repositories wh
 | 7 | Planned status-transition guard | closeout confirms each transition in chat; the server sees only the status write | a strict server-side guard would refuse legitimate accepts from old plugin releases that pass no confirmation payload | advisory-then-enforce rollout, version-gated the same way as row 1 |
 | 8 | Sync manifest growth | 750 relations today; umbrella routes add edges per capability | branch-merge conflicts on the manifest amplify — the shared-mutable-file failure mode the enforcement audit records | raise `cli-path-index.rfc` priority; no manifest format change rides with delta routing itself |
 
-Historical delta-routing baseline: that release preserved 19 types and four relation values. The research vocabulary changes this assumption: 21 types and seven relations require a supporting CLI. The current runtime gate is @plugins/archcore/skills/_shared/research-compatibility.md; its minimum is 0.8.3, confirmed against the published [CLI v0.8.3](https://github.com/archcore-ai/cli/releases/tag/v0.8.3).
+Historical delta-routing baseline: that release preserved 19 types and four relation values. The research vocabulary changes this assumption: 21 types and seven relations require a supporting CLI. The runtime gate for that vocabulary is @plugins/archcore/skills/_shared/research-compatibility.md; its minimum is 0.8.3, confirmed against the published [CLI v0.8.3](https://github.com/archcore-ai/cli/releases/tag/v0.8.3).
 
 | Research surface | Current containment |
 |---|---|
@@ -37,6 +37,16 @@ Historical delta-routing baseline: that release preserved 19 types and four rela
 | Partial evidence write | Pending state and read-before-retry preserve evidence after edge failure; calls are not atomic. |
 
 The engine release handoff is complete: [CLI v0.8.3](https://github.com/archcore-ai/cli/releases/tag/v0.8.3) ships the vocabulary. The downloaded Darwin arm64 archive matched the GitHub SHA-256 digest and release checksums on 2026-09-07. The native stdio MCP probe passed. No downgrade conversion is supplied.
+
+The actor-subject vocabulary (`scenario`, `journey`) raises the registry to 23 types and adds no relation value. Its runtime gate is @plugins/archcore/skills/_shared/actor-subject-compatibility.md; its minimum is 0.8.4, published as [CLI v0.8.4](https://github.com/archcore-ai/cli/releases/tag/v0.8.4) on 2026-09-16 with checksums for six platform assets. The plugin's CI pins that release by digest.
+
+| Actor-subject surface | Current containment |
+|---|---|
+| New type filters and writes | Probe before the first MCP call naming either type; only `yes` enables the names, the `sdd.illustrate` gate, and the `document scenario` / `document journey` entries. |
+| Old or unrecognized CLI | An explicit `scenario` or `journey` request reports the required version and writes nothing; the illustrate instrument is dropped from the package with one report. Existing artifacts of either type are never converted. |
+| Shared corpus, older reader | No relation value changes, so old readers keep reading; they skip `.scenario.md` and `.journey.md` files in the scan and report an invalid type in `status`. |
+| Two compatibility files | Research at 0.8.3 and actor-subject at 0.8.4 run independently; a request engaging both runs both probes. |
+| Restart | The PATH probe identifies the binary a new server would run; a server started before an upgrade keeps the old engine until restarted. |
 
 ### Audit of 2026-09-07 — old readers against a new-vocabulary corpus
 
@@ -61,7 +71,7 @@ Reproduced in the same audit: the Cursor `afterMCPExecution` payload names the t
 | Fix | Plugin-only. `@plugins/archcore/bin/lib/normalize-stdin.sh` (`archcore_cursor_qualify_mcp_tool`) qualifies the one `tool_name` value when `mcp_server_name` is `archcore` and the name is one the archcore server registers; `@plugins/archcore/bin/post-tool-use` sends that copy. CLI 0.8.3 is unchanged. |
 | Ownership discriminator | `mcp_server_name`, the server's key in Cursor's `mcp.json`, per the Cursor hooks reference (read 2026-09-07); `archcore init --agent cursor` writes the key `archcore`. A user who renames the key gets no translation and no advisory — the same silence as before the fix. |
 | Not translated | Payloads without `mcp_server_name` (the shape `mcp-update.json` predates), foreign servers, already qualified names, names the server does not register, more than one unescaped `tool_name` key, and every other host and event. |
-| Verification | `@test/unit/hook-launchers.bats` (the rewrite and each pass-through case); `@test/integration/cursor-post-tool-use.bats` (real CLI advisory for an incomplete ADR, positive case fails when the rewrite is removed; runs in CI under `make test-integration` with the pinned CLI 0.8.3). |
+| Verification | `@test/unit/hook-launchers.bats` (the rewrite and each pass-through case); `@test/integration/cursor-post-tool-use.bats` (real CLI advisory for an incomplete ADR, positive case fails when the rewrite is removed; runs in CI under `make test-integration` with the pinned CLI 0.8.4). |
 | Unverified | Live Cursor sessions. The fixtures `afterMCPExecution-update-archcore.json` and `afterMCPExecution-update-foreign.json` are composed from the hooks reference, not captured; the claim covers those event shapes only. |
 
 ## Examples
