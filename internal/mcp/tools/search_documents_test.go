@@ -219,7 +219,7 @@ func TestHandleSearchDocuments_ContentTitleHit(t *testing.T) {
 func TestHandleSearchDocuments_ContentBodyHit(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
-	writeDoc(t, base, "knowledge", "money.rule.md",
+	writeDoc(t, base, "knowledge", "finance.rule.md",
 		"---\ntitle: Finance\nstatus: accepted\n---\n\nMoney Arithmetic belongs here.")
 
 	result, err := callTool(HandleSearchDocuments(StaticRoot(base)), map[string]any{
@@ -479,8 +479,112 @@ func TestHandleSearchDocuments_PathRefRepetitionIsNotRelevance(t *testing.T) {
 	if got[0].Title != "Focused" || got[1].Title != "Stuffed" {
 		t.Errorf("order = [%q, %q], want the single-mention rule first", got[0].Title, got[1].Title)
 	}
-	if len(got[1].Matches) != 10 {
-		t.Errorf("stuffed doc carries %d match records, want all 10 in the evidence", len(got[1].Matches))
+	if len(got[1].Matches) != searchMatchCap || got[1].MatchesTotal != 10 {
+		t.Errorf("stuffed doc carries %d match records and matches_total %d, want the cap %d and the full count 10",
+			len(got[1].Matches), got[1].MatchesTotal, searchMatchCap)
+	}
+}
+
+// TestHandleSearchDocuments_MatchesCappedToBestN: the cap keeps the most
+// specific evidence, not the first evidence in the body, and the total says
+// how much the row left out.
+func TestHandleSearchDocuments_MatchesCappedToBestN(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "stuffed.doc.md",
+		"---\ntitle: Stuffed\nstatus: accepted\n---\n\n"+
+			strings.Repeat("see @src/ again. ", 8)+
+			"then src/payments/ in prose, and last @src/payments/stripe.go exactly.")
+
+	result, err := callTool(HandleSearchDocuments(StaticRoot(base)), map[string]any{
+		"path_ref": "src/payments/stripe.go",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(got))
+	}
+	row := got[0]
+	if len(row.Matches) != searchMatchCap {
+		t.Fatalf("row carries %d matches, want the cap %d", len(row.Matches), searchMatchCap)
+	}
+	if row.MatchesTotal != 10 {
+		t.Errorf("matches_total = %d, want 10", row.MatchesTotal)
+	}
+	if row.Matches[0].Ref != "@src/payments/stripe.go" || row.Matches[0].Specificity != 3 {
+		t.Errorf("matches[0] = %+v, want the full-path hit that sits last in the body", row.Matches[0])
+	}
+	if row.Matches[1].Ref != "src/payments/" {
+		t.Errorf("matches[1] = %+v, want the two-segment mention ahead of the one-segment hits", row.Matches[1])
+	}
+}
+
+// TestHandleSearchDocuments_RelationsCappedAndSorted: a hub document keeps a
+// bounded, ordered relation sample and reports the full degree beside it.
+func TestHandleSearchDocuments_RelationsCappedAndSorted(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "hub.rule.md",
+		"---\ntitle: Hub\nstatus: accepted\n---\n\nuse @src/payments/ always")
+	m := sync.NewManifest()
+	for _, name := range []string{"h", "c", "a", "g", "b", "f", "e", "d"} {
+		file := "knowledge/" + name + ".guide.md"
+		writeDoc(t, base, "knowledge", name+".guide.md",
+			"---\ntitle: Guide "+name+"\nstatus: accepted\n---\n\nhow-to content")
+		m.AddRelation(file, "knowledge/hub.rule.md", sync.RelImplements)
+		m.AddRelation("knowledge/hub.rule.md", file, sync.RelRelated)
+	}
+	if err := sync.SaveManifest(base, m); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := callTool(HandleSearchDocuments(StaticRoot(base)), map[string]any{
+		"path_ref": "@src/payments/",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := unmarshalSearch(t, result)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(got))
+	}
+	row := got[0]
+	if row.IncomingRelationsTotal != 8 || row.OutgoingRelationsTotal != 8 {
+		t.Errorf("totals = %d incoming, %d outgoing, want 8 and 8", row.IncomingRelationsTotal, row.OutgoingRelationsTotal)
+	}
+	for direction, relations := range map[string][]DocumentRelation{
+		"incoming": row.IncomingRelations, "outgoing": row.OutgoingRelations,
+	} {
+		if len(relations) != searchRelationCap {
+			t.Fatalf("%s holds %d relations, want the cap %d", direction, len(relations), searchRelationCap)
+		}
+		if relations[0].Path != ".archcore/knowledge/a.guide.md" || relations[4].Path != ".archcore/knowledge/e.guide.md" {
+			t.Errorf("%s = %+v, want a through e in path order", direction, relations)
+		}
+	}
+}
+
+// TestHandleSearchDocuments_UncappedRowOmitsTotals: a total appears only when
+// the row left something out.
+func TestHandleSearchDocuments_UncappedRowOmitsTotals(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "focused.rule.md",
+		"---\ntitle: Focused\nstatus: accepted\n---\n\nmonetary code in @src/payments/ uses Decimal")
+
+	result, err := callTool(HandleSearchDocuments(StaticRoot(base)), map[string]any{
+		"path_ref": "src/payments/",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := result.Content[0].(mcp.TextContent).Text
+	for _, field := range []string{"matches_total", "incoming_relations_total", "outgoing_relations_total"} {
+		if strings.Contains(text, field) {
+			t.Errorf("response carries %q for a row that was not cut", field)
+		}
 	}
 }
 
@@ -671,11 +775,11 @@ func TestHandleSearchDocuments_NoManifestOK(t *testing.T) {
 func TestHandleSearchDocuments_ExcerptRuneSafe(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
-	// Cyrillic body where the match window will fall inside a multibyte rune
+	// Two-byte-rune body where the match window will fall inside a multibyte rune
 	// unless buildExcerpt snaps to rune boundaries.
 	writeDoc(t, base, "knowledge", "ru.rule.md",
-		"---\ntitle: Правило\nstatus: accepted\n---\n\n"+
-			"В этом документе мы обсуждаем важный KEYWORD и контекст вокруг него — лишние слова, чтобы excerpt уходил за границу руны.")
+		"---\ntitle: Κανόνας\nstatus: accepted\n---\n\n"+
+			"Σε αυτό το έγγραφο συζητάμε το σημαντικό KEYWORD και το πλαίσιο γύρω του — επιπλέον λέξεις, ώστε το excerpt να περνά το όριο ενός rune.")
 
 	result, err := callTool(HandleSearchDocuments(StaticRoot(base)), map[string]any{
 		"content": "KEYWORD",

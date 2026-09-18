@@ -17,6 +17,10 @@ const (
 	// the measured ~98 tokens per document row.
 	listDefaultLimit = 100
 	listMaxLimit     = 500
+	// listResponseByteBudget protects the host's inline tool-result limit, the
+	// same one searchResponseByteBudget protects. A cut page is recoverable: the
+	// next offset is offset + returned (list-documents.spec).
+	listResponseByteBudget = 40_000
 )
 
 // listDocumentsResult is the response envelope. A bare array cannot carry a
@@ -24,12 +28,12 @@ const (
 // BySource counts the full filtered set per source id, so a truncation that
 // removes one source's rows stays visible (global-recall-guarantees.rfc).
 type listDocumentsResult struct {
-	Documents []LocalDocument `json:"documents"`
+	BySource  map[string]int  `json:"by_source"`
 	Total     int             `json:"total"`
 	Offset    int             `json:"offset"`
 	Returned  int             `json:"returned"`
 	Truncated bool            `json:"truncated"`
-	BySource  map[string]int  `json:"by_source"`
+	Documents []LocalDocument `json:"documents"`
 }
 
 // NewListDocumentsTool returns the tool definition for list_documents.
@@ -42,7 +46,7 @@ Call this tool FIRST before reading or creating any document. Use it to:
 - Get valid file paths required by get_document
 - Browse what documentation is available by type, category, or status
 
-Returns: JSON {"documents": [...], "total": N, "offset": N, "returned": N, "truncated": bool, "by_source": {...}}. Each document carries path, title, type, category, status, tags (when present), and source_kind — the listing covers the local project AND every mounted read-only global source, interleaved so every source appears on the first page. "by_source" counts the full filtered set per source (e.g. {"local": 102, "org": 42}); compare it with the page to see what a truncation dropped. When "truncated" is true there are more matches beyond this page — narrow the filters, scope with "source", or request the next page with "offset".
+Returns: JSON, counts first: {"by_source": {...}, "total": N, "offset": N, "returned": N, "truncated": bool, "documents": [...]}. Each document carries path, title, type, category, status, tags (when present), and source_kind — the listing covers the local project AND every mounted read-only global source, interleaved so every source appears on the first page. "by_source" counts the full filtered set per source (e.g. {"local": 102, "org": 42}); compare it with the page to see what a truncation dropped. When "truncated" is true there are more matches beyond this page — narrow the filters, scope with "source", or request the next page with "offset". A response byte budget can return fewer rows than "limit"; the next page always starts at offset + returned.
 
 Use the returned paths directly as input to get_document. Do not construct paths manually.`),
 		mcp.WithArray("types",
@@ -170,6 +174,10 @@ func HandleListDocuments(root RootProvider) func(ctx context.Context, request mc
 		if page == nil {
 			page = []LocalDocument{}
 		}
+		page, err = fitListPage(page, bySource)
+		if err != nil {
+			return nil, err
+		}
 
 		data, err := json.Marshal(listDocumentsResult{
 			Documents: page,
@@ -193,6 +201,29 @@ func HandleListDocuments(root RootProvider) func(ctx context.Context, request mc
 // weighted round-robin proportional to each source's remaining count. Within a
 // source the walk order is preserved. A single-source corpus returns unchanged,
 // so a project without globals keeps today's ordering exactly.
+// fitListPage cuts page from the tail until the response fits
+// listResponseByteBudget. One row always stays.
+func fitListPage(page []LocalDocument, bySource map[string]int) ([]LocalDocument, error) {
+	head, err := json.Marshal(listDocumentsResult{BySource: bySource, Total: len(page), Offset: len(page), Returned: len(page), Truncated: false, Documents: []LocalDocument{}})
+	if err != nil {
+		return nil, fmt.Errorf("marshaling result head: %w", err)
+	}
+	// Total and offset can each print wider than the page length does.
+	const counterSlack = 16
+	used := len(head) + counterSlack
+	for i, doc := range page {
+		data, mErr := json.Marshal(doc)
+		if mErr != nil {
+			return nil, fmt.Errorf("measuring document %s: %w", doc.Path, mErr)
+		}
+		used += len(data) + len(",")
+		if used > listResponseByteBudget && i > 0 {
+			return page[:i], nil
+		}
+	}
+	return page, nil
+}
+
 func interleaveBySource(docs []LocalDocument) []LocalDocument {
 	// The common case is a single-source corpus; detect it without building
 	// the groups, so a project without globals pays one comparison per row.

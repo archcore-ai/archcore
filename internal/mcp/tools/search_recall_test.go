@@ -7,6 +7,7 @@ package tools
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -201,6 +202,187 @@ func TestSearchDocuments_SourceRepresentationSurvivesTheCut(t *testing.T) {
 			}
 		})
 	}
+}
+
+// hostPreviewBytes is the prefix a host showed the agent when it stored an
+// oversized result in a file (read-tool-responses-survive-host-truncation.adr).
+const hostPreviewBytes = 2048
+
+// TestSearchDocuments_EnvelopeLeadsWithCoverageHitsIndex replays the shape of
+// the recorded incident: one local row ranks first, five global rows follow,
+// and every body is larger than the preview.
+func TestSearchDocuments_EnvelopeLeadsWithCoverageHitsIndex(t *testing.T) {
+	t.Parallel()
+	base, localArch, globalArch := twoSourceFixture(t)
+	filler := strings.Repeat("Κείμενο εγγράφου χωρίς αντιστοιχίες. ", 200)
+	writeFixtureDoc(t, localArch, "packages.doc.md", "Auth Packages",
+		strings.Repeat("needle ", 9)+filler)
+	for i := range 5 {
+		writeFixtureDoc(t, globalArch, "org-"+string(rune('a'+i))+".doc.md",
+			"Org Document "+string(rune('A'+i)), "needle "+filler)
+	}
+
+	text := searchText(t, callSearch(t, base, map[string]any{
+		"content": "needle", "mode": "full", "limit": float64(6),
+	}))
+	if len(text) <= hostPreviewBytes {
+		t.Fatalf("response is %d bytes, so the fixture does not reach past the preview", len(text))
+	}
+	preview := text[:hostPreviewBytes]
+
+	for _, want := range []string{
+		`"coverage":{"local":1,"org":5}`,
+		`"hits":{"local":1,"org":5}`,
+		`"index":[`,
+		`org-e.doc.md`,
+	} {
+		if !strings.Contains(preview, want) {
+			t.Errorf("first %d bytes lack %s; an agent shown only the preview cannot tell that the global source matched", hostPreviewBytes, want)
+		}
+	}
+	if results := strings.Index(text, `"results":`); results < strings.Index(text, `"index":`) {
+		t.Errorf("results start at byte %d, before the index", results)
+	}
+}
+
+// TestSearchDocuments_HitsCountBeforeThePageCut: hits reports what each source
+// held, the index lists what the page kept, and a searched source without a
+// match still appears with zero.
+func TestSearchDocuments_HitsCountBeforeThePageCut(t *testing.T) {
+	t.Parallel()
+	base, localArch, globalArch := twoSourceFixture(t)
+	for i := range 10 {
+		writeFixtureDoc(t, localArch, "local-"+string(rune('a'+i))+".rule.md",
+			"Retry Policy "+strings.Repeat("x", i+1), "Local body.\n")
+	}
+	writeFixtureDoc(t, globalArch, "org-retry.doc.md",
+		"Org Guidance", "The retry policy for services is exponential backoff.\n")
+
+	t.Run("both sources match", func(t *testing.T) {
+		t.Parallel()
+		got := unmarshalSearchEnvelope(t, callSearch(t, base, map[string]any{
+			"content": "retry policy", "limit": float64(3),
+		}))
+		if got.Hits["local"] != 10 || got.Hits["org"] != 1 {
+			t.Errorf("hits = %v, want local=10 org=1", got.Hits)
+		}
+		if len(got.Index) != len(got.Results) {
+			t.Fatalf("index holds %d entries for %d rows", len(got.Index), len(got.Results))
+		}
+		for i, row := range got.Results {
+			entry := got.Index[i]
+			if entry.Path != row.Path || entry.Title != row.Title || entry.SourceID != row.SourceID {
+				t.Errorf("index[%d] = %+v, want the identity of row %q", i, entry, row.Path)
+			}
+		}
+	})
+
+	t.Run("a searched source without a match reports zero", func(t *testing.T) {
+		t.Parallel()
+		got := unmarshalSearchEnvelope(t, callSearch(t, base, map[string]any{
+			"content": "exponential backoff",
+		}))
+		if hits, ok := got.Hits["local"]; !ok || hits != 0 {
+			t.Errorf("hits = %v, want an explicit local=0", got.Hits)
+		}
+		if got.Hits["org"] != 1 {
+			t.Errorf("hits = %v, want org=1", got.Hits)
+		}
+	})
+}
+
+// TestSearchDocuments_SlugIsAMatchField: a document named for the query is
+// found even when its title and body spell the subject another way
+// (search-matches-the-slug-and-folds-separators.adr).
+func TestSearchDocuments_SlugIsAMatchField(t *testing.T) {
+	t.Parallel()
+	base, localArch, _ := twoSourceFixture(t)
+	writeFixtureDoc(t, localArch, "acme-id-sdk.doc.md", "The Identity Client", "A server-side client.\n")
+	writeFixtureDoc(t, localArch, "unrelated.doc.md", "Unrelated", "Nothing to see.\n")
+
+	for _, match := range []string{"exact", "all", "any"} {
+		t.Run(match, func(t *testing.T) {
+			t.Parallel()
+			got := unmarshalSearch(t, callSearch(t, base, map[string]any{"content": "acme-id-sdk", "match": match}))
+			if len(got) != 1 || !strings.HasSuffix(got[0].Path, "acme-id-sdk.doc.md") {
+				t.Fatalf("results = %+v, want the document whose slug is the query", got)
+			}
+			if m := got[0].Matches[0]; m.Specificity != 3 || m.Excerpt != "acme-id-sdk" {
+				t.Errorf("match = %+v, want specificity 3 with the slug as the excerpt", m)
+			}
+		})
+	}
+}
+
+// TestSearchDocuments_SeparatorFoldingConverges: the spellings of one compound
+// name reach one document set.
+func TestSearchDocuments_SeparatorFoldingConverges(t *testing.T) {
+	t.Parallel()
+	base, localArch, globalArch := twoSourceFixture(t)
+	writeFixtureDoc(t, localArch, "client.doc.md", "The Identity Client", "Install `@acme-id/sdk` first.\n")
+	writeFixtureDoc(t, globalArch, "org-client.adr.md", "Shared Client", "We adopt acme-id-sdk for every web app.\n")
+	writeFixtureDoc(t, localArch, "decoy.doc.md", "Decoy", "The acme team owns an identity sdk.\n")
+
+	var want []string
+	for _, query := range []string{"acme-id-sdk", "@acme-id/sdk", "acme-id sdk", "ACME_ID.SDK", "acme-id:sdk"} {
+		var paths []string
+		for _, r := range unmarshalSearch(t, callSearch(t, base, map[string]any{"content": query})) {
+			paths = append(paths, r.Path)
+		}
+		slices.Sort(paths)
+		if len(paths) != 2 {
+			t.Errorf("query %q matched %v, want the two documents that name the package", query, paths)
+		}
+		if want == nil {
+			want = paths
+		} else if !slices.Equal(paths, want) {
+			t.Errorf("query %q matched %v, want the same set as the first spelling %v", query, paths, want)
+		}
+	}
+}
+
+func TestSearchDocuments_ExactModeDoesNotFold(t *testing.T) {
+	t.Parallel()
+	base, localArch, _ := twoSourceFixture(t)
+	writeFixtureDoc(t, localArch, "client.doc.md", "The Identity Client", "Install `@acme-id/sdk` first.\n")
+
+	got := unmarshalSearch(t, callSearch(t, base, map[string]any{"content": "acme-id-sdk", "match": "exact"}))
+	if len(got) != 0 {
+		t.Errorf("exact matched %+v, want a literal substring search that finds nothing", got)
+	}
+}
+
+func TestSearchDocuments_SeparatorOnlyWords(t *testing.T) {
+	t.Parallel()
+	base, localArch, _ := twoSourceFixture(t)
+	writeFixtureDoc(t, localArch, "billing.doc.md", "Billing", "Body.\n")
+
+	t.Run("a query of separators alone is refused", func(t *testing.T) {
+		t.Parallel()
+		res := callSearch(t, base, map[string]any{"content": "-- // @"})
+		if !res.IsError {
+			t.Fatal("expected the at-least-one-word error")
+		}
+	})
+	t.Run("a separator word beside a real word is dropped", func(t *testing.T) {
+		t.Parallel()
+		got := unmarshalSearch(t, callSearch(t, base, map[string]any{"content": "-- billing"}))
+		if len(got) != 1 {
+			t.Errorf("got %d results, want the document matched on the remaining word", len(got))
+		}
+	})
+}
+
+func searchText(t *testing.T, result *mcp.CallToolResult) string {
+	t.Helper()
+	if result == nil || result.IsError || len(result.Content) == 0 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	tc, ok := mcp.AsTextContent(result.Content[0])
+	if !ok {
+		t.Fatalf("unexpected content type %T", result.Content[0])
+	}
+	return tc.Text
 }
 
 // TestSearchDocuments_InvalidInputs: an unknown source scope and a wordless

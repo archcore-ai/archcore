@@ -25,7 +25,7 @@ Block format, with this repository's measured data:
 GLOBALS (read-only, query via MCP read tools):
   - archcore — 42 docs (knowledge 40, vision 1, experience 1) · product/ 14, concepts/ 14, architecture/ 7, market/ 4, web/ 3
   ⚠ global source "company" not found at "../company/.archcore" — clone it or fix .archcore/settings.json
-  Local documents take precedence over same-topic globals.
+  Local documents take precedence over same-topic globals; a matching global is still part of the answer.
 ```
 
 ## Normative Behavior
@@ -42,7 +42,7 @@ GLOBALS (read-only, query via MCP read tools):
 10. The builder MUST render at most 8 source lines.
 11. WHEN sources are dropped, the builder MUST name the dropped count below the last line.
 12. WHEN a source is in a fatal or empty state, the builder MUST render its inspection message inside the block, prefixed with "⚠".
-13. WHEN at least one source line renders, the builder MUST append the sentence "Local documents take precedence over same-topic globals."
+13. WHEN at least one source line renders, the builder MUST append the sentence "Local documents take precedence over same-topic globals; a matching global is still part of the answer."
 14. WHEN the block renders, the builder MUST label the `CORPUS` count "local documents".
 15. WHEN the block holds at least one `GlobalOK` source, the builder MUST append the total global document count to the connected banner.
 16. The builder MUST reuse the `InspectGlobals` walk for every count.
