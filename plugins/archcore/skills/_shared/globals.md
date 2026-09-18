@@ -60,12 +60,42 @@ use it when the response shows it; an older CLI simply never shows it.
   `GLOBALS` block naming each mounted source with its document counts and
   top-level directories. Use those directory names as query vocabulary for
   org-wide topics the local corpus does not cover.
+- **`hits` and `index` lead a search response.** A current CLI starts the
+  response with `hits` (matches per source, before the `limit` cut) and `index`
+  (path, title, and `source_id` of every row the `limit` admitted). Read them
+  first: they name every source that matched, even when the rows that follow do
+  not reach you. An older CLI sends neither; then reason from `results` alone.
 - **`by_source` in `list_documents`.** A current CLI reports the full filtered
   count per source and keeps every source represented on the first page.
   Compare `by_source` with the page to see what a truncation dropped, and pass
   `source` to scope a listing.
 
+## Large or partial results
+
+A host can refuse a large tool result, or store it and show only its first
+bytes. A global row often ranks after the local rows, so a partial view can
+hide every global match.
+
+- IF the host returns an error that names a size or token limit, THEN run the
+  call again with a smaller `limit`, or with `mode: "snippets"`. Do not answer
+  from the error text.
+- IF the host shows only the start of a result, THEN treat that view as
+  incomplete. Read `hits` and `index` at its start, then read each document
+  they name with `get_document`, or open the stored result.
+- IF `hits` or `coverage` names a global source, THEN read at least one row of
+  that source before you answer.
+- IF `truncated` is `true`, THEN `results` holds fewer rows than `index`. Fetch a
+  missing row with `get_document`, or narrow the query.
+- IF a row carries `body_truncated: true`, THEN its `body` is a prefix. Call
+  `get_document` for the rest, and always before `update_document`. Never write
+  back a shortened body.
+- Use `mode: "full"` to read at most three documents you already identified.
+  Use the default `snippets` mode to find candidates.
+
 ## Reading convention
+
+- **A matching global is part of the answer.** Read it. Precedence decides which
+  document wins a conflict; it does not make the global optional.
 
 - **Local overrides global.** When the same topic is covered by both a local
   document and a global one, the local document is authoritative for this
