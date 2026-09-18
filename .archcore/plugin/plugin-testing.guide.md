@@ -54,7 +54,9 @@ PLUGIN_ROOT=$(pwd)/plugins/archcore REPO_ROOT=$(pwd) bats test/unit/hook-launche
 
 Run the real MCP boundary separately with `make test-integration`. @test/integration/research-vocabulary.bats and @test/integration/actor-subject-vocabulary.bats use @test/helpers/mcp.bash to start the installed CLI in a temporary project. They check schemas, templates, categories, directed relations, retry prerequisites, deduplication, and persisted track state. The tests use real storage without model calls.
 
-The CI workflow pins CLI 0.8.4 and verifies the release archive's SHA-256. The release workflow calls the same Linux/macOS verification workflow against the selected release ref.
+@test/integration/search-response-shape.bats mounts one global source in that temporary project. It checks that `hits` and `index` precede `results`, that `hits` counts every source before the `limit` cut, that a long body arrives with `body_truncated: true`, that the response byte budget sets `truncated`, and that `list_documents` reaches every document when `offset` advances by `returned`. The file skips on a CLI older than 0.8.5, which sends none of these fields.
+
+The CI workflow pins CLI 0.8.6 and verifies the release archive's SHA-256. The release workflow calls the same Linux/macOS verification workflow against the selected release ref.
 
 ### 3. Run the ShellCheck lint
 
@@ -135,6 +137,8 @@ Structure tests validate configs and files.
 Prefer a table over a copy when a test is per-host. Four hosts means four near-identical tests, and the fourth is the one nobody writes. Worse, a copied test can pass on an empty set: `jq '.. | .command?'` returns nothing for `hooks/copilot.hooks.json`, whose entries use `bash`. `test/structure/hooks.bats` shows the shape — one table of `host|config|plugin-root-variable`, a union accessor, an assertion that the extraction was not empty, and an enrollment guard so a fifth config cannot slip past the table.
 
 A change to a command's argument hint, mode list, or description is pinned by `test/structure/command-grammar.bats`; update that file together with the skill, the command wrapper, and `test/fixtures/routing/fixtures.tsv`.
+
+A change to the large-or-partial-result guidance is pinned by `test/structure/partial-results.bats`; update that file together with the three assistant surfaces and `skills/_shared/globals.md`.
 
 ### 9. Add a stdin fixture
 

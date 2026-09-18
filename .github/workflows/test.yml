@@ -57,15 +57,15 @@ jobs:
         shell: bash
         run: |
           case "$(uname -s)-$(uname -m)" in
-            Linux-x86_64) asset=archcore_linux_amd64.tar.gz; digest=7a4d1a90c3081e98f4dcb80fde226f13081001a9723d4fc932450aec5cb94ad4 ;;
-            Darwin-arm64) asset=archcore_darwin_arm64.tar.gz; digest=cd3c25516abd96a5c3e7eed7d48758415fc68d8c97e654b76fe0a4acf99fc346 ;;
-            Darwin-x86_64) asset=archcore_darwin_amd64.tar.gz; digest=55a102482ac7eecf2adc3f43ef23ed95f3074142f5b4456eb73980af8548be88 ;;
+            Linux-x86_64) asset=archcore_linux_amd64.tar.gz; digest=aedecc17741da45e58a86745b961edec7c6d63ab6d319cdb466428a48a471c7e ;;
+            Darwin-arm64) asset=archcore_darwin_arm64.tar.gz; digest=dfbb11c65e5a78c798fd178ef612c3248549272a595102ec82197e02bc499fb1 ;;
+            Darwin-x86_64) asset=archcore_darwin_amd64.tar.gz; digest=1beb644755ec19d7661b347836b0365246309c146d64ff7cd377056e3911ef8f ;;
             *) echo "Unsupported runner platform" >&2; exit 1 ;;
           esac
           {
             echo "asset=$asset"
             echo "digest=$digest"
-            echo "dir=$RUNNER_TEMP/archcore-cli-0.8.4"
+            echo "dir=$RUNNER_TEMP/archcore-cli-0.8.6"
           } >> "$GITHUB_OUTPUT"
 
       - name: Restore the pinned CLI from cache
@@ -73,7 +73,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.cli-asset.outputs.dir }}
-          key: archcore-cli-0.8.4-${{ steps.cli-asset.outputs.digest }}
+          key: archcore-cli-0.8.6-${{ steps.cli-asset.outputs.digest }}
 
       - name: Install the pinned CLI for MCP integration tests
         if: steps.cli-cache.outputs.cache-hit != 'true'
@@ -86,7 +86,7 @@ jobs:
           mkdir -p "$CLI_DIR"
           cd "$CLI_DIR"
           curl --fail --silent --show-error --location --retry 3 --retry-all-errors --retry-delay 5 \
-            "https://github.com/archcore-ai/cli/releases/download/v0.8.4/$ASSET" -o "$ASSET"
+            "https://github.com/archcore-ai/cli/releases/download/v0.8.6/$ASSET" -o "$ASSET"
           printf '%s  %s\n' "$DIGEST" "$ASSET" | shasum -a 256 --check
           tar -xzf "$ASSET" archcore
           rm -f "$ASSET"
