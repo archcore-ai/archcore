@@ -55,6 +55,14 @@ const (
 	searchFullDefaultLimit = 3
 	searchFullMaxLimit     = 20
 	excerptWindow          = 120
+	// searchMatchCap bounds the evidence one row carries per filter. A document
+	// that cited one path 39 times made evidence 60-70% of an overflowed
+	// response (read-tool-responses-survive-host-truncation.adr).
+	searchMatchCap = 5
+	// searchRelationCap bounds each relation array of a row, which a hub
+	// document otherwise grows with its degree. get_document returns the full
+	// graph of one document.
+	searchRelationCap = 5
 )
 
 // searchMode is the output-detail vocabulary of the mode parameter (§G typed
@@ -81,17 +89,21 @@ const (
 // hit (bounded-and-deterministic-output.rule).
 const contentFreqCap = 20
 
-const searchDocumentsDescription = `Search .archcore/ documents by content or filters. The search covers the local project AND every mounted read-only global source; read source_kind on each result to tell them apart, and treat local documents as authoritative over same-topic globals.
+const searchDocumentsDescription = `Search .archcore/ documents by content or filters, across the local project and every mounted read-only global source. Prefer this over list_documents + get_document loops when you need "which docs match X".
 
-Use this when you need to find documents matching specific criteria — path references in the body, content words, document types, status, or recency. Unlike list_documents (metadata-only), search_documents scans document bodies.
+Give at least one filter (path_ref, content, types, status); filters combine as AND. content matches every whitespace-separated word by default, in any order ("plugin compatibility" matches "Plugin / CLI Compatibility"); match="exact" takes one literal substring, match="any" takes at least one word. path_ref matches @-notation and qualified bare paths. source scopes to "local", "global", or a declared source id.
 
-Returns: JSON {"results": [...], "coverage": {...}}. Each result carries title, type, status, mtime, tags, match details (ref, kind, specificity, excerpt), and manifest relations. "coverage" maps each searched source to its scanned document count (e.g. {"local": 102, "org": 42}) — an empty "results" next to a populated "coverage" is a verified absence, so broaden the query instead of assuming the corpus was not searched. Results sorted by the ` + "`sort`" + ` parameter ("relevance" default). When a source has at least one match, its top match is kept on the page past the limit cut while slots allow — when matching sources outnumber the page, the best-ranked sources win.
+Returns JSON, summary first:
+- coverage: documents scanned per source. Empty results next to a populated coverage is a verified absence — broaden the words; do not assume the corpus was skipped.
+- hits: matches per source before the limit cut.
+- truncated: true when the response byte budget kept fewer rows than the limit admitted.
+- index: path, title, source_id of every row the limit admitted.
+- results: rows in ` + "`sort`" + ` order ("relevance" default), each with at most 5 matches and 5 relations per direction; matches_total and the relation totals appear when more exist. A source with a match keeps its top row on the page.
+Read source_kind on each row. A matching global is part of the answer: read it. IF a local and a global document conflict, THEN the local one is authoritative.
 
-Filters combine as AND. At least one filter must be provided. Use path_ref for path references (matches both @-notation and qualified bare paths). Use content for word search across title+body: by default every whitespace-separated word must occur somewhere in the document (any order, any distance — "plugin compatibility" matches "Plugin / CLI Compatibility"). Set match="exact" for a literal substring or match="any" for at-least-one-word. Use source to scope the search to "local", "global", or one declared global source id.
+mode="snippets" (default) returns excerpts: use it to find candidates. mode="full" adds each body inline (frontmatter stripped), default limit 3, so you can skip get_document. The bodies share the byte budget: a long body arrives shortened with body_truncated: true and body_bytes. Call get_document for the rest, and always before update_document — never write back a shortened body. Raise limit only after hits or index show more rows worth reading.
 
-Set ` + "`mode=full`" + ` when your goal is to read the matched document(s): each result then carries the full document body inline (frontmatter stripped), so you get answer-ready content in a single call and do NOT need a follow-up get_document. Full mode defaults to a small limit (3); raise ` + "`limit`" + ` if you need more candidates. Leave mode at the default "snippets" (excerpt windows only) when you just need to discover which docs match.
-
-Prefer this tool over list_documents + get_document loops when you need "which docs match X" — and prefer search_documents(mode=full) over search + get_document when you then need to read those docs.`
+IF the host shows only part of this result, THEN hits and index at its start still name every source that matched. Read those documents (get_document, or a narrower query) before you answer.`
 
 // matchKind is the match-evidence vocabulary carried on the wire in
 // searchMatch.Kind (§G typed enum; a typed string alias marshals identically,
@@ -121,9 +133,25 @@ type searchMatch struct {
 // searchDocumentsResult is the response envelope. Coverage maps each searched
 // source id to its scanned document count, so an empty result set is a verified
 // absence rather than an unfalsifiable blank (global-recall-guarantees.rfc).
+//
+// The field order is the wire order: a host that stores an oversized result
+// shows the agent only its first bytes, so what each source held comes before
+// the rows (read-tool-responses-survive-host-truncation.adr).
 type searchDocumentsResult struct {
-	Results  []searchResult `json:"results"`
 	Coverage map[string]int `json:"coverage"`
+	Hits     map[string]int `json:"hits"`
+	// Truncated reports that the byte budget kept fewer rows in Results, or fewer
+	// entries in Index, than the limit admitted.
+	Truncated bool               `json:"truncated"`
+	Index     []searchIndexEntry `json:"index"`
+	Results   []searchResult     `json:"results"`
+}
+
+// searchIndexEntry is the identity of one page row.
+type searchIndexEntry struct {
+	Path     string `json:"path"`
+	Title    string `json:"title"`
+	SourceID string `json:"source_id"`
 }
 
 // searchResult is the per-document row returned by search_documents.
@@ -143,11 +171,19 @@ type searchResult struct {
 	Global     bool            `json:"global,omitempty"`
 	ReadOnly   bool            `json:"read_only,omitempty"`
 	Matches    []searchMatch   `json:"matches"`
+	// The three totals appear only on a row the caps below cut.
+	MatchesTotal int `json:"matches_total,omitempty"`
 	// Body is the full document body (frontmatter stripped), populated only in
 	// mode=full so callers can read the matched doc without a get_document call.
-	Body              string             `json:"body,omitempty"`
-	IncomingRelations []DocumentRelation `json:"incoming_relations"`
-	OutgoingRelations []DocumentRelation `json:"outgoing_relations"`
+	Body string `json:"body,omitempty"`
+	// BodyTruncated and BodyBytes mark a body the byte budget shortened;
+	// BodyBytes is the length of the whole body.
+	BodyTruncated          bool               `json:"body_truncated,omitempty"`
+	BodyBytes              int                `json:"body_bytes,omitempty"`
+	IncomingRelations      []DocumentRelation `json:"incoming_relations"`
+	IncomingRelationsTotal int                `json:"incoming_relations_total,omitempty"`
+	OutgoingRelations      []DocumentRelation `json:"outgoing_relations"`
+	OutgoingRelationsTotal int                `json:"outgoing_relations_total,omitempty"`
 
 	// Private ranking keys, not serialized. score folds the match specificity
 	// (path_ref contributes its maximum, content the per-token sum) and the
@@ -207,11 +243,11 @@ func NewSearchDocumentsTool() mcp.Tool {
 			mcp.Enum("relevance", "mtime"),
 		),
 		mcp.WithString("mode",
-			mcp.Description("Output detail. \"snippets\" (default) returns only excerpt windows around matches. \"full\" additionally returns each matched document's full body inline (frontmatter stripped), so you can read the doc without a follow-up get_document. Full mode defaults to limit=3 (max 20)."),
+			mcp.Description("Output detail. \"snippets\" (default) returns only excerpt windows around matches. \"full\" additionally returns each matched document's body inline (frontmatter stripped); a long body arrives shortened with body_truncated: true. Full mode defaults to limit=3 (max 20)."),
 			mcp.Enum(string(searchModeSnippets), string(searchModeFull)),
 		),
 		mcp.WithNumber("limit",
-			mcp.Description("Maximum number of results to return. Defaults and caps are mode-dependent: snippets=50 default/200 max, full=3 default/20 max. Values above the cap are clamped; 0 or omitted maps to the mode default."),
+			mcp.Description("Maximum number of results to return. Defaults and caps are mode-dependent: snippets=50 default/200 max, full=3 default/20 max. Values above the cap are clamped; 0 or omitted maps to the mode default. The response byte budget can return fewer rows than the limit; truncated then reads true."),
 		),
 		mcp.WithTitleAnnotation("Search Documents"),
 		mcp.WithReadOnlyHintAnnotation(true),
@@ -296,7 +332,11 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 			if matchMode == matchModeExact {
 				tokens = []string{strings.ToLower(contentFilter)}
 			} else {
-				tokens = strings.Fields(strings.ToLower(contentFilter))
+				for _, word := range strings.Fields(strings.ToLower(contentFilter)) {
+					if folded := strings.TrimSpace(foldSeparators(word)); folded != "" {
+						tokens = append(tokens, folded)
+					}
+				}
 				if len(tokens) == 0 {
 					return errorResult("content must contain at least one word"), nil
 				}
@@ -339,6 +379,9 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 		// scope and before the query filters: it answers "what did this call
 		// search", not "what matched".
 		coverage := make(map[string]int)
+		// Hits counts matches per source before the page cut: what a source held,
+		// where the index and the rows say what the page kept.
+		hits := make(map[string]int)
 
 		results := make([]searchResult, 0, len(docs))
 		for _, doc := range docs {
@@ -361,53 +404,45 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 			// Match evidence accumulators. specSum and freq feed the internal
 			// ranking score; the matches slice is the wire evidence.
 			matches := make([]searchMatch, 0)
+			matchesTotal := 0
 			specSum := 0
 			freq := 0
 
-			// path_ref filter. Every hit stays in the wire evidence, but only the
-			// MAXIMUM specificity feeds the score: repeating a path is citation,
-			// not extra relevance. Content is the deliberate asymmetry — its
-			// per-token evidence sums, and stuffing is bounded by contentFreqCap
-			// instead.
+			// path_ref filter. Only the MAXIMUM specificity feeds the score:
+			// repeating a path is citation, not extra relevance. Content is the
+			// deliberate asymmetry — its per-token evidence sums, and stuffing is
+			// bounded by contentFreqCap instead.
 			if pathRefFilter != "" {
-				refs := extractPathRefs(doc.Content)
-				refs = filterBareMentions(refs)
-				normalizedTarget := strings.TrimPrefix(pathRefFilter, "@")
-				pathSpecMax := 0
-				for _, r := range refs {
-					refPath := strings.TrimPrefix(r.Raw, "@")
-					spec := computeSpecificity(refPath, normalizedTarget)
-					if spec == 0 {
-						continue
-					}
-					kind := matchKindMention
-					if r.Kind == refKindExplicit {
-						kind = matchKindExplicit
-					}
-					excerpt := buildExcerpt(doc.Content, r.Start, len(r.Raw))
-					matches = append(matches, searchMatch{
-						Kind:        kind,
-						Ref:         r.Raw,
-						Specificity: spec,
-						Excerpt:     excerpt,
-					})
-					pathSpecMax = max(pathSpecMax, spec)
-				}
-				if len(matches) == 0 {
+				refHits := rankPathRefs(doc.Content, pathRefFilter)
+				if len(refHits) == 0 {
 					continue
 				}
-				specSum += pathSpecMax
+				specSum += refHits[0].specificity
+				matchesTotal += len(refHits)
+				for _, h := range refHits[:min(len(refHits), searchMatchCap)] {
+					kind := matchKindMention
+					if h.Kind == refKindExplicit {
+						kind = matchKindExplicit
+					}
+					matches = append(matches, searchMatch{
+						Kind:        kind,
+						Ref:         h.Raw,
+						Specificity: h.specificity,
+						Excerpt:     buildExcerpt(doc.Content, h.Start, len(h.Raw)),
+					})
+				}
 			}
 
 			// content filter.
 			if contentFilter != "" {
-				contentMatches, contentSpecSum, contentFreq, found := scoreContent(doc.Title, doc.Content, tokens, matchMode)
+				contentMatches, contentSpecSum, contentFreq, found := scoreContent(doc.Title, doc.Slug, doc.Content, tokens, matchMode)
 				if !found {
 					// No content hit means we drop the doc. If path_ref is also
 					// active, AND semantics say content must also match.
 					continue
 				}
-				matches = append(matches, contentMatches...)
+				matchesTotal += len(contentMatches)
+				matches = append(matches, capContentMatches(contentMatches)...)
 				specSum += contentSpecSum
 				freq = contentFreq
 			}
@@ -429,22 +464,20 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 			}
 
 			result := searchResult{
-				Path:              doc.Path,
-				Title:             doc.Title,
-				Type:              doc.Type,
-				Status:            doc.Status,
-				ModTime:           doc.ModTime,
-				Tags:              doc.Tags,
-				SourceID:          doc.SourceID,
-				SourceKind:        doc.SourceKind,
-				Global:            doc.Global,
-				ReadOnly:          doc.ReadOnly,
-				Matches:           matches,
-				IncomingRelations: []DocumentRelation{},
-				OutgoingRelations: []DocumentRelation{},
-				score:             100*specSum + freq,
-				typeRank:          rank,
-				effectiveMtime:    effectiveMtime,
+				Path:           doc.Path,
+				Title:          doc.Title,
+				Type:           doc.Type,
+				Status:         doc.Status,
+				ModTime:        doc.ModTime,
+				Tags:           doc.Tags,
+				SourceID:       doc.SourceID,
+				SourceKind:     doc.SourceKind,
+				Global:         doc.Global,
+				ReadOnly:       doc.ReadOnly,
+				Matches:        matches,
+				score:          100*specSum + freq,
+				typeRank:       rank,
+				effectiveMtime: effectiveMtime,
 			}
 
 			// In full mode, attach the body so the caller can read the doc
@@ -454,33 +487,59 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 				result.Body = stripFrontmatter(doc.Content)
 			}
 
-			relPath := normalizeRelPath(doc.Path)
-			for _, r := range outgoingIdx[relPath] {
-				result.OutgoingRelations = append(result.OutgoingRelations, DocumentRelation{
-					Path: ".archcore/" + r.Target,
-					Type: string(r.Type),
-				})
-			}
-			for _, r := range incomingIdx[relPath] {
-				result.IncomingRelations = append(result.IncomingRelations, DocumentRelation{
-					Path: ".archcore/" + r.Source,
-					Type: string(r.Type),
-				})
+			if matchesTotal > len(matches) {
+				result.MatchesTotal = matchesTotal
 			}
 
+			relPath := normalizeRelPath(doc.Path)
+			outgoing := make([]DocumentRelation, 0, len(outgoingIdx[relPath]))
+			for _, r := range outgoingIdx[relPath] {
+				outgoing = append(outgoing, DocumentRelation{Path: ".archcore/" + r.Target, Type: string(r.Type)})
+			}
+			incoming := make([]DocumentRelation, 0, len(incomingIdx[relPath]))
+			for _, r := range incomingIdx[relPath] {
+				incoming = append(incoming, DocumentRelation{Path: ".archcore/" + r.Source, Type: string(r.Type)})
+			}
+			result.OutgoingRelations, result.OutgoingRelationsTotal = capRelations(outgoing)
+			result.IncomingRelations, result.IncomingRelationsTotal = capRelations(incoming)
+
 			results = append(results, result)
+			hits[doc.SourceID]++
+		}
+		for sourceID := range coverage {
+			if _, matched := hits[sourceID]; !matched {
+				hits[sourceID] = 0
+			}
 		}
 
 		sortResults(results, sortMode)
 
+		ranked := results
 		if limit > 0 && len(results) > limit {
 			results = ensureSourceRepresentation(results, limit, sortMode)
 		}
 
-		data, err := json.Marshal(searchDocumentsResult{
-			Results:  results,
-			Coverage: coverage,
-		})
+		index := make([]searchIndexEntry, len(results))
+		for i, r := range results {
+			index[i] = searchIndexEntry{Path: r.Path, Title: r.Title, SourceID: r.SourceID}
+		}
+
+		index, indexCut, err := capIndex(index)
+		if err != nil {
+			return nil, err
+		}
+		response := searchDocumentsResult{Coverage: coverage, Hits: hits, Index: index, Results: []searchResult{}}
+		head, err := json.Marshal(response)
+		if err != nil {
+			return nil, fmt.Errorf("marshaling result head: %w", err)
+		}
+		response.Results, response.Truncated, err = fitSearchPage(ranked, len(results), len(head), sortMode)
+		if err != nil {
+			return nil, err
+		}
+		response.Truncated = response.Truncated || indexCut
+
+		data, err := json.Marshal(response)
 		if err != nil {
 			return nil, fmt.Errorf("marshaling result: %w", err)
 		}
@@ -531,12 +590,20 @@ func sourceAdmits(scope, sourceID string, kind docs.SourceKind) bool {
 // body. matchModeAll requires every token; matchModeAny at least one;
 // matchModeExact arrives here as a single whole-query token
 // (global-recall-guarantees.rfc).
-func scoreContent(title, body string, tokens []string, matchMode contentMatchMode) (matches []searchMatch, specSum, freq int, found bool) {
+func scoreContent(title, slug, body string, tokens []string, matchMode contentMatchMode) (matches []searchMatch, specSum, freq int, found bool) {
 	if len(tokens) == 0 {
 		return nil, 0, 0, false
 	}
 	lowerTitle := strings.ToLower(title)
+	lowerSlug := strings.ToLower(slug)
 	lowerBody := strings.ToLower(body)
+	// exact stays a literal substring search; all and any compare folded text
+	// against the folded query words (search-matches-the-slug-and-folds-separators.adr).
+	// A word that folded to no space matches the same bytes in either text, so
+	// only a compound word pays for the folded copy of the body.
+	if matchMode != matchModeExact && slices.ContainsFunc(tokens, isCompoundWord) {
+		lowerTitle, lowerSlug, lowerBody = foldSeparators(lowerTitle), foldSeparators(lowerSlug), foldSeparators(lowerBody)
+	}
 	// Heading lines, extracted lazily on the first body-tier token: a title hit
 	// never pays the line scan, and the extraction runs at most once per doc.
 	lowerHeadings := ""
@@ -549,6 +616,9 @@ func scoreContent(title, body string, tokens []string, matchMode contentMatchMod
 		case strings.Contains(lowerTitle, token):
 			spec = 3
 			excerpt = buildExcerpt(title, strings.Index(lowerTitle, token), len(token))
+		case strings.Contains(lowerSlug, token):
+			spec = 3
+			excerpt = slug
 		case strings.Contains(lowerBody, token):
 			if !headingsBuilt {
 				lowerHeadings = headingLines(lowerBody)
@@ -583,6 +653,27 @@ func scoreContent(title, body string, tokens []string, matchMode contentMatchMod
 	return matches, specSum, freq, true
 }
 
+func isCompoundWord(token string) bool {
+	return strings.Contains(token, " ")
+}
+
+// foldSeparators replaces the characters that join a compound name with a
+// space, one byte for one byte, so that an offset into the folded text is an
+// offset into the source and "acme-id-sdk" meets "@acme-id/sdk".
+func foldSeparators(s string) string {
+	if !strings.ContainsAny(s, "-_/.@:") {
+		return s
+	}
+	folded := []byte(s)
+	for i, b := range folded {
+		switch b {
+		case '-', '_', '/', '.', '@', ':':
+			folded[i] = ' '
+		}
+	}
+	return string(folded)
+}
+
 // headingLines returns the markdown heading lines of body joined by newlines.
 func headingLines(body string) string {
 	var b strings.Builder
@@ -592,6 +683,67 @@ func headingLines(body string) string {
 		}
 	}
 	return b.String()
+}
+
+// pathRefHit is one path reference that shares at least one segment with the
+// filter.
+type pathRefHit struct {
+	pathRef
+	specificity int
+}
+
+// rankPathRefs returns the references in body that match filter, best first:
+// specificity, then an explicit @-reference before a bare mention, then body
+// order. The order exists so that searchMatchCap cuts the weakest evidence.
+func rankPathRefs(body, filter string) []pathRefHit {
+	target := strings.TrimPrefix(filter, "@")
+	var hits []pathRefHit
+	for _, r := range filterBareMentions(extractPathRefs(body)) {
+		spec := computeSpecificity(strings.TrimPrefix(r.Raw, "@"), target)
+		if spec > 0 {
+			hits = append(hits, pathRefHit{pathRef: r, specificity: spec})
+		}
+	}
+	slices.SortStableFunc(hits, func(a, b pathRefHit) int {
+		if c := cmp.Compare(b.specificity, a.specificity); c != 0 {
+			return c
+		}
+		if a.Kind != b.Kind {
+			if a.Kind == refKindExplicit {
+				return -1
+			}
+			return 1
+		}
+		return cmp.Compare(a.Start, b.Start)
+	})
+	return hits
+}
+
+// capContentMatches keeps query-word order for a row under the cap, and the
+// most specific words for a row over it.
+func capContentMatches(matches []searchMatch) []searchMatch {
+	if len(matches) <= searchMatchCap {
+		return matches
+	}
+	slices.SortStableFunc(matches, func(a, b searchMatch) int {
+		return cmp.Compare(b.Specificity, a.Specificity)
+	})
+	return matches[:searchMatchCap]
+}
+
+// capRelations orders relations by path, then type, and keeps
+// searchRelationCap of them. The total is zero when nothing was cut.
+func capRelations(relations []DocumentRelation) (kept []DocumentRelation, total int) {
+	slices.SortFunc(relations, func(a, b DocumentRelation) int {
+		if c := cmp.Compare(a.Path, b.Path); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Type, b.Type)
+	})
+	if len(relations) <= searchRelationCap {
+		return relations, 0
+	}
+	return relations[:searchRelationCap], len(relations)
 }
 
 // ensureSourceRepresentation cuts results to limit while keeping every matching

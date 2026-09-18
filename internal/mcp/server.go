@@ -200,8 +200,10 @@ func buildInstructions(language string, globals []config.GlobalSource) string {
 GLOBAL SOURCES:
 This project mounts %d read-only global source(s): %s.
 - The read tools (list_documents, get_document, search_documents) cover local and global documents together. Read source_kind on each result to tell them apart.
-- Local documents take precedence over same-topic globals. Treat a global as the org-wide default that a local document refines.
+- A matching global is part of the answer. Read it; do not skip it because a local document also matched.
+- IF a local and a global document conflict on one topic, THEN the local document is authoritative. The global stays the org-wide default it refines.
 - Global documents are read-only and never relation endpoints; the write tools refuse them.
+- A search result starts with hits (matches per source) and index (every row on the page). IF the host shows only part of a result, THEN read the documents index names before you answer.
 - When a search returns nothing, check its coverage field: the globals were scanned, so broaden the words (match="all" needs every word to occur) or scope with source="global".`, len(globals), strings.Join(ids, ", "))
 	}
 	if language == "" || language == "en" {

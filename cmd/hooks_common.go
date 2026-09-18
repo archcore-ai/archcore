@@ -138,7 +138,7 @@ const (
 
 // globalsPrecedenceLine is the exact sentence clause 13 of
 // session-globals-disclosure.spec pins.
-const globalsPrecedenceLine = "Local documents take precedence over same-topic globals."
+const globalsPrecedenceLine = "Local documents take precedence over same-topic globals; a matching global is still part of the answer."
 
 // writeGlobalsBlock renders the GLOBALS block from the inspections and returns
 // the mounted document total across healthy sources, for the banner.

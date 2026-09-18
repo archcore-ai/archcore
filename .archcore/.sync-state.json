@@ -1747,6 +1747,71 @@
       "source": "document-types/add-a-document-type.task-type.md",
       "target": "document-types/research-and-evidence-vocabulary.plan.md",
       "type": "related"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "mcp/search-matches-the-slug-and-folds-separators.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "globals/session-globals-disclosure.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "code-quality/bounded-and-deterministic-output.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "target": "mcp/global-recall-guarantees.rfc.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "target": "mcp/search-documents-matching-not-presentation.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/search-matches-the-slug-and-folds-separators.adr.md",
+      "target": "mcp/global-recall-guarantees.rfc.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/search-matches-the-slug-and-folds-separators.adr.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/list-documents.spec.md",
+      "target": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/list-documents.spec.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "mcp/list-documents.spec.md",
+      "type": "implements"
     }
   ]
 }

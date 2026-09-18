@@ -128,6 +128,15 @@ If full mode ever grows opinionated formatting (sectioning, rendering, summariza
 - **`match` (`all` default / `any` / `exact`) and `source` are filters and search controls**, the category this ADR already admits. Tokenized all-words matching replaces one deterministic predicate with another; no fuzziness, no semantics, no opinion entered the tool.
 - **Per-source representation on the truncated page is a ranking/cut concern**, deterministic and spec-pinned — analogous to the `sort` parameter this ADR already keeps in the primitive. It is not top-N-per-*category*: it keys on `source_id`, a matching-layer fact, not on a product taxonomy.
 
+### Addendum (2026-09): the byte budget shortens a body; it does not format one
+
+`read-tool-responses-survive-host-truncation.adr` put a 40,000-byte ceiling on the response, and the 2026-06 addendum's phrase "attaches the unmodified body" stopped being true in every case. The boundary this ADR draws still holds:
+
+- **A shortened `body` is a prefix of the raw body.** The tool adds no marker text, no ellipsis, no summary. `body_truncated` and `body_bytes` are fields beside the body, so the data stays raw and the cut stays machine-checkable.
+- **`hits`, `truncated`, and `index` are matching metadata.** They state what each source held and which rows the limit admitted. They key on `source_id` and `path`, not on a product taxonomy, and they group nothing.
+- **The caps on `matches` and on the relation arrays are cut concerns**, like `limit`: a deterministic order, a named ceiling, and a total beside a cut array.
+- **The key order of the envelope is a wire property, not a layout.** It exists because one host showed the caller the first 2 KB of a stored result.
+
 ## References
 
 - Tool contract: `.archcore/mcp/search-documents.spec.md`

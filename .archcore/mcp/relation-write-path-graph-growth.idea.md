@@ -38,7 +38,7 @@ model handles worst.
 
 ## Measurements
 
-Real corpus: `litres/monorepo` `.archcore/` — **153 docs, 513 directed
+Real corpus: the `.archcore/` of one production monorepo — **153 docs, 513 directed
 relations (506 undirected edges), `.sync-state.json` 81 KB**. Snapshot
 2026-07-09. Graph-structure figures below are measured; the write-amplification
 projection is modeled (linear extrapolation of the measured 162 bytes/relation).
@@ -131,7 +131,7 @@ context.
 
 ## Notes
 
-- Snapshot taken 2026-07-09 from `litres/monorepo`
+- Snapshot taken 2026-07-09 from that production monorepo's
   `.archcore/.sync-state.json`; re-run the analysis after any change to the
   relation storage or mutation path.
 - The write-amplification rows are modeled, not benchmarked — a

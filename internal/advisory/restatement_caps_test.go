@@ -126,12 +126,12 @@ func TestQuoteCutsRunesNotBytes(t *testing.T) {
 		},
 		{
 			name:      "a line exactly at the ceiling is not cut",
-			in:        strings.Repeat("я", maxQuotedLineRunes),
+			in:        strings.Repeat("ω", maxQuotedLineRunes),
 			wantRunes: maxQuotedLineRunes,
 		},
 		{
 			name:         "a long Cyrillic line is cut at the rune ceiling",
-			in:           strings.Repeat("я", maxQuotedLineRunes+10),
+			in:           strings.Repeat("ω", maxQuotedLineRunes+10),
 			wantRunes:    maxQuotedLineRunes,
 			wantEllipsis: true,
 		},
