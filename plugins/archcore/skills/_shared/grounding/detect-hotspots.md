@@ -135,7 +135,7 @@ to the budget fill by **repo-wide** rank across ALL domains, selected or not —
 unselected domain's hotspot still places when it outranks a selected domain's weaker
 one. On `skip` (no domain selected) the whole budget fills by repo-wide rank alone.
 
-**`domain <slug>` re-run.** Apply the same formula to the **narrowed** pool — eligible
+**`refresh <domain>` re-run.** Apply the same formula to the **narrowed** pool — eligible
 candidates under that domain's tree only. A re-run therefore tops up a domain in
 proportion to what that domain holds, at the same rate and floor as a day-one run.
 
@@ -249,7 +249,7 @@ conflate them:
   candidate-pool restriction, and it also drives how many domains get a data-model
   doc (data-model breadth is decoupled from the dialog entirely — see
   `detect-data-model.md`).
-- **A later `/archcore:init domain <slug>` re-run.** This restricts the
+- **A later `/archcore:init refresh <domain>` re-run.** This restricts the
   **candidate pool itself** to files under the one named domain's path, then applies
   the same `rate` / `floor` formula to that narrowed pool. A dense domain therefore
   tops up with more specs than a thin one, instead of both receiving one flat number.

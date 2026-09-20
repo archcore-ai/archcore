@@ -62,11 +62,11 @@ type + what it covers** — area/type/topic words ONLY, never a filename or path
 | config/env doc | Configuration | doc | env-var names & purpose |
 | each hotspot spec (a decomposed flagship's sub-specs each get their own row) | Hotspot: `<module>`[ (`<sub-surface>`)] | spec | `<module>`[ `<sub-surface>`] contract |
 | each cross-cutting rule | `<concern>` | rule | cross-cutting convention |
-| each imported rule | `<imported topic>` | rule | imported convention |
+| each document converted from authored sources | `<topic>` | its type | `<topic>` |
 
 Emit only rows whose artifact is in the seed. Order: facts (stack, run guide),
 structure (entry points, domains), data (data-model, integrations, config), then
-hotspots, then cross-cutting rules, then imports.
+hotspots, then cross-cutting rules, then documents converted from authored sources.
 
 **Row-collapse (keeps Part 1+2+3 ≤ 150 lines on any repo size).** The pool-scaled spec
 budget (`detect-hotspots.md` "Spec budget by coverage rate") and large mode's
@@ -74,8 +74,8 @@ every-schema-domain data-model breadth (`detect-data-model.md`) can each produce
 dozens of rows on a big repo — the superseded flat caps could not. For ANY artifact category
 that would emit **more than 10 rows** in one confirmed seed (hotspot specs at large
 `standard`/`deep`, per-domain data-models when many domains carry a schema, or a
-large batch of imported modular-rule docs): list the first 10 by rank/name
-(deterministic — highest-ranked hotspot first, alphabetical for data-models/imports),
+large batch of documents converted from authored sources): list the first 10 by rank/name
+(deterministic — highest-ranked hotspot first, alphabetical for data-models and converted documents),
 then collapse the remainder into ONE summary row: `<Category>: +<N> more` — same
 `Type`, `Covers` = `<N> additional <unit>`. This is the same "index, not directory"
 discipline Part 3 already applies to its register, extended to Part 2 so a 24-domain
@@ -92,7 +92,7 @@ the user knows exactly what to `/archcore:document` next.
   (highest-ranked first): source module (area + short name) + its qualifying signal +
   `→ /archcore:document <path>`. If the remainder exceeds 12, list the top 12 and close
   with one summary line — `+<N> more ranked candidates — /archcore:document on demand or
-  re-run at a higher --depth.` Never enumerate an unbounded remainder: Part 1 + 2 + 3
+  re-run and toggle a higher depth.` Never enumerate an unbounded remainder: Part 1 + 2 + 3
   combined MUST stay inside the ≤ 150-line OUTPUT cap regardless of repo size.
 - Names **source** modules and paths, not `.archcore/` documents — pointing at code
   the user can act on, never enumerating other seeded docs.
@@ -150,12 +150,12 @@ SKILL wires elsewhere).
 
 | From | Edge | To | Condition |
 |---|---|---|---|
-| architecture-overview | related | every other seeded doc (stack rule, run guide, entry-points, public-surface, top-level-map, data-model, integrations, config, each hotspot spec, each cross-cutting rule, each imported doc) | always |
+| architecture-overview | related | every other seeded doc (stack rule, run guide, entry-points, public-surface, top-level-map, data-model, integrations, config, each hotspot spec, each cross-cutting rule, each document converted from authored sources) | always |
 | data-model doc | related | integrations doc | both seeded |
 | each hotspot spec | related | top-level-map | top-level-map present (large mode) |
 | each hotspot spec | related | entry-points doc | entry-points present (medium / large) |
 | each hotspot spec | related | public-surface doc | public-surface present |
-| imported rule doc | related | project-stack rule | import yielded a `rule` |
+| converted `rule` | related | project-stack rule | the conversion yielded a `rule` |
 | a decomposed flagship's sub-specs | related | each other (pairwise) | flagship split into ≥ 2 sub-specs (`detect-hotspots.md` "Flagship specs") |
 | each hotspot spec | related | the convention rule(s) it must honor + sibling specs in its tree | **`deep` depth only** (enriched relations) |
 

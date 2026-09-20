@@ -22,7 +22,7 @@ Describe what you want in plain English — Archcore computes the route. The sla
 
 | Command              | Outcome                                             | When to use                                                                                                                                                                                                                                               |
 | -------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/archcore:init`     | Make your repo legible to AI agents                 | First-time setup — detects your repo's scale, seeds a first-day pack (stack rule, run guide, architecture overview, specs for hotspot modules) in one preview, wires host configs, and imports your `CLAUDE.md` / `AGENTS.md` / `.cursorrules` if present |
+| `/archcore:init`     | Make your repo legible to AI agents                 | First-time setup — detects your repo's scale, wires host configs, measures the context you already wrote, and seeds a first-day pack (stack rule, run guide, architecture overview, specs for hotspot modules) in one preview. `/archcore:init import` converts your `CLAUDE.md` / `AGENTS.md` / rule files, ADR folders, and contributor docs into native typed documents |
 | `/archcore:plan`     | Turn an idea into a scoped implementation plan      | New feature, refactor, or initiative — the route is computed from what the work changes: a small fix exits with no documents, one capability gets a spec and a plan, a large initiative gets an umbrella PRD with one spec per capability                 |
 | `/archcore:document` | Record a decision or document what lives in code    | `decision` — a decision was made (ADR/RFC, optionally codified as a team rule); `code` — a module, API, or integration has tribal knowledge but no doc yet; `research` — file a ready report or one external material                                     |
 | `/archcore:review`   | Check your changes and your docs against each other | Before merge — reviews the branch against recorded rules and decisions; `drift` for code/doc staleness, `deep` for a full documentation audit, `closeout` to close a finished feature                                                                                                           |
@@ -39,7 +39,7 @@ You never pick a route or a size — the announcement names both before any docu
 
 `plan research <topic>` runs the research instrument, which produces either a `research` document (a territory survey closed by scope coverage) or an `rnd` (an investigation closed by a recommendation, selected when the request names a pending decision or a set of candidates); `document research <report>` files a ready report the same way, and `document research <material>` files one external material as an `evidence` document. The `research` and `evidence` types and the `supports`, `contradicts`, and `supersedes` relations require Archcore CLI ≥ v0.8.3; on an older CLI, `plan research` falls back to an `rnd` and reports the required version.
 
-Every command reads its first word as a mode — `init refresh|domain <slug>`, `plan sdd|sources|iso|research`, `document decision|code|research`, `review drift|deep|closeout|experience` — and the rest as the subject. A gate inside the track picks the document type; name the type in the subject (`document decision rfc for gRPC`) to skip that question.
+Every command reads its first word as a mode — `init import|refresh`, `plan sdd|sources|iso|research`, `document decision|code|research`, `review drift|deep|closeout|experience` — and the rest as the subject. A gate inside the track picks the document type; name the type in the subject (`document decision rfc for gRPC`) to skip that question.
 
 ## Install
 
@@ -125,7 +125,7 @@ copilot --plugin-dir /path/to/plugin/plugins/archcore
 
 Open your project and try these three prompts. Each shows a different side of what your agent can now do.
 
-> Empty repo? Run `/archcore:init` first — it seeds a stack rule, a run-the-app guide, and optionally imports your existing `CLAUDE.md` / `AGENTS.md` / `.cursorrules`.
+> Empty repo? Run `/archcore:init` first — it seeds a stack rule and a run-the-app guide, and converts your existing `CLAUDE.md` / `AGENTS.md` / rule files into typed documents. Run `/archcore:init import` to migrate ADR folders and contributor docs too.
 
 **1. "Before I change anything in `src/auth/`, what should I know?"**
 Your agent sees what's already decided for that path — _before_ it touches the code.

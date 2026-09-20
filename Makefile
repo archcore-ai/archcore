@@ -5,7 +5,7 @@ PLUGIN_REL := plugins/archcore
 BIN_SCRIPTS := $(PLUGIN_REL)/bin/session-start $(PLUGIN_REL)/bin/pre-tool-use $(PLUGIN_REL)/bin/post-tool-use $(PLUGIN_REL)/bin/detect-host $(PLUGIN_REL)/bin/cli-gte
 LIB_SCRIPTS := $(PLUGIN_REL)/bin/lib/normalize-stdin.sh $(PLUGIN_REL)/bin/lib/plugin-cache-guard.sh
 ALL_SCRIPTS := $(BIN_SCRIPTS) $(LIB_SCRIPTS)
-TEST_SH_SCRIPTS := test/behavioral/route-bench.sh test/behavioral/document-bench.sh test/behavioral/skill-bench.sh
+TEST_SH_SCRIPTS := test/behavioral/route-bench.sh test/behavioral/document-bench.sh test/behavioral/import-bench.sh test/behavioral/skill-bench.sh
 TEST_BASH_SCRIPTS := test/helpers/mcp.bash
 ARCHCORE_BIN ?= archcore
 # Marketplace catalogs stay at repo root; plugin manifests/hooks/mcp live under plugins/archcore/.
@@ -16,7 +16,7 @@ JSON_FILES := .agents/plugins/marketplace.json .claude-plugin/marketplace.json .
               $(PLUGIN_REL)/hooks/copilot.hooks.json \
               $(PLUGIN_REL)/.claude.mcp.json docs/cursor.mcp.example.json
 
-.PHONY: test test-unit test-structure test-integration test-routing-bench test-document-bench test-skill-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
+.PHONY: test test-unit test-structure test-integration test-routing-bench test-document-bench test-import-bench test-skill-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
 
 all: check-json check-perms lint test
 
@@ -44,6 +44,10 @@ test-routing-bench:
 # LLM-in-the-loop document-entry bench — spends model tokens; on demand only, never CI.
 test-document-bench:
 	@sh test/behavioral/document-bench.sh
+
+# LLM-in-the-loop init-entry bench (route, size tier, triage verdict) — spends model tokens; on demand only, never CI.
+test-import-bench:
+	@sh test/behavioral/import-bench.sh
 
 # LLM-in-the-loop host skill-selection bench — loads the plugin into claude -p; on demand only, never CI.
 test-skill-bench:

@@ -2,9 +2,9 @@
 # Structure test: the command entry grammar from command-entry-grammar.adr and
 # command-surface-v2.spec. Every command reads `[mode] [subject]`: the first
 # bracket of its argument hint is a closed list of mode words, no hint lists a
-# document type name or a route name as a mode, flags survive only as settings
-# (`--depth`, `--scale` on init), and no skill Result section tells the agent to
-# print a gate address.
+# document type name or a route name as a mode, no hint carries a flag (init
+# settings are preview toggles per init-import-mode.adr), and no skill Result
+# section tells the agent to print a gate address.
 
 setup() {
   load '../helpers/common'
@@ -22,7 +22,7 @@ hint_of() {
     hint=$(hint_of "$PLUGIN_ROOT/skills/$skill/SKILL.md")
     [ "$hint" = "$expected" ] || { fail "$skill hint is $hint, expected $expected"; return 1; }
   done <<'HINTS'
-init|"[refresh|domain <slug>] [--depth=light|standard|deep] [--scale=small|medium|large]"
+init|"[import|refresh] [path or domain]"
 plan|"[sdd|sources|iso|research] [topic]"
 document|"[decision|code|research] [subject]"
 review|"[drift|deep|closeout|experience] [path, tag, or scope]"
@@ -47,20 +47,22 @@ HINTS
   done
 }
 
-@test "only init carries flags, and only as settings" {
+@test "no argument hint carries a flag" {
   local skill hint
-  for skill in plan document review; do
+  for skill in init plan document review; do
     hint=$(hint_of "$PLUGIN_ROOT/skills/$skill/SKILL.md")
     [[ "$hint" != *--* ]] || { fail "$skill hint carries a flag: $hint"; return 1; }
   done
-  hint=$(hint_of "$PLUGIN_ROOT/skills/init/SKILL.md")
-  [ "$(printf '%s' "$hint" | grep -o -- '--[a-z]*' | sort -u | tr '\n' ' ')" = "--depth --scale " ] \
-    || fail "init hint flags are not exactly --depth and --scale: $hint"
+}
+
+@test "the init hint is byte-identical in the skill and the command wrapper" {
+  [ "$(hint_of "$PLUGIN_ROOT/skills/init/SKILL.md")" = "$(hint_of "$PLUGIN_ROOT/commands/init.md")" ] \
+    || fail "init argument-hint differs between skills/init/SKILL.md and commands/init.md"
 }
 
 @test "no shipped skill or command text uses a retired entry form" {
   local hits
-  hits=$(grep -rn -E '/archcore:(review --(drift|deep)|init --(refresh|domain))|document (adr|rfc|rule|evidence|scenario|journey)`' \
+  hits=$(grep -rn -E '/archcore:(review --(drift|deep)|init (--(refresh|domain|depth|scale)|domain ))|document (adr|rfc|rule|evidence|scenario|journey)`' \
     "$PLUGIN_ROOT/skills" "$PLUGIN_ROOT/commands" "$PLUGIN_ROOT/agents" "$PLUGIN_ROOT/copilot-agents" "$REPO_ROOT/README.md" || true)
   [ -z "$hits" ] || fail "retired entry forms remain:
 $hits"

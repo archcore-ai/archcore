@@ -40,6 +40,11 @@ CLEAN=(
   "skills/review/SKILL.md"
   "skills/init/SKILL.md"
   "skills/init/lib/compose-overview.md"
+  "skills/init/lib/host-wiring.md"
+  "skills/init/lib/seed-detect.md"
+  "skills/init/lib/seed-compose.md"
+  "skills/init/lib/sources.md"
+  "skills/_shared/tracks/import.md"
   "commands/init.md"
   "commands/plan.md"
   "commands/document.md"
@@ -70,7 +75,7 @@ CLEAN=(
   "skills/_shared/grounding/detect-scale.md"
   "skills/_shared/grounding/detect-stack.md"
   "skills/_shared/grounding/detect-surface.md"
-  "skills/_shared/grounding/extract-routing.md"
+  "skills/_shared/grounding/convert-routing.md"
   "skills/_shared/grounding/extract-run-instructions.md"
 )
 

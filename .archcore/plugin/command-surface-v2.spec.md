@@ -19,8 +19,8 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 - Write affinity: `plan` → vision types; `document` → knowledge types, with explicit `research` filing in vision; `review` → experience types.
 - Read scope: all three categories for every command — vision supplies intent and resumption targets, knowledge supplies constraints, experience supplies precedent.
 - Entry grammar: `/archcore:<command> [mode] [subject]`. The mode is the first word, a noun from the closed list the argument hint shows; a gate inside the track selects the document type.
-- Modes per command: `init` → `refresh`, `domain <slug>`; `plan` → `sdd`, `sources`, `iso`, `research`; `document` → `decision`, `code`, `research`; `review` → `drift`, `deep`, `closeout`, `experience`.
-- Settings: `init` → `--depth=light|standard|deep`, `--scale=small|medium|large`. A setting changes how an entry runs, never which entry runs.
+- Modes per command: `init` → `import`, `refresh`; `plan` → `sdd`, `sources`, `iso`, `research`; `document` → `decision`, `code`, `research`; `review` → `drift`, `deep`, `closeout`, `experience`.
+- Settings: no argument hint carries a `--flag`. `init` offers `depth:light|standard|deep` and `scale:small|medium|large` as toggles inside its preview, per `init-import-mode.adr`. A setting changes how an entry runs, never which entry runs.
 - Document mode map: `decision` → `decision.classify` (`adr`, `rfc`, `rule`); `code` → `describe.read` (`spec`, `doc`, `guide`, `scenario`); `research` → `research.frame` (`research`, `rnd`, `evidence`).
 
 ## Normative Behavior
@@ -59,8 +59,9 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 32. WHEN the user invokes `review closeout`, the review skill MUST run the closeout track.
 33. WHEN the user invokes `review experience`, the review skill MUST run the experience track.
 34. WHEN the user invokes `init refresh`, the init skill MUST bypass the already-seeded early exit and compose only missing documents.
-35. WHEN the user invokes `init domain <slug>`, the init skill MUST scope the seed to that domain's tree.
+35. WHEN the user invokes `init refresh` with a detected domain slug as the subject, the init skill MUST scope the seed to that domain's tree.
 36. WHEN a skill reports to the user, the skill MUST NOT print a gate address of the form `<track>.<stage>`.
+37. WHEN the user invokes `init import`, the init skill MUST run the import track in @plugins/archcore/skills/_shared/tracks/import.md.
 
 ## Constraints & Invariants
 
@@ -68,7 +69,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 - Constraint: total questions per invocation MUST NOT exceed the shared elicitation budget.
 - Constraint: the argument hint of a command and the argument hint of its skill are identical; together they are the command's complete expert surface.
 - Constraint: the description of a command and the description of its skill each name every mode of the argument hint.
-- Constraint: a `--flag` selects a setting; no flag selects an entry.
+- Constraint: no argument hint carries a `--flag`; a setting is a preview toggle and never selects an entry.
 - Constraint: `rnd` is produced only by the research instrument's closing test, the spike, or the compatibility fallback.
 - Constraint: a standalone material is filed only through `document research`.
 - Constraint: a `journey` is produced only at `sdd.require` on `plan`.
@@ -86,4 +87,4 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 
 ## Conformance
 
-The skill set is conformant when it satisfies behaviors 1–36, holds all invariants, and degrades per the failure rules. Regression coverage: @test/structure/command-grammar.bats pins the hints, the mode maps, the description parity, and the gate-address rule; @test/behavioral/document-bench.sh measures classification of `document` requests on a live model.
+The skill set is conformant when it satisfies behaviors 1–37, holds all invariants, and degrades per the failure rules. Regression coverage: @test/structure/command-grammar.bats pins the hints, the mode maps, the description parity, and the gate-address rule; @test/behavioral/document-bench.sh measures classification of `document` requests on a live model; @test/behavioral/import-bench.sh measures the route, the size tier, and the triage verdict of `init` on a live model.

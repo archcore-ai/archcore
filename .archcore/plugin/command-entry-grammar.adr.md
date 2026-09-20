@@ -8,6 +8,8 @@ tags:
   - "skills"
 ---
 
+**Update (2026-09-20).** `init-import-mode.adr` changes the `init` row: the hint is `[import|refresh] [path or domain]`. `domain <slug>` is the subject of `refresh`, and `--depth` and `--scale` are preview toggles (`depth:`, `scale:`), so no argument hint carries a flag. The table and the flag sentence below show the 2026-09-16 state.
+
 ## Context
 
 On 2026-09-16 the four argument hints used three grammars: `init` takes only `--key=value` flags, `review` mixes `--deep` and `--drift` with a positional scope, and `plan` and `document` take a positional word (@plugins/archcore/skills/init/SKILL.md, @plugins/archcore/skills/review/SKILL.md, @plugins/archcore/skills/plan/SKILL.md, @plugins/archcore/skills/document/SKILL.md). The `plan` hint `[topic] [sdd | sources | iso | research]` shows the topic first, but @plugins/archcore/skills/_shared/delta-routing.md reads the path from the leading word, and `plan/SKILL.md` step 2 accepts a document type name that the same file says is not an entry. The `document` hint lists ten type names under the placeholder `[module, topic, or decision]`, although only `adr`, `rfc`, and `rule` enter the decision track; the user read the command as "record a decision". Hidden entries exist that no hint shows: five route names on `plan`, and `actualize`, `experience`, `closeout`, `cpat`, and `task-type` on `review`.

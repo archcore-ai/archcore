@@ -1,6 +1,6 @@
 ---
-description: First-time Archcore setup — detect the repo, compose the full first-day seed in one preview, create it on one confirm, and wire host configs; re-run as refresh to add new facts or domain <slug> to drill into one domain.
-argument-hint: "[refresh|domain <slug>] [--depth=light|standard|deep] [--scale=small|medium|large]"
+description: First-time Archcore setup — wire host configs, measure the authored context, compose the full first-day seed in one preview, and create it on one confirm; import converts CLAUDE.md, AGENTS.md, rule files, ADRs, and docs into native documents; refresh adds new facts or drills into one domain.
+argument-hint: "[import|refresh] [path or domain]"
 ---
 
 # /archcore:init
