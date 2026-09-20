@@ -71,7 +71,8 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 - Constraint: scenario belongs to knowledge; journey belongs to vision; `sdd.require` producing a `journey` beside the `prd` is a recorded exception to single-type production.
 - Constraint: explicit standalone evidence satisfies frame through the request; no upstream investigation is required.
 - Constraint: required research and evidence sections follow the CLI templates; the track records method without prescribing one.
-- Invariant: the draft artifact is the only carrier of track state; no session memory or side file holds it.
+- Invariant: the draft artifact is the only carrier of persisted track state; no side file holds it.
+- Exception: import preview rows and tier `S` row results stay in the current session without a state block. The shared gate contract owns this exception.
 
 ## Failure Behavior
 

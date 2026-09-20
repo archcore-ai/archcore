@@ -58,4 +58,5 @@ deep for a full documentation audit	review	skills/_shared/tracks/actualize.md:ac
 closeout to close a finished feature	review	skills/_shared/tracks/closeout.md:closeout.verify	2
 experience to capture a repeated pattern	review	skills/_shared/tracks/experience.md:experience.detect	0
 init refresh	init	-	-
-init domain <slug>	init	-	-
+init import	init	-	-
+migrate our CLAUDE.md	init	-	-

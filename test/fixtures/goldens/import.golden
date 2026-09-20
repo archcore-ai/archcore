@@ -1,0 +1,56 @@
+gate: import.assess
+skip_when: a local plan tagged import-plan exists; the run resumes at import.convert
+budget: 0
+taxonomy: none
+produces: none
+next: import.discover end
+
+gate: import.discover
+skip_when: import.assess found no source
+budget: 0
+taxonomy: none
+produces: none
+next: import.triage end
+
+gate: import.triage
+skip_when: import.discover listed no record
+budget: 0
+taxonomy: none
+produces: none
+next: import.plan
+
+gate: import.plan
+skip_when: a local plan tagged import-plan exists
+budget: 1
+taxonomy: Terminology & Consistency
+produces: plan draft
+next: import.convert end
+
+gate: import.convert
+skip_when: every row is done or dropped
+budget: 1
+taxonomy: none
+produces: the target type of each row, chosen per skills/_shared/grounding/convert-routing.md draft
+next: import.convert import.verify
+
+gate: import.verify
+skip_when: this run created no document
+budget: 0
+taxonomy: none
+produces: none
+next: import.retire import.discharge end
+
+gate: import.retire
+skip_when: no L1 source was converted, or the user declined retirement earlier in this run
+budget: 1
+taxonomy: none
+produces: none
+next: import.discharge
+
+gate: import.discharge
+skip_when: no import plan exists
+budget: 0
+taxonomy: none
+produces: none
+next: end
+

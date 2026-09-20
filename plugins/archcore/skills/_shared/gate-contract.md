@@ -123,6 +123,11 @@ investigation. Failure recovery and edge ordering belong to
 4. WHEN all blocking exit checks pass, the executing skill MUST advance the `gate` field to the next stage.
 5. WHEN the track exits, the executing skill MUST remove the state block from the artifact.
 
+Import exception: before the confirmed plan exists, keep preview rows in the
+session. Tier `S` keeps its row results in the session through closing and
+restarts assessment after interruption. Do not create a plan, state block, or
+side file for this bookkeeping. Plan-backed imports follow the lifecycle above.
+
 ## Execution rules at a gate
 
 1. WHEN a gate opens, the executing skill MUST evaluate `skip_when` before any other gate step.

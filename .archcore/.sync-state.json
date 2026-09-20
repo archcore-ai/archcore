@@ -3231,6 +3231,51 @@
       "source": "plugin/command-entry-grammar.plan.md",
       "target": "plugin/command-entry-grammar.scenario.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/init-entry-and-assess.spec.md",
+      "target": "plugin/init-import-and-entry.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/authored-source-discovery.spec.md",
+      "target": "plugin/init-import-and-entry.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/import-conversion-and-staging.spec.md",
+      "target": "plugin/init-import-and-entry.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/init-import-and-entry.plan.md",
+      "target": "plugin/init-import-and-entry.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/import-conversion-and-staging.spec.md",
+      "target": "plugin/authored-source-discovery.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/init-import-mode.adr.md",
+      "target": "plugin/magic-first-day-init.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/init-import-and-entry.prd.md",
+      "target": "plugin/init-import-mode.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/init-entry-and-assess.spec.md",
+      "target": "plugin/command-surface-v2.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/import-conversion-and-staging.spec.md",
+      "target": "plugin/plan-discharge-by-deletion.adr.md",
+      "type": "depends_on"
     }
   ]
 }
