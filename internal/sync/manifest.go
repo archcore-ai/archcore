@@ -291,6 +291,41 @@ func (m *Manifest) RelationsFor(path string) (outgoing, incoming []Relation) {
 	return
 }
 
+// RelationOverlap classifies a structural overlap between the relations of one
+// document pair. An overlap is a review candidate, not a defect: two types can
+// record distinct claims — add-relation-reports-pair-overlaps.adr.
+type RelationOverlap string
+
+const (
+	OverlapReverseRelated        RelationOverlap = "reverse_related"
+	OverlapRelatedBesideSpecific RelationOverlap = "related_beside_specific"
+)
+
+// RelationOverlaps reports the overlaps that the relation from source to target
+// of relType takes part in, in declaration order of the constants.
+func (m *Manifest) RelationOverlaps(source, target string, relType RelationType) []RelationOverlap {
+	var reverseRelated, besideSpecific bool
+	for _, r := range m.Relations {
+		forward := r.Source == source && r.Target == target
+		reverse := r.Source == target && r.Target == source
+		switch {
+		case !forward && !reverse, forward && r.Type == relType:
+		case reverse && relType == RelRelated && r.Type == RelRelated:
+			reverseRelated = true
+		case (relType == RelRelated) != (r.Type == RelRelated):
+			besideSpecific = true
+		}
+	}
+	var overlaps []RelationOverlap
+	if reverseRelated {
+		overlaps = append(overlaps, OverlapReverseRelated)
+	}
+	if besideSpecific {
+		overlaps = append(overlaps, OverlapRelatedBesideSpecific)
+	}
+	return overlaps
+}
+
 // CleanupRelations removes relations where the source or target file does not
 // exist on disk. Paths in relations are relative to archcoreDir. Returns the
 // number of removed relations.

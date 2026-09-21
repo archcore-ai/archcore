@@ -44,7 +44,7 @@ DOCUMENT RELATIONS:
 Documents can be linked with directed relations stored in the sync manifest.
   Axes: structural (related, implements, extends, depends_on), evidential (supports, contradicts), temporal (supersedes).
   Relation types:
-    related     — general association (e.g., two ADRs on the same topic)
+    related     — general association for a concrete joint reading task (e.g., a guide and its companion reference)
     implements  — source implements what target specifies (e.g., plan implements prd)
     extends     — source builds upon target (e.g., rfc extends an existing adr)
     depends_on  — source requires target to proceed (e.g., plan depends_on adr)
@@ -52,8 +52,14 @@ Documents can be linked with directed relations stored in the sync manifest.
     contradicts — challenger points to the statement it disputes
     supersedes  — newer document points to the older document it replaces
 
-  After creating a document, check the nearby_documents hint in the response.
-  Use add_relation to link related documents. Use list_relations to see existing links.
+  Before add_relation, read both documents and identify the statements that justify the type and direction.
+  For related, name the joint reading task (the concrete task that requires both documents). A shared topic, folder, tag, or creation task alone is insufficient.
+  IF the specific type is uncertain, THEN do not use related as a fallback.
+  Treat nearby_documents as a partial location hint, not a semantic ranking. Also search beyond that folder for documents that name the same subject or define a contract that this document uses.
+  Use list_relations to check existing links. Do not add a reverse related or an extra related beside a more specific edge solely for navigation.
+  Any document can remain unlinked when no supported claim exists. If evidence is incomplete, report the uncertainty instead of guessing a relation.
+  The tools validate relation structure; they do not verify semantic justification. After a meaningful content or status change, review the relations of the changed document. Do not remove a relation only because a status changed, a document has many relations, or relations form a cycle.
+  The conventions below select the type for a justified relation. A convention alone does not justify a relation.
   Research (rnd) conventions (advisory): idea related rnd; prd/plan/adr depends_on rnd; rfc extends rnd; rnd related rnd. Do not use "implements" for rnd.
   The research type takes neither implements nor extends by convention; use rnd depends_on research.
   Actor-subject conventions (advisory): scenario depends_on spec (one scenario illustrates one spec; a spec edit then reaches its scenarios); scenario implements journey; journey related prd; journey related idea; scenario related scenario between the parts of a split by actor. No edge runs from spec to scenario. A plan task or backlog item is a tag, never an edge.
@@ -79,7 +85,7 @@ WORKFLOW RULES:
 2. To read a document, call list_documents to get its path, then pass that path to get_document.
 3. Only call create_document after confirming no equivalent document exists.
 4. Before updating a document, confirm the intended changes with the user when possible.
-5. After creating a document, review nearby_documents and consider adding relations with add_relation.
+5. After creating a document, call add_relation only for a relation that both documents justify. nearby_documents lists candidates only.
 6. When reading a document, check outgoing_relations and incoming_relations for context.
 7. Before deleting a document, confirm explicitly with the user. Prefer setting status to "rejected" when historical context is worth keeping.
 

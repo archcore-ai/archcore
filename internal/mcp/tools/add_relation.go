@@ -22,12 +22,12 @@ func NewAddRelationTool() mcp.Tool {
 	return mcp.NewTool("add_relation",
 		mcp.WithDescription(`Add a directed relation between two documents in the .archcore/ knowledge base.
 
-Relations are stored in the sync manifest and represent semantic links between documents.
+Before calling, read both documents and call list_relations. Identify the statements that justify the type and direction. For related, name the joint reading task (the concrete task that requires both documents). A shared topic, folder, or tag alone is insufficient. IF the specific type is uncertain, THEN do not use related as a fallback. Do not add a reverse related or an extra related beside a more specific edge solely for navigation. If no supported claim exists, leave the pair unlinked. The tool validates structure, not semantic justification.
 
 Relation axes: structural (related, implements, extends, depends_on), evidential (supports, contradicts), temporal (supersedes).
 
 Relation types:
-  related     — general association (e.g., two ADRs on the same topic)
+  related     — general association for a concrete joint reading task (e.g., a guide and its companion reference)
   implements  — source implements what target specifies (e.g., plan implements prd)
   extends     — source builds upon target (e.g., rfc extends an existing adr)
   depends_on  — source requires target to proceed (e.g., plan depends_on adr)
@@ -37,7 +37,7 @@ Relation types:
 
 For requirements-layer guidance (Sources vs Specifications, ISO cascade), see server instructions REQUIREMENTS LAYERS section.
 
-Both source and target must be distinct existing local documents. Global sources cannot be relation endpoints. Paths must remain inside the project. The tool mutates the manifest only; it does not change document status or resolve contradictions. An invalid input or manifest leaves the manifest unchanged. Successful calls return whether the relation was added. Paths can be given with or without the ".archcore/" prefix.`),
+Both source and target must be distinct existing local documents. Global sources cannot be relation endpoints. Paths must remain inside the project. The tool mutates the manifest only; it does not change document status or resolve contradictions. An invalid input or manifest leaves the manifest unchanged. Successful calls return whether the relation was added, plus warnings that name a reverse related edge or related beside a more specific edge. A warning never blocks the write. Paths can be given with or without the ".archcore/" prefix.`),
 		mcp.WithString("source",
 			mcp.Description("Path to the source document (e.g. \"auth/jwt-strategy.adr.md\" or \".archcore/auth/jwt-strategy.adr.md\")"),
 			mcp.Required(),
@@ -126,8 +126,12 @@ func HandleAddRelation(root RootProvider) func(ctx context.Context, request mcp.
 		}
 
 		var added bool
+		var overlaps []sync.RelationOverlap
 		if err := sharedManifestStore.mutate(baseDir, func(m *sync.Manifest) bool {
 			added = m.AddRelation(source, target, sync.RelationType(relType))
+			if added {
+				overlaps = m.RelationOverlaps(source, target, sync.RelationType(relType))
+			}
 			return added
 		}); err != nil {
 			return errorResult(sanitizeError("updating manifest", err)), nil
@@ -139,10 +143,36 @@ func HandleAddRelation(root RootProvider) func(ctx context.Context, request mcp.
 			"type":   relType,
 			"added":  added,
 		}
+		if len(overlaps) > 0 {
+			result["warnings"] = relationWarnings(overlaps)
+		}
 		data, err := json.Marshal(result)
 		if err != nil {
 			return nil, fmt.Errorf("marshaling result: %w", err)
 		}
 		return mcp.NewToolResultText(string(data)), nil
 	}
+}
+
+type relationWarning struct {
+	Code    sync.RelationOverlap `json:"code"`
+	Message string               `json:"message"`
+}
+
+func relationWarnings(overlaps []sync.RelationOverlap) []relationWarning {
+	warnings := make([]relationWarning, len(overlaps))
+	for i, overlap := range overlaps {
+		warnings[i] = relationWarning{Code: overlap, Message: overlapMessage(overlap)}
+	}
+	return warnings
+}
+
+func overlapMessage(overlap sync.RelationOverlap) string {
+	switch overlap {
+	case sync.OverlapReverseRelated:
+		return "a related edge already runs from target to source, and get_document shows it on both documents; call list_relations and keep both edges only when each records a distinct claim"
+	case sync.OverlapRelatedBesideSpecific:
+		return "this pair now holds related beside a more specific edge; call list_relations and keep related only when it records a claim that the specific edge does not"
+	}
+	return ""
 }

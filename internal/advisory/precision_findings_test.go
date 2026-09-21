@@ -100,7 +100,13 @@ func TestPrecisionFindings(t *testing.T) {
 			name: "cross-document body link", docType: templates.TypePlan,
 			fm:      templates.Frontmatter{Title: "T", Status: templates.StatusDraft},
 			body:    "See .archcore/knowledge/other.adr.md for details. " + longBody,
-			wantHit: "move these to the relation graph",
+			wantHit: "only justified semantic links",
+		},
+		{
+			name: "cross-document body link keeps the unjustified references", docType: templates.TypePlan,
+			fm:      templates.Frontmatter{Title: "T", Status: templates.StatusDraft},
+			body:    "See .archcore/knowledge/other.adr.md for details. " + longBody,
+			wantHit: "leave the rest as plain references",
 		},
 		{
 			name: "long code block in an ADR", docType: templates.TypeADR,
