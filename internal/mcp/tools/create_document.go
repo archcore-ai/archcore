@@ -61,7 +61,7 @@ Document types (sections shown are core — full templates auto-generated when c
   srs       — ISO 29148 §9.6 software req spec
                 · sections: Scope, Software Reqs, External Interfaces, Verification Matrix
 
-Returns: JSON with path, type, category, title, status, tags (when present), and optionally nearby_documents — paths of other documents in the same directory (capped at 5, sorted alphabetically). Treat nearby_documents as a hint only: review each candidate and call add_relation explicitly when a semantic link exists. Do not link every neighbor by default.`),
+Returns: JSON with path, type, category, title, status, tags (when present), and optionally nearby_documents — paths of other documents in the same directory (capped at 5, sorted alphabetically). This is a partial location hint, not a semantic ranking or a complete candidate set. Also search beyond this folder for documents that name the same subject or define a contract that the new document uses. Call add_relation only when both documents justify the claim; a new document can remain unlinked. Do not link every neighbor by default.`),
 		mcp.WithString("type",
 			mcp.Description("Document type. Choose based on the nature of the content, not the topic. If uncertain between adr and rfc: use adr only if the decision is already final."),
 			mcp.Required(),

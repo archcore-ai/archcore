@@ -266,7 +266,7 @@ func PrecisionFindings(docType templates.DocumentType, fm templates.Frontmatter,
 	}
 
 	if hits := findCrossDocHits(body); len(hits) > 0 {
-		out = append(out, fmt.Sprintf("body links other .archcore/ documents (%s) — move these to the relation graph with add_relation",
+		out = append(out, fmt.Sprintf("body links other .archcore/ documents (%s) — review these references; move only justified semantic links to the relation graph with add_relation, and leave the rest as plain references in the text",
 			strings.Join(hits, ", ")))
 	}
 

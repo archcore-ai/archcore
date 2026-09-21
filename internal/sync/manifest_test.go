@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -961,6 +962,78 @@ func TestManifest_SevenRelationValues(t *testing.T) {
 			m, err = LoadManifest(base)
 			if err != nil || string(m.Relations[0].Type) != value {
 				t.Fatalf("reload = %+v / %v", m, err)
+			}
+		})
+	}
+}
+
+func TestManifest_RelationOverlaps(t *testing.T) {
+	t.Parallel()
+	const a, b = "a.adr.md", "b.spec.md"
+	tests := []struct {
+		name     string
+		existing []Relation
+		relType  RelationType
+		want     []RelationOverlap
+	}{
+		{name: "only edge of the pair", relType: RelRelated},
+		{
+			name:     "reverse related",
+			existing: []Relation{{Source: b, Target: a, Type: RelRelated}},
+			relType:  RelRelated,
+			want:     []RelationOverlap{OverlapReverseRelated},
+		},
+		{
+			name:     "related beside a specific edge",
+			existing: []Relation{{Source: a, Target: b, Type: RelDependsOn}},
+			relType:  RelRelated,
+			want:     []RelationOverlap{OverlapRelatedBesideSpecific},
+		},
+		{
+			name:     "related beside a reversed specific edge",
+			existing: []Relation{{Source: b, Target: a, Type: RelImplements}},
+			relType:  RelRelated,
+			want:     []RelationOverlap{OverlapRelatedBesideSpecific},
+		},
+		{
+			name:     "specific edge beside related",
+			existing: []Relation{{Source: b, Target: a, Type: RelRelated}},
+			relType:  RelDependsOn,
+			want:     []RelationOverlap{OverlapRelatedBesideSpecific},
+		},
+		{
+			name:     "two specific edges are distinct claims",
+			existing: []Relation{{Source: a, Target: b, Type: RelImplements}},
+			relType:  RelDependsOn,
+		},
+		{
+			name:     "the edge itself is not its own overlap",
+			existing: []Relation{{Source: a, Target: b, Type: RelRelated}},
+			relType:  RelRelated,
+		},
+		{
+			name:     "an edge of another pair is ignored",
+			existing: []Relation{{Source: b, Target: "c.plan.md", Type: RelRelated}, {Source: "c.plan.md", Target: a, Type: RelExtends}},
+			relType:  RelRelated,
+		},
+		{
+			name: "both overlaps keep a fixed order",
+			existing: []Relation{
+				{Source: a, Target: b, Type: RelExtends},
+				{Source: b, Target: a, Type: RelRelated},
+			},
+			relType: RelRelated,
+			want:    []RelationOverlap{OverlapReverseRelated, OverlapRelatedBesideSpecific},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			m := NewManifest()
+			m.Relations = tt.existing
+			got := m.RelationOverlaps(a, b, tt.relType)
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("RelationOverlaps() = %v, want %v", got, tt.want)
 			}
 		})
 	}

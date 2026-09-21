@@ -287,3 +287,86 @@ func TestHandleAddRelation_ResearchCanonicalPaths(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleAddRelation_Warnings(t *testing.T) {
+	t.Parallel()
+	type edge struct{ source, target, relType string }
+	const a, b = "knowledge/a.adr.md", "knowledge/b.spec.md"
+	tests := []struct {
+		name      string
+		existing  []edge
+		add       edge
+		wantAdded bool
+		wantCodes []string
+	}{
+		{name: "first edge of the pair carries no warnings key", add: edge{a, b, "related"}, wantAdded: true},
+		{
+			name:      "reverse related",
+			existing:  []edge{{b, a, "related"}},
+			add:       edge{a, b, "related"},
+			wantAdded: true,
+			wantCodes: []string{"reverse_related"},
+		},
+		{
+			name:      "specific edge beside related",
+			existing:  []edge{{a, b, "related"}},
+			add:       edge{a, b, "depends_on"},
+			wantAdded: true,
+			wantCodes: []string{"related_beside_specific"},
+		},
+		{
+			name:     "a duplicate writes nothing and warns about nothing",
+			existing: []edge{{b, a, "related"}, {a, b, "related"}},
+			add:      edge{a, b, "related"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupTestArchcore(t)
+			writeDoc(t, base, "knowledge", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
+			writeDoc(t, base, "knowledge", "b.spec.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
+			handler := HandleAddRelation(StaticRoot(base))
+			call := func(e edge) map[string]any {
+				t.Helper()
+				result, err := callTool(handler, map[string]any{"source": e.source, "target": e.target, "type": e.relType})
+				if err != nil || result.IsError {
+					t.Fatalf("add relation %+v: %v, %+v", e, err, result)
+				}
+				var resp map[string]any
+				if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &resp); err != nil {
+					t.Fatal(err)
+				}
+				return resp
+			}
+			for _, e := range tt.existing {
+				call(e)
+			}
+
+			resp := call(tt.add)
+			if resp["added"] != tt.wantAdded {
+				t.Errorf("added = %v, want %v", resp["added"], tt.wantAdded)
+			}
+			raw, present := resp["warnings"]
+			if len(tt.wantCodes) == 0 {
+				if present {
+					t.Fatalf("warnings = %v, want the key omitted", raw)
+				}
+				return
+			}
+			warnings, _ := raw.([]any)
+			if len(warnings) != len(tt.wantCodes) {
+				t.Fatalf("warnings = %v, want codes %v", raw, tt.wantCodes)
+			}
+			for i, want := range tt.wantCodes {
+				warning, _ := warnings[i].(map[string]any)
+				if warning["code"] != want {
+					t.Errorf("warnings[%d].code = %v, want %q", i, warning["code"], want)
+				}
+				if message, _ := warning["message"].(string); !strings.Contains(message, "list_relations") {
+					t.Errorf("warnings[%d].message = %q, want it to name list_relations as the next action", i, message)
+				}
+			}
+		})
+	}
+}

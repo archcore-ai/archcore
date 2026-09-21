@@ -55,3 +55,11 @@ If we are not going to create relations, maybe the hint is not worth returning e
 **Neutral:**
 
 - The sync manifest schema and `add_relation` / `remove_relation` / `list_relations` tools are unchanged — only the `create_document` side effect is removed.
+
+## Addendum — 2026-09-21
+
+The decision above is unchanged: `create_document` creates no relation.
+
+The tool description quoted under Decision is the text of April 2026. The current `create_document` description calls `nearby_documents` "a partial location hint, not a semantic ranking or a complete candidate set", and it states that a new document can remain unlinked (`@internal/mcp/tools/create_document.go`).
+
+The relation policy behind the new wording comes from the global research `relation-generation-quality.research`. Under that policy a document without relations is an allowed outcome (`@internal/mcp/server.go`). `tool-descriptions-fit-the-host-cap.adr` records which tool description carries the policy, and `add-relation-reports-pair-overlaps.adr` records the write-time warnings of `add_relation`.

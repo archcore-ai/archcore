@@ -1812,6 +1812,26 @@
       "source": "mcp/host-truncation-safe-read-tools.plan.md",
       "target": "mcp/list-documents.spec.md",
       "type": "implements"
+    },
+    {
+      "source": "mcp/tool-descriptions-fit-the-host-cap.adr.md",
+      "target": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "relations/add-relation-reports-pair-overlaps.adr.md",
+      "target": "relations/local-relations-in-sync-state.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "relations/add-relation-reports-pair-overlaps.adr.md",
+      "target": "mcp/tool-descriptions-fit-the-host-cap.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "relations/add-relation-reports-pair-overlaps.adr.md",
+      "target": "relations/no-auto-relations-on-create-document.adr.md",
+      "type": "related"
     }
   ]
 }
