@@ -210,7 +210,7 @@ The CLI applies the same rule to its own key, which `@cli/.goreleaser.yaml` inje
 archcore --version
 ```
 
-Expected result: `archcore <version> (commit: <sha>)`.
+Expected result: the installed tag with its `v` prefix, for example `v0.10.1`.
 
 ## Troubleshooting
 

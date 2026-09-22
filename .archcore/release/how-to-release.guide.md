@@ -59,7 +59,7 @@ The former `archcore-ai/cli` channel receives no further releases. The workflow 
    archcore --version
    ```
 
-   Expected result: 9 assets on the release page (6 archives, `checksums.txt`, `install.sh`, `install.ps1`), the plugin layout on `main`, and `archcore X.Y.Z (commit: <sha>)`.
+   Expected result: 9 assets on the release page (6 archives, `checksums.txt`, `install.sh`, `install.ps1`), the plugin layout on `main`, and `vX.Y.Z` from `archcore --version`.
 
 Run the installer from the checkout, not from `archcore.ai`. The checkout copy carries the `__POSTHOG_KEY__` placeholder, so a release check installs without reporting an install event. See install-script-usage.guide.md.
 
@@ -91,7 +91,7 @@ The installers live at @cli/install.sh and @cli/install.ps1 on `dev`. They resol
 ## Verification
 
 - The GitHub Release page shows 6 archives (4 `.tar.gz` for darwin and linux on amd64 and arm64, 2 `.zip` for windows on amd64 and arm64), `checksums.txt`, `install.sh`, and `install.ps1`.
-- `archcore --version` on the installed binary shows the expected version and commit.
+- `archcore --version` on the installed binary prints the tag, for example `v0.10.1`.
 - `main` carries only the exported plugin layout.
 - The install script succeeds on a clean macOS or Linux machine.
 - `install.ps1` succeeds on a clean Windows machine.

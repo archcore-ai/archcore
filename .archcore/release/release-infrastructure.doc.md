@@ -18,8 +18,8 @@ The former `archcore-ai/cli` repository published releases up to v0.8.7 (2026-09
 
 | Component | File | Purpose |
 |---|---|---|
-| Version vars | `@cli/main.go` | `version` and `commit` variables with dev defaults |
-| Cobra integration | `@cli/cmd/root.go` | `NewRootCmd(version, commit)` sets the `Version` field and the version template |
+| Version vars | `@cli/main.go` | `version` with its `dev` default and the build-info fallback |
+| Cobra integration | `@cli/cmd/root.go` | `NewRootCmd(version)` sets the `Version` field and the version template |
 | GoReleaser config | `@cli/.goreleaser.yaml` | Defines the build matrix, archive naming, checksums, the two ldflags injections, the inertness post-build hook, and the release assets |
 | GitHub Actions — release | `@.github/workflows/release.yml` | `verify-version` → `test-plugin` and `test-cli` → `publish-plugin` (export and `main` push) → `publish-cli` (GoReleaser) on a tag push |
 | GitHub Actions — CLI tests | `@.github/workflows/cli-test.yml` | gofmt, vet, golangci-lint, `go test ./...`, the inertness self-test, and the examples fixture check on pull requests and `dev` pushes |
@@ -50,10 +50,7 @@ Both installers and `archcore update` download `checksums.txt` on every run. Its
 
 ### Version format
 
-- Dev build: `archcore dev (commit: none)`
-- Release build: `archcore 1.2.3 (commit: abc1234)`
-
-`SetVersionTemplate` on the cobra root command sets this template.
+`archcore --version` prints the version with a `v` prefix: the v0.10.1 release prints `v0.10.1`, and a local `make build CLI_VERSION=0.8.7-dev` prints `v0.8.7-dev` (observed 2026-09-22). The template lives in `@cli/cmd/root.go`; a build without an injected version starts from `dev` and takes the module version from Go build info when one is recorded (`resolveVersion` in `@cli/main.go`).
 
 ### Version resolution
 
@@ -100,7 +97,7 @@ The pipeline needs no signing keys and no notarization credentials.
 
 ## Examples
 
-Non-normative example — the release artifact listing for v0.10.1:
+Non-normative example — the release artifact listing for v0.10.1 (published 2026-09-22):
 
 ```
 archcore_darwin_amd64.tar.gz
