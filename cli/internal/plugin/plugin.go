@@ -28,9 +28,16 @@ import (
 // carrying a renamed identifier addresses a plugin that no longer answers to
 // it. Every host command in hosts.go spells them through these constants.
 const (
-	RepoID        = "archcore-ai/plugin"
+	RepoID        = legacyRepoID
 	MarketplaceID = "archcore-plugins"
 	PluginID      = "archcore@archcore-plugins"
+)
+
+// Keep delivery on the published repository until the coordinated cutover;
+// plugin-source-migration.spec gates source edits on the canonical target.
+const (
+	legacyRepoID    = "archcore-ai/plugin"
+	canonicalRepoID = "archcore-ai/archcore"
 )
 
 // pluginName is PluginID without its marketplace: the name Copilot lists a
@@ -250,10 +257,11 @@ func (k ActionKind) String() string {
 // them, because the wording differs between `archcore init` and
 // `archcore plugin`, while the decision does not.
 type Action struct {
-	Host     Host
-	Kind     ActionKind
-	Commands []Command
-	Note     string
+	Host          Host
+	Kind          ActionKind
+	Commands      []Command
+	Note          string
+	MigrateSource bool
 
 	// MergeAutoUpdate marks a Claude Code install whose settings entry the
 	// caller writes after the action succeeds.

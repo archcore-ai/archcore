@@ -5117,6 +5117,16 @@
       "source": "architecture/cli-plugin-monorepo-shared-context.adr.md",
       "target": "architecture/system-overview.doc.md",
       "type": "related"
+    },
+    {
+      "source": "integrations/plugin-source-migration.spec.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/plugin-source-migration.spec.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "depends_on"
     }
   ]
 }

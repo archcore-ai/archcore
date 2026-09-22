@@ -23,7 +23,8 @@ const (
 	// rather than nesting it, so it shares nothing with the other three hosts.
 	// Verified live on 2026-08-16 at
 	// ~/.copilot/installed-plugins/_direct/archcore-ai--plugin--plugins-archcore.
-	copilotPluginDir = "archcore-ai--plugin--plugins-archcore"
+	copilotPluginDir          = "archcore-ai--plugin--plugins-archcore"
+	copilotCanonicalPluginDir = "archcore-ai--archcore--plugins-archcore"
 )
 
 // UINotes carries the one-line instruction printed for a host with no CLI

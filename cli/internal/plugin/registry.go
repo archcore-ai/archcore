@@ -67,7 +67,8 @@ func registryListsPlugin(spec HostSpec) bool {
 // answers the same as a directory called archcore.
 func registryNamesPlugin(name, want string) bool {
 	lowered := strings.ToLower(name)
-	return strings.TrimSuffix(lowered, filepath.Ext(lowered)) == want
+	base := strings.TrimSuffix(lowered, filepath.Ext(lowered))
+	return base == want || (want == copilotPluginDir && base == copilotCanonicalPluginDir)
 }
 
 // scanRegistry walks up to depth levels below root, looking for an entry that
