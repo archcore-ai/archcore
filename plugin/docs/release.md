@@ -1,16 +1,38 @@
-# Plugin release process
+# Release process
 
-## Branch model
+## Branch and version model
 
 The `dev` branch owns the monorepo source: `cli/`, `plugin/`, the shared root
-`.archcore/`, and CI. The `main` branch remains the generated plugin distribution.
-The CLI and plugin release versions are still independent at this migration stage.
+`.archcore/`, and CI. The `main` branch is the generated plugin distribution.
 
-The release workflow builds the published tree with `scripts/export-plugin.sh`.
-It exports only named runtime files from `plugin/`, removing that source prefix.
-This preserves the existing marketplace and Copilot installation paths.
+One `vX.Y.Z` tag releases both components at the same version. The tag is the
+version source of truth: the four plugin manifests under `plugin/plugins/archcore/`
+carry the same string, and GoReleaser injects it into the CLI binary as
+`main.version`. `archcore-ai/cli` receives no further releases; its history
+lives under `cli/`.
 
-## Published files
+## What one tag does
+
+`.github/workflows/release.yml` runs on every `v*` tag, in this order:
+
+1. `verify-version` compares the tag with the four manifests and fails on any
+   mismatch.
+2. `test-plugin` runs `.github/workflows/test.yml`: the plugin checks and the
+   MCP integration suite against the pinned CLI and the CLI built from the
+   tagged commit.
+3. `test-cli` runs `.github/workflows/cli-test.yml`: gofmt, vet, golangci-lint,
+   `go test ./...`, the inertness self-test, and the examples fixture check.
+4. `publish-plugin` exports the public tree with `scripts/export-plugin.sh`,
+   commits it as an orphan, and force-pushes `main`.
+5. `publish-cli` runs GoReleaser from `cli/`: six archives, `checksums.txt`, and
+   the GitHub Release for the tag with those assets plus `install.sh` and
+   `install.ps1`.
+
+Every GitHub Release therefore carries the CLI assets, and
+`https://github.com/archcore-ai/plugin/releases/latest` resolves to a release
+that `archcore update` and both installers consume.
+
+## Published files (plugin tree on main)
 
 | Source on dev | Path on main |
 | --- | --- |
@@ -46,19 +68,27 @@ could make a host that starts MCP in the plugin cache serve that context as the
 user's project. CLI examples contain fixture `.archcore/` directories, so removing
 only a root `.archcore/` from a whole monorepo checkout would be insufficient.
 
-## Cutting a plugin release
+## Cutting a release
 
 Run Git commands from the repository root.
 
-1. Update all four manifests in `plugin/plugins/archcore/` to the plugin release version.
-2. Merge the version change into `dev`.
-3. Push the corresponding `vX.Y.Z` tag on that commit.
-4. Verify the release workflow and the generated `main` tree.
+1. Run `/bump-plugin-version X.Y.Z`, or set `version` in the four manifests by hand.
+2. Commit the bump on `dev` and push it. Wait for `Plugin Tests` and `CLI Tests`.
+3. Push the tag: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+4. Watch the Release run. Expected order: `verify-version`, the two test jobs,
+   `publish-plugin`, `publish-cli`.
+5. Verify the outputs with the next section.
 
-The workflow runs plugin checks and MCP integration against both the pinned CLI
-and the CLI source in the same commit. It verifies the tag's dev lineage, exports
-the public tree, creates an orphan commit, force-pushes `main`, and publishes the
-plugin GitHub Release. It does not publish CLI binaries in this migration stage.
+## Verification
+
+- `gh release view vX.Y.Z` lists 9 assets: 6 archives, `checksums.txt`,
+  `install.sh`, and `install.ps1`.
+- `curl -sI https://github.com/archcore-ai/plugin/releases/latest` returns a
+  `location:` header ending in `/releases/tag/vX.Y.Z`.
+- `git fetch origin main && git ls-tree --name-only origin/main` shows the plugin
+  layout only.
+- `ARCHCORE_VERSION=vX.Y.Z bash cli/install.sh` from the checkout installs the
+  tag, and `archcore --version` prints `archcore X.Y.Z (commit: <sha>)`.
 
 ## Local verification
 
@@ -75,8 +105,14 @@ checks the actual export, including rejection of nested development context.
 
 ## Recovery
 
-Rerun a failed tag workflow after correcting its cause. A manual `source_ref`
-input remains in the workflow, but GitHub requires a workflow file on the default
-branch for manual dispatch. The generated `main` excludes `.github/`, so manual
-availability is not guaranteed by this layout. A dedicated default-branch
-dispatcher belongs to the later release redesign.
+The workflow has no manual dispatch: the generated default branch carries no
+workflow files, so GitHub cannot offer one.
+
+- IF `verify-version` fails, THEN fix the manifests on `dev`, delete the tag
+  locally and remotely, and tag the corrected commit. Deleting a pushed tag
+  rewrites published state; do it only while no GitHub Release exists for it.
+- IF a test job fails, THEN nothing was published. Fix on `dev` and re-tag the
+  same way.
+- IF `publish-cli` fails after `publish-plugin`, THEN `main` already carries the
+  new tree. Fix the cause, delete the partial GitHub Release if one exists while
+  keeping the tag, and re-run the failed job from the Actions page.

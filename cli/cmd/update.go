@@ -164,7 +164,7 @@ func telemetryStage(err error) string { return update.FailureStage(err) }
 // event, no disclosure and no error — so a release could ship with the manual
 // path dark and every test still green.
 var updateDeps = func(version string) (*update.Updater, *telemetry.Client) {
-	return update.NewUpdater(version, "archcore-ai/cli", "archcore"), telemetry.NewClient(version)
+	return update.NewUpdater(version, "archcore-ai/plugin", "archcore"), telemetry.NewClient(version)
 }
 
 func newUpdateCmd(version string) *cobra.Command {
@@ -179,7 +179,7 @@ func newUpdateCmd(version string) *cobra.Command {
 func newUpdateCmdWithClient(version string, client *http.Client) *cobra.Command {
 	u := &update.Updater{
 		CurrentVersion: version,
-		GitHubRepo:     "archcore-ai/cli",
+		GitHubRepo:     "archcore-ai/plugin",
 		BinaryName:     "archcore",
 		HTTPClient:     client,
 	}

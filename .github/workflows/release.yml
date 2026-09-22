@@ -1,38 +1,105 @@
 name: Release
 
-# Publish the plugin from the monorepo's dev branch. Public paths stay unchanged.
+# One tag publishes both components from the monorepo's dev branch: the exported
+# plugin tree replaces main, and the CLI archives attach to the same GitHub
+# Release. Public plugin paths stay unchanged. See plugin/docs/release.md.
+#
+# There is no manual dispatch: the generated default branch carries no workflow
+# files, so GitHub cannot offer one. Recovery is a re-run of the tag's run.
 on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      source_ref:
-        description: 'Source ref (default: dev HEAD)'
-        required: false
-        default: 'dev'
 
 permissions:
   contents: write
 
 jobs:
-  test-before-release:
+  verify-version:
+    name: Tag matches the plugin manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # The tag is the version source of truth for both components: GoReleaser
+      # injects it into the CLI binary, and the four plugin manifests must carry
+      # the same string, or hosts report a version the release page never had.
+      - name: Compare the tag with the four manifests
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          fail=0
+          for host in .claude-plugin .cursor-plugin .codex-plugin .plugin; do
+            manifest="plugin/plugins/archcore/$host/plugin.json"
+            version=$(jq -r .version "$manifest")
+            if [ "$version" != "$tag" ]; then
+              echo "::error file=$manifest::version $version does not match tag $tag"
+              fail=1
+            fi
+          done
+          exit "$fail"
+
+  test-plugin:
+    needs: verify-version
     uses: ./.github/workflows/test.yml
     with:
-      source_ref: ${{ github.event.inputs.source_ref || github.ref }}
+      source_ref: ${{ github.ref }}
 
-  release:
-    needs: test-before-release
+  # The same checks as cli-test.yml, inlined: a release gate must not depend on
+  # how GitHub treats a reusable workflow's own concurrency and trigger keys.
+  test-cli:
+    name: CLI vet, lint, and test
+    needs: verify-version
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt would rewrite these files; run 'gofmt -w .'"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+          working-directory: cli
+
+      - name: Test
+        run: go test ./...
+
+      # The release guard that stops an inert binary from shipping is a shell
+      # script; this proves it still rejects a binary built with a misspelled
+      # ldflags path before the GoReleaser job relies on it.
+      - name: Self-test the release inertness guard
+        run: ./scripts/assert-not-inert-selftest.sh
+
+  publish-plugin:
+    name: Export the plugin tree to main
+    needs: [test-plugin, test-cli]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.inputs.source_ref || github.ref }}
           fetch-depth: 0
 
       - name: Verify source is on dev lineage
-        if: github.event_name == 'push'
         run: |
           git fetch origin dev
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/dev; then
@@ -51,15 +118,47 @@ jobs:
           git rm -rf .
           cp -R "${RUNNER_TEMP}/archcore-plugin-release/." .
           git add -A
-          git commit -m "release: ${GITHUB_REF_NAME:-manual-dispatch}" \
+          git commit -m "release: ${GITHUB_REF_NAME}" \
             -m "Exported from dev. See plugin/docs/release.md for the publication contract."
 
       - name: Force-push to main
         run: git push --force origin HEAD:main
 
-      - name: Create GitHub Release
-        if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
+  publish-cli:
+    name: Build the CLI and create the GitHub Release
+    needs: publish-plugin
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
         with:
-          generate_release_notes: true
-          tag_name: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      # GoReleaser builds the six archives and checksums.txt from cli/, then
+      # creates the GitHub Release for this tag with those assets and both
+      # installers (cli/.goreleaser.yaml, release.extra_files).
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          workdir: cli
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The official-build marker. Its absence is what stops a fork, or a
+          # repackaged build, from replacing itself with this project's release
+          # (unattended-update.spec §3). It is gated on the repository id rather
+          # than the name, so a rename of this repository keeps it in place while
+          # a fork, which gets a copy of this file, still builds without it.
+          ARCHCORE_OFFICIAL_BUILD: ${{ github.repository_id == '1201781375' && 'archcore-official-build' || '' }}
+          # The same PostHog project key install.sh is deployed with. It is a
+          # write-only ingestion key that ships inside every downloaded binary,
+          # so it is a repository variable rather than a secret. Without it the
+          # post-build hook cli/scripts/assert-not-inert.sh fails the release.
+          POSTHOG_KEY: ${{ github.repository_id == '1201781375' && vars.POSTHOG_KEY || '' }}

@@ -40,8 +40,22 @@ archives:
         format: zip
 
 changelog:
-  format: "[{{ printf \"%.7s\" .SHA }}](https://github.com/archcore-ai/cli/commit/{{ .SHA }}) {{ .Message }}"
+  format: "[{{ printf \"%.7s\" .SHA }}](https://github.com/archcore-ai/plugin/commit/{{ .SHA }}) {{ .Message }}"
 
 checksum:
   name_template: "checksums.txt"
   algorithm: sha256
+
+release:
+  # The release workflow pushes the exported plugin tree to main before this
+  # step, so one tag serves both components. The two installers ship beside the
+  # archives they download, and `releases/latest/download/install.sh` serves
+  # the installer that matches the published binaries.
+  #
+  # A re-run of the publish job after a partial upload must converge rather
+  # than fail on the assets that already landed, so conflicting files are
+  # replaced instead of rejected with 422.
+  replace_existing_artifacts: true
+  extra_files:
+    - glob: ./install.sh
+    - glob: ./install.ps1

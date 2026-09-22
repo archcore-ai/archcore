@@ -5,8 +5,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
-[![Release](https://img.shields.io/github/v/release/archcore-ai/cli)](https://github.com/archcore-ai/cli/releases)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/archcore-ai/cli/releases)
+[![Release](https://img.shields.io/github/v/release/archcore-ai/plugin)](https://github.com/archcore-ai/plugin/releases)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/archcore-ai/plugin/releases)
 
 **Archcore is a git-native context layer for AI coding agents.**
 
@@ -297,12 +297,6 @@ Installs `archcore.exe` under `%LOCALAPPDATA%\Programs\archcore` and adds it to 
 
 Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install), then run the macOS/Linux script inside it.
 
-### Go install
-
-```bash
-go install github.com/archcore-ai/cli@latest
-```
-
 ### From source
 
 ```bash
@@ -355,5 +349,5 @@ go test ./...            # run all tests
 - **Documentation:** [docs.archcore.ai](https://docs.archcore.ai)
 - **Website:** [archcore.ai](https://archcore.ai)
 - **Plugin (Claude Code, Cursor):** [github.com/archcore-ai/plugin](https://github.com/archcore-ai/plugin)
-- **Issues:** [github.com/archcore-ai/cli/issues](https://github.com/archcore-ai/cli/issues)
+- **Issues:** [github.com/archcore-ai/plugin/issues](https://github.com/archcore-ai/plugin/issues)
 - **License:** [Apache 2.0](LICENSE)
