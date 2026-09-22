@@ -2,6 +2,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+> **Archcore now lives in one repository.** This repository was `archcore-ai/plugin` until 2026-09-22, and it also carries the CLI, formerly [`archcore-ai/cli`](https://github.com/archcore-ai/cli), under [`cli/`](https://github.com/archcore-ai/archcore/tree/dev/cli) on the `dev` branch. Both components release together at [archcore-ai/archcore/releases](https://github.com/archcore-ai/archcore/releases).
+
 **Make your AI coding agent work like it already knows your repo.**
 
 Archcore brings spec-driven development and automatic project context to **Claude Code**, **Cursor**, **Codex CLI**, and **GitHub Copilot CLI**. Specs, architecture, decisions, rules, and plans live in Git and are applied as the agent works.
