@@ -56,6 +56,7 @@ CLEAN=(
   "skills/_shared/gate-contract.md"
   "skills/_shared/globals.md"
   "skills/_shared/precision-rules.md"
+  "skills/_shared/relation-authoring.md"
   "skills/_shared/rule-contract.md"
   "skills/_shared/spec-contract.md"
   "skills/_shared/tracks/actualize.md"

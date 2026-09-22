@@ -2,7 +2,7 @@
 name: archcore-auditor
 description: >
   Read-only documentation auditor. Use proactively for reviewing documentation health:
-  missing relations, orphaned documents, stale statuses, coverage gaps,
+  missing or unsupported relations, stale statuses, coverage gaps,
   and consistency checks across the .archcore/ knowledge base.
 model: sonnet
 maxTurns: 40
@@ -41,7 +41,7 @@ If `list_documents` returns `truncated: true`, request the next page with `offse
 
 After every inventory page and the relation graph return, note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding with the audit.
 
-**Why this is mandatory.** Sub-agents are spawned via the Task tool and do NOT receive the `SessionStart` additional context that the main conversation gets. Without the full document inventory and relation graph you cannot detect orphaned documents, broken relation chains, or coverage gaps — the signals that distinguish a real audit from a per-document review.
+**Why this is mandatory.** Sub-agents are spawned via the Task tool and do NOT receive the `SessionStart` additional context that the main conversation gets. Without the full document inventory and relation graph you cannot detect unlinked documents, broken relation chains, or coverage gaps — the signals that distinguish a real audit from a per-document review.
 
 **Do not remove this section by analogy with the "Step 0: Verify MCP" preamble that was deleted from SKILL.md files** (see `remove-skill-verify-mcp-preamble.cpat`). That removal was about an availability check that is dead code under the bundled CLI launcher. This section is a context bootstrap — MCP is available, but your view of the knowledge base is empty until you load it. Different problem, different surface. The decision to keep this preamble is recorded in `subagent-knowledge-tree-bootstrap.adr`.
 
@@ -51,7 +51,7 @@ You ONLY read and analyze. You never create, update, or delete documents. Your o
 
 # Audit Dimensions
 
-**Global sources.** If any inventory result carries `global: true` / `read_only: true` / `source_kind: "global"`, exclude those documents from every audit metric below — counts, orphan detection, relation checks, staleness, coverage gaps. A mounted global is another repository's content: it is read-only here, it never holds local relations, and its mtime is a clone-date artifact. You MAY add one summary line per mounted source (id and document count) to the report.
+**Global sources.** If any inventory result carries `global: true` / `read_only: true` / `source_kind: "global"`, exclude those documents from every audit metric below — counts, the unlinked-document inventory, relation checks, staleness, coverage gaps. A mounted global is another repository's content: it is read-only here, it never holds local relations, and its mtime is a clone-date artifact. You MAY add one summary line per mounted source (id and document count) to the report.
 
 ## 1. Coverage
 
@@ -62,10 +62,17 @@ You ONLY read and analyze. You never create, update, or delete documents. Your o
 
 ## 2. Relations
 
-- Orphaned documents: no incoming or outgoing relations
-- Missing obvious links: documents that reference each other in content but aren't linked
-- Relation type correctness: `implements` vs `related` vs `extends` used properly
-- Broken chains: ISO 29148 cascade with gaps
+Before judging relation quality, read `skills/_shared/relation-authoring.md` under the absolute plugin root supplied by the caller. If the caller supplied no plugin root, label every relation finding as unverified.
+
+- Unlinked documents: report the count; flag a missing edge only when a specific claim requires it.
+- Missing or unsupported relations: read both documents and identify the supporting statements or the unsupported claim.
+- Type and direction: check the connected engine's conventions, including research and evidential relations.
+- Potential redundancy: review exact duplicates, reverse `related`, and `related` beside a more specific edge.
+- Historical scope: inspect rejected targets and mixed-type cycles before reporting an active constraint as stale.
+- Broken chains: report a missing required traceability link with its evidence.
+
+Keep confirmed defects separate from candidates for review. Make no relation
+changes; include statement locations and reasoning in proposed corrections.
 
 ## 3. Statuses
 

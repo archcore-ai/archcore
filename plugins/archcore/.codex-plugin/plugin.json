@@ -38,8 +38,8 @@
   "mcpServers": "./.codex.mcp.json",
   "interface": {
     "displayName": "Archcore",
-    "shortDescription": "Keep Codex aligned with project decisions and architecture.",
-    "longDescription": "Archcore brings project architecture, decisions, rules, and requirements into Codex through skills, hooks, MCP tools, and documentation-focused agents.",
+    "shortDescription": "Spec-driven development and context engineering for AI coding agents.",
+    "longDescription": "Archcore brings spec-driven development and automatic project context to Codex. Specs, architecture, decisions, rules, and plans live in Git and are applied as the agent works.",
     "developerName": "Archcore",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],

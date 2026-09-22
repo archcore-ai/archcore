@@ -56,7 +56,7 @@ If `list_documents` returns `truncated: true`, request the next page with `offse
 
 After every inventory page and the relation graph return, note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding with the user's task.
 
-**Why this is mandatory.** Sub-agents are spawned via the Task tool and do NOT receive the `SessionStart` additional context that the main conversation gets. Without this bootstrap you start blind to the `.archcore/` knowledge base — you will create near-duplicates, miss existing decisions, and produce orphaned documents. The main session never has this problem because `SessionStart` loads the tree for it.
+**Why this is mandatory.** Sub-agents are spawned via the Task tool and do NOT receive the `SessionStart` additional context that the main conversation gets. Without this bootstrap you start blind to the `.archcore/` knowledge base — you will create near-duplicates, miss existing decisions, and miss relation candidates. The main session never has this problem because `SessionStart` loads the tree for it.
 
 **Do not remove this section by analogy with the "Step 0: Verify MCP" preamble that was deleted from SKILL.md files** (see `remove-skill-verify-mcp-preamble.cpat`). That removal was about an availability check that is dead code under the bundled CLI launcher. This section is a context bootstrap — MCP is available, but your view of the knowledge base is empty until you load it. Different problem, different surface. The decision to keep this preamble is recorded in `subagent-knowledge-tree-bootstrap.adr`.
 
@@ -112,7 +112,7 @@ Focus your expertise on what MCP instructions do NOT provide:
 # Working Guidelines
 
 1. **Always check first**: Call `list_documents` before creating to prevent duplicates.
-2. **Create relations**: Link a new document to an identified local consumer or a semantically related local document. Standalone evidence without a consumer needs no edge.
+2. **Check relation claims**: Before document writes or relation work, read `skills/_shared/relation-authoring.md` under the absolute plugin root supplied by the caller. Add only supported claims and review incident relations after meaningful changes. Any document can remain unlinked; required traceability follows the active gate's checks. If the caller supplied no plugin root, write only the relations the active gate requires and report every other candidate as unresolved.
 3. **Explain choices**: When picking a document type, explain why it fits.
 4. **Plan before bulk creation**: When creating multiple documents, present the plan and let the user approve.
 5. **Respect statuses**: Use `draft` for new work, `accepted` for finalized, `rejected` for declined.
