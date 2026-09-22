@@ -36,11 +36,11 @@ Develop the CLI under `cli/` and the plugin under `plugin/` on dev, with one rep
 
 - CLI example `.archcore/` directories remain fixtures. Neither component owns a second development corpus.
 - The external global source keeps the existing `../global/.archcore` setting; this change does not import the global repository.
-- CLI publication remains a separate migration step. Imported legacy workflows under `cli/.github/workflows/` are reference files, not active root workflows.
-- The plugin still publishes its existing version and repository IDs. The export's public paths differ from their source paths by the `plugin/` prefix.
+- CLI publication moved into the shared Release workflow on 2026-09-22 (the unified-release ADR under `release/`); the imported legacy workflows under `cli/.github/workflows/` are reference files, not active root workflows.
+- The plugin still publishes its existing repository IDs. The export's public paths differ from their source paths by the `plugin/` prefix.
 - Root workflow and shared-context paths require explicit workspace-root resolution in plugin tests.
 
 ## Superseded when
 
-- A subsequent release decision unifies component versions and their publication workflow.
+- The repository is split again into one repository per component.
 - A component becomes an independently maintained product and requires its own writable context and release ownership.

@@ -101,7 +101,7 @@ WSL provides a full Linux environment, so this path uses the macOS and Linux scr
 ## What the scripts do
 
 1. Detect the operating system (`darwin`, `linux`, `windows`) and the architecture (`amd64`, `arm64`).
-2. Resolve the latest version by reading the `Location` header of `https://github.com/archcore-ai/cli/releases/latest`, or skip the lookup entirely when `ARCHCORE_VERSION` is set. The GitHub REST API is avoided deliberately; the related ADR records that decision.
+2. Resolve the latest version by reading the `Location` header of `https://github.com/archcore-ai/plugin/releases/latest`, or skip the lookup entirely when `ARCHCORE_VERSION` is set. The GitHub REST API is avoided deliberately; the related ADR records that decision. Every tag of that repository releases the plugin and the CLI together, so the redirect always lands on a release that carries the CLI assets.
 3. Download the platform-specific archive — `.tar.gz` on Unix, `.zip` on Windows — and `checksums.txt`.
 4. Verify the SHA-256 checksum.
 5. Extract the binary and install it atomically into the install directory.
@@ -193,7 +193,7 @@ Set the same variable in the environment the CLI runs in to keep the installed b
 
 Therefore:
 
-- A script that runs from a clone, a fork, or `@cli/.github/workflows/install-smoke.yml` reports nothing.
+- A script that runs from a clone, a fork, or `@.github/workflows/cli-install-smoke.yml` reports nothing.
 - Only the copies served from `https://archcore.ai/` report.
 
 Rules:
@@ -218,10 +218,10 @@ Expected result: `archcore <version> (commit: <sha>)`.
 - `Could not reach https://github.com/…/releases/latest` — a network, proxy, or DNS problem. No API rate limit is involved, so `GITHUB_TOKEN` does not help. Pin a version instead: `ARCHCORE_VERSION=x.y.z`.
 - `Could not resolve the latest version … (unexpected response)` — `github.com` answered without the expected `/releases/tag/` redirect. A captive portal or a proxy interstitial usually intercepts the request; the repository may also have no published release yet. Pin a version to bypass the lookup.
 - `Checksum verification failed` — the download was corrupted. Run the install again.
-- `Unsupported operating system/architecture` — only `darwin`, `linux`, and `windows` on `amd64` and `arm64` are supported. On another target such as armv7, ppc64le, s390x, or riscv64, no binary ships; build from source with `go install github.com/archcore-ai/cli@latest`.
+- `Unsupported operating system/architecture` — only `darwin`, `linux`, and `windows` on `amd64` and `arm64` are supported. On another target such as armv7, ppc64le, s390x, or riscv64, no binary ships; build from source with `go build -o archcore .` inside `cli/`.
 - `this installer requires bash` — the script was piped into `sh` or another POSIX shell. Use `| bash`. On Debian and Ubuntu, `/bin/sh` is dash, which does not support `set -o pipefail`.
 - Windows SmartScreen blocks the binary — the installer calls `Unblock-File` on the downloaded executable, so this is not expected. IF it happens, THEN right-click `archcore.exe`, open Properties, select Unblock, or run the installer again.
 - Windows antivirus false positive — a Go static binary occasionally trips Defender heuristics. Add `%LOCALAPPDATA%\Programs\archcore` to the allowlist, or report the detection to the antivirus vendor. Code-signed builds are planned, not implemented.
 - The install succeeds but no analytics notice appears — the script has no injected key, or an opt-out variable is set. This never affects the install.
 - The install analytics show no events after a release — check that the `POSTHOG_KEY` repository variable is still set on `archcore-ai/landing`. Its deploy fails loudly when the variable is missing or when the placeholder count is wrong.
-- A binary installed with `go install` never updates itself — that build carries no official-build marker. Reinstall with the install script, or run `archcore update` by hand.
+- A binary built from source never updates itself — that build carries no official-build marker. Reinstall with the install script, or run `archcore update` by hand.

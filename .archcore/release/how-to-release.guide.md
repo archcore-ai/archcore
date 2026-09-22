@@ -8,77 +8,64 @@ tags:
 
 ## Purpose
 
-Publish a new Archcore CLI release from a git tag, and keep the release aligned with the Claude plugin and with `settings.json` parser compatibility.
+Publish one release of the plugin and the CLI from one git tag on `archcore-ai/plugin`, with the tag, the four plugin manifests, and the CLI version equal.
 
-This guide describes the legacy `archcore-ai/cli` release channel. The monorepo stores these workflow files under `cli/.github/workflows/` as reference; GitHub does not execute them there. Do not cut a CLI release with the monorepo root plugin tag workflow. A shared release workflow is outside the source-layout migration.
+The former `archcore-ai/cli` channel receives no further releases. The workflow copies under `cli/.github/workflows/` are migration reference; GitHub does not execute them.
 
 ## Prerequisites
 
-- Push access to the `archcore-ai/cli` repository.
-- Every intended change merged to `main`.
-- Tests passing on `main`.
+- Push access to the `archcore-ai/plugin` repository.
+- Every intended change merged to `dev`, with `Plugin Tests` and `CLI Tests` green on `dev`.
+- Repository variables `POSTHOG_KEY` and `POSTHOG_HOST` present in `archcore-ai/plugin` (copied 2026-09-22). Without them the GoReleaser post-build hook @cli/scripts/assert-not-inert.sh fails the release.
 
 ## Procedure
 
-1. Check out the latest `main`.
+1. Check out `dev` and pull.
 
    ```bash
-   git checkout main
-   git pull origin main
+   git checkout dev
+   git pull origin dev
    ```
 
-2. Choose a version that follows semver.
+2. Choose one semver version for both components, higher than the latest `v*` tag.
 
    - `v1.0.0` — first stable release, or a breaking change
    - `v1.1.0` — new features, backwards compatible
    - `v1.1.1` — bug fixes only
 
-3. Create and push the tag.
+3. Set the four manifests under `plugin/plugins/archcore/` to that version with `/bump-plugin-version X.Y.Z`.
+
+4. Commit the bump on `dev` and push it.
+
+5. Wait for `Plugin Tests` and `CLI Tests` on that commit.
+
+6. Create and push the tag.
 
    ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
    ```
 
-4. Monitor the release workflow at `https://github.com/archcore-ai/cli/actions`.
+7. Monitor the `Release` run at `https://github.com/archcore-ai/plugin/actions`.
 
-   The workflow in `@cli/.github/workflows/release.yml` triggers on the tag push. It runs `go test ./...`, builds binaries for darwin, linux, and windows on amd64 and arm64 (6 platforms), and creates a GitHub Release with the archives and `checksums.txt`.
+   Expected result: `verify-version`, `test-plugin`, `test-cli`, `publish-plugin`, and `publish-cli` complete in that order (@.github/workflows/release.yml).
 
-5. Verify the published release.
+8. Verify the published release.
 
    ```bash
-   # The GitHub Release page carries 7 assets (6 archives + checksums.txt)
-   gh release view v1.0.0
-
-   # Install script (macOS/Linux)
-   ARCHCORE_VERSION=v1.0.0 curl -fsSL https://raw.githubusercontent.com/archcore-ai/cli/main/install.sh | bash
-
-   # Install script (Windows PowerShell)
-   $env:ARCHCORE_VERSION="v1.0.0"; irm https://raw.githubusercontent.com/archcore-ai/cli/main/install.ps1 | iex
-
-   # Installed binary
+   gh release view vX.Y.Z
+   git fetch origin main && git ls-tree --name-only origin/main
+   ARCHCORE_VERSION=vX.Y.Z bash cli/install.sh
    archcore --version
    ```
 
-   Expected result: `archcore 1.0.0 (commit: <sha>)`.
+   Expected result: 9 assets on the release page (6 archives, `checksums.txt`, `install.sh`, `install.ps1`), the plugin layout on `main`, and `archcore X.Y.Z (commit: <sha>)`.
 
-   Keep both install commands pointed at `raw.githubusercontent.com`, not at `archcore.ai`. The copies in this repository carry a `__POSTHOG_KEY__` placeholder, so a release check installs without reporting an install event. The published copies carry a real key, so switching these URLs would count every release verification as a user install. See install-script-usage.guide.md.
+Run the installer from the checkout, not from `archcore.ai`. The checkout copy carries the `__POSTHOG_KEY__` placeholder, so a release check installs without reporting an install event. See install-script-usage.guide.md.
 
-## Coordinated release with the Claude plugin
+## One version for both components
 
-The plugin's `SKILL.md` pins a minimum CLI version — currently `v0.6.1`, the `CLAUDE.md` and `AGENTS.md` nudge layout — and gates `/archcore:init` on it. An older `archcore --version` makes the plugin skip the `install_host_config` MCP tool and ask the user to update. The constant and the CLI release tag must agree, and the order matters.
-
-Rollout order — CLI first, plugin second:
-
-1. Tag and release the CLI with exactly the version that the plugin's `SKILL.md` constant names.
-2. IF the tag ends up different, for example after a hotfix bump or a renumbering, THEN update the `SKILL.md` constant together with the plugin release, so the two never diverge.
-3. Verify that the release assets are live before touching the plugin: `gh release view vX.Y.Z` shows all 7 assets, and `archcore update` on an older install sees the new version.
-4. Release the plugin from its `dev` branch.
-
-A mismatch fails in both directions:
-
-- The tag is behind the constant — the constant says `v0.6.0` while the CLI shipped only as `v0.6.1`: the gate rejects users who run a capable CLI.
-- The feature lands in a later tag than the constant — the constant says `v0.6.0` while the tool exists only from `v0.6.1`: the gate admits CLIs without the tool, and the plugin fails on an unknown tool call mid-flow.
+The plugin's `cli-gte` constants in `skills/init/SKILL.md` and `bin/cli-gte` name the minimum CLI a feature needs. WHEN a plugin change needs a new CLI capability, set that constant to the release version that ships the capability; both halves ship in the same tag, so the constant and the tag never diverge.
 
 ## Sequencing a release that adds a settings.json field
 
@@ -94,36 +81,36 @@ When planning such a release:
 
 ## Publishing an installer change
 
-An installer change follows a different path from a release. It is not tag-driven: it ships when the change reaches `main`, by pull request or by direct push.
+The installers live at @cli/install.sh and @cli/install.ps1 on `dev`. They resolve the newest release from `https://github.com/archcore-ai/plugin/releases/latest`, so an installer change needs no release of its own.
 
-1. `Install Smoke` runs on both routes — pull requests and direct pushes to `main`. It is the only gate on the PowerShell 5.1 path.
-2. `Notify Landing` runs only after a **successful** `Install Smoke` on `main`, and dispatches the redeploy to `archcore-ai/landing`.
-3. The landing deploy re-fetches both installers, substitutes the PostHog key, and republishes them.
-
-Therefore a red or flaky smoke run blocks publication. Run `Notify Landing` manually to override.
+1. Merge the change to `dev`. `CLI Install Smoke` (@.github/workflows/cli-install-smoke.yml) runs on the push and installs the latest release on Windows, Ubuntu, macOS, Alpine, and a dash-only Debian.
+2. If the smoke run is red, fix it before publication.
+3. Trigger the landing deploy. [assumption] The dispatcher from this repository is pending (plan `release/unified-release-cutover`, task 19); until it exists, run the landing deploy by hand.
+4. The landing deploy re-fetches both installers, substitutes the PostHog key, and republishes them.
 
 ## Verification
 
-- The GitHub Release page shows 6 archives (4 `.tar.gz` for darwin and linux on amd64 and arm64, 2 `.zip` for windows on amd64 and arm64) plus `checksums.txt`.
+- The GitHub Release page shows 6 archives (4 `.tar.gz` for darwin and linux on amd64 and arm64, 2 `.zip` for windows on amd64 and arm64), `checksums.txt`, `install.sh`, and `install.ps1`.
 - `archcore --version` on the installed binary shows the expected version and commit.
+- `main` carries only the exported plugin layout.
 - The install script succeeds on a clean macOS or Linux machine.
 - `install.ps1` succeeds on a clean Windows machine.
-- WHEN the release changes the plugin contract, the plugin's `SKILL.md` minimum-version constant equals the tag that was pushed.
 
 The related reference document on release infrastructure carries the full build matrix, artifact naming, and update paths.
 
 ## Troubleshooting
 
-- The workflow fails at the test step. Fix the tests on `main`, then delete the tag and re-tag after the fix.
+- `verify-version` fails: a manifest differs from the tag. Fix the manifests on `dev`, delete the tag, and tag the corrected commit.
 
-  Warning: deleting a pushed tag rewrites published release state. Confirm that no release assets have been consumed before running it.
+  Warning: deleting a pushed tag rewrites published state. Do it only while no GitHub Release exists for the tag.
 
   ```bash
-  git push origin :v1.0.0 && git tag -d v1.0.0
+  git push origin :vX.Y.Z && git tag -d vX.Y.Z
   ```
 
-- GoReleaser fails. Check the syntax of `@cli/.goreleaser.yaml`, and run `goreleaser check` locally when the binary is available.
-- The wrong commit was tagged. Delete the remote tag, re-tag the correct commit, and push again.
-- `install.sh` or `install.ps1` cannot find the release. Confirm that the tag follows the `v*` pattern, for example `v1.0.0` rather than `1.0.0`.
-- The Windows zips are missing from the release. Confirm that `format_overrides` in `@cli/.goreleaser.yaml` still maps `windows` to `zip`. Otherwise GoReleaser falls back to `.tar.gz` and `install.ps1` does not find the expected archives.
-- An installer fix is merged but archcore.ai still serves the old script. Check that `Install Smoke` passed on `main`; `Notify Landing` will not dispatch after a failed run.
+- A test job fails: nothing was published. Fix on `dev`, delete the tag as above, and re-tag.
+- `publish-cli` fails after `publish-plugin`: `main` already carries the new tree. Fix the cause, delete the partial GitHub Release if one exists while keeping the tag, and re-run the failed job. GoReleaser replaces conflicting assets on a re-run (`release.replace_existing_artifacts` in @cli/.goreleaser.yaml).
+- GoReleaser fails: check the syntax of @cli/.goreleaser.yaml, and run `goreleaser check` locally when the binary is available.
+- `install.sh` or `install.ps1` cannot find the release: confirm that the tag follows the `v*` pattern, for example `v1.0.0` rather than `1.0.0`.
+- The Windows zips are missing from the release: confirm that `format_overrides` in @cli/.goreleaser.yaml still maps `windows` to `zip`.
+- archcore.ai still serves an old script: check the landing deploy's installer fetch path and its last run.

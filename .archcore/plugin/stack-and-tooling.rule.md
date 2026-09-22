@@ -19,18 +19,18 @@ tags:
 6. An OpenCode adapter hook MUST NOT implement guard or validation decision logic in TypeScript.
 7. The author MUST NOT convert a file under `plugins/archcore/` to TypeScript under the item 4 exception.
 8. The author MUST NOT convert repo-root tooling to TypeScript under the item 4 exception.
-9. The plugin repository MUST NOT contain a `go.mod` file.
-10. The plugin repository MUST NOT contain a `.go` file.
-11. The plugin repository MUST NOT contain a bundled CLI binary.
-12. The plugin repository MUST NOT contain a launcher wrapper for the CLI.
-13. The plugin repository MUST NOT contain code that downloads or caches the CLI on first use.
+9. The plugin tree under `plugin/` MUST NOT contain a `go.mod` file.
+10. The plugin tree under `plugin/` MUST NOT contain a `.go` file.
+11. The plugin tree under `plugin/` MUST NOT contain a bundled CLI binary.
+12. The plugin tree under `plugin/` MUST NOT contain a launcher wrapper for the CLI.
+13. The plugin tree under `plugin/` MUST NOT contain code that downloads or caches the CLI on first use.
 14. The author MUST express declarative plugin state only in these shapes: host manifests (`.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `.cursor-plugin/plugin.json`), MCP configs (`.mcp.json`, `.codex.mcp.json`, `docs/cursor.mcp.example.json`), hook configs (`hooks/*.json`), marketplace entries (`.agents/plugins/marketplace.json`), skills (`skills/*/SKILL.md`), and agent definitions (`agents/*.md`, `agents/*.toml`).
 15. The author MUST NOT add a runtime YAML config file.
 16. The author MUST NOT add a programmatic config generator.
 17. Exception to items 14–16 (same ADR): the OpenCode adapter MAY register its configuration programmatically inside `plugins/opencode/`, because the OpenCode runtime exposes no declarative hook config.
 18. The author MUST add every new test as a `.bats` file under `test/structure/`, `test/unit/`, or `test/integration/`.
 19. The author MUST use the `bats-support` and `bats-assert` helpers vendored under `test/helpers/`.
-20. The author MUST NOT add a second test runner to this repository.
+20. The author MUST NOT add a second test runner to the plugin tree.
 21. Exception to items 18–20 (same ADR): the author MUST test TypeScript sources under `plugins/opencode/` with `bun test`.
 22. The author MUST place every `bun test` file inside `plugins/opencode/`.
 23. The author MUST perform every `.archcore/` document operation through an MCP tool, as `mcp-only-operations.rule` requires.
@@ -45,7 +45,8 @@ tags:
 ### Notes (non-normative)
 
 - Item 24 covers Python, Node.js, Ruby, Rust, an additional Go module, a compiled trampoline binary, a Make layer, a CMake layer, a Bazel layer, a container runtime requirement, and a plugin-side download-on-first-use mechanism.
-- The archcore CLI is written in Go. It lives in the separate repository `archcore-ai/cli` and is consumed as a globally installed binary on PATH. Users install it from https://docs.archcore.ai/cli/install/ with `curl -fsSL https://archcore.ai/install.sh | bash` on POSIX or `irm https://archcore.ai/install.ps1 | iex` on Windows. Items 9–13 keep that lifecycle out of this repository.
+- Items 9–13 and 20 name the plugin tree, `plugin/` in the monorepo, because the CLI's own Go module lives beside it under `cli/` since the 2026-09-22 source-layout decision. Paths in this rule are relative to `plugin/`.
+- The archcore CLI is written in Go. It lives under `cli/` in this repository and is consumed as a globally installed binary on PATH. Users install it from https://docs.archcore.ai/cli/install/ with `curl -fsSL https://archcore.ai/install.sh | bash` on POSIX or `irm https://archcore.ai/install.ps1 | iex` on Windows. Items 9–13 keep that lifecycle out of the plugin tree.
 - The `Makefile` variable `BIN_SCRIPTS` is the authoritative list of executable files in `bin/`. It must not be extended to cover a binary.
 
 ## Rationale
@@ -55,7 +56,7 @@ The plugin's value is portability: one repository loads into Claude Code, Codex,
 Three concrete lessons produced these items:
 
 - **Codex MCP cwd.** The direct fix was a Python trampoline that reads `$PWD` and calls `chdir`. It worked end to end and added a third language to a two-language plugin. It was replaced with an opt-in `ARCHCORE_CWD` environment variable honored by the bundled launcher — two lines of shell plus a user-side wrapper. See `codex-mcp-cwd-rebase-to-user-project.idea` (rejected) and `codex-path-resolution.adr` (rejected). The Python implementation stays in git history as a record of what did not ship. Both decisions were superseded when the launcher was removed.
-- **Bundled launcher.** A download-on-first-use shell script fetched a single Go binary from `archcore-ai/cli` releases. It shipped, then was removed in plugin v0.4.0 after producing eight categories of bugs, among them offline failures, version coupling, cache pollution, and security-patch lag. The saving was a one-time install step that the official installer already handles without coupling the CLI lifecycle to plugin releases. See `bundled-cli-launcher.adr` (rejected and superseded) and `remove-bundled-launcher-global-cli.idea` (accepted). The plugin now assumes `archcore` is on PATH; when it is not, `bin/session-start` prints the install command and exits.
+- **Bundled launcher.** A download-on-first-use shell script fetched a single Go binary from the CLI's GitHub releases. It shipped, then was removed in plugin v0.4.0 after producing eight categories of bugs, among them offline failures, version coupling, cache pollution, and security-patch lag. The saving was a one-time install step that the official installer already handles without coupling the CLI lifecycle to plugin releases. See `bundled-cli-launcher.adr` (rejected and superseded) and `remove-bundled-launcher-global-cli.idea` (accepted). The plugin now assumes `archcore` is on PATH; when it is not, `bin/session-start` prints the install command and exits.
 - **OpenCode adapter, 2026-07-05.** OpenCode exposes hooks only through a Bun-executed JS/TS plugin API, so no declarative hook config exists to reuse. The exception followed exactly the path items 24 and 25 prescribe: research document, maintainer decision, accepted ADR (`opencode-adapter-packaging.adr`), and a directory-scoped carve-out — rather than TypeScript spreading through the repository.
 
 Items 24 and 25 exist to make those decisions hold. When future work meets a limit of POSIX shell, the reflex is to add Python at that spot; the required response is an ADR and a decision first.
@@ -98,7 +99,7 @@ set -eu
 import json, sys
 ...
 
-# bin/launcher.go            ← Go source in plugin repo — violates item 10
+# bin/launcher.go            ← Go source in the plugin tree — violates item 10
 package main
 func main() { ... }
 
@@ -123,6 +124,6 @@ curl -fsSL https://... -o /tmp/archcore && /tmp/archcore "$@"
 
 - Code review: a pull request that trips item 27 or item 28 and carries no ADR link blocks merge.
 - `@plugin/test/structure/scripts.bats` asserts that every file in `bin/` starts with `#!/bin/sh`, which verifies item 1.
-- Structure tests pin the remaining file-shape contracts: no `.py`, `.go`, `.js`, `.ts`, or `.rb` file exists under `bin/` or at the repo root outside `reference-materials/`, `test_project/`, and `plugins/opencode/`.
+- Structure tests pin the remaining file-shape contracts: no `.py`, `.go`, `.js`, `.ts`, or `.rb` file exists under `bin/` or at the plugin tree root outside `reference-materials/`, `test_project/`, and `plugins/opencode/`.
 - `plugin-development.guide` states items 24 and 25 in its onboarding section for new contributors.
 - The path for a genuinely new tool is: open an issue, draft an ADR with the sections `Context / Decision / Alternatives Considered / Consequences`, obtain review, obtain acceptance, then implement.
