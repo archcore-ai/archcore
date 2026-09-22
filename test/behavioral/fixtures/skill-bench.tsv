@@ -19,7 +19,7 @@
 12	File this vendor benchmark as reference material for the cache decision: Redis 7.2 p99 0.8 ms at 50k ops/s (vendor report, March 2026)	document	research
 13	We accepted the gRPC proposal, resolve the RFC	document	decision
 # --- review ---
-14	Review my branch before merge	review	-
+14	Review my branch against the project docs before merge	review	-
 15	Are any docs out of date with the code?	review	drift
 16	Audit the knowledge base for documentation gaps	review	deep
 17	Close out the feature, it shipped	review	closeout

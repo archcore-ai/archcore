@@ -64,6 +64,26 @@ md_body() {
     || { fail "missing handoff can trigger a false legacy fallback"; return 1; }
 }
 
+@test "relation work reaches the procedure through a caller-supplied plugin root" {
+  # An agent runs in the user's project, so a bare skills/_shared path resolves nowhere.
+  local file line
+  # Every host format is checked by name: Claude Code and Cursor read the .md,
+  # Codex the .toml, Copilot the .agent.md.
+  for file in \
+    "$PLUGIN_ROOT/agents/archcore-assistant.md" "$PLUGIN_ROOT/agents/archcore-auditor.md" \
+    "$PLUGIN_ROOT/agents/archcore-assistant.toml" "$PLUGIN_ROOT/agents/archcore-auditor.toml" \
+    "$PLUGIN_ROOT/copilot-agents/archcore-assistant.agent.md" "$PLUGIN_ROOT/copilot-agents/archcore-auditor.agent.md"; do
+    line=$(grep -F 'skills/_shared/relation-authoring.md' "$file")
+    [ -n "$line" ] || { fail "$file never names the relation procedure"; return 1; }
+    grep -Fq 'absolute plugin root' <<< "$line" || { fail "$file reads the relation procedure by an unresolvable path"; return 1; }
+    grep -Fq 'supplied no plugin root' <<< "$line" || { fail "$file has no missing-root behavior"; return 1; }
+  done
+  for file in "$PLUGIN_ROOT/skills/review/SKILL.md" "$PLUGIN_ROOT/skills/plan/SKILL.md" "$PLUGIN_ROOT/skills/document/SKILL.md"; do
+    tr '\n' ' ' < "$file" | grep -Fq 'reads `skills/_shared/relation-authoring.md` under that root' \
+      || { fail "$file delegates relation work without the plugin root"; return 1; }
+  done
+}
+
 @test "auditor uses caller git evidence and respects evidence status conventions" {
   local file="$PLUGIN_ROOT/agents/archcore-auditor.md"
   grep -Fq 'git history supplied by the caller' "$file" || { fail "auditor lacks a git evidence source"; return 1; }

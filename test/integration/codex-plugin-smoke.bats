@@ -59,6 +59,34 @@ install_archcore() {
   assert_success || return 1
 }
 
+# Absolute path of the installed plugin root, located by its Codex manifest so
+# the cache layout stays Codex's business, not ours.
+installed_root() {
+  local manifest
+  manifest=$(find "$TEST_HOME/.codex/plugins" -type f -path '*/.codex-plugin/plugin.json' 2>/dev/null | head -1)
+  [ -n "$manifest" ] || return 1
+  dirname "$(dirname "$manifest")"
+}
+
+@test "every shared file the installed Codex agents read survives the install" {
+  # The agents read skills/_shared files under the plugin root their caller
+  # supplies, so a file dropped by packaging fails only at run time.
+  install_archcore
+
+  local root ref missing=""
+  root=$(installed_root) || fail "no .codex-plugin/plugin.json under $TEST_HOME/.codex/plugins"
+  [ -n "$(find "$root/agents" -name '*.toml' 2>/dev/null)" ] \
+    || fail "no *.toml agents in the installed agents/"
+  while IFS= read -r ref; do
+    [ -f "$root/$ref" ] || missing="$missing $ref"
+  done < <(grep -rhoE 'skills/_shared/[A-Za-z0-9_/.-]+\.md' "$root/agents" | sort -u)
+  [ -z "$missing" ] || fail "installed agents name shared files absent from the install:$missing"
+  [ -f "$root/skills/_shared/relation-authoring.md" ] \
+    || fail "the relation procedure did not survive the install"
+  cmp -s "$root/skills/_shared/relation-authoring.md" "$PLUGIN_ROOT/skills/_shared/relation-authoring.md" \
+    || fail "the installed relation procedure differs from the source"
+}
+
 @test "codex debug prompt-input loads Archcore skills when plugin is enabled" {
   install_archcore
 

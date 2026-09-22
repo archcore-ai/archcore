@@ -67,7 +67,7 @@ Copilot's copies sit in a directory of their own rather than beside the original
 6. Each agent MUST perform every `.archcore/` operation through an MCP tool.
 7. Each agent MUST list every MCP tool it uses under the three namings defined in Surface.
 8. WHEN choosing a document or relation type, the agent SHOULD explain its reasoning.
-9. WHEN created documents have a semantic link, `archcore-assistant` MUST create the corresponding relation.
+9. WHEN the relation procedure in `skills/_shared/relation-authoring.md` yields the outcome `add` for a candidate, `archcore-assistant` MUST create that relation.
 10. `archcore-assistant` SHOULD present a plan for user approval before creating several documents.
 11. `archcore-assistant` MUST NOT create more than 10 documents in one invocation without user confirmation.
 12. WHEN reading one explicitly named document, `archcore-assistant` MAY skip bootstrap `list_relations`.
@@ -79,16 +79,19 @@ The exception in item 12 does not waive `list_documents`.
 16. `archcore-auditor` SHOULD cross-reference documentation against code through Read, Grep, and Glob.
 17. `archcore-auditor` SHOULD compare document path references against the scoped diff and git history supplied by its caller.
 18. WHEN correlating documents with code, `archcore-auditor` SHOULD prioritize specs, ADRs, and guides describing specific modules.
-
 19. WHEN `list_documents` returns `truncated: true`, the agent MUST request the next page with `offset` increased by `returned`.
 20. IF a truncated page returns zero documents, the agent MUST report the inventory as incomplete before drawing inventory-based conclusions.
 21. BEFORE delegating research, evidence, scenario, or journey work, the caller MUST supply the current invocation's vocabulary probe results.
-22. BEFORE delegating research or evidence work, the caller MUST supply the absolute plugin root.
+22. BEFORE delegating research, evidence, document-write, relation, or audit work, the caller MUST supply the absolute plugin root.
 23. IF a shell-less assistant receives no vocabulary probe, the assistant MUST return `needs-vocabulary-probe` to the caller.
 24. IF git history is unavailable to the auditor, the auditor MUST label the affected drift check as unverified.
 25. The auditor MUST apply the connected engine's type-specific status conventions, including evidence drafts awaiting a second reader and permitted provenance placeholders.
 26. Each agent definition MUST declare `maxTurns` as a positive integer.
 27. The caller MUST NOT present a partial agent result as a finished report.
+28. WHEN an agent judges or writes a relation, the agent MUST read `skills/_shared/relation-authoring.md` under the caller-supplied absolute plugin root.
+29. IF the caller supplied no plugin root, THEN `archcore-auditor` MUST label every relation finding as unverified.
+30. IF the caller supplied no plugin root, THEN `archcore-assistant` MUST write only the relations that the active gate requires.
+31. IF the caller supplied no plugin root, THEN `archcore-assistant` MUST report every other relation candidate as unresolved.
 
 ## Constraints & Invariants
 
@@ -124,5 +127,5 @@ An agent is conformant when:
 4. It satisfies the normative behavior for its role.
 5. `archcore-auditor` produces no mutation, and `archcore-assistant` produces structured output.
 6. Its system prompt carries the `# First Step — Bootstrap Knowledge Tree` section with both cross-references and the grep-able anchor literal `recent accepted decisions`.
-7. @test/structure/agent-contracts.bats asserts the required read-tool set, MD/TOML instruction and description parity, pagination, vocabulary handoff, and auditor evidence constraints; @test/structure/actor-subject-compat.bats asserts the actor-subject paragraph in every agent surface.
+7. @test/structure/agent-contracts.bats asserts the required read-tool set, MD/TOML instruction and description parity, pagination, vocabulary handoff, relation-procedure handoff, and auditor evidence constraints; @test/structure/actor-subject-compat.bats asserts the actor-subject paragraph in every agent surface.
 8. `@test/structure/agents.bats` asserts the bootstrap preamble, the synthesis anchor, the three-way tool naming, and byte-identity of the Copilot copies.

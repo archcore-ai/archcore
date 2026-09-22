@@ -47,6 +47,19 @@ install_plugin() {
   assert_success
 }
 
+# Copilot loads a workspace .mcp.json only from a folder listed under
+# trusted_folders (observed on Copilot CLI 1.0.83), and an isolated
+# COPILOT_HOME trusts nothing. config.json carries // comment lines, so they
+# are dropped before jq reads it.
+trust_folder() {
+  local dir="$1" cfg="$COPILOT_HOME/config.json" tmp
+  tmp=$(mktemp "$BATS_TEST_TMPDIR/config.XXXXXX")
+  { [ -f "$cfg" ] && grep -v '^[[:space:]]*//' "$cfg" || echo '{}'; } \
+    | jq --arg a "$dir" --arg b "$(cd "$dir" && pwd -P)" \
+        '.trusted_folders = ((.trusted_folders // []) + [$a, $b] | unique)' > "$tmp"
+  mv "$tmp" "$cfg"
+}
+
 @test "copilot plugin install accepts the plugin directory" {
   install_plugin
 
@@ -74,6 +87,23 @@ install_plugin() {
     || fail "no *.agent.md files in the installed copilot-agents/"
   [ -n "$(find "$root/commands" -name '*.md' 2>/dev/null)" ] \
     || fail "no command wrappers in the installed commands/"
+}
+
+@test "every shared file the installed Copilot agents read survives the install" {
+  # The agents read skills/_shared files under the plugin root their caller
+  # supplies, so a file dropped by packaging fails only at run time.
+  install_plugin
+
+  local root ref missing=""
+  root=$(installed_root) || fail "plugin not found under $COPILOT_HOME/installed-plugins"
+  while IFS= read -r ref; do
+    [ -f "$root/$ref" ] || missing="$missing $ref"
+  done < <(grep -rhoE 'skills/_shared/[A-Za-z0-9_/.-]+\.md' "$root/copilot-agents" | sort -u)
+  [ -z "$missing" ] || fail "installed agents name shared files absent from the install:$missing"
+  [ -f "$root/skills/_shared/relation-authoring.md" ] \
+    || fail "the relation procedure did not survive the install"
+  cmp -s "$root/skills/_shared/relation-authoring.md" "$PLUGIN_ROOT/skills/_shared/relation-authoring.md" \
+    || fail "the installed relation procedure differs from the source"
 }
 
 @test "installed hook scripts exist and kept their executable bit" {
@@ -131,12 +161,18 @@ install_plugin() {
   local proj="$BATS_TEST_TMPDIR/proj"
   mkdir -p "$proj"
   printf '%s' '{"mcpServers":{"archcore":{"command":"WORKSPACE_SENTINEL","args":["mcp"]}}}' > "$proj/.mcp.json"
+  trust_folder "$proj"
 
   run env COPILOT_HOME="$COPILOT_HOME" copilot -C "$proj" mcp list --json
   [ "$status" -eq 0 ] || skip "copilot mcp list --json unavailable on this CLI version"
 
-  local cmd
-  cmd=$(printf '%s' "$output" | jq -r '(.mcpServers // .).archcore.command // empty' 2>/dev/null)
+  # No archcore entry at all means the workspace config never loaded, which is
+  # a different state from a plugin entry replacing it.
+  local entry cmd
+  entry=$(printf '%s' "$output" | jq -c '(.mcpServers // .).archcore // empty' 2>/dev/null)
+  [ -n "$entry" ] || skip "copilot listed no archcore server — the workspace .mcp.json was not loaded on this CLI version"
+
+  cmd=$(printf '%s' "$entry" | jq -r '.command // empty' 2>/dev/null)
   [ "$cmd" = "WORKSPACE_SENTINEL" ] \
     || fail "the project's archcore server was replaced (command=${cmd:-<absent>}) — the plugin is shadowing it again"
 }

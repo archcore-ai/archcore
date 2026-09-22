@@ -36,7 +36,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 9. WHEN a skill gathers context, the skill MUST search all three categories.
 10. A skill MUST NOT exclude a category from document reads.
 11. WHEN a skill gathers context, the skill SHOULD pass a type filter matched to the command's moment instead of relying on the global type ranking.
-12. WHEN a found document has `implements` or `related` relations, the skill SHOULD pull the linked documents one hop across categories.
+12. WHEN a found document has `implements`, `depends_on`, or `related` relations, the skill SHOULD pull the linked documents one hop across categories.
 13. WHEN the first word of the arguments is a mode that the command's argument hint lists, the skill MUST execute the mapped path without routing.
 14. WHEN a command reports its result, the skill MUST list produced documents grouped by category.
 15. WHEN the user invokes `plan research`, the plan skill MUST enter research frame; the research instrument selects the type per behaviors 22 and 23.
