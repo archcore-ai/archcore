@@ -6,7 +6,7 @@
 
 Archcore brings spec-driven development and automatic project context to **Claude Code**, **Cursor**, **Codex CLI**, and **GitHub Copilot CLI**. Specs, architecture, decisions, rules, and plans live in Git and are applied as the agent works.
 
-The plugin pairs with [Archcore CLI](https://github.com/archcore-ai/cli): the CLI provides the git-native context layer and MCP tools; the plugin adds skills, slash commands, computed routing over gated instruments, and guardrails.
+The plugin pairs with [Archcore CLI](https://github.com/archcore-ai/plugin/tree/dev/cli): the CLI provides the git-native context layer and MCP tools; the plugin adds skills, slash commands, computed routing over gated instruments, and guardrails.
 
 [Spec-driven development](https://archcore.ai/spec-driven-development/) defines intent. [Context engineering](https://archcore.ai/context-engineering/) supplies the broader project understanding needed to execute that intent correctly — a spec is one part of context, not the whole context.
 

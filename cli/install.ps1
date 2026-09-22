@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # ── Constants ────────────────────────────────────────────────────────────────
-$GITHUB_REPO    = 'archcore-ai/cli'
+$GITHUB_REPO    = 'archcore-ai/plugin'
 $BINARY_NAME    = 'archcore'
 
 # ── Telemetry constants ──────────────────────────────────────────────────────

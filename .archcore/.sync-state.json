@@ -5127,6 +5127,26 @@
       "source": "integrations/plugin-source-migration.spec.md",
       "target": "update/updating-the-plugin.spec.md",
       "type": "depends_on"
+    },
+    {
+      "source": "release/unified-release-from-the-monorepo.adr.md",
+      "target": "architecture/cli-plugin-monorepo-shared-context.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "release/unified-release-from-the-monorepo.adr.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "release/unified-release-from-the-monorepo.adr.md",
+      "target": "integrations/plugin-source-migration.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "release/unified-release-cutover.plan.md",
+      "target": "release/unified-release-from-the-monorepo.adr.md",
+      "type": "implements"
     }
   ]
 }

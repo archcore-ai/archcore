@@ -23,7 +23,7 @@ This `dev` branch contains both components of Archcore:
 | [cli/](cli/) | Go CLI, MCP server, hooks, installers, and CLI tests |
 | [plugin/](plugin/) | Agent skills, host adapters, marketplace catalogs, and plugin tests |
 | [.archcore/](.archcore/) | Shared architecture, specifications, rules, plans, and document relations |
-| [.github/workflows/](.github/workflows/) | Repository CI and plugin publication |
+| [.github/workflows/](.github/workflows/) | Repository CI and the release of both components |
 
 The CLI was imported with its Git history. Both components use the root
 `.archcore/`; the small `.archcore/` directories in `cli/examples/` are test and
@@ -55,17 +55,17 @@ the system CLI. Run component commands from `cli/` or `plugin/`, and run
 
 ## Publication
 
-This migration changes source layout and CI. CLI and plugin release versions
-and public repository identifiers remain as before during this stage.
+One `vX.Y.Z` tag releases both components at the same version. The Release
+workflow checks that the four plugin manifests equal the tag, runs the plugin
+and CLI test suites, regenerates `main` from the exported `plugin/` tree, and
+runs GoReleaser from `cli/` to attach the CLI archives, `checksums.txt`, and
+both installers to the GitHub Release. Marketplace catalogs stay at the
+published root and resolve `plugins/archcore/`, preserving existing host
+installation paths. See [the release process](plugin/docs/release.md).
 
-The plugin's `main` branch is generated from tagged `dev` source. Its marketplace
-catalogs stay at the published root and resolve `plugins/archcore/`, preserving
-existing host installation paths. The publication excludes CLI source and our
-shared project context. See [the plugin release process](plugin/docs/release.md).
-
-The CLI's original publication workflows remain under `cli/.github/workflows/`
-as migration reference; GitHub Actions runs the workflows at the repository
-root. A shared release version and repository rename are separate work.
+`archcore-ai/cli` is the former CLI repository. Its history was imported here
+and it receives no further releases. The copies under `cli/.github/workflows/`
+are migration reference only.
 
 ## License
 
