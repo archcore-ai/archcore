@@ -1,0 +1,86 @@
+name: Test
+
+# The release workflow already runs `go test ./...`, but only on a tag — so a
+# broken test first surfaced during a release, with the tag already pushed.
+# This moves the same gate to the point where it can still cheaply say no.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A force-push supersedes the previous run; keep the newest, drop the rest.
+# main is exempt: every commit there should keep a result of its own.
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    name: vet + test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Formatting first: it is the cheapest signal and the one most likely to
+      # differ between a contributor's editor and the repo.
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt would rewrite these files; run 'gofmt -w .'"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      # The analyzers strict-go-naming-conventions.rule §Enforcement names.
+      # Until this step existed the rule was held up by review alone, so its
+      # detailed naming clauses were unenforced in CI despite saying otherwise.
+      - name: Lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+
+      - name: Test
+        run: go test ./...
+
+      # The release pipeline's only guard against shipping a binary that never
+      # self-updates and never reports is scripts/assert-not-inert.sh, run from
+      # the goreleaser post-build hook. It is a shell script with no Go test to
+      # cover it, and its first version was inert against the very case it was
+      # written to catch: `go build` records the whole -ldflags argument in the
+      # binary's build info, so grepping for the injected value matched the
+      # command line whether or not the -X symbol path named a real variable.
+      # This step builds a binary with a misspelled path and requires the guard
+      # to reject it, so the guard cannot silently stop guarding.
+      - name: Self-test the release inertness guard
+        run: ./scripts/assert-not-inert-selftest.sh
+
+      # `go test` (TestShippedInstructionFixtures) already pins every shipped
+      # instruction file — examples/ and the repo root's own AGENTS.md /
+      # CLAUDE.md / GEMINI.md — to the current writer output, so it fails on
+      # any drift, including drift outside examples/. This step is a narrower,
+      # independent check scoped to examples/: it runs the actual generator
+      # script end to end and fails on any uncommitted diff, catching drift in
+      # scripts/regen-examples.sh's own output even if the pinned-fixture test
+      # above were ever weakened or bypassed.
+      - name: Check examples/ fixtures are in sync with the generator
+        run: |
+          ./scripts/regen-examples.sh
+          if ! git diff --exit-code -- examples/; then
+            echo "::error::examples/ instruction fixtures are out of sync with scripts/regen-examples.sh. Run './scripts/regen-examples.sh' locally and commit the result."
+            exit 1
+          fi

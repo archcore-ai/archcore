@@ -1,0 +1,743 @@
+package cmd
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"archcore-cli/internal/agents"
+	"archcore-cli/internal/config"
+	"archcore-cli/internal/wiring"
+)
+
+func healthyHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"ready":true}`))
+	}
+}
+
+func TestRunInit_SyncNone(t *testing.T) {
+	base := t.TempDir()
+	settings := config.NewNoneSettings()
+	result, err := runInit(context.Background(), base, settings)
+	if err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+	if result.serverReachable {
+		t.Error("serverReachable should be false for sync none")
+	}
+	if !config.DirExists(base) {
+		t.Error(".archcore/ directory not created")
+	}
+	s, err := config.Load(base)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if s.Sync != config.SyncTypeNone {
+		t.Errorf("Sync = %q, want %q", s.Sync, config.SyncTypeNone)
+	}
+
+	// Verify exact JSON format.
+	data, err := os.ReadFile(filepath.Join(base, ".archcore", "settings.json"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if _, ok := raw["project_id"]; ok {
+		t.Error("none settings should not have project_id field")
+	}
+	if _, ok := raw["archcore_url"]; ok {
+		t.Error("none settings should not have archcore_url field")
+	}
+}
+
+func TestRunInit_SyncCloud(t *testing.T) {
+	srv := httptest.NewServer(healthyHandler())
+	defer srv.Close()
+
+	// Override CloudServerURL for test.
+	orig := config.CloudServerURL
+	config.CloudServerURL = srv.URL
+	defer func() { config.CloudServerURL = orig }()
+
+	base := t.TempDir()
+	settings := config.NewCloudSettings()
+	result, err := runInit(context.Background(), base, settings)
+	if err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+	if !result.serverReachable {
+		t.Error("serverReachable should be true")
+	}
+	s, err := config.Load(base)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if s.Sync != config.SyncTypeCloud {
+		t.Errorf("Sync = %q, want %q", s.Sync, config.SyncTypeCloud)
+	}
+
+	// Verify exact JSON format — should not have project_id (nil) or archcore_url.
+	data, err := os.ReadFile(filepath.Join(base, ".archcore", "settings.json"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if _, ok := raw["project_id"]; ok {
+		t.Error("cloud settings should not have project_id field when nil")
+	}
+	if _, ok := raw["archcore_url"]; ok {
+		t.Error("cloud settings should not have archcore_url field")
+	}
+}
+
+func TestRunInit_SyncOnPrem(t *testing.T) {
+	srv := httptest.NewServer(healthyHandler())
+	defer srv.Close()
+
+	base := t.TempDir()
+	settings := config.NewOnPremSettings(srv.URL)
+	result, err := runInit(context.Background(), base, settings)
+	if err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+	if !result.serverReachable {
+		t.Error("serverReachable should be true")
+	}
+	s, err := config.Load(base)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if s.Sync != config.SyncTypeOnPrem {
+		t.Errorf("Sync = %q, want %q", s.Sync, config.SyncTypeOnPrem)
+	}
+	if s.ArchcoreURL != srv.URL {
+		t.Errorf("ArchcoreURL = %q, want %q", s.ArchcoreURL, srv.URL)
+	}
+
+	// Verify exact JSON format — should not have project_id (nil), should have archcore_url.
+	data, err := os.ReadFile(filepath.Join(base, ".archcore", "settings.json"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if _, ok := raw["project_id"]; ok {
+		t.Error("on-prem settings should not have project_id field when nil")
+	}
+	if _, ok := raw["archcore_url"]; !ok {
+		t.Error("on-prem settings should have archcore_url field")
+	}
+}
+
+func TestRunInit_ServerUnreachable(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	srv.Close() // close immediately
+
+	base := t.TempDir()
+	settings := config.NewOnPremSettings(srv.URL)
+	// Soft-failure convention: an unreachable server warns but completes
+	// initialization — the directory and settings are already on disk and the
+	// remaining setup is local-only.
+	result, err := runInit(context.Background(), base, settings)
+	if err != nil {
+		t.Fatalf("unreachable server must not abort init: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected a result on soft failure")
+	}
+	if result.serverReachable {
+		t.Error("serverReachable must be false for an unreachable server")
+	}
+	if !config.DirExists(base) {
+		t.Error(".archcore/ directory should be created even when server is unreachable")
+	}
+}
+
+func TestRunInit_InstallsHooksAndMCP(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	settings := config.NewNoneSettings()
+	if _, err := runInit(context.Background(), base, settings); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+	if err := runHooksInstallForAgent(base, agents.ClaudeCode); err != nil {
+		t.Fatalf("runHooksInstallForAgent: %v", err)
+	}
+
+	// Verify .claude/settings.json has all 3 hook events.
+	data, err := os.ReadFile(filepath.Join(base, ".claude", "settings.json"))
+	if err != nil {
+		t.Fatalf("ReadFile .claude/settings.json: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	var hooks map[string][]hookMatcherGroup
+	if err := json.Unmarshal(raw["hooks"], &hooks); err != nil {
+		t.Fatalf("Unmarshal hooks: %v", err)
+	}
+	for _, event := range []string{"SessionStart"} {
+		matchers, ok := hooks[event]
+		if !ok {
+			t.Errorf("missing hook event %s", event)
+			continue
+		}
+		if len(matchers) != 1 {
+			t.Errorf("event %s: want 1 matcher, got %d", event, len(matchers))
+		}
+	}
+
+	// Verify .mcp.json has the archcore server entry.
+	mcpData, err := os.ReadFile(filepath.Join(base, ".mcp.json"))
+	if err != nil {
+		t.Fatalf("ReadFile .mcp.json: %v", err)
+	}
+	var mcpRaw map[string]json.RawMessage
+	if err := json.Unmarshal(mcpData, &mcpRaw); err != nil {
+		t.Fatalf("Unmarshal .mcp.json: %v", err)
+	}
+	var servers map[string]json.RawMessage
+	if err := json.Unmarshal(mcpRaw["mcpServers"], &servers); err != nil {
+		t.Fatalf("Unmarshal mcpServers: %v", err)
+	}
+	if _, ok := servers["archcore"]; !ok {
+		t.Error("missing archcore entry in .mcp.json mcpServers")
+	}
+}
+
+func TestRunInit_HooksIdempotent(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	settings := config.NewNoneSettings()
+	if _, err := runInit(context.Background(), base, settings); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+
+	// Run hooks install twice.
+	for i := range 2 {
+		if err := runHooksInstallForAgent(base, agents.ClaudeCode); err != nil {
+			t.Fatalf("runHooksInstallForAgent call %d: %v", i+1, err)
+		}
+	}
+
+	// Verify exactly 1 matcher per hook event (no duplicates).
+	data, err := os.ReadFile(filepath.Join(base, ".claude", "settings.json"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	var hooks map[string][]hookMatcherGroup
+	if err := json.Unmarshal(raw["hooks"], &hooks); err != nil {
+		t.Fatalf("Unmarshal hooks: %v", err)
+	}
+	for _, event := range []string{"SessionStart"} {
+		if len(hooks[event]) != 1 {
+			t.Errorf("event %s: want 1 matcher after idempotent install, got %d", event, len(hooks[event]))
+		}
+	}
+
+	// Verify exactly 1 archcore entry in .mcp.json.
+	mcpData, err := os.ReadFile(filepath.Join(base, ".mcp.json"))
+	if err != nil {
+		t.Fatalf("ReadFile .mcp.json: %v", err)
+	}
+	var mcpRaw map[string]json.RawMessage
+	if err := json.Unmarshal(mcpData, &mcpRaw); err != nil {
+		t.Fatalf("Unmarshal .mcp.json: %v", err)
+	}
+	var servers map[string]json.RawMessage
+	if err := json.Unmarshal(mcpRaw["mcpServers"], &servers); err != nil {
+		t.Fatalf("Unmarshal mcpServers: %v", err)
+	}
+	if len(servers) != 1 {
+		t.Errorf("want 1 MCP server entry, got %d", len(servers))
+	}
+}
+
+func TestRunInit_Idempotent(t *testing.T) {
+	base := t.TempDir()
+	for i := range 2 {
+		_, err := runInit(context.Background(), base, config.NewNoneSettings())
+		if err != nil {
+			t.Fatalf("runInit call %d: %v", i+1, err)
+		}
+	}
+	s, err := config.Load(base)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if s.Sync != config.SyncTypeNone {
+		t.Errorf("Sync = %q, want %q", s.Sync, config.SyncTypeNone)
+	}
+}
+
+func TestInit_DetectsMultipleAgents(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+
+	// Create agent marker directories before init.
+	if err := os.MkdirAll(filepath.Join(base, ".cursor"), 0o755); err != nil {
+		t.Fatalf("MkdirAll .cursor: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(base, ".gemini"), 0o755); err != nil {
+		t.Fatalf("MkdirAll .gemini: %v", err)
+	}
+
+	settings := config.NewNoneSettings()
+	if _, err := runInit(context.Background(), base, settings); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+
+	// Now detect and install for detected agents.
+	detected := agents.Detect(base)
+	for _, agent := range detected {
+		//exhaustive:ignore // Only the agents whose config this test seeds are named.
+		switch agent.ID {
+		case agents.Cursor:
+			wiring.InstallCursorHooks(base)
+		case agents.GeminiCLI:
+			wiring.InstallGeminiCLIHooks(base)
+		}
+	}
+
+	// Verify .cursor/hooks.json exists.
+	if _, err := os.Stat(filepath.Join(base, ".cursor", "hooks.json")); err != nil {
+		t.Error("expected .cursor/hooks.json to exist")
+	}
+	// Verify .gemini/settings.json has hooks.
+	data, err := os.ReadFile(filepath.Join(base, ".gemini", "settings.json"))
+	if err != nil {
+		t.Fatal("expected .gemini/settings.json to exist")
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if _, ok := raw["hooks"]; !ok {
+		t.Error("expected hooks in .gemini/settings.json")
+	}
+}
+
+func TestResolveAgents_NoAgents_NonInteractive(t *testing.T) {
+	base := t.TempDir()
+	withInteractive(t, false)
+
+	settings := config.NewNoneSettings()
+	if _, err := runInit(context.Background(), base, settings); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+
+	sel, err := resolveAgents(base)
+	if err != nil {
+		t.Fatalf("resolveAgents: %v", err)
+	}
+	if len(sel.agents) != 0 {
+		t.Fatalf("expected no resolved agents, got %d", len(sel.agents))
+	}
+	if sel.outcome != outcomeNonInteractive {
+		t.Errorf("outcome = %d, want outcomeNonInteractive(%d)", sel.outcome, outcomeNonInteractive)
+	}
+}
+
+// withInteractive temporarily overrides the package-level isInteractive hook
+// for tests. The package-level hooks are not safe under t.Parallel(), so
+// callers must run serially.
+func withInteractive(t *testing.T, v bool) {
+	t.Helper()
+	orig := isInteractive
+	isInteractive = func() bool { return v }
+	t.Cleanup(func() { isInteractive = orig })
+}
+
+// withPickAgents temporarily swaps the package-level pickAgents and
+// isInteractive hooks for tests. Forces isInteractive=true so resolveAgents
+// reaches the picker. Like withInteractive, it is not safe under t.Parallel().
+func withPickAgents(t *testing.T, sel agentSelection) {
+	t.Helper()
+	withPickAgentsFn(t, func() (agentSelection, error) { return sel, nil })
+}
+
+// withPickAgentsFn is the lower-level seam that lets a test inject an
+// arbitrary picker function (e.g. one that returns an error to exercise the
+// error-propagation path).
+func withPickAgentsFn(t *testing.T, fn agentPicker) {
+	t.Helper()
+	origPick := pickAgents
+	origInteractive := isInteractive
+	pickAgents = fn
+	isInteractive = func() bool { return true }
+	t.Cleanup(func() {
+		pickAgents = origPick
+		isInteractive = origInteractive
+	})
+}
+
+func TestValidateAgentSelection(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []agents.AgentID
+		wantErr bool
+	}{
+		{name: "nil slice", input: nil, wantErr: true},
+		{name: "empty slice", input: []agents.AgentID{}, wantErr: true},
+		{name: "single real agent", input: []agents.AgentID{agents.ClaudeCode}, wantErr: false},
+		{name: "skip sentinel only", input: []agents.AgentID{skipAgentSentinel}, wantErr: false},
+		{name: "two real agents", input: []agents.AgentID{agents.ClaudeCode, agents.Cursor}, wantErr: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAgentSelection(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestResolveAgents_PicksTwoAgents(t *testing.T) {
+	base := t.TempDir()
+	want := []*agents.Agent{agents.ByID(agents.ClaudeCode), agents.ByID(agents.Cursor)}
+	withPickAgents(t, agentSelection{outcome: outcomePicked, agents: want})
+
+	sel, err := resolveAgents(base)
+	if err != nil {
+		t.Fatalf("resolveAgents: %v", err)
+	}
+	if sel.outcome != outcomePicked {
+		t.Errorf("outcome = %d, want outcomePicked(%d)", sel.outcome, outcomePicked)
+	}
+	if len(sel.agents) != 2 {
+		t.Fatalf("len(agents) = %d, want 2", len(sel.agents))
+	}
+	if sel.agents[0].ID != agents.ClaudeCode {
+		t.Errorf("agents[0].ID = %q, want %q", sel.agents[0].ID, agents.ClaudeCode)
+	}
+	if sel.agents[1].ID != agents.Cursor {
+		t.Errorf("agents[1].ID = %q, want %q", sel.agents[1].ID, agents.Cursor)
+	}
+}
+
+func TestResolveAgents_UserSkipped(t *testing.T) {
+	base := t.TempDir()
+	withPickAgents(t, agentSelection{outcome: outcomeSkipped})
+
+	sel, err := resolveAgents(base)
+	if err != nil {
+		t.Fatalf("resolveAgents: %v", err)
+	}
+	if sel.outcome != outcomeSkipped {
+		t.Errorf("outcome = %d, want outcomeSkipped(%d)", sel.outcome, outcomeSkipped)
+	}
+	if len(sel.agents) != 0 {
+		t.Errorf("len(agents) = %d, want 0", len(sel.agents))
+	}
+}
+
+func TestResolveAgents_UserAborted(t *testing.T) {
+	base := t.TempDir()
+	withPickAgents(t, agentSelection{outcome: outcomeAborted})
+
+	sel, err := resolveAgents(base)
+	if err != nil {
+		t.Fatalf("resolveAgents: %v", err)
+	}
+	if sel.outcome != outcomeAborted {
+		t.Errorf("outcome = %d, want outcomeAborted(%d)", sel.outcome, outcomeAborted)
+	}
+	if len(sel.agents) != 0 {
+		t.Errorf("len(agents) = %d, want 0", len(sel.agents))
+	}
+}
+
+// TestResolveAgents_PickerError covers the path where the picker returns a
+// non-aborted error: resolveAgents must propagate it unchanged so the caller
+// (init/hooks/mcp RunE) can present a recovery hint.
+func TestResolveAgents_PickerError(t *testing.T) {
+	base := t.TempDir()
+	wantErr := errors.New("huh exploded")
+	withPickAgentsFn(t, func() (agentSelection, error) { return agentSelection{}, wantErr })
+
+	sel, err := resolveAgents(base)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("err = %v, want %v", err, wantErr)
+	}
+	if len(sel.agents) != 0 {
+		t.Errorf("len(agents) = %d, want 0 on error", len(sel.agents))
+	}
+}
+
+func TestAgentsFromPicked(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       []agents.AgentID
+		wantOutcome pickOutcome
+		wantIDs     []agents.AgentID
+	}{
+		{name: "skip only", input: []agents.AgentID{skipAgentSentinel}, wantOutcome: outcomeSkipped},
+		{name: "single real", input: []agents.AgentID{agents.ClaudeCode}, wantOutcome: outcomePicked, wantIDs: []agents.AgentID{agents.ClaudeCode}},
+		{
+			name:        "real plus skip — skip is filtered",
+			input:       []agents.AgentID{agents.ClaudeCode, skipAgentSentinel},
+			wantOutcome: outcomePicked,
+			wantIDs:     []agents.AgentID{agents.ClaudeCode},
+		},
+		{
+			name:        "two real",
+			input:       []agents.AgentID{agents.ClaudeCode, agents.Cursor},
+			wantOutcome: outcomePicked,
+			wantIDs:     []agents.AgentID{agents.ClaudeCode, agents.Cursor},
+		},
+		{name: "unknown id only", input: []agents.AgentID{"nonsense"}, wantOutcome: outcomeSkipped},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := agentsFromPicked(tt.input)
+			if got.outcome != tt.wantOutcome {
+				t.Errorf("outcome = %d, want %d", got.outcome, tt.wantOutcome)
+			}
+			if len(got.agents) != len(tt.wantIDs) {
+				t.Fatalf("len(agents) = %d, want %d", len(got.agents), len(tt.wantIDs))
+			}
+			for i, want := range tt.wantIDs {
+				if got.agents[i].ID != want {
+					t.Errorf("agents[%d].ID = %q, want %q", i, got.agents[i].ID, want)
+				}
+			}
+		})
+	}
+}
+
+// installFromPicker drives the same path newInitCmd's RunE walks: resolve the
+// picker, print status if empty, otherwise call installAgents. Tests use this
+// to assert the install side-effects of the cobra closure without booting
+// cobra itself.
+func installFromPicker(t *testing.T, baseDir string) {
+	t.Helper()
+	sel, err := resolveAgents(baseDir)
+	if err != nil {
+		t.Fatalf("resolveAgents: %v", err)
+	}
+	if len(sel.agents) == 0 {
+		printAgentSelectionStatus(sel)
+		return
+	}
+	installAgents(baseDir, sel.agents, true)
+}
+
+func TestRunInit_PicksAgentsAndInstalls(t *testing.T) {
+	base := t.TempDir()
+	withPickAgents(t, agentSelection{outcome: outcomePicked, agents: []*agents.Agent{agents.ByID(agents.ClaudeCode)}})
+
+	if _, err := runInit(context.Background(), base, config.NewNoneSettings()); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+	installFromPicker(t, base)
+
+	if _, err := os.Stat(filepath.Join(base, ".claude", "settings.json")); err != nil {
+		t.Errorf(".claude/settings.json missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(base, ".mcp.json")); err != nil {
+		t.Errorf(".mcp.json missing: %v", err)
+	}
+}
+
+func TestRunInit_AbortShowsRecoveryHint(t *testing.T) {
+	base := t.TempDir()
+	withPickAgents(t, agentSelection{outcome: outcomeAborted})
+
+	out := captureStdout(t, func() {
+		if _, err := runInit(context.Background(), base, config.NewNoneSettings()); err != nil {
+			t.Fatalf("runInit: %v", err)
+		}
+		installFromPicker(t, base)
+	})
+
+	if !strings.Contains(out, "Cancelled") {
+		t.Errorf("output does not contain 'Cancelled':\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(base, ".archcore", "settings.json")); err != nil {
+		t.Errorf("settings.json missing: %v", err)
+	}
+}
+
+func TestRunInit_SkipShowsRecoveryHint(t *testing.T) {
+	base := t.TempDir()
+	withPickAgents(t, agentSelection{outcome: outcomeSkipped})
+
+	out := captureStdout(t, func() {
+		if _, err := runInit(context.Background(), base, config.NewNoneSettings()); err != nil {
+			t.Fatalf("runInit: %v", err)
+		}
+		installFromPicker(t, base)
+	})
+
+	if !strings.Contains(out, "Skipped") {
+		t.Errorf("output does not contain 'Skipped':\n%s", out)
+	}
+	if _, err := os.Stat(filepath.Join(base, ".archcore", "settings.json")); err != nil {
+		t.Errorf("settings.json missing: %v", err)
+	}
+}
+
+// withConfirmInstructions swaps the package-level confirmInstructions seam for
+// tests. Like withInteractive, it mutates a global and is not safe under
+// t.Parallel().
+func withConfirmInstructions(t *testing.T, fn instructionsConfirmer) {
+	t.Helper()
+	orig := confirmInstructions
+	confirmInstructions = fn
+	t.Cleanup(func() { confirmInstructions = orig })
+}
+
+func TestMaybeInstallInstructions_OptInWrites(t *testing.T) {
+	base := t.TempDir()
+	withInteractive(t, true)
+	withConfirmInstructions(t, func([]string) (bool, error) { return true, nil })
+
+	captureStdout(t, func() {
+		maybeInstallInstructions(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)})
+	})
+
+	if _, err := os.Stat(filepath.Join(base, "CLAUDE.md")); err != nil {
+		t.Errorf("opt-in should write the instruction file: %v", err)
+	}
+}
+
+func TestMaybeInstallInstructions_DeclineSkips(t *testing.T) {
+	base := t.TempDir()
+	withInteractive(t, true)
+	withConfirmInstructions(t, func([]string) (bool, error) { return false, nil })
+
+	out := captureStdout(t, func() {
+		maybeInstallInstructions(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)})
+	})
+
+	if _, err := os.Stat(filepath.Join(base, "CLAUDE.md")); !os.IsNotExist(err) {
+		t.Errorf("declined hint should not write file, stat err = %v", err)
+	}
+	if !strings.Contains(out, "Skipped") {
+		t.Errorf("output should mention 'Skipped':\n%s", out)
+	}
+}
+
+func TestMaybeInstallInstructions_NonInteractiveSkips(t *testing.T) {
+	base := t.TempDir()
+	withInteractive(t, false)
+
+	out := captureStdout(t, func() {
+		maybeInstallInstructions(base, []*agents.Agent{agents.ByID(agents.ClaudeCode)})
+	})
+
+	if _, err := os.Stat(filepath.Join(base, "CLAUDE.md")); !os.IsNotExist(err) {
+		t.Errorf("non-interactive should not write file, stat err = %v", err)
+	}
+	if !strings.Contains(out, "non-interactive") {
+		t.Errorf("output should mention 'non-interactive':\n%s", out)
+	}
+}
+
+// TestExistingOrNewSettings_ReinitializeKeepsAConfiguredProject pins what
+// `archcore init` on an existing project does to settings.json.
+//
+// Reinitializing restores the directory and the host wiring. It is not a reset:
+// the sync mode, project id, language and globals the user configured survive
+// it. Before this, the interactive path built config.NewNoneSettings()
+// unconditionally, so `archcore init --yes` in a script silently discarded all
+// four on a configured repository — while the --agent path kept them, which
+// made the two entry points disagree about what init means.
+func TestExistingOrNewSettings_ReinitializeKeepsAConfiguredProject(t *testing.T) {
+	// Cloud settings make runInit probe the server, so it has to be a local
+	// one: no test may reach app.archcore.ai.
+	srv := httptest.NewServer(healthyHandler())
+	defer srv.Close()
+	orig := config.CloudServerURL
+	config.CloudServerURL = srv.URL
+	defer func() { config.CloudServerURL = orig }()
+
+	base := t.TempDir()
+	if err := config.InitDir(base); err != nil {
+		t.Fatalf("InitDir: %v", err)
+	}
+	configured := config.NewCloudSettings()
+	configured.Language = "ru"
+	if err := config.Save(base, configured); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	settings, kept := existingOrNewSettings(base)
+	if !kept {
+		t.Fatal("kept = false for a project that carries settings.json")
+	}
+	if settings.Sync != config.SyncTypeCloud {
+		t.Errorf("Sync = %q, want the configured %q", settings.Sync, config.SyncTypeCloud)
+	}
+	if settings.Language != "ru" {
+		t.Errorf("Language = %q, want the configured %q", settings.Language, "ru")
+	}
+
+	// And the write-back keeps them on disk, which is what a caller observes.
+	if _, err := runInit(context.Background(), base, settings); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+	reloaded, err := config.Load(base)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if reloaded.Sync != config.SyncTypeCloud || reloaded.Language != "ru" {
+		t.Errorf("reinitializing wrote back %+v, want the configured settings", reloaded)
+	}
+}
+
+// The other half: a directory with no .archcore/ gets the defaults, and says it
+// created rather than kept them.
+func TestExistingOrNewSettings_FreshProjectTakesTheDefaults(t *testing.T) {
+	settings, kept := existingOrNewSettings(t.TempDir())
+	if kept {
+		t.Error("kept = true for a directory with no .archcore/")
+	}
+	if settings.Sync != config.SyncTypeNone {
+		t.Errorf("Sync = %q, want the default %q", settings.Sync, config.SyncTypeNone)
+	}
+}
+
+// An unreadable settings.json falls back to the defaults instead of refusing.
+// Reinitializing is the repair for exactly that state, so failing here would
+// leave the project unable to run the command that fixes it.
+func TestExistingOrNewSettings_UnreadableSettingsFallBackToTheDefaults(t *testing.T) {
+	base := t.TempDir()
+	if err := config.InitDir(base); err != nil {
+		t.Fatalf("InitDir: %v", err)
+	}
+	path := filepath.Join(base, ".archcore", "settings.json")
+	if err := os.WriteFile(path, []byte(`{ "sync": `), 0o644); err != nil {
+		t.Fatalf("writing broken settings: %v", err)
+	}
+
+	settings, kept := existingOrNewSettings(base)
+	if kept {
+		t.Error("kept = true for settings.json that does not parse")
+	}
+	if settings.Sync != config.SyncTypeNone {
+		t.Errorf("Sync = %q, want the default %q", settings.Sync, config.SyncTypeNone)
+	}
+}

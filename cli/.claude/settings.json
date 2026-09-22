@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "archcore hooks claude-code session-start"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "archcore@archcore-plugins": true
+  }
+}

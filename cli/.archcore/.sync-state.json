@@ -1,0 +1,1837 @@
+{
+  "version": 1,
+  "files": {
+    "cli-ui/building-the-cli.guide.md": "b9af193c4702f7cd58ef397626bed6883128171a1ef8f08b8f939aab271bc194",
+    "cli-ui/language-setting.idea.md": "15f4825bc8f52cea1f249e6cc601997a62357584756f99affcd45642cda2e07d",
+    "cli-ui/project-deletion-via-repo.idea.md": "88984fdff4a5e8af797a4d4322ed6e4c17e81c541c9a35959f2db29a2a9055cb",
+    "cli-ui/version-in-banners.idea.md": "af87637c17ae6daab662b1be2166fafd4650ff861d91f4e281ca0019381f46ca",
+    "cli/archcore-first-search-priority.rule.md": "9a8bf693cbd1d8122cef2f9da7ae93930ea67388aa859848170e788628a3816a",
+    "cli/feature-gating-at-command-layer.rule.md": "6f1455376768506f232ec5b17002b3bae6565f8e1f5d0eca50880b7efa2456d2",
+    "cli/import-existing-context.idea.md": "5818488f4ff837b7d5f5e23124938f403d9f0b8345ca5caed6860831369a8356",
+    "cli/optional-settings-omit-defaults.rule.md": "9ea14bac983c2ed489114261a761b8da0760c668216fa988899b466e0170a471",
+    "dir/archcore-directory-structure.guide.md": "0bcd20721e9b69e05e9a31f5b1da2d38254707e0f593c7609a860094c4f4b0a1",
+    "dir/categories-and-document-types.doc.md": "9ae300c1a074fa5980a174f71fcbef1bcd449317d0317d8f59a42037a3d0ee59",
+    "dir/free-form-directory-rules.rule.md": "3122fbd4a096662d1e6b84aa2cd5f8c234364db9eef43eeff8cd78e8b9be2a84",
+    "dir/free-form-directory-structure.adr.md": "359025839a37daeffe59dab3a19a599afffa6229da73edca3e4e47b5e90a4ab7",
+    "document-types/iso-29148-document-types-implementation.plan.md": "163d65b856a0df5616c89565e28b4758bb70fe877f15a5687075d032e577e79b",
+    "document-types/mrd-brd-urd-implementation.plan.md": "d97a1fe1c5c1aa53406b07177bea67acb7c35a03dad0f1bc7b3a83d2f01a89b3",
+    "document-types/mrd-brd-urd-requirement-sources.idea.md": "56d584fe86b34c22a5476beb6219df39509e789c3055e32986fe105f60c83373",
+    "document-types/prd-vs-iso-29148-requirements-strategy.idea.md": "ed4ad8c51809a32cb29687553578ae651d4fe1789a39aa1d9dcf7b12f7a32972",
+    "document-types/remove-project-document-type.adr.md": "2d70783d975b6b31b034903455fb952f32ca727443155bce98d929154593c333",
+    "document-types/spec-type-usage.rule.md": "051098a115e5e557213cd5d2b5fa9e460e32b205c8ab5771156679de14fe0fbd",
+    "document-types/writing-spec-documents.guide.md": "af5f8272bf40ae719673fea86492c0be76e3ed5e7e286121aff9336e07f35a1b",
+    "integrations/agent-hooks-integration.guide.md": "54509050bc6accbbcb0170c8f2c4df56c3708da8959b58ff6ac24de0dd8dbc52",
+    "integrations/backup-invalid-configs.adr.md": "a96a5ad0cc21737560940e073c6ae4d62dd22ec82db3a87bee19bbf55ac9567a",
+    "integrations/cli-hooks-reference.doc.md": "38877e79d349529fd654d1000190e324c2676e62fa2f73e51a2b2bf503fe36e2",
+    "integrations/disable-stop-and-prompt-hooks.adr.md": "420b04465a7e59de2d2368887ff71c1e2f41e86ac419b890834c154551b6e744",
+    "integrations/supported-ai-agents.doc.md": "72b776f3398551d157f1b15a10386dd17045c7d213f3939f9a6160b87e4ccaab",
+    "mcp/no-absolute-paths-in-mcp-errors.rule.md": "0fc86b170ce9d775901c8396bf6ccec3481b54d12e364bf87f73cb3b8400a376",
+    "mcp/tags-implementation.plan.md": "fdfa04b70f085bc5b0cf873546d5d44730b595f0961541bd1014b368f630bb61",
+    "relations/local-relations-in-sync-state.adr.md": "8b7cf80c829465156ad27040f6365c7f91e5e9ceddb112242a88f533840bebf0",
+    "release/how-to-release.guide.md": "d43f8e096454e9a6408dbaa02282272411389823a3654d4e5648a2efb1f57422",
+    "release/install-script-usage.guide.md": "54034c7cf400d7940620b9fc579a8187aa48d0e4f330edd91dde3fff91c803e9",
+    "release/release-infrastructure.doc.md": "7a3bf8de0faf6296a2fbd83be4381c19698ca40664853934b061a0f219d3ce53",
+    "release/version-injection-via-ldflags.rule.md": "5e46bfc5238f58906a1b4bf2d1aa17743d37df667c841340bf6e4d7703e6c871",
+    "sync/auto-detect-repo-url-on-sync.adr.md": "2ed41cd122176c9f6461fb90ca005b2a75d2b8cd9e66de364b386a38c47c689b",
+    "sync/one-way-push-sync-strategy.adr.md": "911131db9ba1bf575ab9d3f091138d07b27bca2fbcddd411ca2f8c2a881a57c5",
+    "sync/sync-command-implementation.plan.md": "40dba775242834c898681f47c0c0eca6fe9b141f0a081f4252f477413142db6a",
+    "sync/sync-design.idea.md": "8fa7b2125e7a92ffb1220d1dcafd2512e61666b1f621fce56950c66cc9e59da0",
+    "sync/sync-how-it-works.guide.md": "541b1285ce3f3428f09c897c96de0ce88cfaef9b2ad462ff79de9376f300f409",
+    "sync/sync-manifest-update-on-success-only.rule.md": "49dc9ff0f029dc1436d15a8ff60d56d19c830ce2df5c5ed3357221db9472373f",
+    "sync/sync-mode-field-validation.rule.md": "978a5da40a0a187e3fa8b8899f4666ebbd6f9e8ed78afc28c3fb1c620d1bbfba",
+    "sync/sync-path-security.rule.md": "256768e99f55331cd857ffa3056668f2a5a5f9be7f5a998bca59137a93265937",
+    "sync/sync-source-of-truth.rule.md": "c36526edd5d7e9bcd8b692227a3dfa3810fe46b49d9c35b67497574e22bf14b3",
+    "sync/temporarily-disable-sync.adr.md": "e0df05e12a2654e37c98654ca3abb84dc85ee5110de658cc3c0bac168d909524",
+    "telemetry/telemetry-provider-selection.rfc.md": "fcadaa62249c6dcc437e71852bb8c598a9dc412c5eb9ede68871a080ecddc153",
+    "update/self-update-command.guide.md": "e14595e532bfc750b99598887e4bb7ef4ea74a20942f9192f820db0f5b20c5a2",
+    "update/update-version-check-strategy.rfc.md": "6680f6bfc9e561c997ba17a9b436e54ff71c920a22cdad3d2eb1f9254c9bba1c",
+    "update/version-check-proxy.idea.md": "7bec4bfb32dac8330d4521a3648404e767e09d58bfaf55c250b02fd98f2a33b8"
+  },
+  "relations": [
+    {
+      "source": "cli/optional-settings-omit-defaults.rule.md",
+      "target": "cli-ui/language-setting.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "sync/sync-mode-field-validation.rule.md",
+      "target": "cli/optional-settings-omit-defaults.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/disable-stop-and-prompt-hooks.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "release/how-to-release.guide.md",
+      "target": "release/release-infrastructure.doc.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "release/install-script-usage.guide.md",
+      "target": "release/release-infrastructure.doc.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "release/release-infrastructure.doc.md",
+      "target": "release/version-injection-via-ldflags.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/version-in-banners.idea.md",
+      "target": "cli-ui/language-setting.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/version-in-banners.idea.md",
+      "target": "cli-ui/project-deletion-via-repo.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "dir/categories-and-document-types.doc.md",
+      "target": "dir/free-form-directory-rules.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "dir/categories-and-document-types.doc.md",
+      "target": "dir/free-form-directory-structure.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/mrd-brd-urd-requirement-sources.idea.md",
+      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/spec-type-usage.rule.md",
+      "target": "document-types/mrd-brd-urd-requirement-sources.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/spec-type-usage.rule.md",
+      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/writing-spec-documents.guide.md",
+      "target": "document-types/mrd-brd-urd-requirement-sources.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/writing-spec-documents.guide.md",
+      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/writing-spec-documents.guide.md",
+      "target": "document-types/spec-type-usage.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/spec-type-usage.rule.md",
+      "target": "dir/categories-and-document-types.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/writing-spec-documents.guide.md",
+      "target": "dir/categories-and-document-types.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/remove-project-document-type.adr.md",
+      "target": "document-types/mrd-brd-urd-requirement-sources.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/remove-project-document-type.adr.md",
+      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/remove-project-document-type.adr.md",
+      "target": "document-types/spec-type-usage.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/remove-project-document-type.adr.md",
+      "target": "document-types/writing-spec-documents.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/remove-project-document-type.adr.md",
+      "target": "dir/categories-and-document-types.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/mcp-token-optimization.idea.md",
+      "target": "cli/archcore-first-search-priority.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/mcp-token-optimization.idea.md",
+      "target": "cli/dependency-vulnerability-remediation.task-type.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/mcp-token-optimization.idea.md",
+      "target": "cli/feature-gating-at-command-layer.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/mcp-token-optimization.idea.md",
+      "target": "cli/import-existing-context.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/mcp-token-optimization.idea.md",
+      "target": "cli/optional-settings-omit-defaults.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/source-to-specification-relations.rule.md",
+      "target": "document-types/mrd-brd-urd-requirement-sources.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/source-to-specification-relations.rule.md",
+      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/source-to-specification-relations.rule.md",
+      "target": "document-types/remove-project-document-type.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/source-to-specification-relations.rule.md",
+      "target": "document-types/spec-type-usage.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/source-to-specification-relations.rule.md",
+      "target": "document-types/writing-spec-documents.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/sources-are-not-specifications.rule.md",
+      "target": "document-types/mrd-brd-urd-requirement-sources.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/sources-are-not-specifications.rule.md",
+      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/sources-are-not-specifications.rule.md",
+      "target": "document-types/remove-project-document-type.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/sources-are-not-specifications.rule.md",
+      "target": "document-types/source-to-specification-relations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/sources-are-not-specifications.rule.md",
+      "target": "document-types/spec-type-usage.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/sources-are-not-specifications.rule.md",
+      "target": "document-types/writing-spec-documents.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/working-with-requirements-tracks.guide.md",
+      "target": "document-types/mrd-brd-urd-requirement-sources.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/working-with-requirements-tracks.guide.md",
+      "target": "document-types/prd-vs-iso-29148-requirements-strategy.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/working-with-requirements-tracks.guide.md",
+      "target": "document-types/remove-project-document-type.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/working-with-requirements-tracks.guide.md",
+      "target": "document-types/source-to-specification-relations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/working-with-requirements-tracks.guide.md",
+      "target": "document-types/sources-are-not-specifications.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/working-with-requirements-tracks.guide.md",
+      "target": "document-types/spec-type-usage.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/working-with-requirements-tracks.guide.md",
+      "target": "document-types/writing-spec-documents.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/working-with-requirements-tracks.guide.md",
+      "target": "dir/categories-and-document-types.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/source-to-specification-relations.rule.md",
+      "target": "dir/categories-and-document-types.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/sources-are-not-specifications.rule.md",
+      "target": "dir/categories-and-document-types.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/no-list-tags-tool.adr.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/tag-update-semantics.rule.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/tag-update-semantics.rule.md",
+      "target": "mcp/no-list-tags-tool.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/tag-update-semantics.rule.md",
+      "target": "cli/optional-settings-omit-defaults.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/unit-testing-patterns.guide.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/e2e-testing-for-cli.idea.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/e2e-testing-for-cli.idea.md",
+      "target": "code-quality/unit-testing-patterns.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "target": "mcp/no-list-tags-tool.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "target": "mcp/tag-update-semantics.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "relations/no-auto-relations-on-create-document.adr.md",
+      "target": "relations/local-relations-in-sync-state.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/search-documents.spec.md",
+      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/search-documents.spec.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/search-documents.spec.md",
+      "target": "mcp/no-list-tags-tool.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/search-documents.spec.md",
+      "target": "mcp/tag-update-semantics.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/search-documents-matching-not-presentation.adr.md",
+      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/search-documents-matching-not-presentation.adr.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/search-documents-matching-not-presentation.adr.md",
+      "target": "mcp/no-list-tags-tool.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/search-documents-matching-not-presentation.adr.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/search-documents-matching-not-presentation.adr.md",
+      "target": "mcp/tag-update-semantics.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/in-process-mcp-integration-tests.adr.md",
+      "target": "code-quality/e2e-testing-for-cli.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "code-quality/in-process-mcp-integration-tests.adr.md",
+      "target": "code-quality/unit-testing-patterns.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/in-process-mcp-integration-tests.adr.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/in-process-mcp-integration-tests.adr.md",
+      "target": "mcp/tag-update-semantics.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/in-process-mcp-integration-tests.adr.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/instruction-nudge-on-init.adr.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-sources.spec.md",
+      "target": "globals/global-sources-via-settings.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/declaring-global-sources.rule.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "globals/local-overrides-global.rule.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "globals/vendoring-a-global.guide.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "globals/vendoring-a-global.guide.md",
+      "target": "globals/declaring-global-sources.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-sources-via-settings.adr.md",
+      "target": "cli/multi-project-mcp-access.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-mandatory.adr.md",
+      "target": "globals/global-sources-via-settings.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/global-sources.spec.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/declaring-global-sources.rule.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/vendoring-a-global.guide.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/sync-source-of-truth.rule.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "sync/sync-manifest-update-on-success-only.rule.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/sync-path-security.rule.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/feature-gating-at-command-layer.rule.md",
+      "target": "sync/temporarily-disable-sync.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/backup-invalid-configs.adr.md",
+      "target": "integrations/instruction-nudge-on-init.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-read-only-everywhere.rule.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "globals/globals-are-read-only-everywhere.rule.md",
+      "target": "globals/local-overrides-global.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-read-only-everywhere.rule.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/declaring-global-sources.rule.md",
+      "target": "globals/globals-are-read-only-everywhere.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "cli/mcp-token-optimization.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "globals/local-overrides-global.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "integrations/instruction-nudge-on-init.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "integrations/disable-stop-and-prompt-hooks.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/relation-write-path-graph-growth.idea.md",
+      "target": "mcp/read-path-scan-performance.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/relation-write-path-graph-growth.idea.md",
+      "target": "relations/local-relations-in-sync-state.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/relation-write-path-graph-growth.idea.md",
+      "target": "relations/no-auto-relations-on-create-document.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/install-host-config-tool-contract.adr.md",
+      "target": "integrations/hook-command-marker-prefix.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/install-host-config-tool-contract.adr.md",
+      "target": "integrations/mcp-config-converge-ownership.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/install-host-config-tool-contract.adr.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-command-marker-prefix.adr.md",
+      "target": "integrations/cli-hooks-reference.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/sync-engine.spec.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "release/install-script-usage.guide.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "release/release-infrastructure.doc.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/host-cwd-misrouting.adr.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/host-cwd-misrouting.adr.md",
+      "target": "mcp/install-host-config-tool-contract.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "docs-style/controlled-technical-writing.rule.md",
+      "target": "cli/archcore-first-search-priority.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "docs-style/controlled-technical-writing.rule.md",
+      "target": "document-types/writing-spec-documents.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "docs-style/controlled-technical-writing.rule.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "docs-style/controlled-technical-writing.rule.md",
+      "target": "document-types/spec-type-usage.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "dir/free-form-directory-rules.rule.md",
+      "target": "dir/free-form-directory-structure.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "sync/sync-path-security.rule.md",
+      "target": "dir/free-form-directory-structure.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "sync/sync-path-security.rule.md",
+      "target": "globals/globals-are-read-only-everywhere.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "integrations/backup-invalid-configs.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/backup-invalid-configs.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/supported-ai-agents.doc.md",
+      "target": "integrations/disable-stop-and-prompt-hooks.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/vendoring-a-global.guide.md",
+      "target": "globals/global-sources-via-settings.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/one-way-push-sync-strategy.adr.md",
+      "target": "sync/temporarily-disable-sync.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "telemetry/install-analytics-via-installer-beacon.adr.md",
+      "target": "telemetry/telemetry-provider-selection.rfc.md",
+      "type": "extends"
+    },
+    {
+      "source": "release/install-script-usage.guide.md",
+      "target": "telemetry/install-analytics-via-installer-beacon.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "telemetry/install-analytics-via-installer-beacon.adr.md",
+      "target": "release/release-infrastructure.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/session-start-context.spec.md",
+      "target": "integrations/cli-hooks-reference.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-runtime.spec.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "target": "integrations/disable-stop-and-prompt-hooks.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "target": "integrations/hook-command-marker-prefix.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-runtime.spec.md",
+      "target": "integrations/session-start-context.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/report-effective-hook-state.rule.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/report-effective-hook-state.rule.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/plugin-cli-compatibility.rule.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/plugin-cli-compatibility.rule.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/docs-package-owns-the-document-model.adr.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/docs-package-owns-the-document-model.adr.md",
+      "target": "code-quality/strict-go-naming-conventions.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/forward-compatible-settings-parsing.rule.md",
+      "target": "cli/optional-settings-omit-defaults.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/forward-compatible-settings-parsing.rule.md",
+      "target": "sync/sync-mode-field-validation.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/forward-compatible-settings-parsing.rule.md",
+      "target": "integrations/backup-invalid-configs.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-mandatory.adr.md",
+      "target": "cli/forward-compatible-settings-parsing.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/tag-hygiene-checks.idea.md",
+      "target": "mcp/tag-update-semantics.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/tag-hygiene-checks.idea.md",
+      "target": "mcp/no-list-tags-tool.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-read-only-everywhere.rule.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/supported-ai-agents.doc.md",
+      "target": "integrations/cli-hooks-reference.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/backup-invalid-configs.adr.md",
+      "target": "integrations/mcp-config-converge-ownership.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-runtime.spec.md",
+      "target": "integrations/hook-wire-protocol.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-runtime.spec.md",
+      "target": "integrations/hook-payload-reading.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/hook-wire-protocol.spec.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/hook-payload-reading.spec.md",
+      "target": "integrations/hook-guardrails-in-the-cli.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/hook-wire-protocol.spec.md",
+      "target": "integrations/session-start-context.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/hook-wire-protocol.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/cli-hooks-reference.doc.md",
+      "target": "integrations/hook-payload-reading.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/registry-agreement-and-test-seams.guide.md",
+      "target": "code-quality/unit-testing-patterns.guide.md",
+      "type": "extends"
+    },
+    {
+      "source": "code-quality/choosing-an-atomic-write.rule.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "extends"
+    },
+    {
+      "source": "code-quality/cite-the-governing-document-from-code.rule.md",
+      "target": "docs-style/controlled-technical-writing.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/bounded-and-deterministic-output.rule.md",
+      "target": "integrations/session-start-context.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/fail-open-or-fail-closed-reads.rule.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "code-quality/fail-open-or-fail-closed-reads.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "code-quality/bounded-and-deterministic-output.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "extends"
+    },
+    {
+      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "target": "integrations/report-effective-hook-state.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "target": "release/install-script-usage.guide.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "telemetry/cli-update-telemetry.spec.md",
+      "target": "telemetry/install-analytics-via-installer-beacon.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "update/who-triggers-a-cli-update.rfc.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "telemetry/cli-update-telemetry.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "update/install-provenance-receipt.spec.md",
+      "target": "release/install-script-usage.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "update/who-triggers-a-cli-update.rfc.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "update/install-provenance-receipt.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "update/mcp-background-update.spec.md",
+      "target": "update/unattended-update.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/mcp-background-update.spec.md",
+      "target": "update/who-triggers-a-cli-update.rfc.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/prd-spec-plan-content-ownership.adr.md",
+      "target": "document-types/spec-type-usage.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/prd-spec-plan-content-ownership.adr.md",
+      "target": "document-types/source-to-specification-relations.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/prd-spec-plan-content-ownership.adr.md",
+      "target": "code-quality/bounded-and-deterministic-output.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/keeping-the-cli-current.prd.md",
+      "target": "update/who-triggers-a-cli-update.rfc.md",
+      "type": "related"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/unattended-update.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/mcp-background-update.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "telemetry/cli-update-telemetry.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/install-provenance-receipt.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "release/install-script-usage.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "telemetry/cli-update-telemetry.spec.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "cli-ui/language-setting.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "cli/optional-settings-omit-defaults.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "cli/forward-compatible-settings-parsing.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/version-in-banners.idea.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/instruction-nudge-on-init.adr.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/agent-hooks-integration.doc.md",
+      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/agent-hooks-integration.doc.md",
+      "target": "integrations/cli-hooks-reference.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/agent-hooks-integration.doc.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/instruction-nudge-on-init.adr.md",
+      "target": "integrations/agent-hooks-integration.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/save-agent-plans-into-archcore.idea.md",
+      "target": "integrations/agent-hooks-integration.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "sync/sync-how-it-works.doc.md",
+      "target": "sync/one-way-push-sync-strategy.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "release/version-injection-via-ldflags.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "update/resolve-latest-via-github-redirect.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/self-update-command.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-discovery-gap.idea.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-discovery-gap.idea.md",
+      "target": "globals/local-overrides-global.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-discovery-gap.idea.md",
+      "target": "integrations/session-start-context.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-discovery-gap.idea.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/global-discovery-gap.idea.md",
+      "target": "mcp/read-path-scan-performance.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/session-globals-disclosure.spec.md",
+      "target": "globals/global-discovery-gap.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "globals/session-globals-disclosure.spec.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "globals/session-globals-disclosure.spec.md",
+      "target": "integrations/session-start-context.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/global-recall-guarantees.rfc.md",
+      "target": "globals/global-discovery-gap.idea.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/global-recall-guarantees.rfc.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/global-recall-guarantees.rfc.md",
+      "target": "globals/session-globals-disclosure.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/global-recall-guarantees.rfc.md",
+      "target": "mcp/search-documents-matching-not-presentation.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/global-recall-guarantees.rfc.md",
+      "target": "sync/falkordb-graphrag-hybrid-indexing.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/globals-are-read-only-everywhere.rule.md",
+      "target": "globals/session-globals-disclosure.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "update/updating-the-plugin.spec.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/updating-the-plugin.spec.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/updating-the-plugin.spec.md",
+      "target": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/plugin-delivery.spec.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/plugin-delivery.spec.md",
+      "target": "integrations/deliver-plugin-from-archcore-init.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/plugin-delivery.spec.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/updating-the-plugin.spec.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/unattended-update.spec.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/mcp-background-update.spec.md",
+      "target": "update/keeping-the-cli-current.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/mcp-background-update.spec.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "update/keeping-the-cli-current-rollout.plan.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "update/unattended-update.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "update/mcp-background-update.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/self-update-command.doc.md",
+      "target": "telemetry/cli-update-telemetry.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "release/install-script-usage.guide.md",
+      "target": "update/self-update-command.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "release/install-script-usage.guide.md",
+      "target": "telemetry/cli-update-telemetry.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/supported-ai-agents.doc.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/supported-ai-agents.doc.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/listing-evidence-counts-only-installed.plan.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/listing-evidence-counts-only-installed.plan.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "update/listing-evidence-counts-only-installed.plan.md",
+      "target": "code-quality/fail-open-or-fail-closed-reads.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "update/listing-evidence-counts-only-installed.plan.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "update/listing-evidence-counts-only-installed.plan.md",
+      "target": "update/keeping-the-cli-current-rollout.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/worktree-aware-root-and-globals.plan.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/worktree-aware-root-and-globals.plan.md",
+      "target": "globals/relative-globals-resolve-from-main-checkout.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/worktree-aware-root-and-globals.plan.md",
+      "target": "mcp/session-following-project-root.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/project-root-resolution.spec.md",
+      "target": "mcp/session-following-project-root.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/relative-globals-resolve-from-main-checkout.adr.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "globals/relative-globals-resolve-from-main-checkout.adr.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/session-following-project-root.adr.md",
+      "target": "integrations/host-cwd-misrouting.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/session-following-project-root.adr.md",
+      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/session-following-project-root.adr.md",
+      "target": "globals/relative-globals-resolve-from-main-checkout.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/project-root-resolution.spec.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/project-root-resolution.spec.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/session-following-project-root.adr.md",
+      "target": "cli/multi-project-mcp-access.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/supported-ai-agents.doc.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/project-root-resolution.spec.md",
+      "target": "integrations/host-cwd-misrouting.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/project-root-resolution.spec.md",
+      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/package-dependency-direction.rule.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/package-dependency-direction.rule.md",
+      "target": "mcp/install-host-config-tool-contract.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/package-dependency-direction.rule.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/package-dependency-direction.rule.md",
+      "target": "code-quality/registry-agreement-and-test-seams.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/process-and-concurrency-model.spec.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "architecture/process-and-concurrency-model.spec.md",
+      "target": "update/mcp-background-update.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/process-and-concurrency-model.spec.md",
+      "target": "sync/sync-engine.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/process-and-concurrency-model.spec.md",
+      "target": "mcp/read-path-scan-performance.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/system-overview.doc.md",
+      "target": "architecture/package-dependency-direction.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/system-overview.doc.md",
+      "target": "architecture/process-and-concurrency-model.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/system-overview.doc.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/system-overview.doc.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "cli/docs-package-owns-the-document-model.adr.md",
+      "target": "architecture/package-dependency-direction.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/advisory-subsystem.doc.md",
+      "target": "document-types/prd-spec-plan-content-ownership.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/advisory-subsystem.doc.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/advisory-subsystem.doc.md",
+      "target": "architecture/system-overview.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/advisory-subsystem.doc.md",
+      "target": "code-quality/bounded-and-deterministic-output.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/comments-are-the-exception.rule.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "extends"
+    },
+    {
+      "source": "code-quality/comments-are-the-exception.rule.md",
+      "target": "code-quality/cite-the-governing-document-from-code.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/comments-are-the-exception.rule.md",
+      "target": "code-quality/fail-open-or-fail-closed-reads.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/comments-are-the-exception.rule.md",
+      "target": "code-quality/bounded-and-deterministic-output.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "target": "architecture/package-dependency-direction.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "target": "mcp/install-host-config-tool-contract.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/isolating-the-machine-from-the-test-suite.guide.md",
+      "target": "code-quality/unit-testing-patterns.guide.md",
+      "type": "extends"
+    },
+    {
+      "source": "code-quality/isolating-the-machine-from-the-test-suite.guide.md",
+      "target": "code-quality/registry-agreement-and-test-seams.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/shared-guards-return-classified-sentinels.rule.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/shared-guards-return-classified-sentinels.rule.md",
+      "target": "code-quality/fail-open-or-fail-closed-reads.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/rendering-happens-at-the-boundary.rule.md",
+      "target": "architecture/package-dependency-direction.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "code-quality/rendering-happens-at-the-boundary.rule.md",
+      "target": "mcp/no-absolute-paths-in-mcp-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/platform-splits-are-files.rule.md",
+      "target": "code-quality/strict-go-naming-conventions.rule.md",
+      "type": "extends"
+    },
+    {
+      "source": "code-quality/platform-splits-are-files.rule.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/unit-testing-patterns.guide.md",
+      "target": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/unit-testing-patterns.guide.md",
+      "target": "code-quality/platform-splits-are-files.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "architecture/process-and-concurrency-model.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "code-quality/rendering-happens-at-the-boundary.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/go-code-quality.rule.md",
+      "target": "code-quality/shared-guards-return-classified-sentinels.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "code-quality/the-shape-of-an-mcp-tool-file.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "architecture/advisory-subsystem.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "code-quality/isolating-the-machine-from-the-test-suite.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "cli-ui/building-the-cli.doc.md",
+      "target": "architecture/system-overview.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/modern-go-guidelines-integration.idea.md",
+      "target": "code-quality/go-code-quality.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "code-quality/modern-go-guidelines-integration.idea.md",
+      "target": "code-quality/strict-go-naming-conventions.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "relations/local-relations-in-sync-state.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "relations/no-auto-relations-on-create-document.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "sync/sync-engine.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/research-and-evidence-types.spec.md",
+      "target": "document-types/research-and-evidence-vocabulary.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "relations/evidential-and-temporal-relations.spec.md",
+      "target": "document-types/research-and-evidence-vocabulary.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "relations/evidential-and-temporal-relations.spec.md",
+      "target": "sync/sync-engine.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/document-update-frontmatter.spec.md",
+      "target": "document-types/research-and-evidence-vocabulary.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/document-update-frontmatter.spec.md",
+      "target": "mcp/tag-update-semantics.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "document-types/research-and-evidence-types.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "relations/evidential-and-temporal-relations.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "mcp/document-update-frontmatter.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/research-and-evidence-vocabulary.plan.md",
+      "target": "release/release-infrastructure.doc.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/scenario-and-journey-types.spec.md",
+      "target": "document-types/scenario-and-journey-vocabulary.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/scenario-and-journey-advisory-canon.spec.md",
+      "target": "document-types/scenario-and-journey-vocabulary.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/scenario-and-journey-advisory-canon.spec.md",
+      "target": "document-types/scenario-and-journey-types.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "target": "document-types/scenario-and-journey-types.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "target": "document-types/scenario-and-journey-advisory-canon.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "target": "document-types/research-and-evidence-vocabulary.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/scenario-and-journey-types.spec.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/scenario-and-journey-advisory-canon.spec.md",
+      "target": "document-types/prd-spec-plan-content-ownership.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/scenario-and-journey-advisory-canon.spec.md",
+      "target": "architecture/advisory-subsystem.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/add-a-document-type.task-type.md",
+      "target": "cli-ui/building-the-cli.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/add-a-document-type.task-type.md",
+      "target": "document-types/scenario-and-journey-vocabulary.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "document-types/add-a-document-type.task-type.md",
+      "target": "document-types/research-and-evidence-vocabulary.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "mcp/search-matches-the-slug-and-folds-separators.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "globals/session-globals-disclosure.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "code-quality/bounded-and-deterministic-output.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "target": "mcp/global-recall-guarantees.rfc.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "target": "mcp/search-documents-matching-not-presentation.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/search-matches-the-slug-and-folds-separators.adr.md",
+      "target": "mcp/global-recall-guarantees.rfc.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/search-matches-the-slug-and-folds-separators.adr.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/list-documents.spec.md",
+      "target": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/list-documents.spec.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/host-truncation-safe-read-tools.plan.md",
+      "target": "mcp/list-documents.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/tool-descriptions-fit-the-host-cap.adr.md",
+      "target": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "relations/add-relation-reports-pair-overlaps.adr.md",
+      "target": "relations/local-relations-in-sync-state.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "relations/add-relation-reports-pair-overlaps.adr.md",
+      "target": "mcp/tool-descriptions-fit-the-host-cap.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "relations/add-relation-reports-pair-overlaps.adr.md",
+      "target": "relations/no-auto-relations-on-create-document.adr.md",
+      "type": "related"
+    }
+  ]
+}

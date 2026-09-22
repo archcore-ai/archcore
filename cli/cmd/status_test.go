@@ -1,0 +1,588 @@
+package cmd
+
+import (
+	"bytes"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+
+	"archcore-cli/internal/config"
+	"archcore-cli/internal/docs"
+	"archcore-cli/internal/sync"
+)
+
+// runCmdInDir executes an archcore subcommand in dir and returns captured stdout + error.
+func runCmdInDir(t *testing.T, dir string, args ...string) (string, error) {
+	t.Helper()
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	defer os.Chdir(orig)
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+
+	root := NewRootCmd("test")
+	buf := &bytes.Buffer{}
+	root.SetOut(buf)
+	root.SetErr(buf)
+	root.SetArgs(args)
+
+	var execErr error
+	out := captureStdout(t, func() { execErr = root.Execute() })
+	return out, execErr
+}
+
+// writeDoc creates a .md file with given content inside .archcore/<subdir>/.
+func writeDoc(t *testing.T, dir, subdir, filename, content string) {
+	t.Helper()
+	writeArchcoreDoc(t, dir, path.Join(subdir, filename), content)
+}
+
+const validFrontmatter = "---\ntitle: Test Doc\nstatus: draft\n---\n\nBody.\n"
+
+func initValidDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := config.InitDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestStatus_NoArchcoreDir(t *testing.T) {
+	dir := t.TempDir()
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(out, "not found") {
+		t.Errorf("expected 'not found' in output, got: %s", out)
+	}
+}
+
+func TestStatus_CustomDirectoryAllowed(t *testing.T) {
+	dir := initValidDir(t)
+	if err := os.MkdirAll(filepath.Join(dir, ".archcore", "auth"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeDoc(t, dir, "auth", "jwt.adr.md", validFrontmatter)
+
+	_, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("expected no error for custom directory, got: %v", err)
+	}
+}
+
+func TestStatus_ValidStructureAndFiles(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "use-postgres.adr.md", validFrontmatter)
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("expected no error, got: %v\noutput: %s", err, out)
+	}
+	if !strings.Contains(out, "exists") {
+		t.Errorf("expected 'exists' checks in output, got: %s", out)
+	}
+}
+
+func TestStatus_BadFilename_NoTypeSegment(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "readme.md", validFrontmatter)
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(out, "<slug>.<type>.md") {
+		t.Errorf("expected '<slug>.<type>.md' hint, got: %s", out)
+	}
+}
+
+func TestStatus_BadSlug_Uppercase(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "MyFeature.adr.md", validFrontmatter)
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(out, "lowercase") {
+		t.Errorf("expected 'lowercase' in output, got: %s", out)
+	}
+}
+
+func TestStatus_UnknownDocumentType(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "my-feature.banana.md", validFrontmatter)
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(out, "unknown") {
+		t.Errorf("expected 'unknown' in output, got: %s", out)
+	}
+}
+
+func TestStatus_AnyDirectoryForAnyType(t *testing.T) {
+	dir := initValidDir(t)
+	// task-type in any directory is fine — categories are virtual.
+	writeDoc(t, dir, "vision", "my-task.task-type.md", validFrontmatter)
+
+	_, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+}
+
+func TestStatus_MissingFrontmatter(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "my-doc.adr.md", "# No frontmatter\n")
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(out, "missing YAML frontmatter") {
+		t.Errorf("expected 'missing YAML frontmatter', got: %s", out)
+	}
+}
+
+func TestStatus_MissingTitle(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "my-doc.adr.md", "---\nstatus: draft\n---\n")
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(out, "missing required field") {
+		t.Errorf("expected 'missing required field', got: %s", out)
+	}
+}
+
+func TestStatus_MissingStatus(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "my-doc.adr.md", "---\ntitle: Hello\n---\n")
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(out, "missing required field") {
+		t.Errorf("expected 'missing required field', got: %s", out)
+	}
+}
+
+func TestStatus_NoManifestFile(t *testing.T) {
+	dir := initValidDir(t)
+	out, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("expected no error, got: %v\noutput: %s", err, out)
+	}
+	if !strings.Contains(out, "No sync manifest") {
+		t.Errorf("expected 'No sync manifest' in output, got: %s", out)
+	}
+}
+
+func TestStatus_ValidManifest(t *testing.T) {
+	dir := initValidDir(t)
+	data := `{"version":1,"files":{"vision/test.md":"a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"}}`
+	if err := os.WriteFile(filepath.Join(dir, ".archcore", sync.ManifestFile), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("expected no error, got: %v\noutput: %s", err, out)
+	}
+	if !strings.Contains(out, "Sync manifest valid") {
+		t.Errorf("expected 'Sync manifest valid' in output, got: %s", out)
+	}
+	if !strings.Contains(out, "1 file(s) tracked, 0 relation(s)") {
+		t.Errorf("expected '1 file(s) tracked, 0 relation(s)' in output, got: %s", out)
+	}
+}
+
+func TestStatus_CorruptManifest(t *testing.T) {
+	dir := initValidDir(t)
+	if err := os.WriteFile(filepath.Join(dir, ".archcore", sync.ManifestFile), []byte("{truncated"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(out, "invalid JSON") {
+		t.Errorf("expected 'invalid JSON' in output, got: %s", out)
+	}
+	if !strings.Contains(out, "Delete .archcore/.sync-state.json") {
+		t.Errorf("expected delete hint in output, got: %s", out)
+	}
+}
+
+func TestStatus_InvalidHashInManifest(t *testing.T) {
+	dir := initValidDir(t)
+	data := `{"version":1,"files":{"vision/test.md":"short"}}`
+	if err := os.WriteFile(filepath.Join(dir, ".archcore", sync.ManifestFile), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(out, "not valid SHA-256") {
+		t.Errorf("expected 'not valid SHA-256' in output, got: %s", out)
+	}
+}
+
+func TestStatus_DeeplyNestedFiles(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "infrastructure/k8s/prod", "migration.adr.md", validFrontmatter)
+
+	_, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("expected no error for deeply nested file, got: %v", err)
+	}
+}
+
+func TestStatus_FileInRoot(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "", "root-doc.adr.md", validFrontmatter)
+
+	_, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("expected no error for file in .archcore/ root, got: %v", err)
+	}
+}
+
+func TestStatus_NonMdFilesIgnored(t *testing.T) {
+	dir := initValidDir(t)
+	// Write a non-.md file that should be silently skipped.
+	d := filepath.Join(dir, ".archcore", "knowledge")
+	if err := os.MkdirAll(d, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d, "notes.txt"), []byte("not a doc"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Also write a valid doc so we get meaningful output.
+	writeDoc(t, dir, "knowledge", "real.adr.md", validFrontmatter)
+
+	_, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("expected no error (non-.md files ignored), got: %v", err)
+	}
+}
+
+func TestStatus_EmptyArchcoreDir(t *testing.T) {
+	dir := initValidDir(t)
+	// .archcore/ exists but has no documents.
+	_, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("expected no error for empty .archcore/ dir, got: %v", err)
+	}
+}
+
+func TestStatus_ManifestWithCustomDirPath(t *testing.T) {
+	dir := initValidDir(t)
+	// Manifest with a custom directory path (not vision/knowledge/experience).
+	data := `{"version":1,"files":{"auth/jwt-strategy.adr.md":"a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"}}`
+	if err := os.WriteFile(filepath.Join(dir, ".archcore", sync.ManifestFile), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("expected no error for custom-dir manifest path, got: %v\noutput: %s", err, out)
+	}
+	if !strings.Contains(out, "Sync manifest valid") {
+		t.Errorf("expected 'Sync manifest valid', got: %s", out)
+	}
+}
+
+func TestStatus_ManifestWithValidRelations(t *testing.T) {
+	dir := initValidDir(t)
+	// Create actual documents referenced by the relation.
+	writeDoc(t, dir, "", "a.adr.md", validFrontmatter)
+	writeDoc(t, dir, "", "b.prd.md", validFrontmatter)
+	data := `{"version":1,"files":{},"relations":[{"source":"a.adr.md","target":"b.prd.md","type":"implements"}]}`
+	if err := os.WriteFile(filepath.Join(dir, ".archcore", sync.ManifestFile), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("expected no error, got: %v\noutput: %s", err, out)
+	}
+	if !strings.Contains(out, "1 relation(s)") {
+		t.Errorf("expected '1 relation(s)' in output, got: %s", out)
+	}
+}
+
+func TestStatus_ManifestWithDanglingRelation(t *testing.T) {
+	dir := initValidDir(t)
+	// Only create source, not target.
+	writeDoc(t, dir, "", "a.adr.md", validFrontmatter)
+	data := `{"version":1,"files":{},"relations":[{"source":"a.adr.md","target":"nonexistent.prd.md","type":"related"}]}`
+	if err := os.WriteFile(filepath.Join(dir, ".archcore", sync.ManifestFile), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error for dangling relation, got nil")
+	}
+	if !strings.Contains(out, "does not exist") {
+		t.Errorf("expected 'does not exist' in output, got: %s", out)
+	}
+	if !strings.Contains(out, "archcore doctor --fix") {
+		t.Errorf("expected 'archcore doctor --fix' hint in output, got: %s", out)
+	}
+}
+
+func TestStatus_ManifestWithInvalidRelationType(t *testing.T) {
+	dir := initValidDir(t)
+	data := `{"version":1,"files":{},"relations":[{"source":"a.adr.md","target":"b.prd.md","type":"blocks"}]}`
+	if err := os.WriteFile(filepath.Join(dir, ".archcore", sync.ManifestFile), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error for invalid relation type, got nil")
+	}
+	if !strings.Contains(out, "invalid type") {
+		t.Errorf("expected 'invalid type' in output, got: %s", out)
+	}
+}
+
+func TestStatus_ManifestWithDuplicateRelation(t *testing.T) {
+	dir := initValidDir(t)
+	data := `{"version":1,"files":{},"relations":[
+		{"source":"a.adr.md","target":"b.prd.md","type":"related"},
+		{"source":"a.adr.md","target":"b.prd.md","type":"related"}
+	]}`
+	if err := os.WriteFile(filepath.Join(dir, ".archcore", sync.ManifestFile), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatal("expected error for duplicate relation, got nil")
+	}
+	if !strings.Contains(out, "duplicate") {
+		t.Errorf("expected 'duplicate' in output, got: %s", out)
+	}
+}
+
+// TestStatus_ExcludesGlobalTagsFromHygiene verifies tag hygiene ignores mounted
+// read-only globals: a tag that exists only upstream must not be flagged in the
+// consumer's status, which cannot fix it.
+func TestStatus_ExcludesGlobalTagsFromHygiene(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "local.rule.md",
+		"---\ntitle: Local\nstatus: accepted\ntags:\n  - shared\n---\n\nbody\n")
+	// In-tree global carrying a tag that exists ONLY in the global.
+	writeDoc(t, dir, "global/company/knowledge", "company.rule.md",
+		"---\ntitle: Company\nstatus: accepted\ntags:\n  - globalonly\n---\n\nbody\n")
+	settings := filepath.Join(dir, ".archcore", "settings.json")
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":".archcore/global/company"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("status error: %v\noutput: %s", err, out)
+	}
+	if strings.Contains(out, "globalonly") {
+		t.Errorf("global-only tag must be excluded from tag hygiene, got:\n%s", out)
+	}
+}
+
+// TestStatus_MissingGlobalFailsStatus guards the "mandatory globals are loud, not
+// silent" invariant on the status surface: a declared-but-absent global must make
+// `archcore status` report a visible failure and exit non-zero, while local structural
+// checks still run. The status path inspects globals via checkGlobalSources (a
+// dedicated per-source report) while tag hygiene scans local documents only, so the
+// global failure surfaces precisely and the local checks never depend on it. A refactor
+// dropping checkGlobalSources would lose the invariant and fail this test. No absolute
+// path may leak.
+func TestStatus_MissingGlobalFailsStatus(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "local.rule.md",
+		"---\ntitle: Local\nstatus: accepted\n---\n\nbody\n")
+	// Declare a global whose directory does not exist on disk.
+	settings := filepath.Join(dir, ".archcore", "settings.json")
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":"../missing/.archcore"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatalf("status must exit non-zero when a declared global is missing; output:\n%s", out)
+	}
+	for _, want := range []string{
+		"global source",        // the surfacing FailLine names the source
+		"not found at",         // ...and why it failed
+		"company",              // the missing global's id
+		"../missing/.archcore", // the relative declared path, verbatim
+		"1 issue(s) found",     // exactly one issue counted + summary printed
+		".archcore/ exists",    // local structural checks ran first (degrade-but-loud)
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("status output missing %q; got:\n%s", want, out)
+		}
+	}
+	// No absolute-path leak: the temp dir's absolute root must never appear.
+	if strings.Contains(out, dir) {
+		t.Errorf("status output leaked an absolute path (%q); got:\n%s", dir, out)
+	}
+}
+
+// TestStatus_EmptyGlobalWarnsNotIssue: a declared global that exists but holds no
+// documents is a warning on status, NOT an issue — status still exits zero (the
+// agreed "warn, allow" policy).
+func TestStatus_EmptyGlobalWarnsNotIssue(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "local.rule.md", validFrontmatter)
+	settings := filepath.Join(dir, ".archcore", "settings.json")
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":".archcore/global/empty"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, ".archcore", "global", "empty"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("an empty global must warn, not fail status; got err %v, output:\n%s", err, out)
+	}
+	if !strings.Contains(out, "company") {
+		t.Errorf("status output should name the empty source; got:\n%s", out)
+	}
+}
+
+// TestStatus_CRLFFrontmatterAccepted pins CRLF normalization: a document with
+// Windows line endings has valid frontmatter and must not be reported as
+// missing it (every other surface — SplitDocument, sync, MCP — accepts CRLF).
+func TestStatus_CRLFFrontmatterAccepted(t *testing.T) {
+	dir := initValidDir(t)
+	crlfDoc := "---\r\ntitle: Win Doc\r\nstatus: draft\r\n---\r\n\r\nBody.\r\n"
+	writeDoc(t, dir, "knowledge", "win-doc.adr.md", crlfDoc)
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err != nil {
+		t.Fatalf("CRLF document must pass status checks, got: %v\noutput: %s", err, out)
+	}
+	if strings.Contains(out, "missing YAML frontmatter") {
+		t.Errorf("CRLF document falsely reported as missing frontmatter:\n%s", out)
+	}
+}
+
+// TestStatus_MalformedFrontmatterBranches pins every failure branch of
+// checkFrontmatter: unclosed delimiter, invalid YAML, empty required fields.
+func TestStatus_MalformedFrontmatterBranches(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		wantMsg string
+	}{
+		{
+			name:    "unclosed frontmatter",
+			content: "---\ntitle: Broken\nstatus: draft\n",
+			wantMsg: "missing closing --- delimiter",
+		},
+		{
+			name:    "invalid yaml",
+			content: "---\ntitle: [broken\nstatus: draft\n---\n\nBody",
+			wantMsg: "invalid YAML in frontmatter",
+		},
+		{
+			name:    "empty title",
+			content: "---\ntitle: \"\"\nstatus: draft\n---\n\nBody",
+			wantMsg: `missing required field "title"`,
+		},
+		{
+			name:    "missing status",
+			content: "---\ntitle: Ok\n---\n\nBody",
+			wantMsg: `missing required field "status"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := initValidDir(t)
+			writeDoc(t, dir, "knowledge", "bad.adr.md", tt.content)
+
+			out, err := runCmdInDir(t, dir, "status")
+			if err == nil {
+				t.Fatalf("expected status to report an issue\noutput: %s", out)
+			}
+			if !strings.Contains(out, tt.wantMsg) {
+				t.Errorf("output missing %q:\n%s", tt.wantMsg, out)
+			}
+		})
+	}
+}
+
+// TestStatus_SingletonTagWarningsAreOrdered: the warnings came out of a map
+// range, so identical input produced a different order on every run.
+//
+// This output is not only read by a person — it reaches an agent through the
+// PostToolUse hook, and it is what a user diffs when comparing two runs. A
+// reordering that means nothing looks like a change that does.
+func TestStatus_SingletonTagWarningsAreOrdered(t *testing.T) {
+	t.Parallel()
+	corpus := []docs.Document{{
+		Path: ".archcore/knowledge/a.adr.md",
+		Tags: []string{"zeta", "alpha", "mike", "bravo", "yankee", "delta", "oscar", "kilo"},
+	}}
+
+	var warnings []string
+	for range 20 {
+		var b strings.Builder
+		checkTagHygiene(corpus, nil).writeTo(&b)
+		warnings = append(warnings, b.String())
+	}
+
+	for i, got := range warnings {
+		if got != warnings[0] {
+			t.Fatalf("run %d produced a different order for the same corpus:\nfirst:\n%s\ngot:\n%s", i, warnings[0], got)
+		}
+	}
+	// Sorted, not merely stable: a stable-but-arbitrary order is still a
+	// surprise to anyone scanning the list for a tag.
+	var tags []string
+	for _, line := range strings.Split(warnings[0], "\n") {
+		if _, rest, ok := strings.Cut(line, `tag "`); ok {
+			tag, _, _ := strings.Cut(rest, `"`)
+			tags = append(tags, tag)
+		}
+	}
+	if !slices.IsSorted(tags) {
+		t.Errorf("singleton-tag warnings are not sorted: %v", tags)
+	}
+}
+
+// TestStatus_InvalidTagReported pins the checkTagHygiene invalid-tag branch.
+func TestStatus_InvalidTagReported(t *testing.T) {
+	dir := initValidDir(t)
+	writeDoc(t, dir, "knowledge", "tagged.adr.md",
+		"---\ntitle: T\nstatus: draft\ntags:\n  - \"BAD TAG!\"\n---\n\nBody.\n")
+
+	out, err := runCmdInDir(t, dir, "status")
+	if err == nil {
+		t.Fatalf("expected status to report an issue\noutput: %s", out)
+	}
+	if !strings.Contains(out, `invalid tag "BAD TAG!"`) {
+		t.Errorf("output missing invalid-tag failure:\n%s", out)
+	}
+}

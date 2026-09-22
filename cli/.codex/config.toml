@@ -1,0 +1,19 @@
+
+[mcp_servers.archcore]
+command = "archcore"
+args = ["mcp"]
+
+[mcp_servers.archcore.tools.create_document]
+approval_mode = "approve"
+
+[mcp_servers.archcore.tools.list_documents]
+approval_mode = "approve"
+
+[mcp_servers.archcore.tools.list_relations]
+approval_mode = "approve"
+
+[mcp_servers.archcore.tools.get_document]
+approval_mode = "approve"
+
+[mcp_servers.archcore.tools.search_documents]
+approval_mode = "approve"
