@@ -249,7 +249,6 @@ Before finalizing technical documentation, silently verify:
 Revise known violations before returning the document. Do not include the checklist or a writing-quality score in the generated document unless the user asks for a review report.
 
 <!-- archcore:start --> managed by `archcore init` — edit outside these markers
-
 ## Archcore — project context for this repo
 
 This repo's architecture, decisions, rules, specs and patterns live in `.archcore/`,
@@ -268,5 +267,4 @@ treat them as defaults a local doc can override — never edit or relate to one.
 
 The search is cheap — lean on it. Skip it only for turns this repo would have no
 opinion on: syntax trivia, throwaway snippets, pure mechanics.
-
 <!-- archcore:end -->

@@ -1,6 +1,9 @@
 {
   "sync": "none",
   "globals": [
-    { "id": "archcore", "path": "../global/.archcore" }
+    {
+      "id": "archcore",
+      "path": "../global/.archcore"
+    }
   ]
 }

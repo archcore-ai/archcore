@@ -1,200 +1,77 @@
-# Archcore Plugin — Spec-Driven Development & Context Engineering for AI Coding Agents
+# Archcore Plugin
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+The agent half of [Archcore](../README.md): one plugin tree that Claude Code, Cursor, Codex CLI, and GitHub Copilot CLI load, with four commands, the skills behind them, two agents, and the hook launchers that hand events to the CLI. Product overview and installation: the [repository README](../README.md). This file is for people and agents who change the plugin.
 
-> **Archcore now lives in one repository.** This repository was `archcore-ai/plugin` until 2026-09-22, and it also carries the CLI, formerly [`archcore-ai/cli`](https://github.com/archcore-ai/cli), under [`cli/`](https://github.com/archcore-ai/archcore/tree/dev/cli) on the `dev` branch. Both components release together at [archcore-ai/archcore/releases](https://github.com/archcore-ai/archcore/releases).
+The plugin needs the Archcore CLI on `PATH` (`archcore --version`). The hook launchers require CLI v0.7.0 or later and fail open on anything older; `make verify` requires v0.8.3 or later.
 
-**Make your AI coding agent work like it already knows your repo.**
+## Layout
 
-Archcore brings spec-driven development and automatic project context to **Claude Code**, **Cursor**, **Codex CLI**, and **GitHub Copilot CLI**. Specs, architecture, decisions, rules, and plans live in Git and are applied as the agent works.
+| Path | Content |
+| --- | --- |
+| `.agents/plugins/marketplace.json`, `.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json` | The three marketplace catalogs; each resolves `./plugins/archcore` |
+| `plugins/archcore/.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`, `.plugin/` | One manifest per host; `version` is equal in all four and equals the release tag |
+| `plugins/archcore/skills/` | `init`, `plan`, `document`, `review`, and `_shared/`: content contracts, precision rules, tracks, grounding |
+| `plugins/archcore/commands/` | Slash-command wrappers for Codex CLI and Copilot; each points at its skill |
+| `plugins/archcore/agents/`, `plugins/archcore/copilot-agents/` | `archcore-assistant` and the read-only `archcore-auditor`: Markdown, a TOML twin for Codex, and a byte-identical `.agent.md` copy for Copilot |
+| `plugins/archcore/hooks/` | `hooks.json` for Claude Code, `cursor.hooks.json`, `codex.hooks.json`, `copilot.hooks.json` |
+| `plugins/archcore/bin/` | POSIX sh launchers `session-start`, `pre-tool-use`, `post-tool-use`, plus `detect-host`, `cli-gte`, and `lib/` |
+| `plugins/archcore/rules/`, `plugins/archcore/assets/` | Cursor rules; the icon and logo |
+| `plugins/archcore/.claude.mcp.json`, `plugins/archcore/.codex.mcp.json` | MCP registration for Claude Code and Codex CLI |
+| `docs/` | `cursor.mcp.example.json`, the user-level MCP template for Cursor; `TERMS.md`; `release.md` |
+| `test/` | bats suites under `structure/`, `unit/`, `integration/`, and the on-demand `behavioral/` benches |
 
-The plugin pairs with [Archcore CLI](https://github.com/archcore-ai/archcore/tree/dev/cli): the CLI provides the git-native context layer and MCP tools; the plugin adds skills, slash commands, computed routing over gated instruments, and guardrails.
+## Commands and modes
 
-[Spec-driven development](https://archcore.ai/spec-driven-development/) defines intent. [Context engineering](https://archcore.ai/context-engineering/) supplies the broader project understanding needed to execute that intent correctly — a spec is one part of context, not the whole context.
+| Command | Modes | Instrument |
+| --- | --- | --- |
+| `/archcore:init` | `import`, `refresh` | First-day seed, host wiring, conversion of instruction files and ADR folders |
+| `/archcore:plan` | `sdd`, `sources`, `iso`, `research` | A computed route: null route, spec plus plan, or PRD with one spec per capability |
+| `/archcore:document` | `decision`, `code`, `research` | ADR or RFC, description of code, a report or one external material as evidence |
+| `/archcore:review` | `drift`, `deep`, `closeout`, `experience` | Branch review, staleness, full audit, feature closeout, repeated-pattern capture |
 
-## See it work
+The first word after a command is the mode and the rest is the subject. A gate picks the document type unless the subject names it. Every gate skips itself when an existing document covers it; a vague request stays within five questions; a draft document carries the route state, so an interrupted flow resumes later. The `research` and `evidence` types need CLI v0.8.3 or later; an older CLI falls back to `rnd` and reports the version.
 
-The agent pulls in the rules and decisions that apply — no command needed — and still gives you the four commands below for anything explicit.
+## Hosts
 
-![archcore plugin demo](demo.gif)
+| Host | MCP | Hooks | Install |
+| --- | --- | --- | --- |
+| Claude Code | `.claude.mcp.json` through the manifest | `hooks/hooks.json`, `${CLAUDE_PLUGIN_ROOT}` | `/plugin marketplace add archcore-ai/archcore`, then `/plugin install archcore@archcore-plugins` |
+| Cursor 2.5+ | None shipped: Cursor spawns a plugin MCP from the install directory. The user copies `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` | `hooks/cursor.hooks.json`, `${CURSOR_PLUGIN_ROOT}` | Plugins → paste the repository URL |
+| Codex CLI 0.117+ | `.codex.mcp.json` through the manifest | `hooks/codex.hooks.json`, `${PLUGIN_ROOT}` | `codex plugin marketplace add archcore-ai/archcore` |
+| GitHub Copilot CLI | None shipped: Copilot launches a plugin MCP without a project path. `archcore init --agent copilot --project "$PWD"` wires the project | `hooks/copilot.hooks.json`; the command probes three root variables | `copilot plugin install archcore-ai/archcore:plugins/archcore` |
 
-## Commands
+Every launcher sources `bin/lib/plugin-cache-guard.sh` and refuses to serve from a plugin cache. Identifiers frozen across hosts: marketplace `archcore-plugins`, plugin `archcore`, id `archcore@archcore-plugins`, path `plugins/archcore`.
 
-Describe what you want in plain English — Archcore computes the route. The slash commands below are shortcuts to the same instruments.
-
-| Command              | Outcome                                             | When to use                                                                                                                                                                                                                                               |
-| -------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/archcore:init`     | Make your repo legible to AI agents                 | First-time setup — detects your repo's scale, wires host configs, measures the context you already wrote, and seeds a first-day pack (stack rule, run guide, architecture overview, specs for hotspot modules) in one preview. `/archcore:init import` converts your `CLAUDE.md` / `AGENTS.md` / rule files, ADR folders, and contributor docs into native typed documents |
-| `/archcore:plan`     | Turn an idea into a scoped implementation plan      | New feature, refactor, or initiative — the route is computed from what the work changes: a small fix exits with no documents, one capability gets a spec and a plan, a large initiative gets an umbrella PRD with one spec per capability                 |
-| `/archcore:document` | Record a decision or document what lives in code    | `decision` — a decision was made (ADR/RFC, optionally codified as a team rule); `code` — a module, API, or integration has tribal knowledge but no doc yet; `research` — file a ready report or one external material                                     |
-| `/archcore:review`   | Check your changes and your docs against each other | Before merge — reviews the branch against recorded rules and decisions; `drift` for code/doc staleness, `deep` for a full documentation audit, `closeout` to close a finished feature                                                                                                           |
-
-Everyday context needs no command at all: hooks inject the applicable rules and specs when the agent edits a file, and the session starts with a recap of what's decided and in progress.
-
-### Inside the commands: the conductor and instruments
-
-`/archcore:plan` computes its route instead of running one fixed flow. Grounding derives what the request changes in the recorded canon (the delta), where the missing information lives, how hardened the touched zone is, and which risk flags apply — then the conductor assembles the matching document package and announces it in one line. A layout fix takes the null route and produces no documents; one new capability gets a spec and a plan; a large initiative gets an umbrella PRD with one spec per capability. `/archcore:document` and `/archcore:review` route by wording into the same instrument set — decision, describe, actualize, closeout, experience:
-
-![The three commands and their instruments: plan → conductor (computed route) / research · spike / acquisition · iso links / runbook, document → decision / decision.resolve / describe, review → branch review / actualize / closeout / experience](3-commands.png)
-
-You never pick a route or a size — the announcement names both before any document is created (a mode as the first word runs that path directly: `plan research`, `plan iso`, `document decision`, `review closeout`). Every gate skips itself when an existing document already covers it, so a fully-specified request runs question-free; a vague one stays within 5 questions. An interrupted flow resumes in a later session — the draft document carries the route state.
-
-`plan research <topic>` runs the research instrument, which produces either a `research` document (a territory survey closed by scope coverage) or an `rnd` (an investigation closed by a recommendation, selected when the request names a pending decision or a set of candidates); `document research <report>` files a ready report the same way, and `document research <material>` files one external material as an `evidence` document. The `research` and `evidence` types and the `supports`, `contradicts`, and `supersedes` relations require Archcore CLI ≥ v0.8.3; on an older CLI, `plan research` falls back to an `rnd` and reports the required version.
-
-Every command reads its first word as a mode — `init import|refresh`, `plan sdd|sources|iso|research`, `document decision|code|research`, `review drift|deep|closeout|experience` — and the rest as the subject. A gate inside the track picks the document type; name the type in the subject (`document decision rfc for gRPC`) to skip that question.
-
-## Install
-
-Archcore plugins require the **Archcore CLI** on `PATH` — it serves the MCP server the plugin talks to.
+## Develop
 
 ```bash
-# macOS / Linux / WSL
-curl -fsSL https://archcore.ai/install.sh | bash
-
-# Windows (PowerShell 5.1+)
-irm https://archcore.ai/install.ps1 | iex
+claude  --plugin-dir plugins/archcore    # Claude Code
+cursor  --plugin-dir plugins/archcore    # Cursor
+copilot --plugin-dir plugins/archcore    # GitHub Copilot CLI
+codex plugin marketplace add "$PWD"      # Codex CLI: a local marketplace, then codex plugin add archcore@archcore-plugins
 ```
 
-Verify: `archcore --version` · Update: `archcore update` · Docs: [docs.archcore.ai/start/install](https://docs.archcore.ai/start/install/)
-
-Then add the plugin in your host:
-
-**Claude Code**
+`/reload-plugins` inside a session picks up file changes. Copilot under `--plugin-dir` may inject no plugin-root variable; when session start prints `plugin root unresolved`, use `make test-copilot-smoke` or a real install.
 
 ```bash
-/plugin marketplace add archcore-ai/archcore
-/plugin install archcore@archcore-plugins
+make verify              # JSON, permissions, ShellCheck, unit and structure tests, real MCP tests
+make test                # unit and structure tests only
+make test-integration    # real MCP tests; needs the CLI on PATH or ARCHCORE_BIN
+make test-codex-smoke    # skips without the codex CLI
+make test-copilot-smoke  # skips without the copilot CLI
 ```
 
-**Cursor** — requires Cursor 2.5+. Open **Plugins**, paste `https://github.com/archcore-ai/archcore` into **Search or paste link**, click **Add Plugin**. One-time MCP setup: copy [`docs/cursor.mcp.example.json`](docs/cursor.mcp.example.json) into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped).
+Rules of the tree:
 
-**Codex CLI** — requires Codex CLI v0.117.0+.
+- Executable code under `bin/` is POSIX sh and passes ShellCheck. No Go, no bundled CLI, no download-on-first-use.
+- A fifth top-level command needs an ADR; flow logic goes into the gated track layer under `skills/_shared/tracks/`.
+- The three copies of an agent definition stay identical, and every hooks config is enrolled in `test/structure/host-coverage-matrix.bats`.
+- Skills perform every `.archcore/` write through an MCP tool.
 
-```bash
-codex plugin marketplace add archcore-ai/archcore
-codex
-# then run /plugins, open Archcore, select Install plugin
-```
+## Release
 
-**GitHub Copilot CLI** — two steps, both required. The plugin brings skills, commands, agents and hooks — but on Copilot it **cannot** bring the MCP server, so a project that skips step 2 has no document tools at all.
+`main` is generated from a tag by the root Release workflow: `scripts/export-plugin.sh` copies this tree, the repository README, `LICENSE`, and `NOTICE` into the public layout and force-pushes it. Set the four manifests to the version with `/bump-plugin-version X.Y.Z` before tagging. Procedure, published files, and recovery: [`docs/release.md`](docs/release.md).
 
-```bash
-# 1. Install the plugin (from this repo's plugin subdirectory)
-copilot plugin install archcore-ai/archcore:plugins/archcore
+## Where the design lives
 
-# 2. Wire your project (registers the MCP server; run once per repo, commit the result)
-archcore init --agent copilot --project "$PWD"
-```
-
-Copilot **CLI** only: VS Code agent mode has no self-serve plugin install, and cloud-agent sandboxes do not load plugin hooks.
-
-Why step 2 is not optional: a plugin's MCP server is launched in the plugin install directory with no project path ([github/copilot-cli#4234](https://github.com/github/copilot-cli/issues/4234)), so it would serve the plugin cache rather than your repo. The plugin therefore ships no MCP server to Copilot at all, and the project-level one from step 2 is the only source of document tools. Archcore CLI ≥ v0.6.7 refuses to serve from a plugin cache by design, so the failure mode is loud rather than silent.
-
-<details>
-<summary>Local development & team rollouts</summary>
-
-**Claude Code** — load the plugin for the current session:
-
-```bash
-claude --plugin-dir /path/to/plugin
-```
-
-**Cursor** — symlink the repo into Cursor's local plugins directory and reload the window:
-
-```bash
-ln -s /path/to/plugin ~/.cursor/plugins/local/archcore
-# then in Cursor: Cmd/Ctrl+Shift+P → "Developer: Reload Window"
-```
-
-**Codex CLI** — point a local marketplace at the checkout:
-
-```bash
-codex plugin marketplace add /path/to/plugin
-codex plugin add archcore@archcore-plugins
-```
-
-**GitHub Copilot CLI** — load the plugin directory directly:
-
-```bash
-copilot --plugin-dir /path/to/plugin/plugins/archcore
-```
-
-**Cursor team rollouts** — Dashboard → Settings → Plugins → Team Marketplaces → Import (paste the GitHub URL).
-
-</details>
-
-## Try these first
-
-Open your project and try these three prompts. Each shows a different side of what your agent can now do.
-
-> Empty repo? Run `/archcore:init` first — it seeds a stack rule and a run-the-app guide, and converts your existing `CLAUDE.md` / `AGENTS.md` / rule files into typed documents. Run `/archcore:init import` to migrate ADR folders and contributor docs too.
-
-**1. "Before I change anything in `src/auth/`, what should I know?"**
-Your agent sees what's already decided for that path — _before_ it touches the code.
-
-**2. "Add a new API handler and follow this repo's conventions."**
-Your agent places the handler where your architecture says it belongs, instead of guessing.
-
-**3. "We picked PostgreSQL — record it as a team standard."**
-The decision is captured, codified as a rule, and auto-applied to every future change in the same area. Decisions stop dying in chat scrollback.
-
-## What changes after install
-
-### ❌ Without Archcore
-
-- the agent guesses your folder structure
-- re-litigates decisions your team already made
-- needs the same conventions repeated in every chat
-- loses project truth the moment the session ends
-
-### ✅ With Archcore
-
-- code lands where your architecture says it belongs
-- respects decisions already in Git
-- follows team conventions loaded automatically
-- reflects new decisions as future guardrails — not markdown graveyards
-
-> **The agent stops guessing and starts following the system.**
-
-## Use Archcore when
-
-- Your agent writes code, but not the way this repo expects
-- Your `CLAUDE.md` / `.cursorrules` / `AGENTS.md` keeps growing and drifting
-- You work with 2+ agents or 2+ host tools (Claude Code + Cursor + Codex + Copilot)
-- You want decisions, rules, and specs in Git — not in chat scrollback
-
-**Not for** — chat memory, a prompt library, or a one-shot spec-to-code generator. Archcore is a git-native context layer for AI coding agents, not a methodology kit.
-
-## Supported hosts
-
-| Host                                                          | Status      | Install                                |
-| ------------------------------------------------------------- | ----------- | -------------------------------------- |
-| [**Claude Code**](https://archcore.ai/claude-code/)           | Production  | Plugin marketplace                     |
-| [**Cursor**](https://archcore.ai/cursor/)                     | Implemented | Plugin marketplace                     |
-| [**Codex CLI**](https://archcore.ai/codex/)                   | Implemented | Plugin marketplace                     |
-| [**GitHub Copilot CLI**](https://archcore.ai/github-copilot/) | Implemented | `copilot plugin install` (subdir spec) |
-
-Built on open standards (Agent Skills, MCP) — skills and MCP tools are shared across hosts; only manifests are host-specific.
-
-## How Archcore differs
-
-| Tool                                                                                                                       | Category          | How Archcore differs                                                                                                                                                           |
-| -------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **BMAD / Spec Kit / Agent OS**                                                                                             | Methodology       | Methodology tools define a development process. Archcore keeps the resulting project knowledge alive, connected, versioned, and available to agents throughout implementation. |
-| **Superpowers**                                                                                                            | Methodology       | Shapes _agent behavior_; Archcore provides _canonical project knowledge_ any agent can read.                                                                                   |
-| **`AGENTS.md`** / **`CLAUDE.md`** / **`.cursorrules`**                                                                     | Instruction files | Instruction files are useful entry points. Archcore adds typed documents, relations, lifecycle, selective retrieval, and cross-agent portability.                              |
-| **claude-mem / Mem0 / agentmemory**                                                                                        | Memory            | Memory remembers what happened in previous sessions. Archcore stores what the project says is true.                                                                            |
-| **Cline Memory Bank**                                                                                                      | Docs              | Same spirit, lower ceremony. Archcore adds typed relations and validated multi-step cascades.                                                                                  |
-
-Pick a methodology tool for an opinionated dev flow. Pick a memory tool for session continuity. Pick Archcore when you want typed, queryable **project truth** that your coding agent respects on every request.
-
-## Uninstall
-
-**Claude Code:** `/plugin uninstall archcore@archcore-plugins`
-**Cursor:** remove from plugin settings.
-**Codex CLI:** `codex plugin uninstall archcore`
-**GitHub Copilot CLI:** `copilot plugin uninstall archcore`
-
-## License & contributing
-
-[Apache-2.0](LICENSE) · Issues and ideas: [GitHub Issues](https://github.com/archcore-ai/archcore/issues)
+Under the repository's `.archcore/plugin/`, by name: `plugin-development.guide`, `plugin-testing.guide`, `component-registry.doc`, `plugin-architecture.spec`, `hooks-validation-system.spec`, `multi-host-plugin-architecture.adr`, `cursor-mcp-architecture.adr`, `copilot-mcp-architecture.adr`, and `stack-and-tooling.rule`. Read them through the MCP tools from the repository root.

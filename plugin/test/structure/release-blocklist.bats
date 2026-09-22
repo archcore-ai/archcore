@@ -59,9 +59,9 @@ setup() {
   local fixture="$BATS_TEST_TMPDIR/fixture"
   mkdir -p "$fixture/scripts" "$fixture/plugin"
   cp "$EXPORT" "$fixture/scripts/export-plugin.sh"
-  cp "$WORKSPACE_ROOT/LICENSE" "$WORKSPACE_ROOT/NOTICE" "$fixture/"
+  cp "$WORKSPACE_ROOT/LICENSE" "$WORKSPACE_ROOT/NOTICE" "$WORKSPACE_ROOT/README.md" "$fixture/"
   local path
-  for path in .agents .claude-plugin .cursor-plugin plugins docs README.md demo.gif 3-commands.png; do
+  for path in .agents .claude-plugin .cursor-plugin plugins docs; do
     cp -R "$REPO_ROOT/$path" "$fixture/plugin/"
   done
   mkdir -p "$fixture/plugin/plugins/archcore/nested/.archcore"
