@@ -357,6 +357,11 @@ var hostListings = []string{
 	"copilot plugin list",
 }
 
+// codexMarketplaceListing is the read-only probe the Codex source migration runs
+// before it rewrites a marketplace declaration; it appears only when a plugin is
+// installed and the active repository is the canonical one.
+const codexMarketplaceListing = "codex plugin marketplace list --json"
+
 // emptyListing and installedListing are what a host answers about itself.
 // Copilot answers in text, and its update takes only a name its listing states
 // in a field of its own, so it gets the text form copilot 1.0.83 prints.
@@ -388,19 +393,26 @@ func TestUpdatePluginStepCostsANonInstallerOnlyItsListings(t *testing.T) {
 		name           string
 		listing        string
 		copilotListing string
+		wantReadOnly   []string
 		wantMutating   int
 	}{
 		{
 			name:           "no host has the plugin",
 			listing:        emptyListing,
 			copilotListing: emptyListing,
+			wantReadOnly:   hostListings,
 		},
 		{
 			// Every host lists the plugin, so all three mutate: Claude Code runs
-			// two commands, Codex CLI and Copilot one each.
+			// two commands, Codex CLI and Copilot one each. The Codex source
+			// migration that precedes an explicitly planned update adds one
+			// bounded read, the marketplace listing that confirms the official
+			// source before the config file is touched
+			// (plugin-source-migration.spec, Normative Behavior 1 and 8).
 			name:           "every host has the plugin",
 			listing:        installedListing,
 			copilotListing: installedCopilotListing,
+			wantReadOnly:   append(slices.Clone(hostListings), codexMarketplaceListing),
 			wantMutating:   4,
 		},
 	}
@@ -418,12 +430,12 @@ func TestUpdatePluginStepCostsANonInstallerOnlyItsListings(t *testing.T) {
 				t.Fatalf("an already-current run must exit zero, got %v\n%s", execErr, out)
 			}
 
-			readOnly, mutating := splitFixtureRuns(fixtureRuns(t, log), hostListings)
+			readOnly, mutating := splitFixtureRuns(fixtureRuns(t, log), append(slices.Clone(hostListings), codexMarketplaceListing))
 
 			// Asserted first: a run that asked nothing proves nothing about what
 			// it then declined to do.
-			if !slices.Equal(readOnly, hostListings) {
-				t.Fatalf("the step ran %v, want one read-only listing per host with a CLI %v", readOnly, hostListings)
+			if !slices.Equal(readOnly, tt.wantReadOnly) {
+				t.Fatalf("the step ran %v, want the read-only commands %v", readOnly, tt.wantReadOnly)
 			}
 			if len(mutating) != tt.wantMutating {
 				t.Errorf("the step ran %d mutating command(s) %v, want %d", len(mutating), mutating, tt.wantMutating)

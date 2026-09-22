@@ -6,7 +6,7 @@
 
 Archcore brings spec-driven development and automatic project context to **Claude Code**, **Cursor**, **Codex CLI**, and **GitHub Copilot CLI**. Specs, architecture, decisions, rules, and plans live in Git and are applied as the agent works.
 
-The plugin pairs with [Archcore CLI](https://github.com/archcore-ai/plugin/tree/dev/cli): the CLI provides the git-native context layer and MCP tools; the plugin adds skills, slash commands, computed routing over gated instruments, and guardrails.
+The plugin pairs with [Archcore CLI](https://github.com/archcore-ai/archcore/tree/dev/cli): the CLI provides the git-native context layer and MCP tools; the plugin adds skills, slash commands, computed routing over gated instruments, and guardrails.
 
 [Spec-driven development](https://archcore.ai/spec-driven-development/) defines intent. [Context engineering](https://archcore.ai/context-engineering/) supplies the broader project understanding needed to execute that intent correctly — a spec is one part of context, not the whole context.
 
@@ -60,16 +60,16 @@ Then add the plugin in your host:
 **Claude Code**
 
 ```bash
-/plugin marketplace add archcore-ai/plugin
+/plugin marketplace add archcore-ai/archcore
 /plugin install archcore@archcore-plugins
 ```
 
-**Cursor** — requires Cursor 2.5+. Open **Plugins**, paste `https://github.com/archcore-ai/plugin` into **Search or paste link**, click **Add Plugin**. One-time MCP setup: copy [`docs/cursor.mcp.example.json`](docs/cursor.mcp.example.json) into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped).
+**Cursor** — requires Cursor 2.5+. Open **Plugins**, paste `https://github.com/archcore-ai/archcore` into **Search or paste link**, click **Add Plugin**. One-time MCP setup: copy [`docs/cursor.mcp.example.json`](docs/cursor.mcp.example.json) into `~/.cursor/mcp.json` (user-scoped) or `.cursor/mcp.json` (project-scoped).
 
 **Codex CLI** — requires Codex CLI v0.117.0+.
 
 ```bash
-codex plugin marketplace add archcore-ai/plugin
+codex plugin marketplace add archcore-ai/archcore
 codex
 # then run /plugins, open Archcore, select Install plugin
 ```
@@ -78,7 +78,7 @@ codex
 
 ```bash
 # 1. Install the plugin (from this repo's plugin subdirectory)
-copilot plugin install archcore-ai/plugin:plugins/archcore
+copilot plugin install archcore-ai/archcore:plugins/archcore
 
 # 2. Wire your project (registers the MCP server; run once per repo, commit the result)
 archcore init --agent copilot --project "$PWD"
@@ -195,4 +195,4 @@ Pick a methodology tool for an opinionated dev flow. Pick a memory tool for sess
 
 ## License & contributing
 
-[Apache-2.0](LICENSE) · Issues and ideas: [GitHub Issues](https://github.com/archcore-ai/plugin/issues)
+[Apache-2.0](LICENSE) · Issues and ideas: [GitHub Issues](https://github.com/archcore-ai/archcore/issues)

@@ -46,7 +46,7 @@ Run integration tests with a development version that satisfies the plugin's
 existing CLI capability gates:
 
 ```bash
-make test-integration CLI_VERSION=0.8.7-dev
+make test-integration CLI_VERSION=0.10.1-dev
 ```
 
 The default `make build` version is `dev`. Neither command installs or updates
@@ -63,8 +63,9 @@ both installers to the GitHub Release. Marketplace catalogs stay at the
 published root and resolve `plugins/archcore/`, preserving existing host
 installation paths. See [the release process](plugin/docs/release.md).
 
-`archcore-ai/cli` is the former CLI repository. Its history was imported here
-and it receives no further releases. The copies under `cli/.github/workflows/`
+`archcore-ai/cli` is the former CLI repository and `archcore-ai/plugin` the former
+name of this one (renamed 2026-09-22; GitHub redirects the old address). Neither
+receives separate releases. The copies under `cli/.github/workflows/`
 are migration reference only.
 
 ## License

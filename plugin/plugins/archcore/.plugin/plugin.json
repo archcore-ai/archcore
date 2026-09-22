@@ -1,12 +1,12 @@
 {
   "name": "archcore",
   "description": "Spec-driven development and context engineering for AI coding agents, backed by project context in Git.",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "author": {
     "name": "Archcore"
   },
   "license": "Apache-2.0",
-  "repository": "https://github.com/archcore-ai/plugin",
+  "repository": "https://github.com/archcore-ai/archcore",
   "hooks": "./hooks/copilot.hooks.json",
   "skills": "./skills/",
   "agents": "./copilot-agents/",

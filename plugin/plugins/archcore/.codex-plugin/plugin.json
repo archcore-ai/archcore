@@ -1,14 +1,14 @@
 {
   "name": "archcore",
   "description": "Spec-driven development and context engineering for AI coding agents, backed by project context in Git.",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "author": {
     "name": "Archcore",
     "url": "https://archcore.ai"
   },
   "license": "Apache-2.0",
   "homepage": "https://archcore.ai/plugin",
-  "repository": "https://github.com/archcore-ai/plugin",
+  "repository": "https://github.com/archcore-ai/archcore",
   "keywords": [
     "codex",
     "codex-cli",
@@ -45,7 +45,7 @@
     "capabilities": ["Read", "Write"],
     "websiteURL": "https://archcore.ai",
     "privacyPolicyURL": "https://archcore.ai/privacy",
-    "termsOfServiceURL": "https://github.com/archcore-ai/plugin/blob/main/docs/TERMS.md",
+    "termsOfServiceURL": "https://github.com/archcore-ai/archcore/blob/main/docs/TERMS.md",
     "defaultPrompt": [
       "Use Archcore to review this work against project decisions",
       "Use Archcore to plan this change",

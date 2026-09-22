@@ -2,13 +2,13 @@
   "name": "archcore",
   "displayName": "Archcore",
   "description": "Spec-driven development and context engineering for AI coding agents, backed by project context in Git.",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "author": {
     "name": "Archcore"
   },
   "license": "Apache-2.0",
-  "homepage": "https://github.com/archcore-ai/plugin",
-  "repository": "https://github.com/archcore-ai/plugin",
+  "homepage": "https://github.com/archcore-ai/archcore",
+  "repository": "https://github.com/archcore-ai/archcore",
   "category": "knowledge-management",
   "keywords": [
     "cursor",

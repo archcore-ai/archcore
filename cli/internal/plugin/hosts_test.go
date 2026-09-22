@@ -57,7 +57,7 @@ func TestSpecForPinsTheCommandTable(t *testing.T) {
 				"claude plugin update archcore@archcore-plugins",
 			},
 			wantInstall: []string{
-				"claude plugin marketplace add archcore-ai/plugin",
+				"claude plugin marketplace add archcore-ai/archcore",
 				"claude plugin install archcore@archcore-plugins",
 			},
 			wantRemove: []string{"claude plugin uninstall archcore@archcore-plugins"},
@@ -83,7 +83,7 @@ func TestSpecForPinsTheCommandTable(t *testing.T) {
 			wantRegEntry:    "archcore",
 			wantUpdate:      []string{"codex plugin marketplace upgrade archcore-plugins"},
 			wantInstall: []string{
-				"codex plugin marketplace add archcore-ai/plugin",
+				"codex plugin marketplace add archcore-ai/archcore",
 				"codex plugin add archcore@archcore-plugins",
 			},
 			wantRemove: []string{"codex plugin remove archcore@archcore-plugins"},
@@ -97,7 +97,7 @@ func TestSpecForPinsTheCommandTable(t *testing.T) {
 			wantRegistry: ".copilot/installed-plugins",
 			wantRegEntry: "archcore-ai--plugin--plugins-archcore",
 			wantUpdate:   []string{"copilot plugin update archcore"},
-			wantInstall:  []string{"copilot plugin install archcore-ai/plugin:plugins/archcore"},
+			wantInstall:  []string{"copilot plugin install archcore-ai/archcore:plugins/archcore"},
 			wantRemove:   []string{"copilot plugin uninstall archcore"},
 		},
 	}

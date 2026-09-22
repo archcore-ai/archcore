@@ -5,8 +5,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
-[![Release](https://img.shields.io/github/v/release/archcore-ai/plugin)](https://github.com/archcore-ai/plugin/releases)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/archcore-ai/plugin/releases)
+[![Release](https://img.shields.io/github/v/release/archcore-ai/archcore)](https://github.com/archcore-ai/archcore/releases)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/archcore-ai/archcore/releases)
 
 **Archcore is a git-native context layer for AI coding agents.**
 
@@ -300,7 +300,7 @@ Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install), then run t
 ### From source
 
 ```bash
-git clone --branch dev https://github.com/archcore-ai/plugin.git archcore
+git clone --branch dev https://github.com/archcore-ai/archcore.git archcore
 cd archcore/cli
 go build -o archcore .
 ```
@@ -331,7 +331,7 @@ archcore config set <key> <value>  # set a value
 
 ## Ecosystem
 
-- **[Archcore Plugin](https://github.com/archcore-ai/plugin)** — using Claude Code or Cursor? The plugin pairs with the CLI: same engine, plus skills, intent commands, and guardrails. One product, two entry points — the CLI on its own covers every other agent.
+- **[Archcore Plugin](https://github.com/archcore-ai/archcore)** — using Claude Code or Cursor? The plugin pairs with the CLI: same engine, plus skills, intent commands, and guardrails. One product, two entry points — the CLI on its own covers every other agent.
 - **[docs.archcore.ai](https://docs.archcore.ai)** — full documentation.
 - **[`.archcore/` in this repo](../.archcore)** — a living example: the CLI is built with its own context layer.
 
@@ -348,6 +348,6 @@ go test ./...            # run all tests
 
 - **Documentation:** [docs.archcore.ai](https://docs.archcore.ai)
 - **Website:** [archcore.ai](https://archcore.ai)
-- **Plugin (Claude Code, Cursor):** [github.com/archcore-ai/plugin](https://github.com/archcore-ai/plugin)
-- **Issues:** [github.com/archcore-ai/plugin/issues](https://github.com/archcore-ai/plugin/issues)
+- **Plugin (Claude Code, Cursor):** [github.com/archcore-ai/archcore](https://github.com/archcore-ai/archcore)
+- **Issues:** [github.com/archcore-ai/archcore/issues](https://github.com/archcore-ai/archcore/issues)
 - **License:** [Apache 2.0](LICENSE)

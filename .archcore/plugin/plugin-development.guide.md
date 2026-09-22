@@ -34,8 +34,8 @@ For Codex, `codex plugin marketplace add /path/to/plugin` registers the marketpl
 ### 1. Clone the plugin repository
 
 ```bash
-git clone https://github.com/archcore-ai/plugin.git
-cd plugin
+git clone https://github.com/archcore-ai/archcore.git
+cd archcore
 git checkout dev               # development happens on dev, main is synthesized
 git submodule update --init --recursive
 cd plugin                     # component build and local marketplace root

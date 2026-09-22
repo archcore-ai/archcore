@@ -72,11 +72,11 @@ Cline.
 
 ## Archcore plugin per host
 
-The Archcore plugin ships from the separate `archcore-ai/plugin` repository. Four hosts carry it:
-Claude Code, Cursor, Codex CLI, and GitHub Copilot. OpenCode's plugin is a different artifact and is
-not part of this surface; Gemini CLI, Roo Code, and Cline have none.
+The Archcore plugin lives under `plugin/` of the `archcore-ai/archcore` monorepo, beside the CLI.
+Four hosts carry it: Claude Code, Cursor, Codex CLI, and GitHub Copilot. OpenCode's plugin is a
+different artifact and is not part of this surface; Gemini CLI, Roo Code, and Cline have none.
 
-Three frozen identifiers address it everywhere — repository `archcore-ai/plugin`, marketplace
+Three frozen identifiers address it everywhere — repository `archcore-ai/archcore`, marketplace
 `archcore-plugins`, plugin id `archcore@archcore-plugins`. `plugin-cli-compatibility.rule`
 requirement 11 binds them: a released CLI carrying a renamed identifier addresses a plugin that no
 longer answers to it.
@@ -96,7 +96,7 @@ host that reports no plugin produces no output at all, and no mutating command r
 | Host | CLI | Install | Update |
 |---|---|---|---|
 | Claude Code | `claude` | `plugin marketplace add`, then `plugin install` | `plugin marketplace update`, then `plugin update` |
-| GitHub Copilot | `copilot` | `plugin install archcore-ai/plugin:plugins/archcore` [assumption on the subpath] | `plugin update archcore@archcore-plugins` |
+| GitHub Copilot | `copilot` | `plugin install archcore-ai/archcore:plugins/archcore` [assumption on the subpath] | `plugin update archcore@archcore-plugins` |
 | Codex CLI | `codex` | `plugin marketplace add`, then `plugin add` | `plugin marketplace upgrade archcore-plugins` |
 | Cursor | none | print the UI instruction | print the UI instruction |
 
@@ -336,8 +336,8 @@ host's plugin install cache. Two surfaces resolve differently, and both matter w
 10. IF the host can accept a written config and still not run it, THEN add its case to
     `EffectiveHookNotes` in `@cli/internal/wiring/hooks_effective.go`.
 11. IF the host ships an Archcore plugin, THEN add its row to the host table in
-    `@cli/internal/plugin/hosts.go` and map its agent id to a host in `@cli/internal/plugin/plugin.go`. The row
-    carries the CLI name, the read-only listing command, the on-disk registry path, and the install,
+    `@cli/internal/plugin/hosts.go` and map its agent id to a host in `@cli/internal/plugin/plugin.go`. The
+    row carries the CLI name, the read-only listing command, the on-disk registry path, and the install,
     update, and remove commands. A host with no CLI mechanism carries a UI note instead.
 12. Add the agent to the registry table and to the instruction-nudge table in this document.
 13. Update the CLI hooks reference, the agent-hooks integration guide, and the building-the-CLI guide.

@@ -40,7 +40,7 @@ archives:
         format: zip
 
 changelog:
-  format: "[{{ printf \"%.7s\" .SHA }}](https://github.com/archcore-ai/plugin/commit/{{ .SHA }}) {{ .Message }}"
+  format: "[{{ printf \"%.7s\" .SHA }}](https://github.com/archcore-ai/archcore/commit/{{ .SHA }}) {{ .Message }}"
 
 checksum:
   name_template: "checksums.txt"

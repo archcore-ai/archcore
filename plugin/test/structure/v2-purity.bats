@@ -119,7 +119,11 @@ CLEAN=(
 
 @test "every literal public slash command names one of the four shipped commands" {
   local command refs
-  refs=$(grep -rhoE '/archcore:[a-z][a-z-]*' "$PLUGIN_ROOT" "$REPO_ROOT/README.md" "$REPO_ROOT/docs" | sort -u)
+  # A public command starts at a word boundary. The repository locator
+  # `archcore-ai/archcore:plugins/archcore` carries `/archcore:` inside a word
+  # since the 2026-09-22 rename, so the character before the slash must not be
+  # part of an identifier; the leading character is stripped after the match.
+  refs=$(grep -rhoE '(^|[^A-Za-z0-9_-])/archcore:[a-z][a-z-]*' "$PLUGIN_ROOT" "$REPO_ROOT/README.md" "$REPO_ROOT/docs" | sed -E 's|^[^/]*/|/|' | sort -u)
   [ -n "$refs" ] || { fail "public command scan found no commands"; return 1; }
   while IFS= read -r command; do
     case "$command" in

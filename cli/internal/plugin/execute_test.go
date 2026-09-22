@@ -266,7 +266,15 @@ func TestExecutePrintOnlyRunsNothing(t *testing.T) {
 	if got, want := printing.texts("print"), running.texts("progress"); !slices.Equal(got, want) {
 		t.Errorf("printed %q, want the commands the run executes %q", got, want)
 	}
-	if got := runRec.lines(); !slices.Equal(got, printing.texts("print")) {
+	// The Codex source migration that precedes an explicitly planned update
+	// runs one bounded read, the marketplace listing, before it touches a
+	// config file (plugin-source-migration.spec, Normative Behavior 8). It is
+	// a guard rather than a planned command, so it is neither printed nor
+	// announced, and it does not count against the one-planner invariant.
+	ran := slices.DeleteFunc(runRec.lines(), func(line string) bool {
+		return line == "codex plugin marketplace list --json"
+	})
+	if got := ran; !slices.Equal(got, printing.texts("print")) {
 		t.Errorf("ran %q, want the printed commands %q", got, printing.texts("print"))
 	}
 }
@@ -369,7 +377,7 @@ func TestExecuteAnnouncesEachCommandBeforeItRuns(t *testing.T) {
 	Execute(t.Context(), actions, reporter, ExecuteOptions{})
 
 	want := []string{
-		"claude plugin marketplace add archcore-ai/plugin",
+		"claude plugin marketplace add archcore-ai/archcore",
 		"claude plugin install archcore@archcore-plugins",
 	}
 	if !slices.Equal(announced, want) {
@@ -550,7 +558,7 @@ func TestExecuteRunsAWholeSequenceInOrder(t *testing.T) {
 	Execute(t.Context(), actions, &recordingReporter{}, ExecuteOptions{})
 
 	want := []string{
-		"claude plugin marketplace add archcore-ai/plugin",
+		"claude plugin marketplace add archcore-ai/archcore",
 		"claude plugin install archcore@archcore-plugins",
 	}
 	if got := rec.lines(); !slices.Equal(got, want) {

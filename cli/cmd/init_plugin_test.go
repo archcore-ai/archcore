@@ -151,7 +151,7 @@ func TestInitYesWithoutAgentPrintsThePluginCommands(t *testing.T) {
 		t.Errorf("--yes ran %v, want every command printed and none executed", runs)
 	}
 	for _, want := range []string{
-		"claude plugin marketplace add archcore-ai/plugin",
+		"claude plugin marketplace add archcore-ai/archcore",
 		"claude plugin install archcore@archcore-plugins",
 	} {
 		if !strings.Contains(out, want) {
@@ -246,7 +246,7 @@ func TestInitInstallsForACheckedHostAndSurvivesItsFailure(t *testing.T) {
 	if runs := fixtureRuns(t, log); len(runs) != 1 {
 		t.Fatalf("the host CLI ran %d times %v, want the checked host installed and the sequence stopped at the failure", len(runs), runs)
 	}
-	if !strings.Contains(out, "claude plugin marketplace add archcore-ai/plugin") {
+	if !strings.Contains(out, "claude plugin marketplace add archcore-ai/archcore") {
 		t.Errorf("the failing command line was swallowed:\n%s", out)
 	}
 	if _, err := os.Stat(filepath.Join(project, ".claude", "settings.json")); err != nil {
@@ -378,7 +378,7 @@ func TestInitSurvivesAFailedPluginDelivery(t *testing.T) {
 	}
 	// Silent to the exit code, not to the user: Failure Behavior 2 wants the
 	// exact command back so it can be rerun.
-	if !strings.Contains(out, "claude plugin marketplace add archcore-ai/plugin") {
+	if !strings.Contains(out, "claude plugin marketplace add archcore-ai/archcore") {
 		t.Errorf("the failing command line was swallowed:\n%s", out)
 	}
 	if _, err := os.Stat(filepath.Join(project, ".claude", "settings.json")); err != nil {

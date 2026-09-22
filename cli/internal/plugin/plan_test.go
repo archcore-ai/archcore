@@ -17,20 +17,20 @@ var (
 		"claude plugin update archcore@archcore-plugins",
 	}
 	claudeInstallLines = []string{
-		"claude plugin marketplace add archcore-ai/plugin",
+		"claude plugin marketplace add archcore-ai/archcore",
 		"claude plugin install archcore@archcore-plugins",
 	}
 	claudeRemoveLines = []string{"claude plugin uninstall archcore@archcore-plugins"}
 
 	codexUpdateLines  = []string{"codex plugin marketplace upgrade archcore-plugins"}
 	codexInstallLines = []string{
-		"codex plugin marketplace add archcore-ai/plugin",
+		"codex plugin marketplace add archcore-ai/archcore",
 		"codex plugin add archcore@archcore-plugins",
 	}
 	codexRemoveLines = []string{"codex plugin remove archcore@archcore-plugins"}
 
 	copilotUpdateLines  = []string{"copilot plugin update archcore"}
-	copilotInstallLines = []string{"copilot plugin install archcore-ai/plugin:plugins/archcore"}
+	copilotInstallLines = []string{"copilot plugin install archcore-ai/archcore:plugins/archcore"}
 	copilotRemoveLines  = []string{"copilot plugin uninstall archcore"}
 )
 
