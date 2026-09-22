@@ -3,6 +3,7 @@ title: "Spec Format in AI-Assisted Development — Industry Survey"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "vision"
 ---
 

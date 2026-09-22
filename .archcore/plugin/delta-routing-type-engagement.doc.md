@@ -3,13 +3,14 @@ title: "Delta-Routing Type Engagement — 23-Type Producer Matrix"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
 
 ## Overview
 
-This matrix verifies that every shipped document type keeps at least one producer under delta routing (ΔΠMR). The original delta-routing baseline covered 19 types. The research vocabulary added two producers, for 21 reachable types on CLI 0.8.3; the actor-subject vocabulary adds two more, for 23 reachable types on CLI 0.8.4. @plugins/archcore/skills/_shared/research-compatibility.md gates the first pair and @plugins/archcore/skills/_shared/actor-subject-compatibility.md the second. What changes is the engagement condition — today a type fires when its track gate opens and `skip_when` finds no covering document; under delta routing a type fires when the computed Δ, Π, M, R values call for it. "Producer today" cells cite the track files under `@plugins/archcore/skills/_shared/tracks/`.
+This matrix verifies that every shipped document type keeps at least one producer under delta routing (ΔΠMR). The original delta-routing baseline covered 19 types. The research vocabulary added two producers, for 21 reachable types on CLI 0.8.3; the actor-subject vocabulary adds two more, for 23 reachable types on CLI 0.8.4. @plugin/plugins/archcore/skills/_shared/research-compatibility.md gates the first pair and @plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md the second. What changes is the engagement condition — today a type fires when its track gate opens and `skip_when` finds no covering document; under delta routing a type fires when the computed Δ, Π, M, R values call for it. "Producer today" cells cite the track files under `@plugin/plugins/archcore/skills/_shared/tracks/`.
 
 ## Content
 

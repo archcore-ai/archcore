@@ -3,6 +3,7 @@ title: "Track-File Line Cap Raised to 300 and Pinned by a Structure Test"
 status: draft
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
   - "testing"
@@ -10,11 +11,11 @@ tags:
 
 ## Context
 
-@.archcore/plugin/plugin-architecture.spec.md carried the constraint "a track file MUST NOT exceed 200 lines" with no test behind it. On 2026-09-16 three of the eight track files under @plugins/archcore/skills/_shared/tracks/ exceeded it: `research.md` at 209 lines, `closeout.md` at 235, and `sdd.md` at 277 after the `sdd.illustrate` gate joined it. Two of the three were over the cap before the actor-subject vocabulary work (`closeout.md` 226, `sdd.md` 214). The excess is structural: a track file hosts one gate record per instrument, the gate record template in @plugins/archcore/skills/_shared/gate-contract.md costs 30 to 45 lines per gate, and `sdd.md` hosts six instruments by the conductor's design (@.archcore/plugin/delta-routing-instruments.spec.md). Six gates alone occupy about 230 lines before the Track notes.
+@.archcore/plugin/plugin-architecture.spec.md carried the constraint "a track file MUST NOT exceed 200 lines" with no test behind it. On 2026-09-16 three of the eight track files under @plugin/plugins/archcore/skills/_shared/tracks/ exceeded it: `research.md` at 209 lines, `closeout.md` at 235, and `sdd.md` at 277 after the `sdd.illustrate` gate joined it. Two of the three were over the cap before the actor-subject vocabulary work (`closeout.md` 226, `sdd.md` 214). The excess is structural: a track file hosts one gate record per instrument, the gate record template in @plugin/plugins/archcore/skills/_shared/gate-contract.md costs 30 to 45 lines per gate, and `sdd.md` hosts six instruments by the conductor's design (@.archcore/plugin/delta-routing-instruments.spec.md). Six gates alone occupy about 230 lines before the Track notes.
 
 ## Decision
 
-Raise the constraint to 300 lines and pin it with @test/structure/track-file-cap.bats, which fails on any track file over the cap and on a spec that states a different number. The cap keeps its purpose — a file past it is a signal to route prose out of the file (Track notes into a shared contract) or to split the track — and the number now admits a six-instrument track written to the gate template. No track file is edited by this decision.
+Raise the constraint to 300 lines and pin it with @plugin/test/structure/track-file-cap.bats, which fails on any track file over the cap and on a spec that states a different number. The cap keeps its purpose — a file past it is a signal to route prose out of the file (Track notes into a shared contract) or to split the track — and the number now admits a six-instrument track written to the gate template. No track file is edited by this decision.
 
 ## Alternatives Considered
 

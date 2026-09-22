@@ -2,6 +2,7 @@
 title: "GitHub Copilot Host Support — Verified Plugin Contract and Install Path"
 status: accepted
 tags:
+  - "component:plugin"
   - "copilot"
   - "hooks"
   - "multi-host"
@@ -77,7 +78,7 @@ Implement per `copilot-adapter-design.adr` and `host-adapter-contract.spec`: the
 
 ## Update 2026-08-03 — plugin MCP discovery settled, in two passes
 
-**First pass — the manifest key was never the only source.** `copilot mcp list` on Copilot CLI 1.0.76 with plugin 0.6.1 installed lists `Plugin servers: archcore (local)` from any working directory, with `mcpServers` absent from `.plugin/plugin.json` and no project or user-level config present. The concepts page's discovery rule is real, and `@test/integration/copilot-plugin-smoke.bats` reproduces it in an isolated `COPILOT_HOME`.
+**First pass — the manifest key was never the only source.** `copilot mcp list` on Copilot CLI 1.0.76 with plugin 0.6.1 installed lists `Plugin servers: archcore (local)` from any working directory, with `mcpServers` absent from `.plugin/plugin.json` and no project or user-level config present. The concepts page's discovery rule is real, and `@plugin/test/integration/copilot-plugin-smoke.bats` reproduces it in an isolated `COPILOT_HOME`.
 
 **Second pass — the damage was a name collision, and the first remedy did not work.** The plugin server and the project server that `archcore init --agent copilot` registers share the key `archcore`, and Copilot merges user, then workspace, then plugins with last-wins, so the plugin entry replaced the user's. Measured with a sentinel command in the workspace config and a fresh `COPILOT_HOME` per arm:
 

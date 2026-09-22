@@ -2,6 +2,7 @@
 title: "Plugin Development Roadmap"
 status: rejected
 tags:
+  - "component:plugin"
   - "plugin"
   - "roadmap"
 ---

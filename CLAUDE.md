@@ -23,11 +23,11 @@ Do not use direct file-writing tools to modify `.archcore/` documents.
 Before creating an Archcore document:
 
 1. Check existing documents for duplicates.
-2. Read the relevant content contract under `plugins/archcore/skills/_shared/`.
-3. Read `plugins/archcore/skills/_shared/precision-rules.md`.
+2. Read the relevant content contract under `plugin/plugins/archcore/skills/_shared/`.
+3. Read `plugin/plugins/archcore/skills/_shared/precision-rules.md`.
 4. Apply the controlled technical writing policy in `AGENTS.md`.
 
-When modifying files under `plugins/archcore/skills/`, preserve existing routing terminology, document-type names, tool names, state names, and contract semantics.
+When modifying files under `plugin/plugins/archcore/skills/`, preserve existing routing terminology, document-type names, tool names, state names, and contract semantics.
 
 Do not edit content inside an Archcore-managed block:
 

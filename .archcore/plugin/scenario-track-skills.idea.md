@@ -3,6 +3,7 @@ title: "Scenario-Based Track Skills for Common Workflows"
 status: rejected
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---

@@ -3,6 +3,7 @@ title: "AI-SDLC Flow Patterns and SDD Gate Research — Evidence Base for the v2
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "vision"
 ---

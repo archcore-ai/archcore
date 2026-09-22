@@ -3,6 +3,7 @@ title: "Cross-Host CWD Sanity Guard for Cursor and Claude Code MCP"
 status: rejected
 tags:
   - "claude-code"
+  - "component:plugin"
   - "cursor"
   - "multi-host"
   - "plugin"

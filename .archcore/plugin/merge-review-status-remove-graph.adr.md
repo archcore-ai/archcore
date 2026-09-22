@@ -4,6 +4,7 @@ status: accepted
 tags:
   - "architecture"
   - "commands"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
@@ -26,7 +27,7 @@ Merge `status` into the inspection skill as its default short mode, and remove `
 
 The inspection skill gains two modes. Its **default short mode**, invoked with no arguments, outputs the four counting tables and the one-line issues summary that `status` produced, project-wide and without filters. Its **deep mode**, triggered by `--deep` or by any non-flag argument used as a category, tag, or type filter, outputs the full audit body: Overview, Gaps, Staleness, Orphans, Actions. The routing rule is that any non-flag argument routes to deep mode and an empty invocation routes to short mode, so both user phrasings — "dashboard" or "how many docs" for short, "audit" or "documentation gaps" for deep — resolve inside one skill.
 
-`skills/status/` and `skills/graph/` were deleted from disk; sibling anti-trigger lines in `skills/actualize/`, `skills/bootstrap/`, and `skills/context/` were repointed at the merged skill with a note that its default mode is the short dashboard; the help skill's Quick Start table lost the two rows and gained a two-mode description; and the count invariants were updated across `README.md`, `@test/structure/skills.bats`, and the affected `.archcore/` documents.
+`skills/status/` and `skills/graph/` were deleted from disk; sibling anti-trigger lines in `skills/actualize/`, `skills/bootstrap/`, and `skills/context/` were repointed at the merged skill with a note that its default mode is the short dashboard; the help skill's Quick Start table lost the two rows and gained a two-mode description; and the count invariants were updated across `README.md`, `@plugin/test/structure/skills.bats`, and the affected `.archcore/` documents.
 
 ## Alternatives Considered
 

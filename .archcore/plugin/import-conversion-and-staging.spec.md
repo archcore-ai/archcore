@@ -2,6 +2,7 @@
 title: "Import Conversion and Staging — Target Documents, Waves, Verify, Retire, Discharge"
 status: draft
 tags:
+  - "component:plugin"
   - "onboarding"
   - "plugin"
   - "skills"
@@ -71,7 +72,7 @@ This spec governs how the import track of `/archcore:init` turns triaged sources
 
 ## Conformance
 
-An implementation conforms when it satisfies behaviors 1–25, holds the four invariants and both constraints, and follows the ten failure rules. Regression checks: @test/structure/init-skill.bats and @test/fixtures/goldens/import.golden.
+An implementation conforms when it satisfies behaviors 1–25, holds the four invariants and both constraints, and follows the ten failure rules. Regression checks: @plugin/test/structure/init-skill.bats and @plugin/test/fixtures/goldens/import.golden.
 
 Given a resumed plan with only `done`, `dropped`, and `proposed` rows
 When the user confirms the proposed rows

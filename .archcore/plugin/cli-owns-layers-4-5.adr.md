@@ -3,6 +3,7 @@ title: "CLI Owns Layers 4–5 — MCP Track Prompts Removed, Hook Parity in Go"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "hooks"
   - "multi-host"
   - "plugin"

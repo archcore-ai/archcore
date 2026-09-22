@@ -3,6 +3,7 @@ title: "User-Invoked Skills — Seven-Command Surface Specification"
 status: rejected
 tags:
   - "commands"
+  - "component:plugin"
   - "plugin"
 ---
 
@@ -101,7 +102,7 @@ The right skill auto-invokes from the phrasing.
 - Constraint: every command is `archcore:<name>`; sub-namespaces are unavailable because Claude Code uses a single colon as the plugin separator.
 - Constraint: a command asks at most one scope-confirmation question before execution. `/archcore:init` is the exception: it presents one preview manifest and proceeds on a single `confirm`, `edit`, or `cancel`.
 - Constraint: a flow step inside `plan` asks at most 1–2 content questions per document step.
-- Constraint: a host that provides no default `commands/` path MUST point at the wrappers from its manifest. On Copilot a missing pointer removes the entire `/archcore:*` surface, which `@test/structure/copilot-plugin.bats` pins.
+- Constraint: a host that provides no default `commands/` path MUST point at the wrappers from its manifest. On Copilot a missing pointer removes the entire `/archcore:*` surface, which `@plugin/test/structure/copilot-plugin.bats` pins.
 - Invariant: every skill in the palette is auto-invocable, carrying no `disable-model-invocation`.
 - Invariant: every skill description enumerates trigger phrases and anti-triggers in the `Activate when X. Do NOT activate for Y.` format.
 - Invariant: every creation command checks duplicates first and suggests relations afterwards.

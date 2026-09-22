@@ -3,13 +3,14 @@ title: "Plan Discharge by Deletion — a Completed Plan Leaves the Corpus, Not I
 status: draft
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
 
 ## Context
 
-Eighteen `plan` documents live in `.archcore/plugin/`; fifteen carry `status: rejected`, all written in one sweep on 2026-08-07 between 13:21 and 13:22, and every one of them still holds an `implements` or `depends_on` edge — the exact pair that `@plugins/archcore/skills/_shared/tracks/actualize.md` flags as temporal staleness, so drift detection returns fifteen findings that never resolve. The kernel supplies no other word: `@internal/mcp/server.go` defines `rejected` as "superseded, abandoned, or declined", and `@internal/mcp/tools/remove_document.go` instructs "A plan is abandoned → change status to rejected", leaving a completed plan with no status that describes it. `@plugins/archcore/skills/_shared/tracks/closeout.md` already specifies plan discharge into `task-type` or `guide` capture, but its Discharge report section blocks every transition on an `archived` value the kernel does not carry.
+Eighteen `plan` documents live in `.archcore/plugin/`; fifteen carry `status: rejected`, all written in one sweep on 2026-08-07 between 13:21 and 13:22, and every one of them still holds an `implements` or `depends_on` edge — the exact pair that `@plugin/plugins/archcore/skills/_shared/tracks/actualize.md` flags as temporal staleness, so drift detection returns fifteen findings that never resolve. The kernel supplies no other word: `@internal/mcp/server.go` defines `rejected` as "superseded, abandoned, or declined", and `@internal/mcp/tools/remove_document.go` instructs "A plan is abandoned → change status to rejected", leaving a completed plan with no status that describes it. `@plugin/plugins/archcore/skills/_shared/tracks/closeout.md` already specifies plan discharge into `task-type` or `guide` capture, but its Discharge report section blocks every transition on an `archived` value the kernel does not carry.
 
 ## Decision
 
@@ -18,10 +19,10 @@ A completed `plan` discharges by deletion across two gates: `closeout.capture` r
 ## Alternatives Considered
 
 1. The `archived` status value added to the kernel enum — rejected because it costs a CLI release, a version probe in the plugin, and skew handling across four MCP tool schemas plus `@internal/mcp/server.go` and the hook counters, to buy residual read access that a completed plan does not need; `remove_document` already ships and already clears both relation directions (`@internal/mcp/tools/remove_document.go`).
-2. Keep writing `rejected` on completed plans — ruled out because the temporal rule in `@plugins/archcore/skills/_shared/tracks/actualize.md` reads `rejected` plus an active `implements` edge as staleness, which is what produces the current fifteen unresolvable findings.
-3. Leave completed plans at `accepted` — ruled out because the three accepted plans stay in every grounding read as canon beside the `spec` they implement, while the content-kind ownership table in `@plugins/archcore/skills/_shared/prd-contract.md` assigns those statements to the spec.
+2. Keep writing `rejected` on completed plans — ruled out because the temporal rule in `@plugin/plugins/archcore/skills/_shared/tracks/actualize.md` reads `rejected` plus an active `implements` edge as staleness, which is what produces the current fifteen unresolvable findings.
+3. Leave completed plans at `accepted` — ruled out because the three accepted plans stay in every grounding read as canon beside the `spec` they implement, while the content-kind ownership table in `@plugin/plugins/archcore/skills/_shared/prd-contract.md` assigns those statements to the spec.
 4. One gate carrying its own type menu — `task-type`, `guide`, `rule`, `cpat` — ruled out because it builds a third parallel type menu beside the decision cascade and the experience offer, and it breaks the instrument-layer invariant that a producer owns one type; the decision instrument is already callable from `review` and already produces `adr` plus a `rule` and `guide` cascade.
-5. Reverse the `closeout.accept` → experience ordering so the existing offer track extracts residue before disposal — deferred because `@plugins/archcore/skills/_shared/tracks/experience.md` states that the whole track is an offer, and a blocking prerequisite would contradict that contract.
+5. Reverse the `closeout.accept` → experience ordering so the existing offer track extracts residue before disposal — deferred because `@plugin/plugins/archcore/skills/_shared/tracks/experience.md` states that the whole track is an offer, and a blocking prerequisite would contradict that contract.
 
 ## Consequences
 

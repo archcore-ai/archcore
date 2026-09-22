@@ -2,6 +2,7 @@
 title: "Plugin Evolution History — Thin Wrapper to Four Commands over Gated Tracks"
 status: accepted
 tags:
+  - "component:plugin"
   - "plugin"
   - "reference"
 ---

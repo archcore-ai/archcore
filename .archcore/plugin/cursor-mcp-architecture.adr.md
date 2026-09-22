@@ -3,12 +3,13 @@ title: "Cursor MCP Architecture — User-Level Install Only, No Plugin-Shipped M
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "cursor"
   - "multi-host"
   - "plugin"
 ---
 
-**Update (2026-08-03).** Finding 3 below was recorded as empirically unresolved; it is now resolved, and the answer is the less comfortable one. Cursor's plugin loader (`Cursor.app/.../cursor-agent-exec/dist/main.js`, Cursor 2.x) auto-discovers both spellings, `[".mcp.json", "mcp.json"]`. The file believed to be ignored by Cursor — and unremovable because Claude Code needed it — was being registered as a plugin MCP server all along, spawned from the plugin install directory with no `cwd` field to correct it. Layer 1 is what kept this from re-reporting the original bug; the mechanism itself never stopped. Closed on 2026-08-03 by renaming the file to `.claude.mcp.json` and pointing Claude Code at it from `.claude-plugin/plugin.json`, the same rename that `copilot-mcp-architecture.adr` forced from a different host, with `@test/structure/plugin-mcp-isolation.bats` pinning that no auto-discovered filename exists at the plugin root for any host.
+**Update (2026-08-03).** Finding 3 below was recorded as empirically unresolved; it is now resolved, and the answer is the less comfortable one. Cursor's plugin loader (`Cursor.app/.../cursor-agent-exec/dist/main.js`, Cursor 2.x) auto-discovers both spellings, `[".mcp.json", "mcp.json"]`. The file believed to be ignored by Cursor — and unremovable because Claude Code needed it — was being registered as a plugin MCP server all along, spawned from the plugin install directory with no `cwd` field to correct it. Layer 1 is what kept this from re-reporting the original bug; the mechanism itself never stopped. Closed on 2026-08-03 by renaming the file to `.claude.mcp.json` and pointing Claude Code at it from `.claude-plugin/plugin.json`, the same rename that `copilot-mcp-architecture.adr` forced from a different host, with `@plugin/test/structure/plugin-mcp-isolation.bats` pinning that no auto-discovered filename exists at the plugin root for any host.
 
 ## Context
 
@@ -22,7 +23,7 @@ In May 2026 a Cursor user reported that, after installing the Archcore plugin an
 
 ## Decision
 
-Ship **no plugin-shipped MCP server for Cursor**. A Cursor user installs the MCP at user or project level, in `~/.cursor/mcp.json` or `.cursor/mcp.json`, from the template at `@docs/cursor.mcp.example.json`, which registers a stdio server named `archcore` running `archcore` with `args` of `["mcp", "--project", "${workspaceFolder}"]` — passing the workspace path explicitly through `args`, since the `cwd` field of finding 1 does not exist.
+Ship **no plugin-shipped MCP server for Cursor**. A Cursor user installs the MCP at user or project level, in `~/.cursor/mcp.json` or `.cursor/mcp.json`, from the template at `@plugin/docs/cursor.mcp.example.json`, which registers a stdio server named `archcore` running `archcore` with `args` of `["mcp", "--project", "${workspaceFolder}"]` — passing the workspace path explicitly through `args`, since the `cwd` field of finding 1 does not exist.
 
 Three layers of defense enforce it.
 

@@ -3,6 +3,7 @@ title: "Archcore Plugin v2 — Four Commands over Gated Tracks"
 status: accepted
 tags:
   - "commands"
+  - "component:plugin"
   - "plugin"
   - "vision"
 ---

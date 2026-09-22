@@ -3,6 +3,7 @@ title: "Always Use MCP Tools for Document Operations"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
 ---
 

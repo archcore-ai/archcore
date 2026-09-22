@@ -2,7 +2,7 @@
   "mcpServers": {
     "archcore": {
       "command": "archcore",
-      "args": ["mcp"]
+      "args": ["mcp", "--project", ".."]
     }
   }
 }

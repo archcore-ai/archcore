@@ -2,6 +2,7 @@
 title: "Skill and MCP Tool Interaction Pattern"
 status: accepted
 tags:
+  - "component:plugin"
   - "plugin"
   - "rule"
   - "skills"

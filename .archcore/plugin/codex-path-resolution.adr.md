@@ -3,6 +3,7 @@ title: "Codex MCP and Hooks Path Resolution"
 status: rejected
 tags:
   - "codex"
+  - "component:plugin"
   - "multi-host"
   - "plugin"
 ---

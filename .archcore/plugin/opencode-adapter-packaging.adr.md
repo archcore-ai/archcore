@@ -3,6 +3,7 @@ title: "OpenCode Adapter — TypeScript Package @archcore/opencode-plugin in plu
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "multi-host"
   - "opencode"
   - "plugin"
@@ -10,7 +11,7 @@ tags:
 
 ## Context
 
-OpenCode's plugin runtime executes JS and TS modules under Bun and exposes hooks only programmatically — `tool.execute.before`, `tool.execute.after`, `config`, and `event`, per `@opencode-ai/plugin` 1.17.13 and opencode.ai/docs/plugins — so an OpenCode host adapter cannot be pure declarative configuration like the three existing adapters. `stack-and-tooling.rule` restricts executable code in this repository to POSIX shell under `@plugins/archcore/bin/` and requires an accepted ADR before any new language lands. This document is that exception record, decided by the maintainer on 2026-07-05.
+OpenCode's plugin runtime executes JS and TS modules under Bun and exposes hooks only programmatically — `tool.execute.before`, `tool.execute.after`, `config`, and `event`, per `@opencode-ai/plugin` 1.17.13 and opencode.ai/docs/plugins — so an OpenCode host adapter cannot be pure declarative configuration like the three existing adapters. `stack-and-tooling.rule` restricts executable code in this repository to POSIX shell under `@plugin/plugins/archcore/bin/` and requires an accepted ADR before any new language lands. This document is that exception record, decided by the maintainer on 2026-07-05.
 
 ## Decision
 

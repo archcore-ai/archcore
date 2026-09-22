@@ -18,6 +18,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: plugin
     steps:
       - uses: actions/checkout@v6
         with:
@@ -97,3 +100,16 @@ jobs:
 
       - name: Real MCP integration tests
         run: make test-integration
+
+      - name: Set up Go for the source CLI
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+
+      - name: Build the CLI from this commit
+        working-directory: cli
+        run: go build -ldflags '-X main.version=0.8.7-dev' -o "${RUNNER_TEMP}/archcore-source" .
+
+      - name: MCP integration tests against the source CLI
+        run: make test-integration ARCHCORE_BIN="${RUNNER_TEMP}/archcore-source"

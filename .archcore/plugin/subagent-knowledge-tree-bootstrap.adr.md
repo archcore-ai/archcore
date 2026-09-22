@@ -4,6 +4,7 @@ status: accepted
 tags:
   - "agents"
   - "architecture"
+  - "component:plugin"
   - "plugin"
 ---
 
@@ -57,7 +58,7 @@ This decision does not conflict with `remove-skill-verify-mcp-preamble.cpat`. Th
 3. That section MUST direct the agent to note categories, common tags, recent accepted decisions, and draft plans after the two calls return, with the anchor literal `recent accepted decisions` present in both files.
 4. That section MUST cross-reference `remove-skill-verify-mcp-preamble.cpat`, explaining why removal by analogy is wrong.
 5. That section MUST cross-reference this decision.
-6. `@test/structure/agents.bats` MUST assert all five strings — `First Step — Bootstrap Knowledge Tree`, `list_documents`, `list_relations`, `subagent-knowledge-tree-bootstrap.adr`, and `recent accepted decisions` — in both agent files.
+6. `@plugin/test/structure/agents.bats` MUST assert all five strings — `First Step — Bootstrap Knowledge Tree`, `list_documents`, `list_relations`, `subagent-knowledge-tree-bootstrap.adr`, and `recent accepted decisions` — in both agent files.
 7. A removal or structural change to the preamble MUST go through an update to this record rather than an ad-hoc edit.
 
 ## Superseded when

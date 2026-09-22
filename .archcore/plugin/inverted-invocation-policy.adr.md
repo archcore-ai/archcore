@@ -3,6 +3,7 @@ title: "Inverted Invocation Policy — Intent Auto-Invoked, Mainstream Types Exp
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---

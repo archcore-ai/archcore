@@ -3,6 +3,7 @@ title: "Init Rework — Split the Skill, Add the Assessment Gate, Build the Impo
 status: draft
 tags:
   - "commands"
+  - "component:plugin"
   - "onboarding"
   - "plugin"
   - "skills"
@@ -16,21 +17,21 @@ Ship `/archcore:init [import|refresh] [path or domain]`: a skill file inside the
 
 ### Phase 1 — Split the skill without changing seed behavior
 
-1. Move phases A (detect) and the announce step into `init/lib/seed-detect.md`. Source: @plugins/archcore/skills/init/SKILL.md.
-2. Move phases B–E and the closing messages into `init/lib/seed-compose.md`. Source: @plugins/archcore/skills/init/SKILL.md.
-3. Move the CLI pre-flight and the host-wiring cascade into `init/lib/host-wiring.md`. Source: @plugins/archcore/skills/init/SKILL.md.
+1. Move phases A (detect) and the announce step into `init/lib/seed-detect.md`. Source: @plugin/plugins/archcore/skills/init/SKILL.md.
+2. Move phases B–E and the closing messages into `init/lib/seed-compose.md`. Source: @plugin/plugins/archcore/skills/init/SKILL.md.
+3. Move the CLI pre-flight and the host-wiring cascade into `init/lib/host-wiring.md`. Source: @plugin/plugins/archcore/skills/init/SKILL.md.
 4. Reduce `init/SKILL.md` to arguments, when to use, routing table, execution order, and result.
-5. Point the string assertions at `init/SKILL.md` plus `init/lib/*.md`. Target: @test/structure/init-skill.bats.
-6. Add a structure test for the 300-line and 200-line maxima on `init`. Target: @test/structure/init-skill.bats.
+5. Point the string assertions at `init/SKILL.md` plus `init/lib/*.md`. Target: @plugin/test/structure/init-skill.bats.
+6. Add a structure test for the 300-line and 200-line maxima on `init`. Target: @plugin/test/structure/init-skill.bats.
 
 ### Phase 2 — New entry form
 
-7. Set the hint `[import|refresh] [path or domain]` in @plugins/archcore/skills/init/SKILL.md and @plugins/archcore/commands/init.md.
-8. Replace the `domain <slug>` mode with the `refresh` subject in the seed files and in @plugins/archcore/skills/_shared/grounding/detect-domains.md, @plugins/archcore/skills/_shared/grounding/detect-hotspots.md, @plugins/archcore/skills/_shared/grounding/detect-scale.md, @plugins/archcore/skills/_shared/grounding/detect-cross-cutting.md, @plugins/archcore/skills/init/lib/compose-overview.md.
+7. Set the hint `[import|refresh] [path or domain]` in @plugin/plugins/archcore/skills/init/SKILL.md and @plugin/plugins/archcore/commands/init.md.
+8. Replace the `domain <slug>` mode with the `refresh` subject in the seed files and in @plugin/plugins/archcore/skills/_shared/grounding/detect-domains.md, @plugin/plugins/archcore/skills/_shared/grounding/detect-hotspots.md, @plugin/plugins/archcore/skills/_shared/grounding/detect-scale.md, @plugin/plugins/archcore/skills/_shared/grounding/detect-cross-cutting.md, @plugin/plugins/archcore/skills/init/lib/compose-overview.md.
 9. Replace the `--depth` and `--scale` settings with the preview toggles `depth:` and `scale:`.
 10. Add the retired-form notice for `domain`, `--depth`, `--scale`.
-11. Update the hint table, the flag test, and the retired-form grep. Target: @test/structure/command-grammar.bats.
-12. Update the init rows. Target: @test/fixtures/routing/fixtures.tsv.
+11. Update the hint table, the flag test, and the retired-form grep. Target: @plugin/test/structure/command-grammar.bats.
+12. Update the init rows. Target: @plugin/test/fixtures/routing/fixtures.tsv.
 
 ### Phase 3 — Discovery and the assessment gate
 
@@ -40,19 +41,19 @@ Ship `/archcore:init [import|refresh] [path or domain]`: a skill file inside the
 
 ### Phase 4 — Import track
 
-16. Write `skills/_shared/tracks/import.md` with eight gates under @plugins/archcore/skills/_shared/gate-contract.md.
+16. Write `skills/_shared/tracks/import.md` with eight gates under @plugin/plugins/archcore/skills/_shared/gate-contract.md.
 17. Write `skills/_shared/grounding/convert-routing.md`; delete @plugins/archcore/skills/_shared/grounding/extract-routing.md.
 18. Remove the import marks from the seed files: tags, pointer line, filename prefix, `imported/` directory, umbrella document, `has_imports`.
-19. Update the file list. Target: @test/structure/v2-purity.bats.
+19. Update the file list. Target: @plugin/test/structure/v2-purity.bats.
 20. Add structure tests: eight gates present, no import mark in any init asset, plan tag `import-plan` named once.
-21. Add `test/behavioral/import-bench.sh` with six fixtures and a Makefile target. Target: @Makefile.
+21. Add `test/behavioral/import-bench.sh` with six fixtures and a Makefile target. Target: @plugin/Makefile.
 
 ### Phase 5 — Records and user-facing text
 
 22. Add the update note to `magic-first-day-init.adr`; set the init row and the flag sentence in `command-entry-grammar.adr`.
 23. Change the init clauses of `command-surface-v2.spec` to the new form; report the edit to the user for acceptance.
 24. Update the init row of `component-registry.doc` and risk row 3 of `delta-routing-compatibility.doc`.
-25. Update the init rows. Target: @README.md.
+25. Update the init rows. Target: @plugin/README.md.
 26. Run `make test` and `make lint`; fix every failure.
 
 ## Acceptance Criteria

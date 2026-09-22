@@ -2,6 +2,7 @@
 title: "Remove \"Step 0: Verify MCP\" Preamble from SKILL.md Files"
 status: accepted
 tags:
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---

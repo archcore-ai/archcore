@@ -2,6 +2,7 @@
 title: "Actualize System Specification (now /archcore:review drift)"
 status: accepted
 tags:
+  - "component:plugin"
   - "hooks"
   - "plugin"
   - "skills"
@@ -14,7 +15,7 @@ tags:
 
 **Correction (v0.7.0, `ca6dfb4`):** Layers 1 and 2 no longer ship as plugin scripts. `cli-owns-layers-4-5.adr` moved their policy into the `archcore` binary, and `ca6dfb4` deleted `bin/check-staleness` and `bin/check-cascade`. Layer 3's protocol moved from `skills/audit/lib/drift-detection.md` to the actualize track at `skills/_shared/tracks/actualize.md`.
 
-This spec defines documentation-freshness detection: the SessionStart staleness check (Layer 1), the PostToolUse cascade detection (Layer 2), and `/archcore:review drift` (Layer 3) — their triggers, detection logic, and output. Normative for `@plugins/archcore/bin/session-start`, `@plugins/archcore/bin/post-tool-use`, and the CLI hook leaves they delegate to. `actualize-system.adr` records the rationale; `hooks-validation-system.spec` owns the hook execution model, the per-host output envelope, and the launcher's script-resolution behavior; `host-adapter-contract.spec` owns the adapter's routing obligations. Out of scope: structural validation (`archcore doctor`), the dashboard and `deep` modes of `/archcore:review`, and the `archcore-auditor` agent.
+This spec defines documentation-freshness detection: the SessionStart staleness check (Layer 1), the PostToolUse cascade detection (Layer 2), and `/archcore:review drift` (Layer 3) — their triggers, detection logic, and output. Normative for `@plugin/plugins/archcore/bin/session-start`, `@plugin/plugins/archcore/bin/post-tool-use`, and the CLI hook leaves they delegate to. `actualize-system.adr` records the rationale; `hooks-validation-system.spec` owns the hook execution model, the per-host output envelope, and the launcher's script-resolution behavior; `host-adapter-contract.spec` owns the adapter's routing obligations. Out of scope: structural validation (`archcore doctor`), the dashboard and `deep` modes of `/archcore:review`, and the `archcore-auditor` agent.
 
 ## Surface
 
@@ -84,7 +85,7 @@ Item 5 is the widest silent gap in the system: on a machine whose `archcore` pre
 2. `bin/post-tool-use` reaches `archcore hooks <host> post-tool-use` and produces a cascade notice where one applies.
 3. Every host config registers `bin/post-tool-use` on the document-mutation tools — by matcher where the host has one, by the CLI's own filtering on Copilot and Cursor.
 4. `/archcore:review drift` exists as a mode of `review`, with routing-table support and all three analyses.
-5. The drift protocol lives at `skills/_shared/tracks/actualize.md`, and `@test/structure/track-goldens.bats` pins its gate records.
-6. Every hook completes inside its timeout budget, bounded by `@test/unit/hook-latency.bats`.
+5. The drift protocol lives at `skills/_shared/tracks/actualize.md`, and `@plugin/test/structure/track-goldens.bats` pins its gate records.
+6. Every hook completes inside its timeout budget, bounded by `@plugin/test/unit/hook-latency.bats`.
 7. No layer blocks an operation, and no layer modifies a document without user confirmation.
 8. Every layer degrades to a skip when git or the CLI is unavailable.

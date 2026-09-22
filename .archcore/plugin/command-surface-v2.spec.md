@@ -4,13 +4,14 @@ status: accepted
 tags:
   - "architecture"
   - "commands"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
 
 ## Purpose & Scope
 
-This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign: the command set, the entry grammar, routing modes, and the category write-affinity model. Normative for the skill set under @plugins/archcore/skills/ and for host command wrappers. Out of scope: gate internals, interview mechanics, and the `archcore` CLI command surface.
+This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign: the command set, the entry grammar, routing modes, and the category write-affinity model. Normative for the skill set under @plugin/plugins/archcore/skills/ and for host command wrappers. Out of scope: gate internals, interview mechanics, and the `archcore` CLI command surface.
 
 ## Surface
 
@@ -61,7 +62,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 34. WHEN the user invokes `init refresh`, the init skill MUST bypass the already-seeded early exit and compose only missing documents.
 35. WHEN the user invokes `init refresh` with a detected domain slug as the subject, the init skill MUST scope the seed to that domain's tree.
 36. WHEN a skill reports to the user, the skill MUST NOT print a gate address of the form `<track>.<stage>`.
-37. WHEN the user invokes `init import`, the init skill MUST run the import track in @plugins/archcore/skills/_shared/tracks/import.md.
+37. WHEN the user invokes `init import`, the init skill MUST run the import track in @plugin/plugins/archcore/skills/_shared/tracks/import.md.
 
 ## Constraints & Invariants
 
@@ -73,7 +74,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 - Constraint: `rnd` is produced only by the research instrument's closing test, the spike, or the compatibility fallback.
 - Constraint: a standalone material is filed only through `document research`.
 - Constraint: a `journey` is produced only at `sdd.require` on `plan`.
-- Constraint: the actor-subject types bind only when the engine gate in @plugins/archcore/skills/_shared/actor-subject-compatibility.md returns `yes`.
+- Constraint: the actor-subject types bind only when the engine gate in @plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md returns `yes`.
 - Invariant: every one of the 23 document types is producible through at least one command path when the engine supports the vocabulary.
 - Invariant: category is computed from the document type; no command asks the user to select a category.
 - Invariant: skill content is byte-identical across hosts.
@@ -87,4 +88,4 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 
 ## Conformance
 
-The skill set is conformant when it satisfies behaviors 1–37, holds all invariants, and degrades per the failure rules. Regression coverage: @test/structure/command-grammar.bats pins the hints, the mode maps, the description parity, and the gate-address rule; @test/behavioral/document-bench.sh measures classification of `document` requests on a live model; @test/behavioral/import-bench.sh measures the route, the size tier, and the triage verdict of `init` on a live model.
+The skill set is conformant when it satisfies behaviors 1–37, holds all invariants, and degrades per the failure rules. Regression coverage: @plugin/test/structure/command-grammar.bats pins the hints, the mode maps, the description parity, and the gate-address rule; @plugin/test/behavioral/document-bench.sh measures classification of `document` requests on a live model; @plugin/test/behavioral/import-bench.sh measures the route, the size tier, and the triage verdict of `init` on a live model.

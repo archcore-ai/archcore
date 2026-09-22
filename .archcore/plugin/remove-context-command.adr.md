@@ -3,6 +3,7 @@ title: "Remove /archcore:context — CLI Hooks and Command Grounding Absorb the 
 status: accepted
 tags:
   - "commands"
+  - "component:plugin"
   - "hooks"
   - "plugin"
 ---

@@ -2,6 +2,7 @@
 title: "Plugin Testing Guide"
 status: accepted
 tags:
+  - "component:plugin"
   - "development"
   - "plugin"
   - "testing"
@@ -52,9 +53,9 @@ PLUGIN_ROOT=$(pwd)/plugins/archcore REPO_ROOT=$(pwd) bats test/unit/hook-launche
 
 `PLUGIN_ROOT` is worth knowing as more than boilerplate: pointing it at a modified copy of `plugins/archcore` is how fault injection works without touching the tree.
 
-Run the real MCP boundary separately with `make test-integration`. @test/integration/research-vocabulary.bats and @test/integration/actor-subject-vocabulary.bats use @test/helpers/mcp.bash to start the installed CLI in a temporary project. They check schemas, templates, categories, directed relations, retry prerequisites, deduplication, and persisted track state. The tests use real storage without model calls.
+Run the real MCP boundary separately with `make test-integration`. @plugin/test/integration/research-vocabulary.bats and @plugin/test/integration/actor-subject-vocabulary.bats use @plugin/test/helpers/mcp.bash to start the installed CLI in a temporary project. They check schemas, templates, categories, directed relations, retry prerequisites, deduplication, and persisted track state. The tests use real storage without model calls.
 
-@test/integration/search-response-shape.bats mounts one global source in that temporary project. It checks that `hits` and `index` precede `results`, that `hits` counts every source before the `limit` cut, that a long body arrives with `body_truncated: true`, that the response byte budget sets `truncated`, and that `list_documents` reaches every document when `offset` advances by `returned`. The file skips on a CLI older than 0.8.5, which sends none of these fields.
+@plugin/test/integration/search-response-shape.bats mounts one global source in that temporary project. It checks that `hits` and `index` precede `results`, that `hits` counts every source before the `limit` cut, that a long body arrives with `body_truncated: true`, that the response byte budget sets `truncated`, and that `list_documents` reaches every document when `offset` advances by `returned`. The file skips on a CLI older than 0.8.5, which sends none of these fields.
 
 The CI workflow pins CLI 0.8.6 and verifies the release archive's SHA-256. The release workflow calls the same Linux/macOS verification workflow against the selected release ref.
 
@@ -157,7 +158,7 @@ At the structure layer, `test/structure/readme-cli-references.bats` extracts eve
 At the unit layer, write a test using `mock_archcore_logging` with `MOCK_ARCHCORE_LOG`:
 
 ```bash
-@test "<script> calls only the expected subcommand" {
+@plugin/test "<script> calls only the expected subcommand" {
   export MOCK_ARCHCORE_LOG="$BATS_TEST_TMPDIR/archcore.log"
   mock_archcore_logging ""
   run_with_fixture <script> <fixture>
@@ -211,9 +212,9 @@ Three behavioral benches spend model tokens, run only on request, and never run 
 
 | Target | Script and fixtures | What it measures | Harness test |
 |---|---|---|---|
-| `make test-routing-bench` | @test/behavioral/route-bench.sh, `test/behavioral/fixtures/routing-bench.tsv` | the route the `plan` conductor announces for a task and its grounding | @test/unit/route-bench.bats |
-| `make test-document-bench` | @test/behavioral/document-bench.sh, `test/behavioral/fixtures/document-bench.tsv` | the mode and document type `/archcore:document` selects, including requests with no mode word and no arguments | @test/unit/document-bench.bats |
-| `make test-skill-bench` | @test/behavioral/skill-bench.sh, `test/behavioral/fixtures/skill-bench.tsv` | which of the four skills Claude Code starts, and the mode word it passes, for a message that names no command | @test/unit/skill-bench.bats |
+| `make test-routing-bench` | @plugin/test/behavioral/route-bench.sh, `test/behavioral/fixtures/routing-bench.tsv` | the route the `plan` conductor announces for a task and its grounding | @plugin/test/unit/route-bench.bats |
+| `make test-document-bench` | @plugin/test/behavioral/document-bench.sh, `test/behavioral/fixtures/document-bench.tsv` | the mode and document type `/archcore:document` selects, including requests with no mode word and no arguments | @plugin/test/unit/document-bench.bats |
+| `make test-skill-bench` | @plugin/test/behavioral/skill-bench.sh, `test/behavioral/fixtures/skill-bench.tsv` | which of the four skills Claude Code starts, and the mode word it passes, for a message that names no command | @plugin/test/unit/skill-bench.bats |
 
 The skill bench loads the plugin with `claude -p --plugin-dir`, allows only the Skill tool, turns hooks off, and leaves the built-in skills competing. It measures Claude Code only; Cursor, Codex, and Copilot route through their own hosts. Run `make test-research-agent` separately for the live assistant with a real MCP server.
 

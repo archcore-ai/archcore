@@ -3,6 +3,7 @@ title: "Track-Layer Extension — Research, Closeout, and RFC Resolution"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---

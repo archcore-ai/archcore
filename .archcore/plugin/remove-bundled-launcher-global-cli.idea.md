@@ -4,6 +4,7 @@ status: accepted
 tags:
   - "architecture"
   - "cli"
+  - "component:plugin"
   - "multi-host"
   - "plugin"
 ---

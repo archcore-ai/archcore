@@ -2,6 +2,7 @@
 title: "Bounded Elicitation Budget Replaces the One-Question Invariant"
 status: accepted
 tags:
+  - "component:plugin"
   - "plugin"
   - "precision"
   - "skills"

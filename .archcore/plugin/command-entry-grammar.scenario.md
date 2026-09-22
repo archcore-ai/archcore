@@ -4,6 +4,7 @@ status: draft
 tags:
   - "actor:plugin-user"
   - "commands"
+  - "component:plugin"
   - "component:skills"
   - "plugin"
 ---
@@ -23,7 +24,7 @@ The argument surface of `/archcore:init`, `/archcore:plan`, `/archcore:document`
 
 ### Expert
 
-Anchors: @plugins/archcore/skills/document/SKILL.md, @plugins/archcore/commands/document.md, @plugins/archcore/skills/_shared/tracks/decision.md, @test/fixtures/routing/fixtures.tsv
+Anchors: @plugin/plugins/archcore/skills/document/SKILL.md, @plugin/plugins/archcore/commands/document.md, @plugin/plugins/archcore/skills/_shared/tracks/decision.md, @plugin/test/fixtures/routing/fixtures.tsv
 
 1. Expert types `/archcore:document`; the host shows `[decision|code|research] [subject]`.
 2. Expert types `decision rfc for gRPC`; the skill opens the RFC branch without a question.
@@ -37,7 +38,7 @@ Extensions:
 
 ### Newcomer
 
-Anchors: @plugins/archcore/skills/document/SKILL.md, @plugins/archcore/skills/_shared/tracks/describe.md, @plugins/archcore/skills/_shared/tracks/research.md, @test/behavioral/fixtures/skill-bench.tsv
+Anchors: @plugin/plugins/archcore/skills/document/SKILL.md, @plugin/plugins/archcore/skills/_shared/tracks/describe.md, @plugin/plugins/archcore/skills/_shared/tracks/research.md, @plugin/test/behavioral/fixtures/skill-bench.tsv
 
 1. Newcomer writes "document the auth module" with no command; the host starts the document skill.
 2. Newcomer types `/archcore:document code the auth module`; the skill reads the code and drafts a spec.

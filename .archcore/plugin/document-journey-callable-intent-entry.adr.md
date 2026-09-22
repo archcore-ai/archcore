@@ -2,6 +2,7 @@
 title: "document journey Enters sdd.require in Callable Mode and Produces Only the Journey"
 status: rejected
 tags:
+  - "component:plugin"
   - "document-types"
   - "plugin"
   - "skills"

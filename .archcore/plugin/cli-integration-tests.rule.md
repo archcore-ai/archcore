@@ -2,6 +2,7 @@
 title: "CLI Integration Changes Require Strict Tests"
 status: accepted
 tags:
+  - "component:plugin"
   - "hooks"
   - "plugin"
   - "rule"
@@ -16,20 +17,20 @@ tags:
 3. The author MUST cover every `bin/*` shell-out to `archcore` with a unit test asserting the subcommand and its arguments.
 4. The author MUST restrict every `args` array in `.mcp.json`, `.codex.mcp.json`, and `docs/cursor.mcp.example.json` to canonical subcommands.
 5. The author MUST restrict every subcommand named by a script referenced from `hooks/*.json` to canonical subcommands.
-6. The author MUST guard every prescriptive `` `archcore <subcmd>` `` reference in `README.md` with `@test/structure/readme-cli-references.bats`.
+6. The author MUST guard every prescriptive `` `archcore <subcmd>` `` reference in `README.md` with `@plugin/test/structure/readme-cli-references.bats`.
 7. WHEN the author adds a test under items 1–3, that test MUST fail against a subcommand outside the canonical surface.
 8. WHEN skill or agent prose names a shell `archcore <subcmd>`, the reviewer MUST check it against the canonical surface.
 9. WHEN a skill or an agent needs CLI work, the author SHOULD route the work through an `mcp__archcore__*` tool instead of a shell-out.
-10. WHEN the canonical CLI surface changes upstream, the author MUST update `ARCHCORE_SUBCOMMANDS` in `@test/structure/readme-cli-references.bats`.
+10. WHEN the canonical CLI surface changes upstream, the author MUST update `ARCHCORE_SUBCOMMANDS` in `@plugin/test/structure/readme-cli-references.bats`.
 11. WHEN the canonical CLI surface changes upstream, the author MUST update the equivalent constant in each unit test that asserts on that surface.
 12. WHEN a `bin/*` script starts invoking a new subcommand, the author MUST add its invocation assertion before merge.
 
 ### Notes (non-normative)
 
-- The canonical surface as of plugin v0.7.4 is `config | doctor | help | hooks | init | mcp | status | update`, hardcoded as `ARCHCORE_SUBCOMMANDS` in `@test/structure/readme-cli-references.bats`.
+- The canonical surface as of plugin v0.7.4 is `config | doctor | help | hooks | init | mcp | status | update`, hardcoded as `ARCHCORE_SUBCOMMANDS` in `@plugin/test/structure/readme-cli-references.bats`.
 - Item 7 is the fault-injection obligation: a test that has never been observed failing has an unknown failure mode, and the Copilot release recorded in `copilot-adapter-design.adr` shipped exactly because its assertions matched the defect instead of catching it.
-- Two assertion mechanisms satisfy item 3. A launcher that hands its payload to a CLI hook leaf is pinned by capturing the mock CLI's `"$@"` and diffing its stdin — see `@test/unit/hook-launchers.bats`. A script that shells out for its own purposes is pinned through `MOCK_ARCHCORE_LOG`, provided by `mock_archcore_logging` in `@test/helpers/common.bash` — see `@test/unit/session-start.bats`.
-- `docs/cursor.mcp.example.json` may carry `--project <path>` after `mcp`. `--project` is a flag, not a subcommand, and `@test/structure/cursor-plugin.bats` locks its position.
+- Two assertion mechanisms satisfy item 3. A launcher that hands its payload to a CLI hook leaf is pinned by capturing the mock CLI's `"$@"` and diffing its stdin — see `@plugin/test/unit/hook-launchers.bats`. A script that shells out for its own purposes is pinned through `MOCK_ARCHCORE_LOG`, provided by `mock_archcore_logging` in `@plugin/test/helpers/common.bash` — see `@plugin/test/unit/session-start.bats`.
+- `docs/cursor.mcp.example.json` may carry `--project <path>` after `mcp`. `--project` is a flag, not a subcommand, and `@plugin/test/structure/cursor-plugin.bats` locks its position.
 - Item 6 excludes `.archcore/` design documents. They hold historical specification text that may name renamed commands.
 
 ## Rationale
@@ -48,7 +49,7 @@ Plugin v0.7.0 (`ca6dfb4`) removed the second layer of scaffolding this rule was 
 
 ```bash
 # Unit test (test/unit/hook-launchers.bats): pin the exact CLI leaf and args.
-@test "post-tool-use: claude-code payload → 'hooks claude-code post-tool-use'" {
+@plugin/test "post-tool-use: claude-code payload → 'hooks claude-code post-tool-use'" {
   make_cli "0.7.0"
   run "$PLUGIN_ROOT/bin/post-tool-use" <<< "$CLAUDE_PAYLOAD"
   assert_success
@@ -59,7 +60,7 @@ Plugin v0.7.0 (`ca6dfb4`) removed the second layer of scaffolding this rule was 
 
 ```bash
 # Unit test (test/unit/session-start.bats): pin an own-purpose shell-out.
-@test "update advisory: probe is exactly 'update --check', never a bare update" {
+@plugin/test "update advisory: probe is exactly 'update --check', never a bare update" {
   export MOCK_ARCHCORE_LOG="$BATS_TEST_TMPDIR/archcore.log"
   mock_archcore_logging ""
   run "$PLUGIN_ROOT/bin/session-start" <<< "$CLAUDE_PAYLOAD"
@@ -73,7 +74,7 @@ Plugin v0.7.0 (`ca6dfb4`) removed the second layer of scaffolding this rule was 
 # Structure test (test/structure/readme-cli-references.bats):
 ARCHCORE_SUBCOMMANDS="config doctor help hooks init mcp status update"
 
-@test "every \`archcore <subcmd>\` reference in README.md names a real subcommand" {
+@plugin/test "every \`archcore <subcmd>\` reference in README.md names a real subcommand" {
   local refs
   refs=$(grep -oE '`archcore[[:space:]]+[a-z][a-z0-9-]*' "$PLUGIN_ROOT/README.md" \
     | sed -E 's/^`archcore[[:space:]]+//' \
@@ -112,8 +113,8 @@ assert_output ""
 
 ## Enforcement
 
-- `@test/structure/readme-cli-references.bats` — asserts that every code-quoted `` `archcore <subcmd>` `` in `README.md` names a canonical subcommand. The allowlist is hardcoded in the test file and tracks the `archcore --help` surface.
-- `@test/structure/cursor-plugin.bats` — locks `docs/cursor.mcp.example.json`: the command is `archcore`, the `args` array contains `mcp` followed by `--project ${workspaceFolder}`, no `cwd` field is present, and no legacy `cursor.mcp.json` exists at the plugin root.
-- `@test/unit/hook-launchers.bats` — pins the CLI leaf for both mutation launchers (`hooks <host> pre-tool-use` and `hooks <host> post-tool-use`), diffs the forwarded stdin byte for byte, asserts the `codex` → `codex-cli` agent-id mapping, and asserts the silent exit 0 when the CLI is absent or older than 0.7.0.
-- `@test/unit/session-start.bats` — covers the missing-CLI fallback (the hook exits 0 and emits install guidance instead of blocking the session), asserts `session-start invokes only allowlisted subcommands` and `advisory path still invokes only the 'hooks' subcommand`, pins the update probe as exactly `update --check`, and asserts the plugin-install-dir guard for sibling `.cursor-plugin/`, `.claude-plugin/`, and `.codex-plugin/` manifests.
+- `@plugin/test/structure/readme-cli-references.bats` — asserts that every code-quoted `` `archcore <subcmd>` `` in `README.md` names a canonical subcommand. The allowlist is hardcoded in the test file and tracks the `archcore --help` surface.
+- `@plugin/test/structure/cursor-plugin.bats` — locks `docs/cursor.mcp.example.json`: the command is `archcore`, the `args` array contains `mcp` followed by `--project ${workspaceFolder}`, no `cwd` field is present, and no legacy `cursor.mcp.json` exists at the plugin root.
+- `@plugin/test/unit/hook-launchers.bats` — pins the CLI leaf for both mutation launchers (`hooks <host> pre-tool-use` and `hooks <host> post-tool-use`), diffs the forwarded stdin byte for byte, asserts the `codex` → `codex-cli` agent-id mapping, and asserts the silent exit 0 when the CLI is absent or older than 0.7.0.
+- `@plugin/test/unit/session-start.bats` — covers the missing-CLI fallback (the hook exits 0 and emits install guidance instead of blocking the session), asserts `session-start invokes only allowlisted subcommands` and `advisory path still invokes only the 'hooks' subcommand`, pins the update probe as exactly `update --check`, and asserts the plugin-install-dir guard for sibling `.cursor-plugin/`, `.claude-plugin/`, and `.codex-plugin/` manifests.
 - Code review rejects a change that does not satisfy items 1–12.

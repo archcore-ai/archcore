@@ -2,6 +2,7 @@
 title: "Archcore Claude Plugin"
 status: accepted
 tags:
+  - "component:plugin"
   - "plugin"
   - "vision"
 ---

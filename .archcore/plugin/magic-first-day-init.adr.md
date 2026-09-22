@@ -3,6 +3,7 @@ title: "Magic First-Day Init — Extractive Facts and Confirmed Synthesis"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "onboarding"
   - "plugin"
   - "precision"

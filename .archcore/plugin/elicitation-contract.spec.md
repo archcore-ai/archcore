@@ -2,6 +2,7 @@
 title: "Elicitation Contract — Bounded User Interview"
 status: accepted
 tags:
+  - "component:plugin"
   - "plugin"
   - "precision"
   - "skills"

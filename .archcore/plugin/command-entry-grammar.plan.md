@@ -3,6 +3,7 @@ title: "Command Entry Grammar — Mode Words on Four Commands and Type Selection
 status: draft
 tags:
   - "commands"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
@@ -39,57 +40,57 @@ Grounding used branch `dev`, HEAD `6c235ce`, with the scenario and journey runti
 
 ### Phase 2 — command surface
 
-5. [x] Set the argument hints in `@plugins/archcore/skills/document/SKILL.md` and `@plugins/archcore/commands/document.md` to `[decision|code|research] [subject]`; rewrite the routing table, Step 2 as a mode map, and the description.
-6. [x] Set the hints in `@plugins/archcore/skills/plan/SKILL.md` and `@plugins/archcore/commands/plan.md` to `[sdd|sources|iso|research] [topic]`; remove the document-type clause of step 2.
-7. [x] Set the hints in `@plugins/archcore/skills/review/SKILL.md` and `@plugins/archcore/commands/review.md` to `[drift|deep|closeout|experience] [path, tag, or scope]`; replace `--drift`, `--deep`, and the named-track row.
-8. [x] Set the hints in `@plugins/archcore/skills/init/SKILL.md` and `@plugins/archcore/commands/init.md`; replace `--refresh` and `--domain` in the skill, `@plugins/archcore/skills/_shared/grounding/detect-domains.md`, and `@plugins/archcore/skills/_shared/grounding/detect-hotspots.md`.
-9. [x] Edit `@plugins/archcore/skills/_shared/delta-routing.md`: remove route names from the Expert invocation map; name `document research` as the evidence entry.
+5. [x] Set the argument hints in `@plugin/plugins/archcore/skills/document/SKILL.md` and `@plugin/plugins/archcore/commands/document.md` to `[decision|code|research] [subject]`; rewrite the routing table, Step 2 as a mode map, and the description.
+6. [x] Set the hints in `@plugin/plugins/archcore/skills/plan/SKILL.md` and `@plugin/plugins/archcore/commands/plan.md` to `[sdd|sources|iso|research] [topic]`; remove the document-type clause of step 2.
+7. [x] Set the hints in `@plugin/plugins/archcore/skills/review/SKILL.md` and `@plugin/plugins/archcore/commands/review.md` to `[drift|deep|closeout|experience] [path, tag, or scope]`; replace `--drift`, `--deep`, and the named-track row.
+8. [x] Set the hints in `@plugin/plugins/archcore/skills/init/SKILL.md` and `@plugin/plugins/archcore/commands/init.md`; replace `--refresh` and `--domain` in the skill, `@plugin/plugins/archcore/skills/_shared/grounding/detect-domains.md`, and `@plugin/plugins/archcore/skills/_shared/grounding/detect-hotspots.md`.
+9. [x] Edit `@plugin/plugins/archcore/skills/_shared/delta-routing.md`: remove route names from the Expert invocation map; name `document research` as the evidence entry.
 
 ### Phase 3 — gates
 
-10. [x] Edit `decision.classify` in `@plugins/archcore/skills/_shared/tracks/decision.md`: add the standard outcome per track-layer behaviors 33 and 34.
-11. [x] Edit `research.frame` in `@plugins/archcore/skills/_shared/tracks/research.md`: route one supplied material to gather.
-12. [x] Edit `describe.draft` in `@plugins/archcore/skills/_shared/tracks/describe.md`: a type name in the subject settles the type; no `journey`.
-13. [x] Edit `@plugins/archcore/skills/_shared/tracks/sdd.md`: remove the callable `document journey` entry from `sdd.require`.
-14. [x] Edit `@plugins/archcore/skills/_shared/tracks/actualize.md` and `@plugins/archcore/skills/_shared/tracks/requirements-cascade.md`: replace flag and expert-invocation wording.
+10. [x] Edit `decision.classify` in `@plugin/plugins/archcore/skills/_shared/tracks/decision.md`: add the standard outcome per track-layer behaviors 33 and 34.
+11. [x] Edit `research.frame` in `@plugin/plugins/archcore/skills/_shared/tracks/research.md`: route one supplied material to gather.
+12. [x] Edit `describe.draft` in `@plugin/plugins/archcore/skills/_shared/tracks/describe.md`: a type name in the subject settles the type; no `journey`.
+13. [x] Edit `@plugin/plugins/archcore/skills/_shared/tracks/sdd.md`: remove the callable `document journey` entry from `sdd.require`.
+14. [x] Edit `@plugin/plugins/archcore/skills/_shared/tracks/actualize.md` and `@plugin/plugins/archcore/skills/_shared/tracks/requirements-cascade.md`: replace flag and expert-invocation wording.
 15. [x] Remove `<track>.<stage>` addresses from the Result sections of the `plan`, `document`, and `review` skills; `init` runs no track.
 
 ### Phase 4 — shared text, agents, docs
 
-16. [x] Edit `@plugins/archcore/skills/_shared/actor-subject-compatibility.md`, `@plugins/archcore/skills/_shared/research-compatibility.md`, and `@plugins/archcore/skills/_shared/journey-contract.md`: drop the retired entries.
+16. [x] Edit `@plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md`, `@plugin/plugins/archcore/skills/_shared/research-compatibility.md`, and `@plugin/plugins/archcore/skills/_shared/journey-contract.md`: drop the retired entries.
 17. [x] Check the three agent files: they name no command entry; no edit was needed.
-18. [x] Edit `@README.md` and `@.claude/skills/verify-plugin-integrity/SKILL.md`; `@.claude/skills/bump-plugin-version/SKILL.md` carries no entry form.
+18. [x] Edit `@plugin/README.md` and `@.claude/skills/verify-plugin-integrity/SKILL.md`; `@.claude/skills/bump-plugin-version/SKILL.md` carries no entry form.
 
 ### Phase 5 — tests
 
-19. [x] Rewrite the entry rows of `@test/fixtures/routing/fixtures.tsv` to mode words; add one row per `review` mode and per `init` mode.
-20. [x] Update `@test/structure/actor-subject-compat.bats`, `@test/structure/agent-contracts.bats`, `@test/structure/delta-routing.bats`, `@test/structure/research-track.bats`, and `@test/integration/research-agent.bats`; `@test/unit/session-start-emit-matrix.bats` matched only a comment.
-21. [x] Add `@test/structure/command-grammar.bats`: mode lists, no type or route name as a mode, flags only as settings, retired forms, the gate-address rule, the mode-to-track maps, and the standard branch of `decision.classify`.
-22. [x] Regenerate `@test/fixtures/goldens/decision.golden`, `@test/fixtures/goldens/research.golden`, and `@test/fixtures/goldens/sdd.golden`.
-23. [x] Add `@test/behavioral/document-bench.sh` with fixtures in `@test/behavioral/fixtures/document-bench.tsv`, its harness test `@test/unit/document-bench.bats`, and the target `make test-document-bench`; record the result below.
+19. [x] Rewrite the entry rows of `@plugin/test/fixtures/routing/fixtures.tsv` to mode words; add one row per `review` mode and per `init` mode.
+20. [x] Update `@plugin/test/structure/actor-subject-compat.bats`, `@plugin/test/structure/agent-contracts.bats`, `@plugin/test/structure/delta-routing.bats`, `@plugin/test/structure/research-track.bats`, and `@plugin/test/integration/research-agent.bats`; `@plugin/test/unit/session-start-emit-matrix.bats` matched only a comment.
+21. [x] Add `@plugin/test/structure/command-grammar.bats`: mode lists, no type or route name as a mode, flags only as settings, retired forms, the gate-address rule, the mode-to-track maps, and the standard branch of `decision.classify`.
+22. [x] Regenerate `@plugin/test/fixtures/goldens/decision.golden`, `@plugin/test/fixtures/goldens/research.golden`, and `@plugin/test/fixtures/goldens/sdd.golden`.
+23. [x] Add `@plugin/test/behavioral/document-bench.sh` with fixtures in `@plugin/test/behavioral/fixtures/document-bench.tsv`, its harness test `@plugin/test/unit/document-bench.bats`, and the target `make test-document-bench`; record the result below.
 24. [x] Run `make all` and the integration suite against CLI 0.8.4.
 
 ### Phase 6 — prompt review follow-ups
 
-25. [x] Rename the `init` setting `--mode` to `--scale` in `@plugins/archcore/skills/init/SKILL.md`, `@plugins/archcore/commands/init.md`, and `@plugins/archcore/skills/_shared/grounding/detect-scale.md`.
-26. [x] Add the description-parity test to `@test/structure/command-grammar.bats`: each command and skill description names every mode of its hint.
-27. [x] Add a no-arguments row to the `plan` and `document` routing tables and a plain-run sentence to `init`; pin all four in `@test/structure/command-grammar.bats` and add bench row 21.
+25. [x] Rename the `init` setting `--mode` to `--scale` in `@plugin/plugins/archcore/skills/init/SKILL.md`, `@plugin/plugins/archcore/commands/init.md`, and `@plugin/plugins/archcore/skills/_shared/grounding/detect-scale.md`.
+26. [x] Add the description-parity test to `@plugin/test/structure/command-grammar.bats`: each command and skill description names every mode of its hint.
+27. [x] Add a no-arguments row to the `plan` and `document` routing tables and a plain-run sentence to `init`; pin all four in `@plugin/test/structure/command-grammar.bats` and add bench row 21.
 
 ### Phase 7 — host skill selection
 
-28. [x] Add `@test/behavioral/skill-bench.sh` with fixtures in `@test/behavioral/fixtures/skill-bench.tsv`, its harness test `@test/unit/skill-bench.bats`, and the target `make test-skill-bench`.
-29. [x] Separate `sources` from `research` in the `plan` descriptions of `@plugins/archcore/skills/plan/SKILL.md` and `@plugins/archcore/commands/plan.md`.
+28. [x] Add `@plugin/test/behavioral/skill-bench.sh` with fixtures in `@plugin/test/behavioral/fixtures/skill-bench.tsv`, its harness test `@plugin/test/unit/skill-bench.bats`, and the target `make test-skill-bench`.
+29. [x] Separate `sources` from `research` in the `plan` descriptions of `@plugin/plugins/archcore/skills/plan/SKILL.md` and `@plugin/plugins/archcore/commands/plan.md`.
 
 ## Verification record — 2026-09-16
 
 - `make all`: 613 tests pass after tasks 25–29. `make test-integration` on CLI 0.8.4: 16 of 16 pass, twice.
 - `archcore doctor` after the scenario write: all checks pass, 646 relations.
 - Test health check in an isolated worktree, 21 fault probes plus 5 re-probes, one change per probe, bytes restored and the suite green after each: every entry-surface probe was detected. Three semantic probes first survived — `code` mapped to the decision track, a gate address in the `plan` Result section, and the standard-branch condition of `decision.classify` inverted. `command-grammar.bats` tests 5–8 were added, and all three probes are now detected. A `sdd.md` of exactly 300 lines passes and 301 lines fails the cap test. A description without the `closeout` mode fails the parity test.
-- Not probed: `@test/integration/research-agent.bats` runs a live model; `@test/integration/actor-subject-vocabulary.bats` pins the external CLI and had baseline and reliability runs only.
+- Not probed: `@plugin/test/integration/research-agent.bats` runs a live model; `@plugin/test/integration/actor-subject-vocabulary.bats` pins the external CLI and had baseline and reliability runs only.
 - Document bench on the session's default model: 19 of 20 fixtures on the first run; 13 of 14 requests without a mode word classified correctly. The miss, row 4 ("we accepted the proposal" with an `rfc` draft), returned `rfc`; after the `document` mode table named the `adr` that `decision.resolve` records, row 4 passed 3 of 3 runs. Row 21, an invocation with no arguments, passed 2 of 2 runs.
 - Plan route bench after the change: 44 of 44 fixtures pass.
 - Host skill-selection bench (`claude -p` with the plugin loaded, only the Skill tool, hooks off, built-in skills competing): 23 of 23 messages that name no command selected the expected skill on the first run, including 3 negative messages that selected no archcore skill. With the mode word also checked, row 3 ("I need market research before we plan") passed `research` instead of `sources`; after task 29 it passed `sources` 3 of 3 runs. Row 12 referred to an attached file that the message did not carry and selected no skill in 1 of 3 runs; the fixture now carries the material inline. The final full run passed 23 of 23 with modes checked on 11 rows.
-- Prompt review of the skill text: the definitions of expert invocation, a request that names a type, and investigation versus one external material moved into `@plugins/archcore/skills/_shared/gate-contract.md`; `plan` and `document` descriptions now separate a new investigation from a finished report; `decision.classify` states the standard branch as two positive conditions and asks when two or more local `adr` documents match.
+- Prompt review of the skill text: the definitions of expert invocation, a request that names a type, and investigation versus one external material moved into `@plugin/plugins/archcore/skills/_shared/gate-contract.md`; `plan` and `document` descriptions now separate a new investigation from a finished report; `decision.classify` states the standard branch as two positive conditions and asks when two or more local `adr` documents match.
 - Limits: every bench ran on one model, once per fixture except the reruns named above; the skill bench measures Claude Code only, not Cursor, Codex, or Copilot routing.
 
 ## Acceptance Criteria

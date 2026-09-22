@@ -3,6 +3,7 @@ title: "Pre-Code Context Injection — PreToolUse Hook for Source-File Edits"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "hooks"
   - "plugin"
   - "validation"

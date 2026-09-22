@@ -3,13 +3,14 @@ title: "Delta-Routing Instruments — Producer Layer, Π Engagement, and Lifecyc
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
 
 ## Purpose & Scope
 
-This spec defines the instrument layer — the single-type producers the conductor invokes — and the lifecycle sequences that keep their gate order. Normative for track-file authors under `@plugins/archcore/skills/_shared/tracks/` and for the `plan`, `document`, and `review` skills that execute instruments. Out of scope: route computation (the conductor spec), gate record mechanics (`@plugins/archcore/skills/_shared/gate-contract.md`), and per-type content contracts.
+This spec defines the instrument layer — the single-type producers the conductor invokes — and the lifecycle sequences that keep their gate order. Normative for track-file authors under `@plugin/plugins/archcore/skills/_shared/tracks/` and for the `plan`, `document`, and `review` skills that execute instruments. Out of scope: route computation (the conductor spec), gate record mechanics (`@plugin/plugins/archcore/skills/_shared/gate-contract.md`), and per-type content contracts.
 
 ## Surface
 
@@ -32,11 +33,11 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 
 ## Normative Behavior
 
-1. An instrument MUST keep the gate record template of `@plugins/archcore/skills/_shared/gate-contract.md`.
+1. An instrument MUST keep the gate record template of `@plugin/plugins/archcore/skills/_shared/gate-contract.md`.
 2. An instrument MUST NOT chain into another instrument through its `Next:` field.
 3. The conductor MUST own every cross-instrument sequence.
 4. WHEN a Π need's source is `machine`, the executing skill MUST compose without a question and cite the grounding artifact.
-5. WHEN a Π need's source is `user`, the executing skill MUST interview within the ceiling of `@plugins/archcore/skills/_shared/elicitation-contract.md`.
+5. WHEN a Π need's source is `user`, the executing skill MUST interview within the ceiling of `@plugin/plugins/archcore/skills/_shared/elicitation-contract.md`.
 6. WHEN a Π need's source is `world`, the conductor MUST engage the research instrument.
 7. WHEN a Π need's source is `undecided`, the conductor MUST engage the decision instrument.
 8. WHEN a Π need's source is `empirical`, the conductor MUST engage a spike.
@@ -64,7 +65,7 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 ## Constraints & Invariants
 
 - Invariant: command tenses — `plan` declares future Δ, `document` records the present state, `review` reconciles past Δ.
-- Invariant: instruments produce only types supported by the engine gate; the vocabulary releases expose 23 types on CLI 0.8.4, gated by `@plugins/archcore/skills/_shared/research-compatibility.md` and `@plugins/archcore/skills/_shared/actor-subject-compatibility.md`.
+- Invariant: instruments produce only types supported by the engine gate; the vocabulary releases expose 23 types on CLI 0.8.4, gated by `@plugin/plugins/archcore/skills/_shared/research-compatibility.md` and `@plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md`.
 - Invariant: `plan` is the only type any track removes at closeout.
 - Invariant: residue capture at closeout owns no document type — every document it creates comes from the instrument it routes to.
 - Constraint: the decision instrument's `decision.cascade` gate creates its cascade documents (`rule`, `guide`, `spec`, `plan`, `cpat`) inside the instrument — a recorded exception to single-type production.

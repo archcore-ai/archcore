@@ -3,6 +3,7 @@ title: "Spec — Single Narrative, Generalized Sections, EARS + BCP 14 Notation"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
 ---
 
 ## Context

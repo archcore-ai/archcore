@@ -3,6 +3,7 @@ title: "Architect Voice as Default Documentation Style"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "precision"
 ---
@@ -13,7 +14,7 @@ A review of every plugin prompt — `precision-rules.md`, `agents/archcore-assis
 
 ## Decision
 
-Adopted **architect voice** as the default content standard — expert, concise, precise, and argued, such that a senior engineer can extract why, what, and what it costs in 30 seconds — codified as Rule 6 of `@plugins/archcore/skills/_shared/precision-rules.md` and in the Quality Standards of `@plugins/archcore/agents/archcore-assistant.md`.
+Adopted **architect voice** as the default content standard — expert, concise, precise, and argued, such that a senior engineer can extract why, what, and what it costs in 30 seconds — codified as Rule 6 of `@plugin/plugins/archcore/skills/_shared/precision-rules.md` and in the Quality Standards of `@plugin/plugins/archcore/agents/archcore-assistant.md`.
 
 Under that standard, `@path/to/file` references, identifiers, measurements, and version strings are used freely, because they are the architect's vocabulary; pasted code bodies, implementation walkthroughs, and padded filler are defects. Code blocks belong where the exact textual format is the artifact — `rule` for Good and Bad examples, `guide` for terminal steps, `cpat` for Before and After — and wherever the user asks for them.
 

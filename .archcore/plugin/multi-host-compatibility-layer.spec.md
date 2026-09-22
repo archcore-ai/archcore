@@ -3,6 +3,7 @@ title: "Multi-Host Compatibility Layer Specification"
 status: rejected
 tags:
   - "architecture"
+  - "component:plugin"
   - "hooks"
   - "multi-host"
   - "plugin"

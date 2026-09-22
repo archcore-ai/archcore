@@ -3,6 +3,7 @@ title: "Delta-Routing Bench — 40 Task Traces Through ΔΠMR"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "testing"
 ---
@@ -11,7 +12,7 @@ tags:
 
 Reference corpus for the delta-routing model: 40 real tasks — 14 from archcore-ai/plugin issues and commit history, 26 from other stacks and domains — each traced to the route the model computes. Source material for the behavioral routing tests that accompany each rollout phase. Traces recorded 2026-08-15 from the design session that produced the model; each route is the model's predicted output, not an executed run [assumption]. Verified 2026-08-15 against the implemented conductor contract by a 12-trace dry-run; the divergences it surfaced were resolved by rule amendments in the contract — a standalone `plan` contribution for `decision` and `amendment` routes with multi-task implementation, intent-gap scaling (a gap that fits one capability's purpose records in that capability's `spec`, no `prd`), and one additional size-label step when iso links engage.
 
-First harness run 2026-08-15, four parallel conductor sessions over the 42 fixtures in @test/behavioral/fixtures/routing-bench.tsv (runner: @test/behavioral/route-bench.sh, `make test-routing-bench`): 42 of 42 route names match the fixtures. Three announcements carried internal inconsistencies at the field level — a `null` route declaring `intent_gap: yes` with a contract instrument (N+1 trace), and two settled decisions profiled as `user`-source Π — so announcement-field consistency is the runner's next scoring dimension beyond the route name.
+First harness run 2026-08-15, four parallel conductor sessions over the 42 fixtures in @plugin/test/behavioral/fixtures/routing-bench.tsv (runner: @plugin/test/behavioral/route-bench.sh, `make test-routing-bench`): 42 of 42 route names match the fixtures. Three announcements carried internal inconsistencies at the field level — a `null` route declaring `intent_gap: yes` with a contract instrument (N+1 trace), and two settled decisions profiled as `user`-source Π — so announcement-field consistency is the runner's next scoring dimension beyond the route name.
 
 Legend: Δ — canon delta (`∅` none, `mod` modifies accepted spec, `new×N` creates N capabilities, `dec` decision delta, `+int` intent gap). Π — dominant information source (`machine`, `user`, `world`, `undecided`, `empirical`). M — touched-zone maturity (`pencil` exploratory, `stone` accepted core, `—` no canon zone). R — risk flags, recorded in trace shorthand; the implemented vocabulary maps: security, compliance → `security-compliance`; contract, multi-host → `external-contract`; migration → `data-migration`; irreversible → `irreversibility`; multi-team → `multi-team`. Route — documents licensed.
 

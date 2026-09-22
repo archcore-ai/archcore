@@ -2,6 +2,7 @@
 title: "Actualize Documents After a Layer Moves Out of the Plugin"
 status: draft
 tags:
+  - "component:plugin"
   - "development"
   - "plugin"
   - "validation"

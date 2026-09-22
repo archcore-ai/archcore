@@ -2,6 +2,7 @@
 title: "Illustrate Instrument — sdd.illustrate, Journey Production at sdd.require, and the Example Check at sdd.design"
 status: draft
 tags:
+  - "component:plugin"
   - "document-types"
   - "plugin"
   - "skills"
@@ -13,10 +14,10 @@ This spec defines the plan-side production of the actor-subject types: the illus
 
 ## Surface
 
-- Registry row in `@plugins/archcore/skills/_shared/delta-routing.md`: `illustrate` → `scenario` → `skills/_shared/tracks/sdd.md`, gate `sdd.illustrate` — once per capability.
+- Registry row in `@plugin/plugins/archcore/skills/_shared/delta-routing.md`: `illustrate` → `scenario` → `skills/_shared/tracks/sdd.md`, gate `sdd.illustrate` — once per capability.
 - Package contribution in the same file's route table: the illustrate condition below adds one `scenario` per qualifying capability; the same condition makes `sdd.require` produce a `journey` beside the `prd`.
-- Illustrate condition: the capability's Δ names a user-facing surface (a UI, a conversational skill, an operator-facing flow), or grounding finds `features/*.feature` or a BDD runner in the test-runner slot of `@plugins/archcore/skills/_shared/grounding/detect-stack.md`.
-- Gates in `@plugins/archcore/skills/_shared/tracks/sdd.md`: `sdd.illustrate` (new), `sdd.require` (journey production), `sdd.design` (advisory example check). The gate records follow `@plugins/archcore/skills/_shared/gate-contract.md`.
+- Illustrate condition: the capability's Δ names a user-facing surface (a UI, a conversational skill, an operator-facing flow), or grounding finds `features/*.feature` or a BDD runner in the test-runner slot of `@plugin/plugins/archcore/skills/_shared/grounding/detect-stack.md`.
+- Gates in `@plugin/plugins/archcore/skills/_shared/tracks/sdd.md`: `sdd.illustrate` (new), `sdd.require` (journey production), `sdd.design` (advisory example check). The gate records follow `@plugin/plugins/archcore/skills/_shared/gate-contract.md`.
 - Track state: the `archcore:track` block of the scenario draft carries `gate: sdd.illustrate`, `route:`, and `delta:` per the conductor.
 
 ## Normative Behavior
@@ -60,6 +61,6 @@ This spec defines the plan-side production of the actor-subject types: the illus
 
 ## Conformance
 
-An implementation is conformant when the registry row and the package contribution exist, the three gate records follow the gate contract, and behaviors 1–19 hold on the routing bench. Regression coverage: `@test/structure/delta-routing.bats` (registry row and contract references), `@test/structure/track-goldens.bats` (gate record shape), and two new traces in `@test/behavioral/fixtures/` — a user-facing capability and a repository with `features/*.feature` [planned].
+An implementation is conformant when the registry row and the package contribution exist, the three gate records follow the gate contract, and behaviors 1–19 hold on the routing bench. Regression coverage: `@plugin/test/structure/delta-routing.bats` (registry row and contract references), `@plugin/test/structure/track-goldens.bats` (gate record shape), and two new traces in `@plugin/test/behavioral/fixtures/` — a user-facing capability and a repository with `features/*.feature` [planned].
 
 Given `creates` = 1 with a user-facing surface, When the conductor sequences contract → illustrate → decompose, Then the package holds one `spec`, one `scenario` with `depends_on` → the spec, and one `plan`.

@@ -3,6 +3,7 @@ title: "Delta-Routing Model (ΔΠMR) — Conductor, Instruments, and Lifecycle f
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---

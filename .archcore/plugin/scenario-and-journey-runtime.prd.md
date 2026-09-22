@@ -2,6 +2,7 @@
 title: "Stored Scenarios and Journeys: Plugin Runtime Outcomes"
 status: draft
 tags:
+  - "component:plugin"
   - "document-types"
   - "plugin"
   - "skills"
@@ -18,7 +19,7 @@ The engine registers 23 types since CLI v0.8.4 (commit `2a8f6e4` in the `cli` re
 
 ## Goals and Success Metrics
 
-- Content contracts under `skills/_shared/`: 2 new files (`scenario-contract.md`, `journey-contract.md`) at section parity with the CLI templates in @../cli/templates/templates.go; today 0.
+- Content contracts under `skills/_shared/`: 2 new files (`scenario-contract.md`, `journey-contract.md`) at section parity with the CLI templates in @cli/templates/templates.go; today 0.
 - A `scenario` composed at `sdd.illustrate` from the contract reports 0 missing-section findings and 0 modal-in-step findings in the CLI post-write hook.
 - Routing bench: 2 new traces (a user-facing capability, a repository with `features/*.feature`) resolve to a package that carries the illustrate instrument; the 40 existing traces keep their route. [assumption] Measured with `test/behavioral/route-bench.sh`.
 - Compatibility: on CLI 0.8.3 the plugin writes 0 documents of either type and reports the required version once per invocation; on 0.8.4 the probe returns `yes`.

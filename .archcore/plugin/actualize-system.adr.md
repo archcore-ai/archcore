@@ -3,6 +3,7 @@ title: "Actualize System for Documentation Freshness Detection"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "hooks"
   - "plugin"
   - "skills"

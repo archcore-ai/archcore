@@ -3,27 +3,28 @@ title: "Delta-Routing Conductor — Route Computation Contract for /archcore:pla
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
 
 ## Purpose & Scope
 
-This spec defines the conductor — the route computation that replaces the fixed routing table in Step 2 of `@plugins/archcore/skills/plan/SKILL.md`. Normative for the `plan` skill. Consumed by the `document` and `review` skills, which share the Δ vocabulary, and by the behavioral routing tests of rollout phase 1. Out of scope: instrument internals and Π-to-instrument engagement (the instrument-layer spec), gate execution (`@plugins/archcore/skills/_shared/gate-contract.md`), closeout discharge mechanics, and the `archived` status value.
+This spec defines the conductor — the route computation that replaces the fixed routing table in Step 2 of `@plugin/plugins/archcore/skills/plan/SKILL.md`. Normative for the `plan` skill. Consumed by the `document` and `review` skills, which share the Δ vocabulary, and by the behavioral routing tests of rollout phase 1. Out of scope: instrument internals and Π-to-instrument engagement (the instrument-layer spec), gate execution (`@plugin/plugins/archcore/skills/_shared/gate-contract.md`), closeout discharge mechanics, and the `archived` status value.
 
 ## Surface
 
 Controlled vocabulary — one term per concept, no synonyms:
 
 - canon — the accepted document graph in `.archcore/`.
-- capability — one behavior an external consumer relies on, recordable as one `spec` within the caps of `@plugins/archcore/skills/_shared/spec-contract.md`.
+- capability — one behavior an external consumer relies on, recordable as one `spec` within the caps of `@plugin/plugins/archcore/skills/_shared/spec-contract.md`.
 - zone — the canon documents and code areas one request touches.
 - Δ (canon delta) — `creates`, `modifies`, `retires` (capability lists), `decision` (settled-choice delta), `intent_gap` (product intent absent from the canon).
 - Π (gap profile) — one source per information need: `machine`, `user`, `world`, `undecided`, `empirical`.
 - M (maturity) — one value per zone: `pencil` or `stone`.
 - R (risk flags) — `external-contract`, `data-migration`, `security-compliance`, `irreversibility`, `multi-team`.
 - operational procedure — a human-performed sequence the delta introduces: install, migrate, operate, or verify steps.
-- illustrate condition — a capability's Δ names a user-facing surface, or grounding finds `features/*.feature` or a BDD runner; defined in `@plugins/archcore/skills/_shared/delta-routing.md`.
+- illustrate condition — a capability's Δ names a user-facing surface, or grounding finds `features/*.feature` or a BDD runner; defined in `@plugin/plugins/archcore/skills/_shared/delta-routing.md`.
 - route — the package composition: `null`, `decision`, `amendment`, `capability`, `umbrella`.
 - size label — `S` (null, decision, amendment), `M` (capability), `L` (umbrella, or capability raised), `XL` (umbrella raised); derived, never an input choice; capped at `XL`.
 - route announcement — one report line: the route, the size label, and the Δ, Π, M, R values that produced them.
@@ -60,7 +61,7 @@ Controlled vocabulary — one term per concept, no synonyms:
 ## Constraints & Invariants
 
 - Invariant: every produced document carries one of the 23 types supported on CLI 0.8.4 — 21 on CLI 0.8.3, before the actor-subject vocabulary — or a legacy type below its engine gate, and a status in `draft`/`accepted`/`rejected`; the MCP tool schemas enum exactly these values.
-- Invariant: Steps 1, 3, 5, and 6 of `@plugins/archcore/skills/plan/SKILL.md` keep their purpose and order; the conductor replaces Steps 2 and 4, and touches the other steps only where a numbered behavior of this spec requires it.
+- Invariant: Steps 1, 3, 5, and 6 of `@plugin/plugins/archcore/skills/plan/SKILL.md` keep their purpose and order; the conductor replaces Steps 2 and 4, and touches the other steps only where a numbered behavior of this spec requires it.
 - Constraint: WHEN two or more of behaviors 4–8 match, the conductor composes the union of their packages and announces the highest route — `umbrella` over `capability` over `amendment` over `decision`.
 - Constraint: expert aliases `sdd`, `sources`, `iso`, and `research` stay valid; each maps to one computed-era path. From the 2026-09-07 decision, `research` fixes the research type; `rnd` selects the recommendation-based path by name; `evidence` enters gather directly.
 - Constraint: capability granularity binds through the granularity contract under `_shared/` — a phase-1 exit condition, not a follow-up.

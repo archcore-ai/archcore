@@ -3,6 +3,7 @@ title: "/archcore:context — Filtering Pipeline"
 status: rejected
 tags:
   - "commands"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---

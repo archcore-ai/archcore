@@ -3,6 +3,7 @@ title: "SDD Routing Bases — Field Evidence from 28 Tools and a 40-Task Routing
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "vision"
 ---
@@ -21,7 +22,7 @@ Ground the redesign of the sdd track's routing in field evidence: determine whic
 
 ## Approach
 
-Seven parallel research passes on 2026-08-15 over primary sources — repositories, command templates, validator sources, issue trackers, arXiv — covering 28 tools, six organizational documentation practices, and requirements-engineering literature. All URLs cited below were fetched 2026-08-15. Internal grounding against this corpus and the track files under @plugins/archcore/skills/_shared/tracks/. Validation: a 40-task routing bench — 14 issues and commits of archcore-ai/plugin plus 26 cross-domain tasks — traced through the candidate model.
+Seven parallel research passes on 2026-08-15 over primary sources — repositories, command templates, validator sources, issue trackers, arXiv — covering 28 tools, six organizational documentation practices, and requirements-engineering literature. All URLs cited below were fetched 2026-08-15. Internal grounding against this corpus and the track files under @plugin/plugins/archcore/skills/_shared/tracks/. Validation: a 40-task routing bench — 14 issues and commits of archcore-ai/plugin plus 26 cross-domain tasks — traced through the candidate model.
 
 ## Findings
 

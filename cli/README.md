@@ -103,7 +103,7 @@ claude mcp add --transport stdio archcore -- archcore mcp   # or add the server 
     └── notifications-implementation.plan.md
 ```
 
-The structure is free-form — organize by domain, feature, or team. A document's type lives in its filename (`slug.type.md`): 23 types across three layers — knowledge (ADRs, rules, specs, guides), vision (PRDs, plans, ideas, requirements tracks), and experience (incident patterns, recurring tasks). This repo's own [`.archcore/`](https://github.com/archcore-ai/cli/tree/main/.archcore) is a working example.
+The structure is free-form — organize by domain, feature, or team. A document's type lives in its filename (`slug.type.md`): 23 types across three layers — knowledge (ADRs, rules, specs, guides), vision (PRDs, plans, ideas, requirements tracks), and experience (incident patterns, recurring tasks). This repo's own [`.archcore/`](../.archcore) is a working example.
 
 ## Ask your agent
 
@@ -306,8 +306,8 @@ go install github.com/archcore-ai/cli@latest
 ### From source
 
 ```bash
-git clone https://github.com/archcore-ai/cli.git
-cd cli
+git clone --branch dev https://github.com/archcore-ai/plugin.git archcore
+cd archcore/cli
 go build -o archcore .
 ```
 
@@ -339,7 +339,7 @@ archcore config set <key> <value>  # set a value
 
 - **[Archcore Plugin](https://github.com/archcore-ai/plugin)** — using Claude Code or Cursor? The plugin pairs with the CLI: same engine, plus skills, intent commands, and guardrails. One product, two entry points — the CLI on its own covers every other agent.
 - **[docs.archcore.ai](https://docs.archcore.ai)** — full documentation.
-- **[`.archcore/` in this repo](https://github.com/archcore-ai/cli/tree/main/.archcore)** — a living example: the CLI is built with its own context layer.
+- **[`.archcore/` in this repo](../.archcore)** — a living example: the CLI is built with its own context layer.
 
 ## Development
 

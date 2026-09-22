@@ -3,6 +3,7 @@ title: "Skill-Level Elicitation Pass — Portable Clarify Interview via SKILL.md
 status: draft
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "precision"
   - "skills"

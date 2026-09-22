@@ -2,6 +2,7 @@
 title: "MCP-Only Document Operations"
 status: accepted
 tags:
+  - "component:plugin"
   - "plugin"
   - "rule"
 ---
@@ -59,8 +60,8 @@ Bash("echo '---\ntitle: ...' > .archcore/<dir>/use-postgres.adr.md")
 
 ## Enforcement
 
-- `@plugins/archcore/bin/pre-tool-use` (PreToolUse) hands a Write or Edit call targeting `.archcore/**/*.md` to `archcore hooks <host> pre-tool-use`, which denies it and returns the redirect message.
-- `@plugins/archcore/bin/post-tool-use` (PostToolUse) hands a document mutation to `archcore hooks <host> post-tool-use`, which reports validation, cascade, and precision findings and never blocks.
+- `@plugin/plugins/archcore/bin/pre-tool-use` (PreToolUse) hands a Write or Edit call targeting `.archcore/**/*.md` to `archcore hooks <host> pre-tool-use`, which denies it and returns the redirect message.
+- `@plugin/plugins/archcore/bin/post-tool-use` (PostToolUse) hands a document mutation to `archcore hooks <host> post-tool-use`, which reports validation, cascade, and precision findings and never blocks.
 - Both guards moved into the CLI binary at v0.7.0 (`cli-owns-layers-4-5.adr`); the launchers carry host glue only, and they exit 0 without output when the CLI on PATH is absent or older than 0.7.0. Enforcement is therefore off — not degraded — on a machine without a current `archcore`.
 - Every skill's Example Workflow section uses MCP tools only.
 - The `archcore-assistant` agent definition grants no Write tool and no Edit tool.

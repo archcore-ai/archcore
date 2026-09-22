@@ -3,6 +3,7 @@ title: "Bundled CLI Launcher with Auto-Install and Plugin-Owned MCP"
 status: rejected
 tags:
   - "architecture"
+  - "component:plugin"
   - "multi-host"
   - "plugin"
 ---

@@ -3,6 +3,7 @@ title: "Init Entry and Assessment Gate — Signature, Run Order, and Division of
 status: draft
 tags:
   - "commands"
+  - "component:plugin"
   - "onboarding"
   - "plugin"
   - "skills"
@@ -10,18 +11,18 @@ tags:
 
 ## Purpose & Scope
 
-This spec governs the entry of `/archcore:init`: the argument form, the order of a plain run, the assessment gate, and how that gate divides the fill between authored sources and code. Dependents: plugin users, the Codex command wrapper (@plugins/archcore/commands/init.md), the hint test (@test/structure/command-grammar.bats), and the import track, which starts from the gate's output. Out of scope: source discovery, conversion and staging (separate specs), and the detection catalogs of the code seed.
+This spec governs the entry of `/archcore:init`: the argument form, the order of a plain run, the assessment gate, and how that gate divides the fill between authored sources and code. Dependents: plugin users, the Codex command wrapper (@plugin/plugins/archcore/commands/init.md), the hint test (@plugin/test/structure/command-grammar.bats), and the import track, which starts from the gate's output. Out of scope: source discovery, conversion and staging (separate specs), and the detection catalogs of the code seed.
 
 ## Surface
 
-- Argument hint: `[import|refresh] [path or domain]` in @plugins/archcore/skills/init/SKILL.md.
+- Argument hint: `[import|refresh] [path or domain]` in @plugin/plugins/archcore/skills/init/SKILL.md.
 - Modes: none (plain init), `import`, `refresh`.
 - Subject: a repository path for `import`; a repository path or a domain slug for `refresh`.
 - Preview toggles: `depth:light|standard|deep`, `scale:small|medium|large`.
-- Assessment output: `targets_est`, `tier` (`none`, `S`, `M`, `L`), `coverage_set` (hotspot modules named by authored sources), `levels_found`, and — on a plain init or a refresh — `deeper_present`. The gate is `import.assess` in @plugins/archcore/skills/_shared/tracks/import.md; its measures are in @plugins/archcore/skills/init/lib/sources.md.
+- Assessment output: `targets_est`, `tier` (`none`, `S`, `M`, `L`), `coverage_set` (hotspot modules named by authored sources), `levels_found`, and — on a plain init or a refresh — `deeper_present`. The gate is `import.assess` in @plugin/plugins/archcore/skills/_shared/tracks/import.md; its measures are in @plugin/plugins/archcore/skills/init/lib/sources.md.
 - No authored source: the assessment result in which `levels_found` is empty — no file was found, or every found source carries the verdict `skip`.
 - Routes: plain init, `refresh`, `import`, import-only, empty, and no-source (`import` with no authored source).
-- Flow files: @plugins/archcore/skills/init/lib/host-wiring.md, @plugins/archcore/skills/init/lib/seed-detect.md, @plugins/archcore/skills/init/lib/seed-compose.md.
+- Flow files: @plugin/plugins/archcore/skills/init/lib/host-wiring.md, @plugin/plugins/archcore/skills/init/lib/seed-detect.md, @plugin/plugins/archcore/skills/init/lib/seed-compose.md.
 
 ## Normative Behavior
 
@@ -78,7 +79,7 @@ This spec governs the entry of `/archcore:init`: the argument form, the order of
 
 ## Conformance
 
-An implementation conforms when it satisfies behaviors 1–26, holds the four invariants, stays inside both constraints, and follows the twelve failure rules. Regression coverage: @test/structure/init-skill.bats, @test/structure/command-grammar.bats, and @test/behavioral/import-bench.sh (route, size tier, triage verdict on a live model; fixtures 13–15 cover the no-source result; fixtures 16–18 cover site reference counts).
+An implementation conforms when it satisfies behaviors 1–26, holds the four invariants, stays inside both constraints, and follows the twelve failure rules. Regression coverage: @plugin/test/structure/init-skill.bats, @plugin/test/structure/command-grammar.bats, and @plugin/test/behavioral/import-bench.sh (route, size tier, triage verdict on a live model; fixtures 13–15 cover the no-source result; fixtures 16–18 cover site reference counts).
 
 Given one L4 site with only end-user pages and no other authored source
 When the user runs `/archcore:init import`

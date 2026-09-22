@@ -3,6 +3,7 @@ title: "Code-Oriented Intent Skill — /archcore:align"
 status: rejected
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
