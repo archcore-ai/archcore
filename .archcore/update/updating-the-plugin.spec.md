@@ -10,14 +10,14 @@ tags:
 
 ## Purpose & Scope
 
-This spec defines the plugin-update step inside manual `archcore update`. After the binary phase, the step refreshes the Archcore plugin on each host where it is installed, and in every scope the host reports. The step runs the update action of the shared plugin engine — the surface `plugin-delivery.spec` defines; `archcore plugin update` is the same action behind its own command. Dependents: `@cli/cmd/update.go`, the host registry in `internal/agents/`, the host CLIs, and the `archcore-ai/plugin` repository.
+This spec defines the plugin-update step inside manual `archcore update`. After the binary phase, the step refreshes the Archcore plugin on each host where it is installed, and in every scope the host reports. The step runs the update action of the shared plugin engine — the surface `plugin-delivery.spec` defines; `archcore plugin update` is the same action behind its own command. Dependents: `@cli/cmd/update.go`, the host registry in `internal/agents/`, the host CLIs, and the `archcore-ai/archcore` repository.
 
 Out of scope: the unattended update policy and the MCP background trigger — both MUST NOT reach this step; first-time plugin install, which belongs to the delivery surface.
 
 ## Surface
 
 - Caller: manual `archcore update` only.
-- Frozen identifiers: repository `archcore-ai/plugin`, marketplace `archcore-plugins`, plugin id `archcore@archcore-plugins`.
+- Frozen identifiers: repository `archcore-ai/archcore`, marketplace `archcore-plugins`, plugin id `archcore@archcore-plugins`.
 - Evidence order: the host's own answer first. With the host CLI on `PATH`, its read-only listing — `claude plugin list --json`, `copilot plugin list`, `codex plugin list --json`; with the CLI absent, the host's on-disk registry — `~/.claude/plugins`, `~/.cursor/plugins`, `~/.copilot/installed-plugins`, `~/.codex/plugins`. Each listing command enumerates installed plugins only — verified 2026-08-17 for the two JSON listings and 2026-09-16 for `copilot plugin list` — and a flag that adds uninstalled marketplace entries, `codex plugin list --available`, stays out of these command lines. A listing shows the Archcore plugin when it carries an entry that names the plugin itself, not the marketplace it ships in, and that the host does not report as uninstalled.
 - Installation: one listing entry that shows the plugin. It carries the name the host listed, and on Claude Code a `scope` and, for `project` and `local` scope, a `projectPath`. `claude plugin list --json` lists one entry per scope and project — verified 2026-09-16.
 - Timeouts: 30 s per host command [assumption]; the whole step bounded at 120 s [assumption]. One Claude Code update takes about 2 s — measured 2026-09-16.

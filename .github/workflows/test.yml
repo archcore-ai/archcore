@@ -60,15 +60,15 @@ jobs:
         shell: bash
         run: |
           case "$(uname -s)-$(uname -m)" in
-            Linux-x86_64) asset=archcore_linux_amd64.tar.gz; digest=aedecc17741da45e58a86745b961edec7c6d63ab6d319cdb466428a48a471c7e ;;
-            Darwin-arm64) asset=archcore_darwin_arm64.tar.gz; digest=dfbb11c65e5a78c798fd178ef612c3248549272a595102ec82197e02bc499fb1 ;;
-            Darwin-x86_64) asset=archcore_darwin_amd64.tar.gz; digest=1beb644755ec19d7661b347836b0365246309c146d64ff7cd377056e3911ef8f ;;
+            Linux-x86_64) asset=archcore_linux_amd64.tar.gz; digest=e5939e81b84d18dd3f5557cea05481c7420033e3b592b31f6a53ecf7f6711ce4 ;;
+            Darwin-arm64) asset=archcore_darwin_arm64.tar.gz; digest=bb01a9bee33f4eaf571d667ccef54f8e4e49bd9096d3e9193d8bf1481621364e ;;
+            Darwin-x86_64) asset=archcore_darwin_amd64.tar.gz; digest=0b45a271f17fbf981e9994dc9aec1218f304f7ded1ce95d7c81d03bfa091d3ec ;;
             *) echo "Unsupported runner platform" >&2; exit 1 ;;
           esac
           {
             echo "asset=$asset"
             echo "digest=$digest"
-            echo "dir=$RUNNER_TEMP/archcore-cli-0.8.6"
+            echo "dir=$RUNNER_TEMP/archcore-cli-0.10.1"
           } >> "$GITHUB_OUTPUT"
 
       - name: Restore the pinned CLI from cache
@@ -76,7 +76,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.cli-asset.outputs.dir }}
-          key: archcore-cli-0.8.6-${{ steps.cli-asset.outputs.digest }}
+          key: archcore-cli-0.10.1-${{ steps.cli-asset.outputs.digest }}
 
       - name: Install the pinned CLI for MCP integration tests
         if: steps.cli-cache.outputs.cache-hit != 'true'
@@ -89,7 +89,7 @@ jobs:
           mkdir -p "$CLI_DIR"
           cd "$CLI_DIR"
           curl --fail --silent --show-error --location --retry 3 --retry-all-errors --retry-delay 5 \
-            "https://github.com/archcore-ai/cli/releases/download/v0.8.6/$ASSET" -o "$ASSET"
+            "https://github.com/archcore-ai/archcore/releases/download/v0.10.1/$ASSET" -o "$ASSET"
           printf '%s  %s\n' "$DIGEST" "$ASSET" | shasum -a 256 --check
           tar -xzf "$ASSET" archcore
           rm -f "$ASSET"
@@ -109,7 +109,7 @@ jobs:
 
       - name: Build the CLI from this commit
         working-directory: cli
-        run: go build -ldflags '-X main.version=0.8.7-dev' -o "${RUNNER_TEMP}/archcore-source" .
+        run: go build -ldflags '-X main.version=0.10.1-dev' -o "${RUNNER_TEMP}/archcore-source" .
 
       - name: MCP integration tests against the source CLI
         run: make test-integration ARCHCORE_BIN="${RUNNER_TEMP}/archcore-source"

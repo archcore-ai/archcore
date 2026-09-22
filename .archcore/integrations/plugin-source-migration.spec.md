@@ -13,7 +13,7 @@ The plugin update executor prepares installed Claude Code and Codex marketplaces
 
 ## Surface
 
-- Active delivery remains `archcore-ai/plugin` until the release changes `RepoID` to `archcore-ai/archcore`.
+- Active delivery is `archcore-ai/archcore` since `RepoID` changed on 2026-09-22 (unified release v0.10.2); the repository was renamed the same day, and GitHub redirects the legacy address `archcore-ai/plugin`.
 - Marketplace `archcore-plugins`, plugin `archcore@archcore-plugins`, public `main` and `plugins/archcore` retain their spelling.
 - Claude source declarations: known marketplaces, user settings and settings files belonging to listed, resolved project/local installations.
 - Codex source declaration: the native CLI's two-field `[marketplaces.archcore-plugins]` table in its configured home.

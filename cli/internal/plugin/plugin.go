@@ -24,17 +24,18 @@ import (
 
 // The three public identifiers of the Archcore plugin. Requirement 11 of
 // plugin-cli-compatibility.rule freezes them: the CLI MUST NOT change them
-// except in step with the archcore-ai/plugin repository, because a released CLI
+// except in step with the archcore-ai/archcore repository, because a released CLI
 // carrying a renamed identifier addresses a plugin that no longer answers to
 // it. Every host command in hosts.go spells them through these constants.
 const (
-	RepoID        = legacyRepoID
+	RepoID        = canonicalRepoID
 	MarketplaceID = "archcore-plugins"
 	PluginID      = "archcore@archcore-plugins"
 )
 
-// Keep delivery on the published repository until the coordinated cutover;
-// plugin-source-migration.spec gates source edits on the canonical target.
+// The repository was renamed to the canonical name on 2026-09-22;
+// plugin-source-migration.spec gates source edits on the canonical target, so
+// hosts that still declare the legacy locator migrate on their next update.
 const (
 	legacyRepoID    = "archcore-ai/plugin"
 	canonicalRepoID = "archcore-ai/archcore"

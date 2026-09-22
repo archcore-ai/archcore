@@ -9,7 +9,7 @@ fi
 set -euo pipefail
 
 # ── Constants ────────────────────────────────────────────────────────────────
-GITHUB_REPO="archcore-ai/plugin"
+GITHUB_REPO="archcore-ai/archcore"
 BINARY_NAME="archcore"
 DEFAULT_INSTALL_DIR="$HOME/.local/bin"
 

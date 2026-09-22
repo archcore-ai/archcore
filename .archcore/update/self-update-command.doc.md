@@ -55,17 +55,17 @@ Both transcripts show a machine without the Archcore plugin. A machine that carr
 
 This section describes current CLI behavior, not steps for the reader.
 
-1. Check the latest version. The CLI sends `GET https://github.com/archcore-ai/plugin/releases/latest` and reads the tag from the redirect's `Location` without following it. Any `3xx` is accepted: GitHub answers `302` today, and the tag-page check, not the status code, is the real gate. The tag comes from the resolved URL's path (`resp.Location()`), so a query string, a fragment, or a `..` segment in the `Location` cannot smuggle a false version through. Every tag of that repository releases the plugin and the CLI together, so the redirect always lands on a release that carries CLI archives.
+1. Check the latest version. The CLI sends `GET https://github.com/archcore-ai/archcore/releases/latest` and reads the tag from the redirect's `Location` without following it. Any `3xx` is accepted: GitHub answers `302` today, and the tag-page check, not the status code, is the real gate. The tag comes from the resolved URL's path (`resp.Location()`), so a query string, a fragment, or a `..` segment in the `Location` cannot smuggle a false version through. Every tag of that repository releases the plugin and the CLI together, so the redirect always lands on a release that carries CLI archives.
 
    The REST API is avoided deliberately: it is capped at 60 unauthenticated requests per hour per IP, which teams sharing one egress address exhaust. The related ADR records that decision.
 
 2. Compare versions. The current version, injected via ldflags at build time, is compared with the latest by semver order (major, then minor, then patch). A development build, where `version = "dev"`, always triggers an update on the manual path. A version that neither side can parse reports as current rather than as newer, so an unexpected tag never becomes a downgrade.
 
-3. Download the archive. WHEN a newer version exists, the CLI downloads the platform-specific archive from `https://github.com/archcore-ai/plugin/releases/download/<version>/archcore_<os>_<arch>.<ext>`. The extension is `.zip` on Windows and `.tar.gz` on every other platform, matching `format_overrides` in `@cli/.goreleaser.yaml`. The platform comes from `runtime.GOOS` and `runtime.GOARCH`.
+3. Download the archive. WHEN a newer version exists, the CLI downloads the platform-specific archive from `https://github.com/archcore-ai/archcore/releases/download/<version>/archcore_<os>_<arch>.<ext>`. The extension is `.zip` on Windows and `.tar.gz` on every other platform, matching `format_overrides` in `@cli/.goreleaser.yaml`. The platform comes from `runtime.GOOS` and `runtime.GOARCH`.
 
 4. Verify the checksum. The CLI downloads `checksums.txt` from the same release, computes the SHA-256 of the downloaded archive, and compares it against the expected hash. A mismatch fails the update immediately.
 
-5. Extract the binary. The archive format, `tar.gz` or `zip`, is detected from the magic bytes. The CLI tries the name `archcore` first and falls back to the repository basename `plugin`, because GoReleaser may use either. On Windows both candidates carry an `.exe` suffix.
+5. Extract the binary. The archive format, `tar.gz` or `zip`, is detected from the magic bytes. The CLI tries the name `archcore` first and falls back to the repository basename, also `archcore`, because GoReleaser may use either. On Windows both candidates carry an `.exe` suffix.
 
 6. Stage the new binary. The CLI resolves the current binary path via `os.Executable()` and `filepath.EvalSymlinks()`, then writes the new binary to `<binary>.tmp.<pid>` with permissions `0755`. The temporary name carries the process id so two attempts on one machine cannot truncate each other's staged file. Leftovers from a killed attempt are swept before the next write.
 
@@ -75,7 +75,7 @@ This section describes current CLI behavior, not steps for the reader.
 
    On Windows a running `.exe` cannot be overwritten in place, so the current binary is renamed to `<binary>.old.<pid>` first and the new file moves in. The `.old.<pid>` files are removed on a best-effort basis and swept by the next attempt, so a second update while an older server still holds its image does not collide.
 
-Binaries released as v0.8.7 and earlier resolve `https://github.com/archcore-ai/cli/releases/latest`, the former CLI repository, which receives no further releases. Those installs report "already up to date" and move to the current channel through a fresh run of the install script.
+Two older generations of binaries resolve a repository that no longer answers with a tag page. Binaries released as v0.8.7 and earlier resolve `https://github.com/archcore-ai/cli/releases/latest`, the former CLI repository, which receives no further releases and reports "already up to date". Binaries released as v0.10.1 resolve `https://github.com/archcore-ai/plugin/releases/latest`, the name this repository carried until 2026-09-22; GitHub now answers that address with a `301` to the new name, which the resolver rejects as `unexpected redirect`. Both generations move to the current channel through a fresh run of the install script.
 
 ## Unattended update from the MCP server
 
@@ -103,6 +103,7 @@ After the binary phase, manual `archcore update` refreshes the Archcore plugin o
 - The step runs after a replacement and after an already-current result. A failed binary phase skips it.
 - `archcore update --check` never runs it.
 - The step queries each host's own read-only plugin listing before any mutating command, and runs an update command only for a listed plugin. A host without the plugin produces no output.
+- Since v0.10.2 the step first migrates a Claude Code or Codex marketplace declaration that still names `archcore-ai/plugin` to `archcore-ai/archcore`, changing only the repository locator; `plugin-source-migration.spec` carries that contract. On Codex the migration runs one bounded read, `codex plugin marketplace list --json`, before it touches the config file.
 - The step never changes the exit code of `archcore update` and never sends a telemetry event.
 - The unattended path and the MCP trigger never reach this step.
 
@@ -131,8 +132,8 @@ The update paths report three events to the Archcore endpoint: `cli_updated`, `c
 | `@cli/internal/update/buildinfo.go` | The official-build marker |
 | `@cli/internal/update/stage.go` | `StageError` — the failed step, carried as a typed value |
 | `@cli/internal/telemetry/telemetry.go` | The event sender and its three guards |
-| `@cli/internal/plugin/` | The plugin engine: evidence, planner, executor |
-| `@cli/cmd/update.go` | Cobra command wiring, styled output, the release repository `archcore-ai/plugin`, and the plugin step |
+| `@cli/internal/plugin/` | The plugin engine: evidence, planner, executor, and the source migration |
+| `@cli/cmd/update.go` | Cobra command wiring, styled output, the release repository `archcore-ai/archcore`, and the plugin step |
 | `@cli/cmd/mcp.go` | The background trigger: the 60 s delay and the stderr line |
 
 ## Verification
@@ -146,7 +147,7 @@ Expected result: the newly installed version.
 ## Troubleshooting
 
 - `Could not check for updates` — a network problem, or `github.com` answered with something other than a redirect, such as a captive portal, a proxy interstitial, or an outage. Retry later. No API rate limit applies: the check reads the `github.com` web redirect, which carries no rate-limit budget and needs no token.
-- `unexpected redirect resolving latest release` — the redirect landed somewhere that is not a `/releases/tag/` page. Two causes occur in practice: a proxy or captive portal intercepting the request, or the repository having no published release, which GitHub answers with a `302` to the bare `/releases` page. A repository rename produces the same message for binaries built before the rename, because GitHub answers first with a `301` to the new name.
+- `unexpected redirect resolving latest release` — the redirect landed somewhere that is not a `/releases/tag/` page. Three causes occur in practice: a proxy or captive portal intercepting the request; the repository having no published release, which GitHub answers with a `302` to the bare `/releases` page; or a binary that still carries the pre-rename name `archcore-ai/plugin`, which GitHub answers with a `301` to the new name. In the last case reinstall through the install script.
 - `no Location header` or `parsing redirect location` — a `3xx` arrived without a usable `Location`. This indicates an intercepting proxy rather than GitHub.
 - `Update failed` with a permission error — the binary sits in a directory without write access. Reinstall it to a writable location, or run the command with `sudo`.
 - `Checksum mismatch` — the download was corrupted. Run `archcore update` again.

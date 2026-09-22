@@ -10,7 +10,7 @@ tags:
 
 ## Purpose & Scope
 
-This spec defines the plugin-delivery surface: the `archcore plugin` command and the delivery step inside `archcore init`. One engine (`internal/plugin`) performs install, update, removal, and status per host; the plugin-update step of `archcore update` (`updating-the-plugin.spec`) runs the same engine's update action. Dependents: `@cli/cmd/init.go`, `@cli/cmd/update.go`, the host registry in `internal/agents/`, the host CLIs, and the `archcore-ai/plugin` repository.
+This spec defines the plugin-delivery surface: the `archcore plugin` command and the delivery step inside `archcore init`. One engine (`internal/plugin`) performs install, update, removal, and status per host; the plugin-update step of `archcore update` (`updating-the-plugin.spec`) runs the same engine's update action. Dependents: `@cli/cmd/init.go`, `@cli/cmd/update.go`, the host registry in `internal/agents/`, the host CLIs, and the `archcore-ai/archcore` repository.
 
 Out of scope: the unattended update policy and the MCP background trigger — neither reaches this surface; hook and MCP wiring, which `archcore init` performs today and keeps unchanged.
 
@@ -20,7 +20,7 @@ Out of scope: the unattended update policy and the MCP background trigger — ne
 - Engine shape: one pure planning function (host evidence → per-host actions) and one executor. Entry points differ only in which actions they select and how they word output.
 - Selection screen: init's existing agent multi-select — the project-detection-driven list init already shows for wiring. The four plugin-capable hosts are marked inside that same list; no separate screen and no second prompt exist.
 - Init integration: selecting a host in that multi-select is the consent for that host — hooks, MCP config, and the plugin arrive together.
-- Frozen identifiers: repository `archcore-ai/plugin`, marketplace `archcore-plugins`, plugin id `archcore@archcore-plugins` (`plugin-cli-compatibility.rule`, requirement 11).
+- Frozen identifiers: repository `archcore-ai/archcore`, marketplace `archcore-plugins`, plugin id `archcore@archcore-plugins` (`plugin-cli-compatibility.rule`, requirement 11).
 - Host evidence: the host CLI on `PATH` (`exec.LookPath`), the host's read-only plugin listing, and the on-disk registries named in the update-step spec. A listing shows the plugin under the definition in the Surface of `updating-the-plugin.spec`, which requirements 9 and 25 below read: a registered marketplace with nothing installed under it is not a plugin.
 - Timeouts: 30 s per host command, 120 s for the whole delivery step [assumption] — the same pairing as the update step. The seam is `@cli/internal/git/git.go` with stderr captured.
 - Claude Code auto-update key: `extraKnownMarketplaces["archcore-plugins"]` with `"autoUpdate": true` in `~/.claude/settings.json` — documented Claude Code behavior; the host then refreshes the plugin in the background after session start.
@@ -29,9 +29,9 @@ Per-host install actions:
 
 | Host | Install action | Verified |
 |---|---|---|
-| Claude Code | `claude plugin marketplace add archcore-ai/plugin`, then `claude plugin install archcore@archcore-plugins` (user scope by default); then merge the `autoUpdate: true` marketplace entry into `~/.claude/settings.json` | Commands verified 2026-08-12/15; already-registered marketplace tolerance [assumption] |
-| GitHub Copilot | `copilot plugin install archcore-ai/plugin:plugins/archcore` | Command form verified; the `plugins/archcore` subpath matches the repository layout [assumption until first run] |
-| Codex CLI | `codex plugin marketplace add archcore-ai/plugin`, then `codex plugin add archcore@archcore-plugins` | Verified 2026-08-12 |
+| Claude Code | `claude plugin marketplace add archcore-ai/archcore`, then `claude plugin install archcore@archcore-plugins` (user scope by default); then merge the `autoUpdate: true` marketplace entry into `~/.claude/settings.json` | Commands verified 2026-08-12/15; already-registered marketplace tolerance [assumption] |
+| GitHub Copilot | `copilot plugin install archcore-ai/archcore:plugins/archcore` | Command form verified; the `plugins/archcore` subpath matches the repository layout [assumption until first run] |
+| Codex CLI | `codex plugin marketplace add archcore-ai/archcore`, then `codex plugin add archcore@archcore-plugins` | Verified 2026-08-12 |
 | Cursor | none — print the UI instruction (Marketplace or `/add-plugin`) | UI-only per cursor.com/docs/plugins |
 
 OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. Removal runs the host's own uninstall (`copilot plugin uninstall archcore`, `codex plugin remove archcore@archcore-plugins`; Claude Code equivalents [assumption]) and removes the `autoUpdate` entry this surface wrote.

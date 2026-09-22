@@ -166,7 +166,7 @@ func TestPluginCommandsCarryTheFrozenIdentifiersVerbatim(t *testing.T) {
 			verb:     "install",
 			evidence: plugin.Evidence{Host: plugin.HostClaudeCode, CLIPresent: true},
 			want: []string{
-				"plugin marketplace add archcore-ai/plugin",
+				"plugin marketplace add archcore-ai/archcore",
 				"plugin install archcore@archcore-plugins",
 			},
 		},

@@ -29,7 +29,7 @@ lives under `cli/`.
    `install.ps1`.
 
 Every GitHub Release therefore carries the CLI assets, and
-`https://github.com/archcore-ai/plugin/releases/latest` resolves to a release
+`https://github.com/archcore-ai/archcore/releases/latest` resolves to a release
 that `archcore update` and both installers consume.
 
 ## Published files (plugin tree on main)
@@ -49,7 +49,7 @@ All three catalogs continue to resolve `./plugins/archcore`. The runtime include
 its four host manifests, MCP configs, skills, agents, copilot-agents, commands,
 rules, hooks, bin scripts, and assets/. Codex composerIcon and logo paths still
 resolve from the plugin root. Copilot still installs the published
-`archcore-ai/plugin:plugins/archcore` subdirectory.
+`archcore-ai/archcore:plugins/archcore` subdirectory.
 
 ## Excluded files
 
@@ -83,7 +83,7 @@ Run Git commands from the repository root.
 
 - `gh release view vX.Y.Z` lists 9 assets: 6 archives, `checksums.txt`,
   `install.sh`, and `install.ps1`.
-- `curl -sI https://github.com/archcore-ai/plugin/releases/latest` returns a
+- `curl -sI https://github.com/archcore-ai/archcore/releases/latest` returns a
   `location:` header ending in `/releases/tag/vX.Y.Z`.
 - `git fetch origin main && git ls-tree --name-only origin/main` shows the plugin
   layout only.

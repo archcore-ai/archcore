@@ -184,7 +184,7 @@ Component manifests, hooks, and MCP configs are plugin-root-relative under `plug
 | `.claude-plugin/marketplace.json` | Claude Code | Marketplace catalog — repo root, `source: ./plugins/archcore` |
 | `.cursor-plugin/marketplace.json` | Cursor | Marketplace catalog — repo root, `source: ./plugins/archcore` |
 | `.agents/plugins/marketplace.json` | Codex CLI | Marketplace catalog and default-install policy — repo root, `source.path: ./plugins/archcore` |
-| (none) | GitHub Copilot CLI | No catalog by design — installs by subdirectory spec `archcore-ai/plugin:plugins/archcore` |
+| (none) | GitHub Copilot CLI | No catalog by design — installs by subdirectory spec `archcore-ai/archcore:plugins/archcore` |
 | `.mcp.json` | Claude Code | Plugin-provided MCP registration (plugin root; `command: "archcore"` on PATH) |
 | `.codex.mcp.json` | Codex CLI | Plugin-provided MCP registration (plugin root; `command: "archcore"` on PATH) |
 | `docs/cursor.mcp.example.json` | Cursor | Reference MCP config for users to copy into `~/.cursor/mcp.json` or `.cursor/mcp.json` — repo root |

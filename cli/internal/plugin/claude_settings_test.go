@@ -117,7 +117,7 @@ func TestClaudeSettingsWireFormat(t *testing.T) {
 	if !ok {
 		t.Fatalf("entry = %+v, want a source object", entry)
 	}
-	if source["source"] != "github" || source["repo"] != "archcore-ai/plugin" {
+	if source["source"] != "github" || source["repo"] != "archcore-ai/archcore" {
 		t.Errorf("source = %+v, want the github source of archcore-ai/plugin", source)
 	}
 }

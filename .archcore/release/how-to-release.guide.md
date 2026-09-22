@@ -8,15 +8,15 @@ tags:
 
 ## Purpose
 
-Publish one release of the plugin and the CLI from one git tag on `archcore-ai/plugin`, with the tag, the four plugin manifests, and the CLI version equal.
+Publish one release of the plugin and the CLI from one git tag on `archcore-ai/archcore`, with the tag, the four plugin manifests, and the CLI version equal.
 
-The former `archcore-ai/cli` channel receives no further releases. The workflow copies under `cli/.github/workflows/` are migration reference; GitHub does not execute them.
+The former `archcore-ai/cli` channel receives no further releases, and this repository was renamed from `archcore-ai/plugin` on 2026-09-22; GitHub redirects the old address for git and web traffic. The workflow copies that lived under `cli/.github/workflows/` were removed the same day.
 
 ## Prerequisites
 
-- Push access to the `archcore-ai/plugin` repository.
+- Push access to the `archcore-ai/archcore` repository.
 - Every intended change merged to `dev`, with `Plugin Tests` and `CLI Tests` green on `dev`.
-- Repository variables `POSTHOG_KEY` and `POSTHOG_HOST` present in `archcore-ai/plugin` (copied 2026-09-22). Without them the GoReleaser post-build hook @cli/scripts/assert-not-inert.sh fails the release.
+- Repository variables `POSTHOG_KEY` and `POSTHOG_HOST` present in `archcore-ai/archcore` (copied 2026-09-22). Without them the GoReleaser post-build hook @cli/scripts/assert-not-inert.sh fails the release.
 
 ## Procedure
 
@@ -46,7 +46,7 @@ The former `archcore-ai/cli` channel receives no further releases. The workflow 
    git push origin vX.Y.Z
    ```
 
-7. Monitor the `Release` run at `https://github.com/archcore-ai/plugin/actions`.
+7. Monitor the `Release` run at `https://github.com/archcore-ai/archcore/actions`.
 
    Expected result: `verify-version`, `test-plugin`, `test-cli`, `publish-plugin`, and `publish-cli` complete in that order (@.github/workflows/release.yml).
 
@@ -81,7 +81,7 @@ When planning such a release:
 
 ## Publishing an installer change
 
-The installers live at @cli/install.sh and @cli/install.ps1 on `dev`. They resolve the newest release from `https://github.com/archcore-ai/plugin/releases/latest`, so an installer change needs no release of its own.
+The installers live at @cli/install.sh and @cli/install.ps1 on `dev`. They resolve the newest release from `https://github.com/archcore-ai/archcore/releases/latest`, so an installer change needs no release of its own.
 
 1. Merge the change to `dev`. `CLI Install Smoke` (@.github/workflows/cli-install-smoke.yml) runs on the push and installs the latest release on Windows, Ubuntu, macOS, Alpine, and a dash-only Debian.
 2. If the smoke run is red, fix it before publication.
@@ -91,7 +91,7 @@ The installers live at @cli/install.sh and @cli/install.ps1 on `dev`. They resol
 ## Verification
 
 - The GitHub Release page shows 6 archives (4 `.tar.gz` for darwin and linux on amd64 and arm64, 2 `.zip` for windows on amd64 and arm64), `checksums.txt`, `install.sh`, and `install.ps1`.
-- `archcore --version` on the installed binary prints the tag, for example `v0.10.1`.
+- `archcore --version` on the installed binary prints the tag, for example `v0.10.2`.
 - `main` carries only the exported plugin layout.
 - The install script succeeds on a clean macOS or Linux machine.
 - `install.ps1` succeeds on a clean Windows machine.

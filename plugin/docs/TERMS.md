@@ -32,4 +32,4 @@ We may update these terms. Material changes will be reflected by a new "Last upd
 
 ## Contact
 
-Questions about these terms: open an issue at <https://github.com/archcore-ai/plugin/issues>.
+Questions about these terms: open an issue at <https://github.com/archcore-ai/archcore/issues>.

@@ -18,7 +18,7 @@ func TestFrozenIdentifiers(t *testing.T) {
 		got  string
 		want string
 	}{
-		{name: "repository", got: RepoID, want: "archcore-ai/plugin"},
+		{name: "repository", got: RepoID, want: "archcore-ai/archcore"},
 		{name: "marketplace", got: MarketplaceID, want: "archcore-plugins"},
 		{name: "plugin id", got: PluginID, want: "archcore@archcore-plugins"},
 	}

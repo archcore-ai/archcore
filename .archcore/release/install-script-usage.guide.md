@@ -101,7 +101,7 @@ WSL provides a full Linux environment, so this path uses the macOS and Linux scr
 ## What the scripts do
 
 1. Detect the operating system (`darwin`, `linux`, `windows`) and the architecture (`amd64`, `arm64`).
-2. Resolve the latest version by reading the `Location` header of `https://github.com/archcore-ai/plugin/releases/latest`, or skip the lookup entirely when `ARCHCORE_VERSION` is set. The GitHub REST API is avoided deliberately; the related ADR records that decision. Every tag of that repository releases the plugin and the CLI together, so the redirect always lands on a release that carries the CLI assets.
+2. Resolve the latest version by reading the `Location` header of `https://github.com/archcore-ai/archcore/releases/latest`, or skip the lookup entirely when `ARCHCORE_VERSION` is set. The GitHub REST API is avoided deliberately; the related ADR records that decision. Every tag of that repository releases the plugin and the CLI together, so the redirect always lands on a release that carries the CLI assets.
 3. Download the platform-specific archive — `.tar.gz` on Unix, `.zip` on Windows — and `checksums.txt`.
 4. Verify the SHA-256 checksum.
 5. Extract the binary and install it atomically into the install directory.
@@ -210,7 +210,7 @@ The CLI applies the same rule to its own key, which `@cli/.goreleaser.yaml` inje
 archcore --version
 ```
 
-Expected result: the installed tag with its `v` prefix, for example `v0.10.1`.
+Expected result: the installed tag with its `v` prefix, for example `v0.10.2`.
 
 ## Troubleshooting
 

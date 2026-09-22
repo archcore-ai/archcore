@@ -10,7 +10,7 @@ tags:
 
 ## Rule
 
-The Archcore plugin lives in the separate `archcore-ai/plugin` repository and ships on its own schedule.
+The Archcore plugin lives in the separate `archcore-ai/archcore` repository and ships on its own schedule.
 Any CLI release therefore meets an unknown plugin version, and any plugin release meets an unknown
 CLI version. These obligations bind the CLI side of that pair.
 
@@ -37,7 +37,7 @@ CLI version. These obligations bind the CLI side of that pair.
 10. WHEN the CLI narrows what a leaf accepts on a host that already ships, the release notes MUST name
     the narrowing. Requirement 9 covers a leaf that answers differently; this covers one that answers
     less, which an existence gate cannot see either.
-11. The CLI MUST NOT change `archcore-ai/plugin`, `archcore-plugins`, or `archcore@archcore-plugins`
+11. The CLI MUST NOT change `archcore-ai/archcore`, `archcore-plugins`, or `archcore@archcore-plugins`
     except in step with the plugin repository. These are the plugin's public identifiers, in the same
     spirit as requirement 9: a released CLI carrying a renamed identifier addresses a plugin that no
     longer answers to it.
@@ -77,6 +77,10 @@ Copilot use loose spellings too. Their leaves now decline to fold a tool the ser
 register, which is a narrowing on hosts that were already shipping. Nothing observable from the
 plugin distinguishes the narrowed leaf from the old one until a tool falls outside the set, so the
 release notes are the only place it can be seen.
+
+Requirement 11's repository identifier changed from `archcore-ai/plugin` to `archcore-ai/archcore` on
+2026-09-22, in step with `RepoID`; the marketplace name `archcore-plugins` and the plugin id
+`archcore@archcore-plugins` stayed frozen.
 
 An older CLI meeting a newer plugin cannot be fixed from this repository; already released binaries
 are fixed. The plugin closes that cell with its own minimum-version gate.
