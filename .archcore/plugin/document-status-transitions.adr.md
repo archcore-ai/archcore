@@ -3,6 +3,7 @@ title: "Document Status Transitions — Confirmed Closeout Ceremony, No Autonomo
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---

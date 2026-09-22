@@ -2,6 +2,7 @@
 title: "Skill File Structure Standard"
 status: accepted
 tags:
+  - "component:plugin"
   - "plugin"
   - "rule"
   - "skills"
@@ -112,5 +113,5 @@ description: "Plan a feature or initiative end-to-end. Activate when user says '
 - `skills-system.spec` defines the normative contract for skill behavior.
 - `plugin-architecture.spec` defines the cross-component invariants.
 - `four-command-palette.adr` fixes the four-command surface and the auto-invocation invariant that item 5 depends on.
-- `@test/structure/command-grammar.bats` checks items 19–21.
+- `@plugin/test/structure/command-grammar.bats` checks items 19–21.
 - No lint script checks items 1–18 today. A `bin/` lint script is the intended verifier. [assumption] No implementation date is set.

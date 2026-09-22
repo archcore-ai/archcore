@@ -2,3 +2,11 @@
 .claude/worktrees/
 .codex/
 reference-materials/
+
+/bin/
+/dist/
+cli/.claude/settings.local.json
+cli/.claude/agents/
+cli/reference-materials/
+cli/archcore
+plugin/reference-materials/

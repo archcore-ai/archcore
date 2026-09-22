@@ -2,6 +2,7 @@
 title: "Authored Source Discovery — Five Levels and Triage Verdicts"
 status: draft
 tags:
+  - "component:plugin"
   - "onboarding"
   - "plugin"
   - "skills"

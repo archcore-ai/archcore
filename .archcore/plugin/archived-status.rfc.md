@@ -3,6 +3,7 @@ title: "Archived Status Value — Kernel Enum Extension for Discharged Documents
 status: rejected
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "vision"
 ---

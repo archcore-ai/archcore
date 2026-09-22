@@ -3,6 +3,7 @@ title: "Codex Local Plugin Testing Guide"
 status: accepted
 tags:
   - "codex"
+  - "component:plugin"
   - "local-development"
   - "plugin"
   - "testing"

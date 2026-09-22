@@ -3,6 +3,7 @@ title: "No Auto-Generated Context Blobs"
 status: rejected
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "precision"
 ---

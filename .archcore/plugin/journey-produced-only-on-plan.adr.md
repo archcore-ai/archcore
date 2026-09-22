@@ -3,6 +3,7 @@ title: "Journey Produced Only on plan — No document Entry for an Intent Type"
 status: draft
 tags:
   - "commands"
+  - "component:plugin"
   - "document-types"
   - "plugin"
   - "skills"
@@ -10,7 +11,7 @@ tags:
 
 ## Context
 
-The command entry grammar of 2026-09-16 gives `/archcore:document` three modes, `decision`, `code`, and `research`, and moves type selection into gates (@.archcore/plugin/command-entry-grammar.adr.md). A `journey` records the intended path of one user type before a `spec` exists, so it fits none of the three: `code` reads source files as evidence, and `decision` records a settled technical choice. The working tree on branch `dev` routes `document journey` to `sdd.require` in callable mode (@plugins/archcore/skills/document/SKILL.md, Step 2), an entry that the grammar retires.
+The command entry grammar of 2026-09-16 gives `/archcore:document` three modes, `decision`, `code`, and `research`, and moves type selection into gates (@.archcore/plugin/command-entry-grammar.adr.md). A `journey` records the intended path of one user type before a `spec` exists, so it fits none of the three: `code` reads source files as evidence, and `decision` records a settled technical choice. The working tree on branch `dev` routes `document journey` to `sdd.require` in callable mode (@plugin/plugins/archcore/skills/document/SKILL.md, Step 2), an entry that the grammar retires.
 
 ## Decision
 

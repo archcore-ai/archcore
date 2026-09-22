@@ -3,6 +3,7 @@ title: "Plan Discharge Implementation — the closeout.discharge Gate and the Le
 status: draft
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
@@ -15,20 +16,20 @@ Give the closeout track gates that dispose of a completed `plan` instead of repo
 
 ### Phase 1 — Gate machinery
 
-1. Add a `closeout.capture` gate that routes a plan's residue to the instrument owning that type. — @plugins/archcore/skills/_shared/tracks/closeout.md
-2. Add a `closeout.discharge` gate that removes the plan and produces no document. — @plugins/archcore/skills/_shared/tracks/closeout.md
-3. Write discharge's first blocking precondition: every plan task and acceptance criterion carries a `fulfilled` verdict. — @plugins/archcore/skills/_shared/tracks/closeout.md
-4. Write the second precondition: the plan file is absent from the branch boundary's uncommitted block. — @plugins/archcore/skills/_shared/branch-state.md
-5. Restrict the decision instrument at capture to its standard cascade, barring a new `spec` or `plan`. — @plugins/archcore/skills/_shared/tracks/closeout.md
-6. Replace the Discharge report section's `archived` paragraph with the plan-only deletion rule. — @plugins/archcore/skills/_shared/tracks/closeout.md
-7. Update the track-notes gate order and `closeout.accept`'s `Next:` field. — @plugins/archcore/skills/_shared/tracks/closeout.md
+1. Add a `closeout.capture` gate that routes a plan's residue to the instrument owning that type. — @plugin/plugins/archcore/skills/_shared/tracks/closeout.md
+2. Add a `closeout.discharge` gate that removes the plan and produces no document. — @plugin/plugins/archcore/skills/_shared/tracks/closeout.md
+3. Write discharge's first blocking precondition: every plan task and acceptance criterion carries a `fulfilled` verdict. — @plugin/plugins/archcore/skills/_shared/tracks/closeout.md
+4. Write the second precondition: the plan file is absent from the branch boundary's uncommitted block. — @plugin/plugins/archcore/skills/_shared/branch-state.md
+5. Restrict the decision instrument at capture to its standard cascade, barring a new `spec` or `plan`. — @plugin/plugins/archcore/skills/_shared/tracks/closeout.md
+6. Replace the Discharge report section's `archived` paragraph with the plan-only deletion rule. — @plugin/plugins/archcore/skills/_shared/tracks/closeout.md
+7. Update the track-notes gate order and `closeout.accept`'s `Next:` field. — @plugin/plugins/archcore/skills/_shared/tracks/closeout.md
 
 ### Phase 2 — Contract alignment
 
 8. Rewrite behaviors 19 through 26 of the delta-routing instruments spec; retire the `archived` precondition for `plan`.
 9. Add both invariants to that spec: `plan` is the only removed type; capture creates no type of its own.
-10. Update the review skill's write affinity and Result sections for the two new gates. — @plugins/archcore/skills/review/SKILL.md
-11. Regenerate the closeout golden fixture and confirm the diff carries only the intended gate changes. — @test/fixtures/goldens/closeout.golden
+10. Update the review skill's write affinity and Result sections for the two new gates. — @plugin/plugins/archcore/skills/review/SKILL.md
+11. Regenerate the closeout golden fixture and confirm the diff carries only the intended gate changes. — @plugin/test/fixtures/goldens/closeout.golden
 
 ### Phase 3 — Legacy sweep
 
@@ -38,7 +39,7 @@ Give the closeout track gates that dispose of a completed `plan` instead of repo
 
 ### Phase 4 — Release
 
-15. Bump the plugin version in the four host manifests. — @plugins/archcore/.claude-plugin/plugin.json
+15. Bump the plugin version in the four host manifests. — @plugin/plugins/archcore/.claude-plugin/plugin.json
 
 ## Acceptance Criteria
 
@@ -55,7 +56,7 @@ Give the closeout track gates that dispose of a completed `plan` instead of repo
 ## Dependencies
 
 - `remove_document` in the shipped CLI — already present and already clearing both relation directions, so no version gate applies (`@internal/mcp/tools/remove_document.go` in the CLI repository).
-- The branch boundary resolution used by the committed-file precondition — @plugins/archcore/skills/_shared/branch-state.md.
+- The branch boundary resolution used by the committed-file precondition — @plugin/plugins/archcore/skills/_shared/branch-state.md.
 - The decision instrument, callable from `review` per the track-layer spec, supplies every capture type beyond `task-type` and `guide`.
 - Cross-repo follow-up, outside this plan's delivery scope: the CLI's `remove_document` description still instructs "A plan is abandoned → change status to rejected", so an agent acting outside these gates keeps receiving the superseded guidance.
 

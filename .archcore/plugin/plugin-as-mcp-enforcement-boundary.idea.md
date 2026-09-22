@@ -3,6 +3,7 @@ title: "Plugin as Host-Side MCP Enforcement Boundary — Reframe and Close Hook 
 status: draft
 tags:
   - "architecture"
+  - "component:plugin"
   - "hooks"
   - "multi-host"
   - "plugin"

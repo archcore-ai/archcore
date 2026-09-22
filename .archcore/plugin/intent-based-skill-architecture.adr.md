@@ -3,6 +3,7 @@ title: "Intent-Based Skill Architecture with 4-Layer Command Hierarchy"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---

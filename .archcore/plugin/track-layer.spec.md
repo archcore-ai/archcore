@@ -3,13 +3,14 @@ title: "Track Layer — Gated Flows Beneath the Command Surface"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
 
 ## Purpose & Scope
 
-This spec defines the track layer: gated flows that layer-1 commands route into without a user-visible track menu. Normative for track files under @plugins/archcore/skills/_shared/tracks/ and for the skills that execute them (`plan`, `document`, `review`). Out of scope: interview mechanics and per-type content contracts.
+This spec defines the track layer: gated flows that layer-1 commands route into without a user-visible track menu. Normative for track files under @plugin/plugins/archcore/skills/_shared/tracks/ and for the skills that execute them (`plan`, `document`, `review`). Out of scope: interview mechanics and per-type content contracts.
 
 ## Surface
 
@@ -50,10 +51,10 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 26. WHEN an evidence operation fails, the research instrument MUST retain successful writes for retry.
 27. WHEN an evidence operation fails, the research instrument MUST leave gather open.
 28. WHEN resuming a pending evidence operation, the research instrument MUST reconcile existing documents and edges before retrying.
-29. WHEN using new vocabulary, the executing skill MUST apply @plugins/archcore/skills/_shared/research-compatibility.md before the first affected MCP call.
+29. WHEN using new vocabulary, the executing skill MUST apply @plugin/plugins/archcore/skills/_shared/research-compatibility.md before the first affected MCP call.
 30. WHEN standalone evidence completes gather, the research instrument MUST exit the track.
 31. WHEN a research state field contradicts the filename type, the research instrument MUST report a blocking state error.
-32. WHEN using the actor-subject vocabulary, the executing skill MUST apply @plugins/archcore/skills/_shared/actor-subject-compatibility.md before the first affected MCP call.
+32. WHEN using the actor-subject vocabulary, the executing skill MUST apply @plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md before the first affected MCP call.
 33. WHEN a decision request carries standard signals and a local `adr` on the topic exists, `decision.classify` MUST route to `decision.cascade` with the standard cascade selected.
 34. WHEN a decision request carries standard signals and no local `adr` on the topic exists, `decision.classify` MUST route to `decision.adr` first.
 35. The describe track MUST NOT produce a `journey`.

@@ -3,6 +3,7 @@ title: "Remove Document-Type Skills — Collapse Layer 3 into Intent and Track S
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
@@ -27,7 +28,7 @@ Delete all 17 document-type skills and collapse Layer 3, keeping only intent, tr
 
 `rfc` was absorbed into `decide`, which gained a branch: when the user's language is "proposing", "should we", or "thinking about", or explicitly names an RFC, the skill confirms "Draft an RFC for team review?" and runs the RFC recipe of Summary, Motivation, Detailed Design, Drawbacks, and Alternatives, leaving the finalized-decision branch unchanged. `cpat` was absorbed into `standard-track` as an optional Step 3b between ADR creation and rule creation, asking what pattern changed and composing What Changed, Why, Before, After, and Scope, with `cpat implements adr` and `rule related cpat`, so the flow became adr → optional cpat → rule → guide.
 
-Alongside those absorptions: the 17 type-skill directories were deleted; the count invariants were updated in `README.md`, `@test/structure/skills.bats`, and every `.archcore/` document referencing skill counts; three obsolete lifecycle documents were deleted at the user's direction; and the per-class invocation flags simplified to no flag for intent and track skills and `disable-model-invocation: true` for the utility, removing all reliance on the field that Cursor and Codex do not support.
+Alongside those absorptions: the 17 type-skill directories were deleted; the count invariants were updated in `README.md`, `@plugin/test/structure/skills.bats`, and every `.archcore/` document referencing skill counts; three obsolete lifecycle documents were deleted at the user's direction; and the per-class invocation flags simplified to no flag for intent and track skills and `disable-model-invocation: true` for the utility, removing all reliance on the field that Cursor and Codex do not support.
 
 ## Alternatives Considered
 

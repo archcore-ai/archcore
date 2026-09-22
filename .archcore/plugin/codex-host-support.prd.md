@@ -3,6 +3,7 @@ title: "PRD: Codex CLI Host Support"
 status: accepted
 tags:
   - "codex"
+  - "component:plugin"
   - "multi-host"
   - "plugin"
 ---
@@ -50,7 +51,7 @@ Users of OpenAI Codex CLI need the same Archcore surfaces Claude Code users get:
 
 **F7 — skills compatibility.** Every `SKILL.md` works unchanged in Codex. Non-standard frontmatter such as `argument-hint` is tolerated by the Codex loader, and no Codex-specific skill validation is required.
 
-**F8 — subagent TOML conversion.** Convert `agents/archcore-auditor.md` to `agents/archcore-auditor.toml` carrying `name`, `description`, `developer_instructions` ported from the MD body, `sandbox_mode = "read-only"`, and a `disabled_tools` list naming the five mutating MCP tools. Apply the same conversion to the assistant with `sandbox_mode = "workspace-write"` and no `disabled_tools`. Keep both MD originals for Claude Code and Cursor, keep the `developer_instructions` bodies identical between formats, and let `@test/structure/agents.bats` enforce that parity.
+**F8 — subagent TOML conversion.** Convert `agents/archcore-auditor.md` to `agents/archcore-auditor.toml` carrying `name`, `description`, `developer_instructions` ported from the MD body, `sandbox_mode = "read-only"`, and a `disabled_tools` list naming the five mutating MCP tools. Apply the same conversion to the assistant with `sandbox_mode = "workspace-write"` and no `disabled_tools`. Keep both MD originals for Claude Code and Cursor, keep the `developer_instructions` bodies identical between formats, and let `@plugin/test/structure/agents.bats` enforce that parity.
 
 **F9 — marketplace install.** `codex plugin marketplace add archcore-ai/plugin` resolves to the GitHub repository and installs without error, with the README updated to carry the command in a Codex CLI install section.
 

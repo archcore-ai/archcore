@@ -2,6 +2,7 @@
 title: "Scenario and Journey Content Contracts — Runtime Canon for Actor-Subject Documents"
 status: draft
 tags:
+  - "component:plugin"
   - "document-types"
   - "plugin"
   - "precision"
@@ -14,9 +15,9 @@ This spec defines the two content contracts the plugin ships for the actor-subje
 
 ## Surface
 
-- Contract files: `@plugins/archcore/skills/_shared/scenario-contract.md` and `@plugins/archcore/skills/_shared/journey-contract.md`, with the section set of `@plugins/archcore/skills/_shared/spec-contract.md`: What it is, routing gate, When NOT to write, Mandatory sections, Notation, Body cap with an "Over the cap" section, Status, Forbidden in the body, Enforcement, Rationale, Examples.
-- Canon hooks: `@plugins/archcore/skills/_shared/precision-rules.md` rules 6 and 7; `@plugins/archcore/skills/_shared/prd-contract.md` content-kind ownership table; `@plugins/archcore/skills/_shared/spec-contract.md` Conformance section.
-- Engine canon the contracts mirror: `@../cli/templates/precision.go` (`RequiredSections`, `ActorStepSections`, `MaxBodyLines`), `@../cli/templates/templates.go` (`generateScenarioTemplate`, `generateJourneyTemplate`).
+- Contract files: `@plugin/plugins/archcore/skills/_shared/scenario-contract.md` and `@plugin/plugins/archcore/skills/_shared/journey-contract.md`, with the section set of `@plugin/plugins/archcore/skills/_shared/spec-contract.md`: What it is, routing gate, When NOT to write, Mandatory sections, Notation, Body cap with an "Over the cap" section, Status, Forbidden in the body, Enforcement, Rationale, Examples.
+- Canon hooks: `@plugin/plugins/archcore/skills/_shared/precision-rules.md` rules 6 and 7; `@plugin/plugins/archcore/skills/_shared/prd-contract.md` content-kind ownership table; `@plugin/plugins/archcore/skills/_shared/spec-contract.md` Conformance section.
+- Engine canon the contracts mirror: `@cli/templates/precision.go` (`RequiredSections`, `ActorStepSections`, `MaxBodyLines`), `@cli/templates/templates.go` (`generateScenarioTemplate`, `generateJourneyTemplate`).
 - Line format F6, actor-subject step: `<Actor> <action>; <system> <observable response>.` or `Given|When|Then|And|But <observation>.`
 - Spec-owned headings: `Surface`, `Normative Behavior`, `Failure Behavior`.
 
@@ -63,6 +64,6 @@ This spec defines the two content contracts the plugin ships for the actor-subje
 
 ## Conformance
 
-An implementation is conformant when both contract files exist with the sections behaviors 1–5 and 18–19 require, the canon hooks of behaviors 14–17 are present, and a draft composed from either contract satisfies behaviors 6–13 and 20 and the failure rules. Regression coverage: `@test/structure/actor-subject-contracts.bats` pins the files and the canon hooks; the CLI hook over a composed draft pins the mechanical half — on 2026-09-16 a scenario and a journey drafted from the contracts' examples reported 0 findings on CLI 0.8.4.
+An implementation is conformant when both contract files exist with the sections behaviors 1–5 and 18–19 require, the canon hooks of behaviors 14–17 are present, and a draft composed from either contract satisfies behaviors 6–13 and 20 and the failure rules. Regression coverage: `@plugin/test/structure/actor-subject-contracts.bats` pins the files and the canon hooks; the CLI hook over a composed draft pins the mechanical half — on 2026-09-16 a scenario and a journey drafted from the contracts' examples reported 0 findings on CLI 0.8.4.
 
 Given a capability with a designed `spec`, When the composing skill drafts a scenario from the contract, Then every Flows subsection opens with `Anchors:` and no step carries a modal.

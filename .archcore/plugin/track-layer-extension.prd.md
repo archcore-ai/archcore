@@ -3,6 +3,7 @@ title: "Track-Layer Extension — Flow Coverage for rnd, rfc Resolution, and Clo
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
   - "vision"

@@ -3,6 +3,7 @@ title: "Plugin Architecture — Four-Command Surface over Gated Tracks"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
@@ -153,7 +154,7 @@ Agents are an escalation path, not the primary interface. Both are restricted to
 - Constraint: the plugin ships at most 2 agents. A third requires an ADR.
 - Constraint: a PreToolUse hook MUST complete within 2 seconds, and a PostToolUse hook within 4 seconds, with enough margin that a host whose pre-mutation timeout fails open never reaches it.
 - Constraint: a `SKILL.md` MUST NOT exceed 300 lines.
-- Constraint: a track file MUST NOT exceed 300 lines; `@test/structure/track-file-cap.bats` pins the number, and `track-file-line-cap-300.adr` records why it rose from 200.
+- Constraint: a track file MUST NOT exceed 300 lines; `@plugin/test/structure/track-file-cap.bats` pins the number, and `track-file-line-cap-300.adr` records why it rose from 200.
 - Constraint: a new host costs a manifest, a hooks config, a normalizer case, a resolvable path from that config to `bin/`, and enrollment in the coverage matrix — and no change to skills, agents, or `bin/` logic.
 - Constraint: the `Makefile` lives at the repository root while the plugin lives in `plugins/archcore/`, so `make verify` runs from the repository root.
 - Invariant: every user-facing entry point maps to one of the four commands.
@@ -195,7 +196,7 @@ The architecture is conformant when:
 6. PostToolUse precision check fires after every `create_document` and `update_document`.
 7. No PostToolUse hook is registered for `Write|Edit`.
 8. SessionStart emits the recap carrying the staleness advisory.
-9. Gate logic for every multi-document flow lives under `skills/_shared/tracks/<track>.md`, and each track's gate records match its golden in `@test/fixtures/goldens/`.
+9. Gate logic for every multi-document flow lives under `skills/_shared/tracks/<track>.md`, and each track's gate records match its golden in `@plugin/test/fixtures/goldens/`.
 10. Every Archcore document type is reachable through at least one intent skill.
-11. The event matrix lists every implemented host, and each row is backed by a row in `@test/structure/host-coverage-matrix.bats`.
+11. The event matrix lists every implemented host, and each row is backed by a row in `@plugin/test/structure/host-coverage-matrix.bats`.
 12. Each host's hook commands are proven to reach `bin/` by executing them rather than by inspecting them — the assertion that pinned Copilot's commands as strings matched a broken command exactly and shipped it.

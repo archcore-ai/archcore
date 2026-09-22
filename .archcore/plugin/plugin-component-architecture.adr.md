@@ -3,6 +3,7 @@ title: "Plugin Component Architecture"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
 ---
 

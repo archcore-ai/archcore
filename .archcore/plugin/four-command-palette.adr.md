@@ -4,13 +4,14 @@ status: accepted
 tags:
   - "architecture"
   - "commands"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
 
 ## Context
 
-The plugin ships 7 user skills (@plugins/archcore/skills/), four of which — `capture`, `decide`, `context`, `audit` — are system verbs that the target developer audience does not map to their jobs, while job verbs (`plan`, `review`) are self-explanatory; the maintainer reported user confusion with the current set ("не всегда понятно что вообще делать", 2026-08). A comparison of 23 AI-SDLC tools (session research, 2026-08-04) showed the surfaces that win adoption expose job-moment verbs, and the repo's own collapse history (27 → 18 → 7 skills) was driven by routing overlap between narrow entries.
+The plugin ships 7 user skills (@plugin/plugins/archcore/skills/), four of which — `capture`, `decide`, `context`, `audit` — are system verbs that the target developer audience does not map to their jobs, while job verbs (`plan`, `review`) are self-explanatory; the maintainer reported user confusion with the current set ("не всегда понятно что вообще делать", 2026-08). A comparison of 23 AI-SDLC tools (session research, 2026-08-04) showed the surfaces that win adoption expose job-moment verbs, and the repo's own collapse history (27 → 18 → 7 skills) was driven by routing overlap between narrow entries.
 
 ## Decision
 

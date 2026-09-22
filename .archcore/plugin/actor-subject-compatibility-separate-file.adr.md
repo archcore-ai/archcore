@@ -2,6 +2,7 @@
 title: "Separate actor-subject-compatibility.md at CLI 0.8.4 Beside research-compatibility.md"
 status: draft
 tags:
+  - "component:plugin"
   - "document-types"
   - "multi-host"
   - "plugin"
@@ -10,7 +11,7 @@ tags:
 
 ## Context
 
-The research vocabulary release introduced @plugins/archcore/skills/_shared/research-compatibility.md: a probe through `bin/cli-gte 0.8.3`, a result table, a fallback, and a shared-repositories note. Nine sources reference that file — three skills, two track files, the conductor contract, and the three agent instruction files — and `@test/structure/cli-compat-invariant.bats` pins its references. Two accepted specs cite it by path: @.archcore/plugin/agent-system.spec.md and @.archcore/plugin/track-layer.spec.md. The actor-subject vocabulary (`scenario`, `journey`) ships in CLI v0.8.4 (commit `2a8f6e4` in the `cli` repository) and needs its own minimum. The compatibility spec carried the file layout as `[assumption]` until the brainstorming session of 2026-09-16.
+The research vocabulary release introduced @plugin/plugins/archcore/skills/_shared/research-compatibility.md: a probe through `bin/cli-gte 0.8.3`, a result table, a fallback, and a shared-repositories note. Nine sources reference that file — three skills, two track files, the conductor contract, and the three agent instruction files — and `@plugin/test/structure/cli-compat-invariant.bats` pins its references. Two accepted specs cite it by path: @.archcore/plugin/agent-system.spec.md and @.archcore/plugin/track-layer.spec.md. The actor-subject vocabulary (`scenario`, `journey`) ships in CLI v0.8.4 (commit `2a8f6e4` in the `cli` repository) and needs its own minimum. The compatibility spec carried the file layout as `[assumption]` until the brainstorming session of 2026-09-16.
 
 ## Decision
 

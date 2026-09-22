@@ -2,6 +2,7 @@
 title: "Host Probe Protocol — Live-Session Verification and Dated Records"
 status: accepted
 tags:
+  - "component:plugin"
   - "hooks"
   - "multi-host"
   - "plugin"
@@ -18,7 +19,7 @@ Static tests prove the wiring is *shaped* right. Only a live session proves the 
 ## Surface
 
 - **Probe ids** — `P0` (gate), `A`, `A-d`, `B`, `C`, `D`. One probe per shipped guard behavior, not one launcher observed three ways.
-- **`@test/probe/mkprobe`** — builds a disposable probe tree; never writes inside `plugins/archcore/`.
+- **`@plugin/test/probe/mkprobe`** — builds a disposable probe tree; never writes inside `plugins/archcore/`.
 - **Records table** — append-only, between the HTML `PROBE-RECORDS` markers below.
 - **Structure tests** — `probe-hygiene.bats` (no probe residue under `plugins/`), `probe-records.bats` (every enrolled host has a well-formed row), `probe-wrapper.bats` (the harness wrapper is transparent).
 - **Outcome vocabulary** — `pass` · `fail` · `n/a:<reason>` · `deferred:<reason>`; for probe D only, `fail-open-confirmed` or `fail-closed-observed`.
@@ -45,7 +46,7 @@ Since v0.7.0 (`cli-owns-layers-4-5.adr`) each launcher delegates to `archcore ho
 6. WHEN probe C runs, the operator MUST observe validation output for the MCP call.
 7. WHEN a probe run completes, the operator MUST append one row to the records table.
 8. WHEN a probe run completes, the operator MUST paste the captured evidence verbatim into the commit body.
-9. WHEN a probe run captures host stdin, the operator MUST add it to `@test/fixtures/stdin/` under the host's directory.
+9. WHEN a probe run captures host stdin, the operator MUST add it to `@plugin/test/fixtures/stdin/` under the host's directory.
 10. The operator MUST NOT record `pass` for a probe by analogy with another host.
 11. IF the `archcore` CLI on PATH is older than 0.7.0, THEN the operator MUST NOT record a row.
 
@@ -85,7 +86,7 @@ Evidence pointer is `<commit-sha>:<probe-id>`; the log itself lives in that comm
 
 ## Conformance
 
-1. `@test/structure/probe-records.bats` parses the table and fails if a host enrolled in `host-coverage-matrix.bats` has no row, if an outcome falls outside the vocabulary, or if a cell smuggles a pipe.
-2. `@test/structure/probe-hygiene.bats` fails if any probe marker or harness artifact appears under `plugins/`.
-3. `@test/unit/probe-wrapper.bats` fails if the wrapper alters stdout, stderr, or exit status for any fixture.
+1. `@plugin/test/structure/probe-records.bats` parses the table and fails if a host enrolled in `host-coverage-matrix.bats` has no row, if an outcome falls outside the vocabulary, or if a cell smuggles a pipe.
+2. `@plugin/test/structure/probe-hygiene.bats` fails if any probe marker or harness artifact appears under `plugins/`.
+3. `@plugin/test/unit/probe-wrapper.bats` fails if the wrapper alters stdout, stderr, or exit status for any fixture.
 4. A host counts as supported only when its row records `pass` or a justified `n/a` for P0, A, B, and C.

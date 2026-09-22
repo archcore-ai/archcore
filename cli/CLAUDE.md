@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+The shared Archcore project is the repository root (`..` from this directory).
+All `.archcore/` references below name that root, not `cli/.archcore/`.
+Run CLI build and test commands from `cli/`.
+
 Read and follow `AGENTS.md` before creating or editing technical documentation, Archcore documents, CLI help, MCP tool descriptions, prompts, agent instructions, or user-facing Markdown.
 
 The writing policy in `AGENTS.md` applies two profiles: an ASD-STE100-inspired profile constrains the sentence, and an ISO 24495-1-inspired profile constrains the structure. The document type decides which half binds. The per-type assignment — profile, line format, and metric — lives in the shared Archcore rule `concepts/document-prose-canon`.

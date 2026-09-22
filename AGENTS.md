@@ -2,7 +2,9 @@
 
 ## Purpose
 
-This repository develops the Archcore agent plugin and its technical documentation system.
+This repository develops the Archcore CLI in `cli/` and agent plugin in `plugin/`.
+Both components use the single `.archcore/` at the repository root.
+For Go changes, also follow `cli/AGENTS.md` and the shared documents tagged `code-quality`.
 
 Write technical documentation so that human readers and AI agents can identify the subject, understand the constraints, and apply the information without guessing.
 
@@ -47,10 +49,10 @@ Applies when both plugins are loaded. An instruction naming only Archcore tools 
 Apply this policy when creating or updating:
 
 - `.archcore/**/*.md`;
-- `plugins/archcore/skills/**/*.md`;
-- `plugins/archcore/agents/**/*.md`;
-- `plugins/archcore/copilot-agents/**/*.md`;
-- `plugins/archcore/rules/**/*.md`;
+- `plugin/plugins/archcore/skills/**/*.md`;
+- `plugin/plugins/archcore/agents/**/*.md`;
+- `plugin/plugins/archcore/copilot-agents/**/*.md`;
+- `plugin/plugins/archcore/rules/**/*.md`;
 - `docs/**/*.md`;
 - `README.md`;
 - other user-facing technical documentation in this repository.
@@ -73,7 +75,7 @@ Apply instructions in this order:
 
 1. Explicit user requirements.
 2. The content contract for the Archcore document type.
-3. `plugins/archcore/skills/_shared/precision-rules.md`.
+3. `plugin/plugins/archcore/skills/_shared/precision-rules.md`.
 4. This repository writing policy.
 5. General stylistic preferences.
 
@@ -202,7 +204,7 @@ Apply these rules to ADRs, RFCs, architecture documents, PRDs, plans, reference 
 
 ## Agent instructions and skills
 
-Apply the procedural rules to agent-facing instructions under `plugins/archcore/`.
+Apply the procedural rules to agent-facing instructions under `plugin/plugins/archcore/`.
 
 - Write instructions as direct actions.
 - Put routing conditions before the routed action.

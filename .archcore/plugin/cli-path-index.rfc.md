@@ -3,6 +3,7 @@ title: "Path Index in .sync-state.json — Constant-Time Code-Alignment Lookup"
 status: draft
 tags:
   - "architecture"
+  - "component:plugin"
   - "hooks"
   - "plugin"
 ---

@@ -4,6 +4,7 @@ status: draft
 tags:
   - "architecture"
   - "commands"
+  - "component:plugin"
   - "onboarding"
   - "plugin"
   - "skills"
@@ -11,7 +12,7 @@ tags:
 
 ## Context
 
-On 2026-09-20 the import inside `/archcore:init` probes 13 agent-file paths and copies what it finds: an aggregate file becomes a one-line link stub, a modular rule file becomes a verbatim body, and every result carries the tags `imported` and `source:<slug>`, a pointer line, and the `imported-` filename prefix (@plugins/archcore/skills/init/lib/agent-files.md, @plugins/archcore/skills/_shared/grounding/extract-routing.md). Decision records, contributor docs, published docs sites, and git history are not read. `magic-first-day-init.adr` places this import in the main flow as one preview line and rejects staging with resume, and @plugins/archcore/skills/init/SKILL.md holds 442 lines against the 300-line maximum of `skill-file-structure.rule`. The user asked for a mode that migrates the whole authored context of a repository into native documents, with no mark that a document came from an import.
+On 2026-09-20 the import inside `/archcore:init` probes 13 agent-file paths and copies what it finds: an aggregate file becomes a one-line link stub, a modular rule file becomes a verbatim body, and every result carries the tags `imported` and `source:<slug>`, a pointer line, and the `imported-` filename prefix (@plugins/archcore/skills/init/lib/agent-files.md, @plugins/archcore/skills/_shared/grounding/extract-routing.md). Decision records, contributor docs, published docs sites, and git history are not read. `magic-first-day-init.adr` places this import in the main flow as one preview line and rejects staging with resume, and @plugin/plugins/archcore/skills/init/SKILL.md holds 442 lines against the 300-line maximum of `skill-file-structure.rule`. The user asked for a mode that migrates the whole authored context of a repository into native documents, with no mark that a document came from an import.
 
 ## Decision
 

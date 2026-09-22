@@ -3,6 +3,7 @@ title: "Collapse Skill Surface to 7 Skills — Merge Tracks and Inspection Modes
 status: rejected
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---

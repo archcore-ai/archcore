@@ -4,6 +4,7 @@ status: accepted
 tags:
   - "agents"
   - "architecture"
+  - "component:plugin"
   - "plugin"
 ---
 

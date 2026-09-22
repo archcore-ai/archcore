@@ -3,6 +3,7 @@ title: "Plugin Content Relocated to plugins/archcore/ for Multi-Host Marketplace
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "multi-host"
   - "plugin"
 ---
@@ -28,6 +29,9 @@ This is the canonical "catalog at root, plugin manifest in subdirectory" pattern
 3. **Leaving the layout and documenting the limitation** — rejected because it leaves the Codex install broken, which is the actual bug.
 
 ## Consequences
+
+The 2026-09-22 monorepo migration places source files under `plugin/`. The generated distribution keeps this ADR's root catalogs and `plugins/archcore/` runtime path; @scripts/export-plugin.sh implements that projection.
+
 
 - The fix itself is three catalog `source` and `path` edits; the bulk of the change was relocating the content those catalogs point at, through `git mv`, so history is preserved.
 - Regression coverage was added: a structure-level guard asserts that every catalog `source` resolves to a subdirectory that is not the marketplace root — manifest presence alone is insufficient, because it passed under the bug — and the Codex integration smoke test now runs the real `marketplace add → plugin list → plugin add` cycle instead of a symlinked fake, which is what let the bug ship green.

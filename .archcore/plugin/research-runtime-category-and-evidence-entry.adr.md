@@ -2,6 +2,7 @@
 title: "Research in Vision, One Research Path on plan, and Standalone Evidence Entry"
 status: draft
 tags:
+  - "component:plugin"
   - "document-types"
   - "plugin"
   - "skills"
@@ -9,7 +10,7 @@ tags:
 
 ## Context
 
-On 2026-09-07, the maintainer confirmed `research` in vision after the CLI implementation diverged from the accepted global vocabulary RFC. The CLI registry in @../cli/templates/templates.go assigns `research` to vision and `evidence` to knowledge. The existing research track in @plugins/archcore/skills/_shared/tracks/research.md produced only `rnd`, and its gather entry required a parent investigation.
+On 2026-09-07, the maintainer confirmed `research` in vision after the CLI implementation diverged from the accepted global vocabulary RFC. The CLI registry in @cli/templates/templates.go assigns `research` to vision and `evidence` to knowledge. The existing research track in @plugin/plugins/archcore/skills/_shared/tracks/research.md produced only `rnd`, and its gather entry required a parent investigation.
 
 The same day, the first runtime cut exposed three research entries on `/archcore:plan`: `research`, `rnd`, and `evidence`, plus a catch-all rule that any registry type name is an expert entry. The global RFC `concepts/research-and-evidence-types` at that time prescribed the `research` path resolving to the `research` type and `rnd` reached by its own name through that catch-all rule. The maintainer rejected that surface: `evidence` is a knowledge material and belongs to `/archcore:document`; `rnd` is an outcome of an investigation, not a path a user chooses; the catch-all rule leaves hidden entries the argument hint does not show.
 

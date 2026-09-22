@@ -3,6 +3,7 @@ title: "Codex MCP CWD — Opt-In ARCHCORE_CWD Via Shell Wrapper"
 status: rejected
 tags:
   - "codex"
+  - "component:plugin"
   - "multi-host"
   - "plugin"
 ---

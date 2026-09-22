@@ -4,6 +4,7 @@ status: draft
 tags:
   - "architecture"
   - "commands"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
@@ -12,7 +13,7 @@ tags:
 
 ## Context
 
-On 2026-09-16 the four argument hints used three grammars: `init` takes only `--key=value` flags, `review` mixes `--deep` and `--drift` with a positional scope, and `plan` and `document` take a positional word (@plugins/archcore/skills/init/SKILL.md, @plugins/archcore/skills/review/SKILL.md, @plugins/archcore/skills/plan/SKILL.md, @plugins/archcore/skills/document/SKILL.md). The `plan` hint `[topic] [sdd | sources | iso | research]` shows the topic first, but @plugins/archcore/skills/_shared/delta-routing.md reads the path from the leading word, and `plan/SKILL.md` step 2 accepts a document type name that the same file says is not an entry. The `document` hint lists ten type names under the placeholder `[module, topic, or decision]`, although only `adr`, `rfc`, and `rule` enter the decision track; the user read the command as "record a decision". Hidden entries exist that no hint shows: five route names on `plan`, and `actualize`, `experience`, `closeout`, `cpat`, and `task-type` on `review`.
+On 2026-09-16 the four argument hints used three grammars: `init` takes only `--key=value` flags, `review` mixes `--deep` and `--drift` with a positional scope, and `plan` and `document` take a positional word (@plugin/plugins/archcore/skills/init/SKILL.md, @plugin/plugins/archcore/skills/review/SKILL.md, @plugin/plugins/archcore/skills/plan/SKILL.md, @plugin/plugins/archcore/skills/document/SKILL.md). The `plan` hint `[topic] [sdd | sources | iso | research]` shows the topic first, but @plugin/plugins/archcore/skills/_shared/delta-routing.md reads the path from the leading word, and `plan/SKILL.md` step 2 accepts a document type name that the same file says is not an entry. The `document` hint lists ten type names under the placeholder `[module, topic, or decision]`, although only `adr`, `rfc`, and `rule` enter the decision track; the user read the command as "record a decision". Hidden entries exist that no hint shows: five route names on `plan`, and `actualize`, `experience`, `closeout`, `cpat`, and `task-type` on `review`.
 
 ## Decision
 
@@ -42,7 +43,7 @@ The mapping on `document` is `decision` → `decision.classify` (`adr`, `rfc`, `
 
 - One reading rule for all four commands: the first word selects the path, the rest is the subject.
 - The `document` hint shrinks from ten names to three, and each name answers "document what?".
-- A user who knows the type still gets it with zero questions, through the gate's `skip_when`. On 2026-09-16 @test/behavioral/document-bench.sh scored 19 of 20 fixtures on the first run, 14 of them with no mode word; the one miss (an accepted RFC resolution read as `rfc`) passed 3 of 3 runs after the mode table named the `adr` that `decision.resolve` records.
+- A user who knows the type still gets it with zero questions, through the gate's `skip_when`. On 2026-09-16 @plugin/test/behavioral/document-bench.sh scored 19 of 20 fixtures on the first run, 14 of them with no mode word; the one miss (an accepted RFC resolution read as `rfc`) passed 3 of 3 runs after the mode table named the `adr` that `decision.resolve` records.
 
 ### Costs and limits
 

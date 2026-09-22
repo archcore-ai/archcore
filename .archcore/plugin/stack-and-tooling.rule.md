@@ -3,6 +3,7 @@ title: "Plugin Stack and Tooling — No New Languages Without ADR"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "development"
   - "plugin"
   - "rule"
@@ -73,7 +74,7 @@ set -eu
 
 # A new test
 # test/unit/check-something.bats
-@test "check-something rejects malformed input" {
+@plugin/test "check-something rejects malformed input" {
   run check_something < /dev/null
   assert_failure
 }
@@ -121,7 +122,7 @@ curl -fsSL https://... -o /tmp/archcore && /tmp/archcore "$@"
 ## Enforcement
 
 - Code review: a pull request that trips item 27 or item 28 and carries no ADR link blocks merge.
-- `@test/structure/scripts.bats` asserts that every file in `bin/` starts with `#!/bin/sh`, which verifies item 1.
+- `@plugin/test/structure/scripts.bats` asserts that every file in `bin/` starts with `#!/bin/sh`, which verifies item 1.
 - Structure tests pin the remaining file-shape contracts: no `.py`, `.go`, `.js`, `.ts`, or `.rb` file exists under `bin/` or at the repo root outside `reference-materials/`, `test_project/`, and `plugins/opencode/`.
 - `plugin-development.guide` states items 24 and 25 in its onboarding section for new contributors.
 - The path for a genuinely new tool is: open an issue, draft an ADR with the sections `Context / Decision / Alternatives Considered / Consequences`, obtain review, obtain acceptance, then implement.

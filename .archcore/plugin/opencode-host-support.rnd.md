@@ -2,6 +2,7 @@
 title: "OpenCode Host Support — Verified Plugin API and Adapter Design Context"
 status: accepted
 tags:
+  - "component:plugin"
   - "hooks"
   - "multi-host"
   - "opencode"

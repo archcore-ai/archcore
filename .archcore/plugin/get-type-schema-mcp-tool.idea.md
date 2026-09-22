@@ -3,6 +3,7 @@ title: "get_type_schema MCP Tool — CLI Templates as the Single Section Canon"
 status: draft
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "precision"
 ---

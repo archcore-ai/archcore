@@ -3,6 +3,7 @@ title: "Copilot MCP Architecture — Project-Level Only, Enforced by Filename an
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "copilot"
   - "multi-host"
   - "plugin"
@@ -34,7 +35,7 @@ While preparing the GitHub Copilot CLI adapter for release in July 2026, plugin-
 
 ## Decision
 
-Ship **no MCP server to Copilot**, enforced in three parts, each load-bearing and each pinned by its own test with a negative control in `@test/structure/plugin-mcp-isolation.bats`.
+Ship **no MCP server to Copilot**, enforced in three parts, each load-bearing and each pinned by its own test with a negative control in `@plugin/test/structure/plugin-mcp-isolation.bats`.
 
 1. **The MCP config carries no auto-discovered name.** It is `plugins/archcore/.claude.mcp.json`, not `.mcp.json`, and the plugin root carries no `mcp.json` and no `.github/mcp.json`.
 2. **`.claude-plugin/plugin.json` declares `"mcpServers": "./.claude.mcp.json"`.** With no conventional filename left, this key is the entirety of Claude Code's MCP wiring. Claude Code loads a plugin-root `.mcp.json` and then merges the manifest declaration in addition to it, so the key is a full replacement for the convention rather than a supplement. Verified at runtime rather than from documentation: `claude --plugin-dir … mcp list` reports `plugin:archcore:archcore … Connected`. `claude plugin details` under-reports the MCP count for manifest-declared paths and is not a valid oracle.
@@ -59,7 +60,7 @@ Copilot users get the MCP server from their own project's `.mcp.json`, written b
 - Copilot cannot write a user's documents into its own plugin cache through this MCP, and — the part the first pass missed — the project server the user was told to register survives to serve the session.
 - Cursor gains the same fix. Its loader accepts `[".mcp.json", "mcp.json"]`, so the plugin had been contributing an install-directory-spawned server there all along, contrary to what `cursor-mcp-architecture.adr` first claimed. The rename removes it, and Cursor is not exposed by part 2, because its manifest resolution breaks on the first manifest that parses and `.cursor-plugin/plugin.json` exists.
 - Neutral: Codex is untouched, because `.codex.mcp.json` and its explicit manifest key were already off the discovered names.
-- Neutral: whether omitting the key is *sufficient* was settled on 2026-08-03 — it is not, twice over. `@test/integration/copilot-plugin-smoke.bats` pins the resulting merge against a real `copilot plugin install`, using a sentinel command so it is an identity check rather than a name check.
+- Neutral: whether omitting the key is *sufficient* was settled on 2026-08-03 — it is not, twice over. `@plugin/test/integration/copilot-plugin-smoke.bats` pins the resulting merge against a real `copilot plugin install`, using a sentinel command so it is an identity check rather than a name check.
 - Tradeoff: the plugin stops being self-contained on Copilot. Installing it yields skills, commands, agents, and hooks, but no MCP tools until host wiring runs, so the init skill must always emit the host-wiring line for copilot, which pins that path to CLI v0.6.4 or later.
 - Tradeoff: Claude Code's MCP now hangs on one manifest key. The conventional filename used to be a second, independent route and is gone; delete the key and the primary host loses every document tool silently. Three tests and three mutations stand on that line.
 

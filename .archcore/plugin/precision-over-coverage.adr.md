@@ -3,6 +3,7 @@ title: "Precision over Coverage in Archcore Documentation"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "precision"
 ---

@@ -3,6 +3,7 @@ title: "JTBD-Implementation Alignment Analysis — Repo-Alignment Gap"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "marketing"
   - "plugin"
   - "vision"

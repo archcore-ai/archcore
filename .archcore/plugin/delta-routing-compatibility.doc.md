@@ -3,6 +3,7 @@ title: "Delta-Routing Compatibility — Version-Skew Risk Register for Shipped P
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "hooks"
   - "multi-host"
   - "plugin"
@@ -26,7 +27,7 @@ This register covers version-skew risk when delta routing ships: repositories wh
 | 8 | Sync manifest growth | 750 relations today; umbrella routes add edges per capability | branch-merge conflicts on the manifest amplify — the shared-mutable-file failure mode the enforcement audit records | raise `cli-path-index.rfc` priority; no manifest format change rides with delta routing itself |
 | 9 | Command entry grammar | the release with the grammar reads the first word as a mode: `document decision\|code\|research`, `review drift\|deep\|closeout\|experience`, `init refresh\|domain <slug>` | recorded invocations `document adr`, `document evidence`, `document journey`, `review --drift`, `init --refresh` become topic text; a mixed team sees two argument hints | the release notes name every retired form; topic text still routes by classification, so a retired form degrades to one classifying question, not to a wrong write |
 
-Historical delta-routing baseline: that release preserved 19 types and four relation values. The research vocabulary changes this assumption: 21 types and seven relations require a supporting CLI. The runtime gate for that vocabulary is @plugins/archcore/skills/_shared/research-compatibility.md; its minimum is 0.8.3, confirmed against the published [CLI v0.8.3](https://github.com/archcore-ai/cli/releases/tag/v0.8.3).
+Historical delta-routing baseline: that release preserved 19 types and four relation values. The research vocabulary changes this assumption: 21 types and seven relations require a supporting CLI. The runtime gate for that vocabulary is @plugin/plugins/archcore/skills/_shared/research-compatibility.md; its minimum is 0.8.3, confirmed against the published [CLI v0.8.3](https://github.com/archcore-ai/cli/releases/tag/v0.8.3).
 
 | Research surface | Current containment |
 |---|---|
@@ -39,7 +40,7 @@ Historical delta-routing baseline: that release preserved 19 types and four rela
 
 The engine release handoff is complete: [CLI v0.8.3](https://github.com/archcore-ai/cli/releases/tag/v0.8.3) ships the vocabulary. The downloaded Darwin arm64 archive matched the GitHub SHA-256 digest and release checksums on 2026-09-07. The native stdio MCP probe passed. No downgrade conversion is supplied.
 
-The actor-subject vocabulary (`scenario`, `journey`) raises the registry to 23 types and adds no relation value. Its runtime gate is @plugins/archcore/skills/_shared/actor-subject-compatibility.md; its minimum is 0.8.4, published as [CLI v0.8.4](https://github.com/archcore-ai/cli/releases/tag/v0.8.4) on 2026-09-16 with checksums for six platform assets. The plugin's CI pins that release by digest.
+The actor-subject vocabulary (`scenario`, `journey`) raises the registry to 23 types and adds no relation value. Its runtime gate is @plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md; its minimum is 0.8.4, published as [CLI v0.8.4](https://github.com/archcore-ai/cli/releases/tag/v0.8.4) on 2026-09-16 with checksums for six platform assets. The plugin's CI pins that release by digest.
 
 | Actor-subject surface | Current containment |
 |---|---|
@@ -65,14 +66,14 @@ The audit ran CLI 0.8.3 next to 0.8.2, 0.7.3, and 0.6.7 built from their release
 
 ### Cursor post-write advisories
 
-Reproduced in the same audit: the Cursor `afterMCPExecution` payload names the tool bare (`update_document`), the CLI folds only qualified spellings, and `@plugins/archcore/bin/post-tool-use` forwarded the raw capture. Against an incomplete ADR the bare payload of `@test/fixtures/stdin/cursor/mcp-update.json` produced exit 0 and empty stdout on CLI 0.8.3, 0.8.2, and 0.7.3; the same bytes with `mcp__archcore__update_document` produced the Precision advisory on all three. The consequence was silent: no Cursor document write received validation, cascade, or precision findings, and no output marked the session as unprotected.
+Reproduced in the same audit: the Cursor `afterMCPExecution` payload names the tool bare (`update_document`), the CLI folds only qualified spellings, and `@plugin/plugins/archcore/bin/post-tool-use` forwarded the raw capture. Against an incomplete ADR the bare payload of `@plugin/test/fixtures/stdin/cursor/mcp-update.json` produced exit 0 and empty stdout on CLI 0.8.3, 0.8.2, and 0.7.3; the same bytes with `mcp__archcore__update_document` produced the Precision advisory on all three. The consequence was silent: no Cursor document write received validation, cascade, or precision findings, and no output marked the session as unprotected.
 
 | Aspect | State |
 |---|---|
-| Fix | Plugin-only. `@plugins/archcore/bin/lib/normalize-stdin.sh` (`archcore_cursor_qualify_mcp_tool`) qualifies the one `tool_name` value when `mcp_server_name` is `archcore` and the name is one the archcore server registers; `@plugins/archcore/bin/post-tool-use` sends that copy. CLI 0.8.3 is unchanged. |
+| Fix | Plugin-only. `@plugin/plugins/archcore/bin/lib/normalize-stdin.sh` (`archcore_cursor_qualify_mcp_tool`) qualifies the one `tool_name` value when `mcp_server_name` is `archcore` and the name is one the archcore server registers; `@plugin/plugins/archcore/bin/post-tool-use` sends that copy. CLI 0.8.3 is unchanged. |
 | Ownership discriminator | `mcp_server_name`, the server's key in Cursor's `mcp.json`, per the Cursor hooks reference (read 2026-09-07); `archcore init --agent cursor` writes the key `archcore`. A user who renames the key gets no translation and no advisory — the same silence as before the fix. |
 | Not translated | Payloads without `mcp_server_name` (the shape `mcp-update.json` predates), foreign servers, already qualified names, names the server does not register, more than one unescaped `tool_name` key, and every other host and event. |
-| Verification | `@test/unit/hook-launchers.bats` (the rewrite and each pass-through case); `@test/integration/cursor-post-tool-use.bats` (real CLI advisory for an incomplete ADR, positive case fails when the rewrite is removed; runs in CI under `make test-integration` with the pinned CLI 0.8.4). |
+| Verification | `@plugin/test/unit/hook-launchers.bats` (the rewrite and each pass-through case); `@plugin/test/integration/cursor-post-tool-use.bats` (real CLI advisory for an incomplete ADR, positive case fails when the rewrite is removed; runs in CI under `make test-integration` with the pinned CLI 0.8.4). |
 | Unverified | Live Cursor sessions. The fixtures `afterMCPExecution-update-archcore.json` and `afterMCPExecution-update-foreign.json` are composed from the hooks reference, not captured; the claim covers those event shapes only. |
 
 ## Examples

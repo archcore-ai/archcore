@@ -2,6 +2,7 @@
 title: "Bump Plugin Version Across All Host Manifests"
 status: accepted
 tags:
+  - "component:plugin"
   - "multi-host"
   - "plugin"
 ---
@@ -63,7 +64,7 @@ The bump edits files only. Merging, tagging with `git tag vX.Y.Z && git push ori
 ## Rationale
 
 - **Single source, four copies.** Each host loads its own manifest and no shared version file exists, so the version is duplicated by necessity and the bump must fan out to all four or a host ships stale.
-- **Parity is test-enforced.** `@test/structure/json-configs.bats` asserts the version matches across Claude Code and Cursor; `@test/structure/codex-plugin.bats` asserts the Codex manifest metadata, including `.version`, matches Claude Code; `@test/structure/copilot-plugin.bats` does the same for Copilot. Bumping one host and forgetting another turns CI red. [assumption] This is the most frequent release regression; no incident count has been recorded.
+- **Parity is test-enforced.** `@plugin/test/structure/json-configs.bats` asserts the version matches across Claude Code and Cursor; `@plugin/test/structure/codex-plugin.bats` asserts the Codex manifest metadata, including `.version`, matches Claude Code; `@plugin/test/structure/copilot-plugin.bats` does the same for Copilot. Bumping one host and forgetting another turns CI red. [assumption] This is the most frequent release regression; no incident count has been recorded.
 - **Tag-relative stepping avoids drift decisions.** The git tag drives the release workflow, which `.github/workflows/release.yml` triggers on `v*`. Computing the next version from the latest tag keeps the manifest and the tag lineage aligned even when a previous tag was cut on a docs commit without a manifest bump.
 - **Mechanical, low-risk, and easy to do incompletely.** The change is four one-line edits, cheap to script, but the "identical across four files" invariant is what a human eye skips. A dedicated flow removes that failure mode.
 

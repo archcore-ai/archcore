@@ -2,6 +2,7 @@
 title: "Plugin Development Guide"
 status: accepted
 tags:
+  - "component:plugin"
   - "development"
   - "plugin"
 ---
@@ -36,10 +37,11 @@ For Codex, `codex plugin marketplace add /path/to/plugin` registers the marketpl
 git clone https://github.com/archcore-ai/plugin.git
 cd plugin
 git checkout dev               # development happens on dev, main is synthesized
-git submodule update --init    # pulls bats-support and bats-assert
+git submodule update --init --recursive
+cd plugin                     # component build and local marketplace root
 ```
 
-The repository uses a `dev → main` split: every pull request lands on `dev`, and `.github/workflows/release.yml` synthesizes `main` from a tagged commit on `dev` with the dev-only artifacts stripped. `docs/release.md` holds the full blocklist and the release procedure.
+The monorepo uses a `dev → main` split. The root workflow @.github/workflows/release.yml exports the plugin from `plugin/` into the existing public layout. @plugin/docs/release.md lists the published files and the release procedure. Run the component commands below from `plugin/`; use the single repository-root `.archcore/` for project context.
 
 ### 2. Run the host with the plugin loaded locally
 

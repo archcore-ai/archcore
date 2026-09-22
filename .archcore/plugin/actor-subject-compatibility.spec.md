@@ -2,6 +2,7 @@
 title: "Actor-Subject Vocabulary Compatibility — Engine Gate on CLI 0.8.4 and Command Paths to scenario and journey"
 status: draft
 tags:
+  - "component:plugin"
   - "document-types"
   - "multi-host"
   - "plugin"
@@ -14,13 +15,13 @@ This spec defines the engine gate for the two actor-subject type names and the c
 
 ## Surface
 
-- Compatibility file: `@plugins/archcore/skills/_shared/actor-subject-compatibility.md`, on the structure of `@plugins/archcore/skills/_shared/research-compatibility.md`: version probe, result table, fallback, shared repositories.
-- Probe helper: `@plugins/archcore/bin/cli-gte`, invoked as `cli-gte 0.8.4`; results `yes`, `no`, `__NO_CLI__`. "The probe fails" below means a result other than `yes`.
+- Compatibility file: `@plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md`, on the structure of `@plugin/plugins/archcore/skills/_shared/research-compatibility.md`: version probe, result table, fallback, shared repositories.
+- Probe helper: `@plugin/plugins/archcore/bin/cli-gte`, invoked as `cli-gte 0.8.4`; results `yes`, `no`, `__NO_CLI__`. "The probe fails" below means a result other than `yes`.
 - Minimum engine: CLI 0.8.4 — tag `v0.8.4` on commit `2a8f6e4` in the `cli` repository, the release that registers 23 types.
 - "Either type" below means `scenario` or `journey`; "a request names a type" covers a type name inside the subject text.
-- Argument hint of `@plugins/archcore/skills/document/SKILL.md`: `[decision|code|research] [subject]`; neither type is a mode on any command.
-- Grounding filters: the planning-moment filter in `@plugins/archcore/skills/plan/SKILL.md`, the document-moment filter in the document skill, and the review-moment filter in `@plugins/archcore/skills/review/SKILL.md`.
-- Agent instruction files under `@plugins/archcore/agents/` and `@plugins/archcore/copilot-agents/`.
+- Argument hint of `@plugin/plugins/archcore/skills/document/SKILL.md`: `[decision|code|research] [subject]`; neither type is a mode on any command.
+- Grounding filters: the planning-moment filter in `@plugin/plugins/archcore/skills/plan/SKILL.md`, the document-moment filter in the document skill, and the review-moment filter in `@plugin/plugins/archcore/skills/review/SKILL.md`.
+- Agent instruction files under `@plugin/plugins/archcore/agents/` and `@plugin/plugins/archcore/copilot-agents/`.
 
 ## Normative Behavior
 
@@ -64,6 +65,6 @@ This spec defines the engine gate for the two actor-subject type names and the c
 
 ## Conformance
 
-An implementation is conformant when the compatibility file exists with the surfaces above, behaviors 1–19 hold, and the failure rules produce the stated outcomes. Regression coverage: `@test/unit/cli-gte.bats` (helper contract), `@test/structure/cli-compat-invariant.bats` (file references resolve), `@test/structure/actor-subject-compat.bats` (hint parity, agent references), and `@test/integration/actor-subject-vocabulary.bats` against a real CLI 0.8.4 stdio MCP: 23 types in the `create_document` enum, `scenario` in knowledge, `journey` in vision, template sections as the CLI contract lists them.
+An implementation is conformant when the compatibility file exists with the surfaces above, behaviors 1–19 hold, and the failure rules produce the stated outcomes. Regression coverage: `@plugin/test/unit/cli-gte.bats` (helper contract), `@plugin/test/structure/cli-compat-invariant.bats` (file references resolve), `@plugin/test/structure/actor-subject-compat.bats` (hint parity, agent references), and `@plugin/test/integration/actor-subject-vocabulary.bats` against a real CLI 0.8.4 stdio MCP: 23 types in the `create_document` enum, `scenario` in knowledge, `journey` in vision, template sections as the CLI contract lists them.
 
 Given CLI 0.8.3 on PATH, When the user invokes `document code scenario for checkout`, Then the skill writes nothing and reports the required version once.

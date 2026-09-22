@@ -2,6 +2,7 @@
 title: "Scenario and Journey Runtime — Contracts, Illustrate Instrument, Evidence Checks, and the 0.8.4 Gate"
 status: draft
 tags:
+  - "component:plugin"
   - "document-types"
   - "plugin"
   - "skills"
@@ -11,7 +12,7 @@ tags:
 
 Deliver the plugin portion of `concepts/scenario-and-journey-types` [global · archcore · read-only] in one release: two content contracts, the illustrate instrument with journey production, scenario evidence on the describe and closeout tracks, and the compatibility gate with the two `/archcore:document` entries. The linked `prd` owns outcomes; four linked specs own behavior.
 
-Grounding used branch `dev`, HEAD `7b732c1`, clean working tree, on 2026-09-16. The engine half is CLI v0.8.4 (commit `2a8f6e4` in `../cli`); the global RFC and both investigations stay `draft` and are not imported into this repository. Implementation runs on branch `feat/scenario-journey-runtime`; the task-level plan is @docs/superpowers/plans/2026-09-16-scenario-journey-plugin-runtime.md.
+Grounding used branch `dev`, HEAD `7b732c1`, clean working tree, on 2026-09-16. The engine half is CLI v0.8.4 (commit `2a8f6e4` in `../cli`); the global RFC and both investigations stay `draft` and are not imported into this repository. Implementation runs on branch `feat/scenario-journey-runtime`; the task-level plan is @plugin/docs/superpowers/plans/2026-09-16-scenario-journey-plugin-runtime.md.
 
 ## Declared Delta
 
@@ -34,40 +35,40 @@ Four capabilities with four consumer sets justify the umbrella: composing skills
 
 ### Phase 1 — content contracts and canon hooks
 
-1. [x] Write `@plugins/archcore/skills/_shared/scenario-contract.md` per the content-contracts spec.
-2. [x] Write `@plugins/archcore/skills/_shared/journey-contract.md` per the content-contracts spec.
-3. [x] Edit `@plugins/archcore/skills/_shared/precision-rules.md`: add both types to the claim-recording list with the F6 profile.
-4. [x] Edit `@plugins/archcore/skills/_shared/prd-contract.md`: add the three actor-subject rows.
-5. [x] Extend the Conformance section in `@plugins/archcore/skills/_shared/spec-contract.md`.
+1. [x] Write `@plugin/plugins/archcore/skills/_shared/scenario-contract.md` per the content-contracts spec.
+2. [x] Write `@plugin/plugins/archcore/skills/_shared/journey-contract.md` per the content-contracts spec.
+3. [x] Edit `@plugin/plugins/archcore/skills/_shared/precision-rules.md`: add both types to the claim-recording list with the F6 profile.
+4. [x] Edit `@plugin/plugins/archcore/skills/_shared/prd-contract.md`: add the three actor-subject rows.
+5. [x] Extend the Conformance section in `@plugin/plugins/archcore/skills/_shared/spec-contract.md`.
 6. [x] Draft one document of each type in a scratch project and record the hook findings here.
 
 ### Phase 2 — illustrate instrument on the sdd track
 
-7. [x] Add the registry row, the package contribution, and the illustrate condition to `@plugins/archcore/skills/_shared/delta-routing.md`.
-8. [x] Add the gate `sdd.illustrate` to `@plugins/archcore/skills/_shared/tracks/sdd.md`.
-9. [x] Extend `sdd.require` with the journey production in `@plugins/archcore/skills/_shared/tracks/sdd.md`.
-10. [x] Extend the `sdd.design` exit checks in `@plugins/archcore/skills/_shared/tracks/sdd.md`.
-11. [x] Record the journey single-type exception in the Track notes of `@plugins/archcore/skills/_shared/tracks/sdd.md`.
-12. [x] Extend the Ground step of `@plugins/archcore/skills/plan/SKILL.md` with the probe trigger.
-13. [x] Add two routing traces under `@test/behavioral/fixtures/`.
+7. [x] Add the registry row, the package contribution, and the illustrate condition to `@plugin/plugins/archcore/skills/_shared/delta-routing.md`.
+8. [x] Add the gate `sdd.illustrate` to `@plugin/plugins/archcore/skills/_shared/tracks/sdd.md`.
+9. [x] Extend `sdd.require` with the journey production in `@plugin/plugins/archcore/skills/_shared/tracks/sdd.md`.
+10. [x] Extend the `sdd.design` exit checks in `@plugin/plugins/archcore/skills/_shared/tracks/sdd.md`.
+11. [x] Record the journey single-type exception in the Track notes of `@plugin/plugins/archcore/skills/_shared/tracks/sdd.md`.
+12. [x] Extend the Ground step of `@plugin/plugins/archcore/skills/plan/SKILL.md` with the probe trigger.
+13. [x] Add two routing traces under `@plugin/test/behavioral/fixtures/`.
 
 ### Phase 3 — scenario evidence on the describe and closeout tracks
 
-14. [x] Extend `describe.read` and the type heuristics in `@plugins/archcore/skills/_shared/tracks/describe.md`.
-15. [x] Extend `describe.draft` Produces in `@plugins/archcore/skills/_shared/tracks/describe.md`.
-16. [x] Extend the `closeout.verify` exit checks in `@plugins/archcore/skills/_shared/tracks/closeout.md`.
-17. [x] Extend the `closeout.accept` offer text in `@plugins/archcore/skills/_shared/tracks/closeout.md`.
-18. [x] Extend the closeout scope filter in `@plugins/archcore/skills/review/SKILL.md`.
+14. [x] Extend `describe.read` and the type heuristics in `@plugin/plugins/archcore/skills/_shared/tracks/describe.md`.
+15. [x] Extend `describe.draft` Produces in `@plugin/plugins/archcore/skills/_shared/tracks/describe.md`.
+16. [x] Extend the `closeout.verify` exit checks in `@plugin/plugins/archcore/skills/_shared/tracks/closeout.md`.
+17. [x] Extend the `closeout.accept` offer text in `@plugin/plugins/archcore/skills/_shared/tracks/closeout.md`.
+18. [x] Extend the closeout scope filter in `@plugin/plugins/archcore/skills/review/SKILL.md`.
 
 ### Phase 4 — compatibility gate, command entries, agents
 
-19. [x] Write `@plugins/archcore/skills/_shared/actor-subject-compatibility.md` per the compatibility spec.
-20. [x] Extend the argument hint and the expert form in `@plugins/archcore/skills/document/SKILL.md`.
-21. [x] Extend the Ground step of `@plugins/archcore/skills/document/SKILL.md` with the probe trigger.
-22. [x] Edit `@plugins/archcore/agents/archcore-assistant.md` and its Codex and Copilot siblings to name both types and the probe.
-23. [x] Raise the pinned integration CLI to 0.8.4 in `@Makefile` and under `@.github/workflows/`.
-24. [x] Write `@test/integration/actor-subject-vocabulary.bats` on the pattern of `@test/integration/research-vocabulary.bats`.
-25. [x] Write `@test/structure/actor-subject-contracts.bats` and `@test/structure/actor-subject-compat.bats`.
+19. [x] Write `@plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md` per the compatibility spec.
+20. [x] Extend the argument hint and the expert form in `@plugin/plugins/archcore/skills/document/SKILL.md`.
+21. [x] Extend the Ground step of `@plugin/plugins/archcore/skills/document/SKILL.md` with the probe trigger.
+22. [x] Edit `@plugin/plugins/archcore/agents/archcore-assistant.md` and its Codex and Copilot siblings to name both types and the probe.
+23. [x] Raise the pinned integration CLI to 0.8.4 in `@plugin/Makefile` and under `@.github/workflows/`.
+24. [x] Write `@plugin/test/integration/actor-subject-vocabulary.bats` on the pattern of `@plugin/test/integration/research-vocabulary.bats`.
+25. [x] Write `@plugin/test/structure/actor-subject-contracts.bats` and `@plugin/test/structure/actor-subject-compat.bats`.
 
 ### Phase 5 — canon updates under confirmation
 

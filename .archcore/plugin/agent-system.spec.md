@@ -3,16 +3,17 @@ title: "Universal Agent Specification"
 status: accepted
 tags:
   - "agents"
+  - "component:plugin"
   - "plugin"
 ---
 
 ## Purpose & Scope
 
-This spec defines the contract for the Archcore plugin's two subagents — `archcore-assistant` (read/write) and `archcore-auditor` (read-only) — across every host that loads them. Normative for both agent definitions, their per-host file formats, their system prompts, tool restrictions, invocation triggers, and domain expertise. Depended on by every host loader and by `@test/structure/agents.bats`. `single-universal-agent.adr` records the original rationale, `add-read-only-auditor-agent.adr` extends it, and `subagent-knowledge-tree-bootstrap.adr` is authoritative for the mandatory preamble. Out of scope: skills, which `skills-system.spec` governs.
+This spec defines the contract for the Archcore plugin's two subagents — `archcore-assistant` (read/write) and `archcore-auditor` (read-only) — across every host that loads them. Normative for both agent definitions, their per-host file formats, their system prompts, tool restrictions, invocation triggers, and domain expertise. Depended on by every host loader and by `@plugin/test/structure/agents.bats`. `single-universal-agent.adr` records the original rationale, `add-read-only-auditor-agent.adr` extends it, and `subagent-knowledge-tree-bootstrap.adr` is authoritative for the mandatory preamble. Out of scope: skills, which `skills-system.spec` governs.
 
 ## Surface
 
-**Definitions.** Each agent is one definition, shipped in the format each host's loader accepts. Content is identical across formats; only the container differs. Canonical sources: `@plugins/archcore/agents/archcore-assistant.md` and `@plugins/archcore/agents/archcore-auditor.md`.
+**Definitions.** Each agent is one definition, shipped in the format each host's loader accepts. Content is identical across formats; only the container differs. Canonical sources: `@plugin/plugins/archcore/agents/archcore-assistant.md` and `@plugin/plugins/archcore/agents/archcore-auditor.md`.
 
 | Format | Location | Read by | Notes |
 |---|---|---|---|
@@ -53,7 +54,7 @@ Copilot's copies sit in a directory of their own rather than beside the original
 
 **Invocation triggers.** The host invokes `archcore-assistant` when the user requests several related documents, when the task decomposes requirements ("break this PRD into specifications"), when existing documentation structure is refactored, or when a decision needs the full relation graph. The host invokes `archcore-auditor` when the user asks for an audit, health check, or review; when the user asks what is missing or what needs attention; proactively after a batch of documents has been created; before a release or milestone; or to check documentation against current code.
 
-**Shared domain knowledge.** Both agents cover all 23 document types on a supporting engine across the three categories — knowledge (`adr`, `rfc`, `rule`, `guide`, `doc`, `spec`, `evidence`, `scenario`), vision (`prd`, `idea`, `plan`, `rnd`, `research`, `journey`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`), and experience (`task-type`, `cpat`) — including each type's purpose, its trigger, its required sections, and its differentiation from similar types. They cover three coexisting requirements tracks: product (idea → prd → plan), sources (mrd + brd + urd → prd), and ISO 29148 (brs → strs → syrs → srs). They cover the engine-supported relation vocabulary. The legacy relations are `implements` (source fulfills target), `extends` (source builds on target), `depends_on` (source requires target), and `related` (general association). The research vocabulary release adds `supports`, `contradicts`, and `supersedes`; @plugins/archcore/skills/_shared/research-compatibility.md gates those types, filters, and edges. The actor-subject vocabulary release adds `scenario` and `journey` with no new relation value; @plugins/archcore/skills/_shared/actor-subject-compatibility.md gates those two names, and the assistant composes either from its content contract under `skills/_shared/`.
+**Shared domain knowledge.** Both agents cover all 23 document types on a supporting engine across the three categories — knowledge (`adr`, `rfc`, `rule`, `guide`, `doc`, `spec`, `evidence`, `scenario`), vision (`prd`, `idea`, `plan`, `rnd`, `research`, `journey`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs`), and experience (`task-type`, `cpat`) — including each type's purpose, its trigger, its required sections, and its differentiation from similar types. They cover three coexisting requirements tracks: product (idea → prd → plan), sources (mrd + brd + urd → prd), and ISO 29148 (brs → strs → syrs → srs). They cover the engine-supported relation vocabulary. The legacy relations are `implements` (source fulfills target), `extends` (source builds on target), `depends_on` (source requires target), and `related` (general association). The research vocabulary release adds `supports`, `contradicts`, and `supersedes`; @plugin/plugins/archcore/skills/_shared/research-compatibility.md gates those types, filters, and edges. The actor-subject vocabulary release adds `scenario` and `journey` with no new relation value; @plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md gates those two names, and the assistant composes either from its content contract under `skills/_shared/`.
 
 **Output contracts.** `archcore-assistant` returns created and updated documents, relation changes, and the reasoning behind its choices. `archcore-auditor` returns a structured report with Audit Summary (counts, issue totals), Critical Issues (broken references, misleading content), Warnings (quality gaps), Code-Document Correlation (documents referencing source paths where code changed after the document was last modified), Info (suggestions), and Recommendations (prioritized actions).
 
@@ -112,7 +113,7 @@ The exception in item 12 does not waive `list_documents`.
 1. IF the MCP server is unavailable, THEN the agent MUST inform the user and exit without further tool calls.
 2. IF a document operation fails, THEN the agent MUST report the error and continue with the remaining tasks.
 3. IF a relation target does not exist, THEN the agent MUST report the unresolved relation to the caller.
-4. IF an evidence write or required relation remains pending, the assistant MUST keep the affected gather gate open per @plugins/archcore/skills/_shared/tracks/research.md.
+4. IF an evidence write or required relation remains pending, the assistant MUST keep the affected gather gate open per @plugin/plugins/archcore/skills/_shared/tracks/research.md.
 5. IF an agent stops at its `maxTurns` ceiling, THEN the caller MUST continue that same agent or narrow the task.
 
 A restart is the wrong recovery from item 5: it repeats the bootstrap and spends the new budget on work already done.
@@ -127,5 +128,5 @@ An agent is conformant when:
 4. It satisfies the normative behavior for its role.
 5. `archcore-auditor` produces no mutation, and `archcore-assistant` produces structured output.
 6. Its system prompt carries the `# First Step — Bootstrap Knowledge Tree` section with both cross-references and the grep-able anchor literal `recent accepted decisions`.
-7. @test/structure/agent-contracts.bats asserts the required read-tool set, MD/TOML instruction and description parity, pagination, vocabulary handoff, relation-procedure handoff, and auditor evidence constraints; @test/structure/actor-subject-compat.bats asserts the actor-subject paragraph in every agent surface.
-8. `@test/structure/agents.bats` asserts the bootstrap preamble, the synthesis anchor, the three-way tool naming, and byte-identity of the Copilot copies.
+7. @plugin/test/structure/agent-contracts.bats asserts the required read-tool set, MD/TOML instruction and description parity, pagination, vocabulary handoff, relation-procedure handoff, and auditor evidence constraints; @plugin/test/structure/actor-subject-compat.bats asserts the actor-subject paragraph in every agent surface.
+8. `@plugin/test/structure/agents.bats` asserts the bootstrap preamble, the synthesis anchor, the three-way tool naming, and byte-identity of the Copilot copies.

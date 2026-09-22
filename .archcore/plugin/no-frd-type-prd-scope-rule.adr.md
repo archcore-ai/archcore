@@ -3,6 +3,7 @@ title: "No FRD Type — PRD Scope Rule Instead"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
 ---
 
 ## Context

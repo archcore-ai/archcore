@@ -2,6 +2,7 @@
 title: "UserPromptSubmit Topic Injection via the Internal Hook Runner"
 status: draft
 tags:
+  - "component:plugin"
   - "hooks"
   - "plugin"
 ---

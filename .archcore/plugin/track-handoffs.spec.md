@@ -3,13 +3,14 @@ title: "Track Handoffs — Cross-Track Transitions and Command Lifecycles"
 status: draft
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "skills"
 ---
 
 ## Purpose & Scope
 
-This spec defines the edges between tracks and between commands: where one gate or command hands control to another, under which condition, and what carries state across the hop. Normative for the `plan`, `document`, and `review` skills, for track-file authors under `@plugins/archcore/skills/_shared/tracks/`, and for the behavioral routing tests. It complements, and does not restate, the gate mechanics of `track-layer.spec`, the route computation of `delta-routing-conductor.spec`, and the instrument sequencing of `delta-routing-instruments.spec`: an edge those specs already obligate appears in the register below with its owner and receives no clause here. Out of scope: gate internals, interview mechanics, and hook behavior.
+This spec defines the edges between tracks and between commands: where one gate or command hands control to another, under which condition, and what carries state across the hop. Normative for the `plan`, `document`, and `review` skills, for track-file authors under `@plugin/plugins/archcore/skills/_shared/tracks/`, and for the behavioral routing tests. It complements, and does not restate, the gate mechanics of `track-layer.spec`, the route computation of `delta-routing-conductor.spec`, and the instrument sequencing of `delta-routing-instruments.spec`: an edge those specs already obligate appears in the register below with its owner and receives no clause here. Out of scope: gate internals, interview mechanics, and hook behavior.
 
 ## Surface
 
@@ -17,14 +18,14 @@ Transition register. Each row cites the file that owns the edge; a row marked `d
 
 | # | From | To | Condition | Owner |
 |---|---|---|---|---|
-| 1 | `plan` grounding | conductor Derivation | always, before any question | `@plugins/archcore/skills/_shared/delta-routing.md` |
+| 1 | `plan` grounding | conductor Derivation | always, before any question | `@plugin/plugins/archcore/skills/_shared/delta-routing.md` |
 | 2 | conductor | `sdd.require` → `sdd.design` ×N → `sdd.decompose` | `creates` ≥ 1; runbook on an operational procedure | same |
 | 3 | conductor | `decision.classify` | Δ `decision` non-empty, or Π `undecided` | same |
 | 4 | conductor | `research.frame` / `research.spike` | Π `world` / `empirical`; `plan research` | same |
 | 5 | conductor | `requirements-cascade.mrd` | product-scale `intent_gap`, or `plan sources` | same |
 | 6 | conductor | `requirements-cascade.brs` | R `security-compliance` per capability, or `plan iso` | same |
 | 7 | conductor | `describe.read` (callable) | `modifies` names a capability no `spec` covers | same, rule 11 |
-| 8 | `research.spike` exit | conductor Derivation | question resolved, revised Δ | `@plugins/archcore/skills/_shared/tracks/research.md` |
+| 8 | `research.spike` exit | conductor Derivation | question resolved, revised Δ | `@plugin/plugins/archcore/skills/_shared/tracks/research.md` |
 | 9 | `research.conclude` exit on `plan` | conductor, package resumes | investigation closed | this spec, behavior 11 |
 | 10 | `requirements-cascade.urd` exit | `sdd.require`, or `requirements-cascade.brs` | follow-up choice; `prd` exists → `related` edges | this spec, behaviors 1–2 |
 | 11 | `requirements-cascade.srs` exit | existing `spec` / `plan`, or `sdd.require` | covering document exists or not | this spec, behavior 3 |
@@ -35,12 +36,12 @@ Transition register. Each row cites the file that owns the edge; a row marked `d
 | 16 | `decision.rfc` | exit | the track produced an `rfc` | this spec, behavior 10 |
 | 17 | `document` without a mode, unclear | one classifying question → `document` | git evidence supports both readings | `plugin-architecture.spec`, failure 3–4 |
 | 18 | `review` branch review | `actualize.scope` | a `spec-wrong` or `code-wrong` finding | this spec, behavior 13 |
-| 19 | `review closeout`, or a completion signal | `closeout.verify` | scope from branch state | `@plugins/archcore/skills/review/SKILL.md` |
+| 19 | `review closeout`, or a completion signal | `closeout.verify` | scope from branch state | `@plugin/plugins/archcore/skills/review/SKILL.md` |
 | 20 | `closeout.capture` | decision standard cascade, or experience types | named residue | `delta-routing-instruments.spec`, 21–23 |
 | 21 | closeout exit | `experience.detect` | always | this spec, behavior 12 |
 | 22 | `plan` implement fork | later `/archcore:plan` resume | a draft carries a state block | `track-layer.spec`, 10 |
 | 23 | `plan` Declared Delta | `closeout.verify` | plan in branch scope | `delta-routing-instruments.spec`, 18 |
-| 24 | compatibility probe ≠ `yes` | legacy `rnd`; evidence exits without a write | engine below 0.8.3 | `@plugins/archcore/skills/_shared/research-compatibility.md` |
+| 24 | compatibility probe ≠ `yes` | legacy `rnd`; evidence exits without a write | engine below 0.8.3 | `@plugin/plugins/archcore/skills/_shared/research-compatibility.md` |
 | 25 | `document decision` / `code` / `research` | `decision.classify` / `describe.read` / `research.frame` | mode word; `draft` | `command-surface-v2.spec`, 17–18, 25–26 |
 | 26 | `sdd.design` | `sdd.illustrate` | illustrate condition; `draft` | `illustrate-instrument.spec` |
 
@@ -82,6 +83,6 @@ Lifecycle sequences, each crossing at least two commands: build — `plan` → i
 
 ## Conformance
 
-An implementation is conformant when every register row is backed by its owner's `Next` field or clause, behaviors 1–15 hold, and the failure rules produce the stated outcomes. Regression coverage: `@test/structure/track-goldens.bats` pins each track's `Next` fields; `@test/structure/trigger-routing.bats` pins the command-level rows; the six lifecycle sequences become routing traces under `@test/behavioral/fixtures/` [planned].
+An implementation is conformant when every register row is backed by its owner's `Next` field or clause, behaviors 1–15 hold, and the failure rules produce the stated outcomes. Regression coverage: `@plugin/test/structure/track-goldens.bats` pins each track's `Next` fields; `@plugin/test/structure/trigger-routing.bats` pins the command-level rows; the six lifecycle sequences become routing traces under `@plugin/test/behavioral/fixtures/` [planned].
 
 Given a `urd` closed at `requirements-cascade.urd` and a `prd` on the topic, When the track exits, Then `mrd`, `brd`, and `urd` each carry `related` → that `prd`.

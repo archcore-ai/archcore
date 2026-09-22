@@ -4,6 +4,7 @@ status: accepted
 tags:
   - "architecture"
   - "codex"
+  - "component:plugin"
   - "hooks"
   - "multi-host"
   - "plugin"
@@ -11,7 +12,7 @@ tags:
 
 ## Context
 
-`@plugins/archcore/bin/detect-host` resolves Codex from `CODEX_HOME`, which Codex never injects into a model-run shell command — the variable is read *from* the user to locate the config directory — so every Codex session, CLI and desktop app alike, resolves to `__UNKNOWN__` and reaches host wiring through the init skill's ask, whose four options name no desktop surface. Independently, `@plugins/archcore/hooks/codex.hooks.json` pinned no host id and a Codex `SessionStart` payload carries no `turn_id`, so the stdin heuristic read every Codex session start as Claude Code — which is why `@plugins/archcore/bin/session-start` streamed the CLI hook's JSON and then appended plain-text advisories, and Codex fails any hook whose stdout starts with `{` or `[` and does not parse (`looks_like_json` in `codex-rs/hooks/src/engine/output_parser.rs`), dropping the whole payload: measured on 2026-08-14, an empty `.archcore/` produced `hook: SessionStart Failed` and no Archcore context in the session. The same class of failure was already solved for Copilot in `_archcore_copilot_flush`, one host too narrowly.
+`@plugin/plugins/archcore/bin/detect-host` resolves Codex from `CODEX_HOME`, which Codex never injects into a model-run shell command — the variable is read *from* the user to locate the config directory — so every Codex session, CLI and desktop app alike, resolves to `__UNKNOWN__` and reaches host wiring through the init skill's ask, whose four options name no desktop surface. Independently, `@plugin/plugins/archcore/hooks/codex.hooks.json` pinned no host id and a Codex `SessionStart` payload carries no `turn_id`, so the stdin heuristic read every Codex session start as Claude Code — which is why `@plugin/plugins/archcore/bin/session-start` streamed the CLI hook's JSON and then appended plain-text advisories, and Codex fails any hook whose stdout starts with `{` or `[` and does not parse (`looks_like_json` in `codex-rs/hooks/src/engine/output_parser.rs`), dropping the whole payload: measured on 2026-08-14, an empty `.archcore/` produced `hook: SessionStart Failed` and no Archcore context in the session. The same class of failure was already solved for Copilot in `_archcore_copilot_flush`, one host too narrowly.
 
 ## Decision
 

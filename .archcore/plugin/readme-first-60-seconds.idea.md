@@ -2,6 +2,7 @@
 title: "README \"First 60 Seconds\" Onboarding Section"
 status: draft
 tags:
+  - "component:plugin"
   - "marketing"
   - "onboarding"
   - "plugin"

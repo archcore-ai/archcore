@@ -2,6 +2,7 @@
 title: "Scenario Evidence in Describe and Closeout — Feature Files as Evidence, Readiness and Coverage Checks"
 status: draft
 tags:
+  - "component:plugin"
   - "document-types"
   - "plugin"
   - "skills"
@@ -13,10 +14,10 @@ This spec defines how the document and review skills consume scenarios and featu
 
 ## Surface
 
-- Describe track in `@plugins/archcore/skills/_shared/tracks/describe.md`: `describe.read` evidence base gains feature files; the type heuristics table gains a `scenario` row; `describe.draft` Produces gains `scenario`.
-- Closeout track in `@plugins/archcore/skills/_shared/tracks/closeout.md`: `closeout.verify` gains two advisory exit checks — readiness and coverage; `closeout.accept` offer text names the readiness result for a `scenario`.
-- Review grounding in `@plugins/archcore/skills/review/SKILL.md`: the closeout scope filter adds `scenario` and `journey` when the compatibility probe returned `yes`.
-- Verdict vocabulary: `@plugins/archcore/skills/_shared/verdict-contract.md` — `spec-wrong`, `code-wrong`, `ok`.
+- Describe track in `@plugin/plugins/archcore/skills/_shared/tracks/describe.md`: `describe.read` evidence base gains feature files; the type heuristics table gains a `scenario` row; `describe.draft` Produces gains `scenario`.
+- Closeout track in `@plugin/plugins/archcore/skills/_shared/tracks/closeout.md`: `closeout.verify` gains two advisory exit checks — readiness and coverage; `closeout.accept` offer text names the readiness result for a `scenario`.
+- Review grounding in `@plugin/plugins/archcore/skills/review/SKILL.md`: the closeout scope filter adds `scenario` and `journey` when the compatibility probe returned `yes`.
+- Verdict vocabulary: `@plugin/plugins/archcore/skills/_shared/verdict-contract.md` — `spec-wrong`, `code-wrong`, `ok`.
 - Report kinds: readiness — every example of each scoped `scenario` was run or confirmed; coverage — no scoped `spec` clause lacks an example, and no cited feature file is unnamed by a `spec`.
 
 ## Normative Behavior
@@ -55,6 +56,6 @@ This spec defines how the document and review skills consume scenarios and featu
 
 ## Conformance
 
-An implementation is conformant when the describe and closeout gate records carry the surfaces above, behaviors 1–15 hold, and the failure rules produce the stated outcomes. Regression coverage: `@test/structure/track-goldens.bats` (gate record shape) and the `review` closeout golden in `@test/structure/` [planned]; live sessions are not exercised.
+An implementation is conformant when the describe and closeout gate records carry the surfaces above, behaviors 1–15 hold, and the failure rules produce the stated outcomes. Regression coverage: `@plugin/test/structure/track-goldens.bats` (gate record shape) and the `review` closeout golden in `@plugin/test/structure/` [planned]; live sessions are not exercised.
 
 Given a branch with one `scenario` and its `spec`, When `closeout.verify` runs, Then the report lists each example's readiness and each uncovered clause number, and both findings are advisory.

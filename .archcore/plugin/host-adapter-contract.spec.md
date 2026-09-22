@@ -3,6 +3,7 @@ title: "Host Adapter Contract — Portable Core Boundary and Adapter Obligations
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "hooks"
   - "multi-host"
   - "plugin"
@@ -19,7 +20,7 @@ Ownership: the maintainer owns the portable core and this contract, and records 
 - `plugins/archcore/skills/` — Agent Skills (`SKILL.md`).
 - `plugins/archcore/agents/` — markdown agent definitions plus the per-host format variants: Codex TOML in the same directory, and Copilot `*.agent.md` in `copilot-agents/`, which stays outside `agents/` because `.agent.md` matches the `*.md` glob that Claude Code and Cursor use.
 - `plugins/archcore/commands/` — slash-command wrappers.
-- `plugins/archcore/bin/` — three hook launchers (`session-start`, `pre-tool-use`, `post-tool-use`), the CLI version probe `cli-gte`, the host probe `detect-host`, and the shared shell libraries `@plugins/archcore/bin/lib/normalize-stdin.sh` and `@plugins/archcore/bin/lib/plugin-cache-guard.sh`. Since v0.7.0 (`cli-owns-layers-4-5.adr`) the guard, validation, cascade, and precision policy lives inside `archcore hooks <host> <leaf>`; a launcher carries only the host glue the CLI cannot do for itself.
+- `plugins/archcore/bin/` — three hook launchers (`session-start`, `pre-tool-use`, `post-tool-use`), the CLI version probe `cli-gte`, the host probe `detect-host`, and the shared shell libraries `@plugin/plugins/archcore/bin/lib/normalize-stdin.sh` and `@plugin/plugins/archcore/bin/lib/plugin-cache-guard.sh`. Since v0.7.0 (`cli-owns-layers-4-5.adr`) the guard, validation, cascade, and precision policy lives inside `archcore hooks <host> <leaf>`; a launcher carries only the host glue the CLI cannot do for itself.
 - Canonical env schema published by `normalize-stdin.sh`: `ARCHCORE_HOST`, `ARCHCORE_TOOL_NAME`, `ARCHCORE_FILE_PATH`, `ARCHCORE_DOC_PATH`, `ARCHCORE_RAW_STDIN`.
 - Canonical exit convention of the `bin/` scripts: exit 0 passes; exit 2 plus a reason on stderr blocks. Everything else an adapter ships is configuration, not logic.
 
@@ -39,7 +40,7 @@ Ownership: the maintainer owns the portable core and this contract, and records 
 12. IF no candidate resolves, THEN the hook command MUST degrade to the host's pass outcome rather than to an error exit.
 13. An adapter MUST register MCP so that it launches `archcore mcp` resolved from PATH.
 14. IF plugin-shipped MCP is unsafe on a host, THEN the adapter MUST document a user-side fallback in place of that registration.
-15. An adapter MUST add a host case to `@plugins/archcore/bin/lib/normalize-stdin.sh`.
+15. An adapter MUST add a host case to `@plugin/plugins/archcore/bin/lib/normalize-stdin.sh`.
 16. An adapter MUST add a coverage-matrix row naming the full set of its host's filesystem-mutation tools.
 17. An adapter MUST record a dated probe record in `host-probe-protocol.spec` for each shipped guard.
 18. An adapter MUST NOT fork, copy, or patch a skill or an agent for one host.
@@ -85,7 +86,7 @@ Silence is the worse failure mode behind item 3: enforcement is off, and nothing
 ## Conformance
 
 1. Structure tests pin the per-host coverage matrix, the absence of host-conditional text in `skills/`, the `#!/bin/sh` shebang on `bin/*`, agent format parity, and — per host — that hook commands name only plugin-root variables that host provides.
-2. Items 10–12 are conformance-tested by execution: `@test/structure/copilot-plugin.bats` runs each hook command under `env -u` and asserts the pass outcome plus a warning when no root resolves, each candidate sufficient alone, and a dead candidate skipped rather than fatal. Fault injection confirms each assertion fails only for its own defect.
-3. Items 6–9 and Failure Behavior items 6–7 are conformance-tested by execution under `test/unit/`: `@test/unit/hook-launchers.bats` asserts the leaf name and host id each launcher passes to the CLI, byte-for-byte stdin — with the one Cursor `afterMCPExecution` tool-name qualification `hooks-validation-system.spec` grants `bin/post-tool-use` asserted as the only value that changes, and every ambiguous payload passed through — and the silent exit 0 below CLI 0.7.0; `@test/integration/cursor-post-tool-use.bats` proves the qualification's result against the real CLI; `@test/unit/hook-latency.bats` bounds the launcher's own share of the timeout budget, proves through a marginal-cost bound that the glue never reads `.archcore/`, and runs one end-to-end case that skips without a current CLI.
+2. Items 10–12 are conformance-tested by execution: `@plugin/test/structure/copilot-plugin.bats` runs each hook command under `env -u` and asserts the pass outcome plus a warning when no root resolves, each candidate sufficient alone, and a dead candidate skipped rather than fatal. Fault injection confirms each assertion fails only for its own defect.
+3. Items 6–9 and Failure Behavior items 6–7 are conformance-tested by execution under `test/unit/`: `@plugin/test/unit/hook-launchers.bats` asserts the leaf name and host id each launcher passes to the CLI, byte-for-byte stdin — with the one Cursor `afterMCPExecution` tool-name qualification `hooks-validation-system.spec` grants `bin/post-tool-use` asserted as the only value that changes, and every ambiguous payload passed through — and the silent exit 0 below CLI 0.7.0; `@plugin/test/integration/cursor-post-tool-use.bats` proves the qualification's result against the real CLI; `@plugin/test/unit/hook-latency.bats` bounds the launcher's own share of the timeout budget, proves through a marginal-cost bound that the glue never reads `.archcore/`, and runs one end-to-end case that skips without a current CLI.
 4. A new host counts as supported only when items 5–17 are all satisfied; the probe outcomes that gate the same claim are owned by `host-probe-protocol.spec`.
 5. A pull request that changes the portable core, or that adds adapter logic outside this contract, requires maintainer review and a link to an accepted decision document.

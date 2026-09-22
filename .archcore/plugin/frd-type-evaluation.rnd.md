@@ -3,6 +3,7 @@ title: "FRD Type Evaluation — Feature-Scale Requirements"
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "vision"
 ---
 

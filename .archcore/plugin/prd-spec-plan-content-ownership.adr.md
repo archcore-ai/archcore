@@ -3,6 +3,7 @@ title: "Content-Kind Ownership Across prd, spec, and plan — One Owning Documen
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "precision"
   - "skills"

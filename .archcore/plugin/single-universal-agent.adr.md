@@ -4,6 +4,7 @@ status: accepted
 tags:
   - "agents"
   - "architecture"
+  - "component:plugin"
   - "plugin"
 ---
 
@@ -13,7 +14,7 @@ The plugin needs subagent capability for documentation tasks that exceed what a 
 
 ## Decision
 
-Ship one universal agent, **`archcore-assistant`**, defined in `@plugins/archcore/agents/archcore-assistant.md`, carrying knowledge of the engine-supported document types, the three requirements-engineering tracks, and the engine-supported relation vocabulary, and restricted to the archcore MCP tools plus the read-only file tools Read, Grep, and Glob, with no Write, Edit, or Bash access to `.archcore/` files.
+Ship one universal agent, **`archcore-assistant`**, defined in `@plugin/plugins/archcore/agents/archcore-assistant.md`, carrying knowledge of the engine-supported document types, the three requirements-engineering tracks, and the engine-supported relation vocabulary, and restricted to the archcore MCP tools plus the read-only file tools Read, Grep, and Glob, with no Write, Edit, or Bash access to `.archcore/` files.
 
 Its knowledge covers each document type's template, required sections, and selection criteria; the product track (`prd`, `idea`, `plan`), the sources track (`mrd`, `brd`, `urd`), and the ISO 29148 cascade (`brs`, `strs`, `syrs`, `srs`); when to use `implements`, `extends`, `depends_on`, and `related`, along with the common flows; and documentation review — gaps, staleness, missing relations, orphaned documents, and inconsistent statuses.
 
@@ -39,4 +40,4 @@ Its knowledge covers each document type's template, required sections, and selec
 
 ## Vocabulary revision — 2026-09-07
 
-The research update preserves the single-agent decision. On a supporting engine, the runtime covers 21 types and seven relation values; @plugins/archcore/skills/_shared/research-compatibility.md gates the new vocabulary. Research and rnd belong to vision; evidence belongs to knowledge.
+The research update preserves the single-agent decision. On a supporting engine, the runtime covers 21 types and seven relation values; @plugin/plugins/archcore/skills/_shared/research-compatibility.md gates the new vocabulary. Research and rnd belong to vision; evidence belongs to knowledge.

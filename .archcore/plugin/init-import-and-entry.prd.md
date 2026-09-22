@@ -3,6 +3,7 @@ title: "Init Rework — Import of Authored Context and a Shorter Entry"
 status: draft
 tags:
   - "commands"
+  - "component:plugin"
   - "onboarding"
   - "plugin"
   - "skills"
@@ -14,7 +15,7 @@ tags:
 
 ## Problem Statement
 
-A team that adopts Archcore in an existing repository keeps its knowledge in `CLAUDE.md`, `AGENTS.md`, rule folders, ADR folders, and `docs/`. Today init reads 13 agent-file paths and leaves a link stub or a verbatim copy tagged `imported` (@plugins/archcore/skills/init/lib/agent-files.md). The team then carries two copies of each convention, the agent receives the same text twice, and decision records stay outside the relation graph. The plugin maintainer carries a second cost: @plugins/archcore/skills/init/SKILL.md holds 442 lines, 142 above the maximum the other three skills meet.
+A team that adopts Archcore in an existing repository keeps its knowledge in `CLAUDE.md`, `AGENTS.md`, rule folders, ADR folders, and `docs/`. Today init reads 13 agent-file paths and leaves a link stub or a verbatim copy tagged `imported` (@plugins/archcore/skills/init/lib/agent-files.md). The team then carries two copies of each convention, the agent receives the same text twice, and decision records stay outside the relation graph. The plugin maintainer carries a second cost: @plugin/plugins/archcore/skills/init/SKILL.md holds 442 lines, 142 above the maximum the other three skills meet.
 
 ## Goals and Success Metrics
 

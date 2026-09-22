@@ -3,6 +3,7 @@ title: "Decompose over Truncate — Over-Cap Documents Split, Trimmed Lists Stat
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "plugin"
   - "precision"
   - "skills"

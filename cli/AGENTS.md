@@ -1,5 +1,9 @@
 # Repository Agent Instructions
 
+The shared Archcore project is the repository root (`..` from this directory).
+All `.archcore/` references below name that root, not `cli/.archcore/`.
+Run CLI build and test commands from `cli/`.
+
 <!-- archcore:start --> managed by `archcore init` — edit outside these markers
 ## Archcore — project context for this repo
 

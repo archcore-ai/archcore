@@ -2,6 +2,7 @@
 title: "Diagram Support — Effectiveness Evidence and Token Forecast"
 status: draft
 tags:
+  - "component:plugin"
   - "diagrams"
   - "plugin"
   - "precision"

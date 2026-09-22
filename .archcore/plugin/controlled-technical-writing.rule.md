@@ -2,6 +2,7 @@
 title: "Controlled Technical Writing — Repository Scope and Enforcement"
 status: accepted
 tags:
+  - "component:plugin"
   - "plugin"
   - "precision"
   - "rule"
@@ -14,7 +15,7 @@ Two shared rules in the mounted `archcore` global source own the policy. `concep
 Covered paths: `.archcore/**`, `plugins/archcore/skills/**`, `plugins/archcore/agents/**`, `plugins/archcore/copilot-agents/**`, `plugins/archcore/rules/**`, `docs/**`, and `README.md`. @AGENTS.md carries the profile for hosts reading that entry point.
 
 1. WHEN creating or updating a covered Markdown file, the agent MUST apply the shared writing profile and prose canon.
-2. The agent MUST resolve document-type precedence through per-type contracts under @plugins/archcore/skills/_shared/ before applying @plugins/archcore/skills/_shared/precision-rules.md.
+2. The agent MUST resolve document-type precedence through per-type contracts under @plugin/plugins/archcore/skills/_shared/ before applying @plugin/plugins/archcore/skills/_shared/precision-rules.md.
 3. WHEN the shared profile requires a placeholder, the author MUST use one of the placeholders listed below.
 4. The author MUST NOT restate in this file an obligation the shared profile already carries.
 
@@ -24,7 +25,7 @@ Placeholders: `[ACTOR REQUIRED]`, `[CONDITION REQUIRED]`, `[METRIC REQUIRED]`, `
 
 Requirement 4 is the point of this file. This repository and the CLI repository each held a full copy of the profile under the same filename, and the copies had already diverged on the precedence order, on which document types the sentence contract binds, and on whether a repository may claim conformance to an external writing standard. One profile with two owners produces two profiles.
 
-Requirement 2 exists because `@plugins/archcore/skills/_shared/spec-contract.md` and `@plugins/archcore/skills/_shared/rule-contract.md` define mandatory sections the general profile does not describe, so the general profile MUST NOT displace them.
+Requirement 2 exists because `@plugin/plugins/archcore/skills/_shared/spec-contract.md` and `@plugin/plugins/archcore/skills/_shared/rule-contract.md` define mandatory sections the general profile does not describe, so the general profile MUST NOT displace them.
 
 Requirement 1 keeps `@AGENTS.md` in the loop deliberately. A host that reads an instruction file but not the document graph still needs the profile, so the text is mirrored there for delivery, not for authority.
 
@@ -46,6 +47,6 @@ The shared profile already carries that obligation. Restating it here creates th
 
 ## Enforcement
 
-- The precision check runs inside the CLI binary since v0.7.0 (`cli-owns-layers-4-5.adr`). This repository ships no `check-precision` script; `@plugins/archcore/bin/post-tool-use` is host glue that delegates the raw payload to `archcore hooks <host> post-tool-use` and fails open below CLI 0.7.0.
+- The precision check runs inside the CLI binary since v0.7.0 (`cli-owns-layers-4-5.adr`). This repository ships no `check-precision` script; `@plugin/plugins/archcore/bin/post-tool-use` is host glue that delegates the raw payload to `archcore hooks <host> post-tool-use` and fails open below CLI 0.7.0.
 - The check covers the forbidden lexicon, the mandatory sections of each type supported by the installed engine, a heading another type owns, frontmatter, body length, and the line form the prose canon assigns the type: one modal per numbered clause, an active-voice obligated subject, the trigger before the response, the word cap on a clause and on a step, and the modal prohibition on a claim-recording type. What needs judgement rests on review — whether a claim needed evidence, and whether a section opens with its conclusion.
 - The authoring agent applies the review checklist in `@AGENTS.md` before returning a document.

@@ -3,6 +3,7 @@ title: "Track Machinery Enforcement Audit — Machine Perimeter Versus Prompt In
 status: accepted
 tags:
   - "architecture"
+  - "component:plugin"
   - "hooks"
   - "plugin"
   - "validation"
@@ -21,7 +22,7 @@ Determine which parts of the track machinery are machine-enforced versus prompt-
 
 ## Approach
 
-Internal reading on 2026-08-15 of @plugins/archcore/skills/_shared/gate-contract.md, @plugins/archcore/skills/_shared/elicitation-contract.md, the host hook configs, and the corpus specs for the hook layer and the track layer. Field side: the seven research passes recorded in the routing-bases research; URLs fetched 2026-08-15.
+Internal reading on 2026-08-15 of @plugin/plugins/archcore/skills/_shared/gate-contract.md, @plugin/plugins/archcore/skills/_shared/elicitation-contract.md, the host hook configs, and the corpus specs for the hook layer and the track layer. Field side: the seven research passes recorded in the routing-bases research; URLs fetched 2026-08-15.
 
 ## Findings
 
