@@ -187,9 +187,10 @@ func runAction(spec HostSpec, verb Verb, ev Evidence) Action {
 		cmds = addressInstalls(spec, cmds, ev.Installs)
 	}
 	return Action{
-		Host:     spec.Host,
-		Kind:     ActionRun,
-		Commands: cmds,
+		Host:          spec.Host,
+		Kind:          ActionRun,
+		Commands:      cmds,
+		MigrateSource: verb == VerbUpdate,
 		// Only a Claude Code install merges the autoUpdate marketplace entry, and
 		// only after the commands succeed.
 		MergeAutoUpdate: verb == VerbInstall && spec.MergeAutoUpdate,

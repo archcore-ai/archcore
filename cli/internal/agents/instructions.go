@@ -303,6 +303,12 @@ func writeFileAtomic(path string, data []byte) error {
 	return nil
 }
 
+// WriteConfigFile preserves a user-owned config's mode and symlink through the
+// same writer as instruction files — choosing-an-atomic-write.rule §5.
+func WriteConfigFile(path string, data []byte) error {
+	return writeFileAtomic(path, data)
+}
+
 // --- Per-target helpers wired into the agent registry ---
 
 func agentsMDInstructionsPath(baseDir string) string {

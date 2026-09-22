@@ -81,6 +81,10 @@ type ExecuteOptions struct {
 	// print the commands and execute nothing — one planner, one executor, and
 	// the environment read at the edge instead of inside Plan.
 	PrintOnly bool
+
+	// Repository defaults to the published RepoID. A candidate run can exercise
+	// the canonical migration before the release switches that default.
+	Repository string
 }
 
 // interactiveSession reports whether a terminal is attached. It is the seam a
@@ -133,6 +137,19 @@ func executeAction(ctx context.Context, a Action, r Reporter, opts ExecuteOption
 		if opts.PrintOnly {
 			r.PrintCommand(a.Host, a.Commands)
 			return Result{Host: a.Host, Kind: ActionPrintCommand}, true
+		}
+		repository := opts.Repository
+		if repository == "" {
+			repository = RepoID
+		}
+		if a.MigrateSource {
+			if err := migrateSource(ctx, a, repository, nil); err != nil {
+				if ctx.Err() != nil {
+					return Result{}, false
+				}
+				r.UINote(a.Host, "Could not migrate the Archcore marketplace source; update was skipped. Retry the update after checking the marketplace settings.")
+				return Result{Host: a.Host, Kind: ActionRun, Failed: true}, true
+			}
 		}
 		return runHost(ctx, a, r)
 	case ActionPrintCommand:
