@@ -42,7 +42,7 @@ that `archcore update` and both installers consume.
 | `plugin/.cursor-plugin/marketplace.json` | `.cursor-plugin/marketplace.json` |
 | `plugin/docs/TERMS.md` | `docs/TERMS.md` |
 | `plugin/docs/cursor.mcp.example.json` | `docs/cursor.mcp.example.json` |
-| `plugin/README.md`, `plugin/demo.gif`, `plugin/3-commands.png` | Their root filenames |
+| `README.md` (repository root) | `README.md` |
 | `LICENSE`, `NOTICE` | Their root filenames |
 
 All three catalogs continue to resolve `./plugins/archcore`. The runtime includes

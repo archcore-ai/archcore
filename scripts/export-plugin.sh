@@ -22,9 +22,7 @@ mkdir -p "$output/docs"
 for file in TERMS.md cursor.mcp.example.json; do
   cp "$source_root/docs/$file" "$output/docs/$file"
 done
-for file in README.md demo.gif 3-commands.png; do
-  cp "$source_root/$file" "$output/$file"
-done
+cp "$repo_root/README.md" "$output/README.md"
 for file in LICENSE NOTICE; do
   cp "$repo_root/$file" "$output/$file"
 done

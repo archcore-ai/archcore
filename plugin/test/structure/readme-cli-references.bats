@@ -11,7 +11,7 @@ setup() {
   common_setup
 }
 
-ARCHCORE_SUBCOMMANDS="config doctor help hooks init mcp status update"
+ARCHCORE_SUBCOMMANDS="config doctor help hooks init instructions mcp plugin status sync update"
 
 @test "every \`archcore <subcmd>\` reference in README.md names a real subcommand" {
   local file="$REPO_ROOT/README.md"
