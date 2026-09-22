@@ -8,9 +8,9 @@ tags:
 
 ## Overview
 
-The Archcore CLI uses a tag-driven release pipeline. Pushing a `v*` tag triggers GitHub Actions, which runs the tests and invokes GoReleaser to build cross-platform binaries and publish a GitHub Release.
+The Archcore CLI and the Archcore plugin share one tag-driven release pipeline in `archcore-ai/plugin`. Pushing a `v*` tag triggers @.github/workflows/release.yml, which verifies that the four plugin manifests equal the tag, runs both test suites, regenerates the plugin distribution on `main`, and invokes GoReleaser from `cli/` to build cross-platform binaries and publish the GitHub Release.
 
-During the monorepo migration, the publication entries below describe the existing `archcore-ai/cli` channel. The active source checks live at @.github/workflows/cli-test.yml and @.github/workflows/cli-install-smoke.yml. The imported release and landing-notification workflows are retained under `cli/.github/workflows/` as reference.
+The former `archcore-ai/cli` repository published releases up to v0.8.7 (2026-09-21). Its workflow files remain under `cli/.github/workflows/` as migration reference; GitHub does not execute them.
 
 ## Content
 
@@ -20,14 +20,15 @@ During the monorepo migration, the publication entries below describe the existi
 |---|---|---|
 | Version vars | `@cli/main.go` | `version` and `commit` variables with dev defaults |
 | Cobra integration | `@cli/cmd/root.go` | `NewRootCmd(version, commit)` sets the `Version` field and the version template |
-| GoReleaser config | `@cli/.goreleaser.yaml` | Defines the build matrix, archive naming, and checksums |
-| GitHub Actions — release | `@cli/.github/workflows/release.yml` | Orchestrates test → build → publish on a tag push |
-| GitHub Actions — installer smoke | `@cli/.github/workflows/install-smoke.yml` | Runs both installers on Windows (PowerShell 5.1 and 7), Ubuntu, macOS, Alpine, and a dash-only Debian. Triggers on pull requests **and** on direct pushes to `main`, because an installer fix reaches `main` both ways and the PowerShell 5.1 path has no other gate |
-| GitHub Actions — landing nudge | `@cli/.github/workflows/notify-landing.yml` | After a **successful** `Install Smoke` run on `main`, dispatches an `installer-updated` event to `archcore-ai/landing` so archcore.ai republishes the installers. Chained to the smoke run rather than to the push, so a direct push cannot publish an unverified installer |
+| GoReleaser config | `@cli/.goreleaser.yaml` | Defines the build matrix, archive naming, checksums, the two ldflags injections, the inertness post-build hook, and the release assets |
+| GitHub Actions — release | `@.github/workflows/release.yml` | `verify-version` → `test-plugin` and `test-cli` → `publish-plugin` (export and `main` push) → `publish-cli` (GoReleaser) on a tag push |
+| GitHub Actions — CLI tests | `@.github/workflows/cli-test.yml` | gofmt, vet, golangci-lint, `go test ./...`, the inertness self-test, and the examples fixture check on pull requests and `dev` pushes |
+| GitHub Actions — installer smoke | `@.github/workflows/cli-install-smoke.yml` | Runs both installers on Windows (PowerShell 5.1 and 7), Ubuntu, macOS, Alpine, and a dash-only Debian on pull requests and `dev` pushes that touch an installer |
+| GitHub Actions — landing nudge | `@cli/.github/workflows/notify-landing.yml` | Reference copy only. [assumption] A root dispatcher for this repository is pending (plan `release/unified-release-cutover`, task 19) |
 | Install script (Unix) | `@cli/install.sh` | End-user installer for macOS and Linux; downloads `.tar.gz` release artifacts |
 | Install script (Windows) | `@cli/install.ps1` | PowerShell installer for Windows amd64 and arm64; downloads `.zip` release artifacts |
 | Self-update | `@cli/internal/update/update.go` | In-binary update: check the latest version, download, verify the checksum, replace atomically |
-| Update command | `@cli/cmd/update.go` | `archcore update`, plus the cached background version check |
+| Update command | `@cli/cmd/update.go` | `archcore update`, plus the cached background version check; names the release repository `archcore-ai/plugin` |
 
 ### Build matrix
 
@@ -43,7 +44,7 @@ Every build uses `CGO_ENABLED=0` for a static binary and the `-s -w` ldflags to 
 
 An archive follows the pattern `archcore_<os>_<arch>.tar.gz` for darwin and linux, and `archcore_<os>_<arch>.zip` for windows. Examples: `archcore_darwin_arm64.tar.gz`, `archcore_windows_amd64.zip`. `install.sh` and `archcore update` consume the Unix archives; `install.ps1` consumes the Windows zips.
 
-Every release includes a `checksums.txt` file with SHA-256 hashes for verification.
+Every release includes a `checksums.txt` file with SHA-256 hashes for verification, plus `install.sh` and `install.ps1` as extra release files.
 
 Both installers and `archcore update` download `checksums.txt` on every run. Its download count is therefore a denoised proxy for real installer runs, while the archive count is the raw figure. The two differ by roughly a factor of six; see the install analytics ADR.
 
@@ -56,27 +57,30 @@ Both installers and `archcore update` download `checksums.txt` on every run. Its
 
 ### Version resolution
 
-Both install scripts and `archcore update` resolve "latest" by reading the `Location` header of `https://github.com/archcore-ai/cli/releases/latest`, a `302` that already carries the tag. The GitHub REST API is avoided deliberately: its 60 requests per hour unauthenticated limit is per IP and breaks teams behind a shared egress address. The related ADR records that decision.
+Both install scripts and `archcore update` resolve "latest" by reading the `Location` header of `https://github.com/archcore-ai/plugin/releases/latest`, a `302` that already carries the tag. The GitHub REST API is avoided deliberately: its 60 requests per hour unauthenticated limit is per IP and breaks teams behind a shared egress address. The related ADR records that decision.
+
+Because every tag releases both components, the redirect always lands on a release that carries CLI assets. The resolver halts at the first 3xx, so a repository rename, which answers with a 301 to the new name first, breaks the check for binaries built before the rename; the unified-release ADR records that consequence.
 
 ### Update paths
 
-A user updates the CLI in one of three ways:
+A user updates the CLI in one of two ways:
 
 1. `archcore update` — the self-update command downloads the release and replaces the binary in place on every supported platform. On Windows, the running `.exe` is renamed to `<binary>.old` before the new file moves in, with a rollback when the second rename fails (`atomicReplace` in `@cli/internal/update/update.go`).
 2. Re-running the install script:
    - macOS and Linux: `curl -fsSL https://archcore.ai/install.sh | bash`
    - Windows: `irm https://archcore.ai/install.ps1 | iex`
-3. `go install github.com/archcore-ai/cli@latest`.
+
+`go install` is not a channel: the module path in `@cli/go.mod` is `archcore-cli`, not a GitHub path.
 
 ### Install analytics
 
-The installers published on archcore.ai send one anonymous event per run. The PostHog key is **not** in this repository: both scripts carry a `__POSTHOG_KEY__` placeholder, and the `archcore-ai/landing` deploy workflow substitutes the real key while it syncs them into `public/`.
+The installers published on archcore.ai send one anonymous event per run. The PostHog key is **not** baked into the scripts in this repository: both carry a `__POSTHOG_KEY__` placeholder, and the `archcore-ai/landing` deploy workflow substitutes the real key while it syncs them into `public/`.
 
 Consequences for this pipeline:
 
-- A script run from a clone, a fork, or `install-smoke.yml` reports nothing, because the guard requires a `phc_` prefix.
+- A script run from a clone, a fork, or `cli-install-smoke.yml` reports nothing, because the guard requires a `phc_` prefix.
 - The landing deploy fails when a synced script does not carry exactly one placeholder.
-- Publication is gated on `Install Smoke`, so a broken installer cannot reach archcore.ai ahead of its tests.
+- [assumption] Until the landing deploy fetches the installers from this repository (plan `release/unified-release-cutover`, task 15), archcore.ai serves the copies from `archcore-ai/cli`.
 
 The contract, the event properties, and the opt-out procedure are in install-script-usage.guide.md. The decision and its trade-offs are in the install analytics ADR.
 
@@ -84,16 +88,19 @@ The contract, the event properties, and the opt-out procedure are in install-scr
 
 | Name | Location | Required | Purpose |
 |---|---|---|---|
-| `GITHUB_TOKEN` | this repo (automatic) | yes | Publishes the release. GitHub Actions provides it; nothing to configure. |
-| `LANDING_DISPATCH_TOKEN` | this repo (secret) | no | A PAT with `contents: write` on `archcore-ai/landing`, used by `notify-landing.yml`. While it is absent, the job emits a warning and exits 0 — archcore.ai still picks the installer up on its next deploy, so a missing secret never turns a CLI push red. |
-| `POSTHOG_KEY` | `archcore-ai/landing` (variable) | yes, for analytics | Public PostHog project key. Substituted into the installers at landing deploy time. A missing or non-`phc_` value fails the landing deploy. |
+| `GITHUB_TOKEN` | this repo (automatic) | yes | Pushes `main` and publishes the release. GitHub Actions provides it; nothing to configure. |
+| `POSTHOG_KEY` | this repo (variable) | yes, for telemetry | Public PostHog project key, injected as `-X archcore-cli/internal/telemetry.apiKey` when `github.repository_id` is `1201781375`. `@cli/scripts/assert-not-inert.sh` fails the release when the built binary does not carry it. Copied from `archcore-ai/cli` on 2026-09-22. |
+| `POSTHOG_HOST` | this repo (variable) | no | Ingestion host. Present since 2026-09-22 for parity with the landing deploy. |
+| `ARCHCORE_OFFICIAL_BUILD` | workflow expression | yes | The official-build marker, `-X archcore-cli/internal/update.officialBuild`, injected only when `github.repository_id` is `1201781375`; a fork builds without it and never self-replaces. |
+| `LANDING_DISPATCH_TOKEN` | this repo (secret) | no | [assumption] Pending with the root landing dispatcher; a PAT with `contents: write` on `archcore-ai/landing`. |
+| `POSTHOG_KEY` | `archcore-ai/landing` (variable) | yes, for analytics | Substituted into the installers at landing deploy time. A missing or non-`phc_` value fails the landing deploy. |
 | `POSTHOG_HOST` | `archcore-ai/landing` (variable) | no | Ingestion host, `https://edge.archcore.ai`. Falls back to the same value when unset. |
 
 The pipeline needs no signing keys and no notarization credentials.
 
 ## Examples
 
-Non-normative example — the release artifact listing for v1.0.0:
+Non-normative example — the release artifact listing for v0.10.1:
 
 ```
 archcore_darwin_amd64.tar.gz
@@ -103,4 +110,6 @@ archcore_linux_arm64.tar.gz
 archcore_windows_amd64.zip
 archcore_windows_arm64.zip
 checksums.txt
+install.sh
+install.ps1
 ```
