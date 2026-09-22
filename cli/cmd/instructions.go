@@ -1,0 +1,203 @@
+package cmd
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+
+	"archcore-cli/internal/agents"
+	"archcore-cli/internal/config"
+	"archcore-cli/internal/display"
+	"archcore-cli/internal/wiring"
+
+	"github.com/spf13/cobra"
+)
+
+func newInstructionsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "instructions",
+		Short: "Manage the Archcore usage hint in agent instruction files",
+		Long: "Writes a short, always-on \"use Archcore\" hint into each detected agent's " +
+			"instruction file (AGENTS.md, GEMINI.md, or CLAUDE.md) so agents " +
+			"discover and use the Archcore MCP tools even without the Archcore plugin.",
+	}
+	cmd.AddCommand(newInstructionsInstallCmd(), newInstructionsRemoveCmd())
+	return cmd
+}
+
+func newInstructionsInstallCmd() *cobra.Command {
+	var (
+		agentFlag   string
+		projectFlag string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "install",
+		Short: "Write the Archcore usage hint into agent instruction files",
+		// Agent selection is via --agent, never a positional arg. Reject stray
+		// args so a mistyped `install cursor` fails loudly instead of silently
+		// falling through to auto-detect and ignoring the intended scope.
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cwd, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
+			if err != nil {
+				return err
+			}
+			if !config.DirExists(cwd) {
+				return errors.New(".archcore/ not found — run 'archcore init' first")
+			}
+
+			if agentFlag != "" {
+				return runInstructionsInstallForAgent(cwd, agents.AgentID(agentFlag))
+			}
+			return runInstructionsInstallAutoDetect(cwd)
+		},
+	}
+
+	cmd.Flags().StringVar(&agentFlag, "agent", "", "install for a single agent (e.g. cursor, gemini-cli); not repeatable — the last value wins")
+	cmd.Flags().StringVar(&projectFlag, "project", "",
+		"project root containing .archcore/ (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
+	return cmd
+}
+
+// newInstructionsRemoveCmd resolves its root exactly as install does. The two
+// are one command to the user, and an uninstall that reads a different project
+// than the install did strips a hint from a repository nobody named.
+func newInstructionsRemoveCmd() *cobra.Command {
+	var (
+		agentFlag   string
+		projectFlag string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "remove",
+		Short: "Remove the Archcore usage hint from agent instruction files",
+		// Unlike install, remove does not require .archcore/ — it is an uninstall
+		// step that must still work after the project has been de-initialized.
+		// removeFencedBlock only touches archcore's marked span, so it is safe
+		// to run anywhere.
+		//
+		// Reject positional args: without this, `remove claude-code` silently
+		// ignores the arg (it is not --agent), falls into the no-flag branch,
+		// and strips the hint from EVERY target instead of the one named.
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cwd, err := resolveProjectRoot(projectFlag, os.Getenv("ARCHCORE_PROJECT_ROOT"))
+			if err != nil {
+				return err
+			}
+
+			if agentFlag != "" {
+				return runInstructionsRemoveForAgent(cwd, agents.AgentID(agentFlag))
+			}
+			// No --agent: clean up every possible target. removeFencedBlock only
+			// touches archcore's marked span, so this never harms user content.
+			removeInstructionsForAgents(cwd, agents.All())
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&agentFlag, "agent", "", "remove for a specific agent (e.g. cursor, gemini-cli)")
+	cmd.Flags().StringVar(&projectFlag, "project", "",
+		"project root to clean (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
+	return cmd
+}
+
+// runInstructionsInstallForAgent installs the usage hint for a specific agent.
+func runInstructionsInstallForAgent(baseDir string, id agents.AgentID) error {
+	agent := agents.ByID(id)
+	if agent == nil {
+		return fmt.Errorf("unknown agent %q — valid agents: %v", id, agents.AllIDs())
+	}
+	return installInstructionsForAgent(baseDir, agent)
+}
+
+// runInstructionsInstallAutoDetect detects agents and writes the usage hint for
+// all found. If none detected, prompts the user to pick.
+func runInstructionsInstallAutoDetect(baseDir string) error {
+	sel, err := resolveAgents(baseDir)
+	if err != nil {
+		fmt.Println(display.WarnLine(fmt.Sprintf("agent picker failed: %v", err)))
+		fmt.Println(display.Dim.Render(
+			"  Run 'archcore instructions install --agent <id>' to install for a specific agent."))
+		return nil
+	}
+	if len(sel.agents) == 0 {
+		printInstructionsAgentSelectionStatus(sel)
+		return nil
+	}
+
+	installInstructionsForAgents(baseDir, sel.agents)
+	return nil
+}
+
+// runInstructionsRemoveForAgent removes the usage hint for a specific agent.
+func runInstructionsRemoveForAgent(baseDir string, id agents.AgentID) error {
+	agent := agents.ByID(id)
+	if agent == nil {
+		return fmt.Errorf("unknown agent %q — valid agents: %v", id, agents.AllIDs())
+	}
+	return removeInstructionsForAgent(baseDir, agent)
+}
+
+func printInstructionsAgentSelectionStatus(sel agentSelection) {
+	//exhaustive:ignore // outcomePicked is the success path and prints nothing — this switch reports only the ways selection ended without one.
+	switch sel.outcome {
+	case outcomeAborted:
+		fmt.Println(display.Dim.Render(
+			"  Cancelled. Run 'archcore instructions install --agent <id>' later."))
+	case outcomeSkipped:
+		fmt.Println(display.Dim.Render(
+			"  Skipped Archcore usage hint. Run 'archcore instructions install --agent <id>' later."))
+	case outcomeNonInteractive:
+		fmt.Println(display.Dim.Render(
+			"  No AI agent selected (non-interactive). Run 'archcore instructions install --agent <id>' later."))
+	}
+}
+
+// installInstructionsForAgents writes the Archcore usage hint for each agent in
+// list, deduped by instruction-file path so the six AGENTS.md agents trigger a
+// single write. Per-file failures are warnings, not aborts.
+func installInstructionsForAgents(baseDir string, list []*agents.Agent) {
+	for _, agent := range wiring.DedupeByInstructionsPath(baseDir, list) {
+		if err := installInstructionsForAgent(baseDir, agent); err != nil {
+			fmt.Println(display.WarnLine(err.Error()))
+			continue
+		}
+	}
+}
+
+func installInstructionsForAgent(baseDir string, agent *agents.Agent) error {
+	if err := agent.WriteInstructions(baseDir); err != nil {
+		return fmt.Errorf("writing %s instructions: %w", agent.DisplayName, err)
+	}
+	// Name every file the write touched, not just the primary target.
+	paths := make([]string, 0, 2)
+	for _, p := range agent.AllInstructionsPaths(baseDir) {
+		paths = append(paths, wiring.DisplayPath(baseDir, p))
+	}
+	fmt.Println(display.CheckLine(fmt.Sprintf(
+		"Added Archcore usage hint to %s", strings.Join(paths, " and "))))
+	return nil
+}
+
+// removeInstructionsForAgents strips the Archcore usage hint for each agent in
+// list, deduped by instruction-file path.
+func removeInstructionsForAgents(baseDir string, list []*agents.Agent) {
+	for _, agent := range wiring.DedupeByInstructionsPath(baseDir, list) {
+		if err := removeInstructionsForAgent(baseDir, agent); err != nil {
+			fmt.Println(display.WarnLine(err.Error()))
+			continue
+		}
+	}
+}
+
+func removeInstructionsForAgent(baseDir string, agent *agents.Agent) error {
+	if err := agent.RemoveInstructions(baseDir); err != nil {
+		return fmt.Errorf("removing %s instructions: %w", agent.DisplayName, err)
+	}
+	fmt.Println(display.CheckLine(fmt.Sprintf(
+		"Removed Archcore usage hint from %s", wiring.DisplayPath(baseDir, agent.InstructionsPath(baseDir)))))
+	return nil
+}

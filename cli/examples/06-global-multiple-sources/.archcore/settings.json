@@ -1,0 +1,8 @@
+{
+  "sync": "none",
+  "globals": [
+    { "id": "company-standards", "path": "../_global_/company-standards/.archcore" },
+    { "id": "design-system",     "path": "../_global_/design-system/.archcore" },
+    { "id": "security-baseline", "path": "../_global_/security-baseline/.archcore" }
+  ]
+}

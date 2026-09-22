@@ -1,0 +1,104 @@
+package sync
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"archcore-cli/templates"
+)
+
+// FileEntry is a single file in the sync request body.
+type FileEntry struct {
+	Path        string                `json:"path"`
+	SHA256      string                `json:"sha256"`
+	DocType     string                `json:"doc_type,omitempty"`
+	Category    templates.Category    `json:"category,omitempty"`
+	Frontmatter templates.Frontmatter `json:"frontmatter"`
+	Content     string                `json:"content"`
+}
+
+// Payload is the full request body for POST /sync.
+type Payload struct {
+	ProjectID   *int        `json:"project_id,omitempty"`
+	ProjectName *string     `json:"project_name,omitempty"`
+	RepoURL     *string     `json:"repo_url,omitempty"`
+	Created     []FileEntry `json:"created"`
+	Modified    []FileEntry `json:"modified"`
+	Deleted     []string    `json:"deleted"`
+}
+
+// validateRelPath checks that a relative path does not escape the base directory.
+func validateRelPath(relPath string) error {
+	cleaned := filepath.Clean(relPath)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || filepath.IsAbs(cleaned) {
+		return fmt.Errorf("invalid path %q: must be relative and within .archcore/", relPath)
+	}
+	return nil
+}
+
+// BuildPayload constructs the sync payload from diff entries.
+// It reads file content for created/modified files, parses frontmatter,
+// and collects deleted paths.
+func BuildPayload(baseDir string, entries []DiffEntry) (*Payload, error) {
+	payload := &Payload{
+		Created:  []FileEntry{},
+		Modified: []FileEntry{},
+		Deleted:  []string{},
+	}
+
+	for _, e := range entries {
+		if e.Action == ActionUnchanged {
+			continue
+		}
+
+		if err := validateRelPath(e.RelPath); err != nil {
+			return nil, err
+		}
+
+		//exhaustive:ignore // ActionUnchanged contributes no payload entry by definition.
+		switch e.Action {
+		case ActionCreated, ActionModified:
+			absPath := filepath.Join(baseDir, ".archcore", e.RelPath)
+			content, err := os.ReadFile(absPath)
+			if err != nil {
+				return nil, fmt.Errorf("reading %s for sync payload: %w", e.RelPath, err)
+			}
+
+			fm, _, fmErr := templates.SplitDocument(content)
+			if fmErr != nil {
+				return nil, fmt.Errorf("file %s: %v", e.RelPath, fmErr)
+			}
+
+			if fm.Status != "" && !templates.IsValidStatus(fm.Status) {
+				return nil, fmt.Errorf("file %s has invalid status %q (valid values: %s)",
+					e.RelPath, fm.Status, strings.Join(templates.ValidStatusStrings(), ", "))
+			}
+
+			filename := filepath.Base(e.RelPath)
+			docType := templates.ExtractDocType(filename)
+			category := templates.CategoryForType(templates.DocumentType(docType))
+
+			fe := FileEntry{
+				Path:        e.RelPath,
+				SHA256:      e.Hash,
+				DocType:     docType,
+				Category:    category,
+				Frontmatter: fm,
+				Content:     string(content),
+			}
+
+			if e.Action == ActionCreated {
+				payload.Created = append(payload.Created, fe)
+			} else {
+				payload.Modified = append(payload.Modified, fe)
+			}
+
+		case ActionDeleted:
+			payload.Deleted = append(payload.Deleted, e.RelPath)
+		}
+	}
+
+	return payload, nil
+}
