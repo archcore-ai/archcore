@@ -1,5 +1,7 @@
 # Archcore
 
+> **One repository since 2026-09-22.** This repository was `archcore-ai/plugin`; GitHub redirects that address. The CLI moved here from [`archcore-ai/cli`](https://github.com/archcore-ai/cli), now archived, and lives under [`cli/`](cli/). Both components release together from one tag.
+
 Git-native project context for AI coding agents. Archcore keeps specifications,
 decisions, rules, plans, and project knowledge in Git, and gives agents access
 through MCP tools, hooks, and skills.
