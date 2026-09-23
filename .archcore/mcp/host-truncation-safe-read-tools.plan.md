@@ -13,7 +13,7 @@ tags:
 
 Make a global match reach the agent even when the host cuts the tool result. On 2026-09-18 a `search_documents` call found five global documents and the agent saw none of them: the host kept 2 KB of a 70,058-byte response. The same overflow hit 43 of 590 recorded `search_documents` and `list_documents` calls. The two decisions this plan carries out are recorded in `read-tool-responses-survive-host-truncation.adr` and `search-matches-the-slug-and-folds-separators.adr`.
 
-Each phase ships alone. Phase 1 gives the agent the source summary inside any preview. Phases 2 and 3 remove the overflow. Phase 4 removes the wording that led the agent into it. Phases 5 and 6 cover the list tool and the recall gap. Phase 7 is a separate release of the plugin repository.
+Each phase ships alone. Phase 1 gives the agent the source summary inside any preview. Phases 2 and 3 remove the overflow. Phase 4 removes the wording that led the agent into it. Phases 5 and 6 cover the list tool and the recall gap. Phase 7 changes the plugin, which lives under `plugin/` in this repository since 2026-09-22 and releases from the same tag as the CLI.
 
 ## Tasks
 
@@ -55,7 +55,7 @@ Each phase ships alone. Phase 1 gives the agent the source summary inside any pr
 
 23. Record the `list_documents` contract as a `spec` through `/archcore:document`; no spec covers the tool today.
 24. Reorder `listDocumentsResult` to `by_source`, `total`, `offset`, `returned`, `truncated`, `documents` — `@cli/internal/mcp/tools/list_documents.go`.
-25. Add `listResponseByteBudget` with a tail cut that `offset` recovers; add both tests — `@cli/internal/mcp/tools/list_interleave_test.go`.
+25. Add `listResponseByteBudget` with a tail cut that `offset` recovers; add both tests — `@cli/internal/mcp/tools/list_budget_test.go`.
 
 ### Phase 6 — Recall
 
@@ -65,11 +65,11 @@ Each phase ships alone. Phase 1 gives the agent the source summary inside any pr
 29. Amend §6 and the "Match token" definition — `@.archcore/mcp/search-documents.spec.md`.
 30. Run `BenchmarkReadToolsScaling` before and after the change; record both figures in the second ADR.
 
-### Phase 7 — Plugin (repository `archcore-ai/plugin`, its own release)
+### Phase 7 — Plugin (`plugin/` in this repository, released from the same tag)
 
-31. Add the section "Large or truncated results" before "Reading convention" — `plugins/archcore/skills/_shared/globals.md`.
+31. Add the section "Large or truncated results" before "Reading convention" — `@plugin/plugins/archcore/skills/_shared/globals.md`.
 32. Extend the current-versus-older CLI bullet with `hits`, `index`, and `body_truncated`, read when present.
-33. Mirror the retry wording into `agents/archcore-assistant.md`, `agents/archcore-assistant.toml`, and `copilot-agents/archcore-assistant.agent.md`.
+33. Mirror the retry wording into `@plugin/plugins/archcore/agents/archcore-assistant.md`, `@plugin/plugins/archcore/agents/archcore-assistant.toml`, and `@plugin/plugins/archcore/copilot-agents/archcore-assistant.agent.md`.
 
 ### Phase 8 — Verification
 
@@ -94,7 +94,7 @@ Each phase ships alone. Phase 1 gives the agent the source summary inside any pr
 - `search-documents.spec`, `session-globals-disclosure.spec`, and the matching-primitive ADR are `accepted`; tasks 5, 10, 17, 18, 21, and 29 edit them and each edit waits for the user's confirmation.
 - Task 23 precedes tasks 24 and 25: a change to an uncovered capability gets its covering spec first.
 - Phase 3 depends on Phase 2: without the caps, bare rows of a `path_ref` page exceed the budget and task 15 would cut rows the caps would have kept.
-- Phase 7 follows a CLI release that contains Phases 1–3; the plugin text stays valid against an older CLI because it reads the new fields only when present.
+- Phase 7 followed a CLI release that contained Phases 1–3; the plugin text stays valid against an older CLI because it reads the new fields only when present. Since 2026-09-22 both components release from one tag, so a later change of this kind ships in one release.
 - `bounded-and-deterministic-output.rule` clauses 1, 2, 3, 4, and 6 bind every new constant and every cut in Phases 2, 3, and 5.
 - [assumption] The Claude Code inline limit is near 50,000 characters for the preview path and 25,000 tokens for the error path; the first figure is measured from transcripts, the second is inferred. Other hosts are unmeasured.
 - Out of this plan: a ceiling for `get_document`. It has none, 4 of 13 recorded previews came from it, and a shortened body there can reach `update_document`.
@@ -108,5 +108,6 @@ Each phase ships alone. Phase 1 gives the agent the source summary inside any pr
 - M: `stone` — two accepted specs, one accepted ADR, and one accepted rule cover the zone. R: `external-contract` — the MCP wire shape and host-side limits that another project owns.
 - Verdicts: `search-documents-response` — `code-wrong` against `bounded-and-deterministic-output.rule` clause 1, and `spec-wrong` for §12.1, §5.6, §5.7, §8.1, and §10, which require the unbounded output. `search-documents-matching` — `spec-wrong` for §6. `globals-precedence-wording` — `spec-wrong` for clause 13 of `session-globals-disclosure.spec`. `list-documents-envelope` — no covering spec; task 23 creates it.
 - Progress, 2026-09-18: Phases 1–4 and 6 are implemented on branch `fix/host-truncation-safe-read-tools`; tasks 5, 10, 17, 18, 21, 22, 23, and 29 are done; Phase 7 is implemented on plugin branch `fix/large-result-guidance`. Open: tasks 24, 25, 30 (figures recorded in the second ADR), and Phase 8.
+- Progress, 2026-09-23: tasks 24 and 25 are in `dev` — `listDocumentsResult` carries the `by_source`, `total`, `offset`, `returned`, `truncated`, `documents` order, and `listResponseByteBudget` is pinned by `@cli/internal/mcp/tools/list_budget_test.go`. Open: task 30 (figures recorded in the second ADR) and Phase 8.
 - Unplanned Δ: `index` lists every admitted row while the budget shortens `results`, because the caps alone left a 50-row `path_ref` page at 90,979 bytes. Folding became lazy after the first form regressed the benchmark by 22%. The sample output in the docs repository (`guides/connect-your-agent.mdx`) repeats the old precedence sentence and needs the amended one at release.
 - Deviation: sequencing rule 11 asks for the covering `list_documents` spec before the package closes; this plan defers it to task 23 so the package stays on the incident.

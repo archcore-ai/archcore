@@ -17,7 +17,16 @@ Add a tightly scoped "First 60 seconds" section at the very top of `README.md`, 
 2. **A before-and-after diagram** — a two-column Mermaid flowchart directly under the title: a flat pile of ad-hoc Markdown files on the left, and a typed, related graph on the right with ADR → rule → guide and PRD → plan.
 3. **Three outcome bullets** naming the visible deltas of the first session — a typed document graph, skill routing from natural language, MCP-enforced writes — each at 12 words or fewer.
 
-The README currently opens with a long "What it does" and "Without vs. with Archcore" narrative that assumes the reader is already bought in, so a visitor who does not already know what an ADR is closes the tab before reaching the value.
+When this idea was written (2026-04-21), the README opened with a long "What it does" and "Without vs. with Archcore" narrative that assumed the reader was already bought in, so a visitor who did not already know what an ADR is closed the tab before reaching the value. That opening no longer exists; see Progress.
+
+## Progress (2026-09-23)
+
+The product README at the repository root (commit `78f0a08` on `dev`, published on `main` in `e97d500`) carries two of the three components:
+
+- Component 3 shipped as the "What you get" section: three outcome bullets, each with the mechanism beside it (the injected decision and rule, the session recap across agents, the `code-wrong` verdict before merge).
+- Component 5 of the implementation shipped: the install pair, `archcore init`, and one init → plan → document → review loop on a running example sit above every narrative section, and the loop shows the resulting ADR file.
+
+Open: component 1 (the asciinema hero cast) and component 2 (the before-and-after Mermaid diagram). The cast prompt in step 1 below names the `decide` routing of the 2026-04 command palette; a recording today uses `/archcore:document` with a plain sentence.
 
 ## Value
 

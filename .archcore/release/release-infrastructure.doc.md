@@ -77,7 +77,7 @@ Consequences for this pipeline:
 
 - A script run from a clone, a fork, or `cli-install-smoke.yml` reports nothing, because the guard requires a `phc_` prefix.
 - The landing deploy fails when a synced script does not carry exactly one placeholder.
-- [assumption] Until the landing pull request that moves the fetch to this repository's `dev` branch is merged, archcore.ai serves the copies from `archcore-ai/cli`.
+- Since 2026-09-22 the landing deploy fetches both installers from this repository's `dev` branch (`raw.githubusercontent.com/archcore-ai/archcore/refs/heads/dev/cli`, landing commit `8507656`). The copies from `archcore-ai/cli` are no longer served.
 
 The contract, the event properties, and the opt-out procedure are in install-script-usage.guide.md. The decision and its trade-offs are in the install analytics ADR.
 

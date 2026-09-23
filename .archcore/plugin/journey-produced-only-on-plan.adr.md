@@ -1,6 +1,6 @@
 ---
 title: "Journey Produced Only on plan — No document Entry for an Intent Type"
-status: draft
+status: accepted
 tags:
   - "commands"
   - "component:plugin"

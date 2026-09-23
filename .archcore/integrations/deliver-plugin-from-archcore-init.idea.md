@@ -28,6 +28,12 @@ The plugin identifiers are already fixed and public, so the CLI does not have to
 | Claude Code marketplace name | `archcore-plugins` |
 | Claude Code plugin id | `archcore@archcore-plugins` |
 
+**Identifier update (2026-09-22).** The source repository is `archcore-ai/archcore`: the repository
+was renamed from `archcore-ai/plugin` on 2026-09-22, and clause 11 of
+`.archcore/integrations/plugin-cli-compatibility.rule.md` records the change. The marketplace name
+and the plugin id are unchanged. The table above and the sentences below keep the name that was
+current when they were written.
+
 **Accepted (2026-08-15).** The idea ships this release as the plugin-delivery surface —
 `.archcore/integrations/plugin-delivery.spec.md` defines `archcore plugin install|update|remove|status`
 and the selection-driven init step. The update half of the tier model ships alongside it as the

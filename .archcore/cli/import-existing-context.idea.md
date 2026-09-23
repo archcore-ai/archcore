@@ -1,10 +1,12 @@
 ---
 title: "Import Existing Context from CLAUDE.md, .cursorrules, and Other Agent Configs"
-status: draft
+status: rejected
 tags:
   - "cli"
   - "component:cli"
 ---
+
+**Superseded (2026-09-23).** The capability shipped as the `import` mode of `/archcore:init` in the plugin — `.archcore/plugin/init-import-mode.adr.md` and `.archcore/plugin/init-entry-and-assess.spec.md` — not as a CLI `archcore import` command. The CLI keeps no import command. The text below is the original proposal.
 
 ## Idea
 

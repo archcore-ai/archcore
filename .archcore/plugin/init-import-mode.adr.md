@@ -1,6 +1,6 @@
 ---
 title: "Init Import Mode — Target-Driven Conversion, Staged by a Plan, No Import Marks"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "commands"
