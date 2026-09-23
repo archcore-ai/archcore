@@ -40,7 +40,7 @@ From the repository root, `make build` writes `bin/archcore` and `make test-inte
 
 | Command | Description |
 | --- | --- |
-| `archcore init` | Create `.archcore/`, wire detected agents, install the plugin for the selected hosts |
+| `archcore init` | Create `.archcore/`, pick hosts on a screen where detected agents are pre-checked, wire them, install the plugin for the selected hosts |
 | `archcore mcp` | Run the MCP stdio server; `--project` or `ARCHCORE_PROJECT_ROOT` pins the root |
 | `archcore mcp install` | Write MCP config for detected agents |
 | `archcore hooks install` | Install lifecycle hooks for detected agents |

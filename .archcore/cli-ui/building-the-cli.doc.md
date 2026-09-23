@@ -51,11 +51,12 @@ golangci-lint run ./...    # The analyzers CI runs; config in .golangci.yml
 
 `init` creates `.archcore/` with a free-form directory structure — documents are organized by
 domain/feature/team, and category is derived from the filename suffix (`slug.type.md`). Settings go in
-`.archcore/settings.json`. It also auto-detects AI agents, installs hooks and MCP config for all found
-agents, reports whether each host can actually run its hooks, then offers (opt-in) to write a
-usage-nudge instruction file per agent. A host the user checks in the agent picker also gets the
-Archcore plugin installed; a host detected without a picker does not, because a detection is not a
-consent.
+`.archcore/settings.json`. In a terminal it then opens the agent selection screen with every auto-detected
+AI agent pre-checked, installs hooks and MCP config for the hosts the user confirms, reports whether each
+host can actually run its hooks, then offers (opt-in) to write a usage-nudge instruction file per agent.
+A checked host also gets the Archcore plugin installed. Without a terminal (no `/dev/tty`) and without
+`--agent`, `init` wires the detected agents directly and prints the plugin install command instead,
+because a detection is not a consent.
 
 ## Command Surface
 

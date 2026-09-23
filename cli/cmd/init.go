@@ -36,12 +36,14 @@ type pickOutcome int
 const (
 	outcomePicked pickOutcome = iota // user checked one or more real agents in the picker (len(agents) > 0)
 
-	// outcomeDetected is not a second name for outcomePicked. Both carry agents
-	// to wire and only one carries consent to install a plugin: a detected host
-	// was never disclosed on a screen and no box was checked for it, so the
-	// delivery step must stay off it — plugin-delivery.spec, Invariant. The two
-	// arrive at installAgents with agent lists that look alike, so the fact is
-	// recorded here instead of being re-derived downstream, where it cannot be.
+	// outcomeDetected is not a second name for outcomePicked. For init it arises
+	// only without a terminal; the sibling install commands still reach it
+	// interactively. Both carry agents to wire and only one carries consent to
+	// install a plugin: a detected host was never disclosed on a screen and no
+	// box was checked for it, so the delivery step must stay off it —
+	// plugin-delivery.spec, Invariant. The two arrive at installAgents with agent
+	// lists that look alike, so the fact is recorded here instead of being
+	// re-derived downstream, where it cannot be.
 	outcomeDetected // the project already carries a host's config (len(agents) > 0)
 
 	outcomeSkipped        // user explicitly chose the "Skip" sentinel
@@ -58,7 +60,7 @@ type agentSelection struct {
 
 // agentPicker is the test seam for the interactive agent picker. Production
 // uses defaultPickAgents; tests swap it with a stub.
-type agentPicker func() (agentSelection, error)
+type agentPicker func(preselected []*agents.Agent) (agentSelection, error)
 
 // instructionsConfirmer asks the user whether to write the Archcore usage hint
 // into the listed (relative) instruction-file paths.
@@ -196,12 +198,10 @@ func newInitCmd(version string) *cobra.Command {
 				fmt.Println(display.CheckLine("Settings saved to .archcore/settings.json"))
 			}
 
-			// Auto-detect agents and install hooks + MCP config for all found.
-			// If none detected, ask the user to pick from supported agents. A
-			// picker error is shown as a warning so the user still sees the
+			// A picker error is shown as a warning so the user still sees the
 			// "Ready!" line — .archcore/ is already on disk and they can rerun
 			// 'archcore mcp install --agent <id>' later.
-			sel, err := resolveAgents(cwd)
+			sel, err := selectAgentsForInit(cwd)
 			if err != nil {
 				fmt.Println(display.WarnLine(fmt.Sprintf("agent picker failed: %v", err)))
 				fmt.Println(display.Dim.Render(
@@ -239,7 +239,7 @@ func newInitCmd(version string) *cobra.Command {
 					// plugin-delivery.spec §7.
 					//
 					// The terminal check is defensive rather than reachable:
-					// resolveAgents opens the picker only when isInteractive
+					// selectAgentsForInit opens the picker only when isInteractive
 					// answered true, so a picked outcome and a missing terminal
 					// cannot coexist on this path today. It is read here anyway
 					// because this line, not the picker, is the last thing
@@ -336,7 +336,16 @@ func resolveAgents(baseDir string) (agentSelection, error) {
 	if !isInteractive() {
 		return agentSelection{outcome: outcomeNonInteractive}, nil
 	}
-	return pickAgents()
+	return pickAgents(nil)
+}
+
+// selectAgentsForInit opens the picker with detected hosts pre-checked whenever a terminal exists —
+// plugin-delivery.spec §29–§31, init-selection-screen-always-opens.adr.
+func selectAgentsForInit(baseDir string) (agentSelection, error) {
+	if isInteractive() {
+		return pickAgents(agents.Detect(baseDir))
+	}
+	return resolveAgents(baseDir)
 }
 
 // printAgentSelectionStatus prints a user-facing message describing the
@@ -373,7 +382,7 @@ func validateAgentSelection(v []agents.AgentID) error {
 // config for. The "Skip — configure later" sentinel is the last option and is
 // filtered out of the returned agents; if it was the only thing picked, the
 // selection's outcome is outcomeSkipped.
-func defaultPickAgents() (agentSelection, error) {
+func defaultPickAgents(preselected []*agents.Agent) (agentSelection, error) {
 	all := agents.All()
 	options := make([]huh.Option[agents.AgentID], 0, len(all)+1)
 	for _, a := range all {
@@ -381,9 +390,12 @@ func defaultPickAgents() (agentSelection, error) {
 	}
 	options = append(options, huh.NewOption("Skip — configure later", skipAgentSentinel))
 
-	var picked []agents.AgentID
+	picked := make([]agents.AgentID, 0, len(preselected))
+	for _, a := range preselected {
+		picked = append(picked, a.ID)
+	}
 	err := huh.NewMultiSelect[agents.AgentID]().
-		Title("No AI agent auto-detected. Select agents to configure (space to toggle, enter to confirm)").
+		Title("Select agents to configure (detected hosts are pre-checked; space to toggle, enter to confirm)").
 		// The disclosure that is the same for every marked host. The per-host
 		// half is in the labels — plugin-delivery.spec §1.
 		Description("A checked host is also the consent to install the Archcore plugin on it. Nothing is installed for a host you leave unchecked.").

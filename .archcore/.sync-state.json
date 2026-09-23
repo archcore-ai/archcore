@@ -4912,6 +4912,21 @@
       "source": "release/unified-release-cutover.plan.md",
       "target": "release/unified-release-from-the-monorepo.adr.md",
       "type": "implements"
+    },
+    {
+      "source": "integrations/plugin-delivery.spec.md",
+      "target": "integrations/init-selection-screen-always-opens.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/init-selection-screen.scenario.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/init-selection-screen-always-opens.plan.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "implements"
     }
   ]
 }

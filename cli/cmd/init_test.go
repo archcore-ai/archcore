@@ -370,11 +370,12 @@ func withInteractive(t *testing.T, v bool) {
 }
 
 // withPickAgents temporarily swaps the package-level pickAgents and
-// isInteractive hooks for tests. Forces isInteractive=true so resolveAgents
-// reaches the picker. Like withInteractive, it is not safe under t.Parallel().
+// isInteractive hooks for tests. Forces isInteractive=true so resolveAgents and
+// selectAgentsForInit reach the picker. Like withInteractive, it is not safe
+// under t.Parallel().
 func withPickAgents(t *testing.T, sel agentSelection) {
 	t.Helper()
-	withPickAgentsFn(t, func() (agentSelection, error) { return sel, nil })
+	withPickAgentsFn(t, func(_ []*agents.Agent) (agentSelection, error) { return sel, nil })
 }
 
 // withPickAgentsFn is the lower-level seam that lets a test inject an
@@ -475,7 +476,7 @@ func TestResolveAgents_UserAborted(t *testing.T) {
 func TestResolveAgents_PickerError(t *testing.T) {
 	base := t.TempDir()
 	wantErr := errors.New("huh exploded")
-	withPickAgentsFn(t, func() (agentSelection, error) { return agentSelection{}, wantErr })
+	withPickAgentsFn(t, func(_ []*agents.Agent) (agentSelection, error) { return agentSelection{}, wantErr })
 
 	sel, err := resolveAgents(base)
 	if !errors.Is(err, wantErr) {
@@ -533,15 +534,95 @@ func TestAgentsFromPicked(t *testing.T) {
 // cobra itself.
 func installFromPicker(t *testing.T, baseDir string) {
 	t.Helper()
-	sel, err := resolveAgents(baseDir)
+	sel, err := selectAgentsForInit(baseDir)
 	if err != nil {
-		t.Fatalf("resolveAgents: %v", err)
+		t.Fatalf("selectAgentsForInit: %v", err)
 	}
 	if len(sel.agents) == 0 {
 		printAgentSelectionStatus(sel)
 		return
 	}
 	installAgents(baseDir, sel.agents, true)
+}
+
+// TestSelectAgentsForInit_PreselectsDetected pins that interactive init opens the
+// picker with the detected host pre-checked, while resolveAgents keeps
+// detection-first for the sibling install commands.
+func TestSelectAgentsForInit_PreselectsDetected(t *testing.T) {
+	base := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(base, ".claude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var got []*agents.Agent
+	withPickAgentsFn(t, func(preselected []*agents.Agent) (agentSelection, error) {
+		got = preselected
+		return agentSelection{outcome: outcomePicked, agents: preselected}, nil
+	})
+
+	sel, err := selectAgentsForInit(base)
+	if err != nil {
+		t.Fatalf("selectAgentsForInit: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != agents.ClaudeCode {
+		t.Errorf("picker received %v, want exactly [%s]", got, agents.ClaudeCode)
+	}
+	if sel.outcome != outcomePicked {
+		t.Errorf("outcome = %d, want outcomePicked(%d)", sel.outcome, outcomePicked)
+	}
+	if sibling, err := resolveAgents(base); err != nil || sibling.outcome != outcomeDetected {
+		t.Errorf("resolveAgents = (%d, %v), want outcomeDetected(%d) for the sibling commands", sibling.outcome, err, outcomeDetected)
+	}
+}
+
+// TestSelectAgentsForInit_UncheckedDetectedIsNotWired pins plugin-delivery.spec
+// §31: a pre-checked host the user unchecks is not wired in that run.
+func TestSelectAgentsForInit_UncheckedDetectedIsNotWired(t *testing.T) {
+	base := t.TempDir()
+	settingsPath := filepath.Join(base, ".claude", "settings.json")
+	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(settingsPath, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runInit(context.Background(), base, config.NewNoneSettings()); err != nil {
+		t.Fatalf("runInit: %v", err)
+	}
+	withPickAgents(t, agentSelection{outcome: outcomeSkipped})
+	installFromPicker(t, base)
+
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatalf("reading .claude/settings.json: %v", err)
+	}
+	var settings map[string]json.RawMessage
+	if err := json.Unmarshal(data, &settings); err != nil {
+		t.Fatalf("parsing .claude/settings.json: %v", err)
+	}
+	if _, ok := settings["hooks"]; ok {
+		t.Errorf("an unchecked detected host got hooks:\n%s", data)
+	}
+	if _, err := os.Stat(filepath.Join(base, ".mcp.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf(".mcp.json exists for an unchecked detected host (stat err: %v)", err)
+	}
+}
+
+// TestSelectAgentsForInit_NonInteractiveKeepsDetection pins plugin-delivery.spec
+// §32: without a terminal, init keeps the detection-only path.
+func TestSelectAgentsForInit_NonInteractiveKeepsDetection(t *testing.T) {
+	base := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(base, ".claude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	withInteractive(t, false)
+
+	sel, err := selectAgentsForInit(base)
+	if err != nil {
+		t.Fatalf("selectAgentsForInit: %v", err)
+	}
+	if sel.outcome != outcomeDetected || len(sel.agents) != 1 || sel.agents[0].ID != agents.ClaudeCode {
+		t.Errorf("got (%d, %v), want outcomeDetected(%d) with exactly [%s]", sel.outcome, sel.agents, outcomeDetected, agents.ClaudeCode)
+	}
 }
 
 func TestRunInit_PicksAgentsAndInstalls(t *testing.T) {

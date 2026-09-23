@@ -68,7 +68,9 @@ func TestRunHooksInstallAutoDetect_InstallsForPickedAgents(t *testing.T) {
 // branch: a picker failure prints a hint and exits zero. Not parallel (seams).
 func TestRunHooksInstallAutoDetect_PickerFailureIsSoft(t *testing.T) {
 	base := setupArchcoreDir(t)
-	withPickAgentsFn(t, func() (agentSelection, error) { return agentSelection{}, errors.New("tty unavailable") })
+	withPickAgentsFn(t, func(_ []*agents.Agent) (agentSelection, error) {
+		return agentSelection{}, errors.New("tty unavailable")
+	})
 
 	if err := runHooksInstallAutoDetect(base); err != nil {
 		t.Fatalf("picker failure must be soft, got: %v", err)

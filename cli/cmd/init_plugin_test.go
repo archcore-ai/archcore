@@ -260,7 +260,7 @@ func TestInitInstallsForACheckedHostAndSurvivesItsFailure(t *testing.T) {
 // itself rather than inheriting the picker's answer.
 //
 // The terminal goes away as the picker returns, because that is the only way to
-// reach this branch: resolveAgents refuses to open the picker without one, so a
+// reach this branch: selectAgentsForInit refuses to open the picker without one, so a
 // selection and a missing terminal cannot otherwise coexist. What the case proves
 // is that the answer is read where it is used — the guard is the last thing
 // standing between a selection and an unattended install.
@@ -269,7 +269,7 @@ func TestInitPrintsThePluginCommandsWhenTheTerminalIsGone(t *testing.T) {
 	bin := isolatePluginRun(t)
 	log := writeHostFixture(t, bin, "claude", 0)
 	stubPluginEvidence(t, claudeOnPATH())
-	withPickAgentsFn(t, func() (agentSelection, error) {
+	withPickAgentsFn(t, func(_ []*agents.Agent) (agentSelection, error) {
 		isInteractive = func() bool { return false }
 		return agentSelection{outcome: outcomePicked, agents: []*agents.Agent{agents.ByID(agents.ClaudeCode)}}, nil
 	})
@@ -387,9 +387,9 @@ func TestInitSurvivesAFailedPluginDelivery(t *testing.T) {
 }
 
 // TestInitDetectedAgentsGetTheOfferAndNoInstall is the subtle half of the
-// consent invariant. A project that already carries .claude/ skips the selection
-// screen entirely, so the user saw no disclosure and checked no box: the step
-// must offer the plugin and install nothing.
+// consent invariant. Without a terminal, a project that already carries .claude/
+// gets no selection screen, so the user saw no disclosure and checked no box:
+// the step must offer the plugin and install nothing.
 //
 // The evidence seam is asserted untouched rather than merely silent. A step that
 // collected evidence and printed nothing still queries every host CLI on the
