@@ -10,6 +10,8 @@ tags:
 
 **Count note.** The skill and command counts below were 16 when this document was written. `skill-surface-collapse.adr` later took the palette to 7. Read every "16" as the surface of that period; the parity requirements themselves are unchanged.
 
+**Repository note.** The repository was `archcore-ai/plugin` when the marketplace commands below were verified (2026-08-12). It became `archcore-ai/archcore` on 2026-09-22, GitHub redirects the old name, and the commands below carry the current name.
+
 ## Vision
 
 The Archcore plugin runs natively in OpenAI Codex CLI as a third first-class host alongside Claude Code and Cursor, installable through the plugin marketplace, with Codex-native packaging for slash commands, skills, plugin-managed MCP, a hooks config, and a read-only auditor subagent in TOML. Hook execution uses Codex's current hooks runtime under `[features].hooks`, where `codex_hooks` is a deprecated alias, and a plugin-bundled hook still requires user trust. Existing Claude Code and Cursor users see zero regression.
@@ -22,7 +24,7 @@ Users of OpenAI Codex CLI need the same Archcore surfaces Claude Code users get:
 
 | Goal | Metric |
 |------|--------|
-| Single-command install | `codex plugin marketplace add archcore-ai/plugin` registers the marketplace, and an enabled install loads skills and plugin-managed MCP with no manual `codex mcp add` |
+| Single-command install | `codex plugin marketplace add archcore-ai/archcore` registers the marketplace, and an enabled install loads skills and plugin-managed MCP with no manual `codex mcp add` |
 | Skill parity | Every skill is discoverable and invokable in Codex with no modification to an existing `SKILL.md` |
 | Slash command parity | Every user-facing workflow is available in Codex as `/archcore:*` through a `commands/*.md` wrapper |
 | MCP parity with Claude Code | Plugin-shipped MCP works in Codex, needing no external `codex mcp add` |
@@ -53,7 +55,7 @@ Users of OpenAI Codex CLI need the same Archcore surfaces Claude Code users get:
 
 **F8 — subagent TOML conversion.** Convert `agents/archcore-auditor.md` to `agents/archcore-auditor.toml` carrying `name`, `description`, `developer_instructions` ported from the MD body, `sandbox_mode = "read-only"`, and a `disabled_tools` list naming the five mutating MCP tools. Apply the same conversion to the assistant with `sandbox_mode = "workspace-write"` and no `disabled_tools`. Keep both MD originals for Claude Code and Cursor, keep the `developer_instructions` bodies identical between formats, and let `@plugin/test/structure/agents.bats` enforce that parity.
 
-**F9 — marketplace install.** `codex plugin marketplace add archcore-ai/plugin` resolves to the GitHub repository and installs without error, with the README updated to carry the command in a Codex CLI install section.
+**F9 — marketplace install.** `codex plugin marketplace add archcore-ai/archcore` resolves to the GitHub repository and installs without error, with the README updated to carry the command in a Codex CLI install section.
 
 **F10 — documentation.** Record the Codex packaging in `codex-local-plugin-testing.guide` and `component-registry.doc`.
 

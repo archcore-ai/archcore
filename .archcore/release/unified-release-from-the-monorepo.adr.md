@@ -1,6 +1,6 @@
 ---
 title: "Release the Plugin and the CLI Together From One Tag on the Monorepo"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "component:cli"

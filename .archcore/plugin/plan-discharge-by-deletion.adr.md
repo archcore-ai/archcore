@@ -1,6 +1,6 @@
 ---
 title: "Plan Discharge by Deletion — a Completed Plan Leaves the Corpus, Not Its Status"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "component:plugin"

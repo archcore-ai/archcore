@@ -1,6 +1,6 @@
 ---
 title: "Research in Vision, One Research Path on plan, and Standalone Evidence Entry"
-status: draft
+status: accepted
 tags:
   - "component:plugin"
   - "document-types"

@@ -1,6 +1,6 @@
 ---
 title: "Develop CLI and Plugin in One Monorepo with Shared Context"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "component:cli"

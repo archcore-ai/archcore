@@ -1700,42 +1700,7 @@
     },
     {
       "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/actualize-system.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/actualize-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/add-read-only-auditor-agent.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/agent-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/always-use-mcp-tools.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/bundled-cli-launcher.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
       "target": "plugin/claude-plugin.prd.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/commands-system.spec.md",
       "type": "related"
     },
     {
@@ -1745,87 +1710,7 @@
     },
     {
       "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/development-roadmap.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/hooks-validation-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/intent-based-skill-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/inverted-invocation-policy.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/mcp-only-operations.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/multi-host-compatibility-layer.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/multi-host-plugin-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/plugin-architecture.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/plugin-component-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
       "target": "plugin/plugin-development.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/plugin-testing.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/scenario-track-skills.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/single-universal-agent.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/skill-file-structure.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/skill-mcp-interaction.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/readme-first-60-seconds.idea.md",
-      "target": "plugin/skills-system.spec.md",
       "type": "related"
     },
     {
@@ -3024,16 +2909,6 @@
       "type": "related"
     },
     {
-      "source": "plugin/plan-discharge-implementation.plan.md",
-      "target": "plugin/delta-routing-instruments.spec.md",
-      "type": "implements"
-    },
-    {
-      "source": "plugin/plan-discharge-implementation.plan.md",
-      "target": "plugin/plan-discharge-by-deletion.adr.md",
-      "type": "depends_on"
-    },
-    {
       "source": "plugin/track-layer.spec.md",
       "target": "plugin/research-runtime-category-and-evidence-entry.adr.md",
       "type": "implements"
@@ -3290,11 +3165,6 @@
     },
     {
       "source": "plugin/import-conversion-and-staging.spec.md",
-      "target": "plugin/init-import-and-entry.prd.md",
-      "type": "implements"
-    },
-    {
-      "source": "plugin/init-import-and-entry.plan.md",
       "target": "plugin/init-import-and-entry.prd.md",
       "type": "implements"
     },
@@ -4559,31 +4429,6 @@
       "type": "related"
     },
     {
-      "source": "update/listing-evidence-counts-only-installed.plan.md",
-      "target": "update/updating-the-plugin.spec.md",
-      "type": "implements"
-    },
-    {
-      "source": "update/listing-evidence-counts-only-installed.plan.md",
-      "target": "integrations/plugin-delivery.spec.md",
-      "type": "implements"
-    },
-    {
-      "source": "update/listing-evidence-counts-only-installed.plan.md",
-      "target": "code-quality/fail-open-or-fail-closed-reads.rule.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "update/listing-evidence-counts-only-installed.plan.md",
-      "target": "integrations/plugin-cli-compatibility.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "update/listing-evidence-counts-only-installed.plan.md",
-      "target": "update/keeping-the-cli-current-rollout.plan.md",
-      "type": "related"
-    },
-    {
       "source": "mcp/worktree-aware-root-and-globals.plan.md",
       "target": "mcp/project-root-resolution.spec.md",
       "type": "implements"
@@ -4884,26 +4729,6 @@
       "type": "related"
     },
     {
-      "source": "document-types/research-and-evidence-vocabulary.plan.md",
-      "target": "cli/docs-package-owns-the-document-model.adr.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "document-types/research-and-evidence-vocabulary.plan.md",
-      "target": "relations/local-relations-in-sync-state.adr.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "document-types/research-and-evidence-vocabulary.plan.md",
-      "target": "relations/no-auto-relations-on-create-document.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/research-and-evidence-vocabulary.plan.md",
-      "target": "sync/sync-engine.spec.md",
-      "type": "related"
-    },
-    {
       "source": "document-types/research-and-evidence-types.spec.md",
       "target": "document-types/research-and-evidence-vocabulary.prd.md",
       "type": "implements"
@@ -4929,31 +4754,6 @@
       "type": "depends_on"
     },
     {
-      "source": "document-types/research-and-evidence-vocabulary.plan.md",
-      "target": "document-types/research-and-evidence-types.spec.md",
-      "type": "implements"
-    },
-    {
-      "source": "document-types/research-and-evidence-vocabulary.plan.md",
-      "target": "relations/evidential-and-temporal-relations.spec.md",
-      "type": "implements"
-    },
-    {
-      "source": "document-types/research-and-evidence-vocabulary.plan.md",
-      "target": "mcp/document-update-frontmatter.spec.md",
-      "type": "implements"
-    },
-    {
-      "source": "document-types/research-and-evidence-vocabulary.plan.md",
-      "target": "cli-ui/building-the-cli.doc.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "document-types/research-and-evidence-vocabulary.plan.md",
-      "target": "release/release-infrastructure.doc.md",
-      "type": "depends_on"
-    },
-    {
       "source": "document-types/scenario-and-journey-types.spec.md",
       "target": "document-types/scenario-and-journey-vocabulary.prd.md",
       "type": "implements"
@@ -4967,31 +4767,6 @@
       "source": "document-types/scenario-and-journey-advisory-canon.spec.md",
       "target": "document-types/scenario-and-journey-types.spec.md",
       "type": "depends_on"
-    },
-    {
-      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
-      "target": "document-types/scenario-and-journey-types.spec.md",
-      "type": "implements"
-    },
-    {
-      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
-      "target": "document-types/scenario-and-journey-advisory-canon.spec.md",
-      "type": "implements"
-    },
-    {
-      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
-      "target": "cli-ui/building-the-cli.doc.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
-      "target": "cli/docs-package-owns-the-document-model.adr.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "document-types/scenario-and-journey-vocabulary.plan.md",
-      "target": "document-types/research-and-evidence-vocabulary.plan.md",
-      "type": "related"
     },
     {
       "source": "document-types/scenario-and-journey-types.spec.md",
@@ -5011,16 +4786,6 @@
     {
       "source": "document-types/add-a-document-type.task-type.md",
       "target": "cli-ui/building-the-cli.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/add-a-document-type.task-type.md",
-      "target": "document-types/scenario-and-journey-vocabulary.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "document-types/add-a-document-type.task-type.md",
-      "target": "document-types/research-and-evidence-vocabulary.plan.md",
       "type": "related"
     },
     {
