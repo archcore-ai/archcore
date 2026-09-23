@@ -12,13 +12,13 @@ tags:
 
 This spec defines the plugin-delivery surface: the `archcore plugin` command and the delivery step inside `archcore init`. One engine (`internal/plugin`) performs install, update, removal, and status per host; the plugin-update step of `archcore update` (`updating-the-plugin.spec`) runs the same engine's update action. Dependents: `@cli/cmd/init.go`, `@cli/cmd/update.go`, the host registry in `internal/agents/`, the host CLIs, and the `archcore-ai/archcore` repository.
 
-Out of scope: the unattended update policy and the MCP background trigger — neither reaches this surface; hook and MCP wiring, which `archcore init` performs today and keeps unchanged.
+Out of scope: the unattended update policy and the MCP background trigger — neither reaches this surface; the per-host hook and MCP wiring itself, which `archcore init` performs as today. This spec decides only which hosts an interactive run selects.
 
 ## Surface
 
 - Commands: `archcore plugin install|update|remove|status [--agent <id>] [--project <path>]`.
 - Engine shape: one pure planning function (host evidence → per-host actions) and one executor. Entry points differ only in which actions they select and how they word output.
-- Selection screen: init's existing agent multi-select — the project-detection-driven list init already shows for wiring. The four plugin-capable hosts are marked inside that same list; no separate screen and no second prompt exist.
+- Selection screen: init's agent multi-select, opened on every interactive run without `--agent`; a host `agents.Detect` finds in the project arrives pre-checked (`resolveAgents` in `@cli/cmd/init.go`). The four plugin-capable hosts are marked inside that same list; no separate screen and no second prompt exist.
 - Init integration: selecting a host in that multi-select is the consent for that host — hooks, MCP config, and the plugin arrive together.
 - Frozen identifiers: repository `archcore-ai/archcore`, marketplace `archcore-plugins`, plugin id `archcore@archcore-plugins` (`plugin-cli-compatibility.rule`, requirement 11).
 - Host evidence: the host CLI on `PATH` (`exec.LookPath`), the host's read-only plugin listing, and the on-disk registries named in the update-step spec. A listing shows the plugin under the definition in the Surface of `updating-the-plugin.spec`, which requirements 9 and 25 below read: a registered marketplace with nothing installed under it is not a plugin.
@@ -66,6 +66,10 @@ OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. Removal run
 26. WHEN a mutating action succeeded, the CLI MUST print the self-caused notice exactly once per invocation.
 27. IF the step bound elapses before a host is reached, THEN an install-carrying entry point MUST print that host's commands.
 28. IF the step bound elapses before a host is reached, THEN an update-carrying entry point MUST print nothing for that host.
+29. WHEN `archcore init` runs interactively without `--agent`, the CLI MUST open the selection screen before wiring any host.
+30. WHEN detection finds a host in the project, the CLI MUST pre-check that host on the selection screen.
+31. IF the user unchecks a pre-checked host, THEN init MUST NOT wire that host in that run.
+32. WHILE init runs non-interactively without `--agent`, the CLI MUST wire every detected host without a screen.
 
 ## Constraints & Invariants
 
@@ -79,10 +83,10 @@ OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. Removal run
 - Constraint: the engine MUST use the three frozen identifiers exactly; requirement 11 of the compatibility rule binds them.
 - Constraint: version pinning is not available — a marketplace install takes the latest plugin; the plugin's own minimum-CLI gate is the only version guard.
 - Invariant: consent is carried by an explicit host selection — a checked host in the interactive screen, a host named with `--agent`, or a typed `archcore plugin` verb. No plugin installs on any other path.
-- Invariant: a host detected without a picker is not a consent. `archcore init` on a project that already carries `.claude/` or `.codex/` installs nothing and prints one hint naming `archcore plugin install`.
+- Invariant: a host detected without a screen is not a consent. A non-interactive `archcore init` without `--agent` on a project that carries `.claude/` or `.codex/` wires the detected host, installs nothing, and prints one hint naming `archcore plugin install`; an interactive run reaches the screen instead, where a pre-checked host becomes a consent only when the user confirms the selection with it checked.
 - Invariant: install is idempotent — a rerun of `archcore init` over an installed plugin reports it and changes nothing, so repeated inits never nag and never re-install.
 - Invariant: `archcore update`'s plugin step and `archcore plugin update` produce identical per-host actions — one planner, one executor, two entry points. The plan/execute split makes the invariant a plan-comparison test, not a convention.
-- Invariant: hook and MCP wiring behavior of `archcore init` is unchanged by this surface.
+- Invariant: for a selected host, the hook and MCP wiring `archcore init` performs is unchanged by this surface; on an interactive run the selection screen decides which hosts are wired.
 
 ## Failure Behavior
 
@@ -96,6 +100,6 @@ OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. Removal run
 
 ## Conformance
 
-An implementation is conformant when a plugin installs only behind an explicit host selection — a checked host, an `--agent` flag, or a typed `archcore plugin` verb; the selection screen names the plugin install and marks machine-level hosts; `--yes` without `--agent` and CI environments print commands and run nothing; a rerun over an installed plugin is a reported no-op; Claude Code defaults to user scope and gains the `autoUpdate: true` entry; every failure prints the exact command; the init step never changes init's exit code while the direct command reports its failures with a nonzero exit; and all entry points share one planner and one executor.
+An implementation is conformant when a plugin installs only behind an explicit host selection — a checked host, an `--agent` flag, or a typed `archcore plugin` verb; the selection screen opens on every interactive run with detected hosts pre-checked, names the plugin install, and marks machine-level hosts; an unchecked host is neither wired nor installed in that run; `--yes` without `--agent` and CI environments print commands and run nothing; a rerun over an installed plugin is a reported no-op; Claude Code defaults to user scope and gains the `autoUpdate: true` entry; every failure prints the exact command; the init step never changes init's exit code while the direct command reports its failures with a nonzero exit; and all entry points share one planner and one executor.
 
-Given an interactive `archcore init` where the user checks Claude Code on a machine with `claude` on `PATH`, when wiring completes, then the CLI installs `archcore@archcore-plugins` at user scope, merges the `autoUpdate: true` entry, and prints the adjusted duplicate-hook notice — with no second prompt.
+Given an interactive `archcore init` on a project that carries `.claude/`, on a machine with `claude` on `PATH`, when the selection screen opens with Claude Code pre-checked and the user confirms it, then the CLI wires the host, installs `archcore@archcore-plugins` at user scope, merges the `autoUpdate: true` entry, and prints the adjusted duplicate-hook notice — with no second prompt.

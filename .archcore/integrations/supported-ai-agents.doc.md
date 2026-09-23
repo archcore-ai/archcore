@@ -37,7 +37,8 @@ carries the event matrix and the per-host protocol dialects.
 Agents: Claude Code, Cursor, Gemini CLI, Codex CLI, GitHub Copilot.
 
 These agents support the three archcore lifecycle events and MCP tool access. `archcore init`
-auto-detects them, installs the hooks, and writes the MCP config.
+auto-detects them, pre-checks them on its selection screen, and installs the hooks and MCP config for
+the hosts the user confirms; without a terminal it wires the detected agents directly.
 
 Two of them carry a host limitation that `hooks install` reports at write time:
 
@@ -86,8 +87,8 @@ Three entry points reach the plugin, and all three run one planner and one execu
 - `archcore plugin install|update|remove|status` — the direct command. A typed verb is the consent.
 - `archcore update` — refreshes the plugin on each host that already carries it, after the binary
   phase. `updating-the-plugin.spec` is normative.
-- `archcore init` — installs the plugin for a host the user checked in the agent picker, or named
-  with `--agent`. `plugin-delivery.spec` is normative.
+- `archcore init` — installs the plugin for a host the user checked on the selection screen, where
+  detected hosts arrive pre-checked, or named with `--agent`. `plugin-delivery.spec` is normative.
 
 The CLI asks each host for its own answer before it acts. With the host CLI on `PATH`, it reads that
 host's read-only plugin listing; with the CLI absent, it reads the host's on-disk plugin registry. A

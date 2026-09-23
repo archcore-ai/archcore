@@ -115,7 +115,7 @@ This repository's own [`.archcore/`](https://github.com/archcore-ai/archcore/tre
 
 Claude Code, Cursor, Codex CLI, GitHub Copilot, Gemini CLI, OpenCode, Roo Code, and Cline read the same folder. Slash commands, skills, and guardrails run inside the first four; the rest reach the same documents over MCP. Where the host supports hooks, context arrives before the edit with no command from you.
 
-`archcore init` wires every agent it detects. Per-host details, team rollouts, and uninstall: [Connect your agent](https://docs.archcore.ai/guides/connect-your-agent/).
+`archcore init` opens a host picker with the agents it detects pre-checked and wires the ones you confirm. Per-host details, team rollouts, and uninstall: [Connect your agent](https://docs.archcore.ai/guides/connect-your-agent/).
 
 <details>
 <summary>Install the plugin without <code>archcore init</code></summary>
