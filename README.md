@@ -6,6 +6,8 @@
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![Docs](https://img.shields.io/badge/docs-docs.archcore.ai-2563EB)](https://docs.archcore.ai)
 
+> **Contributors:** source code and tests live on the [`dev`](https://github.com/archcore-ai/archcore/tree/dev) branch. `main` holds only the published plugin. Start with [CONTRIBUTING.md](https://github.com/archcore-ai/archcore/blob/dev/CONTRIBUTING.md).
+
 **Stop re-explaining your repo to every AI coding agent.**
 
 Archcore keeps your project's decisions, specs, and rules in the repo. Your coding agent reads them before it writes, so it builds by this repo's rules instead of the ones it happens to know.
