@@ -29,7 +29,7 @@ Publish the exported plugin tree and the GoReleaser-built CLI archives from one 
 ### Enabled
 
 - One tag produces one GitHub Release that carries the plugin tree on `main` and 9 CLI assets (6 archives, `checksums.txt`, `install.sh`, `install.ps1`), so `https://github.com/archcore-ai/archcore/releases/latest` always resolves to a release with CLI archives. Observed for v0.10.1 on 2026-09-22.
-- The v0.10.0 defect, a tag ahead of the manifests, is a workflow failure: the `verify-version` job compares the tag with the four manifests before any test or publish step.
+- The v0.10.0 defect, a tag ahead of the manifests, cannot recur: since 2026-09-24 the release writes the tag's version into the four published manifests (@scripts/export-plugin.sh), the manifests on `dev` stay at `0.0.0`, and the `verify-version` job accepts only the next patch, minor, or major tag (@scripts/check-release-tag.sh). Before that change `verify-version` compared the tag with the four manifests; it stopped the first v0.10.4 run (Actions run 35992806707) before any publish step.
 - The two unreleased CLI commits shipped in v0.10.1, including the source migration of @cli/internal/plugin/source_migration.go, which v0.10.2 activates through the canonical `RepoID`.
 - The installer mechanics stay unchanged: @cli/install.sh and @cli/install.ps1 resolve the tag from the `GITHUB_REPO/releases/latest` redirect, download `releases/download/v<version>/<archive>` and `checksums.txt`, accept an `ARCHCORE_VERSION` pin, and carry one `__POSTHOG_KEY__` placeholder that the landing deploy substitutes. Only `GITHUB_REPO` changed.
 
