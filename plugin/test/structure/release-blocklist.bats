@@ -8,7 +8,7 @@ setup() {
 }
 
 @test "export preserves every marketplace's runtime subdirectory" {
-  run "$EXPORT" "$OUTPUT"
+  run "$EXPORT" "$OUTPUT" 1.2.3
   assert_success
   local catalog source manifest
   for catalog in .agents/plugins/marketplace.json .claude-plugin/marketplace.json .cursor-plugin/marketplace.json; do
@@ -21,7 +21,7 @@ setup() {
 }
 
 @test "export preserves runtime executables, branding, MCP configs and public docs" {
-  run "$EXPORT" "$OUTPUT"
+  run "$EXPORT" "$OUTPUT" 1.2.3
   assert_success
   [ -x "$OUTPUT/plugins/archcore/bin/session-start" ]
   [ -x "$OUTPUT/plugins/archcore/bin/cli-gte" ]
@@ -35,7 +35,7 @@ setup() {
 }
 
 @test "export excludes both component source trees and development context" {
-  run "$EXPORT" "$OUTPUT"
+  run "$EXPORT" "$OUTPUT" 1.2.3
   assert_success
   [ ! -e "$OUTPUT/cli" ]
   [ ! -e "$OUTPUT/plugin" ]
@@ -49,7 +49,7 @@ setup() {
 @test "export refuses to overwrite an existing destination" {
   mkdir -p "$OUTPUT"
   printf 'keep me\n' > "$OUTPUT/keep"
-  run "$EXPORT" "$OUTPUT"
+  run "$EXPORT" "$OUTPUT" 1.2.3
   assert_failure
   assert_output --partial 'must be empty'
   [ "$(cat "$OUTPUT/keep")" = 'keep me' ]
@@ -66,7 +66,7 @@ setup() {
   done
   mkdir -p "$fixture/plugin/plugins/archcore/nested/.archcore"
   printf 'internal context\n' > "$fixture/plugin/plugins/archcore/nested/.archcore/leak.md"
-  run "$fixture/scripts/export-plugin.sh" "$OUTPUT"
+  run "$fixture/scripts/export-plugin.sh" "$OUTPUT" 1.2.3
   assert_failure
   assert_output --partial 'Development files found'
   assert_output --partial 'nested/.archcore'
@@ -76,8 +76,33 @@ setup() {
   local target="$BATS_TEST_TMPDIR/target"
   mkdir -p "$target"
   ln -s "$target" "$OUTPUT"
-  run "$EXPORT" "$OUTPUT"
+  run "$EXPORT" "$OUTPUT" 1.2.3
   assert_failure
   assert_output --partial 'must not be a symlink'
   [ -z "$(ls -A "$target")" ]
+}
+
+@test "export writes the release version into all four manifests and nothing else" {
+  run "$EXPORT" "$OUTPUT" 1.2.3
+  assert_success
+  local host source exported
+  for host in .claude-plugin .cursor-plugin .codex-plugin .plugin; do
+    source="$PLUGIN_ROOT/$host/plugin.json"
+    exported="$OUTPUT/plugins/archcore/$host/plugin.json"
+    [ "$(jq -r .version "$exported")" = '1.2.3' ] || fail "$host was not stamped"
+    diff <(grep -v '^  "version"' "$source") <(grep -v '^  "version"' "$exported") \
+      || fail "$host changed beyond its version line"
+  done
+}
+
+@test "export refuses a missing or non-MAJOR.MINOR.PATCH version before writing" {
+  run "$EXPORT" "$OUTPUT"
+  assert_failure
+  local version
+  for version in v1.2.3 1.2 1.2.3-rc.1 01.2.3; do
+    run "$EXPORT" "$OUTPUT" "$version"
+    assert_failure
+    assert_output --partial 'Version must be MAJOR.MINOR.PATCH'
+  done
+  [ ! -e "$OUTPUT" ]
 }

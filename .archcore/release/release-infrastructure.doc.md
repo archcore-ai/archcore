@@ -8,7 +8,7 @@ tags:
 
 ## Overview
 
-The Archcore CLI and the Archcore plugin share one tag-driven release pipeline in `archcore-ai/archcore`. Pushing a `v*` tag triggers @.github/workflows/release.yml, which verifies that the four plugin manifests equal the tag, runs both test suites, regenerates the plugin distribution on `main`, and invokes GoReleaser from `cli/` to build cross-platform binaries and publish the GitHub Release.
+The Archcore CLI and the Archcore plugin share one tag-driven release pipeline in `archcore-ai/archcore`. Pushing a `v*` tag triggers @.github/workflows/release.yml, which checks that the tag is the next release version, runs both test suites, regenerates the plugin distribution on `main` with the tag's version in the four plugin manifests, and invokes GoReleaser from `cli/` to build cross-platform binaries and publish the GitHub Release. The tag is the only version source; the manifests on `dev` carry the placeholder `0.0.0`.
 
 Two former names remain in circulation. `archcore-ai/cli` published CLI releases up to v0.8.7 (2026-09-21) and receives no further releases. `archcore-ai/plugin` was this repository's name until 2026-09-22; GitHub redirects git and web traffic from it, and a new repository under that name would disable the redirect. The CLI workflow copies that lived under `cli/.github/workflows/` were removed on 2026-09-22.
 
@@ -21,6 +21,8 @@ Two former names remain in circulation. `archcore-ai/cli` published CLI releases
 | Version vars | `@cli/main.go` | `version` with its `dev` default and the build-info fallback |
 | Cobra integration | `@cli/cmd/root.go` | `NewRootCmd(version)` sets the `Version` field and the version template |
 | GoReleaser config | `@cli/.goreleaser.yaml` | Defines the build matrix, archive naming, checksums, the two ldflags injections, the inertness post-build hook, and the release assets |
+| Release tag check | `@scripts/check-release-tag.sh` | Accepts only a `vMAJOR.MINOR.PATCH` tag that is the next patch, minor, or major version after the highest other release tag |
+| Plugin export | `@scripts/export-plugin.sh` | Builds the public plugin tree and writes the release version into the four plugin manifests |
 | GitHub Actions — release | `@.github/workflows/release.yml` | `verify-version` → `test-plugin` and `test-cli` → `publish-plugin` (export and `main` push) → `publish-cli` (GoReleaser) on a tag push |
 | GitHub Actions — CLI tests | `@.github/workflows/cli-test.yml` | gofmt, vet, golangci-lint, `go test ./...`, the inertness self-test, and the examples fixture check on pull requests and `dev` pushes |
 | GitHub Actions — installer smoke | `@.github/workflows/cli-install-smoke.yml` | Runs both installers on Windows (PowerShell 5.1 and 7), Ubuntu, macOS, Alpine, and a dash-only Debian on pull requests and `dev` pushes that touch an installer |

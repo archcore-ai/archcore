@@ -70,7 +70,7 @@ Rules of the tree:
 
 ## Release
 
-`main` is generated from a tag by the root Release workflow: `scripts/export-plugin.sh` copies this tree, the repository README, `LICENSE`, and `NOTICE` into the public layout and force-pushes it. Set the four manifests to the version with `/bump-plugin-version X.Y.Z` before tagging. Procedure, published files, and recovery: [`docs/release.md`](docs/release.md).
+`main` is generated from a tag by the root Release workflow: `scripts/export-plugin.sh` copies this tree, the repository README, `LICENSE`, and `NOTICE` into the public layout, writes the tag's version into the four manifests, and force-pushes it. The manifests stay at `0.0.0` on `dev`. Procedure, published files, and recovery: [`docs/release.md`](docs/release.md).
 
 ## Where the design lives
 

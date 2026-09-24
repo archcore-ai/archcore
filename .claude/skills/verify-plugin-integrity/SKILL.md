@@ -156,9 +156,9 @@ Compare `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `.codex-plug
 
 - `name`
 - `description`
-- `version`
+- `version` — the placeholder `0.0.0` on `dev`; `scripts/export-plugin.sh` writes the release tag's version at publication
 
-Flag any drift — this is the most common regression when bumping versions on one host but forgetting another. Enforced by `test/structure/manifest-version-parity.bats`, `test/structure/codex-plugin.bats`, and `test/structure/copilot-plugin.bats`.
+Flag any drift. Flag a `version` other than `0.0.0`: the release tag is the only version source. Enforced by `test/structure/manifest-version-parity.bats`, `test/structure/codex-plugin.bats`, and `test/structure/copilot-plugin.bats`.
 
 ### Section 5 — Marketplace catalogs (repo root)
 

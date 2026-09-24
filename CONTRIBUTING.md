@@ -51,12 +51,14 @@ Two instruction files bind contributors and agents alike:
 
 ## Releasing
 
-One tag releases both components at the same version. The four plugin manifests under `plugin/plugins/archcore/` must equal the tag; the Release workflow refuses otherwise, then runs both test suites, regenerates `main`, and publishes the CLI archives, `checksums.txt`, and the installers to the GitHub Release.
+One tag releases both components at the same version, and the tag is the only place that version is written. The Release workflow refuses a tag that is not the next patch, minor, or major version after the previous release tag. It then runs both test suites, regenerates `main` with the tag's version in the four plugin manifests, and publishes the CLI archives, `checksums.txt`, and the installers to the GitHub Release.
 
 ```bash
-# on dev, after the four manifests carry X.Y.Z
+# on dev, with CI green
 git tag vX.Y.Z && git push origin vX.Y.Z
 ```
+
+The plugin manifests under `plugin/plugins/archcore/` stay at `0.0.0` on `dev`. Do not bump them.
 
 Details and recovery steps: [`plugin/docs/release.md`](plugin/docs/release.md).
 

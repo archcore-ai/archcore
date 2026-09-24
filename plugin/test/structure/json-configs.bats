@@ -84,7 +84,7 @@ setup() {
 # --- Cross-reference consistency ---
 
 # Every manifest the plugin ships. Claude Code is the reference: it is the
-# host bump-plugin-version and the marketplace catalogs are keyed to.
+# host the marketplace catalogs are keyed to.
 host_manifests() {
   cat <<'EOF'
 cursor|.cursor-plugin/plugin.json
