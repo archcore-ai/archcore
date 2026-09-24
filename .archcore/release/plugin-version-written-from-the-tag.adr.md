@@ -1,6 +1,6 @@
 ---
 title: "The Release Writes the Plugin Version From the Tag; dev Manifests Stay at 0.0.0"
-status: draft
+status: accepted
 tags:
   - "component:plugin"
   - "release"
