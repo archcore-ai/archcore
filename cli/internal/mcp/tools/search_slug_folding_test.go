@@ -279,7 +279,7 @@ func TestScoreContent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			matches, specSum, freq, found := scoreContent(tt.title, tt.slug, tt.body, tt.tokens, tt.matchMode)
+			matches, specSum, freq, found, _ := scoreContent(tt.title, tt.slug, tt.body, tt.tokens, tt.matchMode, false)
 			if found != tt.wantFound {
 				t.Fatalf("found = %v, want %v", found, tt.wantFound)
 			}

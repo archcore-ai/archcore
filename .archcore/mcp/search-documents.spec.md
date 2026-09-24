@@ -27,6 +27,7 @@ It is normative for:
 - Source scoping (`source`) and the coverage envelope.
 - Ranking modes (`relevance`, `mtime`).
 - Per-source representation on the truncated page.
+- Near misses on an empty all-words response (§13).
 - Evidence caps, the response byte budget, and the summary-first envelope.
 - Output modes (`snippets` excerpt windows vs. `full` inline document body).
 - Excerpt construction (including UTF-8 safety).
@@ -51,7 +52,7 @@ If the implementation, tests, or downstream consumers diverge from this specific
 
 - Implementation: @cli/internal/mcp/tools/search_documents.go, @cli/internal/mcp/tools/response_budget.go
 - Tool registration: @cli/internal/mcp/server.go
-- Tests: @cli/internal/mcp/tools/search_documents_test.go, @cli/internal/mcp/tools/search_recall_test.go, @cli/internal/mcp/tools/response_budget_test.go
+- Tests: @cli/internal/mcp/tools/search_documents_test.go, @cli/internal/mcp/tools/search_recall_test.go, @cli/internal/mcp/tools/response_budget_test.go, @cli/internal/mcp/tools/search_near_misses_spec_test.go
 - Shared scan helpers: @cli/internal/mcp/tools/docs_bridge.go (`scanDocuments`, `scanDocumentsFull`), which delegate to @cli/internal/docs/scan.go (`Scan`, `ScanFull`). Both are package-private to `internal/mcp/tools`; see @.archcore/cli/docs-package-owns-the-document-model.adr.md.
 - Manifest loading: @cli/internal/mcp/tools/manifest_store.go (shared cached store, `sharedManifestStore.load`) over @cli/internal/sync/manifest.go
 - Source-extension list: @cli/templates/source_extensions.go
@@ -75,6 +76,7 @@ If the implementation, tests, or downstream consumers diverge from this specific
 | Match token        | One unit the content query matches by: a whitespace-separated word with its separators folded (§6.1) under `all`/`any`, or the whole query under `exact`. |
 | Separator          | One of the six characters `-`, `_`, `/`, `.`, `@`, `:`. |
 | Admitted row       | A row that survives the `limit` cut of §8.1–§8.4. |
+| Near miss          | A document that passes the filters and holds at least half, but not all, of the distinct words of an empty all-words query (§13). |
 | Byte budget        | The ceiling on the serialized response: 40,000 bytes (`searchResponseByteBudget`). |
 | Score              | The internal ranking key: `100 × (path-ref maximum specificity + Σ content-token specificities) + capped occurrence count`. Not serialized.                      |
 | Manifest           | The JSON file at `.archcore/.sync-state.json` that stores document relations, loaded via the shared manifest store.                                             |
@@ -106,15 +108,16 @@ At least one of `path_ref`, `content`, `types`, or `status` MUST be provided.
 
 ### Outputs
 
-A JSON object whose keys serialize in this order: `{"coverage": {...}, "hits": {...}, "truncated": false, "index": [...], "results": [...]}`. The summary comes first because a host that stores an oversized result shows the caller only its first bytes.
+A JSON object whose keys serialize in this order: `{"coverage": {...}, "hits": {...}, "truncated": false, "index": [...], "near_misses": [...], "results": [...]}`, where `near_misses` is present only under §13.1. The summary comes first because a host that stores an oversized result shows the caller only its first bytes.
 
-- `coverage` maps each searched source id to its scanned document count (e.g. `{"local": 102, "org": 42}`), computed after the `source` scope and before the query filters. An empty `results` next to a populated `coverage` is a verified absence — the corpus was searched and holds no match.
+- `coverage` maps each searched source id to its scanned document count (e.g. `{"local": 102, "org": 42}`), computed after the `source` scope and before the query filters. An empty `results` next to a populated `coverage` is a verified absence of a document that passes the filters and satisfies the active `match` mode (§6): under `all`, no such document holds every query word.
 - `hits` maps each searched source id to its matched document count, before the `limit` cut. A searched source without a match carries `0`.
-- `truncated` is `true` when the byte budget returned fewer rows, or fewer `index` entries, than `limit` admitted (§8.6, §8.10).
+- `truncated` is `true` when the byte budget returned fewer rows, or fewer `index` entries, than `limit` admitted (§8.6, §8.10), or fewer near misses than §13.4 kept (§13.10).
 - `index` lists `path`, `title`, and `source_id` of the admitted rows, in §7 order, inside its own byte ceiling (§8.10).
+- `near_misses` lists up to 3 documents that pass the filters and hold at least half of the distinct query words, each naming the words it lacks (§13). Present only under §13.1.
 - `results` is the array of `searchResult` objects (fields below).
 
-(Behavior change 2026-08: the response was previously a bare array. Behavior change 2026-09: `hits`, `truncated`, and `index` were added and the key order was fixed; see Compatibility.)
+(Behavior change 2026-08: the response was previously a bare array. Behavior change 2026-09: `hits`, `truncated`, and `index` were added and the key order was fixed; `near_misses` followed; see Compatibility.)
 
 Each `searchResult` object has the following fields:
 
@@ -150,6 +153,8 @@ Each `searchResult` object has the following fields:
 | `excerpt`     | string  | ≤ ~120-character window around the match, padded with `...` if truncated. Always valid UTF-8. |
 
 `Relation` fields (reuses `DocumentRelation` from @cli/internal/mcp/tools/docs_bridge.go, aliased to `docs.DocumentRelation`): `path`, `type` (one of `related`, `implements`, `extends`, `depends_on`, `supports`, `contradicts`, `supersedes`).
+
+`NearMiss` fields: `path`, `title`, and `source_id` as on `searchResult`, and `missing` (string[]): the absent distinct query words, folded per §6.1, in query order. A word with a separator folds to parts joined by one space, so `missing` can hold `"delivery policy"`.
 
 ## Normative Behavior
 
@@ -215,6 +220,7 @@ When `content` is non-empty, for each document:
 5. Each hitting token MUST emit a `Match` with `kind: "content"`, `ref` = the token, `specificity` = its tier, and an `excerpt` built around the token's first occurrence (from the title for a title hit, the whole slug for a slug hit, from the body otherwise).
 6. WHEN a document has more than 5 content matches (`searchMatchCap`), the handler MUST keep the 5 of highest specificity, in query-word order among equals; at or under the cap, `matches` keeps query-word order.
 7. The handler MUST count all token occurrences across the lowercased title and body, capped at 20 (`contentFreqCap`), as the low-order component of the score.
+8. WHILE `match` is `all` and no document has matched, the handler MUST count the distinct query words at tier 1 or above per document.
 
 ### §7 Ranking (`sort` parameter)
 
@@ -257,7 +263,7 @@ When `content` is non-empty, for each document:
 
 ### §11 Response shape invariants
 
-1. The response is a JSON object whose keys MUST serialize in the order `coverage`, `hits`, `truncated`, `index`, `results`. `results` and `index` MUST be empty arrays (not `null`) when no documents match; `coverage` MUST still carry the scanned counts.
+1. The response is a JSON object whose keys MUST serialize in the order `coverage`, `hits`, `truncated`, `index`, `near_misses`, `results`; `near_misses` appears only under §13.1. `results` and `index` MUST be empty arrays (not `null`) when no documents match; `coverage` MUST still carry the scanned counts.
 2. `coverage` MUST hold one entry per source admitted by the `source` scope, keyed by `source_id`. `hits` MUST hold the same keys.
 3. `matches` MUST be an empty array, never `null`, when a document passed metadata filters but has no per-match evidence (pure metadata query).
 4. `mtime` MUST always be present in RFC3339 format. The `omitzero` JSON tag applies at the `LocalDocument` layer but the result-level struct serializes `mtime` unconditionally.
@@ -272,6 +278,22 @@ When `content` is non-empty, for each document:
 5. The handler MUST NOT remove a row to make room for a body while every body of the page can keep a share of 1,024 encoded bytes (`searchBodyFloorBytes`). The floor bounds the share; the line-break rule of §12.6 can deliver less than the share.
 6. A shortened `body` MUST be a prefix of the document body, MUST end on a rune boundary, and SHOULD end at the last line break in the second half of its share.
 7. A row with a shortened `body` MUST carry `body_truncated: true` and `body_bytes`. A caller MUST read the whole document through `get_document` before it writes through `update_document`.
+
+### §13 Near misses on an empty all-words response
+
+In this section, n is the number of distinct folded query words (§6.1).
+
+1. WHEN `match` is `all`, `content` holds at least two distinct folded words, and every `hits` value is 0, the handler MUST compute near misses.
+2. The handler MUST admit as a near miss only a document that passes §4 and §5 and holds ⌈n/2⌉ or more distinct words.
+3. The handler MUST order near misses by the §6.8 count DESC, then by the §7.1 relevance keys, whatever `sort` holds.
+4. The handler MUST keep at most 3 near misses (`searchNearMissCap`), whatever `limit` and `mode` hold.
+5. The handler MUST apply the §8.2–§8.4 representation swap to the near misses, with the §13.4 cap as the page size.
+6. WHEN §13.1 holds and no document qualifies, the handler MUST serialize `near_misses` as `[]`.
+7. WHEN §13.1 does not hold, the handler MUST omit `near_misses`.
+8. The handler MUST emit each near miss with exactly the `NearMiss` fields, without `body`, `matches`, excerpts, or relations.
+9. The handler MUST NOT count a near miss toward `hits` or `index`.
+10. IF the response exceeds the byte budget with its near misses, THEN the handler MUST remove near misses from the tail until it fits.
+11. WHEN §13.10 removes a near miss, the handler MUST set `truncated` to `true`.
 
 ## Constraints
 
@@ -289,6 +311,8 @@ When `content` is non-empty, for each document:
 | Body floor (`searchBodyFloorBytes`) | 1,024 encoded bytes       | A row leaves the page before its body shrinks below a readable opening.                  |
 | Match cap (`searchMatchCap`)        | 5 per filter              | One document cited one path 39 times; evidence was 60–70% of an overflowed response.     |
 | Relation cap (`searchRelationCap`)  | 5 per direction           | A hub document's row otherwise grows with its degree.                                    |
+| Near-miss cap (`searchNearMissCap`) | 3                        | An empty page leaves the byte budget unused; three rows name the closest documents without turning an empty answer into a result page. |
+| Near-miss threshold                 | ⌈n/2⌉ of n distinct words | Equals "every word except one" at two and three words and still admits long and mixed-language queries (@.archcore/mcp/empty-all-words-search-partial-matches.rfc.md). |
 | Excerpt window                      | 120 chars                 | Keeps per-match payload small while carrying enough context for user/LLM disambiguation. |
 | Cold-scan target                    | ≤ 500 ms P95 for 200 docs | Informal target; not enforced by test harness yet.                                       |
 | Heap growth for pure-metadata query | O(N × frontmatter_size)   | Bodies are not retained when `path_ref` and `content` are both empty AND `mode=snippets`. |
@@ -300,6 +324,7 @@ When `content` is non-empty, for each document:
 - Two identical calls against an unchanged `.archcore/` tree MUST produce byte-identical JSON output (excluding `mtime` serialization if clock-driven sources intrude — they do not in current implementation).
 - All emitted `excerpt` strings MUST satisfy `utf8.ValidString(excerpt)`.
 - The serialized response MUST NOT exceed the byte budget, except the single-row case of §8.8.
+- `near_misses` MUST appear only beside an empty `results`.
 - A shortened `body` MUST be a valid-UTF-8 prefix of the document body.
 - The first 2,048 bytes of a response with at most 6 admitted rows carry `coverage`, `hits`, and the whole `index`. [assumption: titles of ordinary length]
 - Every returned result's `path` MUST begin with `.archcore/` for a primary document; a mounted external global renders with its declared relative prefix.
@@ -331,10 +356,10 @@ When `content` is non-empty, for each document:
 
 An implementation conforms to this specification if it satisfies:
 
-- All MUST and MUST NOT statements in §§1–12.
+- All MUST and MUST NOT statements in §§1–13.
 - All stated invariants.
 - All applicable error-handling rows.
-- The recorded unit tests in @cli/internal/mcp/tools/search_documents_test.go, @cli/internal/mcp/tools/search_recall_test.go, and @cli/internal/mcp/tools/response_budget_test.go (these tests are the executable acceptance harness for this spec).
+- The recorded unit tests in @cli/internal/mcp/tools/search_documents_test.go, @cli/internal/mcp/tools/search_recall_test.go, @cli/internal/mcp/tools/response_budget_test.go, and @cli/internal/mcp/tools/search_near_misses_spec_test.go (these tests are the executable acceptance harness for this spec).
 
 ## Examples
 
@@ -431,12 +456,29 @@ search_documents({
 search_documents({ content: "blue-green deploys" })
 
 // Output
-{ "coverage": { "local": 102, "archcore": 42 }, "hits": { "local": 0, "archcore": 0 }, "truncated": false, "index": [], "results": [] }
+{ "coverage": { "local": 102, "archcore": 42 }, "hits": { "local": 0, "archcore": 0 }, "truncated": false, "index": [], "near_misses": [], "results": [] }
 
 // Notes
-// The empty result names what was searched: 144 documents across both sources
-// hold no document containing every query word. Broaden the words or try
-// match="any" — do not conclude the corpus was skipped.
+// The empty result names what was searched: none of the 144 documents across
+// both sources passes the filters and holds either query word, so near_misses
+// is []. Broaden the words or try match="any" — do not conclude the corpus was
+// skipped.
+```
+
+### Near miss
+
+```txt
+// Input
+search_documents({ content: "delivery policy price source" })
+
+// Output
+{ "coverage": { "local": 12 }, "hits": { "local": 0 }, "truncated": false, "index": [],
+  "near_misses": [{ "path": ".archcore/shop/delivery-policy-seam.adr.md", "title": "Keep Delivery Fees Behind the DeliveryPolicy Interface", "source_id": "local", "missing": ["source"] }],
+  "results": [] }
+
+// Notes
+// No document holds all four words. The ADR holds three, at least half of four;
+// every other document holds at most one.
 ```
 
 ### Compound name and a shortened body
@@ -497,6 +539,7 @@ search_documents({ content: "logging", source: "orgg" })
 
 - **Behavior change (2026-08), breaking:** the response became the `{"results", "coverage"}` envelope (previously a bare array); content matching became tokenized all-words by default (`match="exact"` preserves the old substring semantics); ranking replaced max-specificity with the summed score, added the heading tier and occurrence count, stopped using a global document's mtime, and gained the `path` tiebreak; a truncated page now keeps every matching source represented; an unknown `source` and a zero-word `content` became validation errors. Decided in @.archcore/mcp/global-recall-guarantees.rfc.md; shipped together as one wire-shape major change.
 - **Behavior change (2026-09):** the envelope gained `hits`, `truncated`, and `index`, and its key order became normative; `matches` and each relation array carry at most 5 entries, with a total beside a cut array; the response stays under a 40,000-byte budget, so `results` can hold fewer rows than `limit` and a full-mode `body` can be a shortened prefix; the slug became a match field and separators fold under `all`/`any`, so `ref` can differ from the typed word. Every added field is additive; the narrowed fields are `body`, `matches`, and the relation arrays. Decided in @.archcore/mcp/read-tool-responses-survive-host-truncation.adr.md and @.archcore/mcp/search-matches-the-slug-and-folds-separators.adr.md.
+- **Behavior change (2026-09, near misses):** an empty all-words response with at least two distinct words gains `near_misses`, and the verified-absence wording names the filters and the match mode. The field is additive and appears only beside an empty `results`. Decided in @.archcore/mcp/empty-all-words-search-partial-matches.rfc.md.
 - The envelope is additive from here on: new fields MAY be added to the envelope, `searchResult`, or `Match` without breaking consumers that ignore unknown fields.
 - Existing field names, types, and enum values MUST NOT be removed or repurposed in a minor CLI release. A breaking change requires a new major version.
 - The `sort`, `mode`, and `match` enums MAY grow additional values in a minor release; existing `relevance`, `mtime`, `snippets`, `full`, `all`, `any`, and `exact` semantics MUST remain stable.

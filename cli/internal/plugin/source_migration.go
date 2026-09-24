@@ -312,12 +312,14 @@ func canonicalSource(source string) (string, bool) {
 }
 
 var codexSourceTableRe = regexp.MustCompile(`^\s*\[marketplaces\.(?:archcore-plugins|"archcore-plugins"|'archcore-plugins')\]\s*(?:#.*)?$`)
-var codexSourceFieldRe = regexp.MustCompile(`^\s*(source_type|source)\s*=\s*("[^"\\]*"|'[^']*')\s*(?:#.*)?$`)
+var codexSourceFieldRe = regexp.MustCompile(`^\s*(source_type|source|last_updated|last_revision)\s*=\s*("[^"\\]*"|'[^']*')\s*(?:#.*)?$`)
 
 func rewriteCodexSource(data []byte) []byte {
 	text := string(data)
-	// This edits only the native CLI's two-field table. Inline tables and
-	// multiline strings stay untouched; a partial TOML parser would misread them.
+	// This edits only the native table: source_type and source, plus the refresh
+	// fields last_updated and last_revision, which pin no revision —
+	// plugin-source-migration.spec. Inline tables and multiline strings stay
+	// untouched; a partial TOML parser would misread them.
 	if strings.Contains(text, `"""`) || strings.Contains(text, "'''") {
 		return nil
 	}
@@ -355,7 +357,7 @@ func rewriteCodexSource(data []byte) []byte {
 		}
 		offset += len(line)
 	}
-	if !found || fields["source_type"] != "git" || len(fields) != 2 {
+	if !found || fields["source_type"] != "git" {
 		return nil
 	}
 	next, ok := canonicalSource(fields["source"])

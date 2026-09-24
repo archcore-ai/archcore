@@ -46,14 +46,16 @@ use it when the response shows it; an older CLI simply never shows it.
 
 - **`coverage` is proof of what was searched.** It maps each source id to its
   scanned document count, e.g. `{"local": 102, "org": 42}`. An empty `results`
-  next to a `coverage` that names a global source is a verified absence across
-  every listed corpus — never read it as "the globals were skipped".
+  next to a `coverage` that names a global source is a verified absence of a
+  document holding every query word across every listed corpus — never read it as "the globals were skipped".
 - **Word matching.** A current CLI matches every whitespace-separated word of
   `content`, in any order and at any distance ("plugin compatibility" matches
   "Plugin / CLI Compatibility"). An older CLI matches the exact substring.
   Query with the important words, not with a literal sentence.
 - **Retry ladder for an empty result**, when `coverage` names a global source:
-  first broaden to fewer or more general words; then `match: "any"`; then scope
+  first read `near_misses` when the response carries it — each row names a
+  document that holds at least half the words and, in `missing`, the words it lacks;
+  then broaden to fewer or more general words; then `match: "any"`; then scope
   with `source: "global"` (or a declared source id) to probe the global corpus
   alone. After the ladder, report a true absence honestly.
 - **Vocabulary map.** On a current CLI the SessionStart context carries a

@@ -125,6 +125,7 @@ func TestRewriteCodexSource(t *testing.T) {
 		{name: "native table", input: migrationCodexSettings, changed: true},
 		{name: "quoted table", input: strings.ReplaceAll(migrationCodexSettings, "[marketplaces.archcore-plugins]", `[marketplaces."archcore-plugins"]`), changed: true},
 		{name: "literal quotes", input: strings.ReplaceAll(migrationCodexSettings, `"https://github.com/archcore-ai/plugin.git"`, `'https://github.com/archcore-ai/plugin.git'`), changed: true},
+		{name: "refresh bookkeeping", input: strings.ReplaceAll(migrationCodexSettings, "source_type", "last_updated = \"2026-08-19T08:39:47Z\"\nlast_revision = \"ac4316ac408e977641069a964f41b0fddf34a1b4\"\nsource_type"), changed: true},
 		{name: "canonical", input: strings.ReplaceAll(migrationCodexSettings, legacyRepoID, canonicalRepoID)},
 		{name: "fork", input: strings.ReplaceAll(migrationCodexSettings, legacyRepoID, "other/fork")},
 		{name: "ref", input: strings.ReplaceAll(migrationCodexSettings, "source_type", "ref = \"dev\"\nsource_type")},

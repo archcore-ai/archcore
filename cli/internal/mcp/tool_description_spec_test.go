@@ -5,6 +5,8 @@
 //  2. A tool listed in overCapTools still exceeds the cap and is still registered.
 //  3. The part of the add_relation description that the host passes on carries
 //     the relation policy.
+//  4. The part of the search_documents description that the host passes on
+//     carries the empty-result, truncation, write-safety, and precedence rules.
 package mcp
 
 import (
@@ -19,8 +21,7 @@ import (
 const hostDescriptionCap = 2048
 
 var overCapTools = map[string]string{
-	"create_document":  "the document-type catalog fills the cap, and the Returns paragraph sits past it",
-	"search_documents": "the closing sentence ends 9 units past the cap; host-truncation-safe-read-tools.plan shortens this description",
+	"create_document": "the document-type catalog fills the cap, and the Returns paragraph sits past it",
 }
 
 func registeredTools(t *testing.T) map[string]string {
@@ -80,6 +81,23 @@ func TestAddRelationDescription_CarriesTheRelationPolicy(t *testing.T) {
 	} {
 		if !strings.Contains(visible, phrase) {
 			t.Errorf("the host-visible add_relation description lacks %q: the relation policy has no other surface that reaches the model whole", phrase)
+		}
+	}
+}
+
+func TestSearchDocumentsDescription_CarriesTheReadingRules(t *testing.T) {
+	t.Parallel()
+	visible := hostVisible(registeredTools(t)["search_documents"])
+	for _, phrase := range []string{
+		"near_misses",
+		"missing",
+		"Open those documents",
+		"never write back a shortened body",
+		"the local one is authoritative",
+		"hits and index at its start",
+	} {
+		if !strings.Contains(visible, phrase) {
+			t.Errorf("the host-visible search_documents description lacks %q: a rule past the cap never reaches the model", phrase)
 		}
 	}
 }
