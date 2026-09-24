@@ -16,27 +16,19 @@ permissions:
 
 jobs:
   verify-version:
-    name: Tag matches the plugin manifests
+    name: Tag is the next release version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      # The tag is the version source of truth for both components: GoReleaser
-      # injects it into the CLI binary, and the four plugin manifests must carry
-      # the same string, or hosts report a version the release page never had.
-      - name: Compare the tag with the four manifests
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          fail=0
-          for host in .claude-plugin .cursor-plugin .codex-plugin .plugin; do
-            manifest="plugin/plugins/archcore/$host/plugin.json"
-            version=$(jq -r .version "$manifest")
-            if [ "$version" != "$tag" ]; then
-              echo "::error file=$manifest::version $version does not match tag $tag"
-              fail=1
-            fi
-          done
-          exit "$fail"
+      # The tag is the only version source for both components: GoReleaser
+      # injects it into the CLI binary, and export-plugin.sh writes it into the
+      # four published plugin manifests. A mistyped tag is the one version error
+      # left, so the tag must directly follow the previous release tag.
+      - name: Check the tag follows the previous release
+        run: ./scripts/check-release-tag.sh "$GITHUB_REF_NAME"
 
   test-plugin:
     needs: verify-version
@@ -108,7 +100,7 @@ jobs:
           fi
 
       - name: Export the public plugin tree
-        run: ./scripts/export-plugin.sh "${RUNNER_TEMP}/archcore-plugin-release"
+        run: ./scripts/export-plugin.sh "${RUNNER_TEMP}/archcore-plugin-release" "${GITHUB_REF_NAME#v}"
 
       - name: Commit the public tree
         run: |

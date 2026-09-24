@@ -4972,6 +4972,16 @@
       "source": "mcp/empty-all-words-search-near-misses.plan.md",
       "target": "code-quality/bounded-and-deterministic-output.rule.md",
       "type": "depends_on"
+    },
+    {
+      "source": "release/plugin-version-written-from-the-tag.adr.md",
+      "target": "release/unified-release-from-the-monorepo.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "release/plugin-version-written-from-the-tag.adr.md",
+      "target": "plugin/bump-plugin-version.cpat.md",
+      "type": "supersedes"
     }
   ]
 }

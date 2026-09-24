@@ -1,6 +1,6 @@
 ---
 title: "Bump Plugin Version Across All Host Manifests"
-status: accepted
+status: rejected
 tags:
   - "component:plugin"
   - "multi-host"

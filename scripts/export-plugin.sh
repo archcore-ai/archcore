@@ -3,7 +3,13 @@ set -eu
 
 repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 source_root="$repo_root/plugin"
-output=${1:?Usage: export-plugin.sh OUTPUT_DIRECTORY}
+output=${1:?Usage: export-plugin.sh OUTPUT_DIRECTORY VERSION}
+version=${2:?Usage: export-plugin.sh OUTPUT_DIRECTORY VERSION}
+
+if ! printf '%s\n' "$version" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then
+  echo "Version must be MAJOR.MINOR.PATCH: $version" >&2
+  exit 1
+fi
 
 if [ -L "$output" ]; then
   echo "Output directory must not be a symlink: $output" >&2
@@ -25,6 +31,18 @@ done
 cp "$repo_root/README.md" "$output/README.md"
 for file in LICENSE NOTICE; do
   cp "$repo_root/$file" "$output/$file"
+done
+
+# The release tag is the only version source: dev manifests carry 0.0.0, and
+# only the top-level version line changes, so the rest stays byte-identical.
+for host in .claude-plugin .cursor-plugin .codex-plugin .plugin; do
+  manifest="$output/plugins/archcore/$host/plugin.json"
+  sed 's/^  "version": "[^"]*"/  "version": "'"$version"'"/' "$manifest" > "$manifest.tmp"
+  mv "$manifest.tmp" "$manifest"
+  if [ "$(jq -r .version "$manifest")" != "$version" ]; then
+    echo "Version was not written to $manifest" >&2
+    exit 1
+  fi
 done
 
 forbidden=$(find "$output" \( -type l -o -name .archcore -o -name AGENTS.md -o -name CLAUDE.md \
