@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"archcore-cli/internal/config"
 )
 
 func TestNewServer_HasTools(t *testing.T) {
@@ -261,5 +263,22 @@ func TestRunStdio_CancelsTheBackgroundTaskWhenItReturns(t *testing.T) {
 	case <-got.Done():
 	case <-time.After(runStdioTimeout):
 		t.Error("RunStdio returned but left the background task's context live")
+	}
+}
+
+// TestBuildInstructions_EmptySearchRule pins the empty-result rule of
+// search-documents.spec §13 in the instructions every project receives, and the
+// trigger of the global retry in the paragraph a project with globals adds.
+func TestBuildInstructions_EmptySearchRule(t *testing.T) {
+	t.Parallel()
+	base := buildInstructions("", nil)
+	for _, phrase := range []string{"near_misses", "no document passing the filters holds every word"} {
+		if !strings.Contains(base, phrase) {
+			t.Errorf("base instructions lack %q; a project without globals must receive the empty-result rule", phrase)
+		}
+	}
+	withGlobals := buildInstructions("", []config.GlobalSource{{ID: "org", Path: "../org/.archcore"}})
+	if !strings.Contains(withGlobals, "fills the page with only local rows") {
+		t.Error("the global retry does not state its trigger: a page of only local rows")
 	}
 }

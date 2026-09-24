@@ -77,6 +77,7 @@ Use tags when a document is relevant to multiple teams or domains.
 
 WHEN TO SEARCH CONTENT:
 Use search_documents to find documents by path reference, content substring, or metadata filters — not by topic guess. Unlike list_documents, it scans bodies. Prefer it over grep over .archcore/ when you need "which docs mention X".
+An empty result under match="all" (the default) means no document passing the filters holds every word. Read near_misses first; then broaden the words or use match="any" before you conclude no document covers the topic.
 
 PATH FORMAT: All tool paths use ".archcore/<path>/<slug>.<type>.md" as returned by list_documents. The add_relation and remove_relation tools also accept paths without the ".archcore/" prefix.
 
@@ -210,7 +211,7 @@ This project mounts %d read-only global source(s): %s.
 - IF a local and a global document conflict on one topic, THEN the local document is authoritative. The global stays the org-wide default it refines.
 - Global documents are read-only and never relation endpoints; the write tools refuse them.
 - A search result starts with hits (matches per source) and index (every row on the page). IF the host shows only part of a result, THEN read the documents index names before you answer.
-- When a search returns nothing, check its coverage field: the globals were scanned, so broaden the words (match="all" needs every word to occur) or scope with source="global".`, len(globals), strings.Join(ids, ", "))
+- When a search returns nothing, check its coverage field: the globals were scanned too. IF a broadened or match="any" retry fills the page with only local rows, THEN scope it with source="global" to read the globals alone.`, len(globals), strings.Join(ids, ", "))
 	}
 	if language == "" || language == "en" {
 		return out

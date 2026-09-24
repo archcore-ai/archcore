@@ -16,7 +16,7 @@ The plugin update executor prepares installed Claude Code and Codex marketplaces
 - Active delivery is `archcore-ai/archcore` since `RepoID` changed on 2026-09-22 (unified release v0.10.2); the repository was renamed the same day, and GitHub redirects the legacy address `archcore-ai/plugin`.
 - Marketplace `archcore-plugins`, plugin `archcore@archcore-plugins`, public `main` and `plugins/archcore` retain their spelling.
 - Claude source declarations: known marketplaces, user settings and settings files belonging to listed, resolved project/local installations.
-- Codex source declaration: the native CLI's two-field `[marketplaces.archcore-plugins]` table in its configured home.
+- Codex source declaration: the native `[marketplaces.archcore-plugins]` table in its configured home, holding `source_type` and `source`, plus the refresh fields `last_updated` and `last_revision` when a refresh wrote them.
 - Cursor retains its UI update path. Copilot recognizes both legacy and canonical direct-install directory names and updates through its existing host command.
 - `@cli/internal/plugin/source_migration.go`, `@cli/internal/plugin/execute.go`, `@cli/internal/plugin/registry.go` implement this preparation.
 
@@ -54,8 +54,10 @@ The plugin update executor prepares installed Claude Code and Codex marketplaces
 
 ## Conformance
 
-Tests cover unchanged defaults, explicit-update selection, source shapes, custom refs, unknown fields, disabled state, project scopes, idempotency, bounded reads and failed target validation. Source migration is not evidence of a successful public GitHub rename.
+Tests cover unchanged defaults, explicit-update selection, source shapes, refresh fields, custom refs, unknown fields, disabled state, project scopes, idempotency, bounded reads and failed target validation. Source migration is not evidence of a successful public GitHub rename.
 
 The local native-host probe on 2026-09-22 (Claude Code 2.1.278, Codex CLI 0.155.1) showed that both hosts reject `marketplace add` for an existing name with another source. Codex marketplace remove temporarily hides installed plugins. Direct declaration changes followed by native refresh preserve the plugin ID; Claude updated 0.9.4 to 0.9.5 and Codex updated 0.9.5 to 0.9.6, both retaining `enabled = false`. The probe used isolated homes and local Git fixtures, not user settings or production repositories.
+
+A check on 2026-09-24 (Codex CLI 0.155.1) found a user table that carried `last_updated` and `last_revision`, which the Codex CLI's own `marketplace add` and `marketplace upgrade` do not write. In an isolated home, `marketplace upgrade` with a stale `last_revision` fetched the head of the default branch, so those two fields pin no revision.
 
 Remaining release gate: old-to-new remote update on all four hosts, actual GitHub redirects, supported historical host versions and Cursor's existing marketplace card.

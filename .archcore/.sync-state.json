@@ -4927,6 +4927,51 @@
       "source": "integrations/init-selection-screen-always-opens.plan.md",
       "target": "integrations/plugin-delivery.spec.md",
       "type": "implements"
+    },
+    {
+      "source": "mcp/empty-all-words-search-partial-matches.rfc.md",
+      "target": "mcp/global-recall-guarantees.rfc.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/empty-all-words-search-partial-matches.rfc.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/empty-all-words-search-partial-matches.rfc.md",
+      "target": "mcp/search-documents-matching-not-presentation.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/empty-all-words-search-partial-matches.rfc.md",
+      "target": "mcp/read-tool-responses-survive-host-truncation.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/empty-all-words-search-near-misses.plan.md",
+      "target": "mcp/empty-all-words-search-recovery.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/empty-all-words-search-partial-matches.rfc.md",
+      "target": "mcp/empty-all-words-search-recovery.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/empty-all-words-search-near-misses.plan.md",
+      "target": "mcp/empty-all-words-search-partial-matches.rfc.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/empty-all-words-search-near-misses.plan.md",
+      "target": "mcp/host-truncation-safe-read-tools.plan.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/empty-all-words-search-near-misses.plan.md",
+      "target": "code-quality/bounded-and-deterministic-output.rule.md",
+      "type": "depends_on"
     }
   ]
 }

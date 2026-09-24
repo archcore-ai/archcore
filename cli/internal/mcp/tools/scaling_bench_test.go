@@ -114,6 +114,9 @@ func BenchmarkReadToolsScaling(b *testing.B) {
 			{"list", HandleListDocuments(StaticRoot(base)), map[string]any{}},
 			{"search-snip", HandleSearchDocuments(StaticRoot(base)), map[string]any{"content": "lorem"}},
 			{"search-full", HandleSearchDocuments(StaticRoot(base)), map[string]any{"content": "lorem", "mode": "full"}},
+			// Every document holds lorem and none holds zephyrite, so every
+			// document is a near miss: the worst case of search-documents.spec §13.
+			{"search-near-miss", HandleSearchDocuments(StaticRoot(base)), map[string]any{"content": "lorem zephyrite"}},
 			{"get", HandleGetDocument(StaticRoot(base)), map[string]any{"path": getPath}},
 		}
 		for _, tt := range cases {

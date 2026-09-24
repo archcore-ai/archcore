@@ -63,6 +63,10 @@ const (
 	// document otherwise grows with its degree. get_document returns the full
 	// graph of one document.
 	searchRelationCap = 5
+	// searchNearMissCap bounds the near misses of an empty all-words response:
+	// enough to name the closest documents without turning an empty answer into
+	// a result page (search-documents.spec §13.4).
+	searchNearMissCap = 3
 )
 
 // searchMode is the output-detail vocabulary of the mode parameter (§G typed
@@ -89,19 +93,19 @@ const (
 // hit (bounded-and-deterministic-output.rule).
 const contentFreqCap = 20
 
-const searchDocumentsDescription = `Search .archcore/ documents by content or filters, across the local project and every mounted read-only global source. Prefer this over list_documents + get_document loops when you need "which docs match X".
+const searchDocumentsDescription = `Search .archcore/ documents by content or filters, across the local project and every mounted global source. Prefer it over list_documents + get_document loops.
 
 Give at least one filter (path_ref, content, types, status); filters combine as AND. content matches every whitespace-separated word by default, in any order ("plugin compatibility" matches "Plugin / CLI Compatibility"); match="exact" takes one literal substring, match="any" takes at least one word. path_ref matches @-notation and qualified bare paths. source scopes to "local", "global", or a declared source id.
 
 Returns JSON, summary first:
-- coverage: documents scanned per source. Empty results next to a populated coverage is a verified absence — broaden the words; do not assume the corpus was skipped.
+- coverage: documents scanned per source. Empty results under match="all" mean no document passing the filters holds every word; near_misses then lists up to 3 that hold at least half, and missing names the words each lacks. Open those documents (get_document) before you broaden the words or conclude absence.
 - hits: matches per source before the limit cut.
-- truncated: true when the response byte budget kept fewer rows than the limit admitted.
+- truncated: true when the byte budget cut rows or near_misses.
 - index: path, title, source_id of every row the limit admitted.
-- results: rows in ` + "`sort`" + ` order ("relevance" default), each with at most 5 matches and 5 relations per direction; matches_total and the relation totals appear when more exist. A source with a match keeps its top row on the page.
+- results: rows in ` + "`sort`" + ` order, each with at most 5 matches and 5 relations per direction; matches_total and the relation totals appear when more exist. A source with a match keeps its top row on the page.
 Read source_kind on each row. A matching global is part of the answer: read it. IF a local and a global document conflict, THEN the local one is authoritative.
 
-mode="snippets" (default) returns excerpts: use it to find candidates. mode="full" adds each body inline (frontmatter stripped), default limit 3, so you can skip get_document. The bodies share the byte budget: a long body arrives shortened with body_truncated: true and body_bytes. Call get_document for the rest, and always before update_document — never write back a shortened body. Raise limit only after hits or index show more rows worth reading.
+mode="snippets" (default) returns excerpts: use it to find candidates. mode="full" adds each body inline, default limit 3. The bodies share the byte budget: a long body arrives shortened with body_truncated: true and body_bytes. Call get_document for the rest, and always before update_document — never write back a shortened body. Raise limit only when hits shows more rows.
 
 IF the host shows only part of this result, THEN hits and index at its start still name every source that matched. Read those documents (get_document, or a narrower query) before you answer.`
 
@@ -140,11 +144,30 @@ type searchMatch struct {
 type searchDocumentsResult struct {
 	Coverage map[string]int `json:"coverage"`
 	Hits     map[string]int `json:"hits"`
-	// Truncated reports that the byte budget kept fewer rows in Results, or fewer
-	// entries in Index, than the limit admitted.
+	// Truncated reports that the byte budget kept fewer rows in Results, fewer
+	// entries in Index than the limit admitted, or fewer near misses than the cap kept.
 	Truncated bool               `json:"truncated"`
 	Index     []searchIndexEntry `json:"index"`
-	Results   []searchResult     `json:"results"`
+	// NearMisses is present only while search-documents.spec §13.1 holds, and []
+	// there when nothing qualifies, so its absence identifies an older CLI.
+	NearMisses []searchNearMiss `json:"near_misses,omitzero"`
+	Results    []searchResult   `json:"results"`
+}
+
+// searchNearMiss is a document that holds at least half, but not all, of the
+// distinct words of an empty all-words query (search-documents.spec §13).
+type searchNearMiss struct {
+	Path     string   `json:"path"`
+	Title    string   `json:"title"`
+	SourceID string   `json:"source_id"`
+	Missing  []string `json:"missing"`
+}
+
+// nearMissCandidate carries the ranking keys of a document that failed an
+// all-words query beside the distinct query words it lacks.
+type nearMissCandidate struct {
+	row     searchResult
+	missing []string
 }
 
 // searchIndexEntry is the identity of one page row.
@@ -342,6 +365,9 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 				}
 			}
 		}
+		distinctTokens := dedupeWords(tokens)
+		nearMissesPossible := matchMode == matchModeAll && len(distinctTokens) >= 2
+		var nearMissCandidates []nearMissCandidate
 
 		// Normalize sort mode (framework enforces enum, but be defensive).
 		if sortMode == "" {
@@ -435,10 +461,28 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 
 			// content filter.
 			if contentFilter != "" {
-				contentMatches, contentSpecSum, contentFreq, found := scoreContent(doc.Title, doc.Slug, doc.Content, tokens, matchMode)
+				// After the first match no near miss can be emitted, so the
+				// remaining misses stop scanning at their first absent word.
+				countMissing := nearMissesPossible && len(results) == 0
+				contentMatches, contentSpecSum, contentFreq, found, missing := scoreContent(doc.Title, doc.Slug, doc.Content, tokens, matchMode, countMissing)
 				if !found {
 					// No content hit means we drop the doc. If path_ref is also
 					// active, AND semantics say content must also match.
+					if countMissing {
+						if len(distinctTokens) < len(tokens) {
+							missing = dedupeWords(missing)
+						}
+						if len(missing) <= len(distinctTokens)/2 {
+							typeRank, effectiveMtime := computeRelevanceKeys(doc)
+							nearMissCandidates = append(nearMissCandidates, nearMissCandidate{
+								row: searchResult{
+									Path: doc.Path, Title: doc.Title, SourceID: doc.SourceID,
+									score: 100*(specSum+contentSpecSum) + contentFreq, typeRank: typeRank, effectiveMtime: effectiveMtime,
+								},
+								missing: missing,
+							})
+						}
+					}
 					continue
 				}
 				matchesTotal += len(contentMatches)
@@ -450,18 +494,7 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 			// When no content/path_ref filter was provided, matches stays empty
 			// — that's the pure-metadata case: we still return the doc.
 
-			rank, ok := typePriority[doc.Type]
-			if !ok {
-				rank = typePriorityDefault
-			}
-
-			// A global document's mtime is its clone date, not a relevance
-			// signal; the zero time also makes a fully tied local document rank
-			// first (local-overrides-global.rule).
-			effectiveMtime := doc.ModTime
-			if doc.Global {
-				effectiveMtime = time.Time{}
-			}
+			rank, effectiveMtime := computeRelevanceKeys(doc)
 
 			result := searchResult{
 				Path:           doc.Path,
@@ -529,15 +562,28 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 			return nil, err
 		}
 		response := searchDocumentsResult{Coverage: coverage, Hits: hits, Index: index, Results: []searchResult{}}
+		if nearMissesPossible && len(results) == 0 {
+			response.NearMisses = rankNearMisses(nearMissCandidates)
+		}
 		head, err := json.Marshal(response)
 		if err != nil {
 			return nil, fmt.Errorf("marshaling result head: %w", err)
+		}
+		// Each missing list grows with the query, so near misses leave from the
+		// tail until the head fits the byte budget (search-documents.spec §13.10).
+		nearMissCut := false
+		for len(head) > searchResponseByteBudget && len(response.NearMisses) > 0 {
+			response.NearMisses = response.NearMisses[:len(response.NearMisses)-1]
+			nearMissCut = true
+			if head, err = json.Marshal(response); err != nil {
+				return nil, fmt.Errorf("marshaling result head: %w", err)
+			}
 		}
 		response.Results, response.Truncated, err = fitSearchPage(ranked, len(results), len(head), sortMode)
 		if err != nil {
 			return nil, err
 		}
-		response.Truncated = response.Truncated || indexCut
+		response.Truncated = response.Truncated || indexCut || nearMissCut
 
 		data, err := json.Marshal(response)
 		if err != nil {
@@ -590,9 +636,13 @@ func sourceAdmits(scope, sourceID string, kind docs.SourceKind) bool {
 // body. matchModeAll requires every token; matchModeAny at least one;
 // matchModeExact arrives here as a single whole-query token
 // (global-recall-guarantees.rfc).
-func scoreContent(title, slug, body string, tokens []string, matchMode contentMatchMode) (matches []searchMatch, specSum, freq int, found bool) {
+//
+// With countMissing, an all-mode miss does not end the scan: the present tokens
+// still score, so a near miss gets its rank and its missing tokens
+// (search-documents.spec §13).
+func scoreContent(title, slug, body string, tokens []string, matchMode contentMatchMode, countMissing bool) (matches []searchMatch, specSum, freq int, found bool, missing []string) {
 	if len(tokens) == 0 {
-		return nil, 0, 0, false
+		return nil, 0, 0, false, nil
 	}
 	lowerTitle := strings.ToLower(title)
 	lowerSlug := strings.ToLower(slug)
@@ -633,7 +683,11 @@ func scoreContent(title, slug, body string, tokens []string, matchMode contentMa
 			if matchMode == matchModeAny {
 				continue
 			}
-			return nil, 0, 0, false // all/exact: one absent token drops the doc
+			if !countMissing {
+				return nil, 0, 0, false, nil // all/exact: one absent token drops the doc
+			}
+			missing = append(missing, token)
+			continue
 		}
 		matches = append(matches, searchMatch{
 			Kind:        matchKindContent,
@@ -644,13 +698,14 @@ func scoreContent(title, slug, body string, tokens []string, matchMode contentMa
 		specSum += spec
 		freq += strings.Count(lowerBody, token) + strings.Count(lowerTitle, token)
 	}
+	freq = min(freq, contentFreqCap)
+	if len(missing) > 0 {
+		return nil, specSum, freq, false, missing
+	}
 	if len(matches) == 0 {
-		return nil, 0, 0, false
+		return nil, 0, 0, false, nil
 	}
-	if freq > contentFreqCap {
-		freq = contentFreqCap
-	}
-	return matches, specSum, freq, true
+	return matches, specSum, freq, true, nil
 }
 
 func isCompoundWord(token string) bool {
@@ -753,26 +808,37 @@ func capRelations(relations []DocumentRelation) (kept []DocumentRelation, total 
 // their own top row, so when there are more sources than slots the best-ranked
 // ones win deterministically. The page is re-sorted before returning.
 func ensureSourceRepresentation(results []searchResult, limit int, sortMode string) []searchResult {
-	page := slices.Clone(results[:limit])
+	page := representSources(results, limit, func(r searchResult) string { return r.SourceID })
+	sortResults(page, sortMode)
+	return page
+}
+
+// representSources is the swap of search-documents.spec §8.2–§8.3 over ranked
+// rows of any kind; the caller re-sorts the page it returns.
+func representSources[T any](ranked []T, limit int, sourceOf func(T) string) []T {
+	if len(ranked) <= limit {
+		return slices.Clone(ranked)
+	}
+	page := slices.Clone(ranked[:limit])
 
 	onPage := make(map[string]int, 4) // source id -> rows on the page
 	for _, r := range page {
-		onPage[r.SourceID]++
+		onPage[sourceOf(r)]++
 	}
 
 	// Missing sources, in rank order of their top row past the cut.
-	for _, r := range results[limit:] {
-		if _, present := onPage[r.SourceID]; present {
+	for _, r := range ranked[limit:] {
+		if _, present := onPage[sourceOf(r)]; present {
 			continue
 		}
 		// Evict from the end: the lowest-ranked row whose source keeps
 		// another row, so one guarantee never breaks an earlier one.
 		evicted := false
 		for i := len(page) - 1; i >= 0; i-- {
-			if onPage[page[i].SourceID] > 1 {
-				onPage[page[i].SourceID]--
+			if onPage[sourceOf(page[i])] > 1 {
+				onPage[sourceOf(page[i])]--
 				page[i] = r
-				onPage[r.SourceID] = 1
+				onPage[sourceOf(r)] = 1
 				evicted = true
 				break
 			}
@@ -781,9 +847,63 @@ func ensureSourceRepresentation(results []searchResult, limit int, sortMode stri
 			break // every page row is its source's last — no slot left
 		}
 	}
-
-	sortResults(page, sortMode)
 	return page
+}
+
+// rankNearMisses orders the candidates by the query words they hold, then by
+// the relevance keys, and keeps searchNearMissCap of them with every source
+// that has one represented (search-documents.spec §13.3–§13.5). The result is
+// never nil, because search-documents.spec §13.6 serializes an empty set as [].
+func rankNearMisses(candidates []nearMissCandidate) []searchNearMiss {
+	// Every document of the corpus can be a candidate, so the sort moves
+	// pointers rather than whole rows.
+	ranked := make([]*nearMissCandidate, len(candidates))
+	for i := range candidates {
+		ranked[i] = &candidates[i]
+	}
+	byWordsHeld := func(a, b *nearMissCandidate) int {
+		if c := cmp.Compare(len(a.missing), len(b.missing)); c != 0 {
+			return c
+		}
+		return compareRelevance(&a.row, &b.row)
+	}
+	slices.SortStableFunc(ranked, byWordsHeld)
+	page := representSources(ranked, searchNearMissCap, func(c *nearMissCandidate) string { return c.row.SourceID })
+	slices.SortStableFunc(page, byWordsHeld)
+
+	rows := make([]searchNearMiss, len(page))
+	for i, c := range page {
+		rows[i] = searchNearMiss{Path: c.row.Path, Title: c.row.Title, SourceID: c.row.SourceID, Missing: c.missing}
+	}
+	return rows
+}
+
+// A map rather than slices.Sort and slices.Compact: missing keeps query order
+// (search-documents.spec §13).
+func dedupeWords(words []string) []string {
+	seen := make(map[string]bool, len(words))
+	unique := make([]string, 0, len(words))
+	for _, w := range words {
+		if !seen[w] {
+			seen[w] = true
+			unique = append(unique, w)
+		}
+	}
+	return unique
+}
+
+// computeRelevanceKeys returns the type rank and the effective mtime of doc. A global
+// document's mtime is its clone date, not a relevance signal; the zero time
+// also makes a fully tied local document rank first (local-overrides-global.rule).
+func computeRelevanceKeys(doc LocalDocument) (typeRank int, effectiveMtime time.Time) {
+	rank, ok := typePriority[doc.Type]
+	if !ok {
+		rank = typePriorityDefault
+	}
+	if doc.Global {
+		return rank, time.Time{}
+	}
+	return rank, doc.ModTime
 }
 
 // parseMtimeAfter accepts an empty string, an RFC3339 timestamp, or a relative
@@ -1003,17 +1123,21 @@ func sortResults(results []searchResult, mode string) {
 		if mode == "mtime" {
 			return b.ModTime.Compare(a.ModTime)
 		}
-		if c := cmp.Compare(b.score, a.score); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(a.typeRank, b.typeRank); c != 0 {
-			return c
-		}
-		if c := b.effectiveMtime.Compare(a.effectiveMtime); c != 0 {
-			return c
-		}
-		return strings.Compare(a.Path, b.Path)
+		return compareRelevance(&a, &b)
 	})
+}
+
+func compareRelevance(a, b *searchResult) int {
+	if c := cmp.Compare(b.score, a.score); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(a.typeRank, b.typeRank); c != 0 {
+		return c
+	}
+	if c := b.effectiveMtime.Compare(a.effectiveMtime); c != 0 {
+		return c
+	}
+	return strings.Compare(a.Path, b.Path)
 }
 
 // buildRelationIndex builds per-path relation lookups once per call. Keys are

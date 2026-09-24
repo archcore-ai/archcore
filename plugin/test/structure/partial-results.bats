@@ -9,6 +9,9 @@
 #
 # The body rule guards a write to a LOCAL document, so it must not sit behind a
 # "the project mounts global sources" condition.
+#
+# The near_misses rule (search-documents.spec §13) fails a local-only project as
+# easily as one with globals, so it sits in the universal paragraph too.
 
 setup() {
   load '../helpers/common'
@@ -100,4 +103,34 @@ paragraph() {
     || fail "globals.md: hits/index bullet does not say the byte budget can cut index"
   grep -qiF 'only `hits` counts every match' <<< "$bullet" \
     || fail "globals.md: hits/index bullet does not name hits as the complete count"
+}
+
+@test "the empty-search near_misses rule reaches every project on every assistant surface" {
+  local surface line
+  while IFS= read -r surface; do
+    [ -n "$surface" ] || continue
+    line=$(paragraph "$surface" "Large or partial results")
+    # shellcheck disable=SC2016 # literal backticks are the tokens under test
+    for token in '`near_misses`' 'when present' 'at least half' '`missing`'; do
+      case "$line" in
+        *"$token"*) ;;
+        *) fail "$surface: Large or partial results paragraph lacks $token" ;;
+      esac
+    done
+    line=$(paragraph "$surface" "Global sources")
+    case "$line" in
+      *near_misses*) fail "$surface: the near_misses rule sits inside the Global sources paragraph, which a project without globals never applies" ;;
+    esac
+  done <<< "$ASSISTANT_SURFACES"
+}
+
+@test "globals.md states the near-miss threshold as at least half" {
+  local file="$PLUGIN_ROOT/skills/_shared/globals.md" bullet
+  bullet=$(awk '/^- \*\*Retry ladder for an empty result\*\*/ {body=1; print; next} body && /^(- |## )/ {exit} body {print}' "$file")
+  [ -n "$bullet" ] || fail "globals.md: no retry-ladder bullet"
+  grep -qF 'at least half' <<< "$bullet" \
+    || fail "globals.md: the retry ladder does not state the at-least-half threshold"
+  if grep -qF 'most of the words' <<< "$bullet"; then
+    fail "globals.md: the retry ladder says 'most of the words', against search-documents.spec §13.2"
+  fi
 }

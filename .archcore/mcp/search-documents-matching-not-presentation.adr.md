@@ -138,6 +138,12 @@ If full mode ever grows opinionated formatting (sectioning, rendering, summariza
 - **The caps on `matches` and on the relation arrays are cut concerns**, like `limit`: a deterministic order, a named ceiling, and a total beside a cut array.
 - **The key order of the envelope is a wire property, not a layout.** It exists because one host showed the caller the first 2 KB of a stored result.
 
+### Addendum (2026-09): `near_misses` is match data, not empty-state copy
+
+@.archcore/mcp/empty-all-words-search-partial-matches.rfc.md adds `near_misses` to an empty all-words response. The Decision limits the tool to ranked matches, and the Rationale counts empty-state branching as presentation, so this addendum states where the field lands:
+
+`near_misses` is matching data. It applies one deterministic rule, at least half of the distinct query words, to the documents that pass the filters, and it reports the words each row lacks. It carries no prose, retry instruction, grouping, or excerpt, and it never enters `results`. The threshold and the cap are contract values in the spec, not presentation settings.
+
 ## References
 
 - Tool contract: `.archcore/mcp/search-documents.spec.md`
