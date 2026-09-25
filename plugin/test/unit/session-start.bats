@@ -274,15 +274,16 @@ MOCK
   [ -z "$output" ] || fail "expected silent exit, got: '$output'"
 }
 
-@test "survives when launcher cannot resolve CLI (no PATH, no cache, no network)" {
-  # Initialized project + restricted PATH + ARCHCORE_SKIP_DOWNLOAD=1:
-  # launcher exits 1, but session-start wraps with '|| true' and still succeeds.
+@test "initialized project with CLI absent from PATH prints install notice and succeeds" {
+  # Initialized project + restricted PATH that reaches session-start:
+  # the CLI is not found, so session-start prints the install notice and exits 0.
   local workdir="$BATS_TEST_TMPDIR/project"
   mkdir -p "$workdir/.archcore"
   cd "$workdir"
 
-  run sh -c "PATH='/usr/bin:/bin' ARCHCORE_SKIP_DOWNLOAD=1 printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  run sh -c "PATH='/usr/bin:/bin'; export PATH; printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
   assert_success
+  assert_output --partial "install.sh"
 }
 
 @test "runs archcore hooks when both CLI and dir exist" {
