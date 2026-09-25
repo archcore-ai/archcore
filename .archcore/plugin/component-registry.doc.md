@@ -76,7 +76,7 @@ Codex CLI requires a thin wrapper per user-facing skill so that `/archcore:<name
 | --- | --- | --- |
 | `commands/<name>.md` | 4 | One per skill (`init`, `plan`, `document`, `review`) — surfaces `/archcore:<name>` on Codex CLI, and on Copilot CLI as a fallback behind the skill of the same name |
 
-`@plugin/test/structure/codex-plugin.bats` enforces that every entry exists, carries `description:`, and references the matching `skills/<name>/SKILL.md`. `@plugin/test/structure/copilot-plugin.bats` enforces that the wrapper set matches the skill set and that the manifest points at `commands/` — Copilot gives that field no default path, so without the pointer the entire `/archcore:*` surface is missing there. Claude Code and Cursor need no wrappers, because they surface skills directly. `@plugin/test/structure/command-grammar.bats` pins each argument hint to its mode list.
+`@plugin/test/structure/codex-plugin.bats` enforces that every entry exists, carries `description:`, and references the matching `skills/<name>/SKILL.md`. `@plugin/test/structure/copilot-plugin.bats` enforces that the wrapper set matches the skill set and that the manifest points at `commands/` — Copilot gives that field no default path, so without the pointer the entire `/archcore:*` surface is missing there. Claude Code and Cursor need no wrappers, because they surface skills directly. Claude Code still scans `commands/` by default and lists each wrapper beside its skill as a second `/archcore:<name>` row, so `.claude-plugin/plugin.json` declares `"commands": []`, which replaces that default scan. Copilot does not inherit this value through its per-field manifest fallback, because `.plugin/plugin.json` declares its own `commands`. `@plugin/test/structure/json-configs.bats` pins the empty declaration. `@plugin/test/structure/command-grammar.bats` pins each argument hint to its mode list.
 
 ### Document-type coverage and the visible `/` surface
 
@@ -177,7 +177,7 @@ Component manifests, hooks, and MCP configs are plugin-root-relative under `plug
 
 | File | Host | Purpose |
 | --- | --- | --- |
-| `.claude-plugin/plugin.json` | Claude Code | Plugin manifest (plugin root) |
+| `.claude-plugin/plugin.json` | Claude Code | Plugin manifest (plugin root) with `"commands": []`, which keeps the `commands/` wrappers out of Claude Code's `/` menu |
 | `.cursor-plugin/plugin.json` | Cursor | Plugin manifest (plugin root) with explicit component paths and **no `mcpServers` field**, disabled deliberately per `cursor-mcp-architecture.adr` |
 | `.codex-plugin/plugin.json` | Codex CLI | Plugin manifest (plugin root) with `skills`, `hooks`, and `mcpServers` pointers |
 | `.plugin/plugin.json` | GitHub Copilot CLI | Plugin manifest (plugin root) with explicit `skills`, `agents` (→ `copilot-agents/`), `commands`, and `hooks` pointers, and **no `mcpServers` field**, disabled deliberately per `copilot-mcp-architecture.adr` |

@@ -45,6 +45,16 @@ setup() {
   assert_success
 }
 
+# The commands/ wrappers exist for Codex and Copilot. Claude Code surfaces the
+# skill of the same name itself and lists a wrapper beside it, so every
+# /archcore:<name> showed twice in its / menu. Declaring the key replaces
+# Claude Code's default commands/ scan; Copilot keeps its own pointer in
+# .plugin/plugin.json, so its per-field fallback never reaches this value.
+@test "claude plugin.json declares no commands so wrappers do not duplicate skills" {
+  run jq -e '.commands == []' "$PLUGIN_ROOT/.claude-plugin/plugin.json"
+  assert_success
+}
+
 @test "cursor plugin.json has name and version" {
   run jq -e '.name and .version' "$PLUGIN_ROOT/.cursor-plugin/plugin.json"
   assert_success

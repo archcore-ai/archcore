@@ -27,8 +27,9 @@ HOOKS_REL="hooks/copilot.hooks.json"
 }
 
 # Copilot's plugin reference gives a default only to agents/ and skills/;
-# commands has no default at all. Every other host picks the wrappers up
-# implicitly, so on Copilot this pointer is the only thing that makes
+# commands has no default at all. Claude Code opts out of the wrappers in its
+# own manifest, and the remaining hosts pick them up implicitly, so on Copilot
+# this pointer is the only thing that makes
 # /archcore:* exist — asserted separately from the block above with its own
 # reason so a future "cleanup" of the manifest cannot quietly delete it.
 @test "Copilot manifest declares commands explicitly (no default covers it)" {
