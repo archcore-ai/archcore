@@ -275,6 +275,7 @@ func TestScoreContent(t *testing.T) {
 		{"a slug hit adds no occurrence", "Guide", "needle-guide", "body", []string{"needle"}, matchModeExact, true, []string{"needle"}, 3, 0},
 		{"a compound token meets three spellings", "Acme_ID SDK", "acme-id-sdk", "## Install\n\nuse @acme-id/sdk", []string{"acme id sdk"}, matchModeAll, true, []string{"acme id sdk"}, 3, 2},
 		{"exact does not fold the text", "Acme_ID SDK", "guide", "use @acme-id/sdk", []string{"acme id sdk"}, matchModeExact, false, nil, 0, 0},
+		{"every token adds its specificity and occurrences", "Needle Guide", "guide", "## Hay\n\nneedle hay", []string{"needle", "hay"}, matchModeAll, true, []string{"needle", "hay"}, 5, 4},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

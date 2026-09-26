@@ -8,6 +8,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -31,6 +32,8 @@ func TestJSONStringLen(t *testing.T) {
 		{"two-byte runes", "Χάρτης εξουσιοδότησης"},
 		{"line separators", "a\u2028b\u2029c"},
 		{"invalid utf-8", "a\xffb"},
+		{"lone continuation byte", "a\x80b"},
+		{"encoded replacement character", "a\uFFFDb"},
 		{"emoji", "ok 👍"},
 	}
 	for _, tt := range tests {
@@ -61,6 +64,55 @@ func marshaledStringLen(t *testing.T, s string) int {
 		t.Fatal(err)
 	}
 	return len(data) - len(`""`)
+}
+
+func TestCapIndex(t *testing.T) {
+	t.Parallel()
+	exact := make([]searchIndexEntry, 10)
+	used := 0
+	for i := range exact {
+		exact[i] = searchIndexEntry{Path: fmt.Sprintf(".archcore/row-%d.doc.md", i), Title: strings.Repeat("t", 1000), SourceID: "local"}
+		used += indexEntryBytes(t, exact[i])
+	}
+	exact[len(exact)-1].Title += strings.Repeat("t", searchIndexByteBudget-used)
+	over := slices.Clone(exact)
+	over[len(over)-1].Title += "t"
+	oversized := []searchIndexEntry{
+		{Path: ".archcore/big.doc.md", Title: strings.Repeat("t", searchIndexByteBudget), SourceID: "local"},
+		exact[0],
+	}
+
+	tests := []struct {
+		name     string
+		index    []searchIndexEntry
+		wantKept int
+		wantCut  bool
+	}{
+		{"fits to the byte", exact, 10, false},
+		{"one byte over drops the last entry", over, 9, true},
+		{"an oversized first entry stays alone", oversized, 1, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			kept, cut, err := capIndex(tt.index)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(kept) != tt.wantKept || cut != tt.wantCut {
+				t.Errorf("capIndex kept %d entries, cut=%v; want %d, cut=%v", len(kept), cut, tt.wantKept, tt.wantCut)
+			}
+		})
+	}
+}
+
+func indexEntryBytes(t *testing.T, entry searchIndexEntry) int {
+	t.Helper()
+	data, err := json.Marshal(entry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(data) + len(",")
 }
 
 func TestCutForJSONBudget(t *testing.T) {

@@ -399,6 +399,7 @@ func TestValidateTags(t *testing.T) {
 		{name: "uppercase with underscore hint", tags: []string{"Payment_Team"}, wantErr: true, errHint: "payment_team"},
 		{name: "complex tag", tags: []string{"team:frontend|web"}, wantErr: false},
 		{name: "uppercase hint", tags: []string{"Frontend"}, wantErr: true, errHint: "did you mean"},
+		{name: "uppercase without valid lowercase form", tags: []string{"Has Space"}, wantErr: true, errHint: "must be lowercase"},
 		{name: "digit start", tags: []string{"1invalid"}, wantErr: true},
 		{name: "single char", tags: []string{"a"}, wantErr: false},
 		{name: "hyphen only", tags: []string{"-"}, wantErr: true},
@@ -573,6 +574,21 @@ func TestBuildDocumentFile_RetainedFrontmatter(t *testing.T) {
 	got, keys, gotBody := decodeFrontmatterValues(t, result)
 	if !reflect.DeepEqual(got, want) || !reflect.DeepEqual(keys, wantKeys) || gotBody != wantBody {
 		t.Errorf("round trip changed values: %#v / %v / %q", got, keys, gotBody)
+	}
+}
+
+func TestBuildDocumentFile_SeveralMergeKeysClearTagsOnce(t *testing.T) {
+	t.Parallel()
+	fm, body, err := templates.SplitDocument([]byte("---\ntitle: A\nstatus: draft\n<<: {custom: 1}\n!!merge extra: {other: 2}\n---\n\nBody"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := buildDocumentFile(fm, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := templates.SplitDocument([]byte(result)); err != nil {
+		t.Errorf("rebuilt frontmatter does not parse: %v\n%s", err, result)
 	}
 }
 

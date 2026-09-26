@@ -1,0 +1,81 @@
+{
+  "ref": "811827fee1d420ec06d01a938010c596d6d55212",
+  "task": "Document the new `edits` parameter of the `update_document` MCP tool. The implementation is in cli/internal/mcp/tools/update_document.go (see NewUpdateDocumentTool, HandleUpdateDocument, parseEdits, applyEdits) and its test TestHandleUpdateDocument_Edits in cli/internal/mcp/tools/update_document_test.go. Read the code before you state behavior.",
+  "context": [
+    "Measured in the maintainer's Claude Code transcripts (2676 write calls): tool execution takes about 0.1 s for create_document, update_document, Write, and Edit; model generation takes about 4 s per 1000 characters for every tool. Generation, not the tool, is the cost.",
+    "In 410 update_document calls with a known previous body, the median share of the new body copied unchanged was 91%; across all of them only 13% of generated characters were new.",
+    "279 of 448 content updates targeted a document created earlier in the same session: fix iterations after create_document, often after a [Archcore Precision] hook advisory.",
+    "Alternative considered and not taken: allow native Write/Edit on .archcore/ with post-write validation. It conflicts with the accepted decision .archcore/plugin/always-use-mcp-tools.adr.md, whose alternative 2 rejected direct writes for updates.",
+    "The draft spec .archcore/mcp/document-update-frontmatter.spec.md still lists the supported update arguments as title, status, tags, and content; it needs a follow-up update, which is out of scope for this package.",
+    "Plugin skills do not mention edits yet; agents learn about it from the tool description."
+  ],
+  "docs": [
+    {
+      "type": "adr",
+      "directory": "mcp",
+      "filename": "update-document-edits-parameter",
+      "title": "update_document Accepts Exact-Match edits Instead of a Full-Body Rewrite",
+      "intent": "Record the decision to add the edits parameter, the measured context, the rejected native Write/Edit alternative, and the consequences."
+    },
+    {
+      "type": "spec",
+      "directory": "mcp",
+      "filename": "update-document-edits",
+      "title": "update_document edits Contract",
+      "intent": "Normative contract of the edits parameter: argument shape, ordered application, exactly-once match, all-or-nothing write, mutual exclusion with content, error behavior."
+    },
+    {
+      "type": "scenario",
+      "directory": "mcp",
+      "filename": "update-document-edits",
+      "title": "Fixing a Document With update_document edits",
+      "intent": "Actor-subject flows and Given/When/Then examples that illustrate the spec clauses: a precision fix after create_document, an ambiguous old_string, a not-found old_string."
+    },
+    {
+      "type": "rule",
+      "directory": "plugin",
+      "filename": "partial-document-changes-use-edits",
+      "title": "Partial Document Changes Use update_document edits",
+      "intent": "Agent rule: when an agent changes part of an existing document body it uses edits, and it uses content only for a full rewrite."
+    },
+    {
+      "type": "plan",
+      "directory": "mcp",
+      "filename": "update-document-edits-rollout",
+      "title": "Roll Out update_document edits to the Plugin and Specs",
+      "intent": "Tasks to ship edits: update document-update-frontmatter.spec, mention edits in the shared skill instructions, check plugin/CLI version skew, verify with tests."
+    }
+  ],
+  "relations": [
+    {
+      "source": ".archcore/mcp/update-document-edits.spec.md",
+      "target": ".archcore/mcp/update-document-edits-parameter.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": ".archcore/mcp/update-document-edits.scenario.md",
+      "target": ".archcore/mcp/update-document-edits.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": ".archcore/plugin/partial-document-changes-use-edits.rule.md",
+      "target": ".archcore/mcp/update-document-edits.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": ".archcore/mcp/update-document-edits-rollout.plan.md",
+      "target": ".archcore/mcp/update-document-edits-parameter.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": ".archcore/mcp/update-document-edits-parameter.adr.md",
+      "target": ".archcore/plugin/always-use-mcp-tools.adr.md",
+      "type": "related"
+    },
+    {
+      "source": ".archcore/mcp/update-document-edits.spec.md",
+      "target": ".archcore/mcp/document-update-frontmatter.spec.md",
+      "type": "related"
+    }
+  ]
+}

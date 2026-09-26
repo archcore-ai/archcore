@@ -5009,6 +5009,16 @@
       "type": "extends"
     },
     {
+      "source": "plugin/document-write-latency.rnd.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "supports"
+    },
+    {
+      "source": "plugin/document-write-latency.rnd.md",
+      "target": "mcp/document-update-frontmatter.spec.md",
+      "type": "related"
+    },
+    {
       "source": "mcp/update-document-edits.spec.md",
       "target": "mcp/document-update-frontmatter.spec.md",
       "type": "depends_on"
@@ -5017,6 +5027,11 @@
       "source": "mcp/update-document-edits.spec.md",
       "target": "mcp/update-document-edits.adr.md",
       "type": "implements"
+    },
+    {
+      "source": "plugin/document-write-latency.rnd.md",
+      "target": "mcp/update-document-edits.adr.md",
+      "type": "supports"
     },
     {
       "source": "mcp/update-document-edits.adr.md",

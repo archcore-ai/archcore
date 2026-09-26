@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -332,5 +333,135 @@ func TestHandleListDocuments_EmptyDocumentsIsArray(t *testing.T) {
 	text := result.Content[0].(mcp.TextContent).Text
 	if !strings.Contains(text, `"documents":[]`) {
 		t.Errorf("empty page must serialize documents as [], got: %s", text)
+	}
+}
+
+func TestHandleListDocuments_FilterPassesOverAnEarlierMismatch(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		args map[string]any
+	}{
+		{"types", map[string]any{"types": []any{"adr"}}},
+		{"tags", map[string]any{"tags": []any{"frontend"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupTestArchcore(t)
+			writeDoc(t, base, "knowledge", "a.rfc.md", "---\ntitle: A\nstatus: draft\n---\n")
+			writeDoc(t, base, "knowledge", "b.adr.md", "---\ntitle: B\nstatus: draft\ntags:\n  - frontend\n---\n")
+
+			got := callList(t, base, tt.args)
+			if len(got.Documents) != 1 || got.Documents[0].Filename != "b.adr.md" {
+				t.Errorf("documents = %v, want only b.adr.md; a mismatch ended the scan", got.Documents)
+			}
+		})
+	}
+}
+
+func TestFitListPage(t *testing.T) {
+	t.Parallel()
+	bySource := map[string]int{"local": 10}
+	exact := make([]LocalDocument, 10)
+	for i := range exact {
+		exact[i] = LocalDocument{Path: fmt.Sprintf(".archcore/row-%d.doc.md", i), Title: strings.Repeat("t", 3000), SourceID: "local"}
+	}
+	exact[len(exact)-1].Title += strings.Repeat("t", listResponseByteBudget-measuredListBytes(t, bySource, exact))
+	over := slices.Clone(exact)
+	over[len(over)-1].Title += "t"
+	oversized := []LocalDocument{
+		{Path: ".archcore/big.doc.md", Title: strings.Repeat("t", listResponseByteBudget), SourceID: "local"},
+		exact[0],
+	}
+
+	tests := []struct {
+		name     string
+		page     []LocalDocument
+		wantRows int
+	}{
+		{"fits to the byte", exact, 10},
+		{"one byte over drops the last row", over, 9},
+		{"an oversized first row stays alone", oversized, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			page, err := fitListPage(tt.page, bySource)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(page) != tt.wantRows {
+				t.Errorf("page holds %d rows, want %d", len(page), tt.wantRows)
+			}
+		})
+	}
+}
+
+func measuredListBytes(t *testing.T, bySource map[string]int, page []LocalDocument) int {
+	t.Helper()
+	head, err := json.Marshal(listDocumentsResult{BySource: bySource, Total: len(page), Offset: len(page), Returned: len(page), Documents: []LocalDocument{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const counterSlack = 16
+	used := len(head) + counterSlack
+	for _, doc := range page {
+		data, err := json.Marshal(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		used += len(data) + len(",")
+	}
+	return used
+}
+
+func TestInterleaveBySource(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		in   []string
+		want []string
+	}{
+		{
+			"a first source with one document still leads",
+			[]string{"local/1", "a/1", "a/2", "b/1", "b/2"},
+			[]string{"local/1", "a/1", "b/1", "a/2", "b/2"},
+		},
+		{
+			"ties go to the earlier source",
+			[]string{"local/1", "local/2", "local/3", "a/1", "a/2", "a/3"},
+			[]string{"local/1", "a/1", "local/2", "a/2", "local/3", "a/3"},
+		},
+		{
+			"weights follow the remaining counts",
+			[]string{"local/1", "local/2", "local/3", "local/4", "local/5", "a/1", "a/2"},
+			[]string{"local/1", "a/1", "local/2", "local/3", "a/2", "local/4", "local/5"},
+		},
+		{
+			"an exhausted source leaves the rotation",
+			[]string{"local/1", "local/2", "a/1", "a/2", "b/1", "b/2", "b/3", "b/4", "b/5"},
+			[]string{"local/1", "a/1", "b/1", "b/2", "local/2", "b/3", "b/4", "a/2", "b/5"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			rows := make([]LocalDocument, len(tt.in))
+			for i, path := range tt.in {
+				source, _, _ := strings.Cut(path, "/")
+				rows[i] = LocalDocument{Path: path, SourceID: source}
+			}
+
+			out := interleaveBySource(rows)
+
+			got := make([]string, len(out))
+			for i, row := range out {
+				got[i] = row.Path
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("interleaveBySource = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

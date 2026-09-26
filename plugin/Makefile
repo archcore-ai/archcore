@@ -17,7 +17,7 @@ JSON_FILES := .agents/plugins/marketplace.json .claude-plugin/marketplace.json .
               $(PLUGIN_REL)/hooks/copilot.hooks.json \
               $(PLUGIN_REL)/.claude.mcp.json docs/cursor.mcp.example.json
 
-.PHONY: test test-unit test-structure test-integration test-routing-bench test-document-bench test-import-bench test-skill-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
+.PHONY: test test-unit test-structure test-integration test-routing-bench test-document-bench test-import-bench test-skill-bench test-writer-fanout-bench test-edits-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
 
 all: check-json check-perms lint test
 
@@ -53,6 +53,14 @@ test-import-bench:
 # LLM-in-the-loop host skill-selection bench — loads the plugin into claude -p; on demand only, never CI.
 test-skill-bench:
 	@sh test/behavioral/skill-bench.sh
+
+# LLM-in-the-loop writer fan-out bench — spends model tokens; on demand only, never CI. Usage: make test-writer-fanout-bench HOST=claude VARIANT=A
+test-writer-fanout-bench:
+	@python3 test/behavioral/writer-fanout-bench.py $(HOST) $(VARIANT)
+
+# LLM-in-the-loop update bench for update_document edits — spends model tokens; on demand only, never CI. Usage: make test-edits-bench HOST=claude
+test-edits-bench:
+	@python3 test/behavioral/edits-bench.py $(HOST)
 
 # Live model + MCP behavior, explicitly requested and never part of CI.
 test-research-agent:

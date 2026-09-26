@@ -825,3 +825,40 @@ func TestHandleUpdateDocument_Edits(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleUpdateDocument_ResponseTagsOnlyWhenPresent(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		doc      string
+		args     map[string]any
+		wantTags []any
+	}{
+		{name: "untagged document", doc: testDoc, args: map[string]any{"title": "New"}},
+		{name: "cleared tags", doc: testDocWithTags, args: map[string]any{"tags": []any{}}},
+		{name: "preserved tags", doc: testDocWithTags, args: map[string]any{"title": "New"}, wantTags: []any{"backend", "infra"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupTestArchcore(t)
+			writeDoc(t, base, "knowledge", "my-adr.adr.md", tt.doc)
+			tt.args["path"] = ".archcore/knowledge/my-adr.adr.md"
+			result, err := callTool(HandleUpdateDocument(StaticRoot(base)), tt.args)
+			if err != nil || result.IsError {
+				t.Fatalf("update: %+v / %v", result, err)
+			}
+			var info map[string]any
+			if err := json.Unmarshal([]byte(resultText(t, result)), &info); err != nil {
+				t.Fatal(err)
+			}
+			tags, ok := info["tags"]
+			if tt.wantTags == nil && ok {
+				t.Errorf("response carries tags %#v, want the key omitted", tags)
+			}
+			if tt.wantTags != nil && !reflect.DeepEqual(tags, tt.wantTags) {
+				t.Errorf("tags = %#v, want %#v", tags, tt.wantTags)
+			}
+		})
+	}
+}

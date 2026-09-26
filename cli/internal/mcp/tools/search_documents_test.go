@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1139,8 +1140,10 @@ func TestParseMtimeAfter(t *testing.T) {
 		{name: "no number", input: "xd", wantErr: "expected RFC3339"},
 		{name: "negative", input: "-1d", wantErr: "expected RFC3339"},
 		{name: "unknown unit", input: "10y", wantErr: "unknown duration unit"},
+		{name: "day cap", input: "36500d"},
+		{name: "hour cap", input: "876000h"},
 		{name: "day overflow guard", input: "40000d", wantErr: "day count too large"},
-		{name: "hour overflow guard", input: "900000h", wantErr: "hour count too large"},
+		{name: "hour overflow guard", input: "900000h", wantErr: "hour count too large: 900000 (max 876000)"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1230,5 +1233,131 @@ func TestHandleSearchDocuments_FeatureFileIsAPathReference(t *testing.T) {
 	}
 	if len(hits[0].Matches) != 1 || hits[0].Matches[0].Kind != matchKindMention {
 		t.Errorf("matches = %+v, want one bare mention", hits[0].Matches)
+	}
+}
+
+func TestHandleSearchDocuments_HigherScoreRanksFirst(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		aBody string
+		bBody string
+		args  map[string]any
+	}{
+		{"path_ref specificity", "@src/payments/", "@src/payments/stripe.ts", map[string]any{"path_ref": "src/payments/stripe.ts"}},
+		{"path_ref specificity beside content", "@src/payments/", "@src/payments/stripe.ts", map[string]any{"path_ref": "src/payments/stripe.ts", "content": "payments"}},
+		{"near miss occurrences", "alpha", "alpha alpha alpha", map[string]any{"content": "alpha beta"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupTestArchcore(t)
+			for name, body := range map[string]string{"a.rule.md": tt.aBody, "b.rule.md": tt.bBody} {
+				writeDoc(t, base, "", name, "---\ntitle: Doc\nstatus: accepted\n---\n\n"+body)
+				setMtime(t, base, ".archcore/"+name, time.Unix(1700000000, 0))
+			}
+			got := unmarshalSearchEnvelope(t, callSearch(t, base, tt.args))
+			var paths []string
+			for _, r := range got.Results {
+				paths = append(paths, r.Path)
+			}
+			for _, r := range got.NearMisses {
+				paths = append(paths, r.Path)
+			}
+			if want := []string{".archcore/b.rule.md", ".archcore/a.rule.md"}; !slices.Equal(paths, want) {
+				t.Errorf("order = %v, want %v: the higher score outranks the path", paths, want)
+			}
+		})
+	}
+}
+
+func TestHandleSearchDocuments_TitleOverTheByteBudgetStillAnswers(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "", "a.rule.md",
+		"---\ntitle: "+strings.Repeat("t", searchResponseByteBudget)+"\nstatus: accepted\n---\n\nneedle")
+
+	got := unmarshalSearchEnvelope(t, callSearch(t, base, map[string]any{"content": "needle"}))
+	if len(got.Results) != 1 || len(got.Index) != 1 {
+		t.Errorf("got %d rows and %d index entries, want the oversized row in both", len(got.Results), len(got.Index))
+	}
+}
+
+func TestFilterBareMentions(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		raws []string
+		want []string
+	}{
+		{"two slashes without an extension", []string{"src/payments/handler"}, []string{"src/payments/handler"}},
+		{"one slash and an unknown extension", []string{"notes/draft.xyz"}, nil},
+		{"a kept source file does not end the scan", []string{"cmd/main.go", "src/api/"}, []string{"cmd/main.go", "src/api/"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			candidates := make([]pathRef, len(tt.raws))
+			for i, raw := range tt.raws {
+				candidates[i] = pathRef{Raw: raw, Kind: refKindMention}
+			}
+			var got []string
+			for _, r := range filterBareMentions(candidates) {
+				got = append(got, r.Raw)
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("filterBareMentions(%q) = %q, want %q", tt.raws, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestComputeSpecificity(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		ref    string
+		target string
+		want   int
+	}{
+		{"shared prefix", "src/payments/stripe.ts", "src/payments/", 2},
+		{"segments after a mismatch do not count", "src/auth/handler", "src/payments/handler", 1},
+		{"an empty ref matches nothing", "@/", "/src", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := computeSpecificity(tt.ref, tt.target); got != tt.want {
+				t.Errorf("computeSpecificity(%q, %q) = %d, want %d", tt.ref, tt.target, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildExcerpt(t *testing.T) {
+	t.Parallel()
+	longMatch := strings.Repeat("a", 100) + strings.Repeat("M", 40) + strings.Repeat("b", 100)
+	twoByteRunes := strings.Repeat("é", 50) + "needle" + strings.Repeat("é", 50)
+	tests := []struct {
+		name   string
+		source string
+		pos    int
+		refLen int
+		want   string
+	}{
+		{"a long match leaves the rest of the window as context", longMatch, 100, 40,
+			"..." + strings.Repeat("a", 40) + strings.Repeat("M", 40) + strings.Repeat("b", 40) + "..."},
+		{"cut offsets move outward to rune boundaries", twoByteRunes, 100, 6,
+			"..." + strings.Repeat("é", 29) + "needle" + strings.Repeat("é", 29) + "..."},
+		{"an invalid leading byte does not panic", "\x80needle", 1, 6, "�needle"},
+		{"whitespace runs collapse to one space", "one \t\r\n two  needle", 13, 6, "one two needle"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := buildExcerpt(tt.source, tt.pos, tt.refLen); got != tt.want {
+				t.Errorf("buildExcerpt() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }

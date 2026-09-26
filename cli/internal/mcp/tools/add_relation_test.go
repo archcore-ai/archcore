@@ -156,6 +156,33 @@ func TestHandleAddRelation_PathTraversal(t *testing.T) {
 	}
 }
 
+func TestHandleAddRelation_AbsolutePathRejected(t *testing.T) {
+	t.Parallel()
+	tests := []struct{ name, source, target string }{
+		{name: "absolute source", source: "/a.adr.md", target: "b.prd.md"},
+		{name: "absolute target", source: "a.adr.md", target: "/b.prd.md"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupTestArchcore(t)
+			writeDoc(t, base, "", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n\nbody")
+			writeDoc(t, base, "", "b.prd.md", "---\ntitle: B\nstatus: draft\n---\n\nbody")
+			result, err := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
+				"source": tt.source,
+				"target": tt.target,
+				"type":   "related",
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := resultText(t, result); !result.IsError || !strings.Contains(got, "must be relative") {
+				t.Errorf("result = %q (error %v), want the absolute-path rejection", got, result.IsError)
+			}
+		})
+	}
+}
+
 func TestHandleAddRelation_NormalizesPrefix(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)

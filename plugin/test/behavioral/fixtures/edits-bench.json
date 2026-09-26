@@ -1,0 +1,71 @@
+{
+  "ref": "811827fee1d420ec06d01a938010c596d6d55212",
+  "tasks": [
+    {
+      "id": "adr-small",
+      "path": ".archcore/plugin/always-use-mcp-tools.adr.md",
+      "comments": [
+        "In Consequences, the last Tradeoff bullet is outdated. Replace the whole bullet with: - Tradeoff: tool calls are more verbose than a direct Write; `update_document` with `edits` sends only the changed text of a quick fix.",
+        "In Alternatives Considered, append this sentence to the end of item 2: The `edits` parameter later removed the payload cost of this path without direct writes.",
+        "In Superseded when, add a third bullet at the end: - The MCP write tools stop being the only path that validates frontmatter."
+      ],
+      "contains": [
+        "- Tradeoff: tool calls are more verbose than a direct Write; `update_document` with `edits` sends only the changed text of a quick fix.",
+        "The `edits` parameter later removed the payload cost of this path without direct writes.",
+        "- The MCP write tools stop being the only path that validates frontmatter."
+      ],
+      "absent": ["a quick fix to a `.archcore/` file must go through `update_document`."],
+      "keep": ["## Context", "## Decision"]
+    },
+    {
+      "id": "adr-medium",
+      "path": ".archcore/mcp/tool-descriptions-fit-the-host-cap.adr.md",
+      "comments": [
+        "Context, first paragraph: the last clause says \"so it did not reach the model\". Change it to \"so the model never received it\".",
+        "Consequences, Negative: the `add_relation` description now has 30 units left, not 47. Fix the number.",
+        "Alternatives Considered, item 4: delete the sentence about `search_documents` exceeding the cap and keep the rest of the item."
+      ],
+      "contains": [
+        "so the model never received it",
+        "30 units left",
+        "`create_document` exceeds the cap by 1,648 units because of the type catalog."
+      ],
+      "absent": ["so it did not reach the model", "47 units left", "`search_documents` exceeds it by 9 units"],
+      "keep": ["## Decision", "## Superseded when"]
+    },
+    {
+      "id": "rule-large",
+      "path": ".archcore/integrations/plugin-cli-compatibility.rule.md",
+      "comments": [
+        "Rule item 8 names no actor and no trigger. Replace the whole item with: 8. WHEN the CLI detects a version mismatch, the CLI MUST report it without blocking the session.",
+        "In Enforcement, add a last bullet: - `@cli/internal/mcp/tools/update_document.go` — request arguments such as `edits` are additions; an older CLI ignores them.",
+        "In Rationale, the paragraph about requirement 6 says \"repeated messages\". Say \"duplicate messages\" instead."
+      ],
+      "contains": [
+        "8. WHEN the CLI detects a version mismatch, the CLI MUST report it without blocking the session.",
+        "- `@cli/internal/mcp/tools/update_document.go` — request arguments such as `edits` are additions; an older CLI ignores them.",
+        "duplicate messages"
+      ],
+      "absent": ["8. A version mismatch MUST produce a message", "repeated messages"],
+      "keep": ["## Expectations on the plugin", "## Examples"]
+    },
+    {
+      "id": "spec-xlarge",
+      "path": ".archcore/plugin/agent-system.spec.md",
+      "comments": [
+        "Constraints & Invariants: the system prompt limit is now 1500 lines, not 2000. Fix the number.",
+        "Normative Behavior, item 11: the limit is 8 documents, not 10.",
+        "Failure Behavior: after item 3, insert a new item 4: 4. IF `add_relation` returns a warning, THEN the agent MUST include the warning in its result. Renumber the items that follow."
+      ],
+      "contains": [
+        "MUST NOT exceed 1500 lines",
+        "more than 8 documents in one invocation",
+        "4. IF `add_relation` returns a warning, THEN the agent MUST include the warning in its result.",
+        "5. IF an evidence write or required relation remains pending",
+        "6. IF an agent stops at its `maxTurns` ceiling"
+      ],
+      "absent": ["exceed 2000 lines", "more than 10 documents"],
+      "keep": ["## Purpose & Scope", "## Conformance"]
+    }
+  ]
+}

@@ -162,6 +162,8 @@ func TestHandleRemoveRelation_ResearchCanonicalAndLegacyPaths(t *testing.T) {
 	tests := []struct{ name, storedSource, storedTarget, source, target string }{
 		{"canonical", "nested/source.evidence.md", "nested/target.research.md", "./nested/source.evidence.md", "nested//target.research.md"},
 		{"legacy", "./nested/source.evidence.md", "nested//target.research.md", "./nested/source.evidence.md", "nested//target.research.md"},
+		{"legacy source only", "./nested/source.evidence.md", "nested/target.research.md", "./nested/source.evidence.md", "nested/target.research.md"},
+		{"legacy target only", "nested/source.evidence.md", "nested//target.research.md", "nested/source.evidence.md", "nested//target.research.md"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

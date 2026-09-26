@@ -205,6 +205,9 @@ func TestHandleRemoveDocument_NoManifest(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(base, ".archcore", "knowledge", "my-adr.adr.md")); !os.IsNotExist(err) {
 		t.Error("file should have been deleted")
 	}
+	if _, err := os.Stat(filepath.Join(base, ".archcore", sync.ManifestFile)); !os.IsNotExist(err) {
+		t.Error("removal without relation changes wrote a manifest")
+	}
 }
 
 func TestHandleRemoveDocument_BothDirectionRelations(t *testing.T) {
