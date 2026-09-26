@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CURSOR_PLUGIN_ROOT}\"/bin/session-start"
+          }
+        ]
+      }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CURSOR_PLUGIN_ROOT}\"/bin/pre-tool-use",
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "afterMCPExecution": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CURSOR_PLUGIN_ROOT}\"/bin/post-tool-use",
+            "timeout": 4
+          }
+        ]
+      }
+    ]
+  }
+}

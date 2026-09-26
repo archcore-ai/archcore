@@ -1,0 +1,444 @@
+#!/bin/sh
+# SessionStart hook: load archcore context via the CLI on PATH.
+# Uses normalized stdin — works across Claude Code, Cursor, and other hosts.
+
+SCRIPT_DIR=$(dirname "$0")
+# shellcheck source=lib/normalize-stdin.sh
+. "$SCRIPT_DIR/lib/normalize-stdin.sh"
+
+# Refuse to run when cwd looks like a plugin install directory. Hosts can
+# misroute cwd — Cursor stdio hooks (forum #99215) land in
+# ~/.cursor/plugins/cache/.../<sha>/, and Copilot launches plugin children
+# inside ~/.copilot/installed-plugins/ (github/copilot-cli#4234) — instead of
+# the user workspace. Without this guard, session-start would read the
+# plugin's own bundled .archcore/ and surface it as "the user's knowledge
+# base." A custom COPILOT_HOME escapes the fragment list; layer 2 (the
+# manifest walk below) is what still covers that case.
+#
+# Runs FIRST — before the CLI availability check — so a misrouted cwd stays
+# silent even when archcore is not on PATH (the install nudge belongs to real
+# project sessions, not plugin-cache ones).
+#
+# Two layers, both silent-exit (host shouldn't see noise during session-start),
+# mirroring the CLI's resolveProjectRoot guard:
+#   1. install-cache path fragments in $PWD — catches any depth inside a host's
+#      plugin cache;
+#   2. bounded upward walk for plugin manifests — catches installs outside the
+#      known cache locations (cwd may sit in a SUBDIRECTORY of the install,
+#      e.g. <install>/skills/init/, where no manifest is a direct sibling).
+case "/$PWD/" in
+  */.cursor/plugins/* | */.claude/plugins/* | */.codex/plugins/* | */.copilot/installed-plugins/* | */plugins/cache/*)
+    exit 0 ;;
+esac
+
+_ac_guard_dir="$PWD"
+_ac_guard_depth=0
+while [ -n "$_ac_guard_dir" ] && [ "$_ac_guard_dir" != "/" ] && [ "$_ac_guard_depth" -lt 12 ]; do
+  if [ -f "$_ac_guard_dir/.cursor-plugin/plugin.json" ] \
+    || [ -f "$_ac_guard_dir/.claude-plugin/plugin.json" ] \
+    || [ -f "$_ac_guard_dir/.codex-plugin/plugin.json" ] \
+    || [ -f "$_ac_guard_dir/.plugin/plugin.json" ]; then
+    exit 0
+  fi
+  _ac_guard_dir=$(dirname "$_ac_guard_dir")
+  _ac_guard_depth=$((_ac_guard_depth + 1))
+done
+
+# Check if archcore CLI is available on PATH
+if ! command -v archcore >/dev/null 2>&1; then
+  _msg="[Archcore] CLI not found on PATH. Install it first:
+  macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash
+  Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex
+  Then verify: archcore --version
+  Docs: https://docs.archcore.ai/start/install/"
+  # Copilot only: the plugin ships no MCP server on this host
+  # (copilot-mcp-architecture.adr), so installing the CLI is not enough —
+  # without project wiring the session still has no document tools. \"\$PWD\"
+  # stays literal on purpose: the user's shell expands it, no path or env
+  # value leaks into hook output. Other hosts keep their text byte-identical
+  # (pinned by test/unit/session-start-goldens.bats).
+  if [ "$ARCHCORE_HOST" = "copilot" ]; then
+    _msg="$_msg
+  Copilot only: after installing, wire this project (the plugin cannot ship MCP tools on Copilot): archcore init --agent copilot --project \"\$PWD\" — then restart the session."
+  fi
+  case "$ARCHCORE_HOST" in
+    claude-code | codex)
+      _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
+      printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}' "$_escaped"
+      ;;
+    copilot)
+      # Native sessionStart output: top-level additionalContext (shape assumed
+      # from the postToolUse contract; smoke-test verifies — contingency B).
+      _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
+      printf '{"additionalContext":"%s"}' "$_escaped"
+      ;;
+    *)
+      printf '%s\n' "$_msg"
+      ;;
+  esac
+  exit 0
+fi
+
+# Emit informational context to the agent (Claude Code and Codex:
+# hookSpecificOutput wrapper; Copilot: native top-level additionalContext;
+# others: plain text — the OpenCode bridge consumes plain stdout verbatim).
+#
+# Codex takes the JSON arm rather than plain text for one reason: looks_like_json
+# fires on '[' as well as '{', and every message this function carries opens
+# with "[Archcore]". As plain text they would be parsed as a JSON array, fail,
+# and take the whole hook run down with them (codex-adapter.spec failure 2).
+_archcore_emit_info() {
+  _msg="$1"
+  case "$ARCHCORE_HOST" in
+    claude-code | codex)
+      _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
+      printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}' "$_escaped"
+      ;;
+    copilot)
+      _escaped=$(printf '%s' "$_msg" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}')
+      printf '{"additionalContext":"%s"}' "$_escaped"
+      ;;
+    *)
+      printf '%s\n' "$_msg"
+      ;;
+  esac
+}
+
+# --- Single-document output channel (Copilot, Codex) -------------------------
+# Two hosts reject stdout that mixes one JSON document with trailing plain
+# text, and both discard the ENTIRE payload when they do — the Archcore context
+# along with the advisory that was being appended:
+#
+#   Copilot removes single-line {"type":"progress"} objects from stdout, then
+#   concatenates EVERY remaining line and runs ONE JSON.parse over the result;
+#   if that parse fails "the hook is treated as producing no output"
+#   (docs.github.com/en/copilot/reference/hooks-reference).
+#
+#   Codex tests only whether the TRIMMED stdout starts with '{' or '[' —
+#   looks_like_json, codex-rs/hooks/src/engine/output_parser.rs. If it does and
+#   the document does not parse against the event shape, the run is marked
+#   Failed with "hook returned invalid session start JSON output" and the
+#   output is dropped (session_start.rs; every sibling event module carries the
+#   same predicate). Stdout that does NOT start with '{' or '[' is taken as
+#   plain-text context verbatim, which is what keeps the missing-.archcore arm
+#   above safe on this host.
+#
+# Every advisory on these hosts is therefore buffered and folded into that one
+# document at the very end. On every other host the same calls print exactly
+# what they printed before, byte for byte — the blank line then the message
+# (pinned by session-start-goldens.bats).
+_ac_buf_hookout=""
+_ac_buf_notes=""
+
+# Hosts whose stdout must stay exactly one document (codex-adapter.spec item 4,
+# copilot-adapter-design.adr). Every buffering branch keys on this predicate.
+_archcore_buffers_stdout() {
+  case "$ARCHCORE_HOST" in
+    copilot|codex) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# JSON-escape for embedding inside a double-quoted value: backslashes, quotes,
+# then newlines as literal \n.
+_archcore_json_escape() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN{ORS="\\n"}{print}'
+}
+
+_archcore_note() {
+  if _archcore_buffers_stdout; then
+    _ac_buf_notes="${_ac_buf_notes}
+
+$1"
+  else
+    echo ""
+    echo "$1"
+  fi
+}
+
+# Emit the buffered advisories as part of the CLI hook's document. Each splice
+# fires only on the exact shape it can take apart; anything else passes through
+# untouched, because corrupting the host's context payload is a worse failure
+# than losing one advisory. Every branch leaves stdout parsing as exactly one
+# JSON document — or, where the host reads plain text, as no JSON at all.
+_archcore_flush_stdout() {
+  _archcore_buffers_stdout || return 0
+
+  if [ -z "$_ac_buf_notes" ]; then
+    [ -n "$_ac_buf_hookout" ] && printf '%s' "$_ac_buf_hookout"
+    return 0
+  fi
+
+  if [ "$ARCHCORE_HOST" = "codex" ]; then
+    _archcore_flush_codex
+    return 0
+  fi
+
+  case "$_ac_buf_hookout" in
+    '')
+      # No CLI payload to join — the advisories are the whole document.
+      _ac_buf_esc=$(_archcore_json_escape "$_ac_buf_notes")
+      printf '{"additionalContext":"%s"}' "$_ac_buf_esc"
+      ;;
+    '{"additionalContext":"'*'"}')
+      _ac_buf_body=${_ac_buf_hookout#'{"additionalContext":"'}
+      _ac_buf_body=${_ac_buf_body%'"}'}
+      _ac_buf_esc=$(_archcore_json_escape "$_ac_buf_notes")
+      printf '{"additionalContext":"%s%s"}' "$_ac_buf_body" "$_ac_buf_esc"
+      ;;
+    *)
+      printf '%s\n' "$_ac_buf_hookout"
+      printf '%s\n' "$_ac_buf_notes" | while IFS= read -r _ac_buf_line; do
+        [ -n "$_ac_buf_line" ] || continue
+        _ac_buf_esc=$(printf '%s' "$_ac_buf_line" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\n')
+        printf '{"type":"progress","message":"%s"}\n' "$_ac_buf_esc"
+      done
+      ;;
+  esac
+}
+
+# Codex arm. The CLI hook's document is the Claude shape — additionalContext
+# nested under hookSpecificOutput, optionally followed by a systemMessage — so
+# the notes are appended to the END of that context value by anchoring on the
+# literal that FOLLOWS it. Anchoring on the tail rather than splitting on the
+# opening quote is what keeps escaped quotes inside the value (document titles
+# carry them) out of the arithmetic, with no JSON parser and no jq dependency.
+#
+# Codex has no progress channel to fall back to, so an unrecognized payload
+# leaves stdout byte-identical and the advisory goes to stderr: a hook that
+# prints a second document there fails the whole run (looks_like_json), which
+# is exactly the defect this function exists to remove.
+_archcore_flush_codex() {
+  _ac_buf_esc=$(_archcore_json_escape "$_ac_buf_notes")
+  _ac_cx_mid='","hookEventName":"SessionStart"}'
+  _ac_cx_end='"}}'
+
+  case "$_ac_buf_hookout" in
+    '')
+      # No CLI payload to join — the advisories are the whole document. Not
+      # plain text: they open with "[Archcore]", and looks_like_json fires on
+      # '[' too, so as plain text they would be read as a malformed JSON array.
+      printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}' "$_ac_buf_esc"
+      ;;
+    *'"additionalContext":"'*'","hookEventName":"SessionStart"}'*)
+      printf '%s%s%s%s' \
+        "${_ac_buf_hookout%%"$_ac_cx_mid"*}" "$_ac_buf_esc" \
+        "$_ac_cx_mid" "${_ac_buf_hookout#*"$_ac_cx_mid"}"
+      ;;
+    *'"additionalContext":"'*'"}}')
+      printf '%s%s%s' "${_ac_buf_hookout%"$_ac_cx_end"}" "$_ac_buf_esc" "$_ac_cx_end"
+      ;;
+    *)
+      printf '%s' "$_ac_buf_hookout"
+      printf '%s\n' "$_ac_buf_notes" >&2
+      ;;
+  esac
+}
+
+# --- Old-CLI compatibility advisory ----------------------------------------
+# A pre-globals ("old") archcore CLI uses a strict config parser that rejects
+# unknown fields. A project that carries `globals` in .archcore/settings.json
+# makes every config-loading command (mcp, hooks, doctor) fail with
+#   field "globals" is not allowed for sync type "none"
+# and a non-zero exit. The host launches `archcore mcp` directly from .mcp.json,
+# so the plugin cannot wrap that crash — this SessionStart hook is the one place
+# we can turn the otherwise-cryptic failure into a clear "update your CLI" nudge.
+
+# Stamp directory: plugin data dir, then XDG, then a home fallback.
+_archcore_stamp_dir() {
+  if [ -n "${CLAUDE_PLUGIN_DATA:-}" ]; then
+    printf '%s' "$CLAUDE_PLUGIN_DATA/archcore"
+  elif [ -n "${XDG_DATA_HOME:-}" ]; then
+    printf '%s' "$XDG_DATA_HOME/archcore-plugin"
+  else
+    printf '%s' "${HOME:-/tmp}/.local/share/archcore-plugin"
+  fi
+}
+
+# Generic 24h rate-limit over a named stamp file. Each advisory keeps its own
+# stamp so the rate-limit windows never clobber each other. Global (per-binary) suppression is correct for CLI
+# advisories — the CLI is one global binary, not a per-project condition.
+#
+# _archcore_due <stamp-name>: true when the advisory has NOT fired in 24h.
+_archcore_due() {
+  _stamp="$(_archcore_stamp_dir)/$1"
+  [ -f "$_stamp" ] || return 0
+  _now=$(date +%s 2>/dev/null) || return 1
+  _last=$(cat "$_stamp" 2>/dev/null)
+  case "$_last" in
+    ''|*[!0-9]*) _last=0 ;;
+  esac
+  [ "$((_now - _last))" -ge 86400 ]
+}
+
+# _archcore_stamp_now <stamp-name>: record that an advisory was shown
+# (rate-limit window starts now).
+_archcore_stamp_now() {
+  _dir="$(_archcore_stamp_dir)"
+  mkdir -p "$_dir" 2>/dev/null || true
+  date +%s > "$_dir/$1" 2>/dev/null || true
+}
+
+# True when the captured stderr ($1) carries the strict parser's field-rejection
+# signature. The CLI emits  field "<name>" is not allowed for sync type "<type>"
+# (internal/config/config.go) for ANY setting an older binary cannot parse —
+# globals included. Anchoring on that exact wording is deliberate: bare
+# "not allowed" also matches unrelated errors like "operation not allowed", and
+# the mere presence of `globals` in settings.json is NOT proof of an old CLI —
+# a current CLI that understands globals can still fail for other reasons. Gating
+# strictly on the parser signature keeps those failures from firing a false
+# "update CLI" nudge, even in projects that declare globals.
+_archcore_config_rejected() {
+  [ -s "$1" ] || return 1
+  grep -qiE 'not allowed for sync type|unknown field' "$1" 2>/dev/null
+}
+
+# shellcheck source=lib/empty-state.sh
+. "$SCRIPT_DIR/lib/empty-state.sh"
+
+# Check if .archcore/ exists. If not, the plugin's MCP server starts in
+# uninitialized mode — the agent can call mcp__archcore__init_project to
+# initialize on demand. No manual setup required.
+#
+# Copilot is the exception: the plugin ships no MCP server there
+# (copilot-mcp-architecture.adr), so mcp__archcore__init_project does not
+# exist in a day-one Copilot session — the instruction body is forked to the
+# CLI wiring command instead. The /archcore:init suffix below stays shared
+# byte-for-byte across hosts (it is what skills/init/SKILL.md mirrors).
+if [ ! -d ".archcore" ]; then
+  if [ "$ARCHCORE_HOST" = "copilot" ]; then
+    _init_msg="[Archcore] no .archcore/ directory in this project yet. On Copilot the archcore MCP tools come from project wiring, not the plugin. When the user asks for any Archcore operation (create ADR, audit docs, etc.), run: archcore init --agent copilot --project \"\$PWD\" once (initializes .archcore/ and registers the MCP server; a session restart connects the tools), then proceed. Do NOT write to .archcore/ directly — hooks will block it."
+  else
+    _init_msg="[Archcore] no .archcore/ directory in this project yet. When the user asks for any Archcore operation (create ADR, audit docs, etc.), call mcp__archcore__init_project once to initialize, then proceed. Do NOT write to .archcore/ directly — hooks will block it."
+  fi
+  if [ "${ARCHCORE_HIDE_EMPTY_NUDGE:-}" != "1" ]; then
+    _init_msg="${_init_msg} After init, suggest the user run /archcore:init to seed initial content (stack rule, run-the-app guide, optional import of existing CLAUDE.md / AGENTS.md / .cursorrules). Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1."
+  fi
+  _archcore_emit_info "$_init_msg"
+  exit 0
+fi
+
+# Initialized project — run the host-specific session-start hook via CLI.
+# Capture stderr and exit status (stdout still streams straight to the host,
+# unchanged). No '|| true' — we inspect $? explicitly and never block. When a
+# strict old CLI rejects a new config field, surface a clear nudge instead of
+# silent emptiness; on any other failure, stay silent and fall through as before.
+#
+# On Copilot and Codex the payload is captured rather than streamed: it has to
+# be joined with whatever advisories fire below into a single document, and
+# once the first byte has left for the host that is no longer possible. Other
+# hosts keep streaming exactly as before.
+# Without a private file the diagnostic is dropped, not the payload.
+_ac_err=$(mktemp "${TMPDIR:-/tmp}/archcore_ss_err.XXXXXX" 2>/dev/null) || _ac_err=""
+[ -n "$_ac_err" ] && trap 'rm -f "$_ac_err"' 0
+# The shell host id "codex" maps to the CLI agent id "codex-cli"; every other
+# host id matches its CLI dialect name as-is (bin/pre-tool-use does the same).
+_ac_cli_host="$ARCHCORE_HOST"
+[ "$_ac_cli_host" = "codex" ] && _ac_cli_host="codex-cli"
+if _archcore_buffers_stdout; then
+  _ac_buf_hookout=$(printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$_ac_cli_host" session-start 2>"${_ac_err:-/dev/null}")
+  _ac_rc=$?
+else
+  printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$_ac_cli_host" session-start 2>"${_ac_err:-/dev/null}"
+  _ac_rc=$?
+fi
+
+if [ "$_ac_rc" -ne 0 ] && [ -n "$_ac_err" ] && _archcore_config_rejected "$_ac_err" && _archcore_due last-cli-advisory; then
+  _archcore_emit_info "[Archcore] This project's .archcore/settings.json uses a newer setting (e.g. global sources) that the installed archcore CLI is too old to understand — so its MCP server and context are unavailable here until you update. Update the CLI:
+  macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash
+  Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex
+  Then verify: archcore --version
+  Docs: https://docs.archcore.ai/start/install/
+  Archcore context will work again once the CLI is updated."
+  _archcore_stamp_now last-cli-advisory
+  [ -n "$_ac_err" ] && rm -f "$_ac_err"
+  exit 0
+fi
+[ -n "$_ac_err" ] && rm -f "$_ac_err"
+
+# Empty-state nudge: .archcore/ exists but carries no substantive documents.
+# Goes through _archcore_note: plain text on hosts that read plain text, folded
+# into the single JSON document on Copilot.
+if [ "${ARCHCORE_HIDE_EMPTY_NUDGE:-}" != "1" ] && archcore_is_functionally_empty ".archcore"; then
+  _archcore_note "[Archcore] .archcore/ is empty. Run /archcore:init to seed a stack rule, a run-the-app guide, and (optionally) imports from existing agent-instruction files like CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1."
+fi
+
+# --- Copilot wiring advisory -------------------------------------------------
+# On Copilot the plugin ships no MCP server (copilot-mcp-architecture.adr): an
+# archcore entry in the project's .mcp.json — written by
+# `archcore init --agent copilot` — is the ONLY route to document tools. When
+# it is absent, the session silently has no Archcore MCP at all, and this is
+# the one place that can say so. Detection is pure stat/grep plus one
+# `git rev-parse`: Copilot discovers .mcp.json from cwd up to the git root, so
+# the check mirrors that walk (a repo-root file wires a subdir session), and
+# user-level ${COPILOT_HOME:-~/.copilot}/mcp-config.json wiring also counts.
+# Rate-limited PER PROJECT (cksum of the root) — a global stamp would let one
+# repo's advisory silence another repo's mandatory step for 24h. "$PWD" in the
+# command stays literal: no path or env value leaks into hook output. Emitted
+# as plain text after the CLI hook's JSON slot, same channel as the
+# empty-state and staleness lines above/below. Suppress with
+# ARCHCORE_HIDE_WIRING_NUDGE=1.
+if [ "$ARCHCORE_HOST" = "copilot" ] && [ "${ARCHCORE_HIDE_WIRING_NUDGE:-}" != "1" ]; then
+  _ac_wroot=$(git rev-parse --show-toplevel 2>/dev/null) || _ac_wroot=""
+  [ -n "$_ac_wroot" ] || _ac_wroot="$PWD"
+  _ac_wired=1
+  # Mirror the host's discovery exactly (measured on Copilot CLI 1.0.76): a
+  # config is read from EVERY directory between the working directory and the
+  # git root — not merely those two ends — and within each directory
+  # `.mcp.json` wins, with `.github/mcp.json` consulted only where the first is
+  # absent. Checking fewer places nags a project that works; treating the two
+  # filenames as a union stays silent for one that does not, and silence is the
+  # failure this advisory exists to prevent. The depth cap keeps a detached or
+  # unusual cwd from walking the whole filesystem.
+  _ac_wdir="$PWD"
+  _ac_wdepth=0
+  while [ "$_ac_wdepth" -lt 25 ]; do
+    if [ -f "$_ac_wdir/.mcp.json" ]; then
+      if grep -q '"archcore"' "$_ac_wdir/.mcp.json" 2>/dev/null; then
+        _ac_wired=0
+        break
+      fi
+    elif grep -q '"archcore"' "$_ac_wdir/.github/mcp.json" 2>/dev/null; then
+      _ac_wired=0
+      break
+    fi
+    [ "$_ac_wdir" = "$_ac_wroot" ] && break
+    [ "$_ac_wdir" = "/" ] && break
+    _ac_wdir=$(dirname "$_ac_wdir")
+    _ac_wdepth=$((_ac_wdepth + 1))
+  done
+  # User-level wiring counts too, and is not part of the directory walk.
+  if [ "$_ac_wired" -ne 0 ] \
+    && grep -q '"archcore"' "${COPILOT_HOME:-${HOME:-}/.copilot}/mcp-config.json" 2>/dev/null; then
+    _ac_wired=0
+  fi
+  if [ "$_ac_wired" -ne 0 ]; then
+    _ac_wstamp="last-wiring-advisory-$(printf '%s' "$_ac_wroot" | cksum | awk '{print $1}')"
+    if _archcore_due "$_ac_wstamp"; then
+      _archcore_note "[Archcore] This project is not wired for Copilot: no archcore entry in .mcp.json, so Archcore MCP document tools are unavailable in this session (on Copilot the plugin cannot provide them). Run: archcore init --agent copilot --project \"\$PWD\" — then restart the session."
+      _archcore_stamp_now "$_ac_wstamp"
+    fi
+  fi
+fi
+
+# Staleness (code-document drift) is part of the CLI's session-start recap
+# since v0.7.0 — no plugin-side check remains.
+
+# Outdated-CLI advisory. `archcore update --check` is designed for exactly
+# this call site: result cached 24h in XDG state, ~500ms network bound, silent
+# on any failure, exit 0 always (older CLIs without the flag error out — the
+# 2>/dev/null + empty-output check swallows that too). The advisory line is
+# additionally rate-limited by its own 24h stamp so a pending update nudges
+# once a day, not every session. Plain text after the JSON slot, same pattern
+# as the staleness/empty-state lines above.
+if _archcore_due last-update-advisory; then
+  _ac_update=$(archcore update --check 2>/dev/null) || _ac_update=""
+  if [ -n "$_ac_update" ]; then
+    _archcore_note "[Archcore] CLI update available (${_ac_update#update available: } — installed: $(archcore --version 2>/dev/null || echo '?')). Run: archcore update"
+    _archcore_stamp_now last-update-advisory
+  fi
+fi
+
+# Copilot and Codex: everything buffered above leaves as one document. A no-op
+# on every other host, where the lines have already been printed.
+_archcore_flush_stdout
