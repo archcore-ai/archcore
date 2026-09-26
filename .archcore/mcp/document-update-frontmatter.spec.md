@@ -19,7 +19,7 @@ The parser is `SplitDocument` in @cli/templates/templates.go. The update handler
 |---|---|---|
 | `title`, `status`, `tags` | Archcore MCP server | Existing field-specific update semantics |
 | Other top-level YAML keys | Document author | Opaque retained values |
-| Markdown body | Document author | Existing content replacement semantics |
+| Markdown body | Document author | Replacement through `content`, or exact-match replacements through `edits` |
 
 The parser's `Frontmatter` also participates in the sync payload — @cli/templates/templates.go, @cli/internal/sync/payload.go. Retention is not a new structured sync field.
 
@@ -35,10 +35,11 @@ The parser's `Frontmatter` also participates in the sync payload — @cli/templa
 8. WHEN `content` is provided, the handler MUST retain metadata from the existing file.
 9. The serializer MUST emit each owned field at most once.
 10. WHEN writing succeeds, the handler MUST invalidate the document cache.
+11. WHEN `edits` is provided, the handler MUST retain metadata from the existing file.
 
 ## Constraints & Invariants
 
-The supported update arguments remain `title`, `status`, `tags`, and `content`. Unknown-key retention adds no editing API. Existing guards in @cli/internal/docs/guard.go continue to govern writes.
+The supported update arguments are `title`, `status`, `tags`, and either `content` or `edits`; `update-document-edits.spec` governs `edits`. Unknown-key retention adds no editing API. Existing guards in @cli/internal/docs/guard.go continue to govern writes.
 
 1. The handler MUST NOT interpret retained keys as Archcore configuration.
 2. The serializer MUST NOT add retained-key storage to the structured JSON frontmatter payload.
@@ -52,7 +53,7 @@ Retention promises YAML value semantics and relative extra-key order, not byte-i
 1. WHEN existing frontmatter is invalid YAML, the handler MUST reject the update.
 2. WHEN frontmatter cannot be preserved, the handler MUST leave the file unchanged.
 3. WHEN rejecting malformed frontmatter, the handler MUST direct the user to repair the file manually.
-4. WHEN an update supplies no accepted field, the handler MUST return the existing missing-update error.
+4. WHEN an update supplies no accepted field, the handler MUST return an error that names every accepted field.
 5. WHEN the requested status is invalid, the handler MUST reject the update.
 6. WHEN an operation fails, the handler MUST omit absolute paths from its error response.
 

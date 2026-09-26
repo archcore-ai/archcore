@@ -282,6 +282,9 @@ func TestHandleUpdateDocument_NoFieldsProvided(t *testing.T) {
 	if !result.IsError {
 		t.Error("expected error when no update fields provided")
 	}
+	if msg := result.Content[0].(mcp.TextContent).Text; !strings.Contains(msg, "edits") {
+		t.Errorf("no-fields error does not name edits: %q", msg)
+	}
 }
 
 func TestHandleUpdateDocument_ContentWithFrontmatter(t *testing.T) {
@@ -744,5 +747,81 @@ func TestHandleUpdateDocument_MergedTagsCanBeCleared(t *testing.T) {
 	}
 	if !reflect.DeepEqual(values["custom"], map[string]any{"nested": true}) {
 		t.Errorf("merged metadata changed: %#v", values)
+	}
+}
+
+func TestHandleUpdateDocument_Edits(t *testing.T) {
+	t.Parallel()
+	const lfDoc = "---\ntitle: T\nstatus: draft\n---\n\n## Context\nalpha beta\n\n## Decision\nbeta gamma\n"
+	const crlfDoc = "---\r\ntitle: T\r\nstatus: draft\r\n---\r\n\r\n## Context\r\nalpha beta\r\n\r\n## Decision\r\nbeta gamma\r\n"
+	edit := func(o, n string) map[string]any { return map[string]any{"old_string": o, "new_string": n} }
+	tests := []struct {
+		name      string
+		doc       string
+		args      map[string]any
+		wantErr   string
+		wantTitle string
+		wantBody  string
+	}{
+		{name: "applies in order", args: map[string]any{"edits": []any{edit("alpha", "ALPHA"), edit("ALPHA beta", "one"), edit("gamma", "")}},
+			wantBody: "## Context\none\n\n## Decision\nbeta \n"},
+		{name: "with title", args: map[string]any{"title": "New", "edits": []any{edit("alpha", "one")}},
+			wantTitle: "New", wantBody: "## Context\none beta\n\n## Decision\nbeta gamma\n"},
+		{name: "crlf document, multi-line edit copied with crlf", doc: crlfDoc, args: map[string]any{"edits": []any{edit("beta\r\n\r\n## Decision", "beta\r\n\r\n## Outcome")}},
+			wantBody: "## Context\nalpha beta\n\n## Outcome\nbeta gamma\n"},
+		{name: "crlf in new_string folds to lf", args: map[string]any{"edits": []any{edit("alpha beta", "one\r\ntwo")}},
+			wantBody: "## Context\none\ntwo\n\n## Decision\nbeta gamma\n"},
+		{name: "not found", args: map[string]any{"edits": []any{edit("alpha", "x"), edit("missing", "y")}}, wantErr: "edits[1]: old_string not found"},
+		{name: "failed batch keeps title", args: map[string]any{"title": "New", "edits": []any{edit("missing", "y")}}, wantErr: "edits[0]: old_string not found"},
+		{name: "ambiguous", args: map[string]any{"edits": []any{edit("beta", "x")}}, wantErr: "matches 2 places"},
+		{name: "empty old", args: map[string]any{"edits": []any{edit("", "x")}}, wantErr: "edits[0]: old_string must be a non-empty string"},
+		{name: "missing new", args: map[string]any{"edits": []any{map[string]any{"old_string": "alpha"}}}, wantErr: "edits[0]: new_string must be a string"},
+		{name: "non-string new", args: map[string]any{"edits": []any{map[string]any{"old_string": "alpha", "new_string": 1.0}}}, wantErr: "edits[0]: new_string must be a string"},
+		{name: "non-object item", args: map[string]any{"edits": []any{"alpha"}}, wantErr: "edits[0]: old_string must be a non-empty string"},
+		{name: "not an array", args: map[string]any{"edits": "alpha"}, wantErr: "non-empty array"},
+		{name: "empty array", args: map[string]any{"edits": []any{}}, wantErr: "non-empty array"},
+		{name: "with content", args: map[string]any{"content": "x", "edits": []any{edit("alpha", "x")}}, wantErr: "either content or edits"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			doc := tt.doc
+			if doc == "" {
+				doc = lfDoc
+			}
+			base := setupTestArchcore(t)
+			writeDoc(t, base, "knowledge", "e.adr.md", doc)
+			tt.args["path"] = ".archcore/knowledge/e.adr.md"
+			result, err := callTool(HandleUpdateDocument(StaticRoot(base)), tt.args)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := os.ReadFile(filepath.Join(base, ".archcore", "knowledge", "e.adr.md"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tt.wantErr != "" {
+				if msg := result.Content[0].(mcp.TextContent).Text; !result.IsError || !strings.Contains(msg, tt.wantErr) {
+					t.Errorf("want error %q, got %q", tt.wantErr, msg)
+				}
+				if string(data) != doc {
+					t.Errorf("failed edit changed the file:\n%s", data)
+				}
+				return
+			}
+			if result.IsError {
+				t.Fatalf("unexpected error: %s", result.Content[0].(mcp.TextContent).Text)
+			}
+			wantTitle := tt.wantTitle
+			if wantTitle == "" {
+				wantTitle = "T"
+			}
+			if !strings.Contains(string(data), `title: "`+wantTitle+`"`) {
+				t.Errorf("title: want %q in:\n%s", wantTitle, data)
+			}
+			if !strings.HasSuffix(string(data), tt.wantBody) {
+				t.Errorf("got:\n%q\nwant body suffix:\n%q", data, tt.wantBody)
+			}
+		})
 	}
 }

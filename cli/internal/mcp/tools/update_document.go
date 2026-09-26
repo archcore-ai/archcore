@@ -25,7 +25,9 @@ Before updating, confirm the intended changes with the user if possible.
 
 Call list_documents first to get the document's path, then pass that path to get_document to review current content before updating.
 
-You can update any combination of: title, status, content, or tags. Fields not provided are left unchanged. Pass an empty tags array to clear all tags.
+You can update any combination of: title, status, tags, and either content or edits (not both). Fields not provided are left unchanged. Pass an empty tags array to clear all tags.
+
+To change part of the body, pass edits instead of content: only the changed text is sent, not the whole body.
 
 Returns: JSON with the path of the updated file, its type, category, title, status, and tags (when present).`),
 		mcp.WithString("path",
@@ -40,7 +42,18 @@ Returns: JSON with the path of the updated file, its type, category, title, stat
 			mcp.Enum(templates.ValidStatusStrings()...),
 		),
 		mcp.WithString("content",
-			mcp.Description("New markdown body for the document. Replaces everything after the frontmatter. If omitted, the existing body is preserved."),
+			mcp.Description("New markdown body for the document. Replaces everything after the frontmatter. If omitted, the existing body is preserved. Cannot be combined with edits."),
+		),
+		mcp.WithArray("edits",
+			mcp.Description("Exact-match replacements applied in order to the markdown body (frontmatter excluded). Each old_string must occur exactly once in the body as the previous edits left it. If any edit fails, nothing is written. Cannot be combined with content."),
+			mcp.Items(map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"old_string": map[string]any{"type": "string", "description": "Exact text to replace, copied from get_document. Must match exactly once."},
+					"new_string": map[string]any{"type": "string", "description": "Replacement text. An empty string deletes old_string."},
+				},
+				"required": []string{"old_string", "new_string"},
+			}),
 		),
 		mcp.WithArray("tags",
 			mcp.Description(`New tags for the document. Format per server instructions (TAGS section), e.g. "frontend", "team:payments". Pass an empty array to clear all tags; omit to preserve existing.`),
@@ -94,8 +107,19 @@ func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request m
 			}
 		}
 
-		if newTitle == "" && newStatus == "" && newContent == "" && !tagsProvided {
-			return errorResult("at least one of title, status, content, or tags must be provided"), nil
+		var edits []bodyEdit
+		editsRaw, editsProvided := request.GetArguments()["edits"]
+		if editsProvided {
+			if newContent != "" {
+				return errorResult("pass either content or edits, not both"), nil
+			}
+			if edits, err = parseEdits(editsRaw); err != nil {
+				return errorResult(err.Error()), nil
+			}
+		}
+
+		if newTitle == "" && newStatus == "" && newContent == "" && !tagsProvided && !editsProvided {
+			return errorResult("at least one of title, status, content, edits, or tags must be provided"), nil
 		}
 
 		if newStatus != "" && !templates.IsValidStatus(newStatus) {
@@ -132,6 +156,11 @@ func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request m
 		body := existingBody
 		if newContent != "" {
 			body = stripFrontmatter(newContent)
+		}
+		if editsProvided {
+			if body, err = applyEdits(body, edits); err != nil {
+				return errorResult(err.Error()), nil
+			}
 		}
 		// Preserved tags keep their on-disk order — normalizing them here
 		// would reorder the user's tags on a title-only update. Provided tags
@@ -179,4 +208,49 @@ func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request m
 
 		return mcp.NewToolResultText(string(jsonData)), nil
 	}
+}
+
+type bodyEdit struct{ old, new string }
+
+func parseEdits(raw any) ([]bodyEdit, error) {
+	items, ok := raw.([]any)
+	if !ok || len(items) == 0 {
+		return nil, errors.New("edits must be a non-empty array of {old_string, new_string} objects")
+	}
+	edits := make([]bodyEdit, 0, len(items))
+	for i, item := range items {
+		m, _ := item.(map[string]any)
+		oldText, _ := m["old_string"].(string)
+		if oldText == "" {
+			return nil, fmt.Errorf("edits[%d]: old_string must be a non-empty string", i)
+		}
+		newText, isString := m["new_string"].(string)
+		if !isString {
+			return nil, fmt.Errorf("edits[%d]: new_string must be a string", i)
+		}
+		// get_document returns the file's raw bytes, while SplitDocument hands
+		// applyEdits a body with CRLF folded to LF; fold the edit the same way.
+		edits = append(edits, bodyEdit{
+			old: strings.ReplaceAll(oldText, "\r\n", "\n"),
+			new: strings.ReplaceAll(newText, "\r\n", "\n"),
+		})
+	}
+	return edits, nil
+}
+
+// Each old text must match exactly once in the body as the previous edits left
+// it, so an edit never lands on the wrong occurrence. The caller writes nothing
+// on error, so a failed batch leaves the document untouched.
+func applyEdits(body string, edits []bodyEdit) (string, error) {
+	for i, e := range edits {
+		switch n := strings.Count(body, e.old); n {
+		case 1:
+			body = strings.Replace(body, e.old, e.new, 1)
+		case 0:
+			return "", fmt.Errorf("edits[%d]: old_string not found in the document body — call get_document and copy the text exactly", i)
+		default:
+			return "", fmt.Errorf("edits[%d]: old_string matches %d places — include more surrounding text so it matches once", i, n)
+		}
+	}
+	return body, nil
 }

@@ -5007,6 +5007,21 @@
       "source": "globals/session-globals-disclosure.spec.md",
       "target": "globals/missing-global-degrades-to-local.adr.md",
       "type": "extends"
+    },
+    {
+      "source": "mcp/update-document-edits.spec.md",
+      "target": "mcp/document-update-frontmatter.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/update-document-edits.spec.md",
+      "target": "mcp/update-document-edits.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/update-document-edits.adr.md",
+      "target": "plugin/always-use-mcp-tools.adr.md",
+      "type": "extends"
     }
   ]
 }
