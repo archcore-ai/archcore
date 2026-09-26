@@ -270,7 +270,7 @@ func acceptRoot(dir string) (reason string, ok bool) {
 			// so a source declared with an absolute path puts that path into the
 			// message — which this line may not carry
 			// (project-root-resolution.spec §17).
-			return fmt.Sprintf("the reported project declares a global source %q that does not resolve", in.ID), false
+			return fmt.Sprintf("the reported project declares a global source %q that is misconfigured", in.ID), false
 		}
 	}
 	return "", true

@@ -8,7 +8,7 @@ tags:
   - "integrations"
 ---
 
-## Purpose &amp; Scope
+## Purpose & Scope
 
 This specification defines the `GLOBALS` block: a bounded, zero-read summary of every declared global source in the SessionStart context. It closes the disclosure half of the discovery gap recorded in @.archcore/globals/global-discovery-gap.idea.md.
 
@@ -25,7 +25,8 @@ Block format, with this repository's measured data:
 ```
 GLOBALS (read-only, query via MCP read tools):
   - archcore — 42 docs (knowledge 40, vision 1, experience 1) · product/ 14, concepts/ 14, architecture/ 7, market/ 4, web/ 3
-  ⚠ global source "company" not found at "../company/.archcore" — clone it or fix .archcore/settings.json
+  ⚠ global source "company" not found at "../company/.archcore" — skipped until it is cloned; local documents are unaffected
+  ⚠ global source "vendor" at "../vendor.txt" is not a directory — fix .archcore/settings.json
   Local documents take precedence over same-topic globals; a matching global is still part of the answer.
 ```
 
@@ -42,15 +43,16 @@ GLOBALS (read-only, query via MCP read tools):
 9. WHEN directories are dropped, the builder MUST name the dropped count on the line.
 10. The builder MUST render at most 8 source lines.
 11. WHEN sources are dropped, the builder MUST name the dropped count below the last line.
-12. WHEN a source is in a fatal or empty state, the builder MUST render its inspection message inside the block, prefixed with "⚠".
+12. WHEN a source is in a fatal, missing, or empty state, the builder MUST render its inspection message inside the block, prefixed with "⚠".
 13. WHEN at least one source line renders, the builder MUST append the sentence "Local documents take precedence over same-topic globals; a matching global is still part of the answer."
 14. WHEN the block renders, the builder MUST label the `CORPUS` count "local documents".
 15. WHEN the block holds at least one `GlobalOK` source, the builder MUST append the total global document count to the connected banner.
 16. The builder MUST reuse the `InspectGlobals` walk for every count.
 17. The builder MUST NOT add a corpus scan to the session start.
 18. IF `config.LoadGlobals` fails, THEN the builder MUST render only the invalid-settings warning.
+19. WHEN a source is missing, the builder MUST end its line with "skipped until it is cloned; local documents are unaffected".
 
-## Constraints &amp; Invariants
+## Constraints & Invariants
 
 - Output ceiling: 8 source lines, their warnings, the heading, and the precedence sentence. Block size is a function of the ceilings, never of corpus size.
 - I/O ceiling: directory walks only, identical to the cost `InspectGlobals` pays today (@cli/internal/docs/inspect.go `countGlobalDocs`).
@@ -64,13 +66,14 @@ GLOBALS (read-only, query via MCP read tools):
 | Condition | Response |
 | --- | --- |
 | Invalid `settings.json` | invalid-settings warning; no `GLOBALS` block |
-| Fatal source (missing, not a directory, unreadable, self-overlap, duplicate) | "⚠" line inside the block; remaining sources still render |
+| Fatal source (not a directory, unreadable, self-overlap, duplicate) | "⚠" line ending "fix .archcore/settings.json" inside the block; remaining sources still render |
+| Missing source (not cloned yet) | "⚠" line ending "skipped until it is cloned; local documents are unaffected" inside the block; remaining sources still render |
 | Empty source | "⚠" contains-no-documents line inside the block |
 | Unreadable subdirectory during the count | source classified unreadable; "⚠" line (existing `InspectGlobals` behavior) |
 | No declared globals | no block, no heading, `CORPUS` label unchanged |
 
 ## Conformance
 
-An implementation conforms when it satisfies clauses 1–18 and the failure rows, and `TestBuildSessionContext_ScansTheCorpusOnce` (@cli/cmd/hook_scan_budget_test.go) still passes.
+An implementation conforms when it satisfies clauses 1–19 and the failure rows, and `TestBuildSessionContext_ScansTheCorpusOnce` (@cli/cmd/hook_scan_budget_test.go) still passes.
 
 The conformance tests are @cli/cmd/hooks_globals_block_test.go: block presence and absence, both ceilings with named drops, the warning merge, the precedence sentence, the `CORPUS` label, and the banner suffix.

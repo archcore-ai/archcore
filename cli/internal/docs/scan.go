@@ -127,9 +127,11 @@ func scanAll(baseDir string, opt scanOptions) ([]Document, error) {
 		return nil, err
 	}
 
-	// Phase 2: mounted global sources declared in settings.json. Every declared
-	// source is mandatory, so an unusable one fails the scan rather than
-	// silently yielding a smaller corpus.
+	// Phase 2: mounted global sources declared in settings.json. A fatal source
+	// fails the scan rather than silently yielding a smaller corpus. The verdict
+	// comes from GlobalState.Fatal so the scan and the startup gate cannot
+	// disagree; a source not on disk yet contributes nothing, and InspectGlobals
+	// reports it on every surface (missing-global-degrades-to-local.adr).
 	seen := make(map[string]string, len(opt.globals)) // resolved dir -> first source id
 	for _, gs := range opt.globals {
 		gsDir := resolveGlobalPath(baseDir, gs.Path)
@@ -138,6 +140,9 @@ func scanAll(baseDir string, opt scanOptions) ([]Document, error) {
 		}
 		seen[gsDir] = gs.ID
 		if dirErr := config.CheckGlobalDir(baseDir, gsDir); dirErr != nil {
+			if !stateForDirErr(dirErr).Fatal() {
+				continue
+			}
 			return nil, errors.New(config.DescribeGlobalDirError(gs, dirErr))
 		}
 		walkErr := templates.WalkArchcoreFilesSkipping(gsDir, nil, func(p string, d fs.DirEntry) error {

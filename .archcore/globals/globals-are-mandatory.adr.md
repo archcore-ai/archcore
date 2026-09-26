@@ -26,6 +26,8 @@ global source "<id>" not found at "<path>" — clone it before starting the MCP 
 
 A global is declared only when a project deliberately adds it to its `globals` array; a declared dependency that cannot be found is a misconfiguration worth surfacing loudly, not degrading silently.
 
+(A missing source was later made a warning instead of a startup failure — see @.archcore/globals/missing-global-degrades-to-local.adr.md. The removal of the `required` flag stands.)
+
 ## Alternatives Considered
 
 1. **Keep `required`, default `false` (status quo).** Rejected: silent-skip hides typos and un-cloned sources behind an empty result.
@@ -35,7 +37,7 @@ A global is declared only when a project deliberately adds it to its `globals` a
 ## Consequences
 
 - The schema simplifies: each entry is `{ id, path }` (the `Required` field is removed from `GlobalSource` in @cli/internal/config/config.go).
-- `docs.Scan` (@cli/internal/docs/scan.go) and `checkGlobals` (@cli/cmd/mcp.go) always error on a missing source; the `if gs.Required` branch is gone.
+- `docs.Scan` (@cli/internal/docs/scan.go) and `checkGlobals` (@cli/cmd/mcp.go) always error on a missing source; the `if gs.Required` branch is gone. (Both skip a missing source with a warning since @.archcore/globals/missing-global-degrades-to-local.adr.md.)
 - Distribution and lifecycle — getting the source onto disk — become more pressing, since there is no "tolerate missing" mode. This stays an open question; the interim answer is in-tree vendoring (@.archcore/globals/vendoring-a-global.guide.md), which is self-contained.
 - This supersedes the `required` specifics in @.archcore/globals/global-sources-via-settings.adr.md (Decision point 6) and is reflected in @.archcore/globals/global-sources.spec.md and @.archcore/globals/declaring-global-sources.rule.md.
 - Backward compatible at load time: an old `settings.json` that still carries `"required": …` keeps working — the unknown field is carried through per @.archcore/cli/forward-compatible-settings-parsing.rule.md — but it has no effect.

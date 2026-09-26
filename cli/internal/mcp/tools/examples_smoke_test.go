@@ -13,8 +13,8 @@ import (
 // that the globals docs now cite as canonical (.archcore/globals/*). For every
 // .archcore/settings.json under examples/: the settings must parse and validate,
 // scanDocuments must succeed (which resolves and walks any declared globals), and
-// any example declaring globals must actually surface at least one global
-// document. A typo or unresolvable path in a shipped example fails here instead
+// every global source an example declares must surface at least one of its
+// documents. A typo or unresolvable path in a shipped example fails here instead
 // of silently misleading a user who opens it.
 func TestExamples_ValidAndGlobalsResolve(t *testing.T) {
 	// Tests run with CWD = package dir (internal/mcp/tools); examples/ is three
@@ -55,19 +55,20 @@ func TestExamples_ValidAndGlobalsResolve(t *testing.T) {
 
 			docs, err := scanDocuments(base)
 			if err != nil {
-				t.Fatalf("scanDocuments (a declared global likely does not resolve): %v", err)
+				t.Fatalf("scanDocuments (a declared global is likely misconfigured): %v", err)
 			}
 
-			if len(settings.Globals) > 0 {
-				globalCount := 0
-				for _, doc := range docs {
-					if doc.SourceKind == "global" {
-						globalCount++
-					}
-				}
-				if globalCount == 0 {
-					t.Errorf("example declares %d global source(s) but scanDocuments surfaced no global documents",
-						len(settings.Globals))
+			// Per source, because the scan skips a source that is not on disk:
+			// one mistyped path beside a healthy source still yields global
+			// documents (missing-global-degrades-to-local.adr).
+			bySource := make(map[string]int)
+			for _, doc := range docs {
+				bySource[doc.SourceID]++
+			}
+			for _, gs := range settings.Globals {
+				if bySource[gs.ID] == 0 {
+					t.Errorf("example declares global source %q at %q but scanDocuments surfaced none of its documents",
+						gs.ID, gs.Path)
 				}
 			}
 		})

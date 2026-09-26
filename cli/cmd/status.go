@@ -93,9 +93,9 @@ func collectStatus(baseDir string) *statusReport {
 }
 
 // checkGlobalSources reports the health of declared global sources. Fatal states
-// (missing, not a directory, unreadable, self-overlap, duplicate path) and a
-// present-but-invalid settings.json are counted as issues; an empty source is a
-// warning only.
+// (not a directory, unreadable, self-overlap, duplicate path) and a
+// present-but-invalid settings.json are counted as issues; a missing or empty
+// source is a warning only.
 func checkGlobalSources(baseDir string) *statusReport {
 	r := &statusReport{}
 
@@ -106,6 +106,8 @@ func checkGlobalSources(baseDir string) *statusReport {
 	}
 	for _, in := range inspections {
 		switch {
+		case in.State == docs.GlobalMissing:
+			r.warnf("%s — clone it to mount its documents", in.Message())
 		case in.State == docs.GlobalEmpty:
 			r.warnf("%s", in.Message())
 		case in.State.Fatal():

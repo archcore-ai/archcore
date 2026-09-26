@@ -17,9 +17,10 @@ tags:
 6. `id` MUST be unique within the array. It becomes the `source_id` of every document from that source.
 7. `path` MUST point at the `.archcore` directory of the global source, not at the project root.
 8. `path` MAY be relative, including `../` for a sibling or parent, MAY be absolute, and MAY be in-tree under the reserved `.archcore/global/` directory.
-9. IF a declared global directory is absent at startup, THEN the MCP server MUST fail fast instead of degrading silently. Every declared global is mandatory.
-10. The author MUST NOT name a local document directory `global`. `.archcore/global/` is reserved and the local scan skips it.
-11. `.mcp.json` MUST stay generic: `{"command": "archcore", "args": ["mcp"]}`. Global wiring lives in `settings.json`, never in launch flags.
+9. IF a declared global directory is absent at startup, THEN the MCP server MUST serve the local documents without it.
+10. IF a declared global directory is absent at startup, THEN the MCP server MUST print a warning that names the source.
+11. The author MUST NOT name a local document directory `global`. `.archcore/global/` is reserved and the local scan skips it.
+12. `.mcp.json` MUST stay generic: `{"command": "archcore", "args": ["mcp"]}`. Global wiring lives in `settings.json`, never in launch flags.
 
 A global source is read-only everywhere outside the MCP read tools. The related rule on read-only globals carries the full statement.
 
@@ -28,7 +29,7 @@ A global source is read-only everywhere outside the MCP read tools. The related 
 - A declaration in the consumer's committed `settings.json` is versioned, reviewable, and travels with the repository, so the same `.mcp.json` works on every machine.
 - An explicit, validated, unique `id` keeps sources distinguishable. An id derived from the path basename would collide for two repositories both named `standards`.
 - Pointing `path` at the `.archcore` directory, with no auto-appended segment, keeps resolution literal and predictable.
-- Treating every declared global as mandatory turns "the sibling repository is not cloned here" from a silent empty result into an actionable startup error. A declared dependency that cannot be found is a misconfiguration.
+- Serving the local documents when a declared source is not cloned keeps local work going on a fresh clone. The warning on stderr, in `archcore status`, and in the SessionStart `GLOBALS` block keeps a mistyped `path` visible.
 
 ## Examples
 
@@ -73,5 +74,5 @@ Non-normative examples.
 ## Enforcement
 
 - `Settings.Validate` (`@cli/internal/config/config.go`) rejects an empty, malformed, reserved, or duplicate `id`, and an empty `path`. `config.Load` fails on an invalid `settings.json`.
-- `checkGlobals` (`@cli/cmd/mcp.go`) aborts MCP startup when a declared source is absent or `settings.json` is invalid.
-- Tests: the globals cases in `@cli/internal/config/config_test.go` and `@cli/internal/mcp/tools/globals_test.go`.
+- `checkGlobals` (`@cli/cmd/mcp.go`) aborts MCP startup when a declared source is misconfigured or `settings.json` is invalid, and prints a warning when a declared source is absent.
+- Tests: the globals cases in `@cli/internal/config/config_test.go`, `@cli/internal/mcp/tools/globals_test.go`, and `@cli/cmd/mcp_test.go`.

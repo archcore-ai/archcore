@@ -108,12 +108,24 @@ func TestAcceptRoot(t *testing.T) {
 			wantReason: "no .archcore/",
 		},
 		{
-			name: "declared global does not resolve",
+			name: "declared global not cloned yet",
 			setup: func(t *testing.T) string {
 				base := t.TempDir()
 				mkdirAll(t, filepath.Join(base, ".archcore"))
 				writeFile(t, filepath.Join(base, ".archcore", "settings.json"),
 					`{"sync":"none","globals":[{"id":"company","path":"../company/.archcore"}]}`)
+				return base
+			},
+			wantOK: true,
+		},
+		{
+			name: "declared global is not a directory",
+			setup: func(t *testing.T) string {
+				base := t.TempDir()
+				mkdirAll(t, filepath.Join(base, ".archcore"))
+				writeFile(t, filepath.Join(base, "company"), "not a directory")
+				writeFile(t, filepath.Join(base, ".archcore", "settings.json"),
+					`{"sync":"none","globals":[{"id":"company","path":"company"}]}`)
 				return base
 			},
 			wantReason: `"company"`,
@@ -173,9 +185,9 @@ func TestAcceptRoot_ReasonCarriesNoAbsolutePath(t *testing.T) {
 		{
 			name: "absolute declaration",
 			declaration: func(parent string) (string, string) {
-				missing := filepath.Join(parent, "company", ".archcore")
+				notDir := filepath.Join(parent, "company", ".archcore")
 				return `{"sync":"none","globals":[{"id":"company","path":"` +
-					filepath.ToSlash(missing) + `"}]}`, missing
+					filepath.ToSlash(notDir) + `"}]}`, notDir
 			},
 		},
 	}
@@ -188,10 +200,12 @@ func TestAcceptRoot_ReasonCarriesNoAbsolutePath(t *testing.T) {
 			mkdirAll(t, filepath.Join(base, ".archcore"))
 			settings, leaked := tt.declaration(parent)
 			writeFile(t, filepath.Join(base, ".archcore", "settings.json"), settings)
+			mkdirAll(t, filepath.Join(parent, "company"))
+			writeFile(t, filepath.Join(parent, "company", ".archcore"), "not a directory")
 
 			reason, ok := acceptRoot(base)
 			if ok {
-				t.Fatalf("acceptRoot accepted a project whose global does not resolve")
+				t.Fatalf("acceptRoot accepted a project whose global is misconfigured")
 			}
 			if strings.Contains(reason, base) {
 				t.Errorf("reason %q embeds the absolute candidate path", reason)

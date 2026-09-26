@@ -165,8 +165,12 @@ func writeGlobalsBlock(b *strings.Builder, inspections []docs.GlobalInspection) 
 			fmt.Fprintf(b, "  … and %d more sources\n", len(inspections)-i)
 			break
 		}
+		if in.State == docs.GlobalMissing {
+			fmt.Fprintf(b, "  ⚠ %s — skipped until it is cloned; local documents are unaffected\n", in.Message())
+			continue
+		}
 		if in.State.Fatal() {
-			fmt.Fprintf(b, "  ⚠ %s — clone it or fix .archcore/settings.json\n", in.Message())
+			fmt.Fprintf(b, "  ⚠ %s — fix .archcore/settings.json\n", in.Message())
 			continue
 		}
 		if in.State == docs.GlobalEmpty {

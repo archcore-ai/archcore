@@ -29,7 +29,7 @@ func TestNewServer_HasTools(t *testing.T) {
 func TestBuildInstructions_DefaultEnglish(t *testing.T) {
 	t.Parallel()
 	for _, lang := range []string{"", "en"} {
-		result := buildInstructions(lang, nil)
+		result := buildInstructions(lang, nil, nil)
 		if result != mcpServerInstructions {
 			t.Errorf("buildInstructions(%q): expected base instructions unchanged", lang)
 		}
@@ -42,7 +42,7 @@ func TestBuildInstructions_DefaultEnglish(t *testing.T) {
 func TestBuildInstructions_NonEnglish(t *testing.T) {
 	t.Parallel()
 	for _, lang := range []string{"ru", "ja", "de"} {
-		result := buildInstructions(lang, nil)
+		result := buildInstructions(lang, nil, nil)
 		if !strings.HasPrefix(result, mcpServerInstructions) {
 			t.Errorf("buildInstructions(%q): should start with base instructions", lang)
 		}
@@ -107,7 +107,7 @@ func TestBuildInstructions_TrackSectionsRemoved(t *testing.T) {
 	}
 
 	for _, lang := range []string{"", "en", "ru"} {
-		result := buildInstructions(lang, nil)
+		result := buildInstructions(lang, nil, nil)
 		for _, s := range removed {
 			if strings.Contains(result, s) {
 				t.Errorf("buildInstructions(%q): still contains removed marker %q", lang, s)
@@ -271,14 +271,46 @@ func TestRunStdio_CancelsTheBackgroundTaskWhenItReturns(t *testing.T) {
 // trigger of the global retry in the paragraph a project with globals adds.
 func TestBuildInstructions_EmptySearchRule(t *testing.T) {
 	t.Parallel()
-	base := buildInstructions("", nil)
+	base := buildInstructions("", nil, nil)
 	for _, phrase := range []string{"near_misses", "no document passing the filters holds every word"} {
 		if !strings.Contains(base, phrase) {
 			t.Errorf("base instructions lack %q; a project without globals must receive the empty-result rule", phrase)
 		}
 	}
-	withGlobals := buildInstructions("", []config.GlobalSource{{ID: "org", Path: "../org/.archcore"}})
+	withGlobals := buildInstructions("", []string{"org"}, nil)
 	if !strings.Contains(withGlobals, "fills the page with only local rows") {
 		t.Error("the global retry does not state its trigger: a page of only local rows")
+	}
+}
+
+// TestGlobalIDsByPresence pins missing-global-degrades-to-local.adr on the
+// instructions: a declared source that is not on disk must not be announced as
+// mounted.
+func TestGlobalIDsByPresence(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(base, ".archcore", "global", "org"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mounted, missing := globalIDsByPresence(base, []config.GlobalSource{
+		{ID: "org", Path: ".archcore/global/org"},
+		{ID: "gone", Path: ".archcore/global/gone"},
+	})
+	if len(mounted) != 1 || mounted[0] != "org" {
+		t.Errorf("mounted = %v, want [org]", mounted)
+	}
+	if len(missing) != 1 || missing[0] != "gone" {
+		t.Errorf("missing = %v, want [gone]", missing)
+	}
+}
+
+func TestBuildInstructions_MissingGlobalIsNotMounted(t *testing.T) {
+	t.Parallel()
+	got := buildInstructions("", nil, []string{"gone"})
+	if strings.Contains(got, "This project mounts") {
+		t.Error("a source that is not on disk is announced as mounted")
+	}
+	if !strings.Contains(got, "not cloned yet: gone.") {
+		t.Error("the instructions do not name the source that is not on disk")
 	}
 }

@@ -33,13 +33,14 @@ const (
 )
 
 // Fatal reports whether the state must prevent serving (the MCP server refuses to
-// start; status counts it as an issue). GlobalOK and GlobalEmpty are not fatal —
-// an empty source is surfaced as a warning, never a hard failure.
+// start; status counts it as an issue). GlobalOK, GlobalEmpty, and GlobalMissing
+// are not fatal: an empty or not-yet-cloned source is surfaced as a warning and
+// the project keeps working on its local documents (missing-global-degrades-to-local.adr).
 // §F edge case: GlobalInspection owns the g receiver in this package;
 // GlobalState methods use st.
 func (st GlobalState) Fatal() bool {
 	switch st {
-	case GlobalOK, GlobalEmpty:
+	case GlobalOK, GlobalEmpty, GlobalMissing:
 		return false
 	default:
 		return true

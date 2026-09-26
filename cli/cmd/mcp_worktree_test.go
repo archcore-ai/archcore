@@ -5,10 +5,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"archcore-cli/internal/config"
+	"archcore-cli/internal/docs"
 	"archcore-cli/internal/testsupport"
 )
 
@@ -60,22 +60,13 @@ func TestCheckGlobals_WorktreeResolvesFromMainCheckout(t *testing.T) {
 	if err := checkGlobals(worktree); err != nil {
 		t.Errorf("checkGlobals in a worktree = %v, want nil", err)
 	}
-}
-
-// TestCheckGlobals_WorktreeMissingSourceStillFails pins that the fix does not
-// weaken the mandatory-source contract: a source absent from both anchors stays
-// fatal (globals-are-mandatory.adr).
-func TestCheckGlobals_WorktreeMissingSourceStillFails(t *testing.T) {
-	t.Parallel()
-	_, worktree := newWorktreeFixture(t)
-	writeMCPSettings(t, worktree,
-		`{"sync":"none","globals":[{"id":"absent","path":"../absent/.archcore"}]}`)
-
-	err := checkGlobals(worktree)
-	if err == nil {
-		t.Fatal("checkGlobals should still fail for a source absent from both anchors")
+	// A missing source no longer stops startup, so the state is what proves the
+	// worktree found the source rather than skipped it.
+	inspections, err := docs.InspectGlobals(worktree)
+	if err != nil {
+		t.Fatalf("InspectGlobals in a worktree: %v", err)
 	}
-	if !strings.Contains(err.Error(), "absent") {
-		t.Errorf("error %q should name the missing global id", err)
+	if len(inspections) != 1 || inspections[0].State != docs.GlobalOK {
+		t.Errorf("worktree inspections = %+v, want one GlobalOK source", inspections)
 	}
 }

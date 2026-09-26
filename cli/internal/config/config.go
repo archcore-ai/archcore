@@ -32,8 +32,9 @@ type GlobalSource struct {
 	// "../company-global/.archcore". It may be relative (including "../" for
 	// sibling or parent directories) or absolute.
 	//
-	// Every declared global source is mandatory: if its directory is absent the
-	// MCP server fails fast rather than running against an incomplete context.
+	// A directory that is absent is skipped with a warning on every surface, so
+	// local work continues on a clone without the source
+	// (missing-global-degrades-to-local.adr).
 	Path string `json:"path"`
 }
 
