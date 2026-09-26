@@ -219,9 +219,10 @@ func TestRoots_RefusedCandidates(t *testing.T) {
 			wantWarn: "no .archcore/",
 		},
 		{
-			name: "declared global does not resolve",
+			name: "declared global is not a directory",
 			candidates: func(t *testing.T) []string {
 				dir := newProject(t, "broken")
+				writeFixtureFile(t, filepath.Join(filepath.Dir(dir), "company", ".archcore"), "not a directory")
 				writeFixtureFile(t, filepath.Join(dir, ".archcore", "settings.json"),
 					`{"sync":"none","globals":[{"id":"company","path":"../company/.archcore"}]}`)
 				return []string{dir}
@@ -339,11 +340,12 @@ func TestRoots_PinnedServerNeverAsks(t *testing.T) {
 // TestRoots_SameRootIsNotRechecked covers project-root-resolution.spec §10: a
 // client reporting the root the server already serves must not send it back
 // through the acceptance checks.
-// The start root here carries a global that does not resolve, so a re-check
+// The start root here carries a global that is not a directory, so a re-check
 // would refuse it and say so — the warning is what makes the skip observable.
 func TestRoots_SameRootIsNotRechecked(t *testing.T) {
 	t.Parallel()
 	start := newProject(t, "start")
+	writeFixtureFile(t, filepath.Join(filepath.Dir(start), "company", ".archcore"), "not a directory")
 	writeFixtureFile(t, filepath.Join(start, ".archcore", "settings.json"),
 		`{"sync":"none","globals":[{"id":"company","path":"../company/.archcore"}]}`)
 	handler := &fakeRoots{}

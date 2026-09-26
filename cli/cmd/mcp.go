@@ -143,30 +143,27 @@ func backgroundUpdateTask(version string) func(context.Context) {
 }
 
 // checkGlobals validates the project's declared global sources before the MCP
-// server starts. Every declared global is mandatory: a source that is missing,
-// not a directory, unreadable, self-overlapping (resolves to the project's own
-// .archcore), or a duplicate path aborts startup so the agent never runs against
-// a broken mount. An existing source that holds no documents is surfaced as a
-// warning but does not block startup. A present-but-invalid settings.json also
-// aborts, rather than starting with globals silently dropped from the read path.
+// server starts. A source that is not a directory, unreadable, self-overlapping
+// (resolves to the project's own .archcore), or a duplicate path aborts startup
+// so the agent never runs against a broken mount. A source that is missing or
+// holds no documents is surfaced as a warning and the server serves the local
+// documents. A present-but-invalid settings.json also aborts, rather than
+// starting with globals silently dropped from the read path.
 func checkGlobals(baseDir string) error {
 	inspections, err := docs.InspectGlobals(baseDir)
 	if err != nil {
 		// A present-but-invalid settings.json must not start silently: the read
-		// path degrades to "no globals" without signal, the exact failure the
-		// mandatory-globals decision exists to prevent.
+		// path degrades to "no globals" without signal.
 		return fmt.Errorf("invalid .archcore/settings.json: %w", err)
 	}
 	for _, in := range inspections {
 		switch {
+		case in.State == docs.GlobalMissing:
+			fmt.Fprintln(os.Stderr, display.WarnLine(in.Message()+" — starting without it"))
 		case in.State == docs.GlobalEmpty:
 			fmt.Fprintln(os.Stderr, display.WarnLine(in.Message()+" — starting anyway"))
 		case in.State.Fatal():
-			suffix := " — fix .archcore/settings.json before starting the MCP server"
-			if in.State == docs.GlobalMissing {
-				suffix = " — clone it before starting the MCP server"
-			}
-			return errors.New(in.Message() + suffix)
+			return errors.New(in.Message() + " — fix .archcore/settings.json before starting the MCP server")
 		}
 	}
 	return nil

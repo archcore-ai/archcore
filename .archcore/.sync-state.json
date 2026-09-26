@@ -4982,6 +4982,31 @@
       "source": "release/plugin-version-written-from-the-tag.adr.md",
       "target": "plugin/bump-plugin-version.cpat.md",
       "type": "supersedes"
+    },
+    {
+      "source": "globals/missing-global-degrades-to-local.adr.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/global-sources.spec.md",
+      "target": "globals/missing-global-degrades-to-local.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/missing-global-degrades-to-local.adr.md",
+      "target": "globals/relative-globals-resolve-from-main-checkout.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/declaring-global-sources.rule.md",
+      "target": "globals/missing-global-degrades-to-local.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "globals/session-globals-disclosure.spec.md",
+      "target": "globals/missing-global-degrades-to-local.adr.md",
+      "type": "extends"
     }
   ]
 }

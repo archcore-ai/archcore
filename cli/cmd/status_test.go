@@ -408,15 +408,11 @@ func TestStatus_ExcludesGlobalTagsFromHygiene(t *testing.T) {
 	}
 }
 
-// TestStatus_MissingGlobalFailsStatus guards the "mandatory globals are loud, not
-// silent" invariant on the status surface: a declared-but-absent global must make
-// `archcore status` report a visible failure and exit non-zero, while local structural
-// checks still run. The status path inspects globals via checkGlobalSources (a
-// dedicated per-source report) while tag hygiene scans local documents only, so the
-// global failure surfaces precisely and the local checks never depend on it. A refactor
-// dropping checkGlobalSources would lose the invariant and fail this test. No absolute
-// path may leak.
-func TestStatus_MissingGlobalFailsStatus(t *testing.T) {
+// TestStatus_MissingGlobalWarns pins missing-global-degrades-to-local.adr on the
+// status surface: a declared global that is not cloned yet is a visible warning,
+// not an issue, so `archcore status` exits zero while the local checks still run.
+// No absolute path may leak.
+func TestStatus_MissingGlobalWarns(t *testing.T) {
 	dir := initValidDir(t)
 	writeDoc(t, dir, "knowledge", "local.rule.md",
 		"---\ntitle: Local\nstatus: accepted\n---\n\nbody\n")
@@ -427,16 +423,16 @@ func TestStatus_MissingGlobalFailsStatus(t *testing.T) {
 	}
 
 	out, err := runCmdInDir(t, dir, "status")
-	if err == nil {
-		t.Fatalf("status must exit non-zero when a declared global is missing; output:\n%s", out)
+	if err != nil {
+		t.Fatalf("status must exit zero when a declared global is only missing: %v; output:\n%s", err, out)
 	}
 	for _, want := range []string{
-		"global source",        // the surfacing FailLine names the source
-		"not found at",         // ...and why it failed
+		"global source",        // the WarnLine names the source
+		"not found at",         // ...and why it is skipped
 		"company",              // the missing global's id
 		"../missing/.archcore", // the relative declared path, verbatim
-		"1 issue(s) found",     // exactly one issue counted + summary printed
-		".archcore/ exists",    // local structural checks ran first (degrade-but-loud)
+		"clone it",             // ...and how to mount it
+		".archcore/ exists",    // local structural checks ran
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("status output missing %q; got:\n%s", want, out)

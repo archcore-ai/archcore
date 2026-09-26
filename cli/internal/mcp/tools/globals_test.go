@@ -326,23 +326,31 @@ func TestScanDocuments_WithExternalGlobal(t *testing.T) {
 	}
 }
 
-func TestScanDocuments_MissingGlobalFails(t *testing.T) {
+// TestScanDocuments_MissingGlobalSkipped pins missing-global-degrades-to-local.adr:
+// a global that is not cloned yet contributes nothing, while the local documents
+// and a healthy global declared after it still come back.
+func TestScanDocuments_MissingGlobalSkipped(t *testing.T) {
 	base := setupTestArchcore(t)
 
 	writeDoc(t, base, "knowledge", "local.rule.md",
 		"---\ntitle: \"Local\"\nstatus: accepted\n---\n\nbody\n")
-
-	// Every declared global is mandatory; a missing one fails the scan.
+	writeDoc(t, base, "global/company/knowledge", "shared.rule.md",
+		"---\ntitle: \"Shared\"\nstatus: accepted\n---\n\nbody\n")
 	writeGlobalsSettings(t, base, []config.GlobalSource{
 		{ID: "ghost", Path: ".archcore/global/ghost"},
+		{ID: "company", Path: ".archcore/global/company"},
 	})
 
-	_, err := scanDocuments(base)
-	if err == nil {
-		t.Fatal("scanDocuments should fail for a missing global source")
+	docs, err := scanDocuments(base)
+	if err != nil {
+		t.Fatalf("scanDocuments should skip a missing global source, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "ghost") {
-		t.Errorf("error %q should mention the global id", err.Error())
+	bySource := make(map[string]int)
+	for _, doc := range docs {
+		bySource[doc.SourceID]++
+	}
+	if len(docs) != 2 || bySource["local"] != 1 || bySource["company"] != 1 {
+		t.Errorf("scanDocuments = %+v, want the local document and the company document", docs)
 	}
 }
 

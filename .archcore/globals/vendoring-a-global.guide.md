@@ -44,7 +44,7 @@ Git submodule — pinned to a ref, refreshed with `git submodule update`:
 git submodule add <global-repo-url> .archcore/global/company
 ```
 
-Gitignore and clone on setup — not committed; a setup step clones it. Every declared global is mandatory, so a missing clone fails the server at startup:
+Gitignore and clone on setup — not committed; a setup step clones it. Until the clone exists, the server starts with the local documents only and prints a warning that names the missing source:
 
 ```bash
 echo ".archcore/global/" >> .gitignore
@@ -85,8 +85,8 @@ Expected result: undeclared content elsewhere under `.archcore/global/`, such as
 ## Troubleshooting
 
 - Documents do not appear. `path` points at the wrong level. It must reach the directory whose subtree holds the `*.type.md` files, which is often `…/.archcore` after cloning a whole repository. Re-check step 2.
-- The server refuses to start with `global source "company" not found at "…"`. The vendored folder is missing, for example gitignored and not yet cloned. Clone it: every declared global is mandatory, so the server does not start without it.
+- The server prints `global source "company" not found at "…" — starting without it`, and no global documents appear. The vendored folder is missing, for example gitignored and not yet cloned. Clone it to mount its documents; the local documents work without it.
 - A local document folder disappeared. A local directory was named `global`, and the scan skips any directory named `global` at any depth. Rename it.
 - The global was vendored outside `.archcore/global/`. An in-tree global under a folder not named `global`, such as the plural `.archcore/globals/<id>`, is de-duplicated by the scan: it appears once as a read-only global and never also as a writable local. It stays read-only and non-linkable. Vendoring under the reserved `.archcore/global/` directory remains the recommended, self-documenting layout.
-- In-tree versus `../` sibling. In-tree vendoring is the more robust form: self-contained, with no assumption about the clone layout, and it yields the clean read-only message on a write. A `../` sibling instead fails a write with `invalid path: must start with ".archcore/"`. The related ADR on declaring globals in `settings.json` records this consequence.
+- In-tree versus `../` sibling. In-tree vendoring is self-contained and makes no assumption about the clone layout, and it yields the clean read-only message on a write. A `../` sibling instead fails a write with `invalid path: must start with ".archcore/"`. The related ADR on declaring globals in `settings.json` records this consequence.
 - Updating the global. A vendored copy and a submodule are both snapshots. Re-clone, or run `git submodule update`, to pull upstream changes. An automated refresh command is planned, not implemented; the related plan document tracks it.

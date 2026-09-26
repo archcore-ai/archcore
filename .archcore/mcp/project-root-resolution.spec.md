@@ -8,7 +8,7 @@ tags:
   - "mcp"
 ---
 
-## Purpose &amp; Scope
+## Purpose & Scope
 
 This specification defines how the Archcore MCP server decides which project root each MCP tool call operates on, and when that root may change during a session.
 
@@ -68,7 +68,7 @@ A candidate root passes when all of these hold:
 
 Check 4 governs a move away from the start-time root only. The start-time root MUST stay servable without `.archcore/`, so `init_project` keeps its guarantee from @.archcore/mcp/mcp-server-starts-without-archcore-dir.adr.md.
 
-## Constraints &amp; Invariants
+## Constraints & Invariants
 
 | Constraint | Value | Rationale |
 | ---------- | ----- | --------- |
@@ -103,4 +103,4 @@ Check 4 governs a move away from the start-time root only. The start-time root M
 
 ## Conformance
 
-An implementation conforms when it satisfies every clause above and the acceptance checks, and passes @cli/internal/mcp/root_provider_test.go and @cli/internal/mcp/integration/roots_test.go, whose cases are: no session; a session without the `roots` capability; an empty reply; a candidate without `.archcore/`; a candidate in a plugin install cache; a candidate whose globals resolve; a candidate whose globals do not resolve; several passing candidates; a query that errors; a query that never answers; a burst of five calls costing one query; a switch mid-session; and `init_project` on an uninitialized start-time root.
+An implementation conforms when it satisfies every clause above and the acceptance checks, and passes @cli/internal/mcp/root_provider_test.go and @cli/internal/mcp/integration/roots_test.go, whose cases are: no session; a session without the `roots` capability; an empty reply; a candidate without `.archcore/`; a candidate in a plugin install cache; a candidate whose globals resolve; a candidate whose declared global is not cloned yet, which is accepted; a candidate whose declared global is misconfigured, which is rejected; several passing candidates; a query that errors; a query that never answers; a burst of five calls costing one query; a switch mid-session; and `init_project` on an uninitialized start-time root.

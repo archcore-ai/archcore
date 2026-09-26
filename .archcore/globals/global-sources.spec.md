@@ -46,15 +46,15 @@ The document model, the scan, and the path guards live in `internal/docs`; @cli/
 
 ## Authority
 
-This document is the normative specification for global-source behavior. If the implementation, tests, or consumers diverge from it, this specification takes precedence until amended. The originating decision is @.archcore/globals/global-sources-via-settings.adr.md; that every declared source is mandatory (no `required` flag) is @.archcore/globals/globals-are-mandatory.adr.md. That an escaping relative path anchors on the repository main checkout is @.archcore/globals/relative-globals-resolve-from-main-checkout.adr.md. The consolidated, plain-language statement of what globals may and may not do is @.archcore/globals/globals-are-read-only-everywhere.rule.md.
+This document is the normative specification for global-source behavior. If the implementation, tests, or consumers diverge from it, this specification takes precedence until amended. The originating decision is @.archcore/globals/global-sources-via-settings.adr.md; that no declared source carries a `required` flag is @.archcore/globals/globals-are-mandatory.adr.md; that a missing source degrades to local documents is @.archcore/globals/missing-global-degrades-to-local.adr.md. That an escaping relative path anchors on the repository main checkout is @.archcore/globals/relative-globals-resolve-from-main-checkout.adr.md. The consolidated, plain-language statement of what globals may and may not do is @.archcore/globals/globals-are-read-only-everywhere.rule.md.
 
 ### Related Artifacts
 
-- Schema &amp; validation: @cli/internal/config/config.go (`GlobalSource`, `Settings.Globals`, `Validate`, `ReadGlobals`, `LoadGlobals`, `globalIDRe`)
-- Resolution &amp; health classification: @cli/internal/config/globals.go (`ResolveGlobalPath`, `ResolveGlobalPathFrom`, `CheckGlobalDir`, `DescribeGlobalDirError`, `ErrGlobalMissing`/`ErrGlobalNotDir`/`ErrGlobalUnreadable`/`ErrGlobalSelfOverlap`)
+- Schema & validation: @cli/internal/config/config.go (`GlobalSource`, `Settings.Globals`, `Validate`, `ReadGlobals`, `LoadGlobals`, `globalIDRe`)
+- Resolution & health classification: @cli/internal/config/globals.go (`ResolveGlobalPath`, `ResolveGlobalPathFrom`, `CheckGlobalDir`, `DescribeGlobalDirError`, `ErrGlobalMissing`/`ErrGlobalNotDir`/`ErrGlobalUnreadable`/`ErrGlobalSelfOverlap`)
 - Working-tree queries behind the resolution anchor: @cli/internal/git/git.go (`WorktreeRoots`, `Toplevel`, `MainCheckout`, `Roots`, `ErrNoMainWorktree`)
 - Scan: @cli/internal/docs/scan.go (`Scan`, `ScanFull`, `ScanLocal`, `BuildDoc`)
-- Annotation &amp; global matching: @cli/internal/docs/globals.go (`IsGlobalPath`, `IsReservedGlobalDir`, `IsExternalGlobalDocument`, `AnnotateSource`)
+- Annotation & global matching: @cli/internal/docs/globals.go (`IsGlobalPath`, `IsReservedGlobalDir`, `IsExternalGlobalDocument`, `AnnotateSource`)
 - Document model: @cli/internal/docs/document.go (`Document`, aliased as `LocalDocument` by @cli/internal/mcp/tools/docs_bridge.go)
 - Source-health reporter: @cli/internal/docs/inspect.go (`InspectGlobals`, `GlobalInspection`, `GlobalState`) — single source of truth for the startup, status, and session-start surfaces
 - Directory walk: @cli/templates/templates.go (`WalkArchcoreFilesSkipping`, `IsValidType`, `ExtractDocType`)
@@ -80,7 +80,8 @@ This document is the normative specification for global-source behavior. If the 
 | `source_id` | The explicit `id` of a global source, the literal `"local"` for primary documents, or `"__global__"` for undeclared reserved-tree content. |
 | Reserved directory | Any directory named `global` under `.archcore/`, **at any depth**, and anything inside it — read-only global mount space: skipped in the local scan, and never a write target or relation endpoint, even for undeclared content under it. The match is on whole path segments, so a sibling like `.archcore/global-ish/` is not reserved. The read scan matches the name exactly; the write guard additionally matches it **case-insensitively** (§5.4). |
 | Document root | The `.archcore` directory a `path` resolves to; documents live under it (`<root>/knowledge/x.rule.md`). |
-| Fatal state | A declared source that is unusable — missing, not-a-directory, unreadable, self-overlapping, or a duplicate path. Aborts the MCP server and the scan; a visible issue on `status`. |
+| Fatal state | A declared source that is misconfigured — not-a-directory, unreadable, self-overlapping, or a duplicate path. Aborts the MCP server and the scan; a visible issue on `status`. |
+| Missing state | A declared source whose resolved directory does not exist, for example a repository not cloned yet. A warning, never fatal; the source contributes no documents. |
 | Empty state | A declared source whose directory exists and is readable but holds no recognized-type documents. A warning, never fatal. |
 
 ## Declaration Schema
@@ -92,7 +93,7 @@ Each entry of the `globals` array is a `GlobalSource`:
 | `id` | string | yes | Stable identifier; becomes `source_id` on every document from this source. |
 | `path` | string | yes | Points at the global source's `.archcore` directory. Relative (incl. `../`), absolute, or in-tree. |
 
-Every declared source is **mandatory at runtime** — there is no per-entry opt-out; a fatal source fails fast (§6). The array is serialized with `json:"globals,omitempty"` and is permitted for every sync type (`allowedFields`), never required.
+There is no per-entry opt-out flag. A fatal source fails fast; a missing source is skipped with a warning (§6). The array is serialized with `json:"globals,omitempty"` and is permitted for every sync type (`allowedFields`), never required.
 
 ## Normative Behavior
 
@@ -111,14 +112,14 @@ Resolution lives in one place, `config.ResolveGlobalPath(baseDir, path)`, shared
 9. The anchor MUST be looked up at most once per `baseDir` per process, and MUST NOT be looked up for an absolute or in-tree `path`.
 10. There MUST NOT be a path-escape restriction in `Settings.Validate` — `../` and absolute paths are valid by design.
 
-Resolution changes where a source is looked for; it never changes whether a missing source is fatal (§6).
+Resolution changes where a source is looked for; it never changes how a missing source is classified (§6).
 
 ### §2 Two-phase scan
 
 `docs.Scan(baseDir)` and `docs.ScanFull(baseDir)` MUST proceed in two phases:
 
 1. **Local phase.** Walk `baseDir/.archcore` via `WalkArchcoreFilesSkipping(archcoreDir, []string{"global"}, …)`. The directory named `global` MUST be skipped, and any document whose resolved path falls under a declared global source (§3.3) MUST be skipped. Every remaining document is tagged `source_id="local"`, `source_kind="local"`. If the walk returns `fs.ErrNotExist`, the function MUST return `(nil, nil)` — an uninitialized primary yields no documents (and therefore no globals).
-2. **Global phase.** For each entry from `config.ReadGlobals(baseDir)`, resolve its directory via §1, reject a duplicate resolved path, and classify it via `config.CheckGlobalDir` — any fatal state (§6) aborts the scan with a message built only from the declared id/path. Then walk it with no skip list. **Only files whose suffix is a recognized document type (`templates.IsValidType(templates.ExtractDocType(name))`) are mounted**, so a misconfigured path cannot surface stray `.md` files as malformed documents. Every mounted document MUST be tagged `source_id=<id>`, `source_kind="global"`, `global=true`, `read_only=true`. A mid-walk I/O error MUST NOT be returned raw (it embeds an absolute path); it maps to `global source "<id>" at "<path>" is not readable`.
+2. **Global phase.** For each entry from `config.ReadGlobals(baseDir)`, resolve its directory via §1, reject a duplicate resolved path, and classify it via `config.CheckGlobalDir` — any fatal state (§6) aborts the scan with a message built only from the declared id/path, and a missing source contributes no documents while the scan continues. Then walk it with no skip list. **Only files whose suffix is a recognized document type (`templates.IsValidType(templates.ExtractDocType(name))`) are mounted**, so a misconfigured path cannot surface stray `.md` files as malformed documents. Every mounted document MUST be tagged `source_id=<id>`, `source_kind="global"`, `global=true`, `read_only=true`. A mid-walk I/O error MUST NOT be returned raw (it embeds an absolute path); it maps to `global source "<id>" at "<path>" is not readable`.
 
 Documents from both phases are returned in a single flat list, in walk order (local first, then each global in declaration order).
 
@@ -131,7 +132,7 @@ Documents from both phases are returned in a single flat list, in walk order (lo
 ### §4 Source annotation
 
 1. `docs.Document` MUST carry `source_id` (always), `source_kind` (always), `global` (omit when false), and `read_only` (omit when false). The same four fields MUST also appear on `search_documents` result rows, so all three read tools (`list_documents`, `get_document`, `search_documents`) expose the local/global distinction identically.
-2. `get_document` MUST call `docs.AnnotateSource(&amp;doc, baseDir, globals)`, which matches the document's resolved absolute path against each declared global's resolved directory **first**; on a prefix match it sets the global tags with that source's `id`. A path in the reserved `global/` tree (§3) that is NOT declared is still annotated `source_id="__global__"`, `source_kind="global"`, `global=true`, `read_only=true`, so the read label matches the write guard. The `__global__` sentinel carries underscores, which the `id` pattern (§7.2) forbids, so it can never collide with a declared source id. Otherwise `source_id="local"`, `source_kind="local"`.
+2. `get_document` MUST call `docs.AnnotateSource(&doc, baseDir, globals)`, which matches the document's resolved absolute path against each declared global's resolved directory **first**; on a prefix match it sets the global tags with that source's `id`. A path in the reserved `global/` tree (§3) that is NOT declared is still annotated `source_id="__global__"`, `source_kind="global"`, `global=true`, `read_only=true`, so the read label matches the write guard. The `__global__` sentinel carries underscores, which the `id` pattern (§7.2) forbids, so it can never collide with a declared source id. Otherwise `source_id="local"`, `source_kind="local"`.
 3. `AnnotateSource` and the scan MUST agree: a document listed as global by one MUST be annotated global by the other. Both derive a global's directory from §1, so an escaping source is anchored identically on both paths. Annotation keeps **exact-case** matching (`IsReservedGlobalDir`, global path matching) — case-folding on the read path would reclassify scan results on case-sensitive filesystems; only the write guard folds (§5.4).
 4. `get_document` MUST validate its `path` with `docs.ValidateReadPath(baseDir, path, ReadGlobals(baseDir))`, which accepts every path `ValidateArchcorePath` accepts **and additionally** a document that resolves strictly inside a declared external global. The external-global branch MUST be hardened: relative-only input, `.md`-only, lexical containment under a declared global root (blocks `../` traversal), and symlink-evaluated containment (blocks a symlink inside the mount from escaping it). A path under a declared global pointing at a missing file MUST yield an ordinary `document not found`. The write tools MUST NOT use this relaxation — they keep the strict guard (§5.4), so an external global stays unwritable and non-linkable (§5.5).
 5. Every hook surface that opens a document at a host-supplied path MUST validate it with `docs.ValidateReadPath` as well. Lexical validation alone lets a symlinked ancestor (`.archcore/escape -> /elsewhere`) resolve out of the store, and the post-write precision advisory reports the file's own wording and its document links — so an escape puts an outside document in front of the model. The advisory passes nil globals: it fires only after a write, and a global is never written.
@@ -156,26 +157,26 @@ Documents from both phases are returned in a single flat list, in walk order (lo
 
 ### §6 Source-health handling
 
-Every declared global is mandatory; there is no optional source. A source is classified at resolution time — `config.CheckGlobalDir` for the filesystem state, plus a cross-entry duplicate-path check — into **fatal** (abort) and **warn** (surface, allow) states. The filesystem classification MUST live in one place (`config.ResolveGlobalPath` + `config.CheckGlobalDir`), consumed identically by the scan and by the startup/status/session-start reporter (`docs.InspectGlobals`), so startup and runtime never disagree.
+There is no per-entry optional flag. A source is classified at resolution time — `config.CheckGlobalDir` for the filesystem state, plus a cross-entry duplicate-path check — into **fatal** (abort) and **warn** (surface, allow) states. The filesystem classification MUST live in one place (`config.ResolveGlobalPath` + `config.CheckGlobalDir`), consumed identically by the scan and by the startup/status/session-start reporter (`docs.InspectGlobals`), so startup and runtime never disagree.
 
 **Fatal states** (a source is unusable; MUST abort the server and the scan):
 
-- **Missing** — the resolved directory does not exist (`ErrGlobalMissing`).
 - **Not a directory** — the resolved path exists but is a file (`ErrGlobalNotDir`).
 - **Unreadable** — the directory cannot be read (`ErrGlobalUnreadable`). A readability probe (`os.Open` + `Readdirnames(1)`) catches this at the top level so the startup gate agrees with the runtime walk, which would otherwise pass `os.Stat` and fail only on first read. The probe opens the top directory only, so `InspectGlobals` MUST also classify a **document-walk failure** as unreadable rather than derive a state from a partial count: an unreadable subdirectory is invisible to the probe and fatal to the scan.
 - **Self-overlap** — the path resolves to the primary's own `.archcore` or an ancestor of it (`ErrGlobalSelfOverlap`); it would re-mount the primary's local documents as read-only globals. Descendants (in-tree vendoring such as `.archcore/global/<id>`) are NOT flagged.
 - **Duplicate path** — two declared sources resolve to the same directory; mounting both would double every document.
 
-**Warn state** (surfaced, never fatal):
+**Warn states** (surfaced, never fatal):
 
+- **Missing** — the resolved directory does not exist (`ErrGlobalMissing`). It contributes no documents and does NOT block; the startup, status, and SessionStart surfaces emit a visible warning naming the source. See @.archcore/globals/missing-global-degrades-to-local.adr.md.
 - **Empty** — the directory exists, is walkable to the end, and contains zero recognized-type documents. It contributes no documents but does NOT block; the startup, status, and SessionStart surfaces emit a visible warning naming the source.
 
-1. **Scan time.** The scan MUST reject every fatal state with a message built only from the declared id/path (never an absolute path — see @.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md). A missing source MUST read `global source "<id>" not found at "<path>"`; the other fatal messages follow `config.DescribeGlobalDirError` (not-a-directory / not-readable / resolves-to-own-.archcore) and the duplicate-path form `global sources "<a>" and "<b>" resolve to the same path "<path>"`. An empty source MUST NOT error — it simply yields no documents.
-2. **Startup time.** `checkGlobals(baseDir)` MUST, before serving, abort on any fatal state. Missing keeps `… — clone it before starting the MCP server`; the other fatal states append `… — fix .archcore/settings.json before starting the MCP server`. An empty source MUST be reported as a stderr warning and MUST NOT block startup.
-3. **Invalid settings at startup.** `checkGlobals` MUST distinguish a missing `settings.json` (no globals declared — OK) from a present-but-invalid one. A parse or validation error MUST abort startup with `invalid .archcore/settings.json: …`, rather than start with globals silently dropped from the read path (`ReadGlobals` degrades to "no globals" on a parse error — exactly the silent-incomplete-context failure mandatory globals exist to prevent).
-4. **Non-server surfaces MUST surface a broken or empty global, never blank silently — and without fail-fast (they must not block a session).** The SessionStart hook MUST degrade to a local-only scan (`docs.ScanLocal`, which never reads a global) on a fatal scan error and inject a visible warning naming the source, so local documents are never dropped; it MUST additionally warn on an empty source and on an invalid `settings.json` — both invisible to the full scan — via `docs.InspectGlobals` (@cli/cmd/hooks_common.go). The per-source warnings render inside the SessionStart `GLOBALS` block (@.archcore/globals/session-globals-disclosure.spec.md). `archcore status` MUST report every fatal state as a visible failure (counted as an issue, non-zero exit) and an empty source as a warning (not an issue) via `checkGlobalSources`; its structural local-file checks and tag hygiene scan local documents only and never depend on the global scan. Neither aborts. (The MCP server still fails fast per §6.1–§6.2.)
+1. **Scan time.** The scan MUST reject every fatal state with a message built only from the declared id/path (never an absolute path — see @.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md). The fatal messages follow `config.DescribeGlobalDirError` (not-a-directory / not-readable / resolves-to-own-.archcore) and the duplicate-path form `global sources "<a>" and "<b>" resolve to the same path "<path>"`. A missing or empty source MUST NOT error — it yields no documents. The inspection message for a missing source reads `global source "<id>" not found at "<path>"`.
+2. **Startup time.** `checkGlobals(baseDir)` MUST, before serving, abort on any fatal state with `… — fix .archcore/settings.json before starting the MCP server`. A missing source MUST be reported as a stderr warning ending `— starting without it` and MUST NOT block startup. An empty source MUST be reported as a stderr warning and MUST NOT block startup.
+3. **Invalid settings at startup.** `checkGlobals` MUST distinguish a missing `settings.json` (no globals declared — OK) from a present-but-invalid one. A parse or validation error MUST abort startup with `invalid .archcore/settings.json: …`, rather than start with globals silently dropped from the read path (`ReadGlobals` degrades to "no globals" on a parse error, which gives no signal).
+4. **Non-server surfaces MUST surface a broken, missing, or empty global, never blank silently — and without fail-fast (they must not block a session).** The SessionStart hook MUST degrade to a local-only scan (`docs.ScanLocal`, which never reads a global) on a fatal scan error and inject a visible warning naming the source, so local documents are never dropped; it MUST additionally warn on an empty source and on an invalid `settings.json` — both invisible to the full scan — via `docs.InspectGlobals` (@cli/cmd/hooks_common.go). The per-source warnings render inside the SessionStart `GLOBALS` block (@.archcore/globals/session-globals-disclosure.spec.md). `archcore status` MUST report every fatal state as a visible failure (counted as an issue, non-zero exit) and a missing or empty source as a warning (not an issue) via `checkGlobalSources`; its structural local-file checks and tag hygiene scan local documents only and never depend on the global scan. Neither aborts. (The MCP server still fails fast on a fatal state per §6.1–§6.2.)
 
-The decision to drop the per-entry `required` flag is @.archcore/globals/globals-are-mandatory.adr.md.
+The decision to drop the per-entry `required` flag is @.archcore/globals/globals-are-mandatory.adr.md. The decision to treat a missing source as a warning is @.archcore/globals/missing-global-degrades-to-local.adr.md.
 
 ### §7 Validation
 
@@ -199,7 +200,7 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 | Path traversal | unrestricted (`../`, absolute) | Cross-project references are the core use case. |
 | Self-overlap | rejected (§6) | A global may not re-mount the primary's own `.archcore`. |
 | Anchor lookups per primary | at most 1 per process | The lookup spawns git; the answer cannot change while one process serves one checkout. |
-| Declared source presence | mandatory | A fatal source (missing / not-a-directory / unreadable / self-overlap / duplicate) fails fast (§6); an empty source warns. No silent-skip. |
+| Declared source presence | not required at runtime | A fatal source (not-a-directory / unreadable / self-overlap / duplicate) fails fast (§6); a missing or empty source warns on stderr, `status`, and SessionStart. No silent skip. |
 | Source classification | shared (`config.CheckGlobalDir`) | Startup and runtime classify identically; no startup-passes-but-runtime-fails gap. |
 | Global mutability via MCP or direct write | none | All global documents are read-only through the tools and through the pre-write hook guard, in-tree and external alike, and are never relation endpoints. The write guard matches global space case-insensitively (§5.4). |
 | Transitive globals | not followed | The global phase reads only the primary's `globals`; a global's own `globals` is ignored. |
@@ -218,14 +219,14 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 - No surface opens a document at a host-supplied path without symlink-evaluated containment (§4.4, §4.5).
 - The startup gate and the runtime scan classify a source identically: a source that aborts the scan also aborts startup, and vice versa. Both reach the same answer for a directory that fails only partway through a walk (§6).
 - No global scan error embeds an absolute filesystem path.
-- Global **content** is surfaced only through the MCP read tools (`list_documents`, `get_document`, `search_documents`) and the pre-write code-alignment injection, which marks it `[global]`. `archcore status` operates on local documents only. The SessionStart context lists no global documents; its `GLOBALS` block reports per-source metadata — counts and directory names — per @.archcore/globals/session-globals-disclosure.spec.md. When a declared global is broken or empty, neither surface blanks silently: the SessionStart hook degrades to a local-only scan with a warning inside the `GLOBALS` block, and `status` reports a fatal source as a visible failure (and an empty source as a warning) while still running its structural local checks (§6.4).
+- Global **content** is surfaced only through the MCP read tools (`list_documents`, `get_document`, `search_documents`) and the pre-write code-alignment injection, which marks it `[global]`. `archcore status` operates on local documents only. The SessionStart context lists no global documents; its `GLOBALS` block reports per-source metadata — counts and directory names — per @.archcore/globals/session-globals-disclosure.spec.md. When a declared global is broken, missing, or empty, neither surface blanks silently: the SessionStart hook degrades to a local-only scan with a warning inside the `GLOBALS` block, and `status` reports a fatal source as a visible failure (and a missing or empty source as a warning) while still running its structural local checks (§6.4).
 
 ## Error Handling
 
 | Condition | Response |
 | --------- | -------- |
-| Global source missing (startup) | `global source "<id>" not found at "<path>" — clone it before starting the MCP server` (server refuses to start) |
-| Global source missing (scan) | `global source "<id>" not found at "<path>"` (scan error) |
+| Global source missing (startup) | stderr warning `global source "<id>" not found at "<path>" — starting without it`; the server starts and serves local documents |
+| Global source missing (scan) | source skipped, no error; the scan returns the other sources |
 | Global source path is a file / not a directory | `global source "<id>" at "<path>" is not a directory` (startup + scan abort) |
 | Global source unreadable, at the top level or in a subdirectory | `global source "<id>" at "<path>" is not readable` (startup + scan abort; no absolute path leaked) |
 | Global resolves to the project's own `.archcore` (self-overlap) | `global source "<id>" at "<path>" resolves to the project's own .archcore` (startup + scan abort) |
@@ -243,6 +244,8 @@ The decision to drop the per-entry `required` flag is @.archcore/globals/globals
 | Read path escaping a global or the store (traversal / symlink / non-`.md`) | `invalid path: …` — rejected by `ValidateReadPath` hardening; a hook advisory emits nothing at all |
 | Broken global on SessionStart | local-only context + visible warning inside the `GLOBALS` block (§6.4); session not blocked |
 | Broken global on `archcore status` | reported as a visible failure (issue, non-zero exit) by `checkGlobalSources`; structural local checks still run (§6.4) |
+| Missing global on `archcore status` | warning `… not found at "<path>" — clone it to mount its documents`; not an issue, exit zero |
+| Missing global on SessionStart | "⚠" line `… — skipped until it is cloned; local documents are unaffected` inside the `GLOBALS` block |
 | Relation touching a global (either endpoint) | `cannot add a relation involving a read-only global source document — relations connect local documents only` |
 | Unreadable `settings.json` during a write/relation | `cannot verify global sources: settings.json is unreadable` (fail closed) |
 | Empty/invalid/duplicate `id`, empty `path` | `Settings.Validate` error; `settings.json` load fails |
@@ -279,7 +282,7 @@ Documents at `.archcore/global/company/knowledge/*.md` are mounted read-only as 
   "globals": [ { "id": "archcore", "path": "../global/.archcore" } ] }
 ```
 
-The primary sits at its working tree root. In the main checkout `../global/.archcore` resolves next to it. In a worktree at `<main>/.claude/worktrees/wt` the same declaration resolves against the anchor — the main checkout — and reaches the same directory, so the worktree serves the same corpus. Without §1.3 it would resolve to `<main>/.claude/worktrees/global/.archcore`, which does not exist, and every scan would fail.
+The primary sits at its working tree root. In the main checkout `../global/.archcore` resolves next to it. In a worktree at `<main>/.claude/worktrees/wt` the same declaration resolves against the anchor — the main checkout — and reaches the same directory, so the worktree serves the same corpus. Without §1.3 it would resolve to `<main>/.claude/worktrees/global/.archcore`, which does not exist, and the worktree would serve local documents only.
 
 ### Several globals (no collision)
 
@@ -297,7 +300,7 @@ Both directories are named `standards`, but `source_id` is the explicit `id`, so
 { "globals": [ { "id": "company", "path": "../company/.archcore" } ] }
 ```
 
-- The directory does not exist → **fatal** (missing): the MCP server refuses to start, the scan errors, and `status` reports an issue. The message names `company` and `../company/.archcore`, never an absolute path.
+- The directory does not exist → **warn** (missing): the server starts, the scan yields no documents from `company`, and startup / `status` / SessionStart each emit a warning naming `company` and `../company/.archcore`, never an absolute path.
 - The directory exists and is readable but holds no documents → **warn** (empty): the server starts, the scan yields zero global documents, and startup / `status` / SessionStart each emit a warning naming `company`.
 - The directory opens, but a subdirectory below it cannot be entered → **fatal** (unreadable), even though a partial count would look healthy.
 - The path resolves to a file, an unreadable directory, the project's own `.archcore`, or the same directory as another declared source → **fatal**, with the corresponding message.
@@ -308,4 +311,4 @@ Both directories are named `standards`, but `source_id` is the explicit `id`, so
 - `path` may resolve outside the primary (`../`, absolute). This is intentional for cross-project references; mitigations are that the source is read-only, only recognized-type archcore document files are walked, the declaration is committed and PR-reviewed, and a source may not re-mount the primary's own `.archcore` (self-overlap is rejected).
 - The resolution anchor moves an escaping path onto a directory the same repository already controls, and it is accepted only when it holds `.archcore/` (§1.7). It widens no path the declaration did not already reach from the main checkout.
 - Write tools additionally refuse to follow a symlinked ancestor outside the real `.archcore/` root (§5.4e) and refuse non-document targets (§5.4b), so a repo-shipped symlink or a meta-file path cannot route a mutation outside the knowledge base. The read surfaces apply the same containment (§4.4, §4.5), so a symlink cannot route a *read* outside it either — including the hook advisories, which report what they find to the model.
-- Source-health checks (missing / not-a-directory / unreadable / self-overlap / duplicate) run before serving so the agent never operates against a broken mount configuration. Error messages never embed an absolute filesystem path.
+- Source-health checks run before serving: a broken mount (not-a-directory / unreadable / self-overlap / duplicate) stops the server, and a missing mount is reported as a warning. Error messages never embed an absolute filesystem path.

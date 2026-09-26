@@ -10,6 +10,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -192,14 +193,11 @@ NEVER create documents for: temporary notes, questions, chat summaries, or specu
 ALWAYS use a descriptive slug (lowercase, hyphens only) and a clear human-readable title.`
 
 // buildInstructions returns MCP server instructions, with a globals paragraph
-// when the project declares global sources and an optional language directive.
-func buildInstructions(language string, globals []config.GlobalSource) string {
+// for the mounted global sources, a notice for the declared sources that are
+// not on disk, and an optional language directive.
+func buildInstructions(language string, mounted, missing []string) string {
 	out := mcpServerInstructions
-	if len(globals) > 0 {
-		ids := make([]string, len(globals))
-		for i, gs := range globals {
-			ids[i] = gs.ID
-		}
+	if len(mounted) > 0 {
 		// The paragraph exists because an agent that does not know a global is
 		// mounted never queries it (global-recall-guarantees.rfc).
 		out += fmt.Sprintf(`
@@ -211,7 +209,15 @@ This project mounts %d read-only global source(s): %s.
 - IF a local and a global document conflict on one topic, THEN the local document is authoritative. The global stays the org-wide default it refines.
 - Global documents are read-only and never relation endpoints; the write tools refuse them.
 - A search result starts with hits (matches per source) and index (every row on the page). IF the host shows only part of a result, THEN read the documents index names before you answer.
-- When a search returns nothing, check its coverage field: the globals were scanned too. IF a broadened or match="any" retry fills the page with only local rows, THEN scope it with source="global" to read the globals alone.`, len(globals), strings.Join(ids, ", "))
+- When a search returns nothing, check its coverage field: the globals were scanned too. IF a broadened or match="any" retry fills the page with only local rows, THEN scope it with source="global" to read the globals alone.`, len(mounted), strings.Join(mounted, ", "))
+	}
+	if len(missing) > 0 {
+		// Without the notice an empty result from an uncloned source reads as
+		// silence from the org-wide context (missing-global-degrades-to-local.adr).
+		out += fmt.Sprintf(`
+
+GLOBAL SOURCES NOT ON DISK:
+This project declares %d global source(s) that are not cloned yet: %s. The read tools return no documents from them, so an empty result says nothing about their content. IF an answer depends on one of them, THEN tell the user that it is not cloned.`, len(missing), strings.Join(missing, ", "))
 	}
 	if language == "" || language == "en" {
 		return out
@@ -283,6 +289,22 @@ func NewServer(baseDir, version string, opts ...ServerOption) *server.MCPServer 
 	return newServerWithConfig(baseDir, version, cfg)
 }
 
+// globalIDsByPresence splits the declared global source ids into the sources on
+// disk and the sources not cloned yet. An advisory read (fail-open): only
+// config.ErrGlobalMissing moves an id to missing, because checkGlobals already
+// refused to start on every fatal state.
+func globalIDsByPresence(baseDir string, globals []config.GlobalSource) (mounted, missing []string) {
+	for _, gs := range globals {
+		dirErr := config.CheckGlobalDir(baseDir, config.ResolveGlobalPath(baseDir, gs.Path))
+		if errors.Is(dirErr, config.ErrGlobalMissing) {
+			missing = append(missing, gs.ID)
+			continue
+		}
+		mounted = append(mounted, gs.ID)
+	}
+	return mounted, missing
+}
+
 func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPServer {
 	language := ""
 	if settings, err := config.Load(baseDir); err == nil {
@@ -292,13 +314,14 @@ func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPS
 		version = "dev"
 	}
 
+	// ReadGlobals is fail-open by design here: the paragraph is advisory,
+	// and `archcore mcp` separately fails startup on an invalid
+	// settings.json (checkGlobals).
+	mounted, missing := globalIDsByPresence(baseDir, config.ReadGlobals(baseDir))
 	s := server.NewMCPServer(
 		"archcore",
 		version,
-		// ReadGlobals is fail-open by design here: the paragraph is advisory,
-		// and `archcore mcp` separately fails startup on an invalid
-		// settings.json (checkGlobals).
-		server.WithInstructions(buildInstructions(language, config.ReadGlobals(baseDir))),
+		server.WithInstructions(buildInstructions(language, mounted, missing)),
 	)
 
 	// One provider serves every tool: the root is resolved per call, and the

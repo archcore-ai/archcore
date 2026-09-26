@@ -40,7 +40,7 @@ Concretely:
 3. **The target stores nothing.** There is no `global: true` field on `Settings`. The same repo opened directly is an ordinary writable local project ("local to itself").
 4. **`path` points at the global's `.archcore` directory** (e.g. `../company-global/.archcore`). It may be relative — including `../` for siblings/parents — or absolute. The path-escape restriction in `Validate` is removed.
 5. **Mounted read-only.** Scanned documents are tagged `source_kind: "global"`, `read_only: true`, `source_id: <id>`; write tools refuse paths under any global.
-6. **Every declared global is mandatory.** A missing global aborts MCP startup; there is no optional/skip behavior. (The per-entry `required` flag from earlier iterations was later removed — see @.archcore/globals/globals-are-mandatory.adr.md.)
+6. **Every declared global is mandatory.** A missing global aborts MCP startup; there is no optional/skip behavior. (The per-entry `required` flag from earlier iterations was later removed — see @.archcore/globals/globals-are-mandatory.adr.md. A missing global was later made a warning instead of a startup failure — see @.archcore/globals/missing-global-degrades-to-local.adr.md.)
 
 The normative contract is @.archcore/globals/global-sources.spec.md. Declaration standards are in @.archcore/globals/declaring-global-sources.rule.md; precedence in @.archcore/globals/local-overrides-global.rule.md.
 

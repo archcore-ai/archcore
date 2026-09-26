@@ -177,7 +177,7 @@ func TestBuildSessionContext_ExcludesGlobals(t *testing.T) {
 // TestBuildSessionContext_MissingGlobalDegradesToLocal guards the regression where a
 // declared-but-absent global made ScanDocuments error and the hook blanked the whole
 // context — dropping every LOCAL doc too, silently. The hook must instead keep the
-// local docs and surface a visible warning (a missing mandatory global is loud, not
+// local docs and surface a visible warning (a missing global is loud, not
 // silent), without leaking an absolute path.
 func TestBuildSessionContext_MissingGlobalDegradesToLocal(t *testing.T) {
 	t.Parallel()

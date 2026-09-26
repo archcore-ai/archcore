@@ -106,20 +106,23 @@ func TestGlobalsBlock_AbsentWithoutGlobals(t *testing.T) {
 	}
 }
 
-// TestGlobalsBlock_WarningMergeAndPrecedence: clause 12 — a fatal and an empty
-// source render as ⚠ lines inside the block, healthy sources still render, and
-// the precedence sentence appears because one healthy line rendered.
+// TestGlobalsBlock_WarningMergeAndPrecedence: clause 12 — a fatal, a missing,
+// and an empty source render as ⚠ lines inside the block, healthy sources still
+// render, and the precedence sentence appears because one healthy line rendered.
 func TestGlobalsBlock_WarningMergeAndPrecedence(t *testing.T) {
 	t.Parallel()
 	base := globalsFixture(t,
 		[]string{"concepts/a.rule.md"}, // src-00: healthy
 		[]string{},                     // src-01: empty
 	)
-	// src-02: declared but missing on disk.
+	if err := os.WriteFile(filepath.Join(filepath.Dir(base), "flat.txt"), []byte("not a directory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	settings := `{"sync":"none","globals":[` +
 		`{"id":"src-00","path":"../src-00/.archcore"},` +
 		`{"id":"src-01","path":"../src-01/.archcore"},` +
-		`{"id":"gone","path":"../gone/.archcore"}]}`
+		`{"id":"gone","path":"../gone/.archcore"},` +
+		`{"id":"flat","path":"../flat.txt"}]}`
 	writeArchcoreDoc(t, base, "settings.json", settings)
 
 	ctx, _ := buildSessionContext(bg(), base)
@@ -141,7 +144,10 @@ func TestGlobalsBlock_WarningMergeAndPrecedence(t *testing.T) {
 	if !strings.Contains(block, `⚠ global source "src-01"`) || !strings.Contains(block, "contains no documents") {
 		t.Errorf("empty source warning missing from block; block=%q", block)
 	}
-	if !strings.Contains(block, `⚠ global source "gone" not found`) || !strings.Contains(block, "clone it or fix .archcore/settings.json") {
+	if !strings.Contains(block, `⚠ global source "gone" not found`) || !strings.Contains(block, "skipped until it is cloned; local documents are unaffected") {
+		t.Errorf("missing source warning missing from block; block=%q", block)
+	}
+	if !strings.Contains(block, `⚠ global source "flat" at "../flat.txt" is not a directory — fix .archcore/settings.json`) {
 		t.Errorf("fatal source warning missing from block; block=%q", block)
 	}
 	if !strings.Contains(block, globalsPrecedenceLine) {

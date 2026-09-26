@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -285,7 +287,7 @@ func TestMCPCmd_ASessionShorterThanTheDelayStartsNoAttempt(t *testing.T) {
 	}
 }
 
-// A project whose declared global is missing never starts a server, so it never
+// A project whose declared global is broken never starts a server, so it never
 // starts an attempt either — mcp-background-update.spec, Failure Behavior 5.
 // The guard is positional: checkGlobals returns before RunStdio is reached, and
 // a trigger moved ahead of it (into RunE, or into the option list built before
@@ -295,7 +297,10 @@ func TestMCPCmd_BrokenGlobalMountStartsNoUpdateAttempt(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
 	dir := t.TempDir()
-	writeMCPSettings(t, dir, `{"sync":"none","globals":[{"id":"company","path":"../company/.archcore"}]}`)
+	if err := os.WriteFile(filepath.Join(dir, "company"), []byte("not a directory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeMCPSettings(t, dir, `{"sync":"none","globals":[{"id":"company","path":"company"}]}`)
 
 	// Zero delay: an attempt that the command wrongly started has nothing left
 	// to wait for, so the grace period below is measuring scheduling and not a
@@ -316,7 +321,7 @@ func TestMCPCmd_BrokenGlobalMountStartsNoUpdateAttempt(t *testing.T) {
 	var execErr error
 	captureOutput(t, func() { execErr = cmd.Execute() })
 	if execErr == nil {
-		t.Fatal("the command served a project with a missing global mount")
+		t.Fatal("the command served a project with a broken global mount")
 	}
 
 	select {

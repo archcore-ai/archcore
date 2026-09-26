@@ -254,25 +254,23 @@ func writeMCPSettings(t *testing.T, baseDir, body string) {
 	}
 }
 
-// TestCheckGlobals_MissingSourceFails covers the startup fail-fast (spec §6.2):
-// a declared global whose directory is absent must abort MCP startup with a
-// message naming the source and how to fix it. Without this guard the server
-// would serve a silently-incomplete context.
-func TestCheckGlobals_MissingSourceFails(t *testing.T) {
-	t.Parallel()
+// TestCheckGlobals_MissingSourceStarts pins missing-global-degrades-to-local.adr:
+// a declared global that is not cloned yet must not stop the server, because
+// every local tool would go down with it. The stderr warning is asserted too:
+// it is what keeps a mistyped path visible.
+func TestCheckGlobals_MissingSourceStarts(t *testing.T) {
 	base := t.TempDir()
 	writeMCPSettings(t, base,
 		`{"sync":"none","globals":[{"id":"company","path":"../company/.archcore"}]}`)
 
-	err := checkGlobals(base)
-	if err == nil {
-		t.Fatal("checkGlobals should fail when a declared global is absent")
+	var err error
+	_, stderr := captureOutput(t, func() { err = checkGlobals(base) })
+	if err != nil {
+		t.Errorf("checkGlobals should start without a missing global, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "company") {
-		t.Errorf("error %q should name the missing global id", err)
-	}
-	if !strings.Contains(err.Error(), "clone it") {
-		t.Errorf("error %q should hint how to fix it (per spec §6.2)", err)
+	want := `global source "company" not found at "../company/.archcore" — starting without it`
+	if !strings.Contains(stderr, want) {
+		t.Errorf("stderr = %q, want a warning containing %q", stderr, want)
 	}
 }
 
