@@ -12,7 +12,6 @@ import (
 // match that struct.
 type listedDoc struct {
 	Path       string `json:"path"`
-	Slug       string `json:"slug"`
 	SourceID   string `json:"source_id"`
 	SourceKind string `json:"source_kind"`
 	ReadOnly   bool   `json:"read_only"`
@@ -97,18 +96,18 @@ func TestGlobals_SurfacedThroughTools(t *testing.T) {
 	if len(globals) != 2 {
 		t.Fatalf("want 2 global docs surfaced through the tool, got %d", len(globals))
 	}
-	gotGlobalSlugs := make(map[string]bool, len(globals))
+	gotGlobalFiles := make(map[string]bool, len(globals))
 	for _, g := range globals {
-		gotGlobalSlugs[g.Slug] = true
+		gotGlobalFiles[filepath.Base(g.Path)] = true
 		if g.SourceID != "company" {
-			t.Errorf("global %s: source_id = %q, want company", g.Slug, g.SourceID)
+			t.Errorf("global %s: source_id = %q, want company", g.Path, g.SourceID)
 		}
 		if !g.ReadOnly {
-			t.Errorf("global %s: want read_only=true", g.Slug)
+			t.Errorf("global %s: want read_only=true", g.Path)
 		}
 	}
-	for _, want := range []string{"error-handling", "logging"} {
-		if !gotGlobalSlugs[want] {
+	for _, want := range []string{"error-handling.rule.md", "logging.rule.md"} {
+		if !gotGlobalFiles[want] {
 			t.Errorf("global standard %q not surfaced through list_documents", want)
 		}
 	}

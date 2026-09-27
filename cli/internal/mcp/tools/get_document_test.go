@@ -40,6 +40,32 @@ func TestHandleGetDocument_Success(t *testing.T) {
 	}
 }
 
+func TestHandleGetDocument_OmitsFilenameAndSlug(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "my-adr.adr.md", "---\ntitle: My ADR\nstatus: accepted\n---\n")
+
+	result, err := callTool(HandleGetDocument(StaticRoot(base)), map[string]any{
+		"path": ".archcore/knowledge/my-adr.adr.md",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsError {
+		t.Fatal("unexpected error")
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &payload); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"filename", "slug"} {
+		if _, ok := payload[key]; ok {
+			t.Errorf("get_document payload must not carry %q", key)
+		}
+	}
+}
+
 func TestHandleGetDocument_PathTraversal(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
