@@ -58,9 +58,14 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 23. WHILE capturing a plan's residue, the review skill MUST NOT create a `spec` or a `plan`.
 24. WHEN a completed `plan` clears its discharge preconditions, the review skill MUST remove that plan with `remove_document`.
 25. IF a plan task carries a verdict other than fulfilled, THEN the review skill MUST NOT remove that plan.
-26. IF a plan file carries uncommitted changes, THEN the review skill MUST NOT remove that plan.
+26. WHEN a completed plan carries uncommitted changes, the review skill MUST apply the same discharge preconditions as for a committed plan.
 27. WHILE the `archived` status is absent from the kernel, the review skill MUST NOT discharge a `prd`, an `idea`, or an `rnd`.
 28. WHEN a capability meets the illustrate condition, the conductor MUST engage the illustrate instrument after that capability's contract instrument.
+29. WHEN verifying completion, the review skill MUST inspect staged, unstaged, and untracked files in the scoped working tree.
+30. WHEN closeout retains a scoped plan, the review skill MUST report its remaining work or blocking reason.
+31. WHILE executing closeout, the review skill MUST NOT stage files.
+32. WHILE executing closeout, the review skill MUST NOT create commits.
+33. BEFORE requesting plan removal confirmation, the review skill MUST disclose whether git history preserves the plan's current content.
 
 ## Constraints & Invariants
 
@@ -88,4 +93,4 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 
 ## Conformance
 
-An implementation is conformant when behaviors 1–28 hold across the recorded bench traces, the invariants hold on every invocation, and the failure rules produce the stated outcomes. Non-normative example: Given `creates` = 2 with one `undecided` need, When the conductor sequences decision → contract → contract → decompose, Then no instrument's `Next:` field fires and the produced `plan` records the sequence.
+An implementation is conformant when behaviors 1–33 hold across the recorded bench traces, the invariants hold on every invocation, and the failure rules produce the stated outcomes. Non-normative example: Given `creates` = 2 with one `undecided` need, When the conductor sequences decision → contract → contract → decompose, Then no instrument's `Next:` field fires and the produced `plan` records the sequence.

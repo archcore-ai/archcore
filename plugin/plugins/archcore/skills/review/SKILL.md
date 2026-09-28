@@ -119,7 +119,7 @@ WHEN the reviewed changes repeat an undocumented pattern, offer a `cpat` or `tas
 
 - Branch review: findings grouped by verdict — `spec-wrong` / `code-wrong` / `ok` — with evidence, applied fixes, and declined fixes.
 - Health fallback: the dashboard, data only.
-- Closeout: per-task verdicts, applied and declined document updates, status transitions grouped applied / declined / skipped, routed residue with the instrument that took it, and removed plans.
+- Closeout: per-task verdicts, applied and declined document updates, status transitions grouped applied / declined / skipped, routed residue with the instrument that took it, removed plans, and retained plans with the remaining work or blocking reason.
 - Produced documents grouped by category — experience: a `cpat` or `task-type` draft from the experience offer or from closeout residue capture; knowledge: a `guide`, or an `adr` plus its standard cascade (`rule`, `guide`), when closeout routes residue through the decision instrument; knowledge / vision: documents updated by a drift fix or a closeout merge.
-- Removed documents: each completed `plan` closeout removed, and each long-stale draft a drift fix removed on the user's confirmation — each named with the commit that still carries the file.
+- Removed documents: each completed `plan` closeout removed, and each long-stale draft a drift fix removed on the user's confirmation — each named with a verified recovery commit when available. For closeout, state explicitly when git history does not preserve the removed plan's current content.
 - Name tracks and steps in plain words; do not print a gate address of the form `<track>.<stage>`.

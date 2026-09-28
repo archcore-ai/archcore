@@ -14,7 +14,11 @@ Eighteen `plan` documents live in `.archcore/plugin/`; fifteen carry `status: re
 
 ## Decision
 
-A completed `plan` discharges by deletion across two gates: `closeout.capture` routes the plan's residue to the instrument that already owns that type — the actor rule for a procedure, the decision instrument's standard cascade for a settled standard — and `closeout.discharge` then calls `remove_document` under a per-document confirmation, blocked unless every plan task carries a `fulfilled` verdict from `closeout.verify` and the plan file is already committed.
+A completed `plan` discharges by deletion across two gates. `closeout.capture` routes the plan's residue to the instrument that owns that type. `closeout.discharge` then calls `remove_document` under a per-document confirmation, after every plan task and acceptance criterion carries a `fulfilled` verdict.
+
+On 2026-09-28, the user approved removing the committed-file prerequisite. A plan created or edited during implementation can now leave the corpus before the final commit. Completion verification uses the current scoped working tree, the branch diff, and available verification reports. Staged, unstaged, and untracked plans follow the same completion and confirmation checks. Closeout neither stages files nor creates commits.
+
+Before requesting removal confirmation, closeout states whether git history preserves the plan's current content. The final report names each removed plan and each retained plan's remaining work or blocking reason.
 
 ## Alternatives Considered
 
@@ -30,12 +34,12 @@ A completed `plan` discharges by deletion across two gates: `closeout.capture` r
 - Restores one meaning to `rejected`, so a `status: rejected` listing reads as a declined-proposal queue — 15 of the 27 rejected documents were completed plans. [expected]
 - Ships in the plugin alone: no CLI release, no version probe, no amendment to the plugin/CLI compatibility contract.
 - Splitting capture from disposal keeps each failure independent: a declined capture still allows removal, and an unfulfilled plan still blocks it.
-- A discharged plan's Declared Delta and unplanned-Δ record survive only in git and stop answering `search_documents`; recovery costs a `git log --diff-filter=D --follow` lookup.
-- Deletion carries no undo at the tool boundary — `@internal/mcp/tools/remove_document.go` sets `destructiveHint: true` and unlinks the file — so this gate carries two blocking preconditions that no other track gate carries. [expected]
+- A discharged plan stops answering `search_documents`. A committed version remains recoverable from git. Uncommitted edits and a never-committed plan have no recovery copy in git; removal loses that version.
+- Deletion carries no undo at the tool boundary: `@cli/internal/mcp/tools/remove_document.go` sets `destructiveHint: true` and unlinks the file. The completion checks and per-document confirmation remain; the committed-file prerequisite was removed on 2026-09-28.
 - Routing residue into the decision instrument adds up to 4 questions to a closeout run against a 5-question per-invocation ceiling, so capture engages only on a residue the plan or the closeout report already named. [expected]
 - The kernel keeps instructing "A plan is abandoned → change status to rejected", so an agent acting outside the closeout gate follows the old guidance until that description changes. [expected]
 
 ## Superseded when
 
-- The kernel gains an `archived` value that grounding reads exclude — discharge then becomes a status transition and the two preconditions collapse to one confirmation.
+- The kernel gains an `archived` value that grounding reads exclude, providing a retained copy instead of deletion.
 - More than 2 recovery lookups of a deleted plan occur within one quarter, showing that the capture step under-extracts the residue (current: 0).
