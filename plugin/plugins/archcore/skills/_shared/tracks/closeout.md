@@ -27,6 +27,11 @@ record shape, state rules, and execution rules:
   path references), its `implements` and `depends_on` chain one hop (`prd`, `idea`,
   `rnd`, `research`, `spec`), plus every document the branch diff references. The `review`
   skill pre-fills the branch boundary per `skills/_shared/branch-state.md`.
+- Before judging completion, inspect the current working tree, including
+  staged, unstaged, and untracked files in scope. Use the branch diff and
+  available verification reports as evidence; a commit is not a prerequisite.
+- The executing skill MUST NOT stage files on this track.
+- The executing skill MUST NOT create commits on this track.
 - Status rule: this track transitions draft → accepted only, one
   per-document confirmation each; a decline leaves the status unchanged.
   Rejection is not this track's verdict — an `rfc` resolves through
@@ -62,7 +67,8 @@ not apply on this track.
 ### gate: closeout.verify
 
 - Purpose: Establish that the branch work fulfills the plan — judge every
-  plan task and acceptance criterion against the branch diff. WHEN the
+  plan task and acceptance criterion against the current working tree,
+  branch diff, and available verification reports. WHEN the
   scoped plan carries a `## Declared Delta` section, judge each declared Δ
   entry against the branch diff too. A document-versus-code direction takes
   its label vocabulary from `skills/_shared/verdict-contract.md`.
@@ -185,16 +191,19 @@ not apply on this track.
 - Purpose: Remove the completed `plan` from the corpus.
 - Entry conditions:
   - skip_when: the branch scope matches no `plan` document; or a plan task or
-    acceptance criterion carries a verdict other than fulfilled; or the plan
-    file appears in the `uncommitted-changes` block of
-    `skills/_shared/branch-state.md`. The gate names the unmet condition in
-    the report and exits.
+    acceptance criterion carries a verdict other than fulfilled. The gate
+    names the unmet condition in the report and exits.
+  - A staged, unstaged, or untracked plan follows the same completion and
+    confirmation checks as a committed plan.
   - `closeout.verify` recorded a verdict for every plan task and acceptance
     criterion in scope.
   - `closeout.capture` recorded an outcome for every named residue, or was
     skipped.
 - Elicitation knobs:
   - trigger: a plan awaits its removal confirmation.
+    Before requesting confirmation, state whether git history preserves
+    the plan's current content. If the content is not preserved, explain
+    that removal loses that version and that git cannot restore it.
   - taxonomy: Completion Signals from `skills/_shared/coverage-taxonomy.md`.
   - budget: 1
 - Produces: none — the gate removes a document via `remove_document`; it
@@ -205,8 +214,11 @@ not apply on this track.
   - blocking: `remove_document` targeted only `plan` documents at this gate.
   - blocking: the executing skill modified no code file.
   - advisory: the report names each removed plan, the residue captured at
-    `closeout.capture` or its absence, and the commit that still carries the
-    removed file.
+    `closeout.capture` or its absence, and any verified recovery commit.
+    If no commit preserves the removed version, state that explicitly.
+  - blocking: the report names each retained scoped plan and its reason:
+    unfulfilled work with the remaining tasks, insufficient evidence with
+    the missing check, declined confirmation, or a removal failure.
 - Next: exit — the `review` skill runs the repeated-pattern offer per
   `skills/_shared/tracks/experience.md`.
 
