@@ -353,7 +353,7 @@ func TestHandleListDocuments_FilterPassesOverAnEarlierMismatch(t *testing.T) {
 			writeDoc(t, base, "knowledge", "b.adr.md", "---\ntitle: B\nstatus: draft\ntags:\n  - frontend\n---\n")
 
 			got := callList(t, base, tt.args)
-			if len(got.Documents) != 1 || got.Documents[0].Filename != "b.adr.md" {
+			if len(got.Documents) != 1 || got.Documents[0].Path != ".archcore/knowledge/b.adr.md" {
 				t.Errorf("documents = %v, want only b.adr.md; a mismatch ended the scan", got.Documents)
 			}
 		})
@@ -463,5 +463,31 @@ func TestInterleaveBySource(t *testing.T) {
 				t.Errorf("interleaveBySource = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestHandleListDocuments_OmitsFilenameAndSlug(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "a.adr.md", "---\ntitle: A\nstatus: draft\n---\n")
+
+	result, err := callTool(HandleListDocuments(StaticRoot(base)), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var envelope struct {
+		Documents []map[string]any `json:"documents"`
+	}
+	if err := json.Unmarshal([]byte(result.Content[0].(mcp.TextContent).Text), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if len(envelope.Documents) != 1 {
+		t.Fatalf("expected 1 document, got %d", len(envelope.Documents))
+	}
+	for _, key := range []string{"filename", "slug"} {
+		if _, ok := envelope.Documents[0][key]; ok {
+			t.Errorf("list_documents payload must not carry %q", key)
+		}
 	}
 }

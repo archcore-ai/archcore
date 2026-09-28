@@ -50,8 +50,8 @@ type Document struct {
 	Path       string                 `json:"path"`                // relative: ".archcore/auth/jwt-strategy.adr.md"
 	Category   templates.Category     `json:"category"`            // virtual: vision, knowledge, experience (derived from type)
 	Type       templates.DocumentType `json:"type"`                // adr, rfc, rule...
-	Filename   string                 `json:"filename"`            // "jwt-strategy.adr.md"
-	Slug       string                 `json:"slug"`                // "jwt-strategy"
+	Filename   string                 `json:"-"`                   // "jwt-strategy.adr.md"; derivable from Path, kept off the wire
+	Slug       string                 `json:"-"`                   // "jwt-strategy"; derivable from Path, kept off the wire
 	Title      string                 `json:"title,omitempty"`     // from frontmatter
 	Status     templates.DocStatus    `json:"status,omitempty"`    // from frontmatter
 	Tags       []string               `json:"tags,omitempty"`      // from frontmatter
