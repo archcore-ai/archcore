@@ -36,16 +36,16 @@ Transition register. Each row cites the file that owns the edge; a row marked `d
 | 16 | `decision.rfc` | exit | the track produced an `rfc` | this spec, behavior 10 |
 | 17 | `document` without a mode, unclear | one classifying question → `document` | git evidence supports both readings | `plugin-architecture.spec`, failure 3–4 |
 | 18 | `review` branch review | `actualize.scope` | a `spec-wrong` or `code-wrong` finding | this spec, behavior 13 |
-| 19 | `review closeout`, or a completion signal | `closeout.verify` | scope from branch state | `@plugin/plugins/archcore/skills/review/SKILL.md` |
+| 19 | `review closeout`, a completion signal, or plain branch review with a matching `plan` | `closeout.verify` | scope from branch state; on plain review, after the bidirectional check and any actualize fixes | `command-surface-v2.spec`, behavior 38 |
 | 20 | `closeout.capture` | decision standard cascade, or experience types | named residue | `delta-routing-instruments.spec`, 21–23 |
-| 21 | closeout exit | `experience.detect` | always | this spec, behavior 12 |
+| 21 | closeout exit after the last matched plan | `experience.detect` | once per review invocation | this spec, behavior 12 |
 | 22 | `plan` implement fork | later `/archcore:plan` resume | a draft carries a state block | `track-layer.spec`, 10 |
 | 23 | `plan` Declared Delta | `closeout.verify` | plan in branch scope | `delta-routing-instruments.spec`, 18 |
 | 24 | compatibility probe ≠ `yes` | legacy `rnd`; evidence exits without a write | engine below 0.8.3 | `@plugin/plugins/archcore/skills/_shared/research-compatibility.md` |
 | 25 | `document decision` / `code` / `research` | `decision.classify` / `describe.read` / `research.frame` | mode word; `draft` | `command-surface-v2.spec`, 17–18, 25–26 |
 | 26 | `sdd.design` | `sdd.illustrate` | illustrate condition; `draft` | `illustrate-instrument.spec` |
 
-Lifecycle sequences, each crossing at least two commands: build — `plan` → implementation → `review closeout` → discharge → experience offer; proposal — `document decision` (rfc) → `document decision` (resolve) → cascade; investigation — `plan research` → Derivation → package; discovery — `plan sources` → `sdd.require` → contract → decompose; amendment — `plan` verdict → describe callable → decompose → closeout; first day — `init` → SessionStart recap → `plan` or `document`.
+Lifecycle sequences, each crossing at least two commands: build — `plan` → implementation → `review` with a matching plan, or `review closeout` → discharge → experience offer; proposal — `document decision` (rfc) → `document decision` (resolve) → cascade; investigation — `plan research` → Derivation → package; discovery — `plan sources` → `sdd.require` → contract → decompose; amendment — `plan` verdict → describe callable → decompose → closeout; first day — `init` → SessionStart recap → `plan` or `document`.
 
 ## Normative Behavior
 
@@ -60,7 +60,7 @@ Lifecycle sequences, each crossing at least two commands: build — `plan` → i
 9. WHEN `decision.resolve` records a rejected or open verdict, the document skill MUST exit without creating a document.
 10. WHEN the decision track produced an `rfc`, the document skill MUST exit at `decision.cascade` without a cascade.
 11. WHEN the research instrument exits on the `plan` command, the conductor MUST resume the package with the revised Δ.
-12. WHEN the closeout track exits, the review skill MUST run the experience offer.
+12. WHEN a review invocation's closeout runs end, or a plain branch review matches no plan, the review skill MUST run the experience offer once.
 13. WHEN branch review surfaces a `spec-wrong` or `code-wrong` finding, the review skill MUST enter `actualize.scope` with the branch state pre-filled.
 14. WHEN a track hands off to another command, the executing skill MUST carry state only through documents: status, state block, Declared Delta.
 15. WHEN a register row cites a track file, that file's `Next` field MUST name the same target as the row.

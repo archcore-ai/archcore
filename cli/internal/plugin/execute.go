@@ -94,7 +94,25 @@ type ExecuteOptions struct {
 // nothing, and a missing one hangs a host command on a prompt nobody can see.
 var interactiveSession = defaultInteractiveSession
 
+// InstallerModeEnv is the variable install.sh and install.ps1 set around
+// `archcore plugin install` — plugin-delivery.spec §34.
+const InstallerModeEnv = "ARCHCORE_PLUGIN_INSTALLER"
+
+// InstallerMode reports whether a platform installer started this process.
+func InstallerMode() bool {
+	return os.Getenv(InstallerModeEnv) == "1"
+}
+
+// The installer runs from a pipe while /dev/tty may still exist. Its host
+// subprocesses have no stdin, so they must use the non-interactive flag —
+// plugin-delivery.spec §35.
 func defaultInteractiveSession() bool {
+	return !InstallerMode() && terminalAttached()
+}
+
+// terminalAttached is the seam a test drives to prove installer mode wins over
+// an attached terminal.
+var terminalAttached = func() bool {
 	f, err := os.OpenFile("/dev/tty", os.O_RDONLY, 0)
 	if err != nil {
 		return false

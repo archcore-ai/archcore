@@ -16,6 +16,8 @@ Eighteen `plan` documents live in `.archcore/plugin/`; fifteen carry `status: re
 
 A completed `plan` discharges by deletion across two gates. `closeout.capture` routes the plan's residue to the instrument that owns that type. `closeout.discharge` then calls `remove_document` under a per-document confirmation, after every plan task and acceptance criterion carries a `fulfilled` verdict.
 
+On 2026-10-01, the user approved the plain-review entry described in this paragraph. A plain branch review also enters closeout for each local plan that covers the branch work, after checking changed code against documents and applying any confirmed drift fixes. The review checks every task and acceptance criterion; branch readiness alone does not establish completion. A plan with unfinished work or insufficient evidence stays in the corpus with the reason in the report. An explicit `review closeout` remains available.
+
 On 2026-09-28, the user approved removing the committed-file prerequisite. A plan created or edited during implementation can now leave the corpus before the final commit. Completion verification uses the current scoped working tree, the branch diff, and available verification reports. Staged, unstaged, and untracked plans follow the same completion and confirmation checks. Closeout neither stages files nor creates commits.
 
 Before requesting removal confirmation, closeout states whether git history preserves the plan's current content. The final report names each removed plan and each retained plan's remaining work or blocking reason.
@@ -34,6 +36,7 @@ Before requesting removal confirmation, closeout states whether git history pres
 - Restores one meaning to `rejected`, so a `status: rejected` listing reads as a declined-proposal queue — 15 of the 27 rejected documents were completed plans. [expected]
 - Ships in the plugin alone: no CLI release, no version probe, no amendment to the plugin/CLI compatibility contract.
 - Splitting capture from disposal keeps each failure independent: a declined capture still allows removal, and an unfulfilled plan still blocks it.
+- A plain branch review with a matching plan now runs the closeout checks and may require document and removal confirmations. A review with no matching plan keeps its branch-review result.
 - A discharged plan stops answering `search_documents`. A committed version remains recoverable from git. Uncommitted edits and a never-committed plan have no recovery copy in git; removal loses that version.
 - Deletion carries no undo at the tool boundary: `@cli/internal/mcp/tools/remove_document.go` sets `destructiveHint: true` and unlinks the file. The completion checks and per-document confirmation remain; the committed-file prerequisite was removed on 2026-09-28.
 - Routing residue into the decision instrument adds up to 4 questions to a closeout run against a 5-question per-invocation ceiling, so capture engages only on a residue the plan or the closeout report already named. [expected]

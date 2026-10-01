@@ -68,6 +68,7 @@ type pluginRunOptions struct {
 
 // pluginRunOutcome is what one run did.
 type pluginRunOutcome struct {
+	Planned []plugin.Action
 	Results []plugin.Result
 
 	// Failed reports that an ATTEMPTED action failed. A host the evidence left
@@ -97,7 +98,7 @@ func runPluginActions(ctx context.Context, w io.Writer, opts pluginRunOptions) p
 	actions := plugin.Plan(opts.Verb, collectPluginEvidence(ctx, hosts))
 	results := plugin.Execute(ctx, actions, &pluginReporter{w: w}, plugin.ExecuteOptions{PrintOnly: opts.PrintOnly})
 
-	outcome := pluginRunOutcome{Results: results}
+	outcome := pluginRunOutcome{Planned: actions, Results: results}
 	for _, res := range results {
 		outcome.Failed = outcome.Failed || res.Failed
 	}

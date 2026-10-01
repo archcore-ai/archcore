@@ -35,10 +35,12 @@ The first word after a command is the mode and the rest is the subject. A gate p
 
 | Host | MCP | Hooks | Install |
 | --- | --- | --- | --- |
-| Claude Code | `.claude.mcp.json` through the manifest | `hooks/hooks.json`, `${CLAUDE_PLUGIN_ROOT}` | `/plugin marketplace add archcore-ai/archcore`, then `/plugin install archcore@archcore-plugins` |
+| Claude Code | `.claude.mcp.json` through the manifest | `hooks/hooks.json`, `${CLAUDE_PLUGIN_ROOT}` | Platform installer; retry: `archcore plugin install --agent claude-code` |
 | Cursor 2.5+ | None shipped: Cursor spawns a plugin MCP from the install directory. The user copies `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` | `hooks/cursor.hooks.json`, `${CURSOR_PLUGIN_ROOT}` | Plugins → paste the repository URL |
-| Codex CLI 0.117+ | `.codex.mcp.json` through the manifest | `hooks/codex.hooks.json`, `${PLUGIN_ROOT}` | `codex plugin marketplace add archcore-ai/archcore` |
-| GitHub Copilot CLI | None shipped: Copilot launches a plugin MCP without a project path. `archcore init --agent copilot --project "$PWD"` wires the project | `hooks/copilot.hooks.json`; the command probes three root variables | `copilot plugin install archcore-ai/archcore:plugins/archcore` |
+| Codex CLI 0.117+ | `.codex.mcp.json` through the manifest | `hooks/codex.hooks.json`, `${PLUGIN_ROOT}` | Platform installer; retry: `archcore plugin install --agent codex-cli` |
+| GitHub Copilot CLI | None shipped: Copilot launches a plugin MCP without a project path. `archcore init --agent copilot --project "$PWD"` wires the project | `hooks/copilot.hooks.json`; the command probes three root variables | Platform installer; retry: `archcore plugin install --agent copilot` |
+
+The platform installer (`curl -fsSL https://archcore.ai/install.sh | bash`, or `irm https://archcore.ai/install.ps1 | iex` on Windows) installs the CLI and the plugin for each Claude Code, Codex CLI, and GitHub Copilot CLI command on `PATH`. Use the retry command when a host was installed later or its plugin setup failed.
 
 Every launcher sources `bin/lib/plugin-cache-guard.sh` and refuses to serve from a plugin cache. Identifiers frozen across hosts: marketplace `archcore-plugins`, plugin `archcore`, id `archcore@archcore-plugins`, path `plugins/archcore`.
 

@@ -9,6 +9,7 @@ on:
     paths:
       - "cli/install.sh"
       - "cli/install.ps1"
+      - "cli/scripts/install-plugins-selftest.sh"
       - ".github/workflows/cli-install-smoke.yml"
   # Validate direct dev changes as well as pull requests. Publication and the
   # landing notification remain in the legacy CLI channel during this stage.
@@ -17,6 +18,7 @@ on:
     paths:
       - "cli/install.sh"
       - "cli/install.ps1"
+      - "cli/scripts/install-plugins-selftest.sh"
       - ".github/workflows/cli-install-smoke.yml"
   workflow_dispatch:
 
@@ -205,3 +207,17 @@ jobs:
             exit 1
           }
           echo "OK: guard fired with expected message"
+
+  plugin-step:
+    # The jobs above run under GITHUB_ACTIONS, so install.sh skips its plugin
+    # step there. This job drives that step against stub binaries instead.
+    name: Plugin step (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the plugin step self-test
+        run: bash scripts/install-plugins-selftest.sh

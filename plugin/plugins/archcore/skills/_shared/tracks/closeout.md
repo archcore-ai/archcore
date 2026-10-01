@@ -2,7 +2,8 @@
 
 Plugin runtime asset. Loaded by the `review` skill — this track's primary
 executor — when `/archcore:review` routes closeout-shaped wording ("close out
-the feature", "ship the feature", a finished branch to close) here. Gate
+the feature", "ship the feature") here, or when a plain branch review matches
+a `plan` covering its diff. Gate
 record shape, state rules, and execution rules:
 `skills/_shared/gate-contract.md`. Interview mechanics and question budget:
 `skills/_shared/elicitation-contract.md`. Branch scope:
@@ -22,7 +23,16 @@ record shape, state rules, and execution rules:
   time; closeout is the completion step for one finished piece of work —
   verify the plan was fulfilled, merge the result into the documents, then
   transition statuses. Drift-shaped wording without a completion signal
-  routes to actualize.
+  and without a matched `plan` routes to actualize.
+- Plain-review entry: the `review` skill enters this track from a plain
+  branch review with no completion wording. On that entry, run
+  `closeout.verify` first. IF any task or acceptance criterion of the plan
+  is not `fulfilled`, THEN skip `closeout.merge`, `closeout.accept`,
+  `closeout.capture`, and `closeout.discharge` for that plan, and report
+  the remaining work or the missing check.
+- Several matched plans: run the full gate sequence once per plan, with
+  that plan's chain as the scope. Do not ask again about a document
+  already confirmed for an earlier plan in the same invocation.
 - Scope: the `plan` document covering the branch work (matched by topic or
   path references), its `implements` and `depends_on` chain one hop (`prd`, `idea`,
   `rnd`, `research`, `spec`), plus every document the branch diff references. The `review`
@@ -53,6 +63,10 @@ record shape, state rules, and execution rules:
   and a status transition apply to one document, the executing skill SHOULD
   combine them into one confirmation exchange ("update and accept?"), so a
   document costs at most one exchange per run.
+- In auto mode, spend the remaining ceiling on `closeout.discharge` removal
+  confirmations before residue capture offers and the experience offer.
+  IF the ceiling leaves no question for a removal confirmation, THEN retain
+  that plan and name the question ceiling as the reason.
 
 ## Track state
 
@@ -190,8 +204,8 @@ not apply on this track.
 
 - Purpose: Remove the completed `plan` from the corpus.
 - Entry conditions:
-  - skip_when: the branch scope matches no `plan` document; or a plan task or
-    acceptance criterion carries a verdict other than fulfilled. The gate
+  - skip_when: the branch scope matches no `plan` document; or a task or
+    acceptance criterion of that plan carries a verdict other than fulfilled. The gate
     names the unmet condition in the report and exits.
   - A staged, unstaged, or untracked plan follows the same completion and
     confirmation checks as a committed plan.
@@ -219,8 +233,8 @@ not apply on this track.
   - blocking: the report names each retained scoped plan and its reason:
     unfulfilled work with the remaining tasks, insufficient evidence with
     the missing check, declined confirmation, or a removal failure.
-- Next: exit — the `review` skill runs the repeated-pattern offer per
-  `skills/_shared/tracks/experience.md`.
+- Next: exit — after all matched plans finish closeout, the `review` skill
+  runs the repeated-pattern offer once per `skills/_shared/tracks/experience.md`.
 
 ## Discharge report
 

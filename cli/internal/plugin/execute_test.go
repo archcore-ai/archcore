@@ -450,6 +450,30 @@ func TestExecuteAppendsTheNonInteractiveFlagOffATerminal(t *testing.T) {
 	}
 }
 
+func TestInstallerModeOverridesAnAttachedTerminal(t *testing.T) {
+	original := terminalAttached
+	terminalAttached = func() bool { return true }
+	t.Cleanup(func() { terminalAttached = original })
+
+	tests := []struct {
+		env  string
+		want bool
+	}{
+		{env: "", want: true},
+		{env: "0", want: true},
+		{env: "true", want: true},
+		{env: "1", want: false},
+	}
+	for _, tt := range tests {
+		t.Run("env="+tt.env, func(t *testing.T) {
+			t.Setenv(InstallerModeEnv, tt.env)
+			if got := defaultInteractiveSession(); got != tt.want {
+				t.Errorf("interactive = %v with a terminal attached, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 // TestExecuteDoesNotRewriteThePlan keeps the appended flag out of the caller's
 // actions. The same plan is executed once and printed by another entry point,
 // and a flag written back into the plan would reach the printed line a user
