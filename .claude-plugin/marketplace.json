@@ -1,0 +1,16 @@
+{
+  "name": "archcore-plugins",
+  "owner": {
+    "name": "Archcore"
+  },
+  "metadata": {
+    "description": "Archcore plugins for spec-driven development and context engineering with AI coding agents."
+  },
+  "plugins": [
+    {
+      "name": "archcore",
+      "source": "./plugins/archcore",
+      "description": "Spec-driven development and context engineering for AI coding agents, backed by project context in Git."
+    }
+  ]
+}
