@@ -8,7 +8,7 @@ tags:
 
 ## Purpose
 
-Install the Archcore CLI on macOS, Linux, Windows, or WSL with the published install scripts.
+Install the Archcore CLI on macOS, Linux, Windows, or WSL with the published install scripts. The scripts also install the Archcore plugin when Claude Code, Codex CLI, or GitHub Copilot CLI is already on `PATH`.
 
 ## Prerequisites
 
@@ -106,7 +106,11 @@ WSL provides a full Linux environment, so this path uses the macOS and Linux scr
 4. Verify the SHA-256 checksum.
 5. Extract the binary and install it atomically into the install directory.
 6. On Unix, check whether the install directory is in `$PATH` and print shell-specific guidance when it is not. On Windows, append the install directory to the user `PATH` through `HKCU\Environment` and prompt for a new terminal session.
-7. Send one anonymous install event, then print a one-line notice that the event was sent. See "Install analytics" below. An opt-out or a script copy without an injected key skips this step silently.
+7. Send one anonymous `cli_installed` event, then print a one-line notice that the event was sent. See "Install analytics" below. An opt-out or a script copy without an injected key skips this step silently.
+8. For each Claude Code, Codex CLI, or GitHub Copilot CLI command already on `PATH`, call the new binary's `archcore plugin install --agent <id>` action. The action uses user scope, checks for an existing installation, and leaves project files untouched. The scripts skip this step in CI or when `ARCHCORE_SKIP_PLUGIN_INSTALL` is set to a nonzero value. Cursor still requires its UI.
+9. If a host plugin action fails, print its retry command and exit nonzero after trying the other detected hosts. The CLI remains installed, and the scripts send no `cli_install_failed` event. A CLI without installer mode, such as a pinned v0.10.10, skips the plugin step with a warning.
+
+Run `archcore init` later in each repository where you want `.archcore/`, MCP configuration, and lifecycle hooks. The machine-level plugin install does not initialize a project. GitHub Copilot's plugin cannot provide a project MCP server by itself, so Copilot needs this project step before document tools work.
 
 ## After the install: the CLI keeps itself current
 
@@ -122,6 +126,7 @@ An installer with a pinned `ARCHCORE_VERSION` does not pin the installed binary.
 |---|---|---|---|
 | `ARCHCORE_VERSION` | (latest) | (latest) | Pin a specific release tag, for example `v1.0.0`. Skips the version lookup. |
 | `ARCHCORE_INSTALL_DIR` | `~/.local/bin` | `%LOCALAPPDATA%\Programs\archcore` | Override the install directory. |
+| `ARCHCORE_SKIP_PLUGIN_INSTALL` | (none) | (none) | Set to a nonzero value to install only the CLI. Run `archcore plugin install` later. |
 | `GITHUB_TOKEN` | (none) | (none) | GitHub token for authenticated asset downloads from a private repository. Version resolution does not use it; that reads a public redirect with no rate limit. |
 | `DO_NOT_TRACK` | (none) | (none) | Set to any value other than `0` to disable analytics in the installer and in the installed CLI. The [consoledonottrack.com](https://consoledonottrack.com) convention. |
 | `ARCHCORE_TELEMETRY_OPTOUT` | (none) | (none) | Set to any value other than `0` to disable analytics in the installer and in the installed CLI. Tool-specific equivalent of `DO_NOT_TRACK`. |
@@ -224,4 +229,5 @@ Expected result: the installed tag with its `v` prefix, for example `v0.10.2`.
 - Windows antivirus false positive — a Go static binary occasionally trips Defender heuristics. Add `%LOCALAPPDATA%\Programs\archcore` to the allowlist, or report the detection to the antivirus vendor. Code-signed builds are planned, not implemented.
 - The install succeeds but no analytics notice appears — the script has no injected key, or an opt-out variable is set. This never affects the install.
 - The install analytics show no events after a release — check that the `POSTHOG_KEY` repository variable is still set on `archcore-ai/landing`. Its deploy fails loudly when the variable is missing or when the placeholder count is wrong.
+- A Dockerfile or devcontainer build fails at the plugin step — the build image has a host CLI on `PATH` and sets none of the CI variables, so the installer tries to install the plugin over the network. Set `ARCHCORE_SKIP_PLUGIN_INSTALL=1` in automation.
 - A binary built from source never updates itself — that build carries no official-build marker. Reinstall with the install script, or run `archcore update` by hand.

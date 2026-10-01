@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 
 	"archcore-cli/internal/display"
 	"archcore-cli/internal/plugin"
@@ -156,7 +157,11 @@ func newPluginInstallCmd(f *pluginFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install the Archcore plugin on the selected hosts",
-		Args:  cobra.NoArgs,
+		Long: "Install the Archcore plugin on the selected hosts.\n\n" +
+			plugin.InstallerModeEnv + "=1 is the platform installer's mode. " +
+			"Host commands run non-interactively, and the command exits nonzero when a host named by --agent, " +
+			"or without --agent a host whose CLI is on PATH, is left without the plugin.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			hosts, err := pluginHostsForAgent(f.agent)
 			if err != nil {
@@ -181,6 +186,18 @@ func newPluginInstallCmd(f *pluginFlags) *cobra.Command {
 			})
 			target.reportReach(out, outcome)
 			reportSelfCausedPluginConflict(out, plugin.VerbInstall, outcome)
+			// A skipped action exits zero for a typed verb; the platform
+			// installer needs it to fail instead — plugin-delivery.spec §36–§39.
+			if plugin.InstallerMode() && !outcome.Failed {
+				missing := outcome.unconfirmedInstalls(hosts, f.agent != "")
+				for _, host := range missing {
+					fmt.Fprintln(out, display.WarnLine(fmt.Sprintf(
+						"Could not confirm the Archcore plugin installation for %s.", host)))
+				}
+				if len(missing) > 0 {
+					return ErrAlreadyReported
+				}
+			}
 			return pluginExit(outcome)
 		},
 	}
@@ -189,6 +206,42 @@ func newPluginInstallCmd(f *pluginFlags) *cobra.Command {
 	cmd.Flags().StringVar(&scope, "scope", string(pluginScopeUser),
 		"which Claude Code settings file gains the marketplace entry: 'user' for the user's own, 'project' for the repository's")
 	return cmd
+}
+
+// unconfirmedInstalls lists the hosts installer mode requires and the run left
+// without the plugin. A host --agent named is always required. Without
+// --agent, only a host whose install was planned to run is required: a host
+// with no CLI on PATH, or Cursor with its UI-only install, has nothing the
+// installer could have done.
+func (o pluginRunOutcome) unconfirmedInstalls(hosts []plugin.Host, named bool) []plugin.Host {
+	var missing []plugin.Host
+	for _, host := range hosts {
+		if o.installedOn(host) {
+			continue
+		}
+		if named || o.plannedRun(host) {
+			missing = append(missing, host)
+		}
+	}
+	return missing
+}
+
+func (o pluginRunOutcome) plannedRun(host plugin.Host) bool {
+	return slices.ContainsFunc(o.Planned, func(a plugin.Action) bool {
+		return a.Host == host && a.Kind == plugin.ActionRun
+	})
+}
+
+// installedOn reports whether the run left the plugin on host: an install that
+// ran without failing, or one the evidence showed was already there.
+func (o pluginRunOutcome) installedOn(host plugin.Host) bool {
+	for _, res := range o.Results {
+		if res.Host == host && !res.Failed &&
+			(res.Kind == plugin.ActionRun || res.Kind == plugin.ActionReportInstalled) {
+			return true
+		}
+	}
+	return false
 }
 
 func newPluginStatusCmd(f *pluginFlags) *cobra.Command {
@@ -286,16 +339,10 @@ func (t pluginInstallTarget) reportReach(w io.Writer, outcome pluginRunOutcome) 
 	if t.ProjectRoot == "" {
 		return
 	}
-	for _, res := range outcome.Results {
-		if res.Host != plugin.HostClaudeCode || res.Failed {
-			continue
-		}
-		if res.Kind != plugin.ActionRun && res.Kind != plugin.ActionReportInstalled {
-			continue
-		}
-		fmt.Fprintln(w, display.WarnLine(fmt.Sprintf(
-			"%s is committed with the repository, so this marketplace declaration reaches every teammate who checks it out.",
-			wiring.DisplayPath(t.ProjectRoot, t.SettingsPath))))
+	if !outcome.installedOn(plugin.HostClaudeCode) {
 		return
 	}
+	fmt.Fprintln(w, display.WarnLine(fmt.Sprintf(
+		"%s is committed with the repository, so this marketplace declaration reaches every teammate who checks it out.",
+		wiring.DisplayPath(t.ProjectRoot, t.SettingsPath))))
 }

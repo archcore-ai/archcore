@@ -27,7 +27,7 @@ produces: task-type or guide per the actor boundary rule in skills/_shared/track
 next: closeout.discharge
 
 gate: closeout.discharge
-skip_when: the branch scope matches no plan document; or a plan task or acceptance criterion carries a verdict other than fulfilled. The gate names the unmet condition in the report and exits
+skip_when: the branch scope matches no plan document; or a task or acceptance criterion of that plan carries a verdict other than fulfilled. The gate names the unmet condition in the report and exits
 budget: 1
 taxonomy: Completion Signals
 produces: none

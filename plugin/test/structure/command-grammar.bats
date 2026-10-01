@@ -98,6 +98,29 @@ $hits"
   grep -F -q '| First word `experience` | → experience track' "$skill" || { fail "experience row"; return 1; }
 }
 
+@test "plain branch review checks matching plans without a completion phrase" {
+  local skill="$PLUGIN_ROOT/skills/review/SKILL.md"
+  local closeout="$PLUGIN_ROOT/skills/_shared/tracks/closeout.md"
+  grep -F -q 'Match local `plan` documents to the branch work:' "$skill" \
+    || { fail "plain branch review does not search for matching plans"; return 1; }
+  grep -F -q 'Run `closeout.verify` even when the request contains no completion wording.' "$skill" \
+    || { fail "matching plan does not enter closeout on plain review"; return 1; }
+  grep -F -q 'IF step 2 matched no `plan`, THEN skip closeout and continue to step 4.' "$skill" \
+    || { fail "plain review without a plan is not bounded"; return 1; }
+  grep -F -q 'Run the step 4 experience offer once, after all matched plans have been checked.' "$skill" \
+    || { fail "experience offer is not bounded to once per review"; return 1; }
+  grep -F -q 'IF a candidate matches ambiguously, THEN report it as a candidate and skip closeout for it.' "$skill" \
+    || { fail "ambiguous plan candidates are not bounded"; return 1; }
+  grep -F -q 'a task or' "$closeout" && grep -F -q 'acceptance criterion of that plan carries a verdict other than fulfilled.' "$closeout" \
+    || { fail "closeout no longer guards unfinished plans"; return 1; }
+  grep -F -q 'IF any task or acceptance criterion of the plan' "$closeout" \
+    || { fail "plain-review entry runs gates past verify on unfinished work"; return 1; }
+  grep -F -q 'run the full gate sequence once per plan' "$closeout" \
+    || { fail "closeout does not loop per matched plan"; return 1; }
+  grep -F -q 'confirmation naming that specific plan' "$closeout" \
+    || { fail "closeout no longer confirms plan removal"; return 1; }
+}
+
 @test "decision.classify sends a standard over one existing adr to the cascade, and a standard with no adr to decision.adr" {
   local track="$PLUGIN_ROOT/skills/_shared/tracks/decision.md"
   grep -F -q 'Next: `decision.cascade` with the standard cascade selected when the request carries standard signals and one local `adr` on the topic exists' "$track" \

@@ -238,6 +238,62 @@ func TestPluginVerbExitsZeroForAHostSkippedForMissingEvidence(t *testing.T) {
 	}
 }
 
+// TestInstallerModeExitsZeroOnlyWhenThePluginIsOnTheHost covers
+// plugin-delivery.spec §36–§39: under the installer variable, a host the run
+// did not leave with the plugin fails the command, and one it did passes.
+func TestInstallerModeExitsZeroOnlyWhenThePluginIsOnTheHost(t *testing.T) {
+	const unconfirmed = "Could not confirm the Archcore plugin installation for claude-code"
+	unlisted := plugin.Evidence{Host: plugin.HostClaudeCode, CLIPresent: true, ListingOK: true}
+
+	cursorUI := plugin.Evidence{Host: plugin.HostCursor}
+	codexAbsent := plugin.Evidence{Host: plugin.HostCodexCLI}
+	named := []string{"--agent", "claude-code"}
+
+	tests := []struct {
+		name          string
+		env           string
+		args          []string
+		hostExit      int
+		evidence      []plugin.Evidence
+		wantErr       bool
+		wantUnconfirm bool
+	}{
+		{name: "install ran", env: "1", args: named, evidence: []plugin.Evidence{unlisted}},
+		{name: "already installed", env: "1", args: named, evidence: []plugin.Evidence{listedClaude()}},
+		{name: "install failed", env: "1", args: named, hostExit: 1, evidence: []plugin.Evidence{unlisted}, wantErr: true},
+		{name: "host skipped", env: "1", args: named, wantErr: true, wantUnconfirm: true},
+		{name: "host skipped outside installer mode", env: "0", args: named},
+		{
+			name:     "all hosts, only uninstallable ones left",
+			env:      "1",
+			evidence: []plugin.Evidence{unlisted, cursorUI, codexAbsent},
+		},
+		{
+			name:     "all hosts, a run failed",
+			env:      "1",
+			hostExit: 1,
+			evidence: []plugin.Evidence{unlisted, cursorUI},
+			wantErr:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bin := isolatePluginRun(t)
+			writeHostFixture(t, bin, "claude", tt.hostExit)
+			stubPluginEvidence(t, tt.evidence...)
+			t.Setenv(plugin.InstallerModeEnv, tt.env)
+
+			out, err := runPluginCmd(t, append([]string{"install"}, tt.args...)...)
+			if tt.wantErr != errors.Is(err, ErrAlreadyReported) || (!tt.wantErr && err != nil) {
+				t.Fatalf("err = %v, want reported failure %v\n%s", err, tt.wantErr, out)
+			}
+			if got := strings.Contains(out, unconfirmed); got != tt.wantUnconfirm {
+				t.Errorf("unconfirmed line printed = %v, want %v\n%s", got, tt.wantUnconfirm, out)
+			}
+		})
+	}
+}
+
 // TestPluginStatusExitsZeroWithEveryHostAbsent covers requirement 20. The
 // evidence seam is deliberately left alone: an empty PATH and an empty home ARE
 // the machine with no host CLI and no registry, which is the case the exit code
@@ -448,5 +504,28 @@ func TestPluginInstallScopeProjectRefusesAHostPluginCache(t *testing.T) {
 	}
 	if target.SettingsPath != "" || target.ProjectRoot != "" {
 		t.Errorf("target = %+v, want the empty target user scope resolves to", target)
+	}
+}
+
+// TestUnconfirmedInstallsRequiresOnlyInstallableHostsWithoutAgent covers the
+// case the cobra test cannot stage: a run planned for a host the step bound
+// never reached.
+func TestUnconfirmedInstallsRequiresOnlyInstallableHostsWithoutAgent(t *testing.T) {
+	outcome := pluginRunOutcome{
+		Planned: []plugin.Action{
+			{Host: plugin.HostClaudeCode, Kind: plugin.ActionRun},
+			{Host: plugin.HostCodexCLI, Kind: plugin.ActionRun},
+			{Host: plugin.HostCursor, Kind: plugin.ActionPrintUINote},
+			{Host: plugin.HostCopilot, Kind: plugin.ActionPrintCommand},
+		},
+		Results: []plugin.Result{{Host: plugin.HostClaudeCode, Kind: plugin.ActionRun}},
+	}
+	hosts := []plugin.Host{plugin.HostClaudeCode, plugin.HostCodexCLI, plugin.HostCursor, plugin.HostCopilot}
+
+	if got := outcome.unconfirmedInstalls(hosts, false); !slices.Equal(got, []plugin.Host{plugin.HostCodexCLI}) {
+		t.Errorf("without --agent: unconfirmed = %v, want only the unreached planned run", got)
+	}
+	if got := outcome.unconfirmedInstalls([]plugin.Host{plugin.HostCursor}, true); !slices.Equal(got, []plugin.Host{plugin.HostCursor}) {
+		t.Errorf("named host: unconfirmed = %v, want the named host even with a UI-only install", got)
 	}
 }

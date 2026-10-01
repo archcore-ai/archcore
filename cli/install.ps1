@@ -78,7 +78,7 @@ function Write-WarnMsg {
 }
 
 function Write-ErrExit {
-    param([string]$Message)
+    param([string]$Message, [switch]$NoTelemetry)
     if ($script:UseColor) {
         $line = "$($script:ESC)[31mError:$($script:ESC)[0m $Message"
     } else {
@@ -86,7 +86,9 @@ function Write-ErrExit {
     }
     [Console]::Error.WriteLine($line)
     # Stage category only. The message itself is never transmitted.
-    Send-TelemetryEvent -EventName 'cli_install_failed' -Extra @{ stage = $script:STAGE }
+    if (-not $NoTelemetry) {
+        Send-TelemetryEvent -EventName 'cli_install_failed' -Extra @{ stage = $script:STAGE }
+    }
     throw $Message
 }
 
@@ -461,6 +463,78 @@ function Test-Install {
     }
 }
 
+# Install user-scoped plugins for host CLIs that are already available. Project
+# wiring remains the responsibility of archcore init.
+function Install-DetectedPlugins {
+    param([string]$InstallPath)
+
+    foreach ($name in @('CI', 'GITHUB_ACTIONS', 'GITLAB_CI', 'BUILDKITE', 'JENKINS_URL', 'TEAMCITY_VERSION')) {
+        if ([Environment]::GetEnvironmentVariable($name)) {
+            Write-Info 'CI detected; skipping user plugin installation.'
+            return
+        }
+    }
+    if ($env:ARCHCORE_SKIP_PLUGIN_INSTALL -and $env:ARCHCORE_SKIP_PLUGIN_INSTALL -ne '0') {
+        Write-Info 'Skipping plugin installation (ARCHCORE_SKIP_PLUGIN_INSTALL).'
+        return
+    }
+
+    # Probe for installer mode itself, not for the command: v0.10.10 ships
+    # `plugin install` but ignores ARCHCORE_PLUGIN_INSTALLER.
+    $previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $help = (& $InstallPath plugin install --help 2> $null) | Out-String
+    } catch {
+        $help = ''
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    if ($help -notmatch 'ARCHCORE_PLUGIN_INSTALLER') {
+        Write-WarnMsg "This CLI version cannot install plugins from the installer. Install a newer version, or run: $InstallPath plugin install"
+        return
+    }
+
+    $env:Path = "$(Split-Path -Parent $InstallPath);$env:Path"
+    $found = $false
+    foreach ($hostCli in @('claude', 'codex', 'copilot')) {
+        $hostCommand = Get-Command -Name $hostCli -CommandType Application -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if (-not $hostCommand) { continue }
+        $found = $true
+        $agent = switch ($hostCli) {
+            'claude' { 'claude-code' }
+            'codex' { 'codex-cli' }
+            'copilot' { 'copilot' }
+        }
+        Write-Info "Installing the Archcore plugin for ${hostCli}..."
+        $previous = $ErrorActionPreference
+        $previousInstallerMode = $env:ARCHCORE_PLUGIN_INSTALLER
+        try {
+            $ErrorActionPreference = 'Continue'
+            $env:ARCHCORE_PLUGIN_INSTALLER = '1'
+            & $InstallPath plugin install --agent $agent
+            $succeeded = ($LASTEXITCODE -eq 0)
+        } catch {
+            $succeeded = $false
+        } finally {
+            $ErrorActionPreference = $previous
+            if ($null -eq $previousInstallerMode) {
+                Remove-Item Env:ARCHCORE_PLUGIN_INSTALLER -ErrorAction SilentlyContinue
+            } else {
+                $env:ARCHCORE_PLUGIN_INSTALLER = $previousInstallerMode
+            }
+        }
+        if (-not $succeeded) {
+            Write-WarnMsg "Plugin setup for ${hostCli} failed. Retry: $InstallPath plugin install --agent $agent"
+            $script:PLUGIN_INSTALL_FAILED = $true
+        }
+    }
+    if (-not $found) {
+        Write-Info "No Claude Code, Codex, or Copilot CLI found on PATH. After installing a host, run: $InstallPath plugin install"
+    }
+}
+
 # ── Main ────────────────────────────────────────────────────────────────────
 function main {
     # Env var overrides
@@ -544,9 +618,17 @@ function main {
     if ($script:TELEMETRY_DELIVERED) {
         Write-Info 'Anonymous install ping sent (no personal data). Opt out with $env:DO_NOT_TRACK=1 — https://archcore.ai/privacy'
     }
+
+    # Runs after cli_installed: the CLI is installed even when a plugin fails,
+    # so a plugin failure sends no cli_install_failed event.
+    Install-DetectedPlugins -InstallPath $installPath
+    if ($script:PLUGIN_INSTALL_FAILED) {
+        Write-ErrExit -NoTelemetry 'The CLI was installed, but one or more plugins failed. Use the retry command above.'
+    }
 }
 
 $script:tmp_dir = $null
+$script:PLUGIN_INSTALL_FAILED = $false
 try {
     main
 } catch {

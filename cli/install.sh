@@ -403,6 +403,58 @@ check_path() {
     fi
 }
 
+# Install the user-scoped plugin through the CLI's existing host planner. A
+# project has not been chosen here; archcore init wires one later.
+install_detected_plugins() {
+    local install_path="$1"
+    local host_cli agent failures=0 found=0
+
+    if [[ -n "${CI:-}${GITHUB_ACTIONS:-}${GITLAB_CI:-}${BUILDKITE:-}${JENKINS_URL:-}${TEAMCITY_VERSION:-}" ]]; then
+        info "CI detected; skipping user plugin installation."
+        return 0
+    fi
+    if [[ "${ARCHCORE_SKIP_PLUGIN_INSTALL:-0}" != "0" ]]; then
+        info "Skipping plugin installation (ARCHCORE_SKIP_PLUGIN_INSTALL)."
+        return 0
+    fi
+
+    # Probe for installer mode itself, not for the command: v0.10.10 ships
+    # `plugin install` but ignores ARCHCORE_PLUGIN_INSTALLER.
+    local help
+    help="$("$install_path" plugin install --help 2>/dev/null)" || help=""
+    if [[ "$help" != *ARCHCORE_PLUGIN_INSTALLER* ]]; then
+        warn "This CLI version cannot install plugins from the installer. Install a newer version, or run: ${install_path} plugin install"
+        return 0
+    fi
+
+    # Host commands started below must find the binary just installed, even
+    # when the user's current shell has not loaded the new PATH yet.
+    local binary_dir
+    binary_dir="$(dirname "$install_path")"
+    export PATH="$binary_dir:$PATH"
+    for host_cli in claude codex copilot; do
+        if [[ -z "$(type -P "$host_cli" 2>/dev/null)" ]]; then
+            continue
+        fi
+        found=1
+        case "$host_cli" in
+            claude) agent="claude-code" ;;
+            codex) agent="codex-cli" ;;
+            copilot) agent="copilot" ;;
+        esac
+        info "Installing the Archcore plugin for ${host_cli}..."
+        if ! ARCHCORE_PLUGIN_INSTALLER=1 "$install_path" plugin install --agent "$agent"; then
+            warn "Plugin setup for ${host_cli} failed. Retry: ${install_path} plugin install --agent ${agent}"
+            failures=1
+        fi
+    done
+
+    if [[ "$found" == "0" ]]; then
+        info "No Claude Code, Codex, or Copilot CLI found on PATH. After installing a host, run: ${install_path} plugin install"
+    fi
+    return "$failures"
+}
+
 # ── Main ────────────────────────────────────────────────────────────────────
 main() {
     # Guard: $HOME must be set
@@ -517,6 +569,13 @@ main() {
     # TELEMETRY_DELIVERED above for why this is not gated on telemetry_enabled.
     if [[ "$TELEMETRY_DELIVERED" == "true" ]]; then
         printf '%b\n' "${BLUE}==>${NC} Anonymous install ping sent (no personal data). Opt out with ${BOLD}DO_NOT_TRACK=1${NC} — https://archcore.ai/privacy"
+    fi
+
+    # Runs after cli_installed: the CLI is installed even when a plugin fails,
+    # so a plugin failure sends no cli_install_failed event.
+    if ! install_detected_plugins "$install_path"; then
+        printf '%b %s\n' "${RED}Error:${NC}" "The CLI was installed, but one or more plugins failed. Use the retry command above." >&2
+        exit 1
     fi
 }
 

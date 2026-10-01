@@ -20,7 +20,7 @@ Archcore keeps your project's decisions, specs, and rules in the repo. Your codi
 
 ## Get started
 
-**Install.** One binary, nothing to run in the background.
+**Install.** The script installs the CLI and adds the Archcore plugin to Claude Code, Codex CLI, and GitHub Copilot CLI when their commands are on `PATH`.
 
 ```bash
 curl -fsSL https://archcore.ai/install.sh | bash    # macOS, Linux, WSL
@@ -30,13 +30,13 @@ curl -fsSL https://archcore.ai/install.sh | bash    # macOS, Linux, WSL
 irm https://archcore.ai/install.ps1 | iex            # Windows, PowerShell 5.1+
 ```
 
-**Connect your agents.** In your project folder:
+**Set up a project.** In your project folder:
 
 ```bash
 archcore init
 ```
 
-This creates `.archcore/`, connects the agents it finds, and installs the Archcore plugin on the hosts you pick: Claude Code, Cursor, Codex CLI, GitHub Copilot CLI.
+This creates `.archcore/` and connects the agents you pick through MCP and hooks. It can also install a plugin that is still missing. Cursor requires plugin setup in its UI.
 
 Already have a `CLAUDE.md`, `AGENTS.md`, rule files, or an ADR folder? Say `/archcore:init import` in your agent and they become typed documents. Keep the originals for host-specific guidance.
 
@@ -120,20 +120,9 @@ Claude Code, Cursor, Codex CLI, GitHub Copilot, Gemini CLI, OpenCode, Roo Code, 
 `archcore init` opens a host picker with the agents it detects pre-checked and wires the ones you confirm. Per-host details, team rollouts, and uninstall: [Connect your agent](https://docs.archcore.ai/guides/connect-your-agent/).
 
 <details>
-<summary>Install the plugin without <code>archcore init</code></summary>
+<summary>Install a plugin after the CLI setup</summary>
 
-```bash
-# Claude Code
-/plugin marketplace add archcore-ai/archcore
-/plugin install archcore@archcore-plugins
-
-# Codex CLI, then /plugins → Archcore → Install plugin
-codex plugin marketplace add archcore-ai/archcore
-
-# GitHub Copilot CLI: a plugin cannot ship an MCP server here, so wire the project as well
-copilot plugin install archcore-ai/archcore:plugins/archcore
-archcore init --agent copilot --project "$PWD"
-```
+If you install a host after Archcore, or if its plugin setup failed, run `archcore plugin install --agent claude-code`, `archcore plugin install --agent codex-cli`, or `archcore plugin install --agent copilot`. The command uses the host's own plugin installer and reports failures. To connect a Copilot project to the MCP server, also run `archcore init --agent copilot --project "$PWD"` there.
 
 Cursor: open **Plugins**, paste `https://github.com/archcore-ai/archcore`, and add the plugin. Without `archcore init`, copy [`docs/cursor.mcp.example.json`](https://github.com/archcore-ai/archcore/blob/main/docs/cursor.mcp.example.json) into `~/.cursor/mcp.json` once.
 
@@ -156,7 +145,7 @@ Not for: chat memory, a prompt library, or a one-shot spec-to-code generator.
 
 **I already have a `CLAUDE.md` or `.cursor/rules`. Do I start over?** No. `/archcore:init import` turns the useful parts into typed documents, and the files stay for host-specific guidance.
 
-**Do I need both the plugin and the CLI?** You install one thing. The CLI is the context infrastructure; `archcore init` adds the plugin, the command surface and guardrails, on the hosts you pick. On any other MCP-aware agent the CLI is all there is.
+**Do I need both the plugin and the CLI?** The platform installer installs the CLI and adds the plugin to supported host CLIs it finds. Run `archcore init` in each project where you want MCP and hooks. On other MCP-aware agents, the CLI provides the context tools.
 
 ## Documentation
 

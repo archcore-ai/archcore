@@ -10,13 +10,14 @@ tags:
 
 ## Purpose & Scope
 
-This spec defines the plugin-delivery surface: the `archcore plugin` command and the delivery step inside `archcore init`. One engine (`internal/plugin`) performs install, update, removal, and status per host; the plugin-update step of `archcore update` (`updating-the-plugin.spec`) runs the same engine's update action. Dependents: `@cli/cmd/init.go`, `@cli/cmd/update.go`, the host registry in `internal/agents/`, the host CLIs, and the `archcore-ai/archcore` repository.
+This spec defines the plugin-delivery surface: the `archcore plugin` command, the delivery step inside `archcore init`, and the platform installers' call to the command. One engine (`internal/plugin`) performs install, update, removal, and status per host; the plugin-update step of `archcore update` (`updating-the-plugin.spec`) runs the same engine's update action. Dependents: `@cli/install.sh`, `@cli/install.ps1`, `@cli/cmd/init.go`, `@cli/cmd/update.go`, the host registry in `internal/agents/`, the host CLIs, and the `archcore-ai/archcore` repository.
 
-Out of scope: the unattended update policy and the MCP background trigger — neither reaches this surface; the per-host hook and MCP wiring itself, which `archcore init` performs as today. This spec decides only which hosts an interactive run selects.
+Out of scope: the unattended update policy and the MCP background trigger — neither reaches this surface; the per-host hook and MCP wiring itself, which `archcore init` performs as today. For `archcore init`, this spec decides only which hosts an interactive run selects.
 
 ## Surface
 
 - Commands: `archcore plugin install|update|remove|status [--agent <id>] [--project <path>]`.
+- Platform installer: after installing the CLI, `install.sh` and `install.ps1` call `archcore plugin install --agent <id>` for each Claude Code, Codex CLI, and GitHub Copilot CLI executable already on `PATH`. They use the newly installed binary and user scope. They skip plugin setup in CI, with `ARCHCORE_SKIP_PLUGIN_INSTALL`, or when the binary has no installer mode. A binary has installer mode when `archcore plugin install --help` names `ARCHCORE_PLUGIN_INSTALLER`; v0.10.10 has `plugin install` without installer mode.
 - Engine shape: one pure planning function (host evidence → per-host actions) and one executor. Entry points differ only in which actions they select and how they word output.
 - Selection screen: init's agent multi-select, opened on every interactive run without `--agent`; a host `agents.Detect` finds in the project arrives pre-checked (`resolveAgents` in `@cli/cmd/init.go`). The four plugin-capable hosts are marked inside that same list; no separate screen and no second prompt exist.
 - Init integration: selecting a host in that multi-select is the consent for that host — hooks, MCP config, and the plugin arrive together.
@@ -70,6 +71,16 @@ OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. Removal run
 30. WHEN detection finds a host in the project, the CLI MUST pre-check that host on the selection screen.
 31. IF the user unchecks a pre-checked host, THEN init MUST NOT wire that host in that run.
 32. WHILE init runs non-interactively without `--agent`, the CLI MUST wire every detected host without a screen.
+33. WHEN a platform installer finds a supported host CLI on `PATH`, it MUST call the new binary's direct plugin install action for that host after installing the binary.
+34. WHEN a platform installer calls the plugin install action, it MUST set `ARCHCORE_PLUGIN_INSTALLER=1`.
+35. WHILE `ARCHCORE_PLUGIN_INSTALLER=1`, the CLI MUST append each host's non-interactive flag to the host commands.
+36. WHILE `ARCHCORE_PLUGIN_INSTALLER=1`, IF the run leaves a host named by `--agent` without the plugin, THEN `archcore plugin install` MUST exit nonzero.
+37. WHILE `ARCHCORE_PLUGIN_INSTALLER=1` without `--agent`, IF the run leaves a host with a planned install run without the plugin, THEN `archcore plugin install` MUST exit nonzero.
+38. WHILE `ARCHCORE_PLUGIN_INSTALLER=1` without `--agent`, `archcore plugin install` MUST NOT fail for a host whose CLI is absent from `PATH`.
+39. WHILE `ARCHCORE_PLUGIN_INSTALLER=1` without `--agent`, `archcore plugin install` MUST NOT fail for a host whose install is UI-only.
+40. IF a platform installer's direct plugin action fails, THEN the installer MUST print the host-specific retry command.
+41. IF a platform installer's direct plugin action fails, THEN the installer MUST exit nonzero after it has tried the other detected hosts.
+42. IF `archcore plugin install --help` does not name `ARCHCORE_PLUGIN_INSTALLER`, THEN the platform installer MUST skip the plugin step with a warning.
 
 ## Constraints & Invariants
 
@@ -82,7 +93,7 @@ OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. Removal run
 - Constraint: removal treats an unparseable settings file as nothing to remove. Requirements 6 and 7 of Failure Behavior follow from that: rewriting the file fresh would discard content the CLI never wrote.
 - Constraint: the engine MUST use the three frozen identifiers exactly; requirement 11 of the compatibility rule binds them.
 - Constraint: version pinning is not available — a marketplace install takes the latest plugin; the plugin's own minimum-CLI gate is the only version guard.
-- Invariant: consent is carried by an explicit host selection — a checked host in the interactive screen, a host named with `--agent`, or a typed `archcore plugin` verb. No plugin installs on any other path.
+- Invariant: consent is carried by an explicit host selection — a checked host in the interactive screen, a host named with `--agent`, a typed `archcore plugin` verb, or a platform installer invocation that states it will install plugins for host CLIs already on `PATH`. No plugin installs on any other path.
 - Invariant: a host detected without a screen is not a consent. A non-interactive `archcore init` without `--agent` on a project that carries `.claude/` or `.codex/` wires the detected host, installs nothing, and prints one hint naming `archcore plugin install`; an interactive run reaches the screen instead, where a pre-checked host becomes a consent only when the user confirms the selection with it checked.
 - Invariant: install is idempotent — a rerun of `archcore init` over an installed plugin reports it and changes nothing, so repeated inits never nag and never re-install.
 - Invariant: `archcore update`'s plugin step and `archcore plugin update` produce identical per-host actions — one planner, one executor, two entry points. The plan/execute split makes the invariant a plan-comparison test, not a convention.
