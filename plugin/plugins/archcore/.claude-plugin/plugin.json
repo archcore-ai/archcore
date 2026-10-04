@@ -13,7 +13,7 @@
     "next_step_hints": {
       "type": "boolean",
       "title": "Next-step hints",
-      "description": "In the Claude Code terminal and Desktop app, show one suggested Archcore command above the prompt after a turn and offer it as the Tab suggestion.",
+      "description": "In the Claude Code terminal and Desktop app, show one suggested Archcore command above the prompt after a turn and offer it as the Tab suggestion, with how many Archcore documents the request found and read.",
       "default": true
     }
   },

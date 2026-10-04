@@ -14,7 +14,7 @@ Claude Code 2.1.287 and later loads mods — TypeScript or JavaScript hooks modu
 
 ## Decision
 
-Ship the next-step hints as a Claude Code mod inside the published plugin — `hooks/next-step.tsx` named under `modules` in `@plugin/plugins/archcore/hooks/hooks.json`, its `$.state` contract in `@plugin/plugins/archcore/types/index.d.ts`, on by default behind the `next_step_hints` boolean `userConfig` option, tested with `claude plugin test` from `@plugin/plugins/archcore/tests/next-step.test.ts` — with no hint that computes document coverage or drift, and with the decision hint shown only to the user.
+Ship the next-step hints as a Claude Code mod inside the published plugin — `hooks/next-step.tsx` named under `modules` in `@plugin/plugins/archcore/hooks/hooks.json`, its `$.state` contract in `@plugin/plugins/archcore/types/index.d.ts`, on by default behind the `next_step_hints` boolean `userConfig` option, tested with `claude plugin test` from `@plugin/plugins/archcore/tests/next-step.test.ts` — with no hint that computes document coverage or drift, and with the decision hint shown only to the user. After a request, the same band shows one dim line `documents: <N> found · <M> read`. N counts the distinct paths that the request's `search_documents` calls returned. M counts the distinct paths that `get_document` and full-mode searches returned. The line shows also when no hint is due. The line is hidden while a turn runs. The line replaces the side pane of the `archcore-sources` experiment, which the owner rejected on 2026-10-03.
 
 ## Alternatives Considered
 

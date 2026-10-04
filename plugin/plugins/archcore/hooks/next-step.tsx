@@ -8,11 +8,11 @@ type Row = Record<string, unknown>
 
 const EMPTY: Turn = {
   requestId: '', turnId: '', isDecision: false, edits: [], editCount: 0, pushed: false, drafts: 0,
-  emptySearch: null, archcoreCommand: false, plan: null, editsAfterPlan: 0, planFile: null,
+  emptySearch: null, archcoreCommand: false, plan: null, editsAfterPlan: 0, planFile: null, found: [], read: [],
 }
 const FRESH: Session = { reads: 0, superpowers: false }
 // Bump SHAPE when Turn, Session or Hint change: a reload then drops what the old code wrote.
-const SHAPE = { shape: 'v3' }
+const SHAPE = { shape: 'v4' }
 const turn = atom({ plugin: 'archcore', key: 'turn' } as const, EMPTY, SHAPE)
 const session = atom({ plugin: 'archcore', key: 'session' } as const, FRESH, SHAPE)
 const hint = atom({ plugin: 'archcore', key: 'hint' } as const, null as Hint | null, SHAPE)
@@ -42,6 +42,7 @@ const NOT_USER = new Set([
 const GIT_VALUE_OPTIONS = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env'])
 const MAX_TURN_EDITS = 20
 const MAX_PENDING = 20
+const MAX_DOCS = 200
 const LOOKUP_MS = 1500
 // The Archcore server connects after the session starts: an unknown track lookup
 // is tried again after each of these waits, until the first request starts.
@@ -78,6 +79,9 @@ const isRow = (value: unknown): value is Row => typeof value === 'object' && val
 const rows = (value: unknown): Row[] => (Array.isArray(value) ? value.filter(isRow) : [])
 const hasValue = (value: unknown) => (Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== '')
 const toEnd = (list: readonly string[], item: string) => [...list.filter(one => one !== item), item]
+// ponytail: the first 200 distinct paths only; the count stops there.
+const addAll = (list: readonly string[], items: readonly string[]) =>
+  [...new Set([...list, ...items.filter(Boolean)])].slice(0, MAX_DOCS)
 // C0 and C1 control characters out, whitespace runs to one space: what the band and the box show.
 const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim()
 const why = (err: unknown) => clean(err instanceof Error ? err.message : String(err)).slice(0, 120)
@@ -532,9 +536,14 @@ export const register: Register = (on, options) => {
       await update($, turn, t => ({ ...t, drafts: t.drafts + 1 }))
     } else if (m[2] === 'get_document') {
       await update($, session, s => ({ ...s, reads: s.reads + 1 }))
+      await update($, turn, t => ({ ...t, read: addAll(t.read, [str(args.path)]) }))
     } else {
       const body = parse(ran.text)
-      if (args.mode === 'full' && rows(body?.results).length > 0) await update($, session, s => ({ ...s, reads: s.reads + 1 }))
+      const paths = rows(body?.results).map(row => str(row.path))
+      if (args.mode === 'full' && paths.length > 0) await update($, session, s => ({ ...s, reads: s.reads + 1 }))
+      await update($, turn, t => ({
+        ...t, found: addAll(t.found, paths), read: args.mode === 'full' ? addAll(t.read, paths) : t.read,
+      }))
       const topic = emptySearchTopic(args, body)
       if (topic) await update($, turn, t => (t.emptySearch ? t : { ...t, emptySearch: topic }))
     }
@@ -567,13 +576,28 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const step = await read($, hint)
-    // A hint of an earlier request (a late write), a survey, a running turn, or a subagent's transcript.
-    if (!step || step.requestId !== (await read($, turn)).requestId) return next(e)
+    // A survey, a running turn, or a subagent's transcript.
     if (e.props.hasSurvey || e.props.isWorking || e.props.view.agentId !== undefined) return next(e)
+    const t = await read($, turn)
+    const stored = await read($, hint)
+    // A hint of an earlier request is a late write.
+    const step = stored && stored.requestId === t.requestId ? stored : null
+    const docs = t.found.length + t.read.length > 0 ? `documents: ${t.found.length} found · ${t.read.length} read` : ''
+    if (!step && !docs) return next(e)
     const { Box, Button, Text } = $.ui.resolve(e)
     // A band tree replaces later mods' band content; theirs stays below ours.
     const below = await next(e)
+    if (!step) {
+      return (
+        <Box flexDirection="column">
+          <Box>
+            <Text color="cyan">archcore </Text>
+            <Text dimColor wrap="truncate-end">{docs}</Text>
+          </Box>
+          {below}
+        </Box>
+      )
+    }
     return (
       <Box flexDirection="column">
         <Box>
@@ -582,6 +606,7 @@ export const register: Register = (on, options) => {
           <Text wrap="truncate-end">{step.reason}</Text>
         </Box>
         <Text dimColor wrap="truncate-end">{`${step.shown ? 'Tab →' : 'run:'} ${step.command.trim()}`}</Text>
+        {docs ? <Text dimColor wrap="truncate-end">{docs}</Text> : null}
         {below}
       </Box>
     )

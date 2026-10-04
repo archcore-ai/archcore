@@ -1182,17 +1182,17 @@ test('an edit with no path is ignored', async ($, on) => {
   await expectNoHint($, seen)
 })
 
-test('the turn keeps no prompt text and at most 20 edits; the session keeps no edits; shape v3', async ($, on) => {
+test('the turn keeps no prompt text and at most 20 edits; the session keeps no edits; shape v4', async ($, on) => {
   engine(on)
   await run($, 'From now on we use cobra', [READ, ...Array.from({ length: 25 }, (_, i) => edit(`a/f${i}.go`))])
   const state = await peek($, 'turn')
-  expect(state?.shape).toBe('v3')
+  expect(state?.shape).toBe('v4')
   expect(Object.keys(state?.value ?? {})).not.toContain('prompt')
   expect(state?.value?.isDecision).toBe(true)
   expect(state?.value?.edits).toHaveLength(20)
   expect((state?.value?.edits as string[]).at(-1)).toBe('a/f24.go')
   expect(state?.value?.editCount).toBe(25)
-  expect(await peek($, 'session')).toEqual({ shape: 'v3', value: { reads: 1, superpowers: false } })
+  expect(await peek($, 'session')).toEqual({ shape: 'v4', value: { reads: 1, superpowers: false } })
 })
 
 // ---------------- lifecycle ----------------
@@ -1947,3 +1947,61 @@ for (const [name, options] of [['left at its default', {}], ['true', { options: 
     expect(seen.calls.map(call => call.tool)).toEqual(['search_documents', 'get_document'])
   })
 }
+
+// ---------------- the documents line ----------------
+
+const docsLine = (found: number, read: number) => `documents: ${found} found · ${read} read`
+const FOUND = { results: [{ path: '.archcore/a.spec.md' }, { path: '.archcore/b.adr.md' }] }
+
+async function expectDocs($: Engine, text: string | null, props: Partial<Props> = {}) {
+  for (const surface of SURFACES) {
+    const ui = await mount($, surface, props)
+    const line = await ui.find({ type: 'Text', text: /^documents: / })
+    if (text === null) expect(line).toBeUndefined()
+    else expect(line?.text).toBe(text)
+    expect(await ui.find({ type: 'Text', text: 'engine band' })).toBeDefined()
+    await ui.unmount()
+  }
+}
+
+test('docs: a turn with searches and reads shows distinct counts without a hint', async ($, on) => {
+  const seen = engine(on, { searchAnswer: FOUND })
+  await run($, 'how does x work', [search({ content: 'x' }), search({ content: 'y' }), READ, READ])
+  await expectDocs($, docsLine(2, 1))
+  await expectNoBand($)
+  expect(seen.suggested).toEqual([])
+})
+
+test('docs: a full-mode search counts its results as read', async ($, on) => {
+  engine(on, { searchAnswer: FOUND })
+  await run($, 'how does x work', [search({ content: 'x', mode: 'full' })])
+  await expectDocs($, docsLine(2, 2))
+})
+
+test('docs: the line sits under the hint', async ($, on) => {
+  engine(on, { searchAnswer: FOUND })
+  await run($, 'look and ship', [search({ content: 'x' }), PUSH])
+  await expectBand($, '/archcore:review')
+  await expectDocs($, docsLine(2, 0))
+})
+
+test('docs: no Archcore lookup shows no line', async ($, on) => {
+  engine(on)
+  await run($, 'ship it', [PUSH])
+  await expectDocs($, null)
+})
+
+test('docs: a new request starts the counts over', async ($, on) => {
+  engine(on, { searchAnswer: FOUND })
+  await run($, 'look', [search({ content: 'x' }), READ])
+  await run($, 'other', [], 't2')
+  await expectDocs($, null)
+})
+
+test('docs: a failed read is not counted, and a running turn hides the line', async ($, on) => {
+  engine(on, { fail: [`mcp__${PLUGIN}__get_document`] })
+  await run($, 'look', [READ])
+  await expectDocs($, null)
+  await run($, 'look again', [search({ content: 'x', mode: 'full' })], 't2')
+  await expectDocs($, null, { isWorking: true })
+})
