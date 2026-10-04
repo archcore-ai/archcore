@@ -23,6 +23,10 @@ export type Turn = {
   editsAfterPlan: number
   // The first plan file written outside .archcore/ and docs/superpowers/.
   planFile: string | null
+  // Distinct document paths the request's searches returned, the first 200 only.
+  found: string[]
+  // Distinct document paths the request read: get_document and full-mode search results.
+  read: string[]
 }
 
 // What the conversation has done since it began or since /clear.
