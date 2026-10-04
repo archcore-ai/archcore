@@ -10,3 +10,6 @@ cli/.claude/agents/
 cli/reference-materials/
 cli/archcore
 plugin/reference-materials/
+# Written by Claude Code when it loads plugin/plugins/archcore with --plugin-dir (the next-step mod).
+plugin/plugins/archcore/.claude-plugin/types/
+plugin/plugins/archcore/tsconfig.json

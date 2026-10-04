@@ -128,6 +128,13 @@ Cursor: open **Plugins**, paste `https://github.com/archcore-ai/archcore`, and a
 
 </details>
 
+<details>
+<summary>Next-step hints in Claude Code</summary>
+
+In the Claude Code terminal and Desktop app, version 2.1.287 or later, the plugin suggests one Archcore command after a turn. For example, it suggests `/archcore:plan` after you approve a plan in plan mode, and `/archcore:review` after a push. The hint appears above the prompt, and Tab puts the command in the prompt box. The hint is shown only to you; the agent does not receive it. To turn the hints off, set **Next-step hints** to off in `/config`.
+
+</details>
+
 ## How it compares
 
 | If you rely on…                                              | The gap                                                                     | What Archcore does instead                                                                     |

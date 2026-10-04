@@ -5037,6 +5037,16 @@
       "source": "mcp/update-document-edits.adr.md",
       "target": "plugin/always-use-mcp-tools.adr.md",
       "type": "extends"
+    },
+    {
+      "source": "plugin/claude-code-hint-mod.adr.md",
+      "target": "plugin/stack-and-tooling.rule.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/claude-code-hint-mod.adr.md",
+      "target": "integrations/disable-stop-and-prompt-hooks.adr.md",
+      "type": "extends"
     }
   ]
 }
