@@ -1,4 +1,7 @@
 {
+  "modules": [
+    "./next-step.tsx"
+  ],
   "hooks": {
     "SessionStart": [
       {

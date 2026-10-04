@@ -40,7 +40,15 @@ tags:
 27. WHEN a pull request adds an executable file with a shebang other than `#!/bin/sh` outside `plugins/opencode/`, the pull request MUST link to an accepted ADR under `.archcore/plugin/`.
 28. WHEN a pull request adds a new manifest format, a new test runner, or a new top-level config file, the pull request MUST link to an accepted ADR under `.archcore/plugin/`.
 29. A skill MUST NOT instruct the agent to invoke non-shell tooling inside a plugin script.
-30. A structure test SHOULD assert that TypeScript exists only under `plugins/opencode/`.
+30. A structure test SHOULD assert that TypeScript exists only under `plugins/opencode/` and in the Claude Code mod files that items 31, 32 and 38 name.
+31. Exception to item 7 (per `claude-code-hint-mod.adr`): the Claude Code mod module `plugins/archcore/hooks/next-step.tsx` MAY be TypeScript.
+32. Exception to item 7 (same ADR): the mod's state contract `plugins/archcore/types/index.d.ts` MAY be a TypeScript declaration file.
+33. The Claude Code mod MUST NOT implement guard decision logic.
+34. The Claude Code mod MUST NOT implement validation decision logic.
+35. The Claude Code mod MUST NOT compute whether a document covers a source path.
+36. The Claude Code mod MUST NOT compute whether a document is stale against the code.
+37. Exception to items 18 and 20 (same ADR): the author MUST test the Claude Code mod with `claude plugin test`.
+38. The author MUST place every `claude plugin test` file under `plugins/archcore/tests/`.
 
 ### Notes (non-normative)
 
@@ -124,6 +132,8 @@ curl -fsSL https://... -o /tmp/archcore && /tmp/archcore "$@"
 
 - Code review: a pull request that trips item 27 or item 28 and carries no ADR link blocks merge.
 - `@plugin/test/structure/scripts.bats` asserts that every file in `bin/` starts with `#!/bin/sh`, which verifies item 1.
+- `@plugin/test/structure/next-step-mod.bats` verifies items 30, 31, 32, 35 and 36, and that the release export drops the type declarations Claude Code generates.
+- `make test` in `plugin/` runs the `test-mod` target, which runs `claude plugin validate --strict` and `claude plugin test` for item 37; the target prints a skip line when `claude` is not on `PATH`.
 - Structure tests pin the remaining file-shape contracts: no `.py`, `.go`, `.js`, `.ts`, or `.rb` file exists under `bin/` or at the plugin tree root outside `reference-materials/`, `test_project/`, and `plugins/opencode/`.
 - `plugin-development.guide` states items 24 and 25 in its onboarding section for new contributors.
 - The path for a genuinely new tool is: open an issue, draft an ADR with the sections `Context / Decision / Alternatives Considered / Consequences`, obtain review, obtain acceptance, then implement.

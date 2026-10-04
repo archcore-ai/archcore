@@ -17,13 +17,21 @@ JSON_FILES := .agents/plugins/marketplace.json .claude-plugin/marketplace.json .
               $(PLUGIN_REL)/hooks/copilot.hooks.json \
               $(PLUGIN_REL)/.claude.mcp.json docs/cursor.mcp.example.json
 
-.PHONY: test test-unit test-structure test-integration test-routing-bench test-document-bench test-import-bench test-skill-bench test-writer-fanout-bench test-edits-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
+.PHONY: test test-mod test-unit test-structure test-integration test-routing-bench test-document-bench test-import-bench test-skill-bench test-writer-fanout-bench test-edits-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
 
 all: check-json check-perms lint test
 
 test:
 	@command -v bats >/dev/null 2>&1 || { echo "bats-core not found. Install: brew install bats-core"; exit 1; }
 	@PLUGIN_ROOT=$(PLUGIN_ROOT) REPO_ROOT=$(REPO_ROOT) bats test/unit/ test/structure/
+	@$(MAKE) --no-print-directory test-mod
+
+# The next-step mod (plugins/archcore/hooks/next-step.tsx) runs in the Claude Code mod runtime;
+# its tests run under `claude plugin test` (stack-and-tooling.rule, the Claude Code mod exception).
+test-mod:
+	@command -v claude >/dev/null 2>&1 || { echo "claude not found, skipping the mod tests"; exit 0; }
+	@claude plugin validate $(PLUGIN_ROOT) --strict
+	@cd $(PLUGIN_ROOT) && claude plugin test .
 
 test-unit:
 	@command -v bats >/dev/null 2>&1 || { echo "bats-core not found. Install: brew install bats-core"; exit 1; }

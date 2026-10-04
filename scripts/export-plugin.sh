@@ -24,6 +24,9 @@ fi
 for directory in .agents .claude-plugin .cursor-plugin plugins; do
   cp -R "$source_root/$directory" "$output/$directory"
 done
+# Claude Code writes the mod's type declarations and a tsconfig.json into a plugin
+# it loads from a development directory; they describe one local build, not the release.
+rm -rf "$output/plugins/archcore/.claude-plugin/types" "$output/plugins/archcore/tsconfig.json"
 mkdir -p "$output/docs"
 for file in TERMS.md cursor.mcp.example.json; do
   cp "$source_root/docs/$file" "$output/docs/$file"

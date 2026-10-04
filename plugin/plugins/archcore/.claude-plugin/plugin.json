@@ -8,6 +8,15 @@
   "license": "Apache-2.0",
   "repository": "https://github.com/archcore-ai/archcore",
   "mcpServers": "./.claude.mcp.json",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "next_step_hints": {
+      "type": "boolean",
+      "title": "Next-step hints",
+      "description": "In the Claude Code terminal and Desktop app, show one suggested Archcore command above the prompt after a turn and offer it as the Tab suggestion.",
+      "default": true
+    }
+  },
   "commands": [],
   "keywords": [
     "claude-code",

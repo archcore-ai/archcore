@@ -61,6 +61,9 @@ The exporter starts with an empty destination. Files outside the published list
 never enter it, including `cli/`, the shared `.archcore/`, `test/`,
 `reference-materials/`, `.github/`, `.claude/`, `.codex/`, `.gitmodules`,
 `Makefile`, `docs/release.md`, `AGENTS.md`, `CLAUDE.md`, and the dev-only `.mcp.json`.
+The exporter also removes `plugins/archcore/.claude-plugin/types/` and
+`plugins/archcore/tsconfig.json`, which Claude Code writes when it loads the
+plugin from a development checkout with `--plugin-dir`.
 
 A recursive check rejects nested development directories, development instruction
 files, dev MCP config, and symlinks inside the exported runtime. The existing check
