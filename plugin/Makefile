@@ -28,10 +28,14 @@ test:
 
 # The next-step mod (plugins/archcore/hooks/next-step.tsx) runs in the Claude Code mod runtime;
 # its tests run under `claude plugin test` (stack-and-tooling.rule, the Claude Code mod exception).
+# One recipe line: each line runs in its own shell, so an `exit 0` on a line of its own
+# would not skip the lines after it.
 test-mod:
-	@command -v claude >/dev/null 2>&1 || { echo "claude not found, skipping the mod tests"; exit 0; }
-	@claude plugin validate $(PLUGIN_ROOT) --strict
-	@cd $(PLUGIN_ROOT) && claude plugin test .
+	@if ! command -v claude >/dev/null 2>&1; then \
+	  echo "claude not found, skipping the mod tests"; \
+	else \
+	  claude plugin validate $(PLUGIN_ROOT) --strict && cd $(PLUGIN_ROOT) && claude plugin test .; \
+	fi
 
 test-unit:
 	@command -v bats >/dev/null 2>&1 || { echo "bats-core not found. Install: brew install bats-core"; exit 1; }
