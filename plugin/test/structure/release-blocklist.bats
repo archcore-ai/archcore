@@ -29,7 +29,7 @@ setup() {
   for path in assets/icon.png assets/logo.png .claude.mcp.json .codex.mcp.json hooks/copilot.hooks.json; do
     [ -f "$OUTPUT/plugins/archcore/$path" ] || fail "missing $path"
   done
-  for path in docs/TERMS.md docs/cursor.mcp.example.json README.md LICENSE NOTICE; do
+  for path in docs/TERMS.md docs/cursor.mcp.example.json docs/promo.gif README.md LICENSE NOTICE; do
     [ -f "$OUTPUT/$path" ] || fail "missing $path"
   done
 }
@@ -57,9 +57,10 @@ setup() {
 
 @test "export rejects nested Archcore context inside otherwise shipped runtime" {
   local fixture="$BATS_TEST_TMPDIR/fixture"
-  mkdir -p "$fixture/scripts" "$fixture/plugin"
+  mkdir -p "$fixture/scripts" "$fixture/plugin" "$fixture/docs"
   cp "$EXPORT" "$fixture/scripts/export-plugin.sh"
   cp "$WORKSPACE_ROOT/LICENSE" "$WORKSPACE_ROOT/NOTICE" "$WORKSPACE_ROOT/README.md" "$fixture/"
+  cp "$WORKSPACE_ROOT/docs/promo.gif" "$fixture/docs/"
   local path
   for path in .agents .claude-plugin .cursor-plugin plugins docs; do
     cp -R "$REPO_ROOT/$path" "$fixture/plugin/"
