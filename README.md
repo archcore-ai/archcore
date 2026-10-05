@@ -1,168 +1,111 @@
 # Archcore - Spec-driven development and git-native context engineering for AI coding agents
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/archcore-ai/archcore)](https://github.com/archcore-ai/archcore/releases)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](https://github.com/archcore-ai/archcore/releases)
-[![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev)
-[![Docs](https://img.shields.io/badge/docs-docs.archcore.ai-2563EB)](https://docs.archcore.ai)
+**The agent stops guessing and starts following the system.**
 
-> **Contributors:** source code and tests live on the [`dev`](https://github.com/archcore-ai/archcore/tree/dev) branch. `main` holds only the published plugin. Start with [CONTRIBUTING.md](https://github.com/archcore-ai/archcore/blob/dev/CONTRIBUTING.md).
+A coding agent can write the code. It does not know your project: what the feature must do, where the code belongs, which decisions and rules already apply. So it guesses, and you explain the same things again in the next session.
 
-**Stop re-explaining your repo to every AI coding agent.**
+Archcore keeps specs, architecture, decisions, rules, and plans in Git, and makes the right project context available to AI coding agents as they work. It helps your coding agent make changes that fit your repo's architecture, rules, and past decisions.
 
-Archcore keeps your project's decisions, specs, and rules in the repo. Your coding agent reads them before it writes, so it builds by this repo's rules instead of the ones it happens to know.
+- `/archcore:plan` before you build. The agent implements from a spec, examples, and tasks, sized to the change.
+- `/archcore:document` as you go. One sentence from you becomes a finished, linked document.
+- `/archcore:review` before merge. Archcore compares the branch with the documents and names the side that is wrong.
 
-## What you get
+![Archcore: from idea to reviewed code](docs/promo.gif)
 
-- **Code that fits this repo on the first try.** The decision that already chose Redis, and the rule for error shapes in `src/api/`, reach the agent before it edits the file.
-- **Nothing to re-explain in a new session.** Each session opens with what is decided and what is in progress. Switch to another agent and it reads the same folder.
-- **A broken decision caught before merge.** Review reads your branch against the spec and the decision record, and returns `code-wrong` on the file that ignored them.
+## Install
 
-## Get started
-
-**Install.** The script installs the CLI and adds the Archcore plugin to Claude Code, Codex CLI, and GitHub Copilot CLI when their commands are on `PATH`.
+On macOS, Linux, or WSL:
 
 ```bash
-curl -fsSL https://archcore.ai/install.sh | bash    # macOS, Linux, WSL
+curl -fsSL https://archcore.ai/install.sh | bash
 ```
+
+On Windows (PowerShell 5.1+):
 
 ```powershell
-irm https://archcore.ai/install.ps1 | iex            # Windows, PowerShell 5.1+
+irm https://archcore.ai/install.ps1 | iex
 ```
 
-**Set up a project.** In your project folder:
+Then, in your project:
 
 ```bash
 archcore init
 ```
 
-This creates `.archcore/` and connects the agents you pick through MCP and hooks. It can also install a plugin that is still missing. Cursor requires plugin setup in its UI.
+The installer adds the CLI and plugins for Claude Code, Codex CLI, and GitHub Copilot CLI when it finds them. `archcore init` connects the agents you choose to this project. It also supports Gemini CLI, OpenCode, Roo Code, and Cline. Cursor needs [one extra setup step](https://docs.archcore.ai/guides/connect-your-agent/).
 
-Already have a `CLAUDE.md`, `AGENTS.md`, rule files, or an ADR folder? Say `/archcore:init import` in your agent and they become typed documents. Keep the originals for host-specific guidance.
+Already have a `CLAUDE.md`, `AGENTS.md`, or rule files? Say `/archcore:init import` in your agent to turn them into project documents.
 
-## Your first feature
+The documents stay in your repo, in `.archcore/`. Details: [privacy](https://archcore.ai/privacy).
 
-Open your agent and say what you want. Plain sentences work in every connected agent; on Claude Code, Cursor, Codex CLI, and Copilot the slash command is the shortcut. Each step uses what the previous one saved, which is why the review at the end knows what the plan and the decision said.
+## Plan: the agent builds from documents, not from a chat message
 
-The example below adds rate limiting to a public API.
-
-| Shortcut             | You say                                               | What your agent leaves behind                                                                                                                                                                |
-| -------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/archcore:init`     | "Set up Archcore in this repo."                       | A proposal of documents for the architecture, the rules, and the key modules. You approve before anything is saved.                                                                          |
-| `/archcore:plan`     | "Plan rate limiting for the public API."              | `api/rate-limiting.spec.md`, how rate limiting must behave, and `api/rate-limiting.plan.md`, the work broken into tasks. Both written from the rules the project already has.                |
-| `/archcore:document` | "Record the decision to use a token bucket in Redis." | `api/token-bucket-in-redis.adr.md`: the choice and its reasoning, found by every later task that touches the API.                                                                            |
-| `/archcore:review`   | "Review my branch before merge."                      | A verdict per finding, read against the spec and the decision: `code-wrong` on the handler that kept an in-memory counter, `spec-wrong` on the document the code outgrew, `ok` for the rest. |
-
-Between these steps you code as usual. The spec and the rule for `src/api/` reach the agent before it edits a file there, with no command from you.
-
-The decision from step 3, as it lands in `.archcore/api/token-bucket-in-redis.adr.md`:
-
-```markdown
----
-title: Rate limiting uses a token bucket in Redis
-status: accepted
----
-
-## Context
-
-The public API needs per-client limits before the partner launch. Redis is already the shared store for sessions (src/session/store.go), and the API runs on three replicas, so a per-process counter never sees the whole client.
-
-## Decision
-
-Token bucket per API key, stored in Redis, refilled every 10 seconds.
-
-## Alternatives Considered
-
-1. In-memory counters per process: rejected because each of the three replicas would grant the full quota.
-2. Rate limiting at the load balancer: deferred because it keys by IP, not by API key.
-
-## Consequences
-
-- Every handler in src/api/ reads the bucket from Redis. No in-memory counters.
-- Adds one Redis round-trip per request. [expected] Under 2 ms inside the VPC.
+```text
+/archcore:plan [your feature]
 ```
 
-Tomorrow, in a new session or in a different agent, the recap says what is decided and what is in progress. The next feature starts from there.
+`/archcore:plan` reads the repo and the existing documents first. Then it asks you only what it cannot find there. Your answers become documents in `.archcore/`: a spec with requirements, and a plan with tasks mapped to files. A user-facing change also gets examples in Given/When/Then form. Larger work can add a PRD, research, or a formal requirements chain.
+
+Archcore weighs the change, computes the route, and reports its size from S to XL. You never choose a template or a size.
+
+| The change                    | What plan prepares                                             |
+| ----------------------------- | -------------------------------------------------------------- |
+| A small fix                   | No documents                                                   |
+| A settled choice              | A decision record                                              |
+| A change to existing behavior | A check of the covering spec: update the spec, or fix the code |
+| One new capability            | A spec and a plan                                              |
+| Several capabilities          | A PRD, one spec per capability, and a plan                     |
+
+Risk raises the size. A security requirement adds a formal requirements chain. A data migration adds a migration runbook.
+
+The agent then implements from the spec, the examples, and the tasks. The open questions are settled before the code, not after it.
+
+## Document: you say it once, Archcore writes the document
+
+```text
+/archcore:document decision why we chose [X]
+/archcore:document code [module]
+```
+
+`/archcore:document` records what is true now: a decision, a team standard, how a module works, or a how-to. You do not choose a format. Archcore selects the document type, reads the code and the existing documents, and checks that the document does not exist yet. It asks you only what it cannot find. It links the new document to the related ones. A decision can also produce the rule and the guide that follow from it.
+
+With no subject, `/archcore:document` reads the changes on your branch and asks one question about what to record.
+
+The document outlives the session. It is in Git with the code, it has a status (`draft`, then `accepted`), and review checks it against the code.
+
+## Review: the code and the documents agree before merge
+
+```text
+/archcore:review
+```
+
+**When documents cover the change.** `/archcore:review` compares the branch with them in both directions. Each finding names the code and the document that disagree, and carries one verdict: `code-wrong` when the code breaks a document that still stands, `spec-wrong` when the document is out of date. You fix the right side. When a plan covers the branch, review checks its tasks and closes the plan when the work is done.
+
+**When no document covers the change.** Review still checks the branch against the decisions and rules the project has. If the branch repeats a pattern that no document records, review offers to record it. To record work that shipped without a plan, run `/archcore:document`.
+
+Use the three commands together on one change, or use one alone. Archcore does not need a plan for every change.
+
+The slash commands run in Claude Code, Cursor, Codex CLI, and GitHub Copilot. In every connected agent, a plain sentence works too: “Plan [your feature]”, “Record why we chose [X]”, “Review my branch”.
 
 ## Project knowledge becomes files
 
-Specs define intent, and a spec is one part of the context. Decisions, rules, plans, and guides live beside it in `.archcore/`, as plain Markdown, versioned with the code they describe.
+Each command leaves plain Markdown in `.archcore/`, versioned with the code it describes. The document type is in the filename.
 
 ```text
 .archcore/
-├── architecture.doc.md
-├── conventions.rule.md
-├── api/
-│   ├── rate-limiting.spec.md
-│   ├── rate-limiting.plan.md
-│   ├── token-bucket-in-redis.adr.md
-│   └── error-shapes.rule.md
-├── auth/
-│   ├── session-model.adr.md
-│   └── oauth-migration.rfc.md
-├── billing/
-│   ├── usage-based-pricing.prd.md
-│   └── stripe-webhooks.spec.md
-└── testing.guide.md
+├── architecture/
+│   └── architecture-overview.doc.md    ← /archcore:init
+├── conventions/
+│   └── project-stack.rule.md           ← /archcore:init
+└── api/
+    ├── rate-limiting.spec.md           ← /archcore:plan
+    ├── rate-limiting.plan.md           ← /archcore:plan
+    ├── token-bucket-in-redis.adr.md    ← /archcore:document
+    └── error-shapes.rule.md            ← /archcore:document
 ```
 
-- **Typed by filename.** `adr`, `spec`, `rule`, `plan`, `guide`, `prd`: 23 types, each with a status that moves from `draft` to `accepted` when you approve it.
-- **Linked, not piled.** Documents point at each other through seven kinds of relation, including `implements`, `depends_on`, and `supersedes`, so a decision carries the spec it serves and the one it replaced.
-- **Reviewed like code.** A change to context is a diff in a pull request. It travels with every clone, and a company-wide `.archcore/` can supply defaults that a project overrides.
-- **Loaded on demand.** The Archcore CLI serves the folder to your agent over MCP: a compact index at session start, full documents only when a task needs them. Your context window stays yours.
+A spec is one part of context, not the whole context: decisions, rules, plans, and guides live beside it. A change to a document is a diff in a pull request, like a change to code. This repository's own [`.archcore/`](https://github.com/archcore-ai/archcore/tree/dev/.archcore) is a working example.
 
-This repository's own [`.archcore/`](https://github.com/archcore-ai/archcore/tree/dev/.archcore) is a working example. Archcore is built with Archcore.
+## Go deeper
 
-## Works with your agent
-
-Claude Code, Cursor, Codex CLI, GitHub Copilot, Gemini CLI, OpenCode, Roo Code, and Cline read the same folder. Slash commands, skills, and guardrails run inside the first four; the rest reach the same documents over MCP. Where the host supports hooks, context arrives before the edit with no command from you.
-
-`archcore init` opens a host picker with the agents it detects pre-checked and wires the ones you confirm. Per-host details, team rollouts, and uninstall: [Connect your agent](https://docs.archcore.ai/guides/connect-your-agent/).
-
-<details>
-<summary>Install a plugin after the CLI setup</summary>
-
-If you install a host after Archcore, or if its plugin setup failed, run `archcore plugin install --agent claude-code`, `archcore plugin install --agent codex-cli`, or `archcore plugin install --agent copilot`. The command uses the host's own plugin installer and reports failures. To connect a Copilot project to the MCP server, also run `archcore init --agent copilot --project "$PWD"` there.
-
-Cursor: open **Plugins**, paste `https://github.com/archcore-ai/archcore`, and add the plugin. Without `archcore init`, copy [`docs/cursor.mcp.example.json`](https://github.com/archcore-ai/archcore/blob/main/docs/cursor.mcp.example.json) into `~/.cursor/mcp.json` once.
-
-</details>
-
-<details>
-<summary>Next-step hints in Claude Code</summary>
-
-In the Claude Code terminal and Desktop app, version 2.1.287 or later, the plugin suggests one Archcore command after a turn. For example, it suggests `/archcore:plan` after you approve a plan in plan mode, and `/archcore:review` after a push. The hint appears above the prompt, and Tab puts the command in the prompt box. The hint is shown only to you; the agent does not receive it. To turn the hints off, set **Next-step hints** to off in `/config`.
-
-</details>
-
-## How it compares
-
-| If you rely on…                                              | The gap                                                                     | What Archcore does instead                                                                     |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Instruction files (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`) | One growing wall of text: no types, no links, no lifecycle, copied per tool | Typed documents, a relation graph, a draft → accepted lifecycle, one setup for every agent     |
-| Memory tools (claude-mem, Mem0)                              | Remember what you did: volatile, opaque, vendor-bound                       | Store how the system is built and what was decided, versioned in Git and owned by you          |
-| Methodology kits (BMAD, Spec Kit, Agent OS, Superpowers)     | Prescribe a process, often as a one-shot handoff                            | Keep the artifacts alive as a context graph that evolves with the code; run a kit on top of it |
-| RAG or a bigger context window                               | Retrieves what the code says, not what was decided and why                  | Keeps decisions and rationale explicit and selective: the agent loads what applies             |
-
-Not for: chat memory, a prompt library, or a one-shot spec-to-code generator.
-
-## Questions
-
-**Does my code leave my machine?** Archcore stores project documents locally in `.archcore/`. Your coding agent may send document excerpts to its model provider, as it does with any file. Install and update analytics carry version and platform information, not your project content. Details and opt-out: [privacy](https://archcore.ai/privacy).
-
-**I already have a `CLAUDE.md` or `.cursor/rules`. Do I start over?** No. `/archcore:init import` turns the useful parts into typed documents, and the files stay for host-specific guidance.
-
-**Do I need both the plugin and the CLI?** The platform installer installs the CLI and adds the plugin to supported host CLIs it finds. Run `archcore init` in each project where you want MCP and hooks. On other MCP-aware agents, the CLI provides the context tools.
-
-## Documentation
-
-- [Install](https://docs.archcore.ai/start/install/) · [Quick start](https://docs.archcore.ai/start/quick-start/) · [Connect your agent](https://docs.archcore.ai/guides/connect-your-agent/) · [Commands](https://docs.archcore.ai/guides/commands/) · [CLI reference](https://docs.archcore.ai/cli/commands/) · [Document format](https://docs.archcore.ai/reference/document-format/)
-- [archcore.ai](https://archcore.ai) · [How to use](https://archcore.ai/how-to-use/) · [Privacy](https://archcore.ai/privacy)
-
-## Contributing
-
-One repository holds both components: the CLI under [`cli/`](https://github.com/archcore-ai/archcore/tree/dev/cli) and the plugin under [`plugin/`](https://github.com/archcore-ai/archcore/tree/dev/plugin), developed on `dev` and released together from one tag. Setup, tests, and the release process: [CONTRIBUTING.md](https://github.com/archcore-ai/archcore/blob/dev/CONTRIBUTING.md). Bugs and ideas: [issues](https://github.com/archcore-ai/archcore/issues).
-
-## License
-
-[Apache-2.0](LICENSE)
+[How Archcore works](https://archcore.ai/how-to-use/) · [Quick start](https://docs.archcore.ai/start/quick-start/) · [Commands](https://docs.archcore.ai/guides/commands/) · [Contributing](https://github.com/archcore-ai/archcore/blob/dev/CONTRIBUTING.md) (source is on `dev`) · [Apache 2.0 license](LICENSE)

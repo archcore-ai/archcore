@@ -32,6 +32,8 @@ for file in TERMS.md cursor.mcp.example.json; do
   cp "$source_root/docs/$file" "$output/docs/$file"
 done
 cp "$repo_root/README.md" "$output/README.md"
+# README.md embeds docs/promo.gif by relative path.
+cp "$repo_root/docs/promo.gif" "$output/docs/promo.gif"
 for file in LICENSE NOTICE; do
   cp "$repo_root/$file" "$output/$file"
 done
