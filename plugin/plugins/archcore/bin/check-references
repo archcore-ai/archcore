@@ -54,14 +54,15 @@ anchor_re='[A-Za-z0-9_./-]+\.(go|ts|tsx|js|jsx|mjs|cjs|vue|svelte|py|rb|rs|java|
 # shellcheck disable=SC2016
 ref_re='@[A-Za-z0-9_.][A-Za-z0-9_./-]*|`[A-Za-z0-9_.][A-Za-z0-9_./-]*`'
 # A document named by slug or by a document-relative link is a relation
-# candidate, not a code reference.
+# candidate, not a code reference. It reaches awk through the environment:
+# awk -v would expand the backslash escapes, and gawk warns on "\.".
 doc_suffix_re='\.(adr|rfc|rule|guide|doc|spec|research|evidence|scenario|prd|idea|plan|rnd|journey|task-type|cpat|mrd|brd|urd|brs|strs|syrs|srs)(\.md)?$'
 
 out="${TMPDIR:-/tmp}/check-references.$$"
 trap 'rm -f "$out"' EXIT
 
 candidates() {
-  printf '%s\n' "$live_docs" | tr '\n' '\0' | xargs -0 grep -HoE "$ref_re" 2>/dev/null | awk -v doc_suffix="$doc_suffix_re" '
+  printf '%s\n' "$live_docs" | tr '\n' '\0' | xargs -0 grep -HoE "$ref_re" 2>/dev/null | DOC_SUFFIX_RE="$doc_suffix_re" awk '
     {
       i = index($0, ":"); doc = substr($0, 1, i - 1); p = substr($0, i + 1)
       sub(/^@/, "", p); gsub(/`/, "", p)
@@ -69,7 +70,7 @@ candidates() {
       if (p !~ /\//) next
       if (p ~ /^\// || p ~ /\.\.\./ || p ~ /[*<{$]/ || p ~ /^http/ || p ~ /:\/\//) next
       if (p ~ /^\.\.?\// || p ~ /^\.archcore\//) next
-      if (p ~ doc_suffix) next
+      if (p ~ ENVIRON["DOC_SUFFIX_RE"]) next
       n = split(p, seg, "/")
       if (p !~ /\/$/ && seg[n] !~ /\./) next
       print doc "\t" p
