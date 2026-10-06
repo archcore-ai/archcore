@@ -1,6 +1,6 @@
 ---
 title: "Track-File Line Cap Raised to 300 and Pinned by a Structure Test"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "component:plugin"

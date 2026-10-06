@@ -1,6 +1,6 @@
 ---
 title: "update_document Accepts Exact-Match edits Instead of Requiring a Full Body"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "mcp"

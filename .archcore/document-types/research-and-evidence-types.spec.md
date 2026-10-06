@@ -1,6 +1,6 @@
 ---
 title: "Research and Evidence Document Types"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "document-types"

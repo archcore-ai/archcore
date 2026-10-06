@@ -1,6 +1,6 @@
 ---
 title: "Separate actor-subject-compatibility.md at CLI 0.8.4 Beside research-compatibility.md"
-status: draft
+status: accepted
 tags:
   - "component:plugin"
   - "document-types"

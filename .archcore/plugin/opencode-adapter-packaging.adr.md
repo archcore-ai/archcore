@@ -30,7 +30,7 @@ Duplication of skill content is permitted only where a delivery mechanism requir
 
 - [expected] Skills, agents, and `bin/` scripts ship to OpenCode from the same repository and release, so a core guard fix reaches all four hosts in one pull request.
 - npm distribution provides version pinning and an `engines` gate, and the install is one line in the user's `opencode.json` `plugin` array.
-- Tradeoff: `stack-and-tooling.rule` gains a scoped exception — TypeScript and `bun test` inside `plugins/opencode/` only, with `plugins/archcore/` and repo-root tooling staying POSIX shell and bats. The rule text is amended alongside this decision.
+- Tradeoff: `stack-and-tooling.rule` gains a scoped exception — TypeScript and `bun test` inside `plugins/opencode/` only, with `plugins/archcore/` and repo-root tooling staying POSIX shell and bats. The rule text is amended alongside this decision. (Later extended by `claude-code-hint-mod.adr`: TypeScript is also allowed for the Claude Code mod files under `plugins/archcore/`.)
 - Tradeoff: the supply-chain surface grows. npm publishing credentials, the `@opencode-ai/plugin` dependency, and Bun runtime behavior — a failed module resolution is cached per process — become operational concerns.
 - Tradeoff: the `config`-hook registration path for MCP and `skills.paths` relies on an init-ordering contract that OpenCode does not document. A live probe MUST pass before the first release, with documented manual `opencode.json` wiring as the fallback.
 - [expected] Tradeoff: the repository gains a second plugin root, so structure tests, release synthesis, and the `.archcore`-reference grep guard must each include or exclude `plugins/opencode/` explicitly.

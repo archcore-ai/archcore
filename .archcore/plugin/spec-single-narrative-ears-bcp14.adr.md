@@ -29,7 +29,7 @@ The notation is `WHEN <trigger>, the <subject> MUST <response>`, plus the WHILE,
 
 - Backward compatible: an existing `X MUST Y` line is a valid EARS ubiquitous sentence, so no migration is required, and the `Contract Surface` and `Error Handling` headings map one-to-one onto `Surface` and `Failure Behavior` on the next edit.
 - The EARS and BCP 14 hybrid is a synthesis rather than a named standard, though each half is standardized; protocol RFCs combine the two informally in the same way.
-- Tradeoff: the 80-line body cap has not been re-validated after EARS clause expansion on real specs, and several existing specs exceed it after conversion.
+- Tradeoff: the 80-line body cap has not been re-validated after EARS clause expansion on real specs, and several existing specs exceed it after conversion. (Later change: the cap is now 120 lines — `@plugin/plugins/archcore/skills/_shared/spec-contract.md`, `decompose-over-truncate.adr`.)
 - Tradeoff: an external coherence gap remains — the MCP server's type label still reads "spec — Contract of a depended-on boundary" and needs the "normative behavior contract" wording in the next server release.
 - The companion decision keeping feature-scale requirements in `prd` through a scope rule is recorded in `no-frd-type-prd-scope-rule.adr`.
 

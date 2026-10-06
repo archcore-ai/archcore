@@ -12,6 +12,8 @@ tags:
 
 **Repository note.** The repository was `archcore-ai/plugin` when the marketplace commands below were verified (2026-08-12). It became `archcore-ai/archcore` on 2026-09-22, GitHub redirects the old name, and the commands below carry the current name.
 
+**Hooks note.** F3's five scripts were later consolidated into the three launchers `bin/session-start`, `bin/pre-tool-use`, and `bin/post-tool-use`, at 2-second and 4-second timeouts in `hooks/codex.hooks.json` (`cli-owns-layers-4-5.adr`).
+
 ## Vision
 
 The Archcore plugin runs natively in OpenAI Codex CLI as a third first-class host alongside Claude Code and Cursor, installable through the plugin marketplace, with Codex-native packaging for slash commands, skills, plugin-managed MCP, a hooks config, and a read-only auditor subagent in TOML. Hook execution uses Codex's current hooks runtime under `[features].hooks`, where `codex_hooks` is a deprecated alias, and a plugin-bundled hook still requires user trust. Existing Claude Code and Cursor users see zero regression.
@@ -77,6 +79,6 @@ Users of OpenAI Codex CLI need the same Archcore surfaces Claude Code users get:
 ## Dependencies
 
 - `multi-host-plugin-architecture.adr` as the architectural authority for the shared-core and per-host-adapter split.
-- `multi-host-implementation.plan` as the predecessor this document continues.
+- `multi-host-implementation.plan` as the predecessor this document continues. That plan is no longer in `.archcore/`.
 - Codex CLI v0.117.0 or later, available for testing.
 - The Archcore CLI installed globally on PATH per https://docs.archcore.ai/cli/install/. The plugin neither bundles nor fetches it, a coupling that `remove-bundled-launcher-global-cli.idea` removed.

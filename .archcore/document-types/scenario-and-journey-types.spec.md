@@ -1,6 +1,6 @@
 ---
 title: "Scenario and Journey Document Types"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "document-types"

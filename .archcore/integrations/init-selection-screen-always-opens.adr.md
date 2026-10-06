@@ -1,6 +1,6 @@
 ---
 title: "The init Selection Screen Opens on Every Interactive Run, With Detected Hosts Pre-Checked"
-status: draft
+status: accepted
 tags:
   - "cli"
   - "component:cli"

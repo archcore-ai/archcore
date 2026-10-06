@@ -20,6 +20,8 @@ The script installs the CLI. `archcore init` then wires the detected hosts as it
 hooks, MCP config, instruction nudge — and, for the hosts where the Archcore plugin ships,
 also delivers the plugin.
 
+**Later change (2026-10-02).** The platform installers `install.sh` and `install.ps1` now also call `archcore plugin install` for each supported host CLI on `PATH` — `plugin-delivery.spec`, requirements 33–42.
+
 The plugin identifiers are already fixed and public, so the CLI does not have to discover them:
 
 | Identifier | Value |

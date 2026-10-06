@@ -1,6 +1,6 @@
 ---
 title: "A Missing Global Source Degrades to Local Documents Instead of Stopping the MCP Server"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "config"

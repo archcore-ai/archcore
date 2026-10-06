@@ -1,6 +1,6 @@
 ---
 title: "Init Entry and Assessment Gate — Signature, Run Order, and Division of the Fill"
-status: draft
+status: accepted
 tags:
   - "commands"
   - "component:plugin"

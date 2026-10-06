@@ -70,7 +70,7 @@ Make one `vX.Y.Z` tag on this repository publish the plugin tree to `main` and t
 ## Acceptance Criteria
 
 - Pushing tag v0.10.1 produced an orphan `main` commit identical to `scripts/export-plugin.sh` output and one GitHub Release with 6 archives, `checksums.txt`, `install.sh`, and `install.ps1`. Met 2026-09-22.
-- A tag whose manifests differ from it fails in `verify-version` before the tests, the export, the `main` push, and the GoReleaser job.
+- A tag whose manifests differ from it fails in `verify-version` before the tests, the export, the `main` push, and the GoReleaser job. (Later changed by `plugin-version-written-from-the-tag.adr`: source manifests stay at `0.0.0`, and `verify-version` now fails a tag that does not directly follow the previous release tag — `@scripts/check-release-tag.sh`.)
 - `curl -sI https://github.com/archcore-ai/archcore/releases/latest` returns a `location:` header ending in `/releases/tag/<latest tag>`. Met 2026-09-22 for v0.10.2.
 - A binary extracted from the v0.10.2 `archcore_darwin_arm64.tar.gz` prints `v0.10.2` for `archcore --version` and reports "up to date" against `archcore-ai/archcore`. Met 2026-09-22.
 - A GoReleaser run without `POSTHOG_KEY` or `ARCHCORE_OFFICIAL_BUILD` fails at @cli/scripts/assert-not-inert.sh.

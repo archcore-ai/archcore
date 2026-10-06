@@ -1,6 +1,6 @@
 ---
 title: "Import Conversion and Staging — Target Documents, Waves, Verify, Retire, Discharge"
-status: draft
+status: accepted
 tags:
   - "component:plugin"
   - "onboarding"
