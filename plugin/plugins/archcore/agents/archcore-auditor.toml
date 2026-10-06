@@ -83,16 +83,14 @@ changes; include statement locations and reasoning in proposed corrections.
 
 ## 4. Consistency
 
-- Tag usage: inconsistent or missing tags across related documents
-- Naming: slug conventions followed (lowercase, hyphens)
-- Titles: descriptive phrases, not slugs or abbreviations
-- Directory organization: related documents in the same directory
+- Cross-document conflicts and type fitness: run the deep checks in `skills/_shared/tracks/actualize.md` under the plugin root supplied by the caller, within their stated budget
+- Naming and titles: slug conventions followed; titles are descriptive phrases
 
 ## 5. Staleness
 
-- Documents that reference removed or renamed code
+- Unresolvable references and line anchors: read them from the `bin/check-references` output the caller supplied; you have no shell, so never run it, never read every document to find paths, and never invent a commit. If the caller supplied no output, report the check as not run
+- Shipped drafts and claim sampling: follow `skills/_shared/tracks/actualize.md` check 6 and Deep check 1; at your turn limit, report the covered share and stop
 - Outdated decisions that may need revisiting
-- Plans with completed phases not marked as accepted
 
 ## 6. Code-Document Correlation
 

@@ -22,10 +22,10 @@ and is not part of this subsystem. Everything described here degrades to silence
 
 | Engine | Call site | Trigger | Output |
 |---|---|---|---|
-| `CodeAlignment` | @cli/cmd/hook_command.go:187 | before a source edit | the documents that constrain the file |
-| `Precision` | @cli/cmd/hook_post_tool_use.go:41 | after a document write | vague-requirement findings |
+| `CodeAlignment` | `preToolUseHandler` in @cli/cmd/hook_command.go | before a source edit | the documents that constrain the file |
+| `Precision` | `postToolUseHandler` in @cli/cmd/hook_post_tool_use.go | after a document write | vague-requirement findings |
 | `Restatement` | after a document write | a statement copied from a document the written one builds on | the duplicated statement |
-| `Staleness` | @cli/cmd/hooks_common.go:82 | session start | documents that mention directories that moved |
+| `Staleness` | `buildSessionContext` in @cli/cmd/hooks_common.go | session start | documents that mention directories that moved |
 
 ### Code alignment
 
@@ -65,7 +65,11 @@ Both run after a document write and both measure a document against a canon, not
 
 `Precision` measures the written document against the canon in `@cli/templates/precision.go`; the engine
 and the canon are separate files so either can change alone. It is deliberately over-eager — a false
-"look at this" costs a glance.
+"look at this" costs a glance. Two of its checks read language data from that canon: a graded clause
+with no BCP 14 keyword is reported with the native modal it used (`NativeModals`, one row per
+language), and a code reference with a line number is reported when the path ends in one of
+`CodeReferenceExtensions` — `plugin/language-neutral-structure-tokens.adr` and
+`plugin/code-references-name-a-file-or-directory.adr`.
 
 `Restatement` reads the documents the written one builds on through `implements` relations and reports
 a statement that survived the move nearly word for word. It matches near-verbatim text only: a
