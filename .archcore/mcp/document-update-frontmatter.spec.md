@@ -1,6 +1,6 @@
 ---
 title: "Document Update Frontmatter Retention"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "document-types"

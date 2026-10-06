@@ -10,6 +10,8 @@ tags:
 
 **Outcome (2026-05-15).** The idea was executed. The skill shipped as `skills/init/` and the command is `/archcore:init`, per `skill-surface-collapse.adr`; it was originally drafted as `skills/bootstrap/`. Variants A and B shipped, and Variant C remains deferred. Read every `/archcore:bootstrap` below as `/archcore:init`.
 
+**Later changes.** `bin/check-code-alignment` no longer exists; code alignment runs in the CLI hook (`archcore hooks <host> pre-tool-use`). The shipped Variant A nudge in `bin/session-start` names `/archcore:init`, not `/archcore:document` and `/archcore:plan`. The shipped empty-state threshold in `bin/lib/empty-state.sh` counts any `.md` file over 200 bytes and ignores `status`.
+
 ## Idea
 
 A new user installs the plugin on an existing repository. `.archcore/` is empty, SessionStart loads zero documents, `check-code-alignment` greps an empty knowledge base and injects nothing, command grounding reports no document references the path (context removed under v2), and `/archcore:review` reports zero documents. The plugin gives no signal that anything changed, so the user does not know what to do next, sees no value, and uninstalls or forgets.

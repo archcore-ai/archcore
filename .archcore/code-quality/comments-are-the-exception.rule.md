@@ -28,7 +28,7 @@ Clause 2 does not override an obligation stated elsewhere. These comments stay m
 
 | Comment | Required by |
 |---|---|
-| doc comment on an exported identifier | Go convention, enforced by `revive` |
+| doc comment on an exported identifier | Go convention; no analyzer enforces it |
 | the reason a change deviates from a convention | `go-code-quality.rule`, `strict-go-naming-conventions.rule` |
 | the budget a timeout or ceiling constant protects | `go-code-quality.rule`, `bounded-and-deterministic-output.rule` §2 |
 | guard or advisory, at the branch handling the error | `fail-open-or-fail-closed-reads.rule` §3 |
@@ -75,6 +75,6 @@ evidence no test holds.
 ## Enforcement
 
 - No analyzer measures clauses 2 to 7. Review holds them.
-- `revive`'s `exported` and `package-comments` rules hold the doc-comment carve-out.
+- `revive`'s `package-comments` rule holds the package-comment carve-out. `@cli/.golangci.yml` does not enable `revive`'s `exported` rule, so no analyzer enforces a doc comment on an exported identifier.
 - WHEN a review finds a comment that only restates the code, the reviewer MUST ask for its removal
   rather than its rewording.

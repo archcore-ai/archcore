@@ -66,7 +66,7 @@ Two things the implementation corrected against the original task list. Anchorin
 1. [x] `archcore mcp` started in a worktree of this repository serves 108 local and 43 global documents. Measured: `list_documents` returned `by_source: {"archcore": 43, "local": 108}`.
 2. [x] `archcore status` in that worktree reports zero issues and exits zero.
 3. [x] A session that enters a worktree mid-session has its next `create_document` write into the worktree. Measured against the built binary: the server started in the main checkout, a probe client reported a linked worktree over `roots/list`, and the document landed in the worktree.
-4. [x] A candidate root whose declared global source does not resolve is refused, the server keeps the previous root, and one warning line names the source id.
+4. [x] A candidate root whose declared global source does not resolve is refused, the server keeps the previous root, and one warning line names the source id. (Later changed by `missing-global-degrades-to-local.adr`: a missing source is accepted with a warning; only a misconfigured source is refused.)
 5. [x] `init_project` still works for a start-time root that holds no `.archcore/`.
 6. [x] A host that declares no `roots` capability produces no `roots/list` request.
 7. [x] `go test ./...`, `go vet ./...`, and `golangci-lint run` pass. Removing the anchor fails the two worktree tests with the issue's own error text; returning the current root unconditionally fails five of the roots tests.

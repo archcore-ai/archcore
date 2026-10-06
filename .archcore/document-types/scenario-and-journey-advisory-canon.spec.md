@@ -1,6 +1,6 @@
 ---
 title: "Scenario and Journey in the Precision Canon and the Advisory Engines"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "docs-style"

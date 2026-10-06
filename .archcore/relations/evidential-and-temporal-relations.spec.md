@@ -1,6 +1,6 @@
 ---
 title: "Evidential and Temporal Relation Values"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "mcp"

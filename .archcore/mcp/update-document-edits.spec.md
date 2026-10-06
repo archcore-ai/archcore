@@ -1,6 +1,6 @@
 ---
 title: "update_document edits Contract"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "mcp"

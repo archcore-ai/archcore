@@ -14,7 +14,7 @@ The plugin originally adopted a single universal agent, recorded in `single-univ
 
 ## Decision
 
-Add a second agent, **`archcore-auditor`**, alongside `archcore-assistant` — read-only tools (`list_documents`, `get_document`, `list_relations`, `Read`, `Grep`, `Glob`), `background: true`, `model: sonnet`, and a structured audit report categorized as critical, warning, and info — extending rather than replacing the single-agent design.
+Add a second agent, **`archcore-auditor`**, alongside `archcore-assistant` — read-only tools (`list_documents`, `search_documents`, `get_document`, `list_relations`, `Read`, `Grep`, `Glob`), `background: true`, `model: sonnet`, and a structured audit report categorized as critical, warning, and info — extending rather than replacing the single-agent design.
 
 `archcore-assistant` keeps its role as the read/write agent for complex multi-document tasks.
 
