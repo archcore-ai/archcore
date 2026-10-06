@@ -19,7 +19,7 @@ This spec defines documentation-freshness detection: the SessionStart staleness 
 
 ## Surface
 
-Three kinds of staleness: **code→doc drift** (source changes that invalidate documentation), **doc→doc cascade** (an update that leaves related documents behind), and **temporal staleness** (a document left in one status longer than expected). Detection runs at three depths.
+Three kinds of staleness: **code→doc drift** (source changes that invalidate documentation), **doc→doc cascade** (an update that leaves related documents behind), and **temporal staleness** (a document left in one status longer than expected). Layer 3 adds three checks that read the document alone: **reference resolution** (a cited code path that no longer exists, independent of the diff), **line anchors** (a code reference that carries a line number), and **shipped drafts** (a `draft` whose claims all verify against the code). Detection runs at three depths.
 
 | Layer | Trigger | Depth | Output | Runs in |
 |---|---|---|---|---|
@@ -33,7 +33,7 @@ Three kinds of staleness: **code→doc drift** (source changes that invalidate d
 
 The direction is fixed: A is the mutated target, B holds the relation into it, and B is the document reported as potentially stale. `related` relations are excluded to reduce noise. The host matcher enumerates ten tool names — create, update, and remove document, plus add and remove relation, each under the bare `mcp__archcore__` and the plugin-scoped `mcp__plugin_archcore_archcore__` prefix — except on Copilot and Cursor, whose post-mutation events accept no matcher and where the CLI self-filters on the normalized tool name.
 
-**Layer 3.** A mode of the `review` command, activated by the `drift` mode or by drift phrasing such as "are any docs stale?". It loads `skills/_shared/tracks/actualize.md`, gathers (`list_documents`, `list_relations`, `git log`), analyses all three kinds, labels each finding `spec-wrong`, `code-wrong`, or `ok`, and offers a confirmed fix one document at a time.
+**Layer 3.** A mode of the `review` command, activated by the `drift` mode or by drift phrasing such as "are any docs stale?". It loads `skills/_shared/tracks/actualize.md`, gathers (`list_documents`, `list_relations`, `git log`), analyses the three kinds and the three document checks, labels each finding `spec-wrong`, `code-wrong`, or `ok`, and offers a confirmed fix one document at a time.
 
 ## Normative Behavior
 
@@ -84,7 +84,7 @@ Item 5 is the widest silent gap in the system: on a machine whose `archcore` pre
 1. `bin/session-start` reaches `archcore hooks <host> session-start` and its recap carries a code-drift line where one applies.
 2. `bin/post-tool-use` reaches `archcore hooks <host> post-tool-use` and produces a cascade notice where one applies.
 3. Every host config registers `bin/post-tool-use` on the document-mutation tools — by matcher where the host has one, by the CLI's own filtering on Copilot and Cursor.
-4. `/archcore:review drift` exists as a mode of `review`, with routing-table support and all three analyses.
+4. `/archcore:review drift` exists as a mode of `review`, with routing-table support, the three staleness analyses, and the three document checks.
 5. The drift protocol lives at `skills/_shared/tracks/actualize.md`, and `@plugin/test/structure/track-goldens.bats` pins its gate records.
 6. Every hook completes inside its timeout budget, bounded by `@plugin/test/unit/hook-latency.bats`.
 7. No layer blocks an operation, and no layer modifies a document without user confirmation.

@@ -55,6 +55,37 @@ var AmbiguousAlternatives = []string{
 	"and/or", "и/или",
 }
 
+// NativeModals are the modal words a graded clause uses in place of a BCP 14
+// keyword, keyed by BCP-47 primary subtag; English lists its lowercase forms.
+// The keywords stay English in every language
+// (language-neutral-structure-tokens.adr), so these words only name the defect
+// in a clause that carries no keyword. The engine matches the union, because a
+// corpus mixes languages and the setting does not say which one a clause used.
+var NativeModals = map[string][]string{
+	"en": {"must", "should", "shall", "may"},
+	"ru": {"должен", "должна", "должно", "должны", "обязан", "обязана", "обязаны", "следует", "нельзя", "запрещено", "допускается", "может", "могут"},
+	"uk": {"повинен", "повинна", "повинно", "повинні", "слід", "заборонено", "дозволяється"},
+	"de": {"muss", "müssen", "soll", "sollen", "sollte", "darf", "dürfen"},
+	"fr": {"doit", "doivent", "devrait", "devraient", "peut", "peuvent"},
+	"es": {"debe", "deben", "debería", "deberían", "puede", "pueden"},
+	"pt": {"deve", "devem", "deveria", "deveriam", "pode", "podem"},
+	"it": {"deve", "devono", "dovrebbe", "dovrebbero", "può", "possono"},
+	"zh": {"必须", "应当", "应该", "不得", "可以"},
+	"ja": {"しなければならない", "してはならない", "すべき", "してもよい"},
+}
+
+// CodeReferenceExtensions are the file extensions a line anchor is recognized
+// after. The list is closed so a host and port (`example.com:443`) never reads
+// as a file and a line.
+var CodeReferenceExtensions = []string{
+	"go", "ts", "tsx", "js", "jsx", "mjs", "cjs", "vue", "svelte",
+	"py", "rb", "rs", "java", "kt", "kts", "scala", "swift", "dart",
+	"c", "h", "cc", "cpp", "hpp", "cs", "m", "mm", "php", "ex", "exs", "lua",
+	"sh", "bash", "sql", "proto", "tf",
+	"css", "scss", "sass", "less", "html",
+	"json", "yaml", "yml", "toml", "xml", "md",
+}
+
 // SectionRule is one required heading. Aliases carry the historical spellings a
 // document may still use, so a rename does not turn every older document into a
 // finding.

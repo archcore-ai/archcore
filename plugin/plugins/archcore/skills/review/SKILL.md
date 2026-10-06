@@ -72,16 +72,19 @@ Handle every sentinel the contract defines:
 | `on-default-branch` | Report project health instead of a branch review. |
 | `empty-diff` | Report project health instead of a branch review. |
 
-In `drift` mode, the `on-default-branch` and `empty-diff` sentinels widen the actualize scope to all documents instead of the health fallback.
+In `drift` and `deep` modes, the `on-default-branch` and `empty-diff` sentinels widen the actualize scope to all documents instead of the health fallback, and Step 2 is skipped.
 
-**Project health fallback** — compact dashboard, data only, no analysis:
+**Project health fallback** — compact dashboard, data and mechanical checks, no judgement:
 
 - document counts by category, by status, and by type (skip types with 0);
-- relation counts by type;
+- relation counts by type, with the share of `related`;
 - unlinked documents (no incoming or outgoing relations), reported as inventory;
+- unresolved code paths and documents with line anchors, counted from one run of `bin/check-references` (`skills/_shared/tracks/actualize.md`, check 4) — never by reading each document; without a shell, state that the reference check did not run;
 - one-line summary of confirmed structural issues; counts alone do not establish a defect.
 
-An unlinked document or a high draft count alone is not an issue.
+An unlinked document or a high draft count alone is not an issue. The default
+branch holds the merged corpus, so the reference counts run here even though no
+diff exists: a path deleted by an earlier branch appears in no later diff.
 
 End with: *For staleness detection, run `/archcore:review drift`. For a full audit, run `/archcore:review deep`.*
 
@@ -111,7 +114,7 @@ Match local `plan` documents to the branch work:
 
 ### Step 3: Actualize gate
 
-WHEN step 2 surfaces a drift signal — any `spec-wrong` or `code-wrong` finding — or the first word is `deep` or `drift`, route into the actualize track (`skills/_shared/tracks/actualize.md`) and run its gates: `actualize.scope` (pre-filled with the step 1 `branch-state` block), `actualize.verdict`, `actualize.fix`. In `deep` mode, widen the scope to all documents and report coverage gaps, relation health, status, and consistency findings alongside the drift verdicts. Verdict vocabulary lives in `skills/_shared/verdict-contract.md`.
+WHEN step 2 surfaces a drift signal — any `spec-wrong` or `code-wrong` finding — or the first word is `deep` or `drift`, route into the actualize track (`skills/_shared/tracks/actualize.md`) and run its gates: `actualize.scope` (pre-filled with the step 1 `branch-state` block), `actualize.verdict`, `actualize.fix`. In `deep` mode, widen the scope to all documents and run the track's deep checks within their stated budget — claim sampling, cross-document conflicts, type fitness, and relation candidates — alongside the drift verdicts, then report coverage gaps per the auditor's Coverage dimension (`agents/archcore-auditor.md`). Verdict vocabulary lives in `skills/_shared/verdict-contract.md`.
 
 On a plain branch review, after step 2 and any actualize fixes:
 
@@ -128,13 +131,13 @@ WHEN the reviewed changes repeat an undocumented pattern, offer a `cpat` or `tas
 ## Delegation
 
 - The `archcore-auditor` agent collects findings read-only: document inventory, relation graph, drift and coverage signals. The agent never questions the user (a subagent MUST NOT conduct an interview, per `skills/_shared/elicitation-contract.md`) and never writes.
-- Before delegating to the `archcore-auditor` agent, pass the absolute plugin root — the directory two levels above this `SKILL.md`. The agent reads `skills/_shared/relation-authoring.md` under that root.
+- Before delegating to the `archcore-auditor` agent, pass the absolute plugin root — the directory two levels above this `SKILL.md` — and the output of `bin/check-references`, which the agent cannot run without a shell. The agent reads `skills/_shared/relation-authoring.md` under that root, and `skills/_shared/tracks/actualize.md` under the same root.
 - The main thread confirms every fix with the user and applies it via `mcp__archcore__update_document`, one document at a time, per the `actualize.fix` gate. The review skill MUST NOT edit code on this path — it reports a `code-wrong` finding without fixing it.
 
 ## Result
 
 - Branch review: findings grouped by verdict — `spec-wrong` / `code-wrong` / `ok` — with evidence, applied fixes, and declined fixes.
-- Health fallback: the dashboard, data only.
+- Health fallback: the dashboard — data and the reference helper's counts.
 - Ambiguous plan candidates: each candidate named, with closeout skipped.
 - Closeout: per-task verdicts, applied and declined document updates, status transitions grouped applied / declined / skipped, routed residue with the instrument that took it, removed plans, and retained plans with the remaining work or blocking reason.
 - Produced documents grouped by category — experience: a `cpat` or `task-type` draft from the experience offer or from closeout residue capture; knowledge: a `guide`, or an `adr` plus its standard cascade (`rule`, `guide`), when closeout routes residue through the decision instrument; knowledge / vision: documents updated by a drift fix or a closeout merge.

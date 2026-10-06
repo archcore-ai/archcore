@@ -8,7 +8,7 @@ setup() {
 
 @test "all bin scripts are executable" {
   local not_exec=""
-  for f in "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/pre-tool-use "$PLUGIN_ROOT"/bin/post-tool-use "$PLUGIN_ROOT"/bin/detect-host "$PLUGIN_ROOT"/bin/cli-gte; do
+  for f in "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/pre-tool-use "$PLUGIN_ROOT"/bin/post-tool-use "$PLUGIN_ROOT"/bin/detect-host "$PLUGIN_ROOT"/bin/cli-gte "$PLUGIN_ROOT"/bin/check-references; do
     [ -f "$f" ] || fail "Missing bin script: $f"
     if [ ! -x "$f" ]; then
       not_exec="$not_exec $(basename "$f")"
@@ -19,7 +19,7 @@ setup() {
 
 @test "all bin scripts have #!/bin/sh shebang" {
   local bad_shebang=""
-  for f in "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/pre-tool-use "$PLUGIN_ROOT"/bin/post-tool-use "$PLUGIN_ROOT"/bin/detect-host "$PLUGIN_ROOT"/bin/cli-gte; do
+  for f in "$PLUGIN_ROOT"/bin/session-start "$PLUGIN_ROOT"/bin/pre-tool-use "$PLUGIN_ROOT"/bin/post-tool-use "$PLUGIN_ROOT"/bin/detect-host "$PLUGIN_ROOT"/bin/cli-gte "$PLUGIN_ROOT"/bin/check-references; do
     [ -f "$f" ] || continue
     local first_line
     first_line=$(head -1 "$f")

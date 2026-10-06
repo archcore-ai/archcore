@@ -70,7 +70,14 @@ var (
 	// The emphasis run is optional because the corpus writes "1. **WHEN** ...".
 	// Without it the opener went unrecognized, so a bolded EARS clause both
 	// escaped the prd check and was reported for stating its condition late.
-	earsOpenerRe = regexp.MustCompile(`^\s*[0-9]+\.\s*[*_]*(WHEN|WHILE|IF)\b`)
+	earsOpenerRe = regexp.MustCompile(`^\s*[0-9]+\.\s*[*_]*(WHEN|WHILE|IF|WHERE)\b`)
+	// lineAnchorRe finds a code reference that carries a line number: the number
+	// turns stale on every unrelated edit above it
+	// (code-references-name-a-file-or-directory.adr).
+	lineAnchorRe = buildLineAnchorRe(templates.CodeReferenceExtensions)
+	// nativeModalRe is guarded by "not a letter" rather than \b: Go's boundary is
+	// ASCII-only, and an unguarded "может" would match inside "можете".
+	nativeModalRe, nativeModalCJKRe = buildNativeModalRes(templates.NativeModals)
 	// passiveRe finds an obligation with no obligated subject, in English
 	// ("MUST be rotated") and Russian ("MUST ротироваться").
 	//
@@ -161,6 +168,42 @@ func buildLexiconRe(words []string) *regexp.Regexp {
 		quoted[i] = regexp.QuoteMeta(w)
 	}
 	return regexp.MustCompile(`(?i)\b(` + strings.Join(quoted, "|") + `)\b`)
+}
+
+// buildLineAnchorRe quotes the extensions for the same reason buildLexiconRe
+// quotes its words: an exported list must not be able to panic the package at
+// init.
+func buildLineAnchorRe(exts []string) *regexp.Regexp {
+	quoted := make([]string, len(exts))
+	for i, e := range exts {
+		quoted[i] = regexp.QuoteMeta(e)
+	}
+	return regexp.MustCompile(`@?[\w./-]*\.(?i:` + strings.Join(quoted, "|") + `)(?::[0-9]+(?:-[0-9]+)?|#L[0-9]+(?:-L?[0-9]+)?)\b`)
+}
+
+// buildNativeModalRes splits the words by script: Han and kana text has no
+// spaces to guard on, so those words match as substrings. The words are sorted
+// so the alternation does not depend on map order.
+func buildNativeModalRes(byLang map[string][]string) (spaced, cjk *regexp.Regexp) {
+	var spacedWords, cjkWords []string
+	for _, words := range byLang {
+		for _, w := range words {
+			if strings.IndexFunc(w, isUnspacedScript) >= 0 {
+				cjkWords = append(cjkWords, regexp.QuoteMeta(w))
+			} else {
+				spacedWords = append(spacedWords, regexp.QuoteMeta(w))
+			}
+		}
+	}
+	slices.Sort(spacedWords)
+	slices.Sort(cjkWords)
+	spaced = regexp.MustCompile(`(?i)(?:^|[^\p{L}])(` + strings.Join(slices.Compact(spacedWords), "|") + `)(?:[^\p{L}]|$)`)
+	cjk = regexp.MustCompile(`(` + strings.Join(slices.Compact(cjkWords), "|") + `)`)
+	return spaced, cjk
+}
+
+func isUnspacedScript(r rune) bool {
+	return unicode.In(r, unicode.Han, unicode.Hiragana, unicode.Katakana)
 }
 
 // Precision checks a freshly written document and returns the findings.
@@ -270,6 +313,11 @@ func PrecisionFindings(docType templates.DocumentType, fm templates.Frontmatter,
 			strings.Join(hits, ", ")))
 	}
 
+	if hits := findLineAnchorHits(body); len(hits) > 0 {
+		out = append(out, fmt.Sprintf("code reference with a line number (%s) — cite the file or the directory alone, and name the symbol in inline code when a narrower target is needed",
+			strings.Join(hits, ", ")))
+	}
+
 	if templates.ArchitectVoiceTypes[docType] && hasLongCodeBlock(lines) {
 		out = append(out, fmt.Sprintf("code block of %d+ lines in %s — prefer an @path/to/file reference over pasted implementation detail",
 			templates.MaxCodeBlockLines, docType))
@@ -327,6 +375,11 @@ func profileFindings(docType templates.DocumentType, lines, clauses, steps []str
 	if hits := overLengthHits(steps, templates.MaxStepWords); len(hits) > 0 {
 		out = append(out, fmt.Sprintf("step over %d words (%s) — one step carries one action",
 			templates.MaxStepWords, strings.Join(hits, "; ")))
+	}
+
+	if hits := clausesWithoutKeyword(clauses); len(hits) > 0 {
+		out = append(out, fmt.Sprintf("requirement with no BCP 14 keyword (%s) — grade it with MUST, MUST NOT, SHOULD, or MAY, kept in English in every document language, or move the line out of the graded section",
+			strings.Join(hits, "; ")))
 	}
 
 	for _, clause := range clauses {
@@ -930,6 +983,41 @@ func conditionAfterObligation(clauses []string) []string {
 		}
 	}
 	return distinctCapped(hits, maxPrecisionHits)
+}
+
+// clausesWithoutKeyword quotes each graded clause that carries no BCP 14
+// keyword, prefixed by the native modal it used when it used one, so the
+// finding names the word to replace. Inline code comes out first: a backticked
+// `must` is named, not used.
+func clausesWithoutKeyword(clauses []string) []string {
+	var hits []string
+	for _, clause := range clauses {
+		if modalRe.MatchString(clause) {
+			continue
+		}
+		hit := quote(clause)
+		if word := nativeModal(inlineCodeRe.ReplaceAllString(clause, " ")); word != "" {
+			hit = fmt.Sprintf("%q in %s", word, hit)
+		}
+		hits = append(hits, hit)
+	}
+	return distinctCapped(hits, maxPrecisionHits)
+}
+
+func nativeModal(text string) string {
+	if m := nativeModalRe.FindStringSubmatch(text); m != nil {
+		return strings.ToLower(m[1])
+	}
+	if m := nativeModalCJKRe.FindStringSubmatch(text); m != nil {
+		return m[1]
+	}
+	return ""
+}
+
+// findLineAnchorHits reads the body outside fenced blocks: a code sample may
+// print a file and a line, and only the document's own references are graded.
+func findLineAnchorHits(body string) []string {
+	return distinctCapped(lineAnchorRe.FindAllString(outsideFences(body), -1), maxPrecisionHits)
 }
 
 // markerHits collects the distinct marker occurrences across every item group.

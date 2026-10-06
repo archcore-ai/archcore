@@ -5047,6 +5047,31 @@
       "source": "plugin/claude-code-hint-mod.adr.md",
       "target": "integrations/disable-stop-and-prompt-hooks.adr.md",
       "type": "extends"
+    },
+    {
+      "source": "plugin/language-neutral-structure-tokens.adr.md",
+      "target": "plugin/spec-single-narrative-ears-bcp14.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/code-references-name-a-file-or-directory.adr.md",
+      "target": "plugin/architect-voice-default.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/corpus-quality-from-field-audit.plan.md",
+      "target": "plugin/code-references-name-a-file-or-directory.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/corpus-quality-from-field-audit.plan.md",
+      "target": "plugin/language-neutral-structure-tokens.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/corpus-quality-from-field-audit.plan.md",
+      "target": "plugin/actualize-system.spec.md",
+      "type": "implements"
     }
   ]
 }

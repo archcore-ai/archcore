@@ -52,6 +52,11 @@ func TestBuildInstructions_NonEnglish(t *testing.T) {
 		if !strings.Contains(result, lang) {
 			t.Errorf("buildInstructions(%q): should contain the language code", lang)
 		}
+		for _, token := range []string{`"##" section headings`, "MUST NOT", "WHERE"} {
+			if !strings.Contains(result, token) {
+				t.Errorf("buildInstructions(%q): structure tokens line should name %q", lang, token)
+			}
+		}
 	}
 }
 

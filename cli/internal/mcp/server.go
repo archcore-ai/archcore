@@ -225,7 +225,8 @@ This project declares %d global source(s) that are not cloned yet: %s. The read 
 	return out + fmt.Sprintf(`
 
 LANGUAGE REQUIREMENT:
-All document content (title, body text) MUST be written in %q. YAML frontmatter keys and status values remain in English. Slug must still be lowercase ASCII with hyphens.`, language)
+All document content (title, body text) MUST be written in %q. YAML frontmatter keys and status values remain in English. Slug must still be lowercase ASCII with hyphens.
+Structure tokens also remain in English, because the checks and every agent parse them: the "##" section headings of the type template, the BCP 14 keywords (MUST, MUST NOT, SHOULD, SHOULD NOT, MAY), and the EARS keywords (WHEN, WHILE, IF, THEN, WHERE). Write the rest of a graded line, including the actor, in %q without English articles. Subsections ("###") may use %q.`, language, language, language)
 }
 
 // ServerOption customizes optional server capabilities.
