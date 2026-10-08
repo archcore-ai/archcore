@@ -44,8 +44,8 @@ Gated flows beneath the command surface, per `track-layer.spec`. Each is a seque
 | requirements-cascade | `skills/_shared/tracks/requirements-cascade.md` | plan | `mode: sources` (mrd → brd → urd) \| `mode: iso` (brs → strs → syrs → srs) |
 | research | `skills/_shared/tracks/research.md` | plan | frame questions → gather evidence → conclude with recommendation (produces `rnd`) |
 | actualize | `skills/_shared/tracks/actualize.md` | review | drift detection → per-finding verdict → confirmed fixes |
-| experience | `skills/_shared/tracks/experience.md` | review | repeated-pattern detection → `cpat` \| `task-type` offer |
-| closeout | `skills/_shared/tracks/closeout.md` | review | verify plan vs branch diff → confirmed canon merge → confirmed draft → accepted transitions, per `document-status-transitions.adr` |
+| experience | `skills/_shared/tracks/experience.md` | review | unrecorded-pattern detection — a repeated edit shape or one practice change with an evidenced reason → `cpat` \| `task-type` offer, skipped for a pattern the durable-context selection already listed or omitted |
+| closeout | `skills/_shared/tracks/closeout.md` | review | verify plan vs branch diff → confirmed canon merge → confirmed draft → accepted transitions, per `document-status-transitions.adr` → durable-context capture through one batched preview → confirmed plan removal |
 
 ### Shared runtime assets (`skills/_shared/`)
 
@@ -60,6 +60,7 @@ Plain-markdown assets loaded at runtime before a skill composes a document. They
 | `rule-contract.md` | `skills/_shared/rule-contract.md` | `document` (rule), `init` (cross-cutting rules) | Mandatory rule body: RFC 2119 statement, applies-to scope, rationale, Good/Bad examples, enforcement |
 | `elicitation-contract.md` | `skills/_shared/elicitation-contract.md` | all four commands | Bounded user interview — batching, per-gate budgets, the 5-question auto-mode ceiling, escape hatch |
 | `gate-contract.md` | `skills/_shared/gate-contract.md` | track files | Gate record template with the fixed six-field order, and the entry terms (expert invocation, a request that names a type, investigation versus one external material) |
+| `durable-context-selection.md` | `skills/_shared/durable-context-selection.md` | `review` (step 3 with no plan reaching capture; `closeout.capture`) | Which claims of a reviewed change get a document owner: the four tests, the signal-to-owner table, evidence limits, the one-question preview, and write routing to the owning instruments, per `durable-context-selection-by-reader-task.adr` |
 | `branch-state.md` | `skills/_shared/branch-state.md` | `plan`, `review` | Plain-git branch boundary: merge-base against the default branch, changed-file listing, sentinels for no-branch / detached HEAD / on-default |
 | `coverage-taxonomy.md` | `skills/_shared/coverage-taxonomy.md` | `plan` tracks | Per-family coverage categories mapped to vision/knowledge/experience, and the per-type destinations of `Completion Signals` |
 | `globals.md` | `skills/_shared/globals.md` | all four commands, on global-source results only | Local/global reading convention — never modify or relate to a mounted global document; reading a large or partial search result (`hits`, `index`, `truncated`, `body_truncated`) |

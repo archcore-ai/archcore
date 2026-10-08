@@ -210,7 +210,7 @@ Some questions no bats test can answer: whether a host loads the hooks config at
 
 ### 15. Check model routing and test sensitivity
 
-Four behavioral benches spend model tokens, run only on request, and never run in CI. Each saves raw replies when its `*_OUTPUT_DIR` variable is set, separates mismatches (exit 1) from CLI errors (exit 2), rejects an empty or malformed fixture corpus before any model call, and has a harness test under `test/unit/` that uses a fake model process.
+Five behavioral benches spend model tokens, run only on request, and never run in CI. Each saves raw replies when its `*_OUTPUT_DIR` variable is set, separates mismatches (exit 1) from CLI errors (exit 2), rejects an empty or malformed fixture corpus before any model call, and has a harness test under `test/unit/` that uses a fake model process.
 
 | Target | Script and fixtures | What it measures | Harness test |
 |---|---|---|---|
@@ -218,6 +218,7 @@ Four behavioral benches spend model tokens, run only on request, and never run i
 | `make test-gate-bench` | @plugin/test/behavioral/gate-bench.sh, `test/behavioral/fixtures/gate-bench.tsv` | what `sdd.design` does in one step: whether `skip_when` holds, how many questions it asks, whether the gate stays open or advances, how many choices it marks `[assumption]`, whether it saves the state block, and where a resumed draft continues. `GATE_BENCH_HOST` selects `claude`, `codex`, or `copilot`; `GATE_BENCH_REF` reads the contracts from a git ref such as a release tag; `GATE_BENCH_REPS` repeats each fixture | @plugin/test/unit/gate-bench.bats |
 | `make test-document-bench` | @plugin/test/behavioral/document-bench.sh, `test/behavioral/fixtures/document-bench.tsv` | the mode and document type `/archcore:document` selects, including requests with no mode word and no arguments | @plugin/test/unit/document-bench.bats |
 | `make test-skill-bench` | @plugin/test/behavioral/skill-bench.sh, `test/behavioral/fixtures/skill-bench.tsv` | which of the four skills Claude Code starts, and the mode word it passes, for a message that names no command | @plugin/test/unit/skill-bench.bats |
+| `make test-review-bench` | @plugin/test/behavioral/review-bench.sh, `test/behavioral/fixtures/review-bench.tsv` | what a plain branch review writes and asks: the document types it creates, the documents it updates, the units it omits, its question count, and the plan disposition. `REVIEW_BENCH_HOST`, `REVIEW_BENCH_REF`, and `REVIEW_BENCH_REPS` work as in the gate bench | @plugin/test/unit/review-bench.bats |
 
 The skill bench loads the plugin with `claude -p --plugin-dir`, allows only the Skill tool, turns hooks off, and leaves the built-in skills competing. It measures Claude Code only; Cursor, Codex, and Copilot route through their own hosts. Run `make test-research-agent` separately for the live assistant with a real MCP server.
 
