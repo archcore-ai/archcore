@@ -17,7 +17,7 @@ This spec defines the bounded user interview: when a skill asks the user questio
 - Trigger signals: absent or vague arguments; a coverage scan returning Missing on a material category; two or more viable alternatives on one decision; code-versus-document conflict.
 - Materiality filter: architecture, data model, task decomposition, tests, UX behavior, operations, compliance (per Spec Kit `/clarify`, https://github.com/github/spec-kit).
 - Question form: one interrogative; a one-line "why it matters"; a recommended option stated first; 2–4 options plus a free answer plus "you decide".
-- Budget: ceiling of 5 questions per invocation in auto mode; expert invocation raises per-gate budgets up to the track's declared maximum.
+- Budget: ceiling of 5 questions per invocation in auto mode; expert invocation raises per-gate budgets up to the track's declared maximum. A resume is a new invocation.
 - Write-back targets: `## Clarifications` session log in the draft artifact; `[assumption]` markers; the track state block.
 
 ## Normative Behavior
@@ -32,9 +32,19 @@ This spec defines the bounded user interview: when a skill asks the user questio
 8. WHEN the user answers "you decide" or "I don't know", the skill MUST adopt the recommended answer and mark it `[assumption]` in the artifact.
 9. IF the user delegates twice in a row, THEN the skill MUST end the interview and finish on recorded assumptions.
 10. WHEN a gate closes, the skill MUST write accepted answers under `## Clarifications` in one `update_document` call.
-11. WHEN the budget is exhausted, the skill MUST record remaining material questions under `Deferred` with a one-line reason each.
+11. WHEN the budget is exhausted, the skill MUST record remaining material questions in the `deferred` field with a one-line reason each.
 12. IF no candidate question passes the materiality filter, THEN the skill MUST skip the interview and state that no material ambiguity was found.
 13. The skill MUST NOT count a re-asked disambiguation against the budget.
+14. WHEN a gate produces a draft, the skill MUST scan it for material gaps, including when the request satisfies the entry conditions.
+15. WHEN a precedent only resembles the current subject, the skill MUST NOT treat it as evidence of the user's intended behavior.
+16. BEFORE removing the track state block, the skill MUST report unresolved `deferred` needs and the consequence of each.
+17. WHEN the interview ends after two delegations in a row, the skill MUST treat each unasked material question as explicitly delegated under behavior 8.
+18. WHEN the skill adopts a delegated answer, the skill MUST record it under `## Clarifications` as delegated.
+19. A blocking exit check MUST NOT accept an `[assumption]` mark without a delegated record as a delegation.
+20. WHEN the user tells a stopped gate to proceed anyway, the skill MUST treat each open material question at that gate as delegated.
+21. WHEN a blocking exit check stops a gate on a user-owned choice, the skill MUST report the choice and the behavior it changes.
+22. WHEN a blocking exit check stops a gate on a user-owned choice, the skill MUST name three continuations: answer, delegate, or proceed anyway.
+23. WHEN an invocation resumes a draft, the skill MUST start a fresh question ceiling regardless of the recorded `budget` field.
 
 ## Constraints & Invariants
 
@@ -49,7 +59,9 @@ This spec defines the bounded user interview: when a skill asks the user questio
 1. IF the user interrupts the interview, THEN the skill MUST proceed on recorded answers and mark unresolved material items `[assumption]`.
 2. IF the user rejects the recommended answer without giving an alternative, THEN the skill MUST re-ask once with the option list.
 3. IF the draft artifact for write-back does not exist, THEN the skill MUST create the draft via `create_document` before writing clarifications.
+4. IF an interrupted interview leaves a material user-owned choice at `sdd.design` unresolved, THEN the executing skill MUST keep that gate open.
+5. IF an interruption leaves a user-owned choice at `sdd.design` unresolved, THEN the skill MUST record it in `deferred` with the reason `interrupted`.
 
 ## Conformance
 
-An interview implementation is conformant when it satisfies behaviors 1–13, holds all invariants, and degrades per the failure rules.
+An interview implementation is conformant when it satisfies behaviors 1–23, holds all invariants, and degrades per the failure rules.

@@ -63,9 +63,13 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 35. WHEN the user invokes `init refresh` with a detected domain slug as the subject, the init skill MUST scope the seed to that domain's tree.
 36. WHEN a skill reports to the user, the skill MUST NOT print a gate address of the form `<track>.<stage>`.
 37. WHEN the user invokes `init import`, the init skill MUST run the import track in @plugin/plugins/archcore/skills/_shared/tracks/import.md.
-38. WHEN a plain branch review matches a local `plan` to the branch work, the review skill MUST run closeout for that plan after its bidirectional check and any actualize fixes.
+38. WHEN a plain branch review matches a local `plan`, the review skill MUST run its closeout after the bidirectional check and actualize fixes.
 39. WHEN a plain branch review matches no local `plan` to the branch work, the review skill MUST skip closeout and continue to the experience offer.
-40. WHEN a plain branch review enters closeout and a task or acceptance criterion of the matched plan is not fulfilled, the review skill MUST stop that plan's closeout after verification.
+40. WHEN a matched plan has an unfulfilled task or acceptance criterion, the review skill MUST stop that plan's closeout after verification.
+41. WHEN `review closeout` meets the default branch or an empty diff without a named scope, the review skill MUST ask for that scope.
+42. WHEN `review experience` meets the default branch or an empty diff without a named scope, the review skill MUST ask for that scope.
+43. WHEN a branch review finds a draft with an open state block, the review skill MUST report its gate and resume command.
+44. WHEN a review reports a finding, the review skill MUST name the next command for that finding kind.
 
 ## Constraints & Invariants
 
@@ -86,9 +90,9 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 
 1. IF `.archcore/` exists but contains no documents, THEN the invoked skill MUST proceed on outer-context grounding and report that zero documents were found.
 2. IF `.archcore/` does not exist, THEN the invoked skill MUST announce initialization in one line and call `init_project` without asking a question.
-3. IF `review` runs on the default branch or the diff is empty, THEN the review skill MUST report project health instead of a branch review.
+3. IF `review` runs on the default branch or the diff is empty, THEN the review skill MUST report project health, except under behaviors 41–42.
 4. IF git state is unavailable, THEN the review skill MUST request an explicit path or topic.
 
 ## Conformance
 
-The skill set is conformant when it satisfies behaviors 1–40, holds all invariants, and degrades per the failure rules. Regression coverage: @plugin/test/structure/command-grammar.bats pins the hints, the mode maps, the description parity, and the gate-address rule; @plugin/test/behavioral/document-bench.sh measures classification of `document` requests on a live model; @plugin/test/behavioral/import-bench.sh measures the route, the size tier, and the triage verdict of `init` on a live model.
+The skill set is conformant when it satisfies behaviors 1–44, holds all invariants, and degrades per the failure rules. Regression coverage: @plugin/test/structure/command-grammar.bats pins the hints, the mode maps, the description parity, and the gate-address rule; @plugin/test/structure/loop-integrity.bats pins the exits from stopped, open, and unfinished states across plan, document, and review; @plugin/test/behavioral/document-bench.sh measures classification of `document` requests on a live model; @plugin/test/behavioral/import-bench.sh measures the route, the size tier, and the triage verdict of `init` on a live model.

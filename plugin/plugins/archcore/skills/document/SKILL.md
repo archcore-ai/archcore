@@ -100,6 +100,11 @@ plus `rnd` as decision evidence, and `research` and `evidence` when the probe re
 categories. Duplicate handling lives in the tracks' check-existing gates — do
 not resolve duplicates here.
 
+WHEN a found draft on the topic carries an `archcore:track` state block,
+resume it per the resume rules in `skills/_shared/gate-contract.md` instead of
+opening a new track; a block this command does not resume follows resume
+rules 8 and 9 there.
+
 If `.archcore/` does not exist, announce initialization in one line and call
 `mcp__archcore__init_project` without asking a question. If `.archcore/` exists
 but contains no documents, proceed on outer-context grounding and report that
@@ -132,7 +137,9 @@ If the first word is a mode, execute the mapped entry without routing:
   is a `research`. One external material with no investigation enters
   `research.gather` as standalone evidence, records the request in the evidence
   draft's Clarifications, and exits after gather. Follow the compatibility
-  contract's no-write exit when the type is unsupported.
+  contract's no-write exit when the type is unsupported. IF the request
+  supplies neither a report nor a material, THEN write nothing and name
+  `/archcore:plan research <topic>` for a new investigation.
 
 Then go to Step 4.
 
@@ -180,4 +187,8 @@ Report the produced documents grouped by category:
 List each document's path and relation edges. Name tracks and steps in plain
 words; do not print a gate address of the form `<track>.<stage>`. Close with one
 recommended next action naming only `/archcore:plan`, `/archcore:review`, or a
-repeat `/archcore:document` invocation with its mode.
+repeat `/archcore:document` invocation with its mode. WHEN a gate stopped on a
+blocking exit check, the next action is the resume command for that draft.
+WHEN the run created drafts other than an `rfc` and no `plan` covers them, the
+next action is `/archcore:review closeout`, which offers their acceptance. An
+`rfc` resolves through `/archcore:document decision`.

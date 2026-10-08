@@ -10,7 +10,7 @@ tags:
 
 ## Summary
 
-Drive interviews from the conductor's Π gap profile — the recorded `user`-source information needs — instead of the vagueness-triggered per-gate budgets, keeping the 5-question per-invocation ceiling as the safety bound. This is the deferred phase-2 item of the delta-routing rollout, recorded here before any edit to the elicitation contract.
+Drive interviews from the conductor's Π gap profile — the recorded `user`-source information needs — instead of the per-gate triggers, keeping the 5-question per-invocation ceiling as the safety bound. This remains a draft proposal. The 2026-10-07 plugin change added draft reflection and source-applicability checks without replacing the per-gate triggers or the question ceiling.
 
 ## Motivation
 

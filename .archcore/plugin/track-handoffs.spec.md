@@ -39,11 +39,16 @@ Transition register. Each row cites the file that owns the edge; a row marked `d
 | 19 | `review closeout`, a completion signal, or plain branch review with a matching `plan` | `closeout.verify` | scope from branch state; on plain review, after the bidirectional check and any actualize fixes | `command-surface-v2.spec`, behavior 38 |
 | 20 | `closeout.capture` | decision standard cascade, or experience types | named residue | `delta-routing-instruments.spec`, 21–23 |
 | 21 | closeout exit after the last matched plan | `experience.detect` | once per review invocation | this spec, behavior 12 |
-| 22 | `plan` implement fork | later `/archcore:plan` resume | a draft carries a state block | `track-layer.spec`, 10 |
+| 22 | `plan` implement fork | later `/archcore:plan` resume | a draft carries a state block; no fork after a blocked route | `track-layer.spec`, 10 |
 | 23 | `plan` Declared Delta | `closeout.verify` | plan in branch scope | `delta-routing-instruments.spec`, 18 |
 | 24 | compatibility probe ≠ `yes` | legacy `rnd`; evidence exits without a write | engine below 0.8.3 | `@plugin/plugins/archcore/skills/_shared/research-compatibility.md` |
 | 25 | `document decision` / `code` / `research` | `decision.classify` / `describe.read` / `research.frame` | mode word; `draft` | `command-surface-v2.spec`, 17–18, 25–26 |
 | 26 | `sdd.design` | `sdd.illustrate` | illustrate condition; `draft` | `illustrate-instrument.spec` |
+| 27 | `sdd.design` blocked | `/archcore:plan <spec title>` resume | an unanswered user-owned choice; answer, delegate, or proceed anyway | `elicitation-contract.spec`, 20–22 |
+| 28 | `decision.classify` | `decision.resolve`, or exit | an open `rfc` draft with a verdict; a local `adr` already records the choice | `track-layer.spec`, 44–45 |
+| 29 | `review` branch review | owning command of an open track | a scoped draft carries a state block | `command-surface-v2.spec`, 43 |
+| 30 | `review` result | `/archcore:plan`, `/archcore:document decision`, `/archcore:document code`, `/archcore:review closeout` | finding kind: `code-wrong`, `adr` drift, coverage gap, unplanned draft | `command-surface-v2.spec`, 44 |
+| 31 | `document` result | `/archcore:review closeout` | drafts other than an `rfc` and no covering `plan` | `@plugin/plugins/archcore/skills/document/SKILL.md` |
 
 Lifecycle sequences, each crossing at least two commands: build — `plan` → implementation → `review` with a matching plan, or `review closeout` → discharge → experience offer; proposal — `document decision` (rfc) → `document decision` (resolve) → cascade; investigation — `plan research` → Derivation → package; discovery — `plan sources` → `sdd.require` → contract → decompose; amendment — `plan` verdict → describe callable → decompose → closeout; first day — `init` → SessionStart recap → `plan` or `document`.
 

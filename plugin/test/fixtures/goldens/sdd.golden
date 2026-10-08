@@ -13,7 +13,7 @@ produces: prd; additionally journey under the illustrate condition of skills/_sh
 next: end
 
 gate: sdd.design
-skip_when: a spec covering the capability this invocation designs exists in .archcore/, or no consumer relies on the planned behavior as a contract, per the routing gate in skills/_shared/spec-contract.md
+skip_when: a spec covering the capability this invocation designs exists in .archcore/ without an open sdd.design state block, or no consumer relies on the planned behavior as a contract, per the routing gate in skills/_shared/spec-contract.md
 budget: 3
 taxonomy: Domain & Data Model, Integration & External Dependencies, Edge Cases & Failure Handling, Constraints & Tradeoffs
 produces: spec draft

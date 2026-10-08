@@ -46,7 +46,9 @@ record shape, state rules, and execution rules:
   per-document confirmation each; a decline leaves the status unchanged.
   Rejection is not this track's verdict — an `rfc` resolves through
   `decision.resolve` (`skills/_shared/tracks/decision.md`), any other
-  rejection stays a direct user edit. A completed `plan` takes no terminal
+  rejection stays a direct user edit. A draft that carries an `archcore:track`
+  state block is unfinished work: the accept gate skips it without an offer.
+  A completed `plan` takes no terminal
   status: `closeout.discharge` removes the document instead, because no
   status value in the kernel means "completed and absorbed".
 - The executing skill MUST NOT edit a code file on this track.
@@ -158,6 +160,11 @@ not apply on this track.
     document; a decline leaves the status unchanged.
   - blocking: no status transition targets a document whose recorded verify
     verdict is unfulfilled.
+  - blocking: no status transition targets a document that carries an
+    `archcore:track` state block; the report names its gate, its `deferred`
+    entries, and the resume command per `skills/_shared/gate-contract.md`.
+  - blocking: no status transition targets an `rfc`; the report names
+    `/archcore:document decision` to resolve it.
   - blocking: the executing skill modified no code file.
   - advisory: the final report groups documents by transition applied,
     declined, and skipped.

@@ -281,12 +281,13 @@ async function nextStep($: EngineInterface, t: Turn, s: Session): Promise<Step |
 }
 
 // The command that resumes a track, by its id (skills/_shared/tracks/<id>.md and the
-// argument hints of skills/*/SKILL.md).
-function resumeOf(track: string, title: string): string | undefined {
+// argument hints of skills/*/SKILL.md). Standalone evidence is filed through document research.
+function resumeOf(track: string, title: string, type: string): string | undefined {
   switch (track) {
+    case 'research':
+      return type === 'evidence' ? `/archcore:document research ${title}` : `/archcore:plan ${title}`
     case 'sdd':
     case 'requirements-cascade':
-    case 'research':
       return `/archcore:plan ${title}`
     case 'decision':
       return `/archcore:document decision ${title}`
@@ -326,7 +327,7 @@ async function stoppedTrack($: EngineInterface): Promise<Step | null | undefined
     const gate = gateOf(str((await callArchcore($, 'get_document', { path: row.path }))?.content))
     const [track = '', stage = ''] = gate?.split('.') ?? []
     const title = titleOf(str(row.title), str(row.path))
-    const command = resumeOf(track, title)
+    const command = resumeOf(track, title, str(row.type))
     if (command) return { reason: `Draft "${title}" stopped at the ${stage.replace(/-/g, ' ')} step.`, command }
   }
   return null
