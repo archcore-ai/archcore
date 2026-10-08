@@ -43,6 +43,8 @@ This spec defines the two content contracts the plugin ships for the actor-subje
 18. Each contract MUST name the tag conventions `actor:<type>`, `component:<name>`, and `nfr:<concern>`.
 19. Each contract MUST state the routing test against its pair: a covering `spec` exists, `scenario`; none exists, `journey`.
 20. WHEN composing a step under Flows or Journeys, the composing skill MUST open it with the actor's name as the Actors table spells it.
+21. WHEN a scenario illustrates clauses of two or more specs, the composing skill MUST name each `spec` with its clause numbers in Subject.
+22. WHEN a scenario illustrates clauses of two or more specs, the composing skill MUST add one `depends_on` edge to each `spec`.
 
 ## Constraints & Invariants
 
@@ -64,6 +66,6 @@ This spec defines the two content contracts the plugin ships for the actor-subje
 
 ## Conformance
 
-An implementation is conformant when both contract files exist with the sections behaviors 1–5 and 18–19 require, the canon hooks of behaviors 14–17 are present, and a draft composed from either contract satisfies behaviors 6–13 and 20 and the failure rules. Regression coverage: `@plugin/test/structure/actor-subject-contracts.bats` pins the files and the canon hooks; the CLI hook over a composed draft pins the mechanical half — on 2026-09-16 a scenario and a journey drafted from the contracts' examples reported 0 findings on CLI 0.8.4.
+An implementation is conformant when both contract files exist with the sections behaviors 1–5 and 18–19 require, the canon hooks of behaviors 14–17 are present, and a draft composed from either contract satisfies behaviors 6–13 and 20–22 and the failure rules. Regression coverage: `@plugin/test/structure/actor-subject-contracts.bats` pins the files and the canon hooks; the CLI hook over a composed draft pins the mechanical half — on 2026-09-16 a scenario and a journey drafted from the contracts' examples reported 0 findings on CLI 0.8.4.
 
 Given a capability with a designed `spec`, When the composing skill drafts a scenario from the contract, Then every Flows subsection opens with `Anchors:` and no step carries a modal.

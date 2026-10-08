@@ -54,7 +54,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 26. WHEN the user invokes `document code`, the document skill MUST enter `describe.read`.
 27. WHEN the engine lacks the actor-subject vocabulary, the executing skill MUST apply the shared actor-subject compatibility contract.
 28. WHEN the subject text names a document type that the mode's track produces, the selecting gate MUST treat that type as settled.
-29. The document skill MUST NOT produce a `journey`.
+29. WHEN the subject names a document type that no document track produces, the document skill MUST compose that type under its content contract.
 30. WHEN the user invokes `review drift`, the review skill MUST run the actualize track.
 31. WHEN the user invokes `review deep`, the review skill MUST run the actualize track over all documents with coverage and relation findings.
 32. WHEN the user invokes `review closeout`, the review skill MUST run the closeout track.
@@ -80,7 +80,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 - Constraint: no argument hint carries a `--flag`; a setting is a preview toggle and never selects an entry.
 - Constraint: `rnd` is produced only by the research instrument's closing test, the spike, or the compatibility fallback.
 - Constraint: a standalone material is filed only through `document research`.
-- Constraint: a `journey` is produced only at `sdd.require` on `plan`.
+- Constraint: a `journey` is produced at `sdd.require` on `plan`, or on the document skill's named-type path when the request names `journey`; no `document` mode produces one.
 - Constraint: the actor-subject types bind only when the engine gate in @plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md returns `yes`.
 - Invariant: every one of the 23 document types is producible through at least one command path when the engine supports the vocabulary.
 - Invariant: category is computed from the document type; no command asks the user to select a category.

@@ -1,6 +1,6 @@
 # Behavioral document-entry bench fixtures — the command entry grammar (command-entry-grammar.adr).
 # Columns (tab-separated): id, request (text after /archcore:document), grounding, expected_mode, expected_type.
-# expected_mode: decision | code | research | unclear | plan. expected_type: a type slug, none, or - (not checked).
+# expected_mode: decision | code | research | unclear | plan | named. expected_type: a type slug, none, or - (not checked).
 # Rows 1–14 carry no mode word: they measure classification of type-less and mode-less requests.
 1	we decided to use PostgreSQL 16 for the orders service	no ADR or RFC on the topic	decision	adr
 2	should we switch the API from REST to gRPC?	no ADR or RFC on the topic	decision	rfc
@@ -25,3 +25,8 @@
 20	adr we chose Postgres	no ADR on the topic; adr is not a mode	decision	adr
 # Row 21 carries no arguments at all.
 21	(no arguments)	branch changes touch src/auth and add an ADR draft on sessions	unclear	-
+# Rows 22–25 name a type explicitly (explicit-type-request-wins.adr): the named type wins over routing.
+22	journey for the intended onboarding path of a trial user	no spec and no prd cover onboarding	named	journey
+23	journey of a developer from plan to review	accepted specs cover plan and review	named	journey
+24	idea: a web dashboard of draft documents	no idea or prd on the topic	named	idea
+25	code cpat for typed errors in handlers	the branch replaced string errors with typed errors in 6 handlers	named	cpat

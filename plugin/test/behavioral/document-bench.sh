@@ -21,8 +21,8 @@ case "$LIMIT" in ''|*[!0-9]*) echo "DOCUMENT_BENCH_LIMIT must be a nonnegative i
 if ! awk -F '\t' '
   /^#/ || /^[[:space:]]*$/ {next}
   NF != 5 || $1 == "" || $2 == "" || $3 == "" || seen[$1]++ {bad=1}
-  $4 !~ /^(decision|code|research|unclear|plan)$/ {bad=1}
-  $5 !~ /^(-|none|adr|rfc|rule|spec|doc|guide|scenario|research|rnd|evidence)$/ {bad=1}
+  $4 !~ /^(decision|code|research|unclear|plan|named)$/ {bad=1}
+  $5 !~ /^(-|none|adr|rfc|rule|spec|doc|guide|scenario|research|rnd|evidence|journey|prd|idea|plan|cpat|task-type|mrd|brd|urd|brs|strs|syrs|srs)$/ {bad=1}
   {n++}
   END {exit (bad || !n)}
 ' "$FIXTURES"; then
@@ -55,8 +55,8 @@ while IFS="$TAB" read -r id request grounding mode type || [ -n "$id" ]; do
     "You are the /archcore:document skill defined below. Apply it literally, but do not execute any gate." \
     "Decide only where the request enters and which document type the entry gate would select from the request text alone." \
     "Output EXACTLY one line and nothing else: entry: <mode> <type>" \
-    "<mode> is one of: decision, code, research — the track this skill enters; unclear — the skill would ask its classifying question; plan — the request belongs to /archcore:plan." \
-    "<type> is the document type the request settles (adr, rfc, rule, spec, doc, guide, scenario, research, rnd, evidence), or none when a later gate needs code evidence or an answer to choose it." \
+    "<mode> is one of: decision, code, research — the track this skill enters; unclear — the skill would ask its classifying question; plan — the request belongs to /archcore:plan; named — the Named type path composes the type directly." \
+    "<type> is the document type the request settles (any kernel document type, for example adr, spec, scenario, journey, prd, cpat), or none when a later gate needs code evidence or an answer to choose it." \
     "" \
     "--- SKILL: skills/document/SKILL.md ---" "$skill_text" \
     "--- CONTRACT EXCERPT: skills/_shared/gate-contract.md ---" "$gates_text" \

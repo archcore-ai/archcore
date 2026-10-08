@@ -54,7 +54,7 @@ MOCK
   printf '1\tx\ty\tdescribe\tadr\n' > "$DOCUMENT_BENCH_FIXTURES"
   run sh "$BENCH"
   assert_equal "$status" 2
-  printf '1\tx\ty\tdecision\tjourney\n' > "$DOCUMENT_BENCH_FIXTURES"
+  printf '1\tx\ty\tdecision\tstory\n' > "$DOCUMENT_BENCH_FIXTURES"
   run sh "$BENCH"
   assert_equal "$status" 2
   [ ! -e "$BENCH_ARGS" ] || { fail "an invalid corpus invoked the model"; return 1; }
