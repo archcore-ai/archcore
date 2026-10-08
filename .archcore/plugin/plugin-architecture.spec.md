@@ -66,7 +66,7 @@ The plugin exposes four auto-invocable commands (`init`, `plan`, `document`, `re
 |---|---|---|---|
 | Track files | 8 | shared, loaded by `plan`, `document`, `review` | `skills/_shared/tracks/{sdd,requirements-cascade,research,decision,describe,actualize,experience,closeout}.md` |
 | Shared content contracts | 5 | shared | `skills/_shared/{precision-rules,adr-contract,prd-contract,spec-contract,rule-contract}.md` |
-| Other shared assets | 6 | shared | `skills/_shared/{elicitation-contract,gate-contract,branch-state,coverage-taxonomy,globals}.md` + `skills/_shared/grounding/` (13 catalogs) |
+| Other shared assets | 7 | shared | `skills/_shared/{elicitation-contract,gate-contract,branch-state,coverage-taxonomy,globals,durable-context-selection}.md` + `skills/_shared/grounding/` (13 catalogs) |
 | Agents | 2 | cross-cutting | `agents/archcore-{assistant,auditor}.{md,toml}` + `copilot-agents/archcore-{assistant,auditor}.agent.md` |
 | Hooks | 3 entries across 3 events | cross-cutting | `hooks/{hooks,cursor.hooks,codex.hooks,copilot.hooks}.json` |
 | Bin scripts | 5 + 3 libraries | cross-cutting | `bin/{session-start,pre-tool-use,post-tool-use,detect-host,cli-gte}` + `bin/lib/{normalize-stdin,plugin-cache-guard,empty-state}.sh` |
