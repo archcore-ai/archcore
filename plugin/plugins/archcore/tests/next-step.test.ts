@@ -1,4 +1,4 @@
-import type { On, PromptOrigin, PromptSuggestResult, ToolCallArgs } from 'claude-code'
+import type { On, PromptOrigin, ToolCallArgs } from 'claude-code'
 import { expect, mock, test as base } from 'claude-code/testing'
 import type { Engine, MockClock, Plugin, TestRest } from 'claude-code/testing'
 
@@ -179,8 +179,8 @@ function engine(on: On, world: World = {}): Seen {
   })
   on('prompt.suggest', ($, e) => {
     seen.suggested.push(e.text)
-    // A deny makes the plugin's $.prompt.suggest reject.
-    if (world.suggest === 'reject') return { deny: 'no prompt box' } as unknown as PromptSuggestResult
+    // A failing core makes the plugin's $.prompt.suggest reject.
+    if (world.suggest === 'reject') throw new Error('no prompt box')
     const isOwn = e.origin.kind === 'plugin' && e.origin.name === 'archcore'
     const isHidden =
       world.suggest === 'hidden' || (world.suggest === 'hide-own' && isOwn) || (world.suggest === 'hidden-once' && declined++ === 0)
@@ -1598,10 +1598,16 @@ test('the retry is dropped when the next request started first', async ($, on) =
 })
 
 test('a rejected suggestion leaves run: in the band', async ($, on) => {
+  const clock = mock.clock(on)
   const seen = engine(on, { suggest: 'reject' })
   await run($, 'ship it', [PUSH])
   await expectBand($, '/archcore:review', undefined, 'run:')
-  expect(seen.suggested).toEqual(['/archcore:review'])
+  // The idle retry is rejected too and is not tried a third time.
+  await clock.settle()
+  await clock.advance(1000)
+  await expectBand($, '/archcore:review', undefined, 'run:')
+  expect(seen.suggested).toEqual(['/archcore:review', '/archcore:review'])
+  // note() logs a repeated reason once.
   expect(seen.logs.filter(line => line.startsWith('prompt.suggest failed'))).toHaveLength(1)
 })
 
@@ -1729,6 +1735,14 @@ for (const [gate, command] of RESUMES) {
     await expectHint($, seen, command, `Draft "Hint band" stopped at the ${gate.split('.')[1]} step.`)
   })
 }
+
+test('session start resumes a stopped evidence draft with /archcore:document research', async ($, on) => {
+  const clock = mock.clock(on)
+  const evidence = track('Vendor report', block('research.gather'), { path: '.archcore/vendor-report.evidence.md', type: 'evidence' })
+  const seen = engine(on, { docs: [evidence] })
+  await begin($, clock)
+  await expectHint($, seen, '/archcore:document research Vendor report', 'Draft "Vendor report" stopped at the gather step.')
+})
 
 test('session start prefers a stopped plan over another stopped draft', async ($, on) => {
   const clock = mock.clock(on)

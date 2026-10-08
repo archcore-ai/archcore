@@ -68,7 +68,7 @@ in the closing report and creates nothing.
 
 - Purpose: Settle the document type — `spec`, `doc`, or `guide` — and compose the draft from the gathered evidence.
 - Entry conditions:
-  - skip_when: a non-global document found at `describe.read` already covers the subject — update that document via `update_document` instead of creating a duplicate. [assumption] Ported from the v1 duplicate-prevention step, which did not state the update path.
+  - skip_when: a non-global document found at `describe.read` already covers the subject — update that document via `update_document` instead of creating a duplicate. WHEN the covering document's claims conflict with the code, label each conflict per `skills/_shared/verdict-contract.md`, apply a `spec-wrong` update only after the user confirms it, and report a `code-wrong` conflict without writing. [assumption] Ported from the v1 duplicate-prevention step, which did not state the update path.
   - Evidence from `describe.read` or from the request covers the subject's files, entry points, and behavior.
 - Elicitation knobs:
   - trigger: the type heuristics above match no single type.

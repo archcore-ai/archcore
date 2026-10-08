@@ -123,7 +123,7 @@ $hits"
 
 @test "decision.classify sends a standard over one existing adr to the cascade, and a standard with no adr to decision.adr" {
   local track="$PLUGIN_ROOT/skills/_shared/tracks/decision.md"
-  grep -F -q 'Next: `decision.cascade` with the standard cascade selected when the request carries standard signals and one local `adr` on the topic exists' "$track" \
+  grep -F -q '`decision.cascade` with the standard cascade selected when the request carries standard signals and one local `adr` on the topic exists' "$track" \
     || { fail "standard over an existing adr does not reach decision.cascade"; return 1; }
   grep -F -q 'or when standard signals appear and no local `adr` exists; `decision.rfc`' "$track" \
     || { fail "standard with no adr does not go to decision.adr first"; return 1; }

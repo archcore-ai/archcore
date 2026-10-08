@@ -24,15 +24,15 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 
 1. WHEN routing resolves, the executing skill MUST evaluate signals in this order: explicit mode, document-graph state, branch state, request wording.
 2. The executing skill MUST NOT ask the user to choose a track.
-3. The executing skill MUST derive the question budget, not the track choice, from input vagueness.
+3. The executing skill MUST derive questions from unresolved material information needs without changing the track choice.
 4. WHEN a gate opens, the executing skill MUST evaluate `skip_when` before any other gate step.
-5. WHEN existing documents or the request text satisfy a gate's entry conditions, the executing skill MUST ask zero questions at that gate.
+5. WHEN documents or the request satisfy a gate's entry conditions, the executing skill MUST NOT skip the gate's elicitation checks on that ground alone.
 6. WHEN a gate produces a document, the executing skill MUST create it with `status: draft` via `create_document`.
 7. WHEN all `blocking` exit checks pass, the executing skill MUST advance the state block's `gate` field to the next stage.
 8. IF an `advisory` exit check fails, THEN the executing skill MUST proceed to the next gate and report the finding.
-9. WHEN a track exits, the executing skill MUST remove the state block from the artifact.
+9. WHEN a track exits outside a computed route, the executing skill MUST remove the state block from the artifact.
 10. WHEN a skill opens a draft carrying a state block, the skill MUST resume at the earliest gate whose exit checks have not passed.
-11. WHILE resuming, the executing skill MUST NOT re-ask questions recorded in `taxonomy` or `## Clarifications`.
+11. WHILE resuming, the executing skill MUST NOT re-ask questions recorded in `asked` or answered under `## Clarifications`.
 12. The review skill MAY run a gate in the reverse direction (code → document) with entry evidence pre-filled from git.
 13. WHEN a gate closes, the executing skill MUST persist answers and the state block in one `update_document` call.
 14. WHEN the user confirms a status transition, the executing skill MAY apply that transition through the owning gate or `update_document`.
@@ -58,6 +58,17 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 33. WHEN a decision request carries standard signals and a local `adr` on the topic exists, `decision.classify` MUST route to `decision.cascade` with the standard cascade selected.
 34. WHEN a decision request carries standard signals and no local `adr` on the topic exists, `decision.classify` MUST route to `decision.adr` first.
 35. The describe track MUST NOT produce a `journey`.
+36. WHILE a computed route has instruments left, the executing skill MUST keep the state block on the newest draft of the route.
+37. IF an earlier gate of a resumed track fails a blocking exit check, THEN the executing skill MUST resume there despite its `skip_when`.
+38. IF a state block names a track that the executing command does not run, THEN the executing skill MUST NOT write to that draft.
+39. IF a state block names a track that the executing command does not run, THEN the executing skill MUST name the command that resumes it.
+40. WHEN a resume finds several drafts with a state block and the request names none, the executing skill MUST ask one question listing them.
+41. The closeout track MUST NOT transition the status of a document that carries a state block.
+42. The closeout track MUST NOT transition the status of an `rfc`.
+43. WHEN a decision request would replace a local `adr`, `decision.classify` MUST record that `adr` as the replaced decision.
+44. WHEN a local `adr` already records the requested choice, `decision.classify` MUST exit without a write.
+45. WHEN an open `rfc` draft covers the topic and a verdict is stated, `decision.classify` MUST route to `decision.resolve`.
+46. WHEN a computed route's last instrument closes, the executing skill MUST remove the state block from the artifact.
 
 ## Constraints & Invariants
 
@@ -81,7 +92,10 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 2. IF an upstream document required by an entry condition is missing, THEN the executing skill MUST route to the earliest gate that produces it.
 3. IF a recorded stage is absent, THEN the executing skill MUST resume at the first gate with unmet entry conditions.
 4. WHEN recovering from an absent stage, the executing skill MUST preserve recorded clarifications.
+5. IF a `blocking` exit check stops the gate, THEN the executing skill MUST persist the state block with the current `gate` value.
+6. IF a `blocking` exit check stops the gate, THEN the executing skill MUST persist accepted answers in that same `update_document` call.
+7. IF an interruption left a recorded question unanswered and undelegated, THEN the executing skill MAY re-ask it within the budget, despite behavior 11.
 
 ## Conformance
 
-A track file and its executing skills are conformant when they satisfy behaviors 1–35, hold all invariants, and degrade per the failure rules.
+A track file and its executing skills are conformant when they satisfy behaviors 1–46, hold all invariants, and degrade per the failure rules.

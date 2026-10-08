@@ -139,6 +139,8 @@ Prefer a table over a copy when a test is per-host. Four hosts means four near-i
 
 A change to a command's argument hint, mode list, or description is pinned by `test/structure/command-grammar.bats`; update that file together with the skill, the command wrapper, and `test/fixtures/routing/fixtures.tsv`.
 
+A change to how `plan`, `document`, or `review` leaves a stopped gate, an open track, or an unfinished draft is pinned by `test/structure/loop-integrity.bats`; update that file together with the skill and the shared contract it changes.
+
 A change to the large-or-partial-result guidance is pinned by `test/structure/partial-results.bats`; update that file together with the three assistant surfaces and `skills/_shared/globals.md`.
 
 ### 9. Add a stdin fixture
@@ -208,11 +210,12 @@ Some questions no bats test can answer: whether a host loads the hooks config at
 
 ### 15. Check model routing and test sensitivity
 
-Three behavioral benches spend model tokens, run only on request, and never run in CI. Each saves raw replies when its `*_OUTPUT_DIR` variable is set, separates mismatches (exit 1) from CLI errors (exit 2), rejects an empty or malformed fixture corpus before any model call, and has a harness test under `test/unit/` that uses a fake model process.
+Four behavioral benches spend model tokens, run only on request, and never run in CI. Each saves raw replies when its `*_OUTPUT_DIR` variable is set, separates mismatches (exit 1) from CLI errors (exit 2), rejects an empty or malformed fixture corpus before any model call, and has a harness test under `test/unit/` that uses a fake model process.
 
 | Target | Script and fixtures | What it measures | Harness test |
 |---|---|---|---|
 | `make test-routing-bench` | @plugin/test/behavioral/route-bench.sh, `test/behavioral/fixtures/routing-bench.tsv` | the route the `plan` conductor announces for a task and its grounding | @plugin/test/unit/route-bench.bats |
+| `make test-gate-bench` | @plugin/test/behavioral/gate-bench.sh, `test/behavioral/fixtures/gate-bench.tsv` | what `sdd.design` does in one step: whether `skip_when` holds, how many questions it asks, whether the gate stays open or advances, how many choices it marks `[assumption]`, whether it saves the state block, and where a resumed draft continues. `GATE_BENCH_HOST` selects `claude`, `codex`, or `copilot`; `GATE_BENCH_REF` reads the contracts from a git ref such as a release tag; `GATE_BENCH_REPS` repeats each fixture | @plugin/test/unit/gate-bench.bats |
 | `make test-document-bench` | @plugin/test/behavioral/document-bench.sh, `test/behavioral/fixtures/document-bench.tsv` | the mode and document type `/archcore:document` selects, including requests with no mode word and no arguments | @plugin/test/unit/document-bench.bats |
 | `make test-skill-bench` | @plugin/test/behavioral/skill-bench.sh, `test/behavioral/fixtures/skill-bench.tsv` | which of the four skills Claude Code starts, and the mode word it passes, for a message that names no command | @plugin/test/unit/skill-bench.bats |
 

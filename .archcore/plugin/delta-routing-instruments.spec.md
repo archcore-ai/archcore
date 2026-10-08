@@ -47,7 +47,7 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 12. WHEN a spike resolves its question, the conductor MUST re-enter routing with the revised Δ.
 13. WHEN two or more Π needs name `world`, `undecided`, or `empirical`, the conductor MUST compose one instrument per uncertainty kind.
 14. WHILE composing under high uncertainty, the conductor MUST order instruments cheapest kill shot first: conversation, research, spike, formal document.
-15. WHEN grounding surfaces a matching `task-type` or `cpat`, the executing skill MUST de-escalate the covered Π needs from `user` to `machine`.
+15. WHEN an applicable `task-type` or `cpat` covers a technical need, the executing skill MUST de-escalate only that Π need from `user` to `machine`.
 16. WHEN a package includes a `guide`, the executing skill MUST state the reader and the step actor in the draft.
 17. WHEN a repeatable procedure surfaces for capture, the executing skill MUST route it by actor — human to `guide`, agent to `task-type`.
 18. WHEN closeout verifies a plan carrying a declared Δ, the review skill MUST reconcile that Δ against the branch diff.
@@ -66,6 +66,10 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 31. WHILE executing closeout, the review skill MUST NOT stage files.
 32. WHILE executing closeout, the review skill MUST NOT create commits.
 33. BEFORE requesting plan removal confirmation, the review skill MUST disclose whether git history preserves the plan's current content.
+34. WHEN `sdd.design` reviews a draft spec, the executing skill MUST report material omissions, contradictions, and unsupported claims against applicable grounding.
+35. WHILE an unanswered user-owned choice changes a new spec's normative behavior, the executing skill MUST keep `sdd.design` open before decomposition.
+36. WHILE a computed route has instruments left, the conductor MUST keep the state block on the route's newest draft.
+37. WHEN the architecture cascade creates a `spec`, the decision instrument MUST apply the `sdd.design` user-owned choice check before creating the `plan`.
 
 ## Constraints & Invariants
 
@@ -93,4 +97,4 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 
 ## Conformance
 
-An implementation is conformant when behaviors 1–33 hold across the recorded bench traces, the invariants hold on every invocation, and the failure rules produce the stated outcomes. Non-normative example: Given `creates` = 2 with one `undecided` need, When the conductor sequences decision → contract → contract → decompose, Then no instrument's `Next:` field fires and the produced `plan` records the sequence.
+An implementation is conformant when behaviors 1–37 hold across the recorded bench traces, the invariants hold on every invocation, and the failure rules produce the stated outcomes. Non-normative example: Given `creates` = 2 with one `undecided` need, When the conductor sequences decision → contract → contract → decompose, Then no instrument's `Next:` field fires and the produced `plan` records the sequence.

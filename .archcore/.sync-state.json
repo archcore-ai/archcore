@@ -5072,6 +5072,11 @@
       "source": "plugin/corpus-quality-from-field-audit.plan.md",
       "target": "plugin/actualize-system.spec.md",
       "type": "implements"
+    },
+    {
+      "source": "plugin/track-handoffs.spec.md",
+      "target": "plugin/elicitation-contract.spec.md",
+      "type": "depends_on"
     }
   ]
 }

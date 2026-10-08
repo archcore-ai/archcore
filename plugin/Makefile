@@ -6,7 +6,7 @@ PLUGIN_REL := plugins/archcore
 BIN_SCRIPTS := $(PLUGIN_REL)/bin/session-start $(PLUGIN_REL)/bin/pre-tool-use $(PLUGIN_REL)/bin/post-tool-use $(PLUGIN_REL)/bin/detect-host $(PLUGIN_REL)/bin/cli-gte $(PLUGIN_REL)/bin/check-references
 LIB_SCRIPTS := $(PLUGIN_REL)/bin/lib/normalize-stdin.sh $(PLUGIN_REL)/bin/lib/plugin-cache-guard.sh
 ALL_SCRIPTS := $(BIN_SCRIPTS) $(LIB_SCRIPTS)
-TEST_SH_SCRIPTS := test/behavioral/route-bench.sh test/behavioral/document-bench.sh test/behavioral/import-bench.sh test/behavioral/skill-bench.sh
+TEST_SH_SCRIPTS := test/behavioral/route-bench.sh test/behavioral/gate-bench.sh test/behavioral/document-bench.sh test/behavioral/import-bench.sh test/behavioral/skill-bench.sh
 TEST_BASH_SCRIPTS := test/helpers/mcp.bash
 ARCHCORE_BIN ?= archcore
 # Marketplace catalogs stay at repo root; plugin manifests/hooks/mcp live under plugins/archcore/.
@@ -17,7 +17,7 @@ JSON_FILES := .agents/plugins/marketplace.json .claude-plugin/marketplace.json .
               $(PLUGIN_REL)/hooks/copilot.hooks.json \
               $(PLUGIN_REL)/.claude.mcp.json docs/cursor.mcp.example.json
 
-.PHONY: test test-mod test-unit test-structure test-integration test-routing-bench test-document-bench test-import-bench test-skill-bench test-writer-fanout-bench test-edits-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
+.PHONY: test test-mod test-unit test-structure test-integration test-routing-bench test-gate-bench test-document-bench test-import-bench test-skill-bench test-writer-fanout-bench test-edits-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
 
 all: check-json check-perms lint test
 
@@ -53,6 +53,10 @@ test-integration:
 # LLM-in-the-loop routing bench — spends model tokens; on demand only, never CI.
 test-routing-bench:
 	@sh test/behavioral/route-bench.sh
+
+# LLM-in-the-loop sdd.design gate bench (questions, gate state, persistence) — spends model tokens; on demand only, never CI.
+test-gate-bench:
+	@sh test/behavioral/gate-bench.sh
 
 # LLM-in-the-loop document-entry bench — spends model tokens; on demand only, never CI.
 test-document-bench:

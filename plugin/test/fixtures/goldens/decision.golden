@@ -3,7 +3,7 @@ skip_when: the subject text names the target type adr or rfc
 budget: 1
 taxonomy: Constraints & Tradeoffs, Completion Signals
 produces: none
-next: decision.cascade decision.adr decision.rfc
+next: decision.resolve decision.cascade decision.adr decision.rfc end
 
 gate: decision.adr
 skip_when: decision.classify selected decision.rfc

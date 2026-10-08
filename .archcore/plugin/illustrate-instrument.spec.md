@@ -40,7 +40,7 @@ This spec defines the plan-side production of the actor-subject types: the illus
 16. WHEN a `journey` exists and no `spec` covers the interaction, the conductor MUST NOT produce a `scenario`.
 17. WHEN the compatibility probe returns other than `yes`, the conductor MUST drop the illustrate instrument from the package.
 18. WHEN the conductor drops the illustrate instrument, the plan skill MUST report the required engine version once.
-19. WHEN `sdd.illustrate` exits, the executing skill MUST remove the track state block from the scenario.
+19. WHEN `sdd.illustrate` closes as the route's last instrument, the executing skill MUST remove the track state block from the scenario.
 
 ## Constraints & Invariants
 

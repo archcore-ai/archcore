@@ -248,3 +248,39 @@ ROWS
   grep -F -q 'skills/_shared/actor-subject-compatibility.md' "$PLAN_SKILL" \
     || fail "plan/SKILL.md does not load the actor-subject compatibility file"
 }
+
+# Joins wrapped prose into one line so a phrase match survives re-wrapping.
+flat() { tr '\n' ' ' < "$1" | sed 's/  */ /g'; }
+
+@test "sdd.design keeps a gate open on an unanswered user-owned choice" {
+  local design
+  design=$(awk '$0 == "### gate: sdd.design" { f = 1; next } f && /^### / { exit } f' "$SHARED/tracks/sdd.md" | tr '\n' ' ' | sed 's/  */ /g')
+  [[ "$design" == *'advisory: compare the draft'"'"'s scope, surface, normative behavior, invariants, failure behavior, and conformance with the request and applicable grounding'* ]] \
+    || fail "sdd.design lacks the draft reflection advisory check"
+  [[ "$design" == *'blocking: every material `user`-source choice that changes normative behavior, an invariant, or failure behavior is answered by the request or a recorded clarification, or recorded as delegated under `## Clarifications` and marked `[assumption]`'* ]] \
+    || fail "sdd.design lacks the user-owned choice blocking check"
+  [[ "$design" == *'A blocked gate cannot advance to `sdd.decompose`.'* ]] \
+    || fail "sdd.design does not stop decomposition on a blocked gate"
+  [[ "$(flat "$PLAN_SKILL")" == *'Do not offer implementation until that check passes'* ]] \
+    || fail "plan/SKILL.md offers implementation past an open contract choice"
+}
+
+@test "gate and elicitation contracts pin draft scanning, precedent limits, and blocked-gate state" {
+  local gate elicit
+  gate=$(flat "$SHARED/gate-contract.md")
+  elicit=$(flat "$SHARED/elicitation-contract.md")
+  [[ "$gate" == *'MUST NOT treat that fact alone as a reason to skip the gate'"'"'s elicitation checks.'* ]] \
+    || fail "gate-contract.md lets entry conditions skip elicitation checks"
+  [[ "$gate" == *'IF an interruption left a question in `asked` without an answer or a delegation, THEN the executing skill MAY re-ask that question within the budget'* ]] \
+    || fail "gate-contract.md never lets an interrupted question be asked again"
+  [[ "$gate" == *'IF a blocking exit check stops the gate, THEN the executing skill MUST persist accepted answers and the state block with the current `gate`'* ]] \
+    || fail "gate-contract.md does not persist state at a blocked gate"
+  [[ "$elicit" == *'A similar example alone is an analogy, not evidence of the user'"'"'s intended behavior.'* ]] \
+    || fail "elicitation-contract.md lacks the precedent-is-not-intent rule"
+  [[ "$elicit" == *'Each material question still unasked counts as explicitly delegated, including for a gate'"'"'s blocking exit checks'* ]] \
+    || fail "elicitation-contract.md lacks the double-delegation scope"
+  [[ "$elicit" == *'an interruption does not resolve a material user-owned choice'* ]] \
+    || fail "elicitation-contract.md lets an interruption resolve a user-owned choice"
+  [[ "$(flat "$CONTRACT")" == *'de-escalates only the technical needs its recorded behavior and relevant constraints cover'* ]] \
+    || fail "delta-routing.md lets a precedent de-escalate needs it does not cover"
+}
