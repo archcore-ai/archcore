@@ -68,6 +68,10 @@ setup() {
     || fail "document/SKILL.md does not rule out journey production"
   grep -F -q 'This track never produces a `journey`' "$PLUGIN_ROOT/skills/_shared/tracks/describe.md" \
     || fail "describe.md does not rule out journey production"
+  grep -F -q 'IF no document track produces it — `journey`, `prd`, `idea`, `plan`, `cpat`, `task-type`' "$skill" \
+    || fail "an explicitly named journey has no path through document"
+  grep -F -q 'ask no question.' "$skill" \
+    || fail "a failed routing condition on a named type costs a question"
   grep -F -q 'skills/_shared/actor-subject-compatibility.md' "$skill" \
     || fail "document/SKILL.md does not load the actor-subject compatibility file"
 }

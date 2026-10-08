@@ -1,7 +1,7 @@
 ---
 name: document
 argument-hint: "[decision|code|research] [subject]"
-description: "Record a decision, document existing code, or file a supplied research material. Modes: document decision (ADR, RFC, or rule), document code (spec, doc, guide, or scenario for existing behavior), document research (only when a finished report or one external material is already in hand). Use for 'we decided', 'record this decision', 'document why we chose X', 'make it our standard', 'draft an RFC', 'should we switch to Y' proposals, 'resolve the RFC', 'we accepted the proposal', 'document the auth module', 'capture how the payment system works', reference material, how-to instructions, or a user flow with examples over an existing spec. Name the type inside the subject to skip the type question. Planning a feature or an intended user journey → /archcore:plan. Checking docs against code or docs health → /archcore:review."
+description: "Record a decision, document existing code, or file a supplied research material. Modes: document decision (ADR, RFC, or rule), document code (spec, doc, guide, or scenario for existing behavior), document research (only when a finished report or one external material is already in hand). Use for 'we decided', 'record this decision', 'document why we chose X', 'make it our standard', 'draft an RFC', 'should we switch to Y' proposals, 'resolve the RFC', 'we accepted the proposal', 'document the auth module', 'capture how the payment system works', reference material, how-to instructions, or a user flow with examples over an existing spec. Name any document type inside the subject — journey, prd, idea, or cpat included — to get exactly that type. Planning a feature or an unnamed intended user journey → /archcore:plan. Checking docs against code or docs health → /archcore:review."
 ---
 
 # /archcore:document
@@ -10,7 +10,8 @@ Record the present state: a technical decision, existing code, or a supplied
 research material. The first word of the arguments selects the mode; a gate
 inside the mode's track selects the document type. Write affinity: knowledge
 types; a filed `research` and the decision cascade's `plan` belong to vision.
-The standard cascade can add a `cpat` (experience).
+The standard cascade can add a `cpat` (experience). A type the user names
+explicitly keeps its own category (Named type below).
 
 Command tense: `/archcore:plan` declares a future canon delta, `/archcore:document`
 records the present state — including work that shipped without a plan — and
@@ -31,7 +32,27 @@ A document type name is not a mode. When the subject text names a type (`skills/
 Entry terms) that the mode's track produces, the selecting gate treats that type as settled and asks no
 type question: `document decision rfc for gRPC` reaches the RFC branch. A leading
 word that is not a mode is topic text and goes through classification (Step 3).
-No mode produces a `journey`; an intended user path belongs to `/archcore:plan`.
+No mode produces a `journey`; a `journey` comes from `/archcore:plan` or from the
+named-type path below.
+
+### Named type
+
+WHEN the subject text names one of the kernel document types, the named type
+wins over routing (`explicit-type-request-wins.adr`), with or without a mode word:
+
+1. IF a document track produces the named type, THEN enter that track with the type settled: `adr`, `rfc`, `rule` → decision; `spec`, `doc`, `guide`, `scenario` → describe; `research`, `rnd`, `evidence` → research.
+2. IF no document track produces it — `journey`, `prd`, `idea`, `plan`, `cpat`, `task-type`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs` — THEN compose it directly per the steps below.
+3. Apply the compatibility file for the type before the first MCP call that names it.
+4. Search `.archcore/` for a local document of that type on the topic; when one exists, offer to update it instead.
+5. Load `skills/_shared/<type>-contract.md` when that file exists, and `skills/_shared/precision-rules.md`.
+6. WHEN no contract file exists, compose the sections of the `create_document` template for that type.
+7. Create the document with `status: draft` through `create_document`.
+8. Evaluate relations through `skills/_shared/relation-authoring.md`.
+9. WHEN the type's routing condition fails, report it in one result line naming the better-fitting type; ask no question.
+
+Examples of a failed routing condition: a `journey` where a covering `spec`
+exists (`scenario` fits), or a `plan` composed without route computation (it
+carries no Declared Delta).
 
 ## When to use
 
@@ -52,7 +73,7 @@ No mode produces a `journey`; an intended user path belongs to `/archcore:plan`.
 
 **Not document:**
 
-- Planning a feature, an initiative, or an intended user journey → `/archcore:plan`
+- Planning a feature, an initiative, or an intended user journey the request does not name as a `journey` → `/archcore:plan`
 - Checking documents against code, reviewing branch changes, or docs health → `/archcore:review`
 - First-time setup → `/archcore:init`
 
@@ -61,6 +82,7 @@ No mode produces a `journey`; an intended user path belongs to `/archcore:plan`.
 | Signal | Route |
 |---|---|
 | No arguments | → git investigation of the branch changes, then one classifying question (Step 3, Unclear) |
+| The subject names a document type that no document track produces | → Named type, direct composition |
 | The first word is a mode — `decision`, `code`, `research` | → mode entry, no routing (Step 2) |
 | Decision signals: "we decided", "record this decision", "document why we chose X", "make it our standard", "draft an RFC", a "should we switch to Y" proposal. A bare "compare X vs Y" with no proposed target belongs to `/archcore:plan`'s research track; a proposal to add a new capability with no named technical target ("should we add caching?") is feature framing → `/archcore:plan`, sdd track | → decision track — `skills/_shared/tracks/decision.md`, entry at `decision.classify` |
 | Resolution signals: "resolve the RFC", "we accepted the proposal", "reject the RFC" — an `rfc` draft exists on the topic | → decision track — `skills/_shared/tracks/decision.md`, entry at `decision.resolve` |
@@ -183,6 +205,7 @@ Report the produced documents grouped by category:
 - **knowledge** — `adr`, `rfc`, `spec`, `doc`, `guide`, `rule`, `evidence`, `scenario`
 - **vision** — `research` (scope-covering report), `rnd` (recommendation-closed report, or compatibility fallback), `plan` (architecture cascade)
 - **experience** — `cpat` (standard cascade opt-in)
+- any category — a type composed on the Named type path, with its routing-condition line when one failed
 
 List each document's path and relation edges. Name tracks and steps in plain
 words; do not print a gate address of the form `<track>.<stage>`. Close with one

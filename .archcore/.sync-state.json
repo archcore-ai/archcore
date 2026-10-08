@@ -5117,6 +5117,106 @@
       "source": "plugin/durable-context-selection-by-reader-task.adr.md",
       "target": "plugin/plan-discharge-by-deletion.adr.md",
       "type": "extends"
+    },
+    {
+      "source": "plugin/plugin-usage-catalog.doc.md",
+      "target": "plugin/command-surface-v2.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-usage-catalog.doc.md",
+      "target": "plugin/track-handoffs.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/build-a-feature-plan-to-review.scenario.md",
+      "target": "plugin/delta-routing-conductor.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/build-a-feature-plan-to-review.scenario.md",
+      "target": "plugin/command-surface-v2.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/build-a-feature-plan-to-review.scenario.md",
+      "target": "plugin/delta-routing-instruments.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/build-a-feature-plan-to-review.scenario.md",
+      "target": "plugin/review-durable-context-selection.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/code-first-change-planless-review.scenario.md",
+      "target": "plugin/command-surface-v2.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/code-first-change-planless-review.scenario.md",
+      "target": "plugin/review-durable-context-selection.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/import-existing-documentation.scenario.md",
+      "target": "plugin/command-surface-v2.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/import-existing-documentation.scenario.md",
+      "target": "plugin/init-entry-and-assess.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/import-existing-documentation.scenario.md",
+      "target": "plugin/import-conversion-and-staging.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/explicit-type-request-wins.adr.md",
+      "target": "plugin/journey-produced-only-on-plan.adr.md",
+      "type": "supersedes"
+    },
+    {
+      "source": "plugin/explicit-type-request-wins.adr.md",
+      "target": "plugin/command-entry-grammar.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/cross-spec-scenario.adr.md",
+      "target": "plugin/actor-subject-content-contracts.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/build-a-feature-plan-to-review.scenario.md",
+      "target": "plugin/cross-spec-scenario.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/code-first-change-planless-review.scenario.md",
+      "target": "plugin/cross-spec-scenario.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/import-existing-documentation.scenario.md",
+      "target": "plugin/cross-spec-scenario.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/plugin-usage-catalog.doc.md",
+      "target": "plugin/build-a-feature-plan-to-review.scenario.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-usage-catalog.doc.md",
+      "target": "plugin/code-first-change-planless-review.scenario.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/plugin-usage-catalog.doc.md",
+      "target": "plugin/import-existing-documentation.scenario.md",
+      "type": "related"
     }
   ]
 }

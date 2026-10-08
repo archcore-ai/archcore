@@ -68,12 +68,19 @@ Given no investigation on the vendor benchmark exists.
 When Newcomer types `/archcore:document research` with the benchmark attached.
 Then Newcomer sees one evidence draft and no research draft.
 
-### Asking for a journey through document
+### Describing an intended path without naming a journey
 
-Illustrates: clause 29.
+Illustrates: clause 21.
 Given no journey on onboarding exists.
 When Newcomer types `/archcore:document code the onboarding path of a trial user`.
 Then Newcomer sees no journey draft and a pointer to `/archcore:plan`.
+
+### Naming a journey
+
+Illustrates: clause 29.
+Given no journey, spec, or prd on onboarding exists.
+When Expert types `/archcore:document journey for the onboarding path of a trial user`.
+Then Expert sees one journey draft and no prd.
 
 ### Mode words across the palette
 

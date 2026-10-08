@@ -41,6 +41,9 @@ has_section() {
   grep -F -q 'a covering `spec` exists' "$SCENARIO" || fail "missing routing test against journey"
   grep -F -q '`actor:<type>`' "$SCENARIO" || fail "missing tag convention"
   grep -F -q '`spec` clause set' "$SCENARIO" || fail "missing second split boundary"
+  grep -F -q 'one `depends_on` edge to each.' "$SCENARIO" || fail "a cross-spec scenario has no dependency rule"
+  grep -F -q 'one edge to each `spec` this document illustrates' "$SCENARIO" \
+    || fail "a cross-spec scenario misses the cascade from one of its specs"
 }
 
 @test "journey contract exists with the spec-contract section set" {
@@ -92,7 +95,7 @@ has_section() {
 
 @test "describe track reads feature files and may produce a scenario beside the spec" {
   local track="$SHARED/tracks/describe.md"
-  grep -F -q '| An actor-subject flow of existing behavior with examples that illustrate a covering `spec` | `scenario` beside the `spec`, `depends_on` → that `spec` |' "$track" \
+  grep -F -q '| An actor-subject flow of existing behavior with examples that illustrate a covering `spec`, or several for a flow that crosses contracts | `scenario` beside the `spec`, `depends_on` → each covering `spec` |' "$track" \
     || fail "describe.md type heuristics lack the scenario row"
   grep -F -q '`features/*.feature` files for the subject as evidence for Failure Behavior and Conformance' "$track" \
     || fail "describe.read does not record feature files as evidence"
