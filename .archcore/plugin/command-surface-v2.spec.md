@@ -33,7 +33,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 5. WHEN the classification is unclear, the document skill MUST inspect git state and the working tree before asking one classifying question.
 6. WHEN the user invokes `review` without arguments, the review skill MUST resolve the merge base with the default branch and review the changes since divergence.
 7. WHEN `review` finds code and documents in conflict, the review skill MUST label the finding `spec-wrong`, `code-wrong`, or `ok`.
-8. WHEN reviewed changes repeat an undocumented pattern, the review skill SHOULD offer a `cpat` or `task-type` capture.
+8. WHEN reviewed changes carry an undocumented pattern the durable-context preview did not list, the review skill SHOULD offer a `cpat` or `task-type` capture.
 9. WHEN a skill gathers context, the skill MUST search all three categories.
 10. A skill MUST NOT exclude a category from document reads.
 11. WHEN a skill gathers context, the skill SHOULD pass a type filter matched to the command's moment instead of relying on the global type ranking.
@@ -64,7 +64,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 36. WHEN a skill reports to the user, the skill MUST NOT print a gate address of the form `<track>.<stage>`.
 37. WHEN the user invokes `init import`, the init skill MUST run the import track in @plugin/plugins/archcore/skills/_shared/tracks/import.md.
 38. WHEN a plain branch review matches a local `plan`, the review skill MUST run its closeout after the bidirectional check and actualize fixes.
-39. WHEN a plain branch review matches no local `plan` to the branch work, the review skill MUST skip closeout and continue to the experience offer.
+39. WHEN a plain branch review matches no local `plan` to the branch work, the review skill MUST run the durable-context selection before the experience offer.
 40. WHEN a matched plan has an unfulfilled task or acceptance criterion, the review skill MUST stop that plan's closeout after verification.
 41. WHEN `review closeout` meets the default branch or an empty diff without a named scope, the review skill MUST ask for that scope.
 42. WHEN `review experience` meets the default branch or an empty diff without a named scope, the review skill MUST ask for that scope.

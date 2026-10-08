@@ -39,7 +39,7 @@ Before requesting removal confirmation, closeout states whether git history pres
 - A plain branch review with a matching plan now runs the closeout checks and may require document and removal confirmations. A review with no matching plan keeps its branch-review result.
 - A discharged plan stops answering `search_documents`. A committed version remains recoverable from git. Uncommitted edits and a never-committed plan have no recovery copy in git; removal loses that version.
 - Deletion carries no undo at the tool boundary: `@cli/internal/mcp/tools/remove_document.go` sets `destructiveHint: true` and unlinks the file. The completion checks and per-document confirmation remain; the committed-file prerequisite was removed on 2026-09-28.
-- Routing residue into the decision instrument adds up to 4 questions to a closeout run against a 5-question per-invocation ceiling, so capture engages only on a residue the plan or the closeout report already named. [expected]
+- Routing residue into the decision instrument added up to 4 questions to a closeout run against a 5-question per-invocation ceiling. Since 2026-10-09, `closeout.capture` runs the durable-context selection and asks one batched preview question for all its writes (`durable-context-selection-by-reader-task.adr`). [expected]
 - The kernel keeps instructing "A plan is abandoned → change status to rejected", so an agent acting outside the closeout gate follows the old guidance until that description changes. [expected]
 
 ## Superseded when

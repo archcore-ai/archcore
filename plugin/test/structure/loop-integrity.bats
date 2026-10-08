@@ -116,3 +116,18 @@ gate_of() {
   [[ "$(flat "$DOC_SKILL")" == *'IF the request supplies neither a report nor a material, THEN write nothing and name `/archcore:plan research <topic>`'* ]] \
     || fail "document research starts an investigation with nothing in hand"
 }
+
+@test "durable-context selection asks once, never writes unauthorized, and never accepts its own drafts" {
+  local sel capture
+  sel=$(flat "$SHARED/durable-context-selection.md")
+  capture=$(gate_of "$TRACKS/closeout.md" closeout.capture)
+  [[ "$sel" == *'Ask one question for the whole preview'* ]] || fail "the selection asks per document"
+  [[ "$sel" == *'Count that question against the per-invocation ceiling.'* ]] || fail "the preview escapes the question ceiling"
+  [[ "$sel" == *'do not propose an `adr`; report the rationale as an open gap'* ]] || fail "the selection can invent a rationale"
+  [[ "$sel" == *'Never select a `journey`.'* ]] || fail "the selection can produce a journey"
+  [[ "$capture" == *'blocking: every write was authorized at the preview before the call.'* ]] || fail "capture writes without authorization"
+  [[ "$capture" == *'blocking: no document created at this gate was offered for acceptance in this invocation.'* ]] \
+    || fail "capture accepts the drafts it just created"
+  [[ "$(gate_of "$TRACKS/experience.md" experience.detect)" == *'selection of this invocation already listed or omitted it'* ]] \
+    || fail "the experience offer re-asks a pattern the preview listed"
+}

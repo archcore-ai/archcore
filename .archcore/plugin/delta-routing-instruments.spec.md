@@ -53,9 +53,9 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 18. WHEN closeout verifies a plan carrying a declared Δ, the review skill MUST reconcile that Δ against the branch diff.
 19. WHEN a scoped document's unique information is absorbed elsewhere, the review skill MAY offer discharge for that document.
 20. WHEN offering discharge, the review skill MUST obtain the per-document confirmation before any removal or status change.
-21. WHEN a completed plan's residue names a settled standard or choice, the review skill MUST route it through the decision instrument.
-22. WHILE capturing a plan's residue, the review skill MUST record each named residue as routed or declined.
-23. WHILE capturing a plan's residue, the review skill MUST NOT create a `spec` or a `plan`.
+21. WHEN a durable-context unit names a settled standard or choice with evidenced reasons, the review skill MUST route it through the decision instrument.
+22. WHILE capturing at closeout, the review skill MUST record each selected unit as created, updated, omitted, deferred, or declined.
+23. WHILE capturing at closeout, the review skill MUST NOT create a `plan`.
 24. WHEN a completed `plan` clears its discharge preconditions, the review skill MUST remove that plan with `remove_document`.
 25. IF a plan task carries a verdict other than fulfilled, THEN the review skill MUST NOT remove that plan.
 26. WHEN a completed plan carries uncommitted changes, the review skill MUST apply the same discharge preconditions as for a committed plan.
@@ -76,7 +76,7 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 - Invariant: command tenses — `plan` declares future Δ, `document` records the present state, `review` reconciles past Δ.
 - Invariant: instruments produce only types supported by the engine gate; the vocabulary releases expose 23 types on CLI 0.8.4, gated by `@plugin/plugins/archcore/skills/_shared/research-compatibility.md` and `@plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md`.
 - Invariant: `plan` is the only type any track removes at closeout.
-- Invariant: residue capture at closeout owns no document type — every document it creates comes from the instrument it routes to.
+- Invariant: capture at closeout owns no document type — every document it creates comes from the instrument it routes to; a `spec` comes only through the describe instrument.
 - Constraint: the decision instrument's `decision.cascade` gate creates its cascade documents (`rule`, `guide`, `spec`, `plan`, `cpat`) inside the instrument — a recorded exception to single-type production.
 - Constraint: the intent instrument's `journey` beside the `prd` under the illustrate condition is a second recorded exception to single-type production; no `document` mode reaches that gate.
 - Constraint: research gather may create evidence and relations inside the instrument; the shared gate contract defines its pending-write checkpoint exception.
@@ -84,7 +84,7 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 - Constraint: the acquisition instrument engages on a product-scale `intent_gap` or the `plan sources` mode, never by default.
 - Constraint: iso links engage per flagged capability, never as a whole-initiative mode.
 - Constraint: elicitation ceilings and budget mechanics stay per the elicitation contract, unchanged.
-- Constraint: discharge defaults per type — `spec` and `adr` stay canon; a completed `plan` is removed at `closeout.discharge` after `closeout.capture` routes its residue to the owning instrument; a `prd` holds until its success metrics verify; an `idea` discharges after every document that implements it is accepted; a spike `rnd` keeps only its Findings section.
+- Constraint: discharge defaults per type — `spec` and `adr` stay canon; a completed `plan` is removed at `closeout.discharge` after `closeout.capture` routes its durable units to the owning instruments; a `prd` holds until its success metrics verify; an `idea` discharges after every document that implements it is accepted; a spike `rnd` keeps only its Findings section.
 
 ## Failure Behavior
 
@@ -93,7 +93,7 @@ Lifecycle sequences: closeout (`closeout.verify` → `closeout.merge` → `close
 3. IF the user declines an offered instrument, THEN the conductor MUST record the decline in the route rationale and continue the remaining sequence.
 4. IF a settled decision surfaces inside any instrument, THEN the executing skill MUST route it through the decision instrument before the track exits.
 5. IF `remove_document` fails at `closeout.discharge`, THEN the review skill MUST report the failure and leave the plan in place.
-6. IF a residue capture is declined, THEN the review skill MUST still offer removal for a plan that clears its discharge preconditions.
+6. IF a capture unit is declined, THEN the review skill MUST still offer removal for a plan that clears its discharge preconditions.
 
 ## Conformance
 

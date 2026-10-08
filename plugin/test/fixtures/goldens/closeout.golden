@@ -20,10 +20,10 @@ produces: none
 next: closeout.capture
 
 gate: closeout.capture
-skip_when: the branch scope matches no plan document, or the plan tasks, the verify report, and the merge report name no residue beyond the delivered work itself
-budget: 1 question per named residue
+skip_when: the branch scope matches no plan document
+budget: 1
 taxonomy: Completion Signals, Constraints & Tradeoffs
-produces: task-type or guide per the actor boundary rule in skills/_shared/tracks/experience.md; for a settled standard or choice, whatever skills/_shared/tracks/decision.md (entry decision.classify) produces, restricted to its standard cascade draft
+produces: spec, doc, guide, or scenario through skills/_shared/tracks/describe.md; adr and its standard cascade through skills/_shared/tracks/decision.md; cpat, task-type, or guide per skills/_shared/tracks/experience.md; each per the Write routing of skills/_shared/durable-context-selection.md draft
 next: closeout.discharge
 
 gate: closeout.discharge
