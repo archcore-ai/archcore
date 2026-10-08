@@ -5077,6 +5077,46 @@
       "source": "plugin/track-handoffs.spec.md",
       "target": "plugin/elicitation-contract.spec.md",
       "type": "depends_on"
+    },
+    {
+      "source": "plugin/review-durable-context-selection.spec.md",
+      "target": "plugin/command-surface-v2.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/review-durable-context-selection.plan.md",
+      "target": "plugin/review-durable-context-selection.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/review-durable-context-selection.spec.md",
+      "target": "plugin/durable-context-selection-by-reader-task.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/durable-context-selection-by-reader-task.adr.md",
+      "target": "plugin/review-durable-context-selection.rnd.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/durable-context-selection-by-reader-task.adr.md",
+      "target": "plugin/precision-over-coverage.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/review-durable-context-selection.plan.md",
+      "target": "plugin/review-durable-context-selection.rnd.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/review-durable-context-selection.spec.md",
+      "target": "plugin/delta-routing-instruments.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/durable-context-selection-by-reader-task.adr.md",
+      "target": "plugin/plan-discharge-by-deletion.adr.md",
+      "type": "extends"
     }
   ]
 }

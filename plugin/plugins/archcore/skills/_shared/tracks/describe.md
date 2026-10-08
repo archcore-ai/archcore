@@ -18,7 +18,10 @@ WHEN the calling skill pre-fills the scope — the subject, its files, and the
 evidence — `describe.read` runs question-free, and its entry conditions are
 satisfied by the pre-filled scope. The conductor uses this entry on an
 amendment route that finds no covering `spec` (sequencing rule 11 in
-`skills/_shared/delta-routing.md`).
+`skills/_shared/delta-routing.md`). The `review` skill uses this entry for each
+unit the user authorized in its durable-context preview
+(`skills/_shared/durable-context-selection.md`); the pre-filled type settles
+`describe.draft` without its type question.
 
 ## Type heuristics
 

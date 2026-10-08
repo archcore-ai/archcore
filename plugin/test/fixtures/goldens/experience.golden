@@ -1,5 +1,5 @@
 gate: experience.detect
-skip_when: no pattern repeats in the reviewed changes, or a cpat or task-type document already records the pattern
+skip_when: the reviewed changes carry no detection signal, a cpat or task-type document already records the pattern, or the durable-context selection of this invocation already listed or omitted it
 budget: 0
 taxonomy: none
 produces: none
