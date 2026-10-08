@@ -10,7 +10,7 @@ tags:
 
 ## Subject
 
-A branch written without an Archcore plan — by the user or by another agent — reaches `/archcore:review`, which selects the durable context a later reader needs. Cross-spec scenario; illustrates `command-surface-v2.spec` clause 39 and `review-durable-context-selection.spec` clauses 3, 4, 6, 7, 8, 11, 14, 17, 19, 20, 21, 23 and Failure Behavior 5. Plugin users read it to know what review writes without a plan; the review bench depends on its examples.
+A branch written without an Archcore plan — by the user or by another agent — reaches `/archcore:review`, which selects the durable context a later reader needs. Cross-spec scenario; illustrates `command-surface-v2.spec` clause 39 and `review-durable-context-selection.spec` clauses 3, 4, 6, 7, 8, 11, 14, 17, 19, 20, 21, 23 and Failure Behavior 6. Plugin users read it to know what review writes without a plan; the review bench depends on its examples.
 
 ## Actors
 
@@ -73,7 +73,7 @@ Then Developer sees the reason reported as an open gap, and no `adr` or `cpat` d
 
 ### Declining the preview
 
-Illustrates: `review-durable-context-selection.spec` 21, 23; Failure Behavior 5.
+Illustrates: `review-durable-context-selection.spec` 21, 23; Failure Behavior 6.
 Given the preview proposes a `spec` and a `guide`.
 When Developer authorizes the `spec` only.
 Then Developer sees one `spec` draft, and the `guide` listed as declined.

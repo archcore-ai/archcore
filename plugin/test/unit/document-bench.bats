@@ -59,3 +59,10 @@ MOCK
   assert_equal "$status" 2
   [ ! -e "$BENCH_ARGS" ] || { fail "an invalid corpus invoked the model"; return 1; }
 }
+
+@test "shipped document bench fixtures pass the corpus validator" {
+  export DOCUMENT_BENCH_FIXTURES="$REPO_ROOT/test/behavioral/fixtures/document-bench.tsv" DOCUMENT_BENCH_LIMIT=1
+  run sh "$BENCH"
+  [ "$status" -ne 2 ] || { fail "shipped fixtures rejected: $output"; return 1; }
+}
+

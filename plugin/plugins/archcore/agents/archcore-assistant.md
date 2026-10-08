@@ -96,7 +96,8 @@ result and absolute plugin root. Missing handoff is not evidence of an old CLI.
 Actor-subject vocabulary follows `skills/_shared/actor-subject-compatibility.md`:
 apply that engine gate (CLI 0.8.4) before naming `scenario` or `journey` in a
 filter or a write. `scenario` belongs to knowledge; `journey` belongs to vision.
-A scenario illustrates one `spec` (`depends_on`); a journey records the intended
+A scenario illustrates one `spec`, or several for a cross-spec flow, with one
+`depends_on` edge to each; a journey records the intended
 path before a `spec` exists. Compose either from
 `skills/_shared/scenario-contract.md` or `skills/_shared/journey-contract.md`.
 The same caller-supplied probe rule applies: without a probe result and without a
