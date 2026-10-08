@@ -113,7 +113,7 @@ mechanics follow `skills/_shared/elicitation-contract.md`.
 - Entry conditions:
   - skip_when: the track produced an `rfc`, or the ADR content matches neither signal set below — the ADR alone is a valid endpoint.
   - An ADR draft produced by `decision.adr` exists, or `decision.classify` selected one local `adr` as the upstream of a standard request.
-  - Standard-cascade signals — the decision describes enforceable behavior: "we should always", "developers must", "the team should", "going forward all X must Y".
+  - Standard-cascade signals — the decision describes enforceable behavior: "we should always", "developers must", "the team should", "going forward all X must Y"; or the subject names `rule`, which also counts as the cascade confirmation.
   - Architecture-cascade signals — the decision establishes or changes a boundary contract (API, interface, schema, protocol) or a feature or subsystem with states, field-driven rules, and invariants: "the X system will provide", "the contract is", "the interface exposes", "the API will be", "the feature must behave", "the states are".
 - Elicitation knobs:
   - trigger: no recorded user confirmation of a cascade exists — request wording or a recorded clarification that names the cascade counts as the confirmation; when confirmation is absent, one question offers the matching cascade; when both signal sets match, that question asks which cascade fits (standard, architecture, or neither for now); when the decision describes a before/after code-pattern shift, the question's option list includes "standard + cpat" alongside "standard", "architecture", and "neither for now".

@@ -44,6 +44,18 @@ has_section() {
   grep -F -q 'one `depends_on` edge to each.' "$SCENARIO" || fail "a cross-spec scenario has no dependency rule"
   grep -F -q 'one edge to each `spec` this document illustrates' "$SCENARIO" \
     || fail "a cross-spec scenario misses the cascade from one of its specs"
+  local squeezed
+  squeezed=$(tr '\n' ' ' < "$SCENARIO" | tr -s ' ')
+  [[ "$squeezed" == *'clause number — in a cross-spec scenario, each `spec` with its clause numbers;'* ]] \
+    || fail "a cross-spec Subject does not name each spec with its clauses"
+  [[ "$squeezed" == *'line with the clause number — in a cross-spec scenario, the `spec` and the clause number —'* ]] \
+    || fail "a cross-spec Illustrates line does not name the spec"
+  grep -F -q 'each still `depends_on` every `spec` it illustrates.' "$SCENARIO" \
+    || fail "a split cross-spec scenario keeps only one spec edge"
+  grep -F -q 'requires `depends_on` → each `spec` it illustrates.' "$SHARED/tracks/describe.md" \
+    || fail "describe.draft wires only one spec edge to a scenario"
+  grep -F -q 'and carries `depends_on` → each covering `spec`.' "$SHARED/tracks/describe.md" \
+    || fail "describe.draft exit check accepts a cross-spec scenario with one edge"
 }
 
 @test "journey contract exists with the spec-contract section set" {

@@ -37,8 +37,12 @@ named-type path below.
 
 ### Named type
 
-WHEN the subject text names one of the kernel document types, the named type
-wins over routing (`explicit-type-request-wins.adr`), with or without a mode word:
+WHEN the first word of the subject — the first argument, or the first word after
+a mode word — is a kernel document type slug, or the subject writes a slug in
+backticks, the named type wins over routing (`explicit-type-request-wins.adr`).
+A slug elsewhere in plain topic text names no type here; inside a mode's track
+the gate contract's naming rule still applies. When two slugs qualify, the
+first one wins.
 
 1. IF a document track produces the named type, THEN enter that track with the type settled: `adr`, `rfc`, `rule` → decision; `spec`, `doc`, `guide`, `scenario` → describe; `research`, `rnd`, `evidence` → research.
 2. IF no document track produces it — `journey`, `prd`, `idea`, `plan`, `cpat`, `task-type`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs` — THEN compose it directly per the steps below.
@@ -142,7 +146,8 @@ ladder applies. Never modify a global document and never target one with
 
 ### Step 2: Mode entry
 
-If the first word is a mode, execute the mapped entry without routing:
+IF the subject names a type per Named type above, THEN apply Named type first.
+Otherwise, if the first word is a mode, execute the mapped entry without routing:
 
 - `decision` → decision track. An `rfc` draft on the topic plus resolution
   wording enters `decision.resolve`; any other request enters

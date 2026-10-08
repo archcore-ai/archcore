@@ -78,7 +78,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 - Constraint: the argument hint of a command and the argument hint of its skill are identical; together they are the command's complete expert surface.
 - Constraint: the description of a command and the description of its skill each name every mode of the argument hint.
 - Constraint: no argument hint carries a `--flag`; a setting is a preview toggle and never selects an entry.
-- Constraint: `rnd` is produced only by the research instrument's closing test, the spike, or the compatibility fallback.
+- Constraint: `rnd` is produced only by the research instrument's closing test, the spike, the compatibility fallback, or a request that names `rnd` per behavior 29.
 - Constraint: a standalone material is filed only through `document research`.
 - Constraint: a `journey` is produced at `sdd.require` on `plan`, or on the document skill's named-type path when the request names `journey`; no `document` mode produces one.
 - Constraint: the actor-subject types bind only when the engine gate in @plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md returns `yes`.

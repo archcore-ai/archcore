@@ -59,7 +59,7 @@ Background: a repository `shop-api` with an initialized `.archcore/`, CLI 0.10 o
 Illustrates: `delta-routing-conductor.spec` 1, 6, 11, 19.
 Given no `spec` covers CSV export of orders.
 When Developer types `/archcore:plan CSV export for orders`.
-Then Developer sees the announcement `capability · M` before any document.
+Then Developer sees `route: capability (size M)` announced before any document.
 And Developer sees drafts `orders-csv-export.spec` and `orders-csv-export.plan` with a Declared Delta.
 
 ### Planning two capabilities
