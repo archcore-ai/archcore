@@ -1,6 +1,6 @@
 ---
 title: "Cross-Spec Scenario — One Realized Flow May Illustrate Clauses of Several Specs"
-status: draft
+status: accepted
 tags:
   - "component:plugin"
   - "document-types"
