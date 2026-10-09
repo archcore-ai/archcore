@@ -36,7 +36,7 @@ This spec defines the engine gate for the two actor-subject type names and the c
 9. WHEN the conductor drops the instrument under behavior 8, the plan skill MUST report the required version once.
 10. The executing skill MUST NOT convert or rewrite an existing artifact of either type on an older engine.
 11. WHEN the subject text of `document code` names `scenario`, `describe.draft` MUST treat the type as settled.
-12. WHEN the subject names `journey`, the document skill MUST compose it on the named-type path, with or without a mode word.
+12. WHEN `journey` leads the subject under `command-surface-v2.spec` behavior 29, the document skill MUST compose a `journey`.
 13. The document argument hint MUST NOT list either type.
 14. The plan skill MUST NOT accept either type as an entry.
 15. WHEN the executor has no shell tool and no supplied probe result, the executing skill MUST return `needs-vocabulary-probe` to the caller.

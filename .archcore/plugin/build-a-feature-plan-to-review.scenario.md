@@ -89,7 +89,7 @@ Then Developer sees the plan retained with the 2 remaining tasks named.
 Illustrates: `review-durable-context-selection.spec` 2, 19, 20.
 Given the branch also adds a 429 response the plan did not declare, and no `spec` covers it.
 When Developer types `/archcore:review`.
-Then Developer sees one preview proposing a `spec` update, asked as one question.
+Then Developer sees one preview proposing a new `spec`, asked as one question.
 
 ## Open Questions
 

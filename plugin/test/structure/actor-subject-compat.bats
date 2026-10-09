@@ -68,7 +68,7 @@ setup() {
     || fail "document/SKILL.md does not rule out journey production"
   grep -F -q 'This track never produces a `journey`' "$PLUGIN_ROOT/skills/_shared/tracks/describe.md" \
     || fail "describe.md does not rule out journey production"
-  grep -F -q 'IF no document track produces it — `journey`, `prd`, `idea`, `plan`, `cpat`, `task-type`' "$skill" \
+  grep -F -q 'IF no document track produces it as its own product — `rule`, `journey`, `prd`, `idea`, `plan`, `cpat`, `task-type`' "$skill" \
     || fail "an explicitly named journey has no path through document"
   grep -F -q 'ask no question.' "$skill" \
     || fail "a failed routing condition on a named type costs a question"
@@ -83,7 +83,7 @@ setup() {
   for phrase in \
     'Name any document type inside the subject' \
     '| The subject names a document type that no document track produces | → Named type, direct composition |' \
-    '1. IF a document track produces the named type, THEN enter that track with the type settled' \
+    '1. IF a document track produces the named type as its own product, THEN enter that track with the type settled' \
     '3. Apply the compatibility file for the type before the first MCP call that names it.' \
     'when one exists, offer to update it instead.' \
     '5. Load `skills/_shared/<type>-contract.md` when that file exists, and `skills/_shared/precision-rules.md`.' \
@@ -107,8 +107,9 @@ setup() {
     || fail "a mode word bypasses the named-type path"
   grep -F -q 'or names `rnd` or `research` per the document skill'"'"'s Named type rule, fix the artifact type' \
     "$PLUGIN_ROOT/skills/_shared/tracks/research.md" || fail "the closing test overrides a named rnd"
-  grep -F -q 'or the subject names `rule`, which also counts as the cascade confirmation.' \
-    "$PLUGIN_ROOT/skills/_shared/tracks/decision.md" || fail "a named rule can end without a rule"
+  [[ "$flat_skill" == *'— `rule`, `journey`, `prd`, `idea`, `plan`, `cpat`, `task-type`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs` — THEN compose it directly'* ]] \
+    || fail "a named rule goes through the decision track and its adr questions"
+  [[ "$flat_skill" == *'a leading type slug takes the Named type path.'* ]] || fail "a leading slug is still sent to classification"
   local f
   for f in agents/archcore-assistant.md agents/archcore-assistant.toml copilot-agents/archcore-assistant.agent.md; do
     grep -F -q 'or several for a cross-spec flow, with one' "$PLUGIN_ROOT/$f" \

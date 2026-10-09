@@ -10,7 +10,7 @@ tags:
 
 ## Subject
 
-A repository with agent instructions, ADR folders, and contributor docs moves that knowledge into native `.archcore/` documents. Cross-spec scenario; illustrates `command-surface-v2.spec` clause 37; `init-entry-and-assess.spec` clauses 1, 7, 19; `import-conversion-and-staging.spec` clauses 1, 3, 5, 7, 8, 9, 10, 11, 16, 19, 20. Plugin users read it before migrating; the import bench depends on its examples.
+A repository with agent instructions, ADR folders, and contributor docs moves that knowledge into native `.archcore/` documents. Cross-spec scenario; illustrates `command-surface-v2.spec` clause 37; `init-entry-and-assess.spec` clauses 1, 7, 19 (Flow steps 1–2); `import-conversion-and-staging.spec` clauses 1, 3, 5, 7, 8, 9, 10, 11, 16, 19, 20. Plugin users read it before migrating; the import bench depends on its examples.
 
 ## Actors
 
@@ -54,7 +54,7 @@ Then Maintainer sees 6 draft documents with no `imported` tag and no import plan
 
 ### A large import in waves
 
-Illustrates: `init-entry-and-assess.spec` 7; `import-conversion-and-staging.spec` 10, 11, 16.
+Illustrates: `import-conversion-and-staging.spec` 10, 11.
 Given the assessment counts 52 targets, tier `L`.
 When Maintainer confirms the preview.
 Then Maintainer sees an import plan, wave 1 converted, and `/archcore:init import` named to continue.
