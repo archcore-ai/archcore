@@ -23,8 +23,10 @@ case "$prompt" in *'Precedent only'*) q=2 ;; *) q=0 ;; esac
 reply="gate-verdict: skip=no; resume=none; questions=$q; gate=$gate; assumptions=0; persist=yes"
 case "${BENCH_REPLY_MODE:-}" in
   multiline) reply=$(printf 'Explanation\n%s' "$reply") ;;
+  trailing) reply=$(printf '%s\nExplanation' "$reply") ;;
   inline) reply='`'"$reply"'`' ;;
   missing) reply="gate-verdict: skip=no; questions=$q; gate=$gate" ;;
+  extra) reply="gate-verdict: skip=no; resume=none; questions=$q; gate=$gate (blocked); assumptions=0; persist=yes" ;;
 esac
 jq -cn --arg result "$reply" '{is_error:false,result:$result}'
 MOCK
@@ -61,7 +63,18 @@ MOCK
   export BENCH_REPLY_MODE=multiline
   run sh "$BENCH"
   assert_equal "$status" 1
+  export BENCH_REPLY_MODE=trailing
+  run sh "$BENCH"
+  assert_equal "$status" 1
+  assert_output --partial '0 pass, 2 fail, 0 errors'
   export BENCH_REPLY_MODE=missing
+  run sh "$BENCH"
+  assert_equal "$status" 1
+  assert_output --partial '0 pass, 2 fail, 0 errors'
+}
+
+@test "gate bench rejects a value that only contains the expected one" {
+  export BENCH_REPLY_MODE=extra
   run sh "$BENCH"
   assert_equal "$status" 1
   assert_output --partial '0 pass, 2 fail, 0 errors'
