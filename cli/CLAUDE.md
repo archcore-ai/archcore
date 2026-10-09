@@ -264,7 +264,7 @@ Exclude these directories from normal implementation searches unless the task ex
 - `reference-materials/` — vendored references and standards material; not part of the build.
 - `examples/` — example project layouts and manual-test fixtures.
 
-<!-- archcore:start --> managed by `archcore init` — edit outside these markers
+<!-- archcore:start --> managed by `archcore init`, block v2 — edit outside these markers
 ## Archcore — project context for this repo
 
 `.archcore/` holds this project's recorded context as typed Markdown files,

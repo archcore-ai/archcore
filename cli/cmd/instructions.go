@@ -201,3 +201,45 @@ func removeInstructionsForAgent(baseDir string, agent *agents.Agent) error {
 		"Removed Archcore usage hint from %s", wiring.DisplayPath(baseDir, agent.InstructionsPath(baseDir)))))
 	return nil
 }
+
+// instructionBlockNote is one stale-block finding: what is wrong, and the step
+// that closes it. Each surface phrases the pair for its own reader.
+type instructionBlockNote struct {
+	problem string
+	fix     string
+}
+
+// describeInstructionBlocks names each managed block that differs from the one
+// this binary writes, with the step that closes the gap. Session start and
+// doctor share it, so both surfaces report the same findings
+// (managed-block-version-and-staleness-advisory.adr).
+func describeInstructionBlocks(baseDir string) []instructionBlockNote {
+	var notes []instructionBlockNote
+	for _, block := range agents.InspectInstructionBlocks(baseDir) {
+		file := wiring.DisplayPath(baseDir, block.Path)
+		switch block.State {
+		case agents.BlockCurrent:
+		case agents.BlockOutdated:
+			problem := fmt.Sprintf("%s holds an older Archcore block (v%d; this CLI writes v%d)",
+				file, block.Version, agents.InstructionsBlockVersion)
+			if block.Version == agents.InstructionsBlockVersion {
+				problem = fmt.Sprintf("%s holds an Archcore block that differs from the one this CLI writes", file)
+			}
+			// The bare command refreshes only detected hosts, so a file whose host
+			// left no marker in the repository would stay stale.
+			notes = append(notes, instructionBlockNote{problem: problem,
+				fix: fmt.Sprintf("run 'archcore instructions install --agent %s'", block.Agent)})
+		case agents.BlockNewer:
+			notes = append(notes, instructionBlockNote{
+				problem: fmt.Sprintf("%s holds an Archcore block from a newer CLI (v%d; this CLI writes v%d)",
+					file, block.Version, agents.InstructionsBlockVersion),
+				fix: "run 'archcore update'"})
+		}
+		if block.PastCodexBudget {
+			notes = append(notes, instructionBlockNote{
+				problem: fmt.Sprintf("%s: the Archcore block ends past 32 KiB, where Codex stops reading", file),
+				fix:     "move the block to the top of the file"})
+		}
+	}
+	return notes
+}

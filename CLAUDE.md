@@ -32,7 +32,7 @@ When modifying files under `plugin/plugins/archcore/skills/`, preserve existing 
 Do not edit content inside an Archcore-managed block:
 
 ```text
-<!-- archcore:start --> managed by `archcore init` — edit outside these markers
+<!-- archcore:start --> managed by `archcore init`, block v2 — edit outside these markers
 ## Archcore — project context for this repo
 
 `.archcore/` holds this project's recorded context as typed Markdown files,

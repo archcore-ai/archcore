@@ -84,6 +84,9 @@ func buildSessionContext(ctx context.Context, baseDir string) (string, sessionDo
 	if advisory := advisory.Staleness(ctx, baseDir, stamp.DirFor("staleness-stamps"), corpus); advisory != "" {
 		fmt.Fprintf(&b, "\n%s", advisory)
 	}
+	if advisory := instructionsAdvisory(baseDir, stamp.DirFor("instructions-stamps")); advisory != "" {
+		fmt.Fprintf(&b, "\n%s", advisory)
+	}
 
 	// Tag frequencies cover every local document, rejected included: a tag used
 	// only by a rejected document is still part of the project's vocabulary and
@@ -127,6 +130,29 @@ func buildSessionContext(ctx context.Context, baseDir string) (string, sessionDo
 	// feeds the "N docs" banner, which reports what the project holds, not what
 	// this recap chose to show.
 	return b.String(), sessionDocCounts{local: len(corpus), global: globalDocs}
+}
+
+// instructionsAdvisoryWindow rate-limits the stale-block advisory to once a day
+// per project: the fix is one command a person runs once per repository, so a
+// repeat in every session is noise.
+const instructionsAdvisoryWindow = 24 * time.Hour
+
+// instructionsAdvisory returns the stale-block lines, or an empty string when
+// every block is current or a peer session already claimed today's notice. An
+// empty stampDir disables rate limiting, which is what tests want.
+func instructionsAdvisory(baseDir, stampDir string) string {
+	notes := describeInstructionBlocks(baseDir)
+	if len(notes) == 0 {
+		return ""
+	}
+	if stampDir != "" && !stamp.Claim(stampDir, "instructions\x00"+baseDir, instructionsAdvisoryWindow) {
+		return ""
+	}
+	var b strings.Builder
+	for _, note := range notes {
+		fmt.Fprintf(&b, "[Archcore Instructions] %s. With the user's consent, %s.\n", note.problem, note.fix)
+	}
+	return b.String()
 }
 
 // Ceilings for the GLOBALS block. Output size is a function of these and never

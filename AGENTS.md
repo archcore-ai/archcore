@@ -248,7 +248,7 @@ Before finalizing technical documentation, silently verify:
 
 Revise known violations before returning the document. Do not include the checklist or a writing-quality score in the generated document unless the user asks for a review report.
 
-<!-- archcore:start --> managed by `archcore init` — edit outside these markers
+<!-- archcore:start --> managed by `archcore init`, block v2 — edit outside these markers
 ## Archcore — project context for this repo
 
 `.archcore/` holds this project's recorded context as typed Markdown files,
