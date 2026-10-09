@@ -3114,11 +3114,6 @@
       "type": "related"
     },
     {
-      "source": "plugin/actor-subject-compatibility.spec.md",
-      "target": "plugin/journey-produced-only-on-plan.adr.md",
-      "type": "implements"
-    },
-    {
       "source": "plugin/track-layer.spec.md",
       "target": "plugin/command-entry-grammar.adr.md",
       "type": "implements"
@@ -5217,6 +5212,11 @@
       "source": "plugin/plugin-usage-catalog.doc.md",
       "target": "plugin/import-existing-documentation.scenario.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/actor-subject-compatibility.spec.md",
+      "target": "plugin/explicit-type-request-wins.adr.md",
+      "type": "implements"
     }
   ]
 }

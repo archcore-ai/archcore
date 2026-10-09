@@ -1,6 +1,6 @@
 ---
 title: "An Explicitly Named Document Type Wins Over Routing — Every Kernel Type Reachable on Request"
-status: draft
+status: accepted
 tags:
   - "commands"
   - "component:plugin"
