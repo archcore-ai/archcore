@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -37,9 +38,21 @@ const (
 	instructionsMarkerEnd   = "<!-- archcore:end -->"
 
 	// instructionsHeader is the full start-marker line, including the human note
-	// that steers manual edits outside the managed span.
-	instructionsHeader = instructionsMarkerStart + " managed by `archcore init` — edit outside these markers"
+	// that steers manual edits outside the managed span. Its "block vN" must equal
+	// InstructionsBlockVersion; a test holds the two together.
+	instructionsHeader = instructionsMarkerStart + " managed by `archcore init`, block v2 — edit outside these markers"
 )
+
+// InstructionsBlockVersion numbers the format of instructionsBody. Bump it with
+// every change to the body: a session compares it with the version a committed
+// block carries and names the command that closes the gap
+// (managed-block-version-and-staleness-advisory.adr).
+const InstructionsBlockVersion = 2
+
+// codexProjectDocBudget is how much AGENTS.md text Codex reads: every AGENTS.md
+// of a session shares 32 KiB, and the tail is dropped without a notice
+// (agent-context-delivery.rnd, `project_doc_max_bytes`).
+const codexProjectDocBudget = 32 << 10
 
 // ContextAddress tells an agent where to fetch project context. Every channel
 // that reaches the model emits it first — the managed block, the MCP server
@@ -155,6 +168,101 @@ func InstructionBlockPresent(path string) bool {
 		return false
 	}
 	return len(findManagedSpans(string(data))) > 0
+}
+
+// BlockState classifies a committed managed block against the block this binary
+// writes.
+type BlockState int
+
+const (
+	// BlockCurrent matches the block this binary writes, byte for byte.
+	BlockCurrent BlockState = iota
+	// BlockOutdated carries an older format version, or the current version with
+	// text edited inside the markers; a refresh restores both.
+	BlockOutdated
+	// BlockNewer was written by a newer CLI; a refresh would downgrade it.
+	BlockNewer
+)
+
+// InstructionBlock reports the managed block of one instruction file. Path is
+// absolute.
+type InstructionBlock struct {
+	Path    string
+	State   BlockState
+	Version int
+	// Agent is the agent whose instructions writer refreshes this file.
+	Agent AgentID
+	// PastCodexBudget is set when the block of AGENTS.md ends past the bytes
+	// Codex reads.
+	PastCodexBudget bool
+}
+
+// instructionFiles maps each shared instruction file to the agent whose writer
+// refreshes it. AGENTS.md names Codex because Codex is the host whose budget
+// the block placement serves.
+var instructionFiles = []struct {
+	name  string
+	agent AgentID
+}{
+	{agentsInstructionsFile, CodexCLI},
+	{claudeInstructionsFile, ClaudeCode},
+	{geminiInstructionsFile, GeminiCLI},
+}
+
+// InspectInstructionBlocks reports the first managed block of AGENTS.md,
+// CLAUDE.md, and GEMINI.md in baseDir, skipping a file that holds none. Version
+// is 1 for a header that names no version, the form CLIs before block v2 wrote.
+// Advisory read: an unreadable file is skipped, because a stale-block notice
+// never blocks anything.
+func InspectInstructionBlocks(baseDir string) []InstructionBlock {
+	var blocks []InstructionBlock
+	for _, file := range instructionFiles {
+		path := filepath.Join(baseDir, file.name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		content := string(data)
+		spans := findManagedSpans(content)
+		if len(spans) == 0 {
+			continue
+		}
+		// The budget check keeps raw offsets, because Codex counts the bytes on
+		// disk; the comparison drops CRLF, so a Windows checkout reads as current.
+		span := strings.ReplaceAll(content[spans[0][0]:spans[0][1]], "\r\n", "\n")
+		block := InstructionBlock{
+			Path:            path,
+			Version:         blockVersion(span),
+			Agent:           file.agent,
+			PastCodexBudget: file.name == agentsInstructionsFile && spans[0][1] > codexProjectDocBudget,
+		}
+		switch {
+		case block.Version > InstructionsBlockVersion:
+			block.State = BlockNewer
+		// A second block is stale even when it matches: hosts read both, and a
+		// refresh collapses them into one.
+		case span == instructionsFencedBlock && len(spans) == 1:
+			block.State = BlockCurrent
+		default:
+			block.State = BlockOutdated
+		}
+		blocks = append(blocks, block)
+	}
+	return blocks
+}
+
+func blockVersion(span string) int {
+	header, _, _ := strings.Cut(span, "\n")
+	_, after, found := strings.Cut(header, "block v")
+	if !found {
+		return 1
+	}
+	digits := after[:len(after)-len(strings.TrimLeft(after, "0123456789"))]
+	version, err := strconv.Atoi(digits)
+	if err != nil {
+		return 1
+	}
+	return version
 }
 
 // upsertFencedBlock writes the archcore managed block into the file at path. If

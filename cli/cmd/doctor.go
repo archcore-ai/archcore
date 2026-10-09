@@ -95,6 +95,8 @@ func newDoctorCmd(version string) *cobra.Command {
 			// and reporting it here means a plain `doctor` says so too.
 			reportEffectiveHooks(cwd)
 
+			reportInstructionBlocks(os.Stdout, cwd)
+
 			// Server reachable (only when a server URL is configured).
 			if settings != nil {
 				if serverURL := settings.ServerURL(); serverURL != "" {
@@ -197,6 +199,18 @@ func reportCachedUpdate(w io.Writer, current, cachePath string) {
 	}
 	fmt.Fprintln(w, display.WarnLine(fmt.Sprintf(
 		"A newer archcore is available: %s (current: %s) — run 'archcore update'", latest, current)))
+}
+
+// reportInstructionBlocks prints one warning per stale managed block. The writer
+// is a parameter, as in reportCachedUpdate, so the report is exercisable
+// without a doctor run.
+//
+// It never touches the issue counter: the project still works, and the fix
+// edits a committed file the user owns.
+func reportInstructionBlocks(w io.Writer, baseDir string) {
+	for _, note := range describeInstructionBlocks(baseDir) {
+		fmt.Fprintln(w, display.WarnLine(note.problem+" — "+note.fix))
+	}
 }
 
 // convergeHostWiring re-runs the host-wiring installers in converge mode for

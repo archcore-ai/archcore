@@ -4,7 +4,7 @@ The shared Archcore project is the repository root (`..` from this directory).
 All `.archcore/` references below name that root, not `cli/.archcore/`.
 Run CLI build and test commands from `cli/`.
 
-<!-- archcore:start --> managed by `archcore init` — edit outside these markers
+<!-- archcore:start --> managed by `archcore init`, block v2 — edit outside these markers
 ## Archcore — project context for this repo
 
 `.archcore/` holds this project's recorded context as typed Markdown files,

@@ -5297,6 +5297,21 @@
       "source": "integrations/agent-context-delivery.plan.md",
       "target": "integrations/context-address-delivery.spec.md",
       "type": "implements"
+    },
+    {
+      "source": "integrations/managed-block-version-and-staleness-advisory.adr.md",
+      "target": "integrations/instruction-nudge-on-init.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "integrations/managed-block-version-and-staleness-advisory.adr.md",
+      "target": "integrations/context-address-leads-every-channel.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "integrations/context-address-delivery.spec.md",
+      "target": "integrations/managed-block-version-and-staleness-advisory.adr.md",
+      "type": "implements"
     }
   ]
 }

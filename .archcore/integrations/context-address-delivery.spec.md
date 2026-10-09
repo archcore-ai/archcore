@@ -39,6 +39,11 @@ Out of scope: the rows of the pre-edit hint and of `for_path`; the recap budget 
 12. WHEN the `archcore` CLI is absent, the plugin launcher MUST tell the agent to inform the user once.
 13. WHEN the `archcore` CLI is absent, the plugin launcher MUST tell the agent to read `.archcore/` as files.
 14. The session-start recap MUST NOT end with a pointer to the MCP server instructions as its only usage guidance.
+15. The writer MUST put the block-format version in the block header as `block vN`.
+16. WHEN a committed block carries an older version or edited text, the CLI MUST name `archcore instructions install --agent <id>` as the fix, with the agent whose writer refreshes that file.
+17. WHEN a committed block carries a newer version than the CLI writes, the CLI MUST name `archcore update` as the fix.
+18. WHEN the block in `AGENTS.md` ends past 32 KiB, the CLI MUST tell the reader to move it to the top.
+19. The session-start recap and `archcore doctor` MUST NOT rewrite a stale block.
 
 ## Constraints & Invariants
 
@@ -47,6 +52,9 @@ Out of scope: the rows of the pre-edit hint and of `for_path`; the recap budget 
 - Constraint: the managed block body MUST NOT exceed 40 lines. Claude Code advises at most 200 lines for a whole `CLAUDE.md`.
 - Invariant: every CLI channel takes the address from one constant. The plugin launcher copies it, and a test compares the copy with the constant.
 - Invariant: the address names tools and paths only. It names no plugin command, because a CLI-only host has no plugin.
+- Invariant: a header without `block vN` reads as version 1, the form CLIs before block v2 wrote.
+- Invariant: a test pins the block body to its version, so a body change without a version bump fails the build.
+- Constraint: the session-start recap MUST report stale blocks at most once per project in 24 hours.
 
 ## Failure Behavior
 
@@ -56,4 +64,4 @@ Out of scope: the rows of the pre-edit hint and of `for_path`; the recap budget 
 
 ## Conformance
 
-An implementation is conformant when it satisfies behaviors 1–14, holds every constraint and invariant, and degrades per the failure rules. Checks: the instruction fixtures test (@cli/internal/agents/instructions_fixtures_test.go), the session-start goldens (@plugin/test/unit/session-start-goldens.bats), and a server-instruction size test beside @cli/internal/mcp/tool_description_spec_test.go.
+An implementation is conformant when it satisfies behaviors 1–19, holds every constraint and invariant, and degrades per the failure rules. Checks: the instruction fixtures test (@cli/internal/agents/instructions_fixtures_test.go), the session-start goldens (@plugin/test/unit/session-start-goldens.bats), and a server-instruction size test beside @cli/internal/mcp/tool_description_spec_test.go.

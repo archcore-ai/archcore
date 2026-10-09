@@ -26,7 +26,8 @@ One context string, embedded by the caller in a host-specific JSON envelope.
 Sections, in order: the header; the context address; the MCP tool line; the
 invalid-settings warning when present; `CORPUS`; `BRANCH` when resolvable;
 `GLOBALS` when sources are declared; `IN PROGRESS`; `RECENTLY ACCEPTED`; the
-staleness advisory when due; `EXISTING TAGS`; `DOCUMENT RELATIONS`.
+staleness advisory when due; the managed-block advisory when due; `EXISTING
+TAGS`; `DOCUMENT RELATIONS`.
 
 ## Normative Behavior
 
@@ -61,6 +62,10 @@ staleness advisory when due; `EXISTING TAGS`; `DOCUMENT RELATIONS`.
 19. The builder MUST emit the context address directly after the header line.
 20. The builder MUST NOT close the context with a pointer to the MCP server
     instructions.
+21. WHEN a managed block in the project differs from the block the CLI writes,
+    the builder MUST emit one `[Archcore Instructions]` line per finding.
+22. WHEN the managed-block advisory fired for a project within 24 hours, the
+    builder MUST omit it.
 
 ## Constraints &amp; Invariants
 
@@ -98,7 +103,7 @@ staleness advisory when due; `EXISTING TAGS`; `DOCUMENT RELATIONS`.
 
 ## Conformance
 
-The builder is conformant when it satisfies behaviors 1–20, holds every
+The builder is conformant when it satisfies behaviors 1–22, holds every
 invariant, and degrades per the failure rules. The budget invariant is verified
 against synthetic corpora of 300 and 3000 documents; the `GLOBALS` behaviors
 are verified by @cli/cmd/hooks_globals_block_test.go.

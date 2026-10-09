@@ -27,6 +27,8 @@ and is not part of this subsystem. Everything described here degrades to silence
 | `Restatement` | after a document write | a statement copied from a document the written one builds on | the duplicated statement |
 | `Staleness` | `buildSessionContext` in @cli/cmd/hooks_common.go | session start | documents that mention directories that moved |
 
+One more session-start advisory lives outside this package: the managed-block advisory, described below.
+
 ### Code alignment
 
 `CodeAlignment` is the reason a rule reaches an agent that never searched for it.
@@ -92,6 +94,14 @@ names the documents that mention the directories that moved.
 The correlation is by directory name, so it over-reports by design. It is rate-limited to 24 hours
 through an `internal/stamp` claim, and bounded at 12 correlated directories, 5 documents per
 directory, and 10 lines total — @cli/internal/advisory/staleness.go.
+
+### Managed-block advisory
+
+The managed-block advisory compares the managed block in `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` with the block the installed CLI writes, and names the fix — `managed-block-version-and-staleness-advisory.adr`.
+
+`agents.InspectInstructionBlocks` in @cli/internal/agents/instructions.go reads the three files and skips a file it cannot read. `describeInstructionBlocks` in @cli/cmd/instructions.go turns each finding into a problem and a fix. The session-start recap (`instructionsAdvisory` in @cli/cmd/hooks_common.go) and `archcore doctor` (`reportInstructionBlocks` in @cli/cmd/doctor.go) phrase that pair for their own readers. Neither surface writes the file.
+
+The recap takes an `internal/stamp` claim in its own `instructions-stamps` scope, once per project in 24 hours. It takes the claim only when a finding exists, so a session with current blocks does not use up the day's advisory.
 
 ## Examples
 
