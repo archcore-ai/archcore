@@ -1,0 +1,65 @@
+#!/bin/sh
+# detect-host: resolve which AI host this skill session runs under, from
+# environment only. Invoked by the init skill via Bash to pick the --agent id
+# for host-wiring installation (`archcore init --agent <id>` / the
+# install_host_config MCP tool).
+#
+# stdout (always exit 0): exactly one token
+#   claude-code | cursor | codex-cli | __UNKNOWN__
+#
+# Contract (test/unit/detect-host.bats — keep the env constants in sync):
+#   - env-only: stdin is ignored, cwd is never inspected (Cursor guarantees
+#     neither for agent shell commands — cwd-independence plan);
+#   - __UNKNOWN__ is a value, not an error: callers branch on the token and
+#     fall back to asking the user;
+#   - precedence claude-code > cursor > codex-cli — a host-spawned subshell
+#     can inherit stray vars from companion plugins (a real Claude session
+#     carries CODEX_COMPANION_SESSION_ID, for instance), so the most specific
+#     signal wins and codex is keyed on the two exact names below, never CODEX_*.
+#
+# Codex is keyed on CODEX_THREAD_ID, not on CODEX_HOME. Codex injects
+# CODEX_THREAD_ID into every model-run shell command as the LAST step of
+# create_env (codex-rs/protocol/src/shell_environment.rs), after the
+# include_only filter, so it survives every shell_environment_policy — while
+# CODEX_HOME is read FROM the user to locate the config dir and is exported by
+# nothing: the Codex manual itself spells it ${CODEX_HOME:-$HOME/.codex}. Keyed
+# on CODEX_HOME alone this branch never fired, and every Codex session — CLI
+# and desktop app alike — resolved __UNKNOWN__ (codex-adapter-conformance.adr).
+# CODEX_HOME stays as a second condition: a user who exports it is in Codex.
+#
+# Both Codex surfaces resolve to codex-cli. They share one binary, one
+# ~/.codex/config.toml, and one plugin install, so the desktop app needs no
+# host id of its own (codex-adapter.spec item 13).
+#
+# The precedence cannot resolve a NESTED session in either direction: Codex
+# defaults to shell_environment_policy.inherit = "all", so a Codex session
+# launched from a Claude shell carries CLAUDECODE and resolves claude-code,
+# and the mirror case carries CODEX_THREAD_ID. Both hosts inject their own
+# marker per spawned command; no environment variable separates the two.
+#
+# No GitHub Copilot branch, deliberately. Copilot CLI sets NO environment
+# variable in the shell commands it runs for the agent: every documented
+# COPILOT_* var (COPILOT_HOME, COPILOT_MODEL, COPILOT_ALLOW_ALL,
+# COPILOT_GITHUB_TOKEN, COPILOT_CUSTOM_INSTRUCTIONS_DIRS) is read FROM the
+# user environment, never exported by the CLI — adding a Copilot-detection
+# feature is an open upstream request (microsoft/vscode#311734).
+# The plugin-root variables exist only inside hook processes — and on Copilot
+# which one arrives is itself undocumented, which is why hooks/copilot.hooks.json
+# probes three (copilot-adapter-design.adr). This script runs from a skill's
+# Bash call, not a hook, so none of them is available. A Copilot session resolves
+# __UNKNOWN__ by design and the init skill asks the user instead (see
+# skills/init/SKILL.md Step -1). Do NOT key a branch on COPILOT_HOME: it is
+# unset unless the user overrode the config dir, so it would misdetect a
+# Copilot session as __UNKNOWN__ anyway while stealing sessions from other
+# hosts whenever someone does set it globally.
+
+if [ -n "${CLAUDECODE:-}" ] || [ -n "${CLAUDE_SKILL_DIR:-}" ]; then
+  echo "claude-code"
+elif [ -n "${CURSOR_TRACE_ID:-}" ]; then
+  echo "cursor"
+elif [ -n "${CODEX_THREAD_ID:-}" ] || [ -n "${CODEX_HOME:-}" ]; then
+  echo "codex-cli"
+else
+  echo "__UNKNOWN__"
+fi
+exit 0
