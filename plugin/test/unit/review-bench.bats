@@ -23,8 +23,10 @@ case "$prompt" in *'Preview needed'*) q=1 ;; *) q=0 ;; esac
 reply="review-verdict: created=spec; updated=0; omitted=1; questions=$q; plan=$plan"
 case "${BENCH_REPLY_MODE:-}" in
   multiline) reply=$(printf 'Explanation\n%s' "$reply") ;;
+  trailing) reply=$(printf '%s\nExplanation' "$reply") ;;
   inline) reply='`'"$reply"'`' ;;
   missing) reply="review-verdict: created=spec; questions=$q; plan=$plan" ;;
+  extra) reply="review-verdict: created=spec; updated=0; omitted=1; questions=$q; plan=$plan (no match)" ;;
 esac
 jq -cn --arg result "$reply" '{is_error:false,result:$result}'
 MOCK
@@ -61,7 +63,18 @@ MOCK
   export BENCH_REPLY_MODE=multiline
   run sh "$BENCH"
   assert_equal "$status" 1
+  export BENCH_REPLY_MODE=trailing
+  run sh "$BENCH"
+  assert_equal "$status" 1
+  assert_output --partial '0 pass, 2 fail, 0 errors'
   export BENCH_REPLY_MODE=missing
+  run sh "$BENCH"
+  assert_equal "$status" 1
+  assert_output --partial '0 pass, 2 fail, 0 errors'
+}
+
+@test "review bench rejects a value that only contains the expected one" {
+  export BENCH_REPLY_MODE=extra
   run sh "$BENCH"
   assert_equal "$status" 1
   assert_output --partial '0 pass, 2 fail, 0 errors'
