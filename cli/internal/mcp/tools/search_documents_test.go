@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"archcore-cli/internal/docs"
 	"archcore-cli/internal/sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -1297,16 +1298,16 @@ func TestFilterBareMentions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			candidates := make([]pathRef, len(tt.raws))
+			candidates := make([]docs.PathRef, len(tt.raws))
 			for i, raw := range tt.raws {
-				candidates[i] = pathRef{Raw: raw, Kind: refKindMention}
+				candidates[i] = docs.PathRef{Raw: raw, Kind: docs.RefKindMention}
 			}
 			var got []string
-			for _, r := range filterBareMentions(candidates) {
+			for _, r := range docs.FilterBareMentions(candidates) {
 				got = append(got, r.Raw)
 			}
 			if !slices.Equal(got, tt.want) {
-				t.Errorf("filterBareMentions(%q) = %q, want %q", tt.raws, got, tt.want)
+				t.Errorf("docs.FilterBareMentions(%q) = %q, want %q", tt.raws, got, tt.want)
 			}
 		})
 	}

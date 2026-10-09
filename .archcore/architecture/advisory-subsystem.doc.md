@@ -22,7 +22,7 @@ and is not part of this subsystem. Everything described here degrades to silence
 
 | Engine | Call site | Trigger | Output |
 |---|---|---|---|
-| `CodeAlignment` | `preToolUseHandler` in @cli/cmd/hook_command.go | before a source edit | the documents that constrain the file |
+| `CodeAlignment` | `preToolUseHandler` in @cli/cmd/hook_command.go and `search_documents` `for_path` | before a source edit, or on the agent's call | the file-context result: the documents that constrain the file |
 | `Precision` | `postToolUseHandler` in @cli/cmd/hook_post_tool_use.go | after a document write | vague-requirement findings |
 | `Restatement` | after a document write | a statement copied from a document the written one builds on | the duplicated statement |
 | `Staleness` | `buildSessionContext` in @cli/cmd/hooks_common.go | session start | documents that mention directories that moved |
@@ -31,20 +31,25 @@ and is not part of this subsystem. Everything described here degrades to silence
 
 `CodeAlignment` is the reason a rule reaches an agent that never searched for it.
 
-An agent about to edit a file has no reason to know a document constrains it. The engine tokenizes the
-file's directory chain, finds the documents that mention it, ranks them, and puts the most specific
-ones in front of the edit — @cli/internal/advisory/code_alignment.go.
+An agent about to edit a file has no reason to know a document constrains it. `ResolveFileContext` in
+@cli/internal/advisory/code_alignment.go gives each matching document a reason — `file` (the body names
+the file), `kind` (an accepted `rule` or `cpat` names the compound extension, such as `.test.tsx`),
+`directory` (the body names a directory of the file), or `general` (an accepted `rule` or `cpat` whose
+references name no existing path). The hook renders the result before the edit; `search_documents`
+returns the same result under `for_path`. The shared path-reference extractor lives in
+@cli/internal/docs/pathref.go.
 
 | Setting | Key | Default |
 |---|---|---|
 | source roots | `settings.json` → `codeAlignment.sourceRoots` | `src`, `lib`, `app`, `pkg`, `cmd`, `internal`, `apps`, `packages`, `modules`, `components` |
 | kill switch | `ARCHCORE_DISABLE_INJECTION=1` | unset |
 
-A file outside every source root gets no injection. `config.CodeAlignment` preserves unknown nested
+A file outside every source root gets only `file` and `general` rows. `config.CodeAlignment` preserves unknown nested
 keys in `Extra`, so a newer binary's settings survive a write by an older one.
 
-Only six document types are ever injected, ranked by how much they constrain an edit — `rule` 6,
-`cpat` 5, `adr` 4, `spec` 3, `scenario` 2, `guide` 1. A `scenario` reaches an edit through the
+Seven document types are ranked by how much they constrain an edit — `rule`, `cpat`, `adr`, `spec`,
+`scenario`, `guide`, then `doc`. Rows order by reason (`file`, `kind`, `directory`), then match depth,
+then `accepted` before `draft`, then type, then mention count. A `scenario` reaches an edit through the
 `Anchors:` line of its flows, below the `spec` it illustrates. A type absent from that map is not injected: a `plan` or an
 `idea` is context for a discussion, not a constraint on a line of code. The accept-set is derived from
 the ranking, so the allowlist has one definition.
@@ -55,9 +60,11 @@ the user's edit under a one-second host budget.
 
 | Bound | Value |
 |---|---|
-| documents injected | 3 |
+| matched rows | 5 |
+| general rows | 10 |
 | directory tokens walked | 5 |
-| message length | 2048 runes |
+| hook message length | 2048 runes |
+| `for_path` response | 8000 bytes |
 
 ### Precision and restatement
 
@@ -84,7 +91,7 @@ names the documents that mention the directories that moved.
 
 The correlation is by directory name, so it over-reports by design. It is rate-limited to 24 hours
 through an `internal/stamp` claim, and bounded at 12 correlated directories, 5 documents per
-directory, and 10 lines total — @cli/internal/advisory/staleness.go:26.
+directory, and 10 lines total — @cli/internal/advisory/staleness.go.
 
 ## Examples
 
@@ -94,6 +101,7 @@ directory, and 10 lines total — @cli/internal/advisory/staleness.go:26.
 documents before the write. Rules outrank every other type, so a `rule` wins the slot over an `adr`
 that mentions the same directory.
 
-**A rule that never reaches an edit.** A rule that names no directory matches no file, so injection
-cannot deliver it. That is why `CLAUDE.md` also requires loading the `code-quality` tag at the start of
-Go work: injection is a safety net over a directory match, not the delivery mechanism for the set.
+**A rule that names no path.** A rule whose references name no existing path enters every result as a
+`general` row, title only, after the matched rows; past 10 rows a remainder line names the call that
+lists the rest. The `CLAUDE.md` tag load for `code-quality` stays, because a rule that cites one
+example path is neither general nor a directory match.

@@ -36,7 +36,7 @@ Generated shapes: Intent opens with the header `In order to [goal] / As a [actor
 10. The server instructions MUST state the routing test between the pair: a covering `spec` exists, `scenario`; none exists, `journey`.
 11. The server instructions MUST state the boundary against `spec` as the subject of the line: component with a modal, `spec`; actor without one, `scenario`.
 12. The server instructions MUST name the relation conventions `scenario depends_on spec`, `scenario implements journey`, and `journey related prd`.
-13. The server instructions MUST describe the status meanings in Constraints & Invariants below.
+13. The `create_document` `status` parameter description MUST describe the status meanings in Constraints & Invariants below.
 14. The source-extension list MUST include `.feature`, so a bare `features/login.feature` mention passes the bare-mention filter of `search_documents`.
 
 ## Constraints & Invariants

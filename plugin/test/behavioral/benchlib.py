@@ -38,17 +38,17 @@ def build_cli(src_root, bin_dir):
     return {**os.environ, "PATH": bin_dir + os.pathsep + os.environ["PATH"]}
 
 
-def agent(host, model, prompt, cwd, log, env, builtins="Read,Grep,Glob"):
+def agent(host, model, prompt, cwd, log, env, builtins="Read,Grep,Glob", extra=()):
     """Run one headless agent; stamp every stdout event with its arrival time.
 
     builtins limits Claude's built-in tools ("" disables them); the Archcore MCP
     tools stay available. Codex has no per-tool switch, so it relies on the prompt
-    and its workspace-write sandbox.
+    and its workspace-write sandbox. extra appends Claude flags such as --plugin-dir.
     """
     last = log + ".last"
     if host == "claude":
         cmd = ["claude", "-p", "--model", model, "--output-format", "stream-json", "--verbose",
-               "--no-session-persistence", "--tools", builtins, "--allowedTools", *MCP_TOOLS]
+               "--no-session-persistence", "--tools", builtins, *extra, "--allowedTools", *MCP_TOOLS]
         stdin = prompt
     else:
         cmd = ["codex", "exec", "-m", model, "-s", "workspace-write", "--json", "-o", last, prompt]

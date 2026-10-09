@@ -23,11 +23,10 @@ document model, and the content of the `GLOBALS` block, which
 
 One context string, embedded by the caller in a host-specific JSON envelope.
 
-Sections, in order: the header and MCP tool line; the invalid-settings warning
-when present; `CORPUS`; `BRANCH` when resolvable; `GLOBALS` when sources are
-declared; `IN PROGRESS`; `RECENTLY ACCEPTED`; the staleness advisory when due;
-`EXISTING TAGS`; `DOCUMENT RELATIONS`; the closing pointer to the server
-instructions.
+Sections, in order: the header; the context address; the MCP tool line; the
+invalid-settings warning when present; `CORPUS`; `BRANCH` when resolvable;
+`GLOBALS` when sources are declared; `IN PROGRESS`; `RECENTLY ACCEPTED`; the
+staleness advisory when due; `EXISTING TAGS`; `DOCUMENT RELATIONS`.
 
 ## Normative Behavior
 
@@ -59,6 +58,9 @@ instructions.
     @.archcore/globals/session-globals-disclosure.spec.md.
 18. WHEN the `GLOBALS` block renders, the builder MUST label the `CORPUS` count
     "local documents".
+19. The builder MUST emit the context address directly after the header line.
+20. The builder MUST NOT close the context with a pointer to the MCP server
+    instructions.
 
 ## Constraints &amp; Invariants
 
@@ -96,7 +98,7 @@ instructions.
 
 ## Conformance
 
-The builder is conformant when it satisfies behaviors 1–18, holds every
+The builder is conformant when it satisfies behaviors 1–20, holds every
 invariant, and degrades per the failure rules. The budget invariant is verified
 against synthetic corpora of 300 and 3000 documents; the `GLOBALS` behaviors
 are verified by @cli/cmd/hooks_globals_block_test.go.

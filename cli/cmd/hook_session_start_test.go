@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"archcore-cli/internal/agents"
 )
 
 // TestDecodeHookPayload: unparsable input is not an error state. A hook that
@@ -63,8 +65,12 @@ func TestHandleSessionStart_WithDocuments(t *testing.T) {
 	if !strings.Contains(ctx, "mvp.plan.md") {
 		t.Error("context missing vision doc")
 	}
-	if !strings.Contains(ctx, "Refer to MCP server instructions") {
-		t.Error("context missing MCP referral line")
+	// session-start-context.spec §19 and §20.
+	if !strings.HasPrefix(ctx, "[Archcore — Git-native context for AI coding agents]\n"+agents.ContextAddress+"\n") {
+		t.Error("the context address does not follow the header line")
+	}
+	if strings.Contains(ctx, "Refer to MCP server instructions") {
+		t.Error("the context still closes with a pointer to the server instructions")
 	}
 	if !strings.Contains(ctx, "create_document") {
 		t.Error("context missing create_document MCP tool reference")

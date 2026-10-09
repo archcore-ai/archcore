@@ -35,7 +35,7 @@ Relation types:
   contradicts — challenger points to the statement it disputes
   supersedes  — newer document points to the older document it replaces
 
-For requirements-layer guidance (Sources vs Specifications, ISO cascade), see server instructions REQUIREMENTS LAYERS section.
+Requirements layers: a specification implements the source it formalizes (brs → mrd or brd, strs → urd); the ISO cascade runs strs → brs, syrs → strs, srs → syrs.
 
 Both source and target must be distinct existing local documents. Global sources cannot be relation endpoints. Paths must remain inside the project. The tool mutates the manifest only; it does not change document status or resolve contradictions. An invalid input or manifest leaves the manifest unchanged. Successful calls return whether the relation was added, plus warnings that name a reverse related edge or related beside a more specific edge. A warning never blocks the write. Paths can be given with or without the ".archcore/" prefix.`),
 		mcp.WithString("source",

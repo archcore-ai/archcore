@@ -46,7 +46,14 @@ done
 
 # Check if archcore CLI is available on PATH
 if ! command -v archcore >/dev/null 2>&1; then
-  _msg="[Archcore] CLI not found on PATH. Install it first:
+  # A copy of agents.ContextAddress in the CLI; test/unit/context-address.bats
+  # compares the two (context-address-delivery.spec).
+  # shellcheck disable=SC2016 # the backticks are Markdown, not command substitution
+  _ac_address='Before you change, test, or explain code here, call `search_documents` with `for_path` set to the file, and read the rules, decisions, and specs it returns with `get_document`. Accepted rules and decisions bind the change. Without the Archcore MCP tools, read `.archcore/` as Markdown: the `*.rule.md` files first, then grep `.archcore/` for the file name.'
+  _msg="[Archcore] CLI not found on PATH. The Archcore MCP tools and hooks are unavailable in this session.
+In your first reply, tell the user once that Archcore is unavailable and how to install it.
+$_ac_address
+Install:
   macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash
   Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex
   Then verify: archcore --version

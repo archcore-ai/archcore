@@ -5,14 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"archcore-cli/internal/advisory"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/docs"
 	"archcore-cli/internal/sync"
@@ -93,38 +92,38 @@ const (
 // hit (bounded-and-deterministic-output.rule).
 const contentFreqCap = 20
 
-const searchDocumentsDescription = `Search .archcore/ documents by content or filters, across the local project and every mounted global source. Prefer it over list_documents + get_document loops.
+const searchDocumentsDescription = `Search .archcore/ documents across the local project and every mounted global source. Prefer it over list_documents + get_document loops.
 
-Give at least one filter (path_ref, content, types, status); filters combine as AND. content matches every whitespace-separated word by default, in any order ("plugin compatibility" matches "Plugin / CLI Compatibility"); match="exact" takes one literal substring, match="any" takes at least one word. path_ref matches @-notation and qualified bare paths. source scopes to "local", "global", or a declared source id.
+Before you change, test, or explain a file, call it with for_path set to that file: it returns the documents that name the file or its directories, then the accepted rules that name no path. for_path combines with types, status, and source only.
+
+Otherwise give at least one filter (path_ref, content, types, status); filters combine as AND. content matches every word by default, in any order; match="exact" takes one literal substring, match="any" at least one word. path_ref matches @-notation and qualified bare paths. source scopes to "local", "global", or a declared source id.
 
 Returns JSON, summary first:
 - coverage: documents scanned per source. Empty results under match="all" mean no document passing the filters holds every word; near_misses then lists up to 3 that hold at least half, and missing names the words each lacks. Open those documents (get_document) before you broaden the words or conclude absence.
-- hits: matches per source before the limit cut.
-- truncated: true when the byte budget cut rows or near_misses.
-- index: path, title, source_id of every row the limit admitted.
-- results: rows in ` + "`sort`" + ` order, each with at most 5 matches and 5 relations per direction; matches_total and the relation totals appear when more exist. A source with a match keeps its top row on the page.
-Read source_kind on each row. A matching global is part of the answer: read it. IF a local and a global document conflict, THEN the local one is authoritative.
+- hits: matches per source before the cut; truncated: true when the byte budget cut rows.
+- index: path, title, source_id of every admitted row.
+- results: at most 5 matches and 5 relations per direction per row; matches_total and the relation totals count the rest. Under for_path a row carries reason, why it applies to the file; omitted counts the matched and general rows the caps cut, and more_matched and more_general name the calls that return them.
+Read source_kind on each row. A matching global is part of the answer. IF a local and a global document conflict, THEN the local one is authoritative.
 
-mode="snippets" (default) returns excerpts: use it to find candidates. mode="full" adds each body inline, default limit 3. The bodies share the byte budget: a long body arrives shortened with body_truncated: true and body_bytes. Call get_document for the rest, and always before update_document — never write back a shortened body. Raise limit only when hits shows more rows.
+mode="full" adds each body inline, default limit 3; a long body arrives shortened with body_truncated: true and body_bytes. Call get_document for the rest and before update_document — never write back a shortened body.
 
-IF the host shows only part of this result, THEN hits and index at its start still name every source that matched. Read those documents (get_document, or a narrower query) before you answer.`
+IF the host shows only part of this result, THEN hits and index at its start still name every source that matched. Read those documents before you answer.`
 
 // matchKind is the match-evidence vocabulary carried on the wire in
 // searchMatch.Kind (§G typed enum; a typed string alias marshals identically,
-// so the wire bytes are unchanged). The refKind* constants below are the
-// internal pathRef candidate kinds the path_ref match kinds derive from; they
-// never leave the process and are not part of the §G migration ledger, so they
-// stay untyped.
+// so the wire bytes are unchanged). The path_ref kinds derive from the
+// candidate kinds of docs.PathRef.
 type matchKind string
 
 const (
 	matchKindExplicit matchKind = "path_ref_explicit"
 	matchKindMention  matchKind = "path_ref_mention"
 	matchKindContent  matchKind = "content"
-
-	refKindExplicit = "explicit"
-	refKindMention  = "mention_candidate"
 )
+
+// explicitRefKind exists because the search handler's corpus variable is named
+// docs and shadows the package where the kind is declared.
+const explicitRefKind = docs.RefKindExplicit
 
 // searchMatch is one piece of evidence tying a document to the query.
 type searchMatch struct {
@@ -151,7 +150,18 @@ type searchDocumentsResult struct {
 	// NearMisses is present only while search-documents.spec §13.1 holds, and []
 	// there when nothing qualifies, so its absence identifies an older CLI.
 	NearMisses []searchNearMiss `json:"near_misses,omitzero"`
-	Results    []searchResult   `json:"results"`
+	// Omitted is present only under for_path, when a row cap cut rows.
+	Omitted *fileContextOmission `json:"omitted,omitempty"`
+	Results []searchResult       `json:"results"`
+}
+
+// fileContextOmission counts the for_path rows the caps cut and names the
+// calls that return them (file-context-resolution.spec behavior 10).
+type fileContextOmission struct {
+	Matched     int    `json:"matched,omitempty"`
+	MoreMatched string `json:"more_matched,omitempty"`
+	General     int    `json:"general,omitempty"`
+	MoreGeneral string `json:"more_general,omitempty"`
 }
 
 // searchNearMiss is a document that holds at least half, but not all, of the
@@ -194,6 +204,8 @@ type searchResult struct {
 	Global     bool            `json:"global,omitempty"`
 	ReadOnly   bool            `json:"read_only,omitempty"`
 	Matches    []searchMatch   `json:"matches"`
+	// Reason says why the row applies to the for_path file; empty outside that mode.
+	Reason advisory.ContextReason `json:"reason,omitempty"`
 	// The three totals appear only on a row the caps below cut.
 	MatchesTotal int `json:"matches_total,omitempty"`
 	// Body is the full document body (frontmatter stripped), populated only in
@@ -219,24 +231,13 @@ type searchResult struct {
 	effectiveMtime time.Time
 }
 
-// pathRef is a single path-reference candidate extracted from a document body.
-type pathRef struct {
-	Raw   string // e.g. "@src/payments/" or "src/payments/stripe.ts"
-	Kind  string // "explicit" or "mention_candidate"
-	Start int    // byte offset of the first character in the source body
-}
-
-var (
-	// Explicit @-prefixed references.
-	pathRefExplicitRe = regexp.MustCompile(`@[\w./-]+`)
-	// Bare mention candidates: identifier / path.
-	pathRefBareRe = regexp.MustCompile(`[\w-]+/[\w./-]+`)
-)
-
 // NewSearchDocumentsTool returns the tool definition for search_documents.
 func NewSearchDocumentsTool() mcp.Tool {
 	return mcp.NewTool("search_documents",
 		mcp.WithDescription(searchDocumentsDescription),
+		mcp.WithString("for_path",
+			mcp.Description("One repository file. Returns the documents that constrain an edit to it, ranked, then the accepted rules that name no path. Cannot be combined with path_ref or content."),
+		),
 		mcp.WithString("path_ref",
 			mcp.Description("Match documents that reference this path (either @-notation or qualified bare paths) in their body."),
 		),
@@ -318,9 +319,15 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 		// result carries a body).
 		limitFloat := request.GetFloat("limit", 0)
 
-		// Validate at least one filter.
-		if pathRefFilter == "" && contentFilter == "" && len(types) == 0 && status == "" {
-			return errorResult("specify at least one filter (path_ref, content, types, or status)"), nil
+		forPath := strings.TrimSpace(request.GetString("for_path", ""))
+		if forPath == "" && pathRefFilter == "" && contentFilter == "" && len(types) == 0 && status == "" {
+			return errorResult("specify at least one filter (path_ref, content, types, status, or for_path)"), nil
+		}
+		if forPath != "" {
+			if pathRefFilter != "" || contentFilter != "" {
+				return errorResult("for_path cannot be combined with path_ref or content"), nil
+			}
+			return searchFileContext(baseDir, forPath, sourceFilter, types, status)
 		}
 
 		// Validate and clamp limit (mode-aware bounds).
@@ -447,7 +454,7 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 				matchesTotal += len(refHits)
 				for _, h := range refHits[:min(len(refHits), searchMatchCap)] {
 					kind := matchKindMention
-					if h.Kind == refKindExplicit {
+					if h.Kind == explicitRefKind {
 						kind = matchKindExplicit
 					}
 					matches = append(matches, searchMatch{
@@ -743,7 +750,7 @@ func headingLines(body string) string {
 // pathRefHit is one path reference that shares at least one segment with the
 // filter.
 type pathRefHit struct {
-	pathRef
+	docs.PathRef
 	specificity int
 }
 
@@ -753,10 +760,10 @@ type pathRefHit struct {
 func rankPathRefs(body, filter string) []pathRefHit {
 	target := strings.TrimPrefix(filter, "@")
 	var hits []pathRefHit
-	for _, r := range filterBareMentions(extractPathRefs(body)) {
+	for _, r := range docs.FilterBareMentions(docs.ExtractPathRefs(body)) {
 		spec := computeSpecificity(strings.TrimPrefix(r.Raw, "@"), target)
 		if spec > 0 {
-			hits = append(hits, pathRefHit{pathRef: r, specificity: spec})
+			hits = append(hits, pathRefHit{PathRef: r, specificity: spec})
 		}
 	}
 	slices.SortStableFunc(hits, func(a, b pathRefHit) int {
@@ -764,7 +771,7 @@ func rankPathRefs(body, filter string) []pathRefHit {
 			return c
 		}
 		if a.Kind != b.Kind {
-			if a.Kind == refKindExplicit {
+			if a.Kind == docs.RefKindExplicit {
 				return -1
 			}
 			return 1
@@ -942,79 +949,6 @@ func parseMtimeAfter(s string) (time.Time, error) {
 	default:
 		return time.Time{}, fmt.Errorf("unknown duration unit %q (expected 'd' or 'h')", string(unit))
 	}
-}
-
-// extractPathRefs runs the two path-ref regexes over body and returns all
-// matches as pathRef values. Explicit matches are tagged "explicit"; bare
-// candidates are tagged "mention_candidate" and need filterBareMentions.
-func extractPathRefs(body string) []pathRef {
-	var refs []pathRef
-	// Explicit first — we record their offsets so we can skip bare hits that
-	// overlap (the bare regex would otherwise re-match the same token minus
-	// the leading "@").
-	explicitSpans := pathRefExplicitRe.FindAllStringIndex(body, -1)
-	for _, m := range explicitSpans {
-		refs = append(refs, pathRef{
-			Raw:   body[m[0]:m[1]],
-			Kind:  refKindExplicit,
-			Start: m[0],
-		})
-	}
-	for _, m := range pathRefBareRe.FindAllStringIndex(body, -1) {
-		start, end := m[0], m[1]
-		// Skip bare matches covered by an explicit match (explicit spans include
-		// the leading '@', so the bare match starts at s[0]+1).
-		overlap := false
-		for _, s := range explicitSpans {
-			if start >= s[0] && end <= s[1] {
-				overlap = true
-				break
-			}
-		}
-		if overlap {
-			continue
-		}
-		refs = append(refs, pathRef{
-			Raw:   body[start:end],
-			Kind:  refKindMention,
-			Start: start,
-		})
-	}
-	return refs
-}
-
-// filterBareMentions keeps explicit refs unchanged and drops bare
-// mention-candidates unless one of these heuristics holds:
-//   - the candidate ends with '/'
-//   - the candidate has ≥2 '/' separators
-//   - the final segment's extension is a known source extension
-func filterBareMentions(candidates []pathRef) []pathRef {
-	out := make([]pathRef, 0, len(candidates))
-	for _, r := range candidates {
-		if r.Kind == refKindExplicit {
-			out = append(out, r)
-			continue
-		}
-		raw := r.Raw
-		if strings.HasSuffix(raw, "/") {
-			out = append(out, r)
-			continue
-		}
-		if strings.Count(raw, "/") >= 2 {
-			out = append(out, r)
-			continue
-		}
-		// Exactly one '/': require a known source extension on the final segment.
-		lastSlash := strings.LastIndex(raw, "/")
-		final := raw[lastSlash+1:]
-		ext := filepath.Ext(final)
-		if ext != "" && templates.IsSourceExtension(ext) {
-			out = append(out, r)
-			continue
-		}
-		// Drop.
-	}
-	return out
 }
 
 // computeSpecificity returns the number of '/'-separated segments shared as a

@@ -40,7 +40,7 @@ ALL document operations go through Archcore MCP tools. Never use Write, Edit, or
 
 # Domain Knowledge
 
-Refer to MCP server instructions for the document types, three categories (vision/knowledge/experience), and relation vocabulary supported by the connected engine. The MCP server instructions are always present in context — do not duplicate them here.
+The connected engine's document types, categories, and section templates are in the `create_document` description; its relation values and their direction are in the `add_relation` description. Hosts cut or drop MCP server instructions, so do not rely on them for this vocabulary.
 
 Research vocabulary follows `skills/_shared/research-compatibility.md`: apply
 the engine gate before using new types, filters, or relations. `research` and

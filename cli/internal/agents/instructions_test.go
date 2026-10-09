@@ -65,8 +65,8 @@ func TestUpsertFencedBlock_PreservesUserContent(t *testing.T) {
 	if !strings.Contains(got, instructionsMarkerStart) {
 		t.Error("block not added")
 	}
-	if idx := strings.Index(got, instructionsMarkerStart); idx < strings.Index(got, "Hand-written") {
-		t.Error("block should be appended after user content")
+	if idx := strings.Index(got, instructionsMarkerStart); idx > strings.Index(got, "Hand-written") {
+		t.Error("a new block should be inserted above user content")
 	}
 
 	// A second upsert must not duplicate or drift.
@@ -118,8 +118,8 @@ func TestUpsertFencedBlock_MissingTrailingNewline(t *testing.T) {
 	}
 	got := readFile(t, path)
 
-	if !strings.Contains(got, "no trailing newline\n\n"+instructionsMarkerStart) {
-		t.Errorf("expected blank-line separator before block, got:\n%q", got)
+	if !strings.Contains(got, instructionsMarkerEnd+"\n\nno trailing newline") {
+		t.Errorf("expected blank-line separator after block, got:\n%q", got)
 	}
 }
 

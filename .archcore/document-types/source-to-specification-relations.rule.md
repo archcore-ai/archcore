@@ -20,7 +20,6 @@ Keeping the cascade conventions in the global source and the direction obligatio
 ## Enforcement (CLI)
 
 - The MCP tool `add_relation` in `@cli/internal/mcp/tools/add_relation.go` carries REQUIREMENTS LAYER HINTS as soft guidance for relation direction.
-- MCP server instructions in `@cli/internal/mcp/server.go` document the full layer mapping in the REQUIREMENTS LAYERS block.
 - The Traceability sections of the four ISO templates (`@cli/templates/templates.go`) name their upstream sources.
 
 ## References
