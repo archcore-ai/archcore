@@ -41,36 +41,51 @@ const (
 	instructionsHeader = instructionsMarkerStart + " managed by `archcore init` — edit outside these markers"
 )
 
-// instructionsBody is the host-neutral nudge. It is outcome-first, references
-// Archcore through its MCP tools (not plugin slash commands — CLI-only users
-// have no plugin), and splits the cheap discovery search from the selective
-// deep read so invocation tracks relevance, not volume: lean on the search,
-// skip only turns the repo would have no opinion on. The skip is keyed on the
-// nature of the turn — a prior the agent can form up front — not on whether a
-// rule exists, which it cannot know without the very lookup it is told to skip.
-// It also flags that a project MAY mount read-only global sources (phrased
-// conditionally — most projects have none) that the session-start context omits,
-// so the agent learns to surface them via the MCP read tools when present.
-// Built via concatenation because a raw string literal cannot contain the
-// backticks that wrap `.archcore/`.
+// ContextAddress tells an agent where to fetch project context. Every channel
+// that reaches the model emits it first — the managed block, the MCP server
+// instructions, and the session-start recap — because no single channel reaches
+// the model whole on every host (context-address-leads-every-channel.adr). The
+// plugin's session-start launcher carries a copy that a plugin test compares
+// with this constant.
+const ContextAddress = "Before you change, test, or explain code here, call `search_documents` with `for_path` set to the file, and read the rules, decisions, and specs it returns with `get_document`. Accepted rules and decisions bind the change. Without the Archcore MCP tools, read `.archcore/` as Markdown: the `*.rule.md` files first, then grep `.archcore/` for the file name."
+
+// instructionsBody is the host-neutral nudge, built around ContextAddress. It
+// names tool calls rather than plugin slash commands, because CLI-only hosts
+// have no plugin. The skip clause is keyed on the nature of the turn — a prior
+// the agent can form up front — not on whether a rule exists, which it cannot
+// know without the very lookup it is told to skip
+// (instruction-nudge-on-init.adr). Built via concatenation because a raw string
+// literal cannot contain backticks.
 const instructionsBody = "## Archcore — project context for this repo\n" +
 	"\n" +
-	"This repo's architecture, decisions, rules, specs and patterns live in `.archcore/`,\n" +
-	"reachable through the Archcore MCP tools. Consult them even on code you think you\n" +
-	"know — a decision or rule may already constrain it.\n" +
+	"`.archcore/` holds this project's recorded context as typed Markdown files,\n" +
+	"`<slug>.<type>.md`, in three categories: knowledge (decisions, rules, contracts,\n" +
+	"reference), vision (requirements, plans, research), and experience (lessons from\n" +
+	"past work). `list_documents` filters by `category` and `types`.\n" +
 	"\n" +
-	"- Touching this repo's real code or behavior → search first; read only what matches.\n" +
-	"- A decision was made (\"we'll use X\", \"from now on Y\") → record it.\n" +
-	"- A module / API / system has no doc — or a search comes back empty → capture it.\n" +
-	"- Planning a feature or refactor → scope it against what's already decided.\n" +
+	ContextAddress + "\n" +
+	"\n" +
+	"1. Once per session, before the first code edit, call `list_documents` with\n" +
+	"   `types: [\"rule\", \"cpat\"]` and `status: \"accepted\"`, and read every rule that\n" +
+	"   applies to the code you will write. A rule that names no path reaches you this way.\n" +
+	"2. Before you state how this system behaves, search the topic. Cite the document,\n" +
+	"   or say that none exists.\n" +
+	"3. If an accepted document conflicts with the task, tell the user before you edit.\n" +
+	"4. If a search is empty, read `near_misses` and retry with fewer words before you\n" +
+	"   conclude that no document exists.\n" +
+	"5. When a decision is made (\"we'll use X\", \"from now on Y\"), record it.\n" +
+	"6. When a module, API, or system you touched has no document, offer to capture it.\n" +
+	"\n" +
+	"If the Archcore MCP tools are missing or fail to connect, tell the user once, then\n" +
+	"take the file route above. Do not write `.archcore/` files by hand.\n" +
 	"\n" +
 	"A `.archcore/` may also mount read-only **global sources** — shared, org-wide\n" +
-	"context not shown in the session-start list. `list_documents` / `search_documents`\n" +
-	"surface them alongside local docs, tagged `source_kind: \"global\"`. When present,\n" +
-	"treat them as defaults a local doc can override — never edit or relate to one.\n" +
+	"context. `list_documents` / `search_documents` surface them alongside local docs,\n" +
+	"tagged `source_kind: \"global\"`. When present, treat them as defaults a local doc\n" +
+	"can override — never edit or relate to one.\n" +
 	"\n" +
-	"The search is cheap — lean on it. Skip it only for turns this repo would have no\n" +
-	"opinion on: syntax trivia, throwaway snippets, pure mechanics."
+	"Skip these steps only for turns this repo would have no opinion on: syntax\n" +
+	"trivia, throwaway snippets, pure mechanics."
 
 // instructionsFencedBlock is the full managed block (markers + body) written
 // into shared instruction files. Compile-time constant concatenation.
@@ -145,9 +160,9 @@ func InstructionBlockPresent(path string) bool {
 // upsertFencedBlock writes the archcore managed block into the file at path. If
 // one or more managed blocks already exist, the first is replaced in place and
 // any duplicates are dropped (collapsing to a single block); otherwise the
-// block is appended after a blank-line separator. Content outside managed
-// blocks — including orphaned or stray markers — is preserved untouched, and
-// writing twice yields byte-identical output (idempotent). The file and its
+// block is inserted above the existing content, followed by a blank line.
+// Content outside managed blocks — including orphaned or stray markers — is
+// preserved untouched, and writing twice yields byte-identical output (idempotent). The file and its
 // parent directory are created if absent.
 func upsertFencedBlock(path string) error {
 	dir := filepath.Dir(path)
@@ -176,14 +191,16 @@ func upsertFencedBlock(path string) error {
 		b.WriteString(content[prev:])
 		out = b.String()
 	} else {
-		// Append after the user's content, separated by a blank line.
+		// A new block goes above the user's content: Codex reads every AGENTS.md
+		// under one 32 KiB budget and silently drops the tail
+		// (context-address-leads-every-channel.adr).
 		var b strings.Builder
-		if prefix := strings.TrimRight(content, "\n"); prefix != "" {
-			b.WriteString(prefix)
-			b.WriteString("\n\n")
-		}
 		b.WriteString(instructionsFencedBlock)
 		b.WriteString("\n")
+		if rest := strings.TrimLeft(content, "\r\n"); rest != "" {
+			b.WriteString("\n")
+			b.WriteString(rest)
+		}
 		out = b.String()
 	}
 

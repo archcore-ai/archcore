@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf16"
 
+	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
 )
 
@@ -29,12 +31,8 @@ func TestNewServer_HasTools(t *testing.T) {
 func TestBuildInstructions_DefaultEnglish(t *testing.T) {
 	t.Parallel()
 	for _, lang := range []string{"", "en"} {
-		result := buildInstructions(lang, nil, nil)
-		if result != mcpServerInstructions {
-			t.Errorf("buildInstructions(%q): expected base instructions unchanged", lang)
-		}
-		if strings.Contains(result, "LANGUAGE REQUIREMENT") {
-			t.Errorf("buildInstructions(%q): should not contain LANGUAGE REQUIREMENT", lang)
+		if strings.Contains(buildInstructions(lang, nil, nil), "LANGUAGE:") {
+			t.Errorf("buildInstructions(%q): an English project must receive no language notice", lang)
 		}
 	}
 }
@@ -43,20 +41,93 @@ func TestBuildInstructions_NonEnglish(t *testing.T) {
 	t.Parallel()
 	for _, lang := range []string{"ru", "ja", "de"} {
 		result := buildInstructions(lang, nil, nil)
-		if !strings.HasPrefix(result, mcpServerInstructions) {
-			t.Errorf("buildInstructions(%q): should start with base instructions", lang)
+		if !strings.Contains(result, "LANGUAGE: write titles and bodies in \""+lang+"\"") {
+			t.Errorf("buildInstructions(%q): the language notice does not name the language", lang)
 		}
-		if !strings.Contains(result, "LANGUAGE REQUIREMENT") {
-			t.Errorf("buildInstructions(%q): should contain LANGUAGE REQUIREMENT", lang)
-		}
-		if !strings.Contains(result, lang) {
-			t.Errorf("buildInstructions(%q): should contain the language code", lang)
-		}
-		for _, token := range []string{`"##" section headings`, "MUST NOT", "WHERE"} {
+		for _, token := range []string{`"##" headings`, "MUST NOT", "WHERE"} {
 			if !strings.Contains(result, token) {
-				t.Errorf("buildInstructions(%q): structure tokens line should name %q", lang, token)
+				t.Errorf("buildInstructions(%q): the structure-token list should name %q", lang, token)
 			}
 		}
+	}
+}
+
+// TestBuildInstructions_AddressLeadsAndNoticesPrecedeRules pins the order a
+// truncating host depends on — context-address-delivery.spec §4 and §5: the
+// address comes first and every notice comes before the working rules.
+func TestBuildInstructions_AddressLeadsAndNoticesPrecedeRules(t *testing.T) {
+	t.Parallel()
+	got := buildInstructions("ru", []string{"org"}, []string{"gone"})
+	address := strings.Index(got, agents.ContextAddress)
+	rules := strings.Index(got, "READ:")
+	if address < 0 || address > 100 {
+		t.Fatalf("the context address is not at the start of the instructions:\n%s", got)
+	}
+	for _, notice := range []string{"GLOBAL SOURCES", "NOT CLONED", "LANGUAGE:"} {
+		if i := strings.Index(got, notice); i < address || i > rules {
+			t.Errorf("%s does not sit between the address and the rules", notice)
+		}
+	}
+}
+
+// TestBuildInstructions_FitTheHostCap holds context-address-delivery.spec §5 on
+// the largest instructions a project can produce: many declared sources, some
+// mounted and some not, and a non-English language.
+func TestBuildInstructions_FitTheHostCap(t *testing.T) {
+	t.Parallel()
+	many := []string{"archcore", "platform-standards", "security-baseline", "team-frontend", "team-backend", "data-contracts", "mobile"}
+	for _, tt := range []struct {
+		name     string
+		language string
+		mounted  []string
+		missing  []string
+	}{
+		{name: "bare", language: ""},
+		{name: "worst case", language: "zh-Hans", mounted: many, missing: many},
+	} {
+		got := buildInstructions(tt.language, tt.mounted, tt.missing)
+		if units := len(utf16.Encode([]rune(got))); units > hostInstructionsCap {
+			t.Errorf("%s: the instructions hold %d UTF-16 units; the host passes on %d", tt.name, units, hostInstructionsCap)
+		}
+	}
+}
+
+// TestBuildInstructions_CarriesTheTypeContracts pins the clauses other accepted
+// specs place in the server instructions: research-and-evidence-types.spec §10
+// and §11, evidential-and-temporal-relations.spec §8, and
+// scenario-and-journey-types.spec §10 to §12.
+func TestBuildInstructions_CarriesTheTypeContracts(t *testing.T) {
+	t.Parallel()
+	got := buildInstructions("", nil, nil)
+	for _, phrase := range []string{
+		"rnd closes on a recommendation",
+		"research on scope coverage",
+		"evidence records one external material",
+		"structural", "evidential", "temporal",
+		"material → the claim it backs or disputes",
+		"newer → older",
+		"a journey is a user path no spec covers yet",
+		"a scenario step takes the actor as subject",
+		"scenario depends_on spec", "scenario implements journey", "journey related prd",
+	} {
+		if !strings.Contains(got, phrase) {
+			t.Errorf("the instructions lack %q", phrase)
+		}
+	}
+}
+
+func TestJoinSourceIDs_StatesTheRemainder(t *testing.T) {
+	t.Parallel()
+	many := []string{"archcore", "platform-standards", "security-baseline", "team-frontend", "team-backend", "data-contracts"}
+	got := joinSourceIDs(many)
+	if len(got) > sourceListCap+len(" and 9 more") {
+		t.Errorf("joinSourceIDs = %q, longer than the cap", got)
+	}
+	if !strings.HasSuffix(got, " more") {
+		t.Errorf("joinSourceIDs = %q, does not state the remainder", got)
+	}
+	if got := joinSourceIDs([]string{"org"}); got != "org" {
+		t.Errorf("joinSourceIDs([org]) = %q, want org", got)
 	}
 }
 
@@ -77,52 +148,6 @@ func TestNewServer_WithLanguageSetting(t *testing.T) {
 	s := NewServer(base, "test")
 	if s == nil {
 		t.Fatal("NewServer returned nil")
-	}
-}
-
-// TestBuildInstructions_TrackSectionsRemoved guards the layer boundary from
-// both sides. Track orchestration moved to the plugin, so the instructions must
-// not describe it — but the cut sat next to sections that carry knowledge about
-// document TYPES, which stays here. Asserting only the removal would let a
-// careless edit take REQUIREMENTS LAYERS with it and no test would notice;
-// asserting only the survivors would let the track prose creep back.
-func TestBuildInstructions_TrackSectionsRemoved(t *testing.T) {
-	t.Parallel()
-
-	// Track orchestration and the prompt surface that drove it.
-	removed := []string{
-		"REQUIREMENTS TRACKS",
-		"RESEARCH GATE",
-		"WORKFLOW PROMPTS",
-		"iso_track",
-		"sources_track",
-		"product_track",
-		"standard_track",
-		"architecture_track",
-	}
-	// Type knowledge, relation conventions, and status semantics stay.
-	kept := []string{
-		"TYPE SELECTION RULES",
-		"REQUIREMENTS LAYERS",
-		"DOCUMENT RELATIONS",
-		"VALID STATUS VALUES",
-		"TAGS:",
-		// The rnd verdict mapping outlived the section it used to live in.
-		"first-class outcome",
-	}
-
-	for _, lang := range []string{"", "en", "ru"} {
-		result := buildInstructions(lang, nil, nil)
-		for _, s := range removed {
-			if strings.Contains(result, s) {
-				t.Errorf("buildInstructions(%q): still contains removed marker %q", lang, s)
-			}
-		}
-		for _, s := range kept {
-			if !strings.Contains(result, s) {
-				t.Errorf("buildInstructions(%q): lost surviving section %q", lang, s)
-			}
-		}
 	}
 }
 
@@ -273,17 +298,13 @@ func TestRunStdio_CancelsTheBackgroundTaskWhenItReturns(t *testing.T) {
 
 // TestBuildInstructions_EmptySearchRule pins the empty-result rule of
 // search-documents.spec §13 in the instructions every project receives, and the
-// trigger of the global retry in the paragraph a project with globals adds.
+// trigger of the global retry in the notice a project with globals adds.
 func TestBuildInstructions_EmptySearchRule(t *testing.T) {
 	t.Parallel()
-	base := buildInstructions("", nil, nil)
-	for _, phrase := range []string{"near_misses", "no document passing the filters holds every word"} {
-		if !strings.Contains(base, phrase) {
-			t.Errorf("base instructions lack %q; a project without globals must receive the empty-result rule", phrase)
-		}
+	if !strings.Contains(buildInstructions("", nil, nil), "near_misses") {
+		t.Error("a project without globals must receive the empty-result rule")
 	}
-	withGlobals := buildInstructions("", []string{"org"}, nil)
-	if !strings.Contains(withGlobals, "fills the page with only local rows") {
+	if !strings.Contains(buildInstructions("", []string{"org"}, nil), "If a retry returns only local rows") {
 		t.Error("the global retry does not state its trigger: a page of only local rows")
 	}
 }
@@ -312,10 +333,10 @@ func TestGlobalIDsByPresence(t *testing.T) {
 func TestBuildInstructions_MissingGlobalIsNotMounted(t *testing.T) {
 	t.Parallel()
 	got := buildInstructions("", nil, []string{"gone"})
-	if strings.Contains(got, "This project mounts") {
+	if strings.Contains(got, "GLOBAL SOURCES") {
 		t.Error("a source that is not on disk is announced as mounted")
 	}
-	if !strings.Contains(got, "not cloned yet: gone.") {
+	if !strings.Contains(got, "NOT CLONED: gone.") {
 		t.Error("the instructions do not name the source that is not on disk")
 	}
 }

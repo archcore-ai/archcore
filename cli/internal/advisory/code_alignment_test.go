@@ -1,9 +1,12 @@
 package advisory
 
 import (
+	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -45,7 +48,7 @@ func TestCodeAlignment_SilentCases(t *testing.T) {
 			name:     "source edit with no matching docs",
 			filePath: "src/api/handlers.go",
 			setup: func(t *testing.T, base string) {
-				writeAlignmentDoc(t, base, "knowledge/unrelated.rule.md", "Unrelated", "Nothing about that tree.")
+				writeAlignmentDoc(t, base, "knowledge/unrelated.adr.md", "Unrelated", "Nothing about that tree.")
 			},
 		},
 		{
@@ -79,7 +82,7 @@ func TestCodeAlignment_InjectsMatchingDocs(t *testing.T) {
 
 	got := CodeAlignment(base, "src/api/handlers.go")
 
-	for _, want := range []string{"[Archcore Context] Before editing src/api/handlers.go", "rule: API Handler Rule", "knowledge/api.rule.md"} {
+	for _, want := range []string{"[Archcore Context] Read these before editing src/api/handlers.go:", "rule: API Handler Rule", "[.archcore/knowledge/api.rule.md]"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("advisory missing %q:\n%s", want, got)
 		}
@@ -168,9 +171,9 @@ func TestCodeAlignment_SourceRootsAreNormalized(t *testing.T) {
 	}
 }
 
-// TestCodeAlignment_TopThreeTruncation: beyond three the injection stops being
-// a pointer and becomes reading homework.
-func TestCodeAlignment_TopThreeTruncation(t *testing.T) {
+// TestCodeAlignment_MatchedCapStatesRemainder pins file-context-resolution.spec
+// behavior 10: the cut rows are counted and the call that returns them is named.
+func TestCodeAlignment_MatchedCapStatesRemainder(t *testing.T) {
 	t.Parallel()
 	base := setupArchcoreDir(t)
 	for i := range 8 {
@@ -179,8 +182,11 @@ func TestCodeAlignment_TopThreeTruncation(t *testing.T) {
 
 	got := CodeAlignment(base, "src/api/handlers.go")
 
-	if n := strings.Count(got, "\n- "); n != maxAlignmentDocs {
-		t.Errorf("injected %d documents, want %d:\n%s", n, maxAlignmentDocs, got)
+	if n := strings.Count(got, "\n- "); n != MaxContextMatched {
+		t.Errorf("injected %d documents, want %d:\n%s", n, MaxContextMatched, got)
+	}
+	if !strings.Contains(got, `… and 3 more — search_documents(path_ref="src/api/handlers.go")`) {
+		t.Errorf("remainder line missing:\n%s", got)
 	}
 }
 
@@ -195,6 +201,8 @@ func TestCodeAlignment_SourceRootsOverride(t *testing.T) {
 	}
 	writeAlignmentDoc(t, base, "knowledge/be.rule.md", "Backend Rule", "Applies to backend/api/ code.")
 	writeAlignmentDoc(t, base, "knowledge/fe.rule.md", "Src Rule", "Applies to src/api/ code.")
+	// Both rules name a real directory, so neither counts as general.
+	mkdirs(t, base, "backend/api", "src/api")
 
 	if got := CodeAlignment(base, "backend/api/h.go"); !strings.Contains(got, "Backend Rule") {
 		t.Errorf("declared root produced no injection:\n%s", got)
@@ -245,7 +253,7 @@ func TestCodeAlignment_ScenarioRankedBetweenSpecAndGuide(t *testing.T) {
 	t.Parallel()
 	base := setupArchcoreDir(t)
 	writeAlignmentDoc(t, base, "knowledge/a.guide.md", "Some Guide", "Working in src/api/.")
-	writeAlignmentDoc(t, base, "knowledge/b.scenario.md", "Some Scenario", "Anchors: src/api/handlers.go")
+	writeAlignmentDoc(t, base, "knowledge/b.scenario.md", "Some Scenario", "Anchors: src/api/")
 	writeAlignmentDoc(t, base, "knowledge/c.spec.md", "Some Spec", "Working in src/api/.")
 
 	got := CodeAlignment(base, "src/api/handlers.go")
@@ -269,5 +277,273 @@ func TestCodeAlignment_ExcludesJourney(t *testing.T) {
 	got := CodeAlignment(base, "src/api/handlers.go")
 	if !strings.Contains(got, "local.rule.md") || strings.Contains(got, "path.journey.md") {
 		t.Errorf("CodeAlignment = %q; want local rule only", got)
+	}
+}
+
+func mkdirs(t *testing.T, base string, dirs ...string) {
+	t.Helper()
+	for _, d := range dirs {
+		if err := os.MkdirAll(filepath.Join(base, filepath.FromSlash(d)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func writeStatusDoc(t *testing.T, base, relPath, title, status, body string) {
+	t.Helper()
+	writeArchcoreDoc(t, base, relPath, fmt.Sprintf("---\ntitle: %q\nstatus: %s\n---\n\n%s\n", title, status, body))
+}
+
+// TestResolveFileContext_Ranking pins file-context-resolution.spec behaviors
+// 1–7: reason, depth, status, type, mentions, then path.
+func TestResolveFileContext_Ranking(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		file   string
+		setup  func(t *testing.T, base string)
+		want   []string // matched paths, in order
+		reason ContextReason
+	}{
+		{
+			name: "a doc naming the file outranks a rule naming its directory",
+			file: "src/app/_components/FullLayout.tsx",
+			setup: func(t *testing.T, base string) {
+				writeAlignmentDoc(t, base, "a.rule.md", "Dir Rule", "Applies to src/app/_components/ code.")
+				writeAlignmentDoc(t, base, "z.doc.md", "Seam", "FullLayout.tsx renders the shell.")
+			},
+			want:   []string{".archcore/z.doc.md", ".archcore/a.rule.md"},
+			reason: ReasonFile,
+		},
+		{
+			name: "a full path outranks a bare file name",
+			file: "src/app/FullLayout.tsx",
+			setup: func(t *testing.T, base string) {
+				writeAlignmentDoc(t, base, "a.rule.md", "Name", "FullLayout.tsx only.")
+				writeAlignmentDoc(t, base, "b.doc.md", "Path", "See src/app/FullLayout.tsx.")
+			},
+			want:   []string{".archcore/b.doc.md", ".archcore/a.rule.md"},
+			reason: ReasonFile,
+		},
+		{
+			name: "accepted outranks draft at equal match",
+			file: "src/api/h.go",
+			setup: func(t *testing.T, base string) {
+				writeStatusDoc(t, base, "a.spec.md", "Draft", "draft", "Covers src/api/.")
+				writeStatusDoc(t, base, "b.spec.md", "Accepted", "accepted", "Covers src/api/.")
+			},
+			want:   []string{".archcore/b.spec.md", ".archcore/a.spec.md"},
+			reason: ReasonDirectory,
+		},
+		{
+			name: "more mentions outrank fewer at equal type",
+			file: "src/api/h.go",
+			setup: func(t *testing.T, base string) {
+				writeAlignmentDoc(t, base, "a.adr.md", "Once", "Covers src/api/.")
+				writeAlignmentDoc(t, base, "b.adr.md", "Twice", "Covers src/api/ and src/api/ again.")
+			},
+			want:   []string{".archcore/b.adr.md", ".archcore/a.adr.md"},
+			reason: ReasonDirectory,
+		},
+		{
+			name: "a doc ranks below a guide",
+			file: "src/api/h.go",
+			setup: func(t *testing.T, base string) {
+				writeAlignmentDoc(t, base, "a.doc.md", "Doc", "Covers src/api/.")
+				writeAlignmentDoc(t, base, "b.guide.md", "Guide", "Covers src/api/.")
+			},
+			want:   []string{".archcore/b.guide.md", ".archcore/a.doc.md"},
+			reason: ReasonDirectory,
+		},
+		{
+			name: "a generic file name does not count as naming the file",
+			file: "src/app/page.tsx",
+			setup: func(t *testing.T, base string) {
+				writeAlignmentDoc(t, base, "a.doc.md", "Other Page", "Another page.tsx elsewhere.")
+			},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupArchcoreDir(t)
+			tt.setup(t, base)
+
+			fc, err := ResolveFileContext(base, tt.file)
+			if err != nil {
+				t.Fatalf("ResolveFileContext: %v", err)
+			}
+			var got []string
+			for _, row := range fc.Matched {
+				got = append(got, row.Doc.Path)
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("matched = %v, want %v", got, tt.want)
+			}
+			if len(fc.Matched) > 0 && fc.Matched[0].Reason != tt.reason {
+				t.Errorf("first reason = %q, want %q", fc.Matched[0].Reason, tt.reason)
+			}
+		})
+	}
+}
+
+// TestResolveFileContext_GeneralRules pins pathless-rules-are-general.adr and
+// behavior 7: only an accepted rule or cpat naming no path of this project.
+func TestResolveFileContext_GeneralRules(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	mkdirs(t, base, "lib/shared")
+	writeAlignmentDoc(t, base, "guard.rule.md", "Guard Clauses", "Return early.")
+	writeAlignmentDoc(t, base, "tests.rule.md", "Test Titles", "Use @testing-library/react in component tests.")
+	writeAlignmentDoc(t, base, "scoped.rule.md", "Scoped", "Only for lib/shared/ helpers.")
+	writeAlignmentDoc(t, base, "naming.cpat.md", "Naming Change", "Handlers are named handle*.")
+	writeAlignmentDoc(t, base, "why.adr.md", "Decision", "No path here.")
+	writeStatusDoc(t, base, "draft.rule.md", "Draft Rule", "draft", "No path here.")
+
+	fc, err := ResolveFileContext(base, "src/api/h.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, row := range fc.General {
+		got = append(got, row.Doc.Path)
+	}
+	want := []string{".archcore/guard.rule.md", ".archcore/tests.rule.md", ".archcore/naming.cpat.md"}
+	if !slices.Equal(got, want) {
+		t.Errorf("general = %v, want %v", got, want)
+	}
+}
+
+// TestCodeAlignment_OutsideSourceRoots pins behavior 11: a root config file
+// still gets the documents naming it and the general rules.
+func TestCodeAlignment_OutsideSourceRoots(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	writeAlignmentDoc(t, base, "vitest.doc.md", "Vitest Config", "Settings live in vitest.config.mjs.")
+	writeAlignmentDoc(t, base, "guard.rule.md", "Guard Clauses", "Return early.")
+
+	got := CodeAlignment(base, "vitest.config.mjs")
+
+	for _, want := range []string{"Vitest Config", "Rules that name no path apply to every file:", "Guard Clauses"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+}
+
+// TestCodeAlignment_StaysInsideTheRuneBudget pins the hook constraint: long
+// titles drop general rows first, and the remainder is stated.
+func TestCodeAlignment_StaysInsideTheRuneBudget(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	long := strings.Repeat("Очень длинный заголовок правила ", 6)
+	for i := range 12 {
+		writeAlignmentDoc(t, base, fmt.Sprintf("g-%02d.rule.md", i), fmt.Sprintf("%s %d", long, i), "Return early.")
+	}
+	for i := range 5 {
+		writeAlignmentDoc(t, base, fmt.Sprintf("m-%d.rule.md", i), fmt.Sprintf("%s m%d", long, i), "Applies to src/api/ code.")
+	}
+
+	got := CodeAlignment(base, "src/api/h.go")
+
+	if n := len([]rune(got)); n > maxAlignmentRunes {
+		t.Errorf("hook text holds %d runes, cap %d", n, maxAlignmentRunes)
+	}
+	if !strings.Contains(got, `list_documents(types=["rule","cpat"], status="accepted")`) {
+		t.Errorf("general remainder line missing:\n%s", got)
+	}
+}
+
+// TestResolveFileContext_Kind: an accepted rule or cpat naming the file's
+// compound extension governs every file of that kind, between file and
+// directory matches.
+func TestCountStandalone(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		content string
+		want    int
+	}{
+		{"Name tests *.test.tsx", 1},
+		{"Use `.test.tsx` files", 1},
+		{".test.tsx at the start", 1},
+		{"See `Form.test.tsx`", 0},
+		{"`a-b.test.tsx` and `*.test.tsx`", 1},
+		{"no extension here", 0},
+	}
+	for _, tt := range tests {
+		if got := countStandalone(tt.content, ".test.tsx"); got != tt.want {
+			t.Errorf("countStandalone(%q) = %d, want %d", tt.content, got, tt.want)
+		}
+	}
+}
+
+func TestResolveFileContext_Kind(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		file string
+		want map[string]ContextReason // path -> reason; absent paths must not be matched
+	}{
+		{
+			name: "a test file gets the rule naming .test.tsx as kind",
+			file: "src/components/Foo/Foo.test.tsx",
+			want: map[string]ContextReason{".archcore/tests.rule.md": ReasonKind, ".archcore/dir.rule.md": ReasonDirectory},
+		},
+		{
+			name: "a plain component file does not",
+			file: "src/components/Foo/Foo.tsx",
+			want: map[string]ContextReason{".archcore/dir.rule.md": ReasonDirectory},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupArchcoreDir(t)
+			mkdirs(t, base, "src/components")
+			writeAlignmentDoc(t, base, "tests.rule.md", "Test Files", "Name tests *.test.tsx next to their sources.")
+			writeAlignmentDoc(t, base, "tests.adr.md", "Test Decision", "We chose *.test.tsx files.")
+			writeAlignmentDoc(t, base, "promo.rule.md", "Promo Flow", "Covered by `PromoForm.test.tsx` and `PromoQuery.test.tsx`.")
+			writeAlignmentDoc(t, base, "dir.rule.md", "Components", "Applies to src/components/Foo/ code.")
+
+			fc, err := ResolveFileContext(base, tt.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := make(map[string]ContextReason)
+			var order []ContextReason
+			for _, row := range fc.Matched {
+				got[row.Doc.Path] = row.Reason
+				order = append(order, row.Reason)
+			}
+			if !maps.Equal(got, tt.want) {
+				t.Errorf("matched = %v, want %v", got, tt.want)
+			}
+			if !slices.IsSortedFunc(order, func(a, b ContextReason) int { return reasonRank[a] - reasonRank[b] }) {
+				t.Errorf("reasons out of order: %v", order)
+			}
+		})
+	}
+}
+
+func TestResolveFileContext_RefusesPathsItCannotServe(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	tests := []struct {
+		name string
+		path string
+		want error
+	}{
+		{name: "relative escape", path: "../other/x.go", want: ErrOutsideProject},
+		{name: "absolute outside", path: filepath.Join(filepath.Dir(base), "x.go"), want: ErrOutsideProject},
+		{name: "archcore document", path: ".archcore/a.rule.md", want: ErrArchcoreDocPath},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := ResolveFileContext(base, tt.path); !errors.Is(err, tt.want) {
+				t.Errorf("err = %v, want %v", err, tt.want)
+			}
+		})
 	}
 }

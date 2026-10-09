@@ -35,22 +35,34 @@ Do not edit content inside an Archcore-managed block:
 <!-- archcore:start --> managed by `archcore init` — edit outside these markers
 ## Archcore — project context for this repo
 
-This repo's architecture, decisions, rules, specs and patterns live in `.archcore/`,
-reachable through the Archcore MCP tools. Consult them even on code you think you
-know — a decision or rule may already constrain it.
+`.archcore/` holds this project's recorded context as typed Markdown files,
+`<slug>.<type>.md`, in three categories: knowledge (decisions, rules, contracts,
+reference), vision (requirements, plans, research), and experience (lessons from
+past work). `list_documents` filters by `category` and `types`.
 
-- Touching this repo's real code or behavior → search first; read only what matches.
-- A decision was made ("we'll use X", "from now on Y") → record it.
-- A module / API / system has no doc — or a search comes back empty → capture it.
-- Planning a feature or refactor → scope it against what's already decided.
+Before you change, test, or explain code here, call `search_documents` with `for_path` set to the file, and read the rules, decisions, and specs it returns with `get_document`. Accepted rules and decisions bind the change. Without the Archcore MCP tools, read `.archcore/` as Markdown: the `*.rule.md` files first, then grep `.archcore/` for the file name.
+
+1. Once per session, before the first code edit, call `list_documents` with
+   `types: ["rule", "cpat"]` and `status: "accepted"`, and read every rule that
+   applies to the code you will write. A rule that names no path reaches you this way.
+2. Before you state how this system behaves, search the topic. Cite the document,
+   or say that none exists.
+3. If an accepted document conflicts with the task, tell the user before you edit.
+4. If a search is empty, read `near_misses` and retry with fewer words before you
+   conclude that no document exists.
+5. When a decision is made ("we'll use X", "from now on Y"), record it.
+6. When a module, API, or system you touched has no document, offer to capture it.
+
+If the Archcore MCP tools are missing or fail to connect, tell the user once, then
+take the file route above. Do not write `.archcore/` files by hand.
 
 A `.archcore/` may also mount read-only **global sources** — shared, org-wide
-context not shown in the session-start list. `list_documents` / `search_documents`
-surface them alongside local docs, tagged `source_kind: "global"`. When present,
-treat them as defaults a local doc can override — never edit or relate to one.
+context. `list_documents` / `search_documents` surface them alongside local docs,
+tagged `source_kind: "global"`. When present, treat them as defaults a local doc
+can override — never edit or relate to one.
 
-The search is cheap — lean on it. Skip it only for turns this repo would have no
-opinion on: syntax trivia, throwaway snippets, pure mechanics.
+Skip these steps only for turns this repo would have no opinion on: syntax
+trivia, throwaway snippets, pure mechanics.
 <!-- archcore:end -->
 ```
 

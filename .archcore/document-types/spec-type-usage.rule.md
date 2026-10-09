@@ -19,7 +19,7 @@ A spec is the document another team, another service, or a test suite is checked
 
 ## Enforcement (CLI)
 
-- The type-selection rules in `@cli/internal/mcp/server.go` and `@cli/internal/mcp/tools/create_document.go` carry the `spec` versus `doc`, `spec` versus `rule`, and `spec` versus `adr` disambiguation.
+- The MCP server instructions in `@cli/internal/mcp/server.go` name the `spec`, `scenario`, and `journey` boundary in one line. The `spec` versus `doc`, `rule`, and `adr` disambiguation lives in the plugin spec contract `@plugin/plugins/archcore/skills/_shared/spec-contract.md`.
 - `@cli/templates/templates.go` registers the `spec` type with its six-section template: Purpose & Scope, Surface, Normative Behavior (EARS clauses + BCP 14 keywords), Constraints & Invariants, Failure Behavior, Conformance.
 
 ## References

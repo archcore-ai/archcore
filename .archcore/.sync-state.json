@@ -5217,6 +5217,86 @@
       "source": "plugin/actor-subject-compatibility.spec.md",
       "target": "plugin/explicit-type-request-wins.adr.md",
       "type": "implements"
+    },
+    {
+      "source": "integrations/context-address-leads-every-channel.adr.md",
+      "target": "integrations/agent-context-delivery.rnd.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/context-address-leads-every-channel.adr.md",
+      "target": "mcp/tool-descriptions-fit-the-host-cap.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "integrations/context-address-leads-every-channel.adr.md",
+      "target": "integrations/instruction-nudge-on-init.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/file-context-is-a-search-mode.adr.md",
+      "target": "integrations/agent-context-delivery.rnd.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/pathless-rules-are-general.adr.md",
+      "target": "integrations/agent-context-delivery.rnd.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/agent-context-delivery.prd.md",
+      "target": "integrations/agent-context-delivery.rnd.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/file-context-resolution.spec.md",
+      "target": "integrations/agent-context-delivery.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/file-context-resolution.spec.md",
+      "target": "mcp/file-context-is-a-search-mode.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/file-context-resolution.spec.md",
+      "target": "integrations/pathless-rules-are-general.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/file-context-resolution.spec.md",
+      "target": "integrations/hook-runtime.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/context-address-delivery.spec.md",
+      "target": "integrations/agent-context-delivery.prd.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/context-address-delivery.spec.md",
+      "target": "integrations/context-address-leads-every-channel.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/search-documents.spec.md",
+      "target": "integrations/file-context-resolution.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/session-start-context.spec.md",
+      "target": "integrations/context-address-delivery.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/agent-context-delivery.plan.md",
+      "target": "integrations/file-context-resolution.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/agent-context-delivery.plan.md",
+      "target": "integrations/context-address-delivery.spec.md",
+      "type": "implements"
     }
   ]
 }

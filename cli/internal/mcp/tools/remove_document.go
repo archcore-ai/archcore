@@ -37,7 +37,7 @@ review its content and relations before deleting.
 
 Returns: JSON with path, title, type, category, and relations_removed count.`),
 		mcp.WithString("path",
-			mcp.Description("Relative path to the document from the project root. Must be obtained from list_documents — do not construct this manually. Example: \".archcore/knowledge/use-postgres.adr.md\""),
+			mcp.Description("Relative path to the document from the project root. Use a path an Archcore tool or hook returned — list_documents, search_documents, the session-start context, or the pre-edit hint. Do not construct one. Example: \".archcore/knowledge/use-postgres.adr.md\""),
 			mcp.Required(),
 		),
 		mcp.WithTitleAnnotation("Remove Document"),

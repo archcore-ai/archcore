@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"archcore-cli/internal/docs"
 	"archcore-cli/internal/sync"
 )
 
@@ -201,11 +202,11 @@ func TestRankPathRefs_TieBreaking(t *testing.T) {
 		specificity int
 	}
 	want := []rankedRef{
-		{"@src/payments/stripe.go", refKindExplicit, 3},
-		{"@src/payments/", refKindExplicit, 2},
-		{"src/payments/", refKindMention, 2},
-		{"src/payments/", refKindMention, 2},
-		{"@src/", refKindExplicit, 1},
+		{"@src/payments/stripe.go", docs.RefKindExplicit, 3},
+		{"@src/payments/", docs.RefKindExplicit, 2},
+		{"src/payments/", docs.RefKindMention, 2},
+		{"src/payments/", docs.RefKindMention, 2},
+		{"@src/", docs.RefKindExplicit, 1},
 	}
 	got := make([]rankedRef, len(hits))
 	for i, h := range hits {
@@ -251,7 +252,7 @@ func TestRankPathRefs_OrdersALargeBody(t *testing.T) {
 				t.Errorf("hits[%d] has specificity %d after %d", i, next.specificity, prev.specificity)
 			}
 		case prev.Kind != next.Kind:
-			if next.Kind == refKindExplicit {
+			if next.Kind == docs.RefKindExplicit {
 				t.Errorf("hits[%d] is an explicit reference after a mention of equal specificity", i)
 			}
 		case prev.Start >= next.Start:

@@ -23,7 +23,10 @@ setup() {
 
 expected_cli_missing_plain() {
   cat <<'EOF'
-[Archcore] CLI not found on PATH. Install it first:
+[Archcore] CLI not found on PATH. The Archcore MCP tools and hooks are unavailable in this session.
+In your first reply, tell the user once that Archcore is unavailable and how to install it.
+Before you change, test, or explain code here, call `search_documents` with `for_path` set to the file, and read the rules, decisions, and specs it returns with `get_document`. Accepted rules and decisions bind the change. Without the Archcore MCP tools, read `.archcore/` as Markdown: the `*.rule.md` files first, then grep `.archcore/` for the file name.
+Install:
   macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash
   Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex
   Then verify: archcore --version
@@ -33,7 +36,7 @@ EOF
 
 expected_cli_missing_claude() {
   cat <<'EOF'
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"[Archcore] CLI not found on PATH. Install it first:\n  macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash\n  Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex\n  Then verify: archcore --version\n  Docs: https://docs.archcore.ai/start/install/\n"}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"[Archcore] CLI not found on PATH. The Archcore MCP tools and hooks are unavailable in this session.\nIn your first reply, tell the user once that Archcore is unavailable and how to install it.\nBefore you change, test, or explain code here, call `search_documents` with `for_path` set to the file, and read the rules, decisions, and specs it returns with `get_document`. Accepted rules and decisions bind the change. Without the Archcore MCP tools, read `.archcore/` as Markdown: the `*.rule.md` files first, then grep `.archcore/` for the file name.\nInstall:\n  macOS/Linux/WSL: curl -fsSL https://archcore.ai/install.sh | bash\n  Windows (PowerShell): irm https://archcore.ai/install.ps1 | iex\n  Then verify: archcore --version\n  Docs: https://docs.archcore.ai/start/install/\n"}}
 EOF
 }
 

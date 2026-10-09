@@ -35,7 +35,7 @@ The generated Locator starts with `Address:`, `Access date:`, `Publication date:
 9. The Archcore MCP server MUST expose both types through creation and type-filtered discovery.
 10. The server instructions MUST distinguish coverage-based `research` from recommendation-based `rnd`.
 11. The server instructions MUST describe `evidence` as one material.
-12. The server instructions MUST describe source classes through the five source tags below.
+12. The `create_document` `tags` parameter description MUST describe source classes through the five source tags below.
 13. The search ranker MUST use its default type priority for both types.
 14. The CodeAlignment selector MUST exclude both types.
 

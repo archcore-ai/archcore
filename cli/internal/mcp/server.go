@@ -16,217 +16,74 @@ import (
 	"os"
 	"strings"
 
+	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/mcp/tools"
 
 	"github.com/mark3labs/mcp-go/server"
 )
 
-var mcpServerInstructions = `You are working with a project that uses Archcore — Git-native context for AI coding agents.
+// hostInstructionsCap is how many characters of the server instructions Claude
+// Code passes to the model; Copilot CLI passes none for a server outside its
+// allowlist. Everything an agent must know therefore fits here, and the type
+// catalog lives in the tool descriptions — context-address-leads-every-channel.adr.
+const hostInstructionsCap = 2048
 
-PROJECT INITIALIZATION:
-If list_documents returns an empty result AND the user is asking to create or manage documents, the project likely has no .archcore/ directory yet. Call init_project once to initialize it, then proceed. init_project is idempotent — safe to call even if already initialized (it just returns existing settings). Do NOT attempt to create documents before the project is initialized; create_document and other mutating tools assume .archcore/ exists.
+// sourceListCap bounds each source-id list in the notices, so the instructions
+// stay under hostInstructionsCap however many sources a project declares.
+const sourceListCap = 64
 
-The .archcore/ directory contains Markdown files with YAML frontmatter (title, status, tags). The directory structure inside .archcore/ is free-form — you can organize documents by domain, feature, team, or any custom structure. Categories (vision, knowledge, experience) are virtual — derived automatically from the document type in the filename (slug.type.md), not from the physical directory.
+const instructionsLead = "Archcore project context lives in .archcore/ as <slug>.<type>.md files.\n\n" + agents.ContextAddress
 
-Example structures:
-  .archcore/auth/jwt-strategy.adr.md         → virtual category: knowledge
-  .archcore/auth/auth-redesign.prd.md        → virtual category: vision
-  .archcore/payments/stripe.adr.md           → virtual category: knowledge
-  .archcore/infrastructure/k8s/migration.adr.md → virtual category: knowledge
-  .archcore/my-doc.rule.md                   → virtual category: knowledge (root level)
+const instructionsRules = `
 
-Document types and their virtual categories:
-  knowledge: adr (decisions), rfc (proposals), rule (standards), guide (how-tos), doc (reference), spec (contracts), evidence (external materials), scenario (actor-subject flows and examples illustrating a spec)
-  vision:    prd (requirements), idea (concepts), plan (action plans), rnd (decision-bound research), research (territory investigations), journey (intended user path before a spec covering it exists), mrd (market requirements), brd (business requirements), urd (user requirements), brs (business req spec), strs (stakeholder req spec), syrs (system req spec), srs (software req spec)
-  experience: task-type (typical task patterns), cpat (code pattern changes)
+READ: search_documents first; get_document takes a path an Archcore tool or hook returned. Before you call a search empty, read near_misses and retry with fewer words.
 
-DOCUMENT RELATIONS:
-Documents can be linked with directed relations stored in the sync manifest.
-  Axes: structural (related, implements, extends, depends_on), evidential (supports, contradicts), temporal (supersedes).
-  Relation types:
-    related     — general association for a concrete joint reading task (e.g., a guide and its companion reference)
-    implements  — source implements what target specifies (e.g., plan implements prd)
-    extends     — source builds upon target (e.g., rfc extends an existing adr)
-    depends_on  — source requires target to proceed (e.g., plan depends_on adr)
-    supports    — material points to the statement it backs
-    contradicts — challenger points to the statement it disputes
-    supersedes  — newer document points to the older document it replaces
+WRITE: only through the Archcore tools. Search for a duplicate first. Create as draft; set accepted only after the user confirms. Ask before remove_document. Call init_project only when the user asks for documents and .archcore/ is missing.
 
-  Before add_relation, read both documents and identify the statements that justify the type and direction.
-  For related, name the joint reading task (the concrete task that requires both documents). A shared topic, folder, tag, or creation task alone is insufficient.
-  IF the specific type is uncertain, THEN do not use related as a fallback.
-  Treat nearby_documents as a partial location hint, not a semantic ranking. Also search beyond that folder for documents that name the same subject or define a contract that this document uses.
-  Use list_relations to check existing links. Do not add a reverse related or an extra related beside a more specific edge solely for navigation.
-  Any document can remain unlinked when no supported claim exists. If evidence is incomplete, report the uncertainty instead of guessing a relation.
-  The tools validate relation structure; they do not verify semantic justification. After a meaningful content or status change, review the relations of the changed document. Do not remove a relation only because a status changed, a document has many relations, or relations form a cycle.
-  The conventions below select the type for a justified relation. A convention alone does not justify a relation.
-  Research (rnd) conventions (advisory): idea related rnd; prd/plan/adr depends_on rnd; rfc extends rnd; rnd related rnd. Do not use "implements" for rnd.
-  The research type takes neither implements nor extends by convention; use rnd depends_on research.
-  Actor-subject conventions (advisory): scenario depends_on spec (one scenario illustrates one spec; a spec edit then reaches its scenarios); scenario implements journey; journey related prd; journey related idea; scenario related scenario between the parts of a split by actor. No edge runs from spec to scenario. A plan task or backlog item is a tag, never an edge.
-  The engine accepts relation values independently of document type or category. Endpoints must be distinct existing local documents; global sources are never endpoints.
-  New evidential and temporal relations do not trigger cascades, move content, change statuses, or resolve contradictions.
-  Keep a contradicts edge until the disputed document names both materials and records the resolution in prose.
+TYPES: create_document lists them. rnd closes on a recommendation; research on scope coverage. evidence records one external material. A spec line obligates a component with a modal; a scenario step takes the actor as subject and illustrates an existing spec; a journey is a user path no spec covers yet.
 
-TAGS:
-Use tags when a document is relevant to multiple teams or domains.
-  Format: lowercase alphanumeric with hyphens, underscores, colons, or pipes (e.g., "frontend", "team-platform", "team:payments", "some|flag")
-  Tag filtering uses OR semantics — a document matches if it has any of the specified tags.
-  Tags narrow results but don't guarantee completeness — combine with type/category filters.
-  If a tag-filtered query returns 0 results, retry without the tag filter.
-  Source-class conventions: source:primary, source:secondary, source:measurement, source:interview, source:dataset. These tags are not a closed enum.
+RELATIONS: related, implements, extends, depends_on (structural); supports, contradicts (evidential: material → the claim it backs or disputes); supersedes (temporal: newer → older). scenario depends_on spec; scenario implements journey; journey related prd.`
 
-WHEN TO SEARCH CONTENT:
-Use search_documents to find documents by path reference, content substring, or metadata filters — not by topic guess. Unlike list_documents, it scans bodies. Prefer it over grep over .archcore/ when you need "which docs mention X".
-An empty result under match="all" (the default) means no document passing the filters holds every word. Read near_misses first; then broaden the words or use match="any" before you conclude no document covers the topic.
-
-PATH FORMAT: All tool paths use ".archcore/<path>/<slug>.<type>.md" as returned by list_documents. The add_relation and remove_relation tools also accept paths without the ".archcore/" prefix.
-
-WORKFLOW RULES:
-1. Before creating any document, call list_documents first to check whether a relevant document already exists. Do not create duplicates.
-2. To read a document, call list_documents to get its path, then pass that path to get_document.
-3. Only call create_document after confirming no equivalent document exists.
-4. Before updating a document, confirm the intended changes with the user when possible.
-5. After creating a document, call add_relation only for a relation that both documents justify. nearby_documents lists candidates only.
-6. When reading a document, check outgoing_relations and incoming_relations for context.
-7. Before deleting a document, confirm explicitly with the user. Prefer setting status to "rejected" when historical context is worth keeping.
-
-WHEN TO CREATE:
-- A technical decision is made or finalized → adr
-- A significant change is being proposed for team review → rfc
-- A team standard or required behavior is established → rule
-- Step-by-step instructions for completing a task → guide
-- Non-behavioral reference material — registries, lookup tables, glossaries, or component lists → doc
-- A component, interface, schema, or protocol has externally-observable behavior that other code or teams depend on → spec (capture the contract of what exists, or specify the contract to build)
-- A proven workflow for a recurring implementation task is documented → task-type
-- A coding pattern, convention, or approach has deliberately changed → cpat
-- A product concept or technical idea needs capturing → idea
-- An implementation plan with tasks is formed → plan
-- A bounded investigation is needed to answer a question before deciding or building → rnd
-- An investigation maps a territory and closes on coverage → research
-- One external material needs a reusable record with a locator and extract → evidence
-- How a user or external actor moves through a system, with concrete Given/When/Then examples that illustrate the clauses of one existing spec → scenario
-- The intended path of one user type through a system, before a spec covering this interaction exists → journey
-- Product requirements with goals, scope, and acceptance criteria → prd
-- Market analysis with TAM/SAM/SOM, competitive landscape, and market needs → mrd
-- Business justification with objectives, ROI, stakeholders, and budget → brd
-- User needs with personas, journeys, and usability requirements → urd
-- Business requirements formalized into ISO structure with mission, goals, operational concept, and success criteria → brs
-- Stakeholder requirements formalized per stakeholder class with ConOps and compliance → strs
-- System-level requirements with full boundary definition, interfaces, modes, and verification approach → syrs
-- Software component requirements with per-endpoint/per-function specs and verification matrix → srs
-
-WHEN TO UPDATE (use update_document):
-- A decision is finalized → change status from "draft" to "accepted"
-- A proposal is rejected → change status to "rejected"
-- A plan's scope or tasks change → update content
-- Do not create a new document when the existing one should be updated.
-
-WHEN TO DELETE (use remove_document):
-- A document was created by mistake or is a duplicate → delete it
-- A document is entirely irrelevant and has no historical value → delete it
-- Prefer update_document with status "rejected" to preserve history when the content was once valid.
-- Always confirm with the user before deleting — this is permanent and removes all relations.
-
-TYPE SELECTION RULES (use these to disambiguate):
-- rule vs doc: A rule contains imperative statements ("Always do X", "Never do Y") with good/bad code examples and enforcement info. A doc is non-behavioral reference material (tables, registries, glossaries). If the content describes what exists rather than prescribing behavior, use doc.
-- adr vs rfc: An adr records a decision already made. An rfc proposes a change open for review. If the decision is final, use adr; if still open for feedback, use rfc.
-- rnd vs research: A verdict closes rnd; coverage of the declared scope closes research. Research can be revised as the territory changes.
-- research vs doc: Research records external knowledge with dated sources and gaps. A doc records reference information the team controls and can verify from its system.
-- evidence vs statement: Evidence is one material, never one statement. Record a source as a row first; create evidence when two documents rely on it, a contradiction involves it, or a newer material supersedes it.
-- scenario vs spec: the subject of the line decides. A spec clause obligates the component with a modal ("WHEN the user requests a refund, the service MUST approve it"). A scenario step takes the actor as its subject and carries no modal ("Anna requests a refund on 10 Sep; she sees the refund approved"). Rules stay in the spec; the scenario illustrates them.
-- journey vs scenario: a spec that this document illustrates exists → scenario; none exists yet → journey. A journey says "we want the user to be able to…" with no data; a scenario says "the user does… and sees…" with data in its examples. The pair mirrors idea → prd.
-- journey vs urd, scenario vs strs: a journey and a scenario live on the Product track beside prd and spec; urd User Journeys and strs Operational Scenarios belong to the Sources and ISO tracks. Use the Product-track pair unless the project runs those tracks.
-- rnd vs idea: An rnd INVESTIGATES an open question and must end in a recommendation (proceed/refine/defer/stop) plus a next action. An idea PROPOSES a concept worth exploring. Use rnd for "should we / which way"; use idea for "we could".
-- rnd vs adr: An rnd INVESTIGATES to inform a decision that is still pending. An adr COMMITS to a decision already made. Gather evidence in an rnd, then record the resulting decision as an adr (adr depends_on rnd).
-- rnd vs rfc: An rnd explores an open QUESTION with no position yet. An rfc puts a concrete PROPOSAL up for review. If there is nothing to propose yet, use rnd.
-- guide vs doc: A guide has numbered steps the reader follows sequentially. A doc is non-sequential, non-behavioral reference material. If the reader is meant to do something step-by-step, use guide; if they look things up, use doc.
-- spec vs doc: A spec documents the canonical normative behavior contract of a concrete subject — a boundary (API, interface, schema, protocol) or a feature/subsystem others rely on: externally observable behavior, constraints, invariants, and conformance requirements. A doc describes what already exists (tables, registries, glossaries) without normative requirements. When others depend on how the subject behaves (observable behavior, external consumers), prefer spec even if doc also fits — the doc links to the spec. If the document defines normative behavior for a specific artifact, use spec.
-- spec vs rule: A spec is a behavior contract for one component, interface, or feature — it specifies what correct behavior is. A rule is a team standard for how engineers must act ("Always do X"). If the content is about a system's required behavior rather than a human practice, use spec.
-- spec vs adr: A spec is the living canonical truth of how something works. An adr is the decision record explaining why a choice was made. A single decision may produce both: the adr captures the "why", the spec captures the "what". A spec may be written after code (capture the existing contract) or before it (specify the contract to build). If the content is prescriptive and meant to be kept current, use spec; if it records a past decision, use adr.
-- mrd vs prd: MRD analyzes the MARKET (TAM/SAM/SOM, competitors, timing) without proposing a solution. PRD proposes a PRODUCT with requirements and solution overview.
-- brd vs prd: BRD focuses on BUSINESS JUSTIFICATION (ROI, budget, organizational impact). PRD focuses on PRODUCT DEFINITION (features, user stories, solution).
-- urd vs prd: URD captures user needs via PERSONAS and JOURNEYS (discovery-oriented). PRD defines product requirements with acceptance criteria (specification-oriented).
-- mrd vs brd: MRD is MARKET ANALYSIS (external-facing — industry, competitors, TAM). BRD is BUSINESS JUSTIFICATION (internal-facing — ROI, stakeholders, budget).
-- brd vs urd: BRD captures ORGANIZATIONAL needs (goals, budget, regulations). URD captures END-USER needs (personas, journeys, usability).
-- brs vs prd: BRS has ONLY business objectives with ISO structure (mission, operational concept, success criteria), no user stories or solution. PRD has user stories, functional requirements, solution overview.
-- strs vs prd: StRS groups requirements PER STAKEHOLDER CLASS with ConOps (operational scenarios). PRD lists requirements by priority (P0/P1/P2).
-- syrs vs adr: SyRS defines WHOLE SYSTEM BOUNDARY with interface contracts and verification approach. ADR records a single architectural decision.
-- srs vs prd: SRS has PER-ENDPOINT/PER-FUNCTION requirements with verification matrix. PRD has product-level requirements.
-- brs vs strs: BRS = WHY (business outcomes, technology-agnostic mission/goals). StRS = WHAT stakeholders need (operational scenarios, solution-aware, per-class).
-- syrs vs srs: SyRS = WHOLE SYSTEM boundary, all interfaces and modes. SRS = SINGLE COMPONENT's detailed behavior, one software module.
-- brs vs brd: BRS is a FORMAL ISO SPECIFICATION (mission, goals, operational concept, success criteria). BRD is an INFORMAL SOURCE (business justification: ROI, budget, stakeholders). BRS formalizes what BRD captures informally.
-- strs vs urd: StRS is a FORMAL ISO SPECIFICATION (per-stakeholder-class requirements with ConOps). URD is an INFORMAL SOURCE (personas, journeys, usability). StRS formalizes what URD captures informally.
-
-REQUIREMENTS LAYERS — Sources and Specifications are SEPARATE layers:
-  Layer A (Sources):        mrd, brd, urd, prd — capture raw requirements from market, business, and user perspectives
-  Layer B (Specifications): brs, strs, syrs, srs — formalize requirements into ISO-structured specifications
-  Specifications formalize sources. Use "implements" relation with the spec as source and the source doc as target:
-    brs implements mrd  (BRS formalizes market requirements from MRD)
-    brs implements brd  (BRS formalizes business objectives from BRD)
-    strs implements urd (StRS formalizes user needs from URD)
-    strs implements brs (StRS decomposes requirements from BRS — ISO cascade)
-  Within ISO cascade, each level decomposes the previous via "implements" relation:
-    strs implements brs → syrs implements strs → srs implements syrs
-  PRD can substitute for the entire ISO cascade (use "related" relation to link PRD to ISO types).
-  Do NOT confuse source documents (mrd/brd/urd) with specification documents (brs/strs/syrs/srs). Sources are informal, discovery-oriented. Specifications are formal, ISO-structured.
-
-VALID STATUS VALUES:
-  draft     — default for new documents; work in progress
-  accepted  — finalized or approved; set only when the human confirms
-  rejected  — superseded, abandoned, or declined; preserves history
-  For an rnd, status carries the investigation's verdict: draft = investigating; accepted = proceed/refine; rejected = defer/stop. A "rejected" rnd ("we investigated and decided not to") is a first-class outcome — keep it, do not delete it; it preserves the dead end.
-
-  For research, accepted means the synthesis is current as of its last revision; rejected means abandoned or fully replaced.
-  For evidence, draft means recorded; accepted means a second reader confirmed existence and the extract; rejected means retracted or unreliable. These are authoring conventions; the engine does not verify them.
-  For a journey, accepted means the team agreed this is the wanted interaction; rejected means the interaction was abandoned.
-  For a scenario, accepted means a reader confirmed the examples against the running system, by a test run or by hand; rejected means the examples no longer hold and no replacement was written. Archcore executes no scenario; executable examples stay in the test tree (features/*.feature) and are cited by @path.
-  Tags for both carry what Gherkin carries as @tags: actor:<type>, component:<name>, nfr:<concern>.
-  Evidence stores a locator and extract, not the raw file. Keep snapshots outside the repository or in an ignored directory. No engine tool fetches, hashes, or verifies sources.
-
-CODE REFERENCES (optional):
-Documents may reference source code paths using @-notation (e.g., @cmd/sync.go, @internal/config/).
-This is optional but encouraged — it helps agents navigate between documentation and code, and enables future staleness detection.
-When writing or updating documents, include relevant code paths where they naturally fit (e.g., in "Implementation Notes", "Key files", "Related" sections).
-
-NEVER create documents for: temporary notes, questions, chat summaries, or speculative content without clear value.
-ALWAYS use a descriptive slug (lowercase, hyphens only) and a clear human-readable title.`
-
-// buildInstructions returns MCP server instructions, with a globals paragraph
-// for the mounted global sources, a notice for the declared sources that are
-// not on disk, and an optional language directive.
+// buildInstructions returns the MCP server instructions: the context address
+// first, then the notices for mounted globals, globals not on disk, and a
+// non-English language, then the working rules. The notices sit before the
+// rules so a host that cuts the text keeps them.
 func buildInstructions(language string, mounted, missing []string) string {
-	out := mcpServerInstructions
+	var b strings.Builder
+	b.WriteString(instructionsLead)
 	if len(mounted) > 0 {
-		// The paragraph exists because an agent that does not know a global is
-		// mounted never queries it (global-recall-guarantees.rfc).
-		out += fmt.Sprintf(`
-
-GLOBAL SOURCES:
-This project mounts %d read-only global source(s): %s.
-- The read tools (list_documents, get_document, search_documents) cover local and global documents together. Read source_kind on each result to tell them apart.
-- A matching global is part of the answer. Read it; do not skip it because a local document also matched.
-- IF a local and a global document conflict on one topic, THEN the local document is authoritative. The global stays the org-wide default it refines.
-- Global documents are read-only and never relation endpoints; the write tools refuse them.
-- A search result starts with hits (matches per source) and index (every row on the page). IF the host shows only part of a result, THEN read the documents index names before you answer.
-- When a search returns nothing, check its coverage field: the globals were scanned too. IF a broadened or match="any" retry fills the page with only local rows, THEN scope it with source="global" to read the globals alone.`, len(mounted), strings.Join(mounted, ", "))
+		// An agent that does not know a global is mounted never queries it
+		// (global-recall-guarantees.rfc).
+		fmt.Fprintf(&b, "\n\nGLOBAL SOURCES, read-only, never relation endpoints: %s. Read a matching global too; a local document on one topic overrides it. If a retry returns only local rows, add source=\"global\".", joinSourceIDs(mounted))
 	}
 	if len(missing) > 0 {
 		// Without the notice an empty result from an uncloned source reads as
 		// silence from the org-wide context (missing-global-degrades-to-local.adr).
-		out += fmt.Sprintf(`
-
-GLOBAL SOURCES NOT ON DISK:
-This project declares %d global source(s) that are not cloned yet: %s. The read tools return no documents from them, so an empty result says nothing about their content. IF an answer depends on one of them, THEN tell the user that it is not cloned.`, len(missing), strings.Join(missing, ", "))
+		fmt.Fprintf(&b, "\n\nNOT CLONED: %s. An empty result says nothing about them; tell the user when an answer depends on one.", joinSourceIDs(missing))
 	}
-	if language == "" || language == "en" {
-		return out
+	if language != "" && language != "en" {
+		fmt.Fprintf(&b, "\n\nLANGUAGE: write titles and bodies in %q. Keep in English: frontmatter keys, status values, slugs, \"##\" headings, MUST, MUST NOT, SHOULD, SHOULD NOT, MAY, WHEN, WHILE, IF, THEN, WHERE.", language)
 	}
-	return out + fmt.Sprintf(`
+	b.WriteString(instructionsRules)
+	return b.String()
+}
 
-LANGUAGE REQUIREMENT:
-All document content (title, body text) MUST be written in %q. YAML frontmatter keys and status values remain in English. Slug must still be lowercase ASCII with hyphens.
-Structure tokens also remain in English, because the checks and every agent parse them: the "##" section headings of the type template, the BCP 14 keywords (MUST, MUST NOT, SHOULD, SHOULD NOT, MAY), and the EARS keywords (WHEN, WHILE, IF, THEN, WHERE). Write the rest of a graded line, including the actor, in %q without English articles. Subsections ("###") may use %q.`, language, language, language)
+// joinSourceIDs lists source ids in order until the next one would pass
+// sourceListCap, then states how many it left out.
+func joinSourceIDs(ids []string) string {
+	var b strings.Builder
+	for i, id := range ids {
+		if i > 0 && b.Len()+len(id)+2 > sourceListCap {
+			fmt.Fprintf(&b, " and %d more", len(ids)-i)
+			break
+		}
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(id)
+	}
+	return b.String()
 }
 
 // ServerOption customizes optional server capabilities.

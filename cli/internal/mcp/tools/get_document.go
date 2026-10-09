@@ -17,7 +17,7 @@ func NewGetDocumentTool() mcp.Tool {
 	return mcp.NewTool("get_document",
 		mcp.WithDescription(`Read the full content of a single .archcore/ document by its file path.
 
-Call this tool AFTER list_documents has returned a valid path. Do not guess or construct paths — only use paths returned by list_documents.
+Pass a path an Archcore tool or hook returned — list_documents, search_documents, the session-start context, or the pre-edit hint. Do not construct one.
 
 Returns: the document's YAML frontmatter (title, type, status), its full Markdown body, and any outgoing_relations and incoming_relations from the knowledge graph.
 
@@ -26,7 +26,7 @@ Use this tool when you need to:
 - Verify what a document says before creating a related one
 - Retrieve a document to summarize or reference in a response`),
 		mcp.WithString("path",
-			mcp.Description(`Relative path to the document from the project root. Must be obtained from list_documents — do not construct this manually. Example: ".archcore/knowledge/use-postgres.adr.md"`),
+			mcp.Description(`Relative path to the document from the project root. Use a path an Archcore tool or hook returned — list_documents, search_documents, the session-start context, or the pre-edit hint. Do not construct one. Example: ".archcore/knowledge/use-postgres.adr.md"`),
 			mcp.Required(),
 		),
 		mcp.WithTitleAnnotation("Get Document"),

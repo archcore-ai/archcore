@@ -94,6 +94,7 @@ Exposed over MCP using `github.com/mark3labs/mcp-go`. Registered from `NewServer
 | Name          | Type     | Required    | Description                                                                                                                                   |
 | ------------- | -------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `path_ref`    | string   | conditional | Path reference to match in document bodies. Leading `@` is stripped during comparison.                                                        |
+| `for_path`    | string   | conditional | One repository file. Returns the file-context result for that file: the ranked documents that constrain an edit to it, then the general rules. Row order, row caps, and the `reason` values follow the file context resolution spec. |
 | `content`     | string   | conditional | Case-insensitive word search against `title + slug + body`. Split on whitespace; the `match` parameter decides how many words must occur. Separators fold under `all` and `any` (§6.1). No stemming, no fuzzy matching. |
 | `match`       | string   | no          | How content words must match. Enum: `all` (default; every word occurs somewhere in the document, any order, any distance), `any` (at least one word occurs), `exact` (the whole content string as one literal substring — the pre-2026-08 behavior). Any other value maps to `all`. |
 | `source`      | string   | no          | Scope: `local` (the primary's own documents), `global` (every mounted global source), `__global__` (undeclared reserved-tree content), or a declared global source id. Empty admits every source. Any other value is rejected (§1.9). |
@@ -104,7 +105,7 @@ Exposed over MCP using `github.com/mark3labs/mcp-go`. Registered from `NewServer
 | `mode`        | string   | no          | Output detail. Enum: `snippets` (default), `full`. `snippets` returns only excerpt windows around matches. `full` additionally returns each matched document's body inline (frontmatter stripped); a body the byte budget cannot hold arrives shortened (§12.4). Any value other than `full` maps to `snippets`. |
 | `limit`       | number   | no          | Maximum number of results. Mode-dependent: `snippets` = default 50 / max 200; `full` = default 3 / max 20. Values above the cap are clamped; `0` or omitted maps to the mode default. The byte budget can return fewer rows than `limit` (§8.6). |
 
-At least one of `path_ref`, `content`, `types`, or `status` MUST be provided.
+At least one of `path_ref`, `content`, `types`, `status`, or `for_path` MUST be provided.
 
 ### Outputs
 
@@ -116,6 +117,7 @@ A JSON object whose keys serialize in this order: `{"coverage": {...}, "hits": {
 - `index` lists `path`, `title`, and `source_id` of the admitted rows, in §7 order, inside its own byte ceiling (§8.10).
 - `near_misses` lists up to 3 documents that pass the filters and hold at least half of the distinct query words, each naming the words it lacks (§13). Present only under §13.1.
 - `results` is the array of `searchResult` objects (fields below).
+- `omitted` is present only under `for_path` when a cap cut rows: `matched` and `general` count the cut rows; `more_matched` and `more_general` name the call that returns them. The matched remainder points to `path_ref`, because `for_path` stays capped.
 
 (Behavior change 2026-08: the response was previously a bare array. Behavior change 2026-09: `hits`, `truncated`, and `index` were added and the key order was fixed; `near_misses` followed; see Compatibility.)
 
@@ -134,6 +136,7 @@ Each `searchResult` object has the following fields:
 | `global`             | boolean          | omit if false           | `true` for mounted global sources.                              |
 | `read_only`          | boolean          | omit if false           | `true` for mounted global sources.                              |
 | `matches`            | Match[]          | always                  | Evidence array. Always present; empty for pure metadata queries. |
+| `reason`             | string           | omit unless `for_path`  | Enum: `file`, `kind`, `directory`, `general`. Why the row applies to the file. Under `for_path` the relation arrays are empty. |
 | `matches_total`      | integer          | omit unless capped      | Count of all match hits of the row, present only when §5.7 or §6.6 cut the `matches` array. |
 | `body`               | string           | omit unless `mode=full` | Document body with frontmatter stripped. Populated only in `full` mode; omitted (never empty string) in `snippets` mode. The byte budget can shorten it (§12.4). |
 | `body_truncated`     | boolean          | omit if false           | `true` when `body` is a shortened prefix of the document body. |
@@ -160,7 +163,7 @@ Each `searchResult` object has the following fields:
 
 ### §1 Filter and parameter validation
 
-1. The handler MUST reject calls where all of `path_ref`, `content`, `types`, and `status` are empty or absent, returning the MCP error `specify at least one filter (path_ref, content, types, or status)`.
+1. The handler MUST reject calls where all of `path_ref`, `content`, `types`, `status`, and `for_path` are empty or absent, returning the MCP error `specify at least one filter (path_ref, content, types, status, or for_path)`.
 2. The handler MUST reject `limit < 0` with the error `limit must be non-negative`.
 3. The handler MUST treat `limit == 0` as equivalent to omitted — both produce the mode default (snippets: 50, full: 3).
 4. The handler MUST clamp `limit` above the mode cap (snippets: 200, full: 20) to that cap without emitting an error.
@@ -170,6 +173,10 @@ Each `searchResult` object has the following fields:
 8. The handler MUST resolve `source` as: empty admits every document; `local` admits `source_kind == "local"`; `global` admits `source_kind == "global"`; `__global__` admits reserved-tree content; a declared global source id admits its documents.
 9. WHEN `source` carries any other value, the handler MUST reject the call with `invalid source "<value>" (valid: "local", "global", or a declared global source id)`. The declared-id check reads `config.ReadGlobals` — an advisory, fail-open read on a read path.
 10. WHEN `match` is `all` or `any` and the `content` filter tokenizes to zero words, the handler MUST reject the call with `content must contain at least one word`. `exact` keeps substring semantics for any non-empty `content`.
+11. WHEN `for_path` and `path_ref` are both set, the handler MUST reject the call with `for_path cannot be combined with path_ref or content`.
+12. WHEN `for_path` and `content` are both set, the handler MUST reject the call with the error of §1.11.
+13. WHEN `for_path` is set, the handler MUST order and cap `results` as the file context resolution spec defines, not by §7 and §8.1.
+14. WHEN `for_path` is set, the handler MUST apply `source`, `types`, and `status` as filters on the file-context rows.
 
 ### §2 Document loading
 

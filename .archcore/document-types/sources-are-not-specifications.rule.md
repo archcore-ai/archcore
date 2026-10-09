@@ -21,7 +21,7 @@ The conceptual model lives in one place — the global source — so the CLI rep
 
 ## Enforcement (CLI)
 
-- MCP server instructions in `@cli/internal/mcp/server.go` include the REQUIREMENTS LAYERS block with cross-layer disambiguation (`brs` vs `brd`, `strs` vs `urd`).
+- The `add_relation` tool description in `@cli/internal/mcp/tools/add_relation.go` carries the requirements-layer conventions. The MCP server instructions hold no REQUIREMENTS LAYERS block since they were cut to 2 048 characters (2026-10-09).
 - `create_document` in `@cli/internal/mcp/tools/create_document.go` enforces the section requirements that differ between source types and specification types.
 - Templates in `@cli/templates/templates.go` are structurally distinct: sources carry discovery sections (TAM/SAM/SOM, Personas, ROI); specifications carry ISO sections (Mission, ConOps, Verification).
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"archcore-cli/internal/advisory"
+	"archcore-cli/internal/agents"
 	"archcore-cli/internal/docs"
 	"archcore-cli/internal/git"
 	"archcore-cli/internal/stamp"
@@ -67,6 +68,7 @@ func buildSessionContext(ctx context.Context, baseDir string) (string, sessionDo
 
 	var b strings.Builder
 	b.WriteString("[Archcore — Git-native context for AI coding agents]\n")
+	b.WriteString(agents.ContextAddress + "\n")
 	b.WriteString("You have MCP tools available: list_documents, get_document, search_documents, create_document, update_document, remove_document, add_relation, remove_relation, list_relations.\n")
 	if iErr != nil {
 		// Fail closed to a warning: no GLOBALS block renders on an unverifiable
@@ -120,8 +122,6 @@ func buildSessionContext(ctx context.Context, baseDir string) (string, sessionDo
 		fmt.Fprintf(&b, "\nDOCUMENT RELATIONS: %d relation(s) stored.\n", len(m.Relations))
 		b.WriteString("  Use list_relations, add_relation, remove_relation MCP tools to manage.\n")
 	}
-
-	b.WriteString("\nRefer to MCP server instructions for document types, workflow rules, and usage guidance.\n")
 
 	// The local count is every local document, including rejected ones: it
 	// feeds the "N docs" banner, which reports what the project holds, not what
