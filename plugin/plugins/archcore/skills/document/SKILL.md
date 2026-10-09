@@ -31,7 +31,8 @@ Load `skills/_shared/gate-contract.md` and `skills/_shared/elicitation-contract.
 A document type name is not a mode. When the subject text names a type (`skills/_shared/gate-contract.md`,
 Entry terms) that the mode's track produces, the selecting gate treats that type as settled and asks no
 type question: `document decision rfc for gRPC` reaches the RFC branch. A leading
-word that is not a mode is topic text and goes through classification (Step 3).
+word that is neither a mode nor a type slug is topic text and goes through
+classification (Step 3); a leading type slug takes the Named type path.
 No mode produces a `journey`; a `journey` comes from `/archcore:plan` or from the
 named-type path below.
 
@@ -44,8 +45,8 @@ A slug elsewhere in plain topic text names no type here; inside a mode's track
 the gate contract's naming rule still applies. When two slugs qualify, the
 first one wins.
 
-1. IF a document track produces the named type, THEN enter that track with the type settled: `adr`, `rfc`, `rule` → decision; `spec`, `doc`, `guide`, `scenario` → describe; `research`, `rnd`, `evidence` → research.
-2. IF no document track produces it — `journey`, `prd`, `idea`, `plan`, `cpat`, `task-type`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs` — THEN compose it directly per the steps below.
+1. IF a document track produces the named type as its own product, THEN enter that track with the type settled: `adr`, `rfc` → decision; `spec`, `doc`, `guide`, `scenario` → describe; `research`, `rnd`, `evidence` → research.
+2. IF no document track produces it as its own product — `rule`, `journey`, `prd`, `idea`, `plan`, `cpat`, `task-type`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs` — THEN compose it directly per the steps below. A `rule` comes from the decision track only as a cascade member behind an `adr`; a named `rule` needs neither.
 3. Apply the compatibility file for the type before the first MCP call that names it.
 4. Search `.archcore/` for a local document of that type on the topic; when one exists, offer to update it instead.
 5. Load `skills/_shared/<type>-contract.md` when that file exists, and `skills/_shared/precision-rules.md`.
@@ -55,8 +56,8 @@ first one wins.
 9. WHEN the type's routing condition fails, report it in one result line naming the better-fitting type; ask no question.
 
 Examples of a failed routing condition: a `journey` where a covering `spec`
-exists (`scenario` fits), or a `plan` composed without route computation (it
-carries no Declared Delta).
+exists (`scenario` fits), a `plan` composed without route computation (it
+carries no Declared Delta), or a `rule` with no `adr` recording its reason.
 
 ## When to use
 

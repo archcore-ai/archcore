@@ -33,7 +33,7 @@ Anchors: @plugin/plugins/archcore/skills/document/SKILL.md, @plugin/plugins/arch
 
 Extensions:
 
-- 2a. Expert types `rfc for gRPC` with no mode; the skill reads the words as a topic and classifies them.
+- 2a. Expert types `rfc for gRPC` with no mode; the leading slug takes the named-type path to an RFC.
 - 3a. Expert types `--drift`; the skill reads the flag as a topic, and the release notes name the new form.
 
 ### Newcomer
@@ -70,7 +70,7 @@ Then Newcomer sees one evidence draft and no research draft.
 
 ### Describing an intended path without naming a journey
 
-Illustrates: clause 21.
+Illustrates: clause 26.
 Given no journey on onboarding exists.
 When Newcomer types `/archcore:document code the onboarding path of a trial user`.
 Then Newcomer sees no journey draft and a pointer to `/archcore:plan`.
@@ -91,7 +91,7 @@ Illustrates: clauses 13, 16, 21, 25, 26, 30, 34.
 | `document decision we chose Postgres` | decision track, classify | adr by default |
 | `document code the payment module` | describe track, read | spec, doc, guide, or scenario |
 | `document research <report>` | research track, frame | research or rnd by closing test |
-| `document adr we chose Postgres` | topic text, classification | `adr` is not a mode |
+| `document adr we chose Postgres` | named type, decision track | `adr` is not a mode; a leading slug is a named type |
 | `plan research compare queues` | research track, frame | rnd: a candidate set |
 | `plan capability csv export` | topic text, route computed | route names are not modes |
 | `review drift` | actualize track | former `--drift` |

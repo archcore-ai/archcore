@@ -32,3 +32,4 @@
 25	code cpat for typed errors in handlers	the branch replaced string errors with typed errors in 6 handlers	named	cpat
 # Row 26 names a slug only inside topic text: no named type.
 26	code the rule engine module	no document covers the rule engine	code	none
+27	rule: API keys expire after 90 days	no adr or rule on API keys	named	rule
