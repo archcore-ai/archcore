@@ -74,10 +74,6 @@ $(cat "$diff_out")"
   assert_track_golden actualize
 }
 
-@test "experience track gate records match golden" {
-  assert_track_golden experience
-}
-
 @test "research track gate records match golden" {
   assert_track_golden research
 }

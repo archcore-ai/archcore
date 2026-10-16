@@ -72,7 +72,7 @@ record shape, state rules, and execution rules:
   `closeout.capture` take one batched preview question for the whole set,
   counted against the ceiling (`skills/_shared/durable-context-selection.md`).
 - Spend the remaining ceiling on `closeout.discharge` removal
-  confirmations before the capture preview and the experience offer.
+  confirmations before the capture preview.
   IF the ceiling leaves no question for a removal confirmation, THEN retain
   that plan and name the question ceiling as the reason.
 
@@ -203,7 +203,7 @@ not apply on this track.
     `skills/_shared/coverage-taxonomy.md`.
   - budget: 1
 - Produces:
-  - type: `spec`, `doc`, `guide`, or `scenario` through `skills/_shared/tracks/describe.md`; `adr` and its standard cascade through `skills/_shared/tracks/decision.md`; `cpat`, `task-type`, or `guide` per `skills/_shared/tracks/experience.md`; each per the Write routing of `skills/_shared/durable-context-selection.md`
+  - type: `spec`, `doc`, `guide`, or `scenario` through `skills/_shared/tracks/describe.md`; `adr` and its standard cascade through `skills/_shared/tracks/decision.md`; `cpat`, `task-type`, or `guide` per the Write routing of `skills/_shared/durable-context-selection.md`
   - status: draft
   - relations: per the Produces field of the instrument that ran.
 - Exit checks:
@@ -256,7 +256,7 @@ not apply on this track.
   - blocking: no removal was offered for a plan with a task or criterion
     other than fulfilled.
 - Next: exit — after all matched plans finish closeout, the `review` skill
-  runs the repeated-pattern offer once per `skills/_shared/tracks/experience.md`.
+  reports the capture line once.
 
 ## Discharge report
 

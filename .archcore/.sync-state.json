@@ -5447,6 +5447,21 @@
       "source": "plugin/track-layer.spec.md",
       "target": "plugin/open-choice-offers-four-exits.adr.md",
       "type": "implements"
+    },
+    {
+      "source": "plugin/experience-capture-through-durable-context-selection.adr.md",
+      "target": "plugin/durable-context-selection-by-reader-task.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/command-surface-v2.spec.md",
+      "target": "plugin/review-default-branch-scope.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/review-durable-context-selection.spec.md",
+      "target": "plugin/experience-capture-through-durable-context-selection.adr.md",
+      "type": "implements"
     }
   ]
 }

@@ -23,7 +23,7 @@ gate: closeout.capture
 skip_when: the branch scope matches no plan document
 budget: 1
 taxonomy: Completion Signals, Constraints & Tradeoffs
-produces: spec, doc, guide, or scenario through skills/_shared/tracks/describe.md; adr and its standard cascade through skills/_shared/tracks/decision.md; cpat, task-type, or guide per skills/_shared/tracks/experience.md; each per the Write routing of skills/_shared/durable-context-selection.md draft
+produces: spec, doc, guide, or scenario through skills/_shared/tracks/describe.md; adr and its standard cascade through skills/_shared/tracks/decision.md; cpat, task-type, or guide per the Write routing of skills/_shared/durable-context-selection.md draft
 next: closeout.discharge
 
 gate: closeout.discharge

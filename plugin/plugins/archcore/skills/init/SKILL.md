@@ -143,7 +143,7 @@ Print the line in every run, including the run that finds nothing. WHEN the gate
 
 Seed runs close per `lib/seed-compose.md` "Closing message"; host-wiring outcome lines per `lib/host-wiring.md`. Import runs close with: documents created by type, the conflicts list, fidelity departures, rows still open with `/archcore:init import` as the continuation, and — after the last row — the retire offer and the removal of the import plan. Always end with:
 
-> Use `/archcore:review` for the dashboard, `/archcore:review audit the knowledge base` for a health audit.
+> Use `/archcore:review` on a branch with changes, `/archcore:review audit the knowledge base` for a health audit.
 
 ## Result
 

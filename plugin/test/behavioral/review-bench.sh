@@ -10,7 +10,7 @@ set -eu
 REPO_ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 FIXTURES=${REVIEW_BENCH_FIXTURES:-$REPO_ROOT/test/behavioral/fixtures/review-bench.tsv}
 SHARED="$REPO_ROOT/plugins/archcore/skills"
-CONTRACTS="review/SKILL.md _shared/durable-context-selection.md _shared/tracks/closeout.md _shared/tracks/experience.md _shared/elicitation-contract.md _shared/verdict-contract.md"
+CONTRACTS="review/SKILL.md _shared/durable-context-selection.md _shared/tracks/closeout.md _shared/elicitation-contract.md _shared/verdict-contract.md"
 KEYS="created updated omitted questions plan"
 HOST=${REVIEW_BENCH_HOST:-claude}
 COPILOT=${REVIEW_BENCH_COPILOT:-copilot}

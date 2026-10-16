@@ -10,7 +10,7 @@ tags:
 
 ## Purpose & Scope
 
-This spec defines how `/archcore:review` selects durable project context from changed code: which claims get a document owner, what evidence each needs, and where the selection sits in the closeout sequence. Normative for the review skill (`@plugin/plugins/archcore/skills/review/SKILL.md`) and for the closeout, describe, decision, and experience instruments it calls. Consumed by developers and coding agents who read `.archcore/` before later changes.
+This spec defines how `/archcore:review` selects durable project context from changed code: which claims get a document owner, what evidence each needs, and where the selection sits in the closeout sequence. Normative for the review skill (`@plugin/plugins/archcore/skills/review/SKILL.md`) and for the closeout, describe, and decision instruments it calls; it is also the one capture procedure for the experience types `cpat` and `task-type`. Consumed by developers and coding agents who read `.archcore/` before later changes.
 
 The selection runs with or without a matching `plan`. `command-surface-v2.spec` behavior 39 routes a planless branch review through it, and `delta-routing-instruments.spec` behavior 23 admits a review-side `spec` through the describe instrument.
 
@@ -22,7 +22,7 @@ Out of scope: starting a review nobody invoked, editing source code, and a new d
 - Outputs: a selection report, one batched write preview, the drafts the user authorizes, and the plan disposition when a plan matched.
 - Documentation unit: one claim, or one related claim group, that answers a named future reader task. A changed file is not a unit.
 - Selection report: per unit — the claim, its evidence, the owning document or type, and the reader task the owner serves; plus the omitted, deferred, and declined units.
-- Position: with a plan, after `closeout.merge` and before `closeout.capture`; without a plan, after the bidirectional check and any actualize fixes, before the experience offer.
+- Position: with a plan, after `closeout.merge` and before `closeout.capture`; without a plan, after the bidirectional check and any actualize fixes; no separate experience offer follows.
 
 ## Normative Behavior
 
@@ -38,7 +38,7 @@ Out of scope: starting a review nobody invoked, editing source code, and a new d
 10. WHEN an existing document owns a selected claim, the review skill MUST propose a focused update instead of a new document.
 11. WHEN an authorized unit is a contract with no owning document, the review skill MUST produce its `spec` through the describe instrument.
 12. WHEN an authorized unit is a decision with direct evidence, the review skill MUST route it through the decision instrument.
-13. WHEN an authorized unit is a procedure or an edit shape, the review skill MUST route it by the experience instrument's actor rule.
+13. WHEN an authorized unit is a procedure or an edit shape, the review skill MUST route it by the selection's actor rule and transfer test.
 14. WHEN code and tests answer the reader task without a durable owner, the review skill MUST omit the unit and state why.
 15. WHEN one observed case changes a contract, decision, or procedure, the review skill MUST route it to that owner without a repetition prerequisite.
 16. WHEN no existing type owns a unit, the review skill MUST report the gap without forcing a `cpat` or `task-type`.
@@ -53,12 +53,13 @@ Out of scope: starting a review nobody invoked, editing source code, and a new d
 25. WHEN a matched plan stays open, the review skill MUST select units from its delivered tasks.
 26. WHEN the user declines a unit or an offer, the review skill MUST record it under `## Clarifications` of the retained plan or created draft.
 27. The review skill MUST list experience candidates in the same preview as the other units.
+28. WHEN the selection report ends, the review skill MUST print one capture line — `captured: <types>` or `captured: none — <reason>` naming the first failed test, the question ceiling, or the decline.
 
 ## Constraints & Invariants
 
 - Constraint: the visible palette and the local git boundary stay unchanged; the selection is internal to a branch review.
 - Constraint: the preview question draws from the 5-question ceiling of `@plugin/plugins/archcore/skills/_shared/elicitation-contract.md`; per-document acceptance and plan-removal confirmations keep their existing rules.
-- Constraint: the preview is the capture offer for a unit routed to the experience instrument; `experience.offer` MUST NOT ask again for an authorized unit.
+- Constraint: the preview is the only capture offer; no second offer follows the selection.
 - Constraint: an instrument invoked for an authorized unit runs in callable mode with that unit's scope pre-filled.
 - Constraint: a document the selection creates starts at `draft`; the same invocation MUST NOT offer its acceptance — the next review's accept gate does.
 - Constraint: a completed plan keeps the accepted per-plan removal confirmation; a declined unit is reported and blocks no removal.

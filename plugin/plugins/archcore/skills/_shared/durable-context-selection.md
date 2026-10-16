@@ -55,8 +55,9 @@ Zero units is a valid result. No count is a target or a limit.
 |---|---|---|
 | External interface, state, rule priority, or failure behavior | A contract condition invisible on one success path | The covering `spec`; a new independent surface gets its own `spec` |
 | A choice between named options, with directly evidenced reasons the other option lost | Why the alternative lost and when the choice expires | `adr` |
-| A repeatable operation where order matters | Prerequisites, the hazardous step, verification, recovery | `guide` for a human actor; `task-type` for an agent actor |
-| A deliberately changed code practice with an evidenced reason and a stated scope, transferring beyond this edit — no rejected alternative named | Before, after, scope, reason | `cpat`, or a `rule` when the scope binds future code; after the transfer test of `skills/_shared/tracks/experience.md` |
+| A repeatable operation where order matters | Prerequisites, the hazardous step, verification, recovery | `guide` for a human actor; `task-type` for an agent actor — the actor decides the type |
+| The same edit shape in two or more files of the diff, with evidence of its reason | The reusable condition, the edit, and where it does not apply | `cpat`; after the transfer test below |
+| A deliberately changed code practice with an evidenced reason and a stated scope, transferring beyond this edit — no rejected alternative named | Before, after, scope, reason | `cpat`, or a `rule` when the scope binds future code; after the transfer test below |
 | An observable user flow with confirmed examples | Branches and the result for the actor | `scenario` beside the covering `spec` |
 | A registry or reference data looked up on its own | Where the list lives and how to read it | `doc`, when an `@path` alone does not answer the task |
 | One unexpected failure or limit | The condition under which the old picture was wrong | The owning Failure Behavior clause, `adr` consequence, or procedure Pitfalls |
@@ -92,7 +93,23 @@ that `spec`, even when a test covers the new behavior: the consumer reads the
 - IF a new flow has no run report and no user confirmation, THEN label its examples unconfirmed.
 - IF evidence conflicts with an accepted document, THEN report the conflict with its `skills/_shared/verdict-contract.md` label; do not treat the code as canon.
 - IF no existing type owns a unit, THEN report the ownership gap; do not force a `cpat` or a `task-type`.
-- IF an experience candidate — `cpat`, `task-type`, or procedural `guide` — lacks a reusable trigger, mechanism, evidence, or limit per the transfer test of `skills/_shared/tracks/experience.md`, THEN omit it with the missing part as the reason. Two similar edits alone do not prove transfer.
+- IF an experience candidate — `cpat`, `task-type`, or procedural `guide` — lacks a reusable trigger, mechanism, evidence, or limit per the transfer test below, THEN omit it with the missing part as the reason. Two similar edits alone do not prove transfer.
+- An incident-specific failure belongs in the owning `spec`'s Failure Behavior or a procedure's Pitfalls, not in a new experience document. Prefer a focused update to an existing `cpat`, `task-type`, or `guide` that owns the lesson.
+
+## Transfer test
+
+An experience candidate — `cpat`, `task-type`, or a procedural `guide` — passes only when the evidence names four parts:
+
+1. a reusable trigger — the general condition that recurs;
+2. a mechanism — why the practice works;
+3. evidence — paths, commits, or a measurement;
+4. a limit — where the practice does not apply.
+
+Case paths and commits stay as evidence references; the body states the reusable condition, action, and boundary. A pattern missing one part is omitted with that part as the reason.
+
+## Capture wording
+
+WHEN the request asks to capture a repeated change or a practice as a pattern ("capture this repeated change as a pattern"), the review skill runs this procedure over the named scope, or the branch scope when none is named, without plan matching. The preview is the capture offer; a decline writes nothing.
 - IF code extends an accepted document without contradicting it, THEN propose the update of that owner; only a contradiction is an authority conflict per `skills/_shared/verdict-contract.md`.
 - Never select a `journey`. A discovered product goal is reported as an open question for `/archcore:plan`.
 
@@ -112,7 +129,7 @@ mode with the unit's scope and type pre-filled:
 
 - `spec`, `doc`, `guide` for a module, `scenario` → `skills/_shared/tracks/describe.md`; the pre-filled type settles `describe.draft` without its type question.
 - `adr` → `skills/_shared/tracks/decision.md` with the subject naming `adr` and the evidenced alternatives.
-- `cpat`, `task-type`, a procedural `guide` → the produced-type rules of `skills/_shared/tracks/experience.md`; the preview replaces `experience.offer` for that unit.
+- `cpat`, `task-type`, a procedural `guide` → `create_document` with the type pre-filled; the preview authorization is the offer for that unit. A `cpat` body covers What Changed, Why, Before, After, Scope; a `task-type` body covers What, When to Use, Steps, Example, Things to Watch Out For; a `guide` body carries every section `skills/_shared/guide-contract.md` requires. Each names at least one governed path or file kind with `@path` notation or a compound extension.
 - An update of an existing owner → `update_document` on that document; the preview authorization is its confirmation.
 
 A created document starts at `draft`. The same invocation does not offer its
@@ -124,4 +141,6 @@ reader task.
 
 Group the units as created, updated, omitted, deferred, and declined. Name the
 claim and reason for each omitted and declined unit, and the missing check for
-each deferred one.
+each deferred one. End with one capture line: `captured: <types>` for the
+created and updated units, or `captured: none — <reason>` naming the first
+failed test of the best candidate, the question ceiling, or the user's decline.

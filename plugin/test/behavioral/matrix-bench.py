@@ -38,7 +38,7 @@ CONTRACTS = {
     "document": ["document/SKILL.md", "_shared/gate-contract.md", "_shared/elicitation-contract.md",
                  "_shared/tracks/decision.md", "_shared/tracks/describe.md", "_shared/tracks/research.md"],
     "review": ["review/SKILL.md", "_shared/gate-contract.md", "_shared/durable-context-selection.md",
-               "_shared/tracks/closeout.md", "_shared/tracks/experience.md", "_shared/elicitation-contract.md",
+               "_shared/tracks/closeout.md", "_shared/elicitation-contract.md",
                "_shared/verdict-contract.md"],
 }
 
@@ -46,8 +46,8 @@ NO_EXPERIENCE_FIELD = bool(os.environ.get("MATRIX_BENCH_NO_EXPERIENCE_FIELD"))
 RETRY_DELAY = float(os.environ.get("MATRIX_BENCH_RETRY_DELAY") or 5)
 
 OUTPUT_SPEC = """Output EXACTLY one line and nothing else:
-matrix-verdict: entry=<resume|menu|ask|direct|health>; created=<types or none>; updated=<integer>; questions=<integer>; plan=<offer|retain|none>; reads=<integer>; anchors=<integer>; flagged=<integer>; experience=<captured|none>
-entry: how the invocation starts. resume = continue an existing draft's track; menu = ask the user to pick among two or more concrete candidates found in grounding, including several resumable drafts; ask = ask an open question about the outcome, subject, or scope before routing; direct = route and work without a scope question; health = report project health.
+matrix-verdict: entry=<resume|menu|ask|direct>; created=<types or none>; updated=<integer>; questions=<integer>; plan=<offer|retain|none>; reads=<integer>; anchors=<integer>; flagged=<integer>; experience=<captured|none>
+entry: how the invocation starts. resume = continue an existing draft's track; menu = ask the user to pick among two or more concrete candidates found in grounding, including several resumable drafts; ask = ask an open question about the outcome, subject, or scope before routing; direct = route and work without a scope question.
 created: the document types this invocation creates by its end, comma-separated in alphabetical order without spaces, a type repeated once per document, or none.
 updated: how many existing documents it updates.
 questions: how many questions it asks the user in total, confirmations included.

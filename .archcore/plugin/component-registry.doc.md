@@ -28,7 +28,7 @@ No skill carries a `disable-model-invocation` flag. Routing is governed by per-s
 | init | `skills/init/` | First-time onboarding — seed `.archcore/` with a stack rule, a run guide, the extras for the detected scale, plus host wiring (project MCP config, hooks, usage hint — the same files `archcore init` writes; see `host-wiring-parity.adr`); modes `refresh`, `domain <slug>` |
 | plan | `skills/plan/` | Plan a feature or initiative — vision-type write affinity, routing into the `sdd`, `requirements-cascade`, or `research` track per `track-layer.spec`; hint `[topic]` |
 | document | `skills/document/` | Record the present state — knowledge-type write affinity; absorbs `capture` and `decide`; hint `[subject]`; context resolution enters the `decision`, `describe`, or `research` track, and the entry gate selects the document type |
-| review | `skills/review/` | Review changes since the default branch, or project health with no diff — experience-type write affinity; absorbs `audit`; hint `[path, tag, or scope]`; context resolution routes into the `actualize`, `closeout`, or `experience` track, and findings carry `spec-wrong` / `code-wrong` / `ok` |
+| review | `skills/review/` | Review changes since the default branch, or the unpushed and uncommitted work on the default branch itself — experience-type write affinity; absorbs `audit`; hint `[free text: a path, a topic, 'close out <plan>', 'are docs stale', 'audit']`; context resolution routes into the `actualize` or `closeout` track, or the durable-context selection for capture wording, and findings carry `spec-wrong` / `code-wrong` / `ok` |
 
 `context` and `help` are removed: `context`'s pull moment moves to CLI hook injection, and `help` is absorbed into command descriptions, the init closing summary, and CLI `archcore help` — see `remove-context-command.adr` and `command-surface-v2.spec`.
 
@@ -44,7 +44,6 @@ Gated flows beneath the command surface, per `track-layer.spec`. Each is a seque
 | requirements-cascade | `skills/_shared/tracks/requirements-cascade.md` | plan | acquisition (mrd → brd → urd) \| iso links (brs → strs → syrs → srs), each engaged by a named source question or traceability obligation |
 | research | `skills/_shared/tracks/research.md` | plan | frame questions → gather evidence → conclude with recommendation (produces `rnd`) |
 | actualize | `skills/_shared/tracks/actualize.md` | review | drift detection → per-finding verdict → confirmed fixes |
-| experience | `skills/_shared/tracks/experience.md` | review | unrecorded-pattern detection — a repeated edit shape or one practice change with an evidenced reason → `cpat` \| `task-type` offer, skipped for a pattern the durable-context selection already listed or omitted |
 | closeout | `skills/_shared/tracks/closeout.md` | review | verify plan vs branch diff → confirmed canon merge → confirmed draft → accepted transitions, per `document-status-transitions.adr` → durable-context capture through one batched preview → confirmed plan removal |
 
 ### Shared runtime assets (`skills/_shared/`)
@@ -208,6 +207,6 @@ The visible `/` surface, as a non-normative illustration of the skills table abo
 - `/archcore:init` — seed an empty `.archcore/` on first install; `refresh` or `domain <slug>` to re-run
 - `/archcore:plan [topic]` — plan a feature end to end, an investigation, or a migration
 - `/archcore:document [subject]` — record a decision, describe existing code, or file a report
-- `/archcore:review [path, tag, or scope]` — branch review, health with no diff, staleness, audit, closeout, or experience
+- `/archcore:review [free text: a path, a topic, 'close out <plan>', 'are docs stale', 'audit']` — branch review, staleness, audit, closeout, or pattern capture through the durable-context selection
 
 Total visible in the `/` menu: **four commands**. Every Archcore document type is reachable through these skills or directly through `mcp__archcore__create_document(type=<any>)`. Codex CLI surfaces the same 4 entries through the `commands/*.md` wrappers, and Copilot CLI surfaces them from the skills with the wrappers loaded behind them.

@@ -52,7 +52,7 @@ compare the alternatives for Y	plan	skills/_shared/tracks/research.md:research.f
 one external material	document	skills/_shared/tracks/research.md:research.frame	2
 are docs out of date	review	skills/_shared/tracks/actualize.md:actualize.scope	1
 audit the knowledge base	review	skills/_shared/tracks/actualize.md:actualize.scope	1
-capture this pattern	review	skills/_shared/tracks/experience.md:experience.detect	0
+capture this pattern	review	-	-
 init refresh	init	-	-
 init import	init	-	-
 migrate our CLAUDE.md	init	-	-
