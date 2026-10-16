@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "cwd": ".",
+        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/session-start\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/session-start\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/session-start\" ] && exec \"$PLUGIN_ROOT/bin/session-start\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/session-start\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/session-start\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/session-start\" >&2; exit 0",
+        "env": {
+          "ARCHCORE_HOST": "copilot"
+        }
+      }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "matcher": "create|edit|str_replace_editor|apply_patch",
+        "cwd": ".",
+        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/pre-tool-use\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/pre-tool-use\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/pre-tool-use\" ] && exec \"$PLUGIN_ROOT/bin/pre-tool-use\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/pre-tool-use\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/pre-tool-use\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/pre-tool-use\" >&2; exit 0",
+        "env": {
+          "ARCHCORE_HOST": "copilot"
+        },
+        "timeoutSec": 2
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "cwd": ".",
+        "bash": "[ -n \"$COPILOT_PLUGIN_ROOT\" ] && [ -x \"$COPILOT_PLUGIN_ROOT/bin/post-tool-use\" ] && exec \"$COPILOT_PLUGIN_ROOT/bin/post-tool-use\"; [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/post-tool-use\" ] && exec \"$PLUGIN_ROOT/bin/post-tool-use\"; [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/post-tool-use\" ] && exec \"$CLAUDE_PLUGIN_ROOT/bin/post-tool-use\"; echo \"archcore: plugin root unresolved (COPILOT_PLUGIN_ROOT/PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT unset or wrong); skipped bin/post-tool-use\" >&2; exit 0",
+        "env": {
+          "ARCHCORE_HOST": "copilot"
+        },
+        "timeoutSec": 4
+      }
+    ]
+  }
+}
