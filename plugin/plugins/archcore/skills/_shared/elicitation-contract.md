@@ -3,7 +3,7 @@
 Plugin runtime asset. Loaded by every command skill (`init`, `plan`, `document`,
 `review`) before any gate that may question the user. Normative for every command
 and every track gate (`sdd`, `requirements-cascade`, `decision`, `describe`,
-`actualize`, `experience`). This contract defines when to ask, how many questions,
+`actualize`). This contract defines when to ask, how many questions,
 in what form, and where answers persist. It does not define which questions a gate
 asks — see Ownership.
 

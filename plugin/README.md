@@ -27,7 +27,7 @@ The plugin needs the Archcore CLI on `PATH` (`archcore --version`). The hook lau
 | `/archcore:init` | `[import\|refresh] [path or domain]` | First-day seed, host wiring, conversion of instruction files and ADR folders |
 | `/archcore:plan` | `[topic]` | The documents a later reader needs: none for a small fix, a plan, specs, a PRD, research, or requirement levels an obligation names |
 | `/archcore:document` | `[subject]` | ADR or RFC, description of code, a procedure, a report or one external material as evidence |
-| `/archcore:review` | `[path, tag, or scope]` | Branch review, staleness, full audit, feature closeout, durable-context and experience capture |
+| `/archcore:review` | `[free text: a path, a topic, 'close out the feature', 'are docs stale', 'audit the docs']` | Branch review, staleness, full audit, feature closeout, durable-context capture |
 
 `plan`, `document`, and `review` take free text; no first word is a mode. Each one reads the request, open drafts, accepted documents, the branch, and the code before it selects a track. A gate picks the document type unless the subject names it with a leading type slug. Every gate skips itself when an existing document covers it; an invocation asks at most five questions; a draft document carries the track state, so an interrupted flow resumes later.
 

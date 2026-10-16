@@ -29,7 +29,9 @@ tags:
 17. The `plan` skill MUST hold its per-flow logic in `skills/plan/references/<flow>.md`.
 18. WHEN a new flow is added to the `plan` skill, the author MUST add a reference file instead of a top-level skill.
 19. The `argument-hint` of `plan`, `document`, and `review` MUST hold one optional free-text placeholder in brackets.
-20. An `argument-hint` MUST NOT list a document type name, a route name, or a retired mode word.
+20. An `argument-hint` MUST NOT list a document type slug or a retired mode word.
+20a. An `argument-hint` MAY show example phrases of the free text, each a plain-language request such as `'close out the feature'`.
+20b. An example phrase in an `argument-hint` MUST NOT be a bare route name or a bare track name.
 21. An `argument-hint` flag MUST name a setting, never an entry.
 
 ## Rationale

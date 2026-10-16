@@ -1,6 +1,6 @@
 ---
 title: "The Experience Track Is Absorbed into the Durable-Context Selection, Which Captures Every Type"
-status: draft
+status: accepted
 tags:
   - "component:plugin"
   - "document-types"

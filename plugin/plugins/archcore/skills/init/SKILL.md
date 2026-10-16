@@ -111,7 +111,7 @@ Call `mcp__archcore__list_documents()` once. **Derive every flag below from loca
 
 **Already-seeded early-exit.** If `has_stack_rule` AND `has_run_guide` AND `has_overview` are all true AND the first word is neither `refresh` nor `import`, reply:
 
-> Init already seeded this repo. Applicable context auto-injects on file edits via the code-alignment hook; use `/archcore:review` for the dashboard. To add facts that appeared since (a new schema, config, or modules), re-run `/archcore:init refresh`; to drill into one domain, `/archcore:init refresh <domain>`; to convert the repo's authored docs and agent instructions, `/archcore:init import`. (Seeded before host wiring existed, or missing the host configs? `refresh` also adds host wiring — MCP config, SessionStart hook, usage hint.)
+> Init already seeded this repo. Applicable context auto-injects on file edits via the code-alignment hook; use `/archcore:review` on a branch with changes. To add facts that appeared since (a new schema, config, or modules), re-run `/archcore:init refresh`; to drill into one domain, `/archcore:init refresh <domain>`; to convert the repo's authored docs and agent instructions, `/archcore:init import`. (Seeded before host wiring existed, or missing the host configs? `refresh` also adds host wiring — MCP config, SessionStart hook, usage hint.)
 
 Then stop. On a `refresh` run, skip this early-exit — every already-present artifact is marked **skip (exists)** in the preview and only missing ones are composed. Resolve a `refresh` subject here: an existing path → path scope; else a detected domain slug → single-domain pass; else ask one question that lists the detected domains.
 

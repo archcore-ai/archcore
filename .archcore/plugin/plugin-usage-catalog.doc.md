@@ -75,19 +75,19 @@ All produced documents start at `draft`. Only `closeout.accept` and `decision.re
 | Unclear what to record | `/archcore:document` (no arguments) | resumes a matching draft, or git investigation, then one classifying question |
 | Any document type named explicitly, for example an intended path with no `prd` | `/archcore:document journey for <path>` | that type under its contract; a poorly fitting type gets one report line, no question |
 
-`/archcore:review [free text: a path, a topic, 'close out <plan>', 'are docs stale', 'audit']`
+`/archcore:review [free text: a path, a topic, 'close out the feature', 'are docs stale', 'audit the docs']`
 
 | Situation | Entry | Result |
 |---|---|---|
-| Branch ready for merge, a plan matches | `/archcore:review` | bidirectional check, closeout per plan, durable-context capture, plan removal on confirmation, experience offer |
+| Branch ready for merge, a plan matches | `/archcore:review` | bidirectional check, closeout per plan, durable-context capture, plan removal on confirmation, one `captured:` line |
 | Branch ready for merge, a plan partly delivered | `/archcore:review` | the delivered units are captured; the plan stays with its remaining work named; no removal offer |
-| Branch ready for merge, no plan | `/archcore:review` | bidirectional check, durable-context selection with one preview, experience offer |
+| Branch ready for merge, no plan | `/archcore:review` | bidirectional check, durable-context selection with one preview, one `captured:` line |
 | On the default branch with unpushed or uncommitted work | `/archcore:review` | the same branch review over the commits the upstream lacks plus the uncommitted changes |
 | Empty diff | `/archcore:review` | one question for a path, topic, or ref |
 | Docs may be stale | `/archcore:review are the docs stale` | actualize verdicts and confirmed fixes |
 | Full corpus audit | `/archcore:review audit the whole knowledge base` | staleness plus claim sampling, cross-document conflicts, type fitness, relation candidates, coverage gaps |
-| Close a finished feature explicitly | `/archcore:review close out <plan>` | closeout track; asks for a scope on the default branch |
-| A repeated change or a reasoned practice change | `/archcore:review capture the pattern in <scope>` | `cpat` or `task-type` offer; `guide` for a human actor |
+| Close a finished feature explicitly | `/archcore:review close out <plan>` | closeout track; asks for a scope on an empty diff |
+| A repeated change or a reasoned practice change | `/archcore:review capture the pattern in <scope>` | durable-context selection over the scope, no plan matching; `cpat`, `task-type`, or `guide` for a human actor in the preview |
 | A retired mode word leads the request | `/archcore:review drift` | no notice; the word is read as wording |
 
 ### C. Behavior with no command

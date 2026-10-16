@@ -78,7 +78,7 @@ carries no Declared Delta), or a `rule` with no `adr` recording its reason.
 **Not document:**
 
 - Planning a feature, an initiative, or an intended user journey the request does not name as a `journey` → `/archcore:plan`
-- Checking documents against code, reviewing branch changes, or docs health → `/archcore:review`
+- Checking documents against code, reviewing branch changes, or a documentation audit → `/archcore:review`
 - First-time setup → `/archcore:init`
 
 ## Routing table

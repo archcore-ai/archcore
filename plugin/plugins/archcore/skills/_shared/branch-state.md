@@ -40,9 +40,7 @@ the procedure and apply the caller response from the sentinel table.
 4. If the current branch equals `<name>`, select `<default-ref>` as the
    upstream of the branch: if `git rev-parse --verify --quiet @{upstream}`
    succeeds, set `<default-ref>` to `@{upstream}`; otherwise set
-   `<default-ref>` to `HEAD`. Work on the default branch is reviewed against
-   what the remote already holds, or, without an upstream, as the uncommitted
-   changes alone.
+   `<default-ref>` to `HEAD`.
 5. If the current branch differs from `<name>`, select `<default-ref>`: if
    `git rev-parse --verify --quiet origin/<name>` succeeds, set
    `<default-ref>` to `origin/<name>`; otherwise set `<default-ref>` to

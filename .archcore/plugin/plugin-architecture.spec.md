@@ -60,11 +60,11 @@ The plugin exposes four auto-invocable commands (`init`, `plan`, `document`, `re
 | `init` | Seed `.archcore/` on first install | Auto + user |
 | `plan` | Plan a feature or initiative; route into a track | Auto + user |
 | `document` | Record decisions and document modules/components (absorbs `capture`, `decide`) | Auto + user |
-| `review` | Documentation health, drift, and status (absorbs `audit`; `context` and `help` removed) | Auto + user |
+| `review` | Branch review against the canon, drift, closeout, and durable-context capture (absorbs `audit`; `context` and `help` removed) | Auto + user |
 
 | Component | Count | Layer | Files |
 |---|---|---|---|
-| Track files | 8 | shared, loaded by `plan`, `document`, `review` | `skills/_shared/tracks/{sdd,requirements-cascade,research,decision,describe,actualize,experience,closeout}.md` |
+| Track files | 7 | shared, loaded by `plan`, `document`, `review` | `skills/_shared/tracks/{sdd,requirements-cascade,research,decision,describe,actualize,closeout}.md` |
 | Shared content contracts | 5 | shared | `skills/_shared/{precision-rules,adr-contract,prd-contract,spec-contract,rule-contract}.md` |
 | Other shared assets | 7 | shared | `skills/_shared/{elicitation-contract,gate-contract,branch-state,coverage-taxonomy,globals,durable-context-selection}.md` + `skills/_shared/grounding/` (13 catalogs) |
 | Agents | 2 | cross-cutting | `agents/archcore-{assistant,auditor}.{md,toml}` + `copilot-agents/archcore-{assistant,auditor}.agent.md` |
@@ -107,7 +107,7 @@ Four properties of this matrix are load-bearing. Where a host offers no matcher,
 | "Establish a standard" | `/archcore:document` (decision track, ADR + rule + guide cascade) |
 | "Document this module" | `/archcore:document` (describe track) |
 | "Investigate X before we plan" | `/archcore:plan` (research track, produces `research`, or `rnd` when the wording asks to choose) |
-| "Show docs dashboard / counts" | `/archcore:review` (skill, default short mode) |
+| "Show docs counts" | `archcore status` in the CLI (no skill) |
 | "Audit docs health" | `/archcore:review` (actualize track, all documents) |
 | "Are any docs stale?" | `/archcore:review` (actualize track) |
 | "Close out the feature" | `/archcore:review` (closeout track) |

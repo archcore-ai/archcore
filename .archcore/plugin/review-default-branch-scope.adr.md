@@ -1,6 +1,6 @@
 ---
 title: "Review on the Default Branch Scopes to Unpushed and Uncommitted Work, and the Health Dashboard Is Removed"
-status: draft
+status: accepted
 tags:
   - "commands"
   - "component:plugin"
@@ -33,6 +33,7 @@ Negative:
 
 - A default-branch review without an upstream sees only uncommitted changes; local commits on a branch with no remote stay out of scope. [expected]
 - Health counts are no longer available from the plugin; users who want them run `archcore status`.
+- The review argument hint shows example phrases of the free text; `skill-file-structure.rule` item 20 was amended on 2026-10-17 to allow plain-language examples while still forbidding type slugs, bare route names, and retired mode words.
 
 ## Superseded when
 

@@ -26,7 +26,7 @@ hint_of() {
 init|"[import|refresh] [path or domain]"
 plan|"[topic]"
 document|"[subject]"
-review|"[free text: a path, a topic, 'close out <plan>', 'are docs stale', 'audit']"
+review|"[free text: a path, a topic, 'close out the feature', 'are docs stale', 'audit the docs']"
 HINTS
 }
 
@@ -49,9 +49,12 @@ HINTS
   done
 }
 
-@test "the init hint is byte-identical in the skill and the command wrapper" {
-  [ "$(hint_of "$PLUGIN_ROOT/skills/init/SKILL.md")" = "$(hint_of "$PLUGIN_ROOT/commands/init.md")" ] \
-    || fail "init argument-hint differs between skills/init/SKILL.md and commands/init.md"
+@test "every hint is byte-identical in the skill and the command wrapper" {
+  local skill
+  for skill in init plan document review; do
+    [ "$(hint_of "$PLUGIN_ROOT/skills/$skill/SKILL.md")" = "$(hint_of "$PLUGIN_ROOT/commands/$skill.md")" ] \
+      || fail "$skill argument-hint differs between skills/$skill/SKILL.md and commands/$skill.md"
+  done
 }
 
 @test "no shipped skill or command text uses a retired entry form" {
