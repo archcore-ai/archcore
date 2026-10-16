@@ -1,6 +1,6 @@
 ---
 title: "Command Entry Grammar — Mode Word First, Types Chosen at Gates"
-status: accepted
+status: rejected
 tags:
   - "architecture"
   - "commands"

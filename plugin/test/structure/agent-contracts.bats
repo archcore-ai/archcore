@@ -94,20 +94,16 @@ md_body() {
     || { fail "evidence provenance placeholders can be flagged as defects"; return 1; }
 }
 
-@test "route names are topic text on plan; research is a mode on plan and document; no hint lists evidence" {
+@test "hints are free text; a leading type slug is a type request; no hint lists rnd or evidence" {
   local file hint
-  grep -Fq 'A route name or a document type name as the first word is topic text' "$PLUGIN_ROOT/skills/plan/SKILL.md" \
-    || { fail "plan/SKILL.md still accepts a route name as an entry"; return 1; }
-  for file in "$PLUGIN_ROOT/skills/plan/SKILL.md" "$PLUGIN_ROOT/commands/plan.md"; do
+  grep -Fq '| The first word is a type slug | The explicit type request per `explicit-type-request-wins.adr`; a leading `research` requests the type `research` |' "$PLUGIN_ROOT/skills/plan/SKILL.md" \
+    || { fail "plan/SKILL.md does not read a leading type slug as a type request"; return 1; }
+  for file in "$PLUGIN_ROOT/skills/plan/SKILL.md" "$PLUGIN_ROOT/commands/plan.md" "$PLUGIN_ROOT/commands/document.md"; do
     hint=$(sed -n '/^argument-hint:/p' "$file")
-    [[ "$hint" == *research* ]] || { fail "$file hides research in its hint"; return 1; }
-    [[ "$hint" != *rnd* ]] || { fail "$file advertises rnd as a plan entry"; return 1; }
-    [[ "$hint" != *evidence* ]] || { fail "$file advertises evidence as a plan entry"; return 1; }
+    [[ "$hint" != *rnd* ]] || { fail "$file advertises rnd as an entry"; return 1; }
+    [[ "$hint" != *evidence* ]] || { fail "$file advertises evidence as an entry"; return 1; }
+    [[ "$hint" != *'|'* ]] || { fail "$file hint still lists modes"; return 1; }
   done
-  hint=$(sed -n '/^argument-hint:/p' "$PLUGIN_ROOT/commands/document.md")
-  [[ "$hint" == *research* ]] || { fail "document hides the research mode in its hint"; return 1; }
-  [[ "$hint" != *evidence* ]] || { fail "document advertises evidence as a mode"; return 1; }
-  [[ "$hint" != *'|rnd|'* ]] || { fail "document advertises an unsupported rnd expert entry"; return 1; }
   if grep -Fq '/archcore:plan --track' "$PLUGIN_ROOT/agents/archcore-assistant.md"; then
     fail "assistant prescribes retired --track syntax"; return 1
   fi

@@ -191,3 +191,38 @@ func TestChangedSince(t *testing.T) {
 		t.Errorf("ChangedSince = %v, want [src/main.go]", changed)
 	}
 }
+
+func TestBaseNameShared(t *testing.T) {
+	dir := initRepo(t, map[string]string{
+		"a/settings.json": "{}", "b/settings.json": "{}", "c/unique.go": "package c",
+		"d/[id].tsx": "x", "e/i.tsx": "x",
+	})
+	tests := []struct {
+		name string
+		rel  string
+		want bool
+	}{
+		{name: "two tracked files share the name", rel: "a/settings.json", want: true},
+		{name: "an untracked file shares a tracked name", rel: "z/settings.json", want: true},
+		{name: "one tracked file carries the name", rel: "c/unique.go", want: false},
+		{name: "glob characters name only themselves", rel: "d/[id].tsx", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := BaseNameShared(context.Background(), dir, tt.rel)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Errorf("BaseNameShared(%q) = %v, want %v", tt.rel, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBaseNameShared_OutsideARepo(t *testing.T) {
+	requireGit(t)
+	if _, err := BaseNameShared(context.Background(), t.TempDir(), "a/x.go"); err == nil {
+		t.Error("BaseNameShared outside a repository returned no error")
+	}
+}

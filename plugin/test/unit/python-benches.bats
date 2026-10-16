@@ -84,3 +84,72 @@ print(b.cost_cell([{'cost': None}]), b.cost_cell([{'cost': 0.25}, {'cost': None}
   assert_success
   assert_output 'n/a 0.25'
 }
+
+matrix_reply() {
+  cat > "$MOCK_BIN/claude" <<MOCK
+#!/bin/sh
+cat >/dev/null
+printf '%s\n' '$1'
+MOCK
+  chmod +x "$MOCK_BIN/claude"
+}
+
+matrix_run() {
+  MATRIX_BENCH_OUTPUT_DIR=$(mktemp -d "$BATS_TEST_TMPDIR/matrix.XXXXXX") MATRIX_BENCH_RETRY_DELAY=0 \
+    run python3 "$REPO_ROOT/test/behavioral/matrix-bench.py" run --reps 1 --jobs 1 "$@"
+}
+
+@test "the matrix bench loads the gate and elicitation contracts for every command" {
+  py "m = load('matrix-bench')
+print(sorted(c for c, files in m.CONTRACTS.items() if {'_shared/gate-contract.md', '_shared/elicitation-contract.md'} <= set(files)))
+print(all(m.contract_text(c) for c in m.CONTRACTS))"
+  assert_success
+  assert_output "['document', 'plan', 'review']
+True"
+}
+
+@test "the matrix bench fails a verdict that leaves out a field" {
+  py "m = load('matrix-bench')
+got, lines, missing = m.parse('matrix-verdict: entry=ask; created=none; questions=1')
+print(lines, missing[:2], m.score('entry=ask;created=none;questions=1', got)[0])"
+  assert_success
+  assert_output "1 ['updated', 'plan'] True"
+  matrix_reply '{"result":"matrix-verdict: entry=ask; created=none; questions=1","duration_ms":10,"usage":{"input_tokens":7,"output_tokens":3}}'
+  matrix_run --only P01
+  assert_failure 1
+  assert_output --partial 'format:missing:updated,plan,reads,anchors,flagged,experience'
+}
+
+@test "the matrix bench exits 0 on a full matching verdict and reports tokens per call" {
+  matrix_reply '{"result":"matrix-verdict: entry=ask; created=none; updated=0; questions=1; plan=none; reads=0; anchors=0; flagged=0; experience=none","duration_ms":2000,"usage":{"input_tokens":5,"cache_read_input_tokens":5,"output_tokens":3}}'
+  matrix_run --only P01
+  assert_success
+  assert_output --partial '1/1 calls pass'
+  assert_output --partial 'per call: 10 input tokens, 3 output tokens, 2.0 s'
+}
+
+@test "the matrix bench exits 1 on a mismatch and 2 on a model error" {
+  matrix_reply '{"result":"matrix-verdict: entry=direct; created=spec; updated=0; questions=0; plan=none; reads=0; anchors=0; flagged=0; experience=none"}'
+  matrix_run --only P01
+  assert_failure 1
+  assert_output --partial 'excess:spec'
+  matrix_reply '{"is_error":true,"result":"overloaded"}'
+  matrix_run --only P01
+  assert_failure 2
+}
+
+@test "the matrix bench refuses a run that selects no case, before any model call" {
+  matrix_reply '{"result":"unused"}'
+  rm -f "$MOCK_BIN/claude"
+  matrix_run --only NO-SUCH-CASE
+  assert_failure 2
+  assert_output --partial 'no case selected'
+}
+
+@test "the matrix bench rejects a malformed expectation before any model call" {
+  printf '# id\tcommand\targs\tcriteria\tsituation\texpected\nX1\tplan\t(no arguments)\tc1\tA situation.\tentry=ask;updated>0\n' > "$BATS_TEST_TMPDIR/bad.tsv"
+  py "m = load('matrix-bench')
+m.load_cases('$BATS_TEST_TMPDIR/bad.tsv')"
+  assert_failure
+  assert_output --partial "malformed expectations ['updated>0']"
+}

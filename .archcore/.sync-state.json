@@ -5312,6 +5312,141 @@
       "source": "integrations/context-address-delivery.spec.md",
       "target": "integrations/managed-block-version-and-staleness-advisory.adr.md",
       "type": "implements"
+    },
+    {
+      "source": "plugin/opencode-adapter.spec.md",
+      "target": "plugin/opencode-adapter-packaging.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/opencode-adapter.spec.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/opencode-adapter.spec.md",
+      "target": "plugin/opencode-host-support.rnd.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/opencode-mcp-entry-ownership.adr.md",
+      "target": "integrations/mcp-config-converge-ownership.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/opencode-mcp-entry-ownership.adr.md",
+      "target": "plugin/opencode-adapter-packaging.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/opencode-adapter.spec.md",
+      "target": "plugin/opencode-mcp-entry-ownership.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/opencode-adapter.plan.md",
+      "target": "plugin/opencode-adapter.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/opencode-adapter.plan.md",
+      "target": "plugin/opencode-mcp-entry-ownership.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/opencode-adapter.plan.md",
+      "target": "plugin/opencode-adapter-packaging.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/opencode-adapter.plan.md",
+      "target": "integrations/plugin-delivery.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/opencode-plugin-install.guide.md",
+      "target": "plugin/opencode-adapter.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/context-driven-skill-routing-rollout.plan.md",
+      "target": "plugin/context-driven-skill-routing-and-review-learning.rfc.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/context-driven-skill-routing-rollout.plan.md",
+      "target": "plugin/delta-routing-bench.doc.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/context-driven-skill-routing-and-review-learning.rfc.md",
+      "target": "plugin/explicit-type-request-wins.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
+      "target": "plugin/delta-routing-model.idea.md",
+      "type": "supersedes"
+    },
+    {
+      "source": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
+      "target": "plugin/context-driven-skill-routing-and-review-learning.rfc.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/context-driven-skill-routing-rollout.plan.md",
+      "target": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
+      "target": "plugin/command-entry-grammar.adr.md",
+      "type": "supersedes"
+    },
+    {
+      "source": "plugin/context-driven-skill-routing-and-review-learning.rfc.md",
+      "target": "plugin/command-entry-grammar.adr.md",
+      "type": "contradicts"
+    },
+    {
+      "source": "integrations/file-context-local-rules-and-bare-names.plan.md",
+      "target": "integrations/file-context-resolution.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/file-context-local-rules-and-bare-names.plan.md",
+      "target": "globals/local-overrides-global.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/file-context-resolution.spec.md",
+      "target": "integrations/bare-file-name-matches-only-when-unique.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/file-context-local-rules-and-bare-names.plan.md",
+      "target": "integrations/bare-file-name-matches-only-when-unique.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/context-driven-skill-routing-and-review-learning.rfc.md",
+      "target": "plugin/pi-elicitation-driver.rfc.md",
+      "type": "supersedes"
+    },
+    {
+      "source": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
+      "target": "plugin/bounded-elicitation.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/open-choice-offers-four-exits.adr.md",
+      "target": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/track-layer.spec.md",
+      "target": "plugin/open-choice-offers-four-exits.adr.md",
+      "type": "implements"
     }
   ]
 }

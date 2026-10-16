@@ -14,15 +14,15 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 
 ## Surface
 
-- Track files: `skills/_shared/tracks/<track-id>.md`; gates as `### gate: <track>.<stage>` sections. A track identifier and a gate address are internal names; command modes are the user-facing names.
-- Catalog: `sdd` (frame → require, with `journey` beside the `prd` under the illustrate condition → design → illustrate → decompose), `requirements-cascade` (`mode: sources` = mrd → brd → urd; `mode: iso` = brs → strs → syrs → srs), `decision` (classify → adr | rfc | standard → cascade; resolution entry `decision.resolve` on an existing rfc draft), `describe` (read code and feature files → draft spec/doc/guide/scenario → clarify gaps), `actualize` (scope diff → per-finding verdict → confirmed fixes), `experience` (detect an unrecorded pattern — a repeated edit shape or one transferable practice change → cpat | task-type offer), `research` (frame → gather → coverage synthesis or recommendation; standalone evidence exits at gather), `closeout` (verify plan against branch diff, with scenario readiness and spec coverage reported → confirmed canon merge → confirmed draft → accepted status transitions → durable-context capture → plan discharge).
-- Primary executors: `plan` → sdd, requirements-cascade, research; `document` → decision (mode `decision`), describe (mode `code`), research (mode `research`); `review` → actualize (modes `drift`, `deep`), closeout (mode `closeout`), experience (mode `experience`); `decision` is callable from all three.
+- Track files: `skills/_shared/tracks/<track-id>.md`; gates as `### gate: <track>.<stage>` sections. A track identifier and a gate address are internal names; the user names only a free-text subject or scope.
+- Catalog: `sdd` (frame → require, with `journey` beside the `prd` under the illustrate condition → design → illustrate → decompose), `requirements-cascade` (acquisition = mrd → brd → urd; iso links = brs → strs → syrs → srs, engaged only for the levels a traceability obligation names), `decision` (classify → adr | rfc | standard → cascade; resolution entry `decision.resolve` on an existing rfc draft), `describe` (read code and feature files → draft spec/doc/guide/task-type/scenario → clarify gaps), `actualize` (scope diff → per-finding verdict → confirmed fixes), `experience` (detect an unrecorded pattern — a repeated edit shape or one transferable practice change → cpat | task-type offer), `research` (frame → gather → coverage synthesis or recommendation; standalone evidence exits at gather), `closeout` (verify plan against branch diff, with scenario readiness and spec coverage reported → confirmed canon merge → confirmed draft → accepted status transitions → durable-context capture → plan discharge).
+- Primary executors: `plan` → sdd, requirements-cascade, research; `document` → decision, describe, research; `review` → actualize, closeout, experience; `decision` is callable from all three. Context resolution, not a mode word, selects the track.
 - Gate record fields, fixed order: Purpose; Entry conditions with `skip_when`; Elicitation knobs (trigger, taxonomy, budget); Produces (type, status, relations); Exit checks tagged `blocking` or `advisory`; Next.
-- Track state block inside the draft artifact: `<!-- archcore:track -->` with fields `track`, `gate`, `route`, `delta`, `taxonomy`, `asked`, `budget`, `deferred`; research may append `artifact_type`.
+- Track state block inside the draft artifact: `<!-- archcore:track -->` with fields `track`, `gate`, `claims`, `taxonomy`, `asked`, `budget`, `deferred`; research may append `artifact_type`; a legacy block may carry `route` and `delta`, which the plan conductor reads as the claim ledger on resume.
 
 ## Normative Behavior
 
-1. WHEN routing resolves, the executing skill MUST evaluate signals in this order: explicit mode, document-graph state, branch state, request wording.
+1. WHEN routing resolves, the executing skill MUST read signals in this order: type request, open drafts, canon, code, branch state, wording.
 2. The executing skill MUST NOT ask the user to choose a track.
 3. The executing skill MUST derive questions from unresolved material information needs without changing the track choice.
 4. WHEN a gate opens, the executing skill MUST evaluate `skip_when` before any other gate step.
@@ -30,7 +30,7 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 6. WHEN a gate produces a document, the executing skill MUST create it with `status: draft` via `create_document`.
 7. WHEN all `blocking` exit checks pass, the executing skill MUST advance the state block's `gate` field to the next stage.
 8. IF an `advisory` exit check fails, THEN the executing skill MUST proceed to the next gate and report the finding.
-9. WHEN a track exits outside a computed route, the executing skill MUST remove the state block from the artifact.
+9. WHEN a track exits outside the plan conductor, the executing skill MUST remove the state block from the artifact.
 10. WHEN a skill opens a draft carrying a state block, the skill MUST resume at the earliest gate whose exit checks have not passed.
 11. WHILE resuming, the executing skill MUST NOT re-ask questions recorded in `asked` or answered under `## Clarifications`.
 12. The review skill MAY run a gate in the reverse direction (code → document) with entry evidence pre-filled from git.
@@ -58,7 +58,7 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 33. WHEN a decision request carries standard signals and a local `adr` on the topic exists, `decision.classify` MUST route to `decision.cascade` with the standard cascade selected.
 34. WHEN a decision request carries standard signals and no local `adr` on the topic exists, `decision.classify` MUST route to `decision.adr` first.
 35. The describe track MUST NOT produce a `journey`.
-36. WHILE a computed route has instruments left, the executing skill MUST keep the state block on the newest draft of the route.
+36. WHILE the conductor's selection has instruments left, the executing skill MUST keep the state block on the newest draft.
 37. IF an earlier gate of a resumed track fails a blocking exit check, THEN the executing skill MUST resume there despite its `skip_when`.
 38. IF a state block names a track that the executing command does not run, THEN the executing skill MUST NOT write to that draft.
 39. IF a state block names a track that the executing command does not run, THEN the executing skill MUST name the command that resumes it.
@@ -68,7 +68,11 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 43. WHEN a decision request would replace a local `adr`, `decision.classify` MUST record that `adr` as the replaced decision.
 44. WHEN a local `adr` already records the requested choice, `decision.classify` MUST exit without a write.
 45. WHEN an open `rfc` draft covers the topic and a verdict is stated, `decision.classify` MUST route to `decision.resolve`.
-46. WHEN a computed route's last instrument closes, the executing skill MUST remove the state block from the artifact.
+46. WHEN the selection's last instrument closes, the executing skill MUST remove the state block from the artifact.
+47. WHEN context resolution completes, the executing skill MUST report the inferred scope in one line before the first write.
+48. WHEN a decision request names no chosen option, `decision.classify` MUST offer three exits in one question: `adr`, `rfc`, or investigation first.
+49. WHEN a decision request has no recorded facts and no named reviewer, `decision.classify` MUST recommend investigation first.
+50. WHEN the user answers "you decide" at `decision.classify`, the executing skill MUST take the recommended exit.
 
 ## Constraints & Invariants
 
@@ -98,4 +102,4 @@ This spec defines the track layer: gated flows that layer-1 commands route into 
 
 ## Conformance
 
-A track file and its executing skills are conformant when they satisfy behaviors 1–46, hold all invariants, and degrade per the failure rules.
+A track file and its executing skills are conformant when they satisfy behaviors 1–50, hold all invariants, and degrade per the failure rules.

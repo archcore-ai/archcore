@@ -153,7 +153,7 @@ $(cat "$diff_out")"
   [ -z "$bad" ] || fail "gates without a numeric budget knob in skills/_shared/tracks/:$bad"
 }
 
-@test "gate-contract state-block template lists exactly the eight state fields" {
+@test "gate-contract state-block template lists exactly the seven state fields" {
   local contract="$PLUGIN_ROOT/skills/_shared/gate-contract.md"
   local got
   got=$(awk '
@@ -162,8 +162,8 @@ $(cat "$diff_out")"
     f && /^[a-z_]+:/ { n = $0; sub(/:.*/, "", n); out = (out == "" ? n : out " " n) }
     END { print out }
   ' "$contract")
-  [ "$got" = "track gate route delta taxonomy asked budget deferred" ] \
-    || fail "state-block template in skills/_shared/gate-contract.md must list exactly 'track gate route delta taxonomy asked budget deferred' in order; got: '${got}'"
+  [ "$got" = "track gate claims taxonomy asked budget deferred" ] \
+    || fail "state-block template in skills/_shared/gate-contract.md must list exactly 'track gate claims taxonomy asked budget deferred' in order; got: '${got}'"
 }
 
 @test "every track file yields gate records and matches a golden (new tracks included)" {

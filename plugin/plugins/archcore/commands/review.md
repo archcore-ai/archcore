@@ -1,6 +1,6 @@
 ---
-description: Review branch changes against Archcore docs, or report project health; drift runs staleness detection, deep a full documentation audit, closeout closes a finished feature, experience captures a repeated pattern.
-argument-hint: "[drift|deep|closeout|experience] [path, tag, or scope]"
+description: Review branch changes against Archcore docs, close out finished plans, capture what a later reader needs, or report project health; name a path, tag, topic, or ref in free text to narrow the scope.
+argument-hint: "[path, tag, or scope]"
 ---
 
 # /archcore:review

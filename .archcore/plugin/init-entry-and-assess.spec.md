@@ -75,7 +75,7 @@ This spec governs the entry of `/archcore:init`: the argument form, the order of
 9. IF the `import` mode finds no authored source, THEN the init skill MUST NOT compose the code seed.
 10. IF the no-source report lists a `skip` source, THEN the report MUST name that source's skip class.
 11. IF an `import` path subject names no existing path, THEN the init skill MUST report the missing path and stop.
-12. WHEN an invocation uses a retired form, the init skill MUST name the current argument form.
+12. WHEN an invocation uses a retired form, the init skill MUST NOT print a notice for that form.
 
 ## Conformance
 

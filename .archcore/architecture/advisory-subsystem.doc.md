@@ -41,6 +41,12 @@ references name no existing path). The hook renders the result before the edit; 
 returns the same result under `for_path`. The shared path-reference extractor lives in
 @cli/internal/docs/pathref.go.
 
+A bare file name gives reason `file` only when its stem is not in `genericFileStems` and no other tracked
+file carries it; a shared name reaches the edit only through an accepted `rule` or `cpat` that names it,
+with reason `kind`. A name counts only where no file-name character and no `.` precede it. `git.BaseNameShared` in @cli/internal/git/git.go asks `git ls-files` with one name
+pathspec; outside git only the stem list decides. A file at the project root needs no query: its bare
+name is its full path.
+
 | Setting | Key | Default |
 |---|---|---|
 | source roots | `settings.json` → `codeAlignment.sourceRoots` | `src`, `lib`, `app`, `pkg`, `cmd`, `internal`, `apps`, `packages`, `modules`, `components` |
@@ -113,5 +119,6 @@ that mentions the same directory.
 
 **A rule that names no path.** A rule whose references name no existing path enters every result as a
 `general` row, title only, after the matched rows; past 10 rows a remainder line names the call that
-lists the rest. The `CLAUDE.md` tag load for `code-quality` stays, because a rule that cites one
+lists the rest. At equal type priority a local general row precedes a global one, so a mounted global
+source cannot fill every shown row. The `CLAUDE.md` tag load for `code-quality` stays, because a rule that cites one
 example path is neither general nor a directory match.

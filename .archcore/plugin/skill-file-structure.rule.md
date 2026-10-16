@@ -28,13 +28,13 @@ tags:
 16. A per-flow reference file under `references/` or `lib/` MUST NOT exceed 200 lines.
 17. The `plan` skill MUST hold its per-flow logic in `skills/plan/references/<flow>.md`.
 18. WHEN a new flow is added to the `plan` skill, the author MUST add a reference file instead of a top-level skill.
-19. Each `argument-hint` MUST open with the command's closed mode list in brackets.
-20. Each `argument-hint` MUST NOT list a document type name or a route name as a mode.
+19. The `argument-hint` of `plan`, `document`, and `review` MUST hold one optional free-text placeholder in brackets.
+20. An `argument-hint` MUST NOT list a document type name, a route name, or a retired mode word.
 21. An `argument-hint` flag MUST name a setting, never an entry.
 
 ## Rationale
 
-A fixed file location and a fixed section set let a contributor find each kind of guidance without reading the whole skill, and let a batch update touch every skill the same way. `four-command-palette.adr` fixes the four-command surface and the auto-invocation invariant, so a `disable-model-invocation` flag or an eighth top-level skill breaks routing instead of extending it. `remove-document-type-skills.adr` removed the per-type skill layer, which is why item 9 places per-type elicitation inside `Execution`. Items 13 and 14 exist because an embedded template drifts as soon as the CLI templates change. The trigger and anti-trigger forms in items 6 and 7 are what make model routing between neighboring intents deterministic. Items 19–21 carry `command-entry-grammar.adr`: the first word selects the path, and a gate inside the track selects the document type.
+A fixed file location and a fixed section set let a contributor find each kind of guidance without reading the whole skill, and let a batch update touch every skill the same way. `four-command-palette.adr` fixes the four-command surface and the auto-invocation invariant, so a `disable-model-invocation` flag or an eighth top-level skill breaks routing instead of extending it. `remove-document-type-skills.adr` removed the per-type skill layer, which is why item 9 places per-type elicitation inside `Execution`. Items 13 and 14 exist because an embedded template drifts as soon as the CLI templates change. The trigger and anti-trigger forms in items 6 and 7 are what make model routing between neighboring intents deterministic. Items 19–21 carry `context-driven-routing-beneath-command-grammar.adr`: no first word is a mode, context resolution selects the track, and a gate inside the track selects the document type.
 
 ## Examples
 
@@ -43,7 +43,7 @@ A fixed file location and a fixed section set let a contributor find each kind o
 ```markdown
 ---
 name: document
-argument-hint: "[decision|code|research] [subject]"
+argument-hint: "[subject]"
 description: "Record a decision, document existing code, or file a supplied research material. Activate when user says 'document this module', 'capture how X works', 'record this decision', 'write reference docs'. Do NOT activate for planning a feature (use /archcore:plan) or auditing existing documentation (use /archcore:review)."
 ---
 
@@ -57,7 +57,7 @@ description: "Record a decision, document existing code, or file a supplied rese
 | Signal | Route |
 |---|---|
 ## Execution
-Step 2 (mode entry: decision → decision.classify, code → describe.read, research → research.frame)
+Step 2 (track entry: a choice → decision.classify, existing code → describe.read, a report → research.frame)
 ...
 ## Result
 ...
@@ -70,25 +70,25 @@ The frontmatter carries no invocation-restricting flag, so the skill auto-invoke
 ```markdown
 ---
 name: plan
-argument-hint: "[sdd|sources|iso|research] [topic]"
+argument-hint: "[topic]"
 description: "Plan a feature or initiative end-to-end. Activate when user says 'let's plan', 'create a roadmap for X', 'I need to plan Y'. Do NOT activate for recording a decision (use /archcore:document) or documenting an existing module (use /archcore:document)."
 ---
 
 # /archcore:plan
 
-## Routing Table
-| First word / signal | Path |
+## Entry
+| Signal | Action |
 |---|---|
-| `sdd` | full package |
-| `sources` or market-research phrasing | acquisition instrument |
-| `iso` or regulated-work phrasing | iso links |
-| `research` or investigation phrasing | research instrument |
-| (none) | computed route |
+| No arguments, one resumable draft | resume it |
+| Market-research phrasing | acquisition instrument |
+| A traceability obligation | the requirement levels it names |
+| Investigation phrasing, or a leading `research` | research instrument |
+| Any other request | context resolution, then claim-level selection |
 
 ## Execution
 - Step 1: Check existing documents via list_documents
-- Step 2: Scope confirmation (one AskUserQuestion if ambiguous)
-- Step 3: Run the mapped instrument or the computed package
+- Step 2: Build the context record
+- Step 3: Run the selected instruments
 - Step 4: Cross-relate to existing documents
 ```
 

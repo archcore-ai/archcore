@@ -1,9 +1,9 @@
-# Behavioral document-entry bench fixtures — the command entry grammar (command-entry-grammar.adr).
+# Behavioral document-entry bench fixtures — free-text entry (context-driven-routing-beneath-command-grammar.adr).
 # Columns (tab-separated): id, request (text after /archcore:document), grounding, expected_mode, expected_type.
-# expected_mode: decision | code | research | unclear | plan | named. expected_type: a type slug, none, or - (not checked).
+# expected_mode, the track or path the request reaches: decision | code | research | unclear | plan | named. expected_type: a type slug, none, or - (not checked).
 # Rows 1–14 carry no mode word: they measure classification of type-less and mode-less requests.
 1	we decided to use PostgreSQL 16 for the orders service	no ADR or RFC on the topic	decision	adr
-2	should we switch the API from REST to gRPC?	no ADR or RFC on the topic	decision	rfc
+2	should we switch the API from REST to gRPC?	no ADR or RFC on the topic	decision	none
 3	make it our standard: every handler returns typed errors	a local adr records the typed-errors decision	decision	rule
 4	we accepted the proposal to move to gRPC	an rfc draft on gRPC exists	decision	adr
 5	capture how the payment system works	payment module found under src/payments; no document covers it	code	none
@@ -16,7 +16,7 @@
 12	compare Redis and Memcached for the session cache	no report attached; no decision recorded	plan	-
 13	the intended onboarding path of a trial user	no spec covers onboarding	plan	-
 14	auth	recent commits touch both src/auth and an ADR draft on sessions	unclear	-
-# Rows 15–20 lead with a mode word.
+# Rows 15–19 lead with a retired mode word, read as topic text; row 19 leads with the type slug research.
 15	decision rfc for switching to gRPC	no ADR or RFC on the topic	decision	rfc
 16	decision we chose JWT over sessions	no ADR or RFC on the topic	decision	adr
 17	code the auth module	auth module found under src/auth; no document covers it	code	none
@@ -29,7 +29,7 @@
 22	journey for the intended onboarding path of a trial user	no spec and no prd cover onboarding	named	journey
 23	journey of a developer from plan to review	accepted specs cover plan and review	named	journey
 24	idea: a web dashboard of draft documents	no idea or prd on the topic	named	idea
-25	code cpat for typed errors in handlers	the branch replaced string errors with typed errors in 6 handlers	named	cpat
-# Row 26 names a slug only inside topic text: no named type.
+25	cpat for typed errors in handlers	the branch replaced string errors with typed errors in 6 handlers	named	cpat
+# Row 26 names a slug only inside topic text after a retired mode word: no named type.
 26	code the rule engine module	no document covers the rule engine	code	none
 27	rule: API keys expire after 90 days	no adr or rule on API keys	named	rule

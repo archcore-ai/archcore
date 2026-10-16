@@ -17,7 +17,7 @@ This spec defines the bounded user interview: when a skill asks the user questio
 - Trigger signals: absent or vague arguments; a coverage scan returning Missing on a material category; two or more viable alternatives on one decision; code-versus-document conflict.
 - Materiality filter: architecture, data model, task decomposition, tests, UX behavior, operations, compliance (per Spec Kit `/clarify`, https://github.com/github/spec-kit).
 - Question form: one interrogative; a one-line "why it matters"; a recommended option stated first; 2–4 options plus a free answer plus "you decide".
-- Budget: ceiling of 5 questions per invocation in auto mode; expert invocation raises per-gate budgets up to the track's declared maximum. A resume is a new invocation.
+- Budget: ceiling of 5 questions per invocation on every command and path; a gate's `budget` caps that gate inside the ceiling; unasked material questions wait in `deferred`. A resume is a new invocation.
 - Write-back targets: `## Clarifications` session log in the draft artifact; `[assumption]` markers; the track state block.
 
 ## Normative Behavior
@@ -51,7 +51,7 @@ This spec defines the bounded user interview: when a skill asks the user questio
 - Constraint: the widget-versus-prose switch lives only in this contract; a skill file MUST NOT contain host-conditional text.
 - Constraint: a hook MUST NOT ask the user a question.
 - Constraint: a hook MAY inject a notice of unresolved assumptions.
-- Constraint: auto mode MUST NOT exceed the 5-question ceiling regardless of how many gates run.
+- Constraint: an invocation MUST NOT exceed the 5-question ceiling regardless of how many gates run or what the request says.
 - Invariant: grounding (behavior 1) precedes every question on every host.
 
 ## Failure Behavior

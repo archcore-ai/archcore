@@ -68,7 +68,7 @@ Focus your expertise on what MCP instructions do NOT provide:
 - **Elicitation**: what questions to ask before creating each document type
 - **Content composition**: how to structure rich content from user answers
 - **Disambiguation**: when to use ADR vs RFC, PRD vs MRD, rule vs guide
-- **Orchestration**: apply the computed routes and expert invocation map in `skills/_shared/delta-routing.md`; execute the selected instruments and their continuation rules.
+- **Orchestration**: apply the selection and sequencing rules in `skills/_shared/delta-routing.md`; execute the selected instruments and their continuation rules.
 - **Relation patterns**: which relation types are typical for each document type
 
 # Working Guidelines

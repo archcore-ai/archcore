@@ -6,7 +6,7 @@ PLUGIN_REL := plugins/archcore
 BIN_SCRIPTS := $(PLUGIN_REL)/bin/session-start $(PLUGIN_REL)/bin/pre-tool-use $(PLUGIN_REL)/bin/post-tool-use $(PLUGIN_REL)/bin/detect-host $(PLUGIN_REL)/bin/cli-gte $(PLUGIN_REL)/bin/check-references
 LIB_SCRIPTS := $(PLUGIN_REL)/bin/lib/normalize-stdin.sh $(PLUGIN_REL)/bin/lib/plugin-cache-guard.sh
 ALL_SCRIPTS := $(BIN_SCRIPTS) $(LIB_SCRIPTS)
-TEST_SH_SCRIPTS := test/behavioral/route-bench.sh test/behavioral/gate-bench.sh test/behavioral/review-bench.sh test/behavioral/document-bench.sh test/behavioral/import-bench.sh test/behavioral/skill-bench.sh
+TEST_SH_SCRIPTS := test/behavioral/gate-bench.sh test/behavioral/review-bench.sh test/behavioral/document-bench.sh test/behavioral/import-bench.sh test/behavioral/skill-bench.sh
 TEST_BASH_SCRIPTS := test/helpers/mcp.bash
 ARCHCORE_BIN ?= archcore
 # Marketplace catalogs stay at repo root; plugin manifests/hooks/mcp live under plugins/archcore/.
@@ -17,7 +17,7 @@ JSON_FILES := .agents/plugins/marketplace.json .claude-plugin/marketplace.json .
               $(PLUGIN_REL)/hooks/copilot.hooks.json \
               $(PLUGIN_REL)/.claude.mcp.json docs/cursor.mcp.example.json
 
-.PHONY: test test-mod test-unit test-structure test-integration test-routing-bench test-gate-bench test-review-bench test-document-bench test-import-bench test-skill-bench test-writer-fanout-bench test-edits-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
+.PHONY: test test-mod test-unit test-structure test-integration test-gate-bench test-review-bench test-document-bench test-import-bench test-skill-bench test-writer-fanout-bench test-edits-bench test-delivery-bench test-matrix-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
 
 all: check-json check-perms lint test
 
@@ -50,10 +50,6 @@ test-integration:
 	@command -v "$(ARCHCORE_BIN)" >/dev/null 2>&1 || { echo "Install Archcore CLI >= 0.8.4 or set ARCHCORE_BIN"; exit 1; }
 	@ARCHCORE_BIN="$(ARCHCORE_BIN)" PLUGIN_ROOT=$(PLUGIN_ROOT) REPO_ROOT=$(REPO_ROOT) bats test/integration/research-vocabulary.bats test/integration/actor-subject-vocabulary.bats test/integration/search-response-shape.bats test/integration/cursor-post-tool-use.bats
 
-# LLM-in-the-loop routing bench — spends model tokens; on demand only, never CI.
-test-routing-bench:
-	@sh test/behavioral/route-bench.sh
-
 # LLM-in-the-loop sdd.design gate bench (questions, gate state, persistence) — spends model tokens; on demand only, never CI.
 test-gate-bench:
 	@sh test/behavioral/gate-bench.sh
@@ -81,6 +77,14 @@ test-writer-fanout-bench:
 # LLM-in-the-loop update bench for update_document edits — spends model tokens; on demand only, never CI. Usage: make test-edits-bench HOST=claude
 test-edits-bench:
 	@python3 test/behavioral/edits-bench.py $(HOST)
+
+# LLM-in-the-loop matrix bench (artifacts, questions, entry, plan disposition) — spends model tokens; on demand only, never CI. Usage: make test-matrix-bench [MATRIX_BENCH_SET=holdout|experience] [MATRIX_BENCH_MODEL=claude-haiku-5-5] [MATRIX_BENCH_REPS=3]
+test-matrix-bench:
+	@python3 test/behavioral/matrix-bench.py run --set $(or $(MATRIX_BENCH_SET),cases)
+
+# Delivery bench: which documents reach an edit's file context. No model calls; read-only MCP calls against ARCHCORE_BIN.
+test-delivery-bench:
+	@python3 test/behavioral/delivery-bench.py --repo $(WORKSPACE_ROOT) --cli-bin "$(ARCHCORE_BIN)"
 
 # Live model + MCP behavior, explicitly requested and never part of CI.
 test-research-agent:

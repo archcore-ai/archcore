@@ -1,6 +1,6 @@
 ---
-description: Record the present state by mode — decision (ADR, RFC, rule), code (spec, doc, guide, scenario), or research (a ready report or one external material); a gate picks the document type.
-argument-hint: "[decision|code|research] [subject]"
+description: Record the present state in free text — a decision (ADR, RFC, rule), existing code (spec, guide, task-type, scenario, doc), or a supplied research report or material; the skill picks the owner and the type.
+argument-hint: "[subject]"
 ---
 
 # /archcore:document

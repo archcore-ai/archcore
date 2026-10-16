@@ -20,6 +20,8 @@ Use `research` in vision. Expose one research path on `/archcore:plan`, named `r
 
 Amended on 2026-09-16 by the command entry grammar: the standalone material enters through `document research` with one external material, and `research.frame` routes it to gather. The named entry `document evidence` of this decision's first form is retired.
 
+Amended on 2026-10-16 by the context-driven routing decision: no first word is a mode, so `plan research` and `document research` are no paths; a leading `research` slug requests the type `research`, wording that asks to choose selects `rnd`, and a supplied report or material reaches the research instrument through context resolution. One external material without a leading slug produces `evidence`; `document research <one material>`, the 2026-09-16 entry above, now produces `research`, per behavior 29 of `command-surface-v2.spec`.
+
 The global RFC `concepts/research-and-evidence-types` was revised on 2026-09-07 to the first form of this surface; it still names `document evidence`, and the plugin departs from that clause.
 
 ## Alternatives Considered
@@ -36,7 +38,7 @@ The global RFC `concepts/research-and-evidence-types` was revised on 2026-09-07 
 ### Enabled
 
 - [expected] Plugin results and taxonomy match the CLI's 12 vision, 7 knowledge, and 2 experience types.
-- [expected] The `plan` argument hint is `[sdd|sources|iso|research] [topic]`; the hint and the expert invocation map name the same surface.
+- [expected] The `plan` argument hint is `[topic]` since 2026-10-16; it was `[sdd|sources|iso|research] [topic]` before.
 - [expected] A user asks for an investigation once; the instrument records the type by what closes it.
 - [expected] A standalone material produces one evidence draft with zero frame questions.
 
