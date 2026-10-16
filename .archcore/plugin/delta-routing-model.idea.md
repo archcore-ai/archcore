@@ -1,6 +1,6 @@
 ---
 title: "Delta-Routing Model (ΔΠMR) — Conductor, Instruments, and Lifecycle for the Track Layer"
-status: accepted
+status: rejected
 tags:
   - "architecture"
   - "component:plugin"

@@ -1,6 +1,6 @@
 ---
-description: Plan a feature or initiative through a computed route — a small fix exits with no documents, one capability gets a spec and a plan, a large initiative gets an umbrella PRD with one spec per capability; start with sdd, sources (market research), iso (regulated work), or research (technical investigation) to run that path directly.
-argument-hint: "[sdd|sources|iso|research] [topic]"
+description: Plan future work, investigate, or compare alternatives in free text — the skill reads the project context and creates only the documents a later reader needs, from none for a small fix to a plan, specs, or a prd for a larger initiative.
+argument-hint: "[topic]"
 ---
 
 # /archcore:plan

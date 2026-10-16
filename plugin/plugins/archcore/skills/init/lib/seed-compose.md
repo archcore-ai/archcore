@@ -180,4 +180,4 @@ Depth-nudge, keyed off whichever depth actually ran (never assume `standard` ran
 
 Always end with:
 
-> Use `/archcore:review` for the dashboard, `/archcore:review deep` for a health audit.
+> Use `/archcore:review` for the dashboard, `/archcore:review audit the knowledge base` for a health audit.

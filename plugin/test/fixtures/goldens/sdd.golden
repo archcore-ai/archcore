@@ -34,7 +34,7 @@ produces: plan draft
 next: end
 
 gate: sdd.runbook
-skip_when: the declared Δ introduces no operational procedure, or a guide covering the procedure exists in .archcore/
+skip_when: no claim in the ledger introduces an operational procedure, or a guide covering the procedure exists in .archcore/
 budget: 1
 taxonomy: Edge Cases & Failure Handling, Completion Signals
 produces: guide draft

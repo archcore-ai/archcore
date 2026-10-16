@@ -32,7 +32,7 @@ One tool, four commands, at the moments a developer already inhabits: connect on
 2. `plan` grounds in the repo and the base before its first question, produces vision documents, and ends with tasks mapped to files plus an implement-or-handoff fork.
 3. `document` is the single entry for decisions and code documentation; it classifies the target without exposing a type menu and offers a rule/spec continuation after a decision.
 4. `review` without arguments reviews the branch since the default branch; each finding carries a verdict — code wrong or document stale; fixes apply one document at a time with confirmation; after work it offers pattern capture.
-5. Expert forms skip routing: `plan iso`, `document decision`, `review --deep`.
+5. Free-text entry: a leading type slug fixes the produced type; no first word of `plan`, `document`, or `review` is a mode, and context resolution selects the track.
 6. The background channel works without commands: session recap, pre-edit injection, direct-write guard, staleness advisories.
 7. On an empty base every command works from code and questions alone, and each run leaves the base richer.
-8. Every interview question carries a recommended answer; "you decide" records an `[assumption]`; auto mode never exceeds 5 questions per invocation.
+8. Every interview question carries a recommended answer; "you decide" records an `[assumption]`; no invocation exceeds 5 questions.

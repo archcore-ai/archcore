@@ -20,16 +20,35 @@ The plugin needs the Archcore CLI on `PATH` (`archcore --version`). The hook lau
 | `docs/` | `cursor.mcp.example.json`, the user-level MCP template for Cursor; `TERMS.md`; `release.md` |
 | `test/` | bats suites under `structure/`, `unit/`, `integration/`, and the on-demand `behavioral/` benches |
 
-## Commands and modes
+## Commands
 
-| Command | Modes | Instrument |
+| Command | Arguments | Instrument |
 | --- | --- | --- |
-| `/archcore:init` | `import`, `refresh` | First-day seed, host wiring, conversion of instruction files and ADR folders |
-| `/archcore:plan` | `sdd`, `sources`, `iso`, `research` | A computed route: null route, spec plus plan, or PRD with one spec per capability |
-| `/archcore:document` | `decision`, `code`, `research` | ADR or RFC, description of code, a report or one external material as evidence |
-| `/archcore:review` | `drift`, `deep`, `closeout`, `experience` | Branch review, staleness, full audit, feature closeout, repeated-pattern capture |
+| `/archcore:init` | `[import\|refresh] [path or domain]` | First-day seed, host wiring, conversion of instruction files and ADR folders |
+| `/archcore:plan` | `[topic]` | The documents a later reader needs: none for a small fix, a plan, specs, a PRD, research, or requirement levels an obligation names |
+| `/archcore:document` | `[subject]` | ADR or RFC, description of code, a procedure, a report or one external material as evidence |
+| `/archcore:review` | `[path, tag, or scope]` | Branch review, staleness, full audit, feature closeout, durable-context and experience capture |
 
-The first word after a command is the mode and the rest is the subject. A gate picks the document type unless the subject names it. Every gate skips itself when an existing document covers it; a vague request stays within five questions; a draft document carries the route state, so an interrupted flow resumes later. The `research` and `evidence` types need CLI v0.8.3 or later; an older CLI falls back to `rnd` and reports the version.
+`plan`, `document`, and `review` take free text; no first word is a mode. Each one reads the request, open drafts, accepted documents, the branch, and the code before it selects a track. A gate picks the document type unless the subject names it with a leading type slug. Every gate skips itself when an existing document covers it; an invocation asks at most five questions; a draft document carries the track state, so an interrupted flow resumes later.
+
+The mode words were retired on 2026-10-16 (`context-driven-routing-beneath-command-grammar.adr`). Write the plain-language form instead:
+
+| Retired form | Plain-language form |
+| --- | --- |
+| `/archcore:plan sdd <topic>` | `/archcore:plan <topic>` |
+| `/archcore:plan sources <topic>` | `/archcore:plan market research for <topic>` |
+| `/archcore:plan iso <topic>` | `/archcore:plan trace the requirements of <topic> for <obligation>` |
+| `/archcore:plan research <topic>` | unchanged: a leading `research` asks for the type `research`; write "compare the alternatives for <topic>" for an `rnd` |
+| `/archcore:document decision <subject>` | `/archcore:document we decided <subject>` |
+| `/archcore:document code <subject>` | `/archcore:document how <subject> works` |
+| `/archcore:document research <report>` | unchanged: a leading `research` asks for the type `research` |
+| `/archcore:document research <one external material>` | `/archcore:document file <material> as evidence`; a leading `research` now produces `research`, not `evidence` |
+| `/archcore:review drift` | `/archcore:review are docs out of date` |
+| `/archcore:review deep` | `/archcore:review audit the knowledge base` |
+| `/archcore:review closeout` | `/archcore:review close out <feature>` |
+| `/archcore:review experience` | `/archcore:review capture this pattern` |
+
+A retired word at the head of a request is plain topic text: the command reads it as wording and prints no notice. The `research` and `evidence` types need CLI v0.8.3 or later; an older CLI falls back to `rnd` and reports the version.
 
 ## Hosts
 

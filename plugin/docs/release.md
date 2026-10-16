@@ -89,6 +89,10 @@ Run Git commands from the repository root.
 
 Do not edit `version` in the manifests. The release writes it from the tag.
 
+When a release retires a command form, list each retired form and its
+plain-language replacement in the GitHub release notes. The forms retired on
+2026-10-16 are in the Commands section of `plugin/README.md`.
+
 ## Verification
 
 - `gh release view vX.Y.Z` lists 9 assets: 6 archives, `checksums.txt`,

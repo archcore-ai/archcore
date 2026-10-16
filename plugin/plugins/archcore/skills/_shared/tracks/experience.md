@@ -22,9 +22,17 @@ routing resolves to the `experience` track. Gate records and track state follow
   procedure whose step actor is a human.
 - Boundary rule — the actor decides the type: a human actor routes to
   `guide`; an agent actor routes to `task-type`.
-- Each `budget` knob is the per-gate maximum, reached only in expert
-  invocation; in auto mode every question draws from the shared per-invocation
-  ceiling in `skills/_shared/elicitation-contract.md`.
+- Each `budget` knob caps its gate inside the 5-question per-invocation
+  ceiling of `skills/_shared/elicitation-contract.md`.
+- Transfer test. An experience candidate passes only when the evidence names
+  four parts: a reusable trigger (the general condition that recurs), a
+  mechanism (why the practice works), evidence (paths, commits, or a
+  measurement), and a limit (where the practice does not apply). Two similar
+  edits alone do not prove transfer. Case paths and commits stay as evidence
+  references; the body states the reusable condition, action, and boundary.
+- An incident-specific failure belongs in the owning `spec`'s Failure Behavior
+  or a procedure's Pitfalls, not in a new experience document. Prefer a focused
+  update to an existing `cpat`, `task-type`, or `guide` that owns the lesson.
 
 ## Track state
 
@@ -49,7 +57,8 @@ write-back in `skills/_shared/elicitation-contract.md`.
   - One detection signal is present: the same edit shape appears in two or
     more files or documents of the reviewed diff, with evidence of its reason
     for a `cpat`; or one deliberate change of practice carries evidence of its
-    reason and a scope beyond this edit.
+    reason and a scope beyond this edit. A signal alone does not pass the
+    transfer test in Track behavior.
   - [assumption] Or: the changes match a pattern previously applied in the
     base (git history) — this file's reading of a recorded-pattern match.
 - Elicitation knobs:
@@ -61,6 +70,9 @@ write-back in `skills/_shared/elicitation-contract.md`.
   - blocking: the review output names the pattern and its evidence — the
     diff paths that carry it, the matched base pattern, or the recorded reason
     and scope of the changed practice.
+  - blocking: the review output names the trigger, mechanism, evidence, and
+    limit of the transfer test; a pattern missing one part exits without an
+    offer.
 - Next: `experience.offer`.
 
 ### gate: experience.offer
@@ -89,6 +101,8 @@ write-back in `skills/_shared/elicitation-contract.md`.
     `status: draft`.
   - advisory: WHEN the answer is accept, a `cpat` draft body covers What
     Changed, Why, Before, After, Scope; a `task-type` draft body covers
-    Context, Steps, Checklist, Pitfalls; a `guide` draft body carries every
+    What, When to Use, Steps, Example, Things to Watch Out For; a `guide` draft body carries every
     section `skills/_shared/guide-contract.md` requires.
+  - advisory: WHEN the answer is accept, the draft names at least one governed
+    path or file kind with `@path` notation or a compound extension.
 - Next: exit. WHEN the answer is decline, exit without writing.

@@ -125,20 +125,20 @@ gate_text() {
   grep -Fq 'contradicts the filename is a blocking state error' "$PLUGIN_ROOT/skills/_shared/gate-contract.md" || { fail "missing phrase: contradicts the filename is a blocking state error"; return 1; }
 }
 
-@test "expert map routes the research path through the closing test and exposes no rnd or evidence entry" {
+@test "the conductor routes research through the closing test and exposes no rnd or evidence entry" {
   local conductor="$PLUGIN_ROOT/skills/_shared/delta-routing.md"
-  grep -Fq '| `research` | research instrument, entry `research.frame`; the instrument selects `research` or `rnd` by its closing test |' "$conductor" || { fail "missing phrase: research row selects research or rnd by its closing test"; return 1; }
-  ! grep -Fq '| `rnd` |' "$conductor" || { fail "expert map still exposes an rnd entry"; return 1; }
-  ! grep -Fq '| `evidence` |' "$conductor" || { fail "expert map still exposes an evidence entry"; return 1; }
-  grep -Fq 'enters through `/archcore:document research`' "$conductor" || { fail "missing phrase: standalone evidence enters through /archcore:document research"; return 1; }
-  grep -Fq 'neither command' "$TRACK" || { fail "missing phrase in research.md: neither command exposes rnd as an entry"; return 1; }
+  grep -Fq 'The research instrument fixes its product by the closing test' "$conductor" || { fail "missing phrase: the closing test fixes the research product"; return 1; }
+  grep -Fq 'A request that
+leads with the slug `research` asks for the type `research`.' "$conductor" || [[ "$(tr '\n' ' ' < "$conductor")" == *'A request that leads with the slug `research` asks for the type `research`.'* ]] || { fail "missing phrase: a leading research slug asks for the type"; return 1; }
+  ! grep -Fq '| `rnd` |' "$conductor" || { fail "the conductor exposes an rnd entry"; return 1; }
+  ! grep -Fq '| `evidence` |' "$conductor" || { fail "the conductor exposes an evidence entry"; return 1; }
+  grep -Fq 'enters gather directly' "$conductor" || { fail "missing phrase: one external material enters gather directly"; return 1; }
 }
 
 @test "standalone research products bypass the plan implement fork" {
   local step
   step=$(sed -n '/### 5. Map tasks/,/### 6. Implement fork/p' "$PLUGIN_ROOT/skills/plan/SKILL.md" | tr '\n' ' ')
-  [[ "$step" == *'WHEN the package produced no `plan` document'* ]] || { fail "missing phrase: WHEN the package produced no plan document"; return 1; }
-  [[ "$step" == *'the acquisition and research paths), skip to Result'* ]] || { fail "missing phrase: the acquisition and research paths), skip to Result"; return 1; }
+  [[ "$step" == *'WHEN the selection produced no `plan` document, skip to Result'* ]] || { fail "missing phrase: WHEN the selection produced no plan document"; return 1; }
 }
 
 @test "both skill entry points gate new search filters before grounding" {

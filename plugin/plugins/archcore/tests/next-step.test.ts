@@ -540,10 +540,10 @@ test('1: a non-Plan subagent is no plan', async ($, on) => {
 
 // ---------------- 3: decision words ----------------
 
-test('3: decision words suggest /archcore:document decision', async ($, on) => {
+test('3: decision words suggest /archcore:document record the decision', async ($, on) => {
   const seen = engine(on)
   await run($, 'решили: используем FalkorDB для графа')
-  await expectHint($, seen, '/archcore:document decision ', 'This sounds like a decision. Record it?')
+  await expectHint($, seen, '/archcore:document record the decision ', 'This sounds like a decision. Record it?')
 })
 
 const DECISIONS = [
@@ -577,7 +577,7 @@ for (const prompt of DECISIONS) {
   test(`3: "${prompt}" is a decision`, async ($, on) => {
     const seen = engine(on)
     await run($, prompt)
-    await expectHint($, seen, '/archcore:document decision ')
+    await expectHint($, seen, '/archcore:document record the decision ')
   })
 }
 
@@ -861,46 +861,46 @@ test('9: a document tool of another MCP server is no Archcore read', async ($, o
 
 // ---------------- 10: empty search ----------------
 
-test('10: a filter-free search with no results suggests /archcore:document code <topic>', async ($, on) => {
+test('10: a filter-free search with no results suggests /archcore:document <topic>', async ($, on) => {
   const seen = engine(on)
   await run($, 'how does billing work', [search({ content: 'billing' })])
-  await expectHint($, seen, '/archcore:document code billing', 'Nothing in Archcore matches "billing".')
+  await expectHint($, seen, '/archcore:document billing', 'Nothing in Archcore matches "billing".')
 })
 
 test('10: the topic is one line of at most 80 characters', async ($, on) => {
   const seen = engine(on)
   await run($, 'look', [search({ content: `billing ${'y'.repeat(90)}\nsecond line` })])
-  await expectHint($, seen, `/archcore:document code ${`billing ${'y'.repeat(90)}`.slice(0, 80)}`)
+  await expectHint($, seen, `/archcore:document ${`billing ${'y'.repeat(90)}`.slice(0, 80)}`)
 })
 
 test('10: an empty status is no filter', async ($, on) => {
   const seen = engine(on)
   await run($, 'look', [search({ content: 'billing', status: '' })])
-  await expectHint($, seen, '/archcore:document code billing')
+  await expectHint($, seen, '/archcore:document billing')
 })
 
 test('10: an empty types list is no filter', async ($, on) => {
   const seen = engine(on)
   await run($, 'look', [search({ content: 'billing', types: [] })])
-  await expectHint($, seen, '/archcore:document code billing')
+  await expectHint($, seen, '/archcore:document billing')
 })
 
 test('10: a search with results and then an empty one still gives the empty topic', async ($, on) => {
   const seen = engine(on, { searchFor: args => (args.content === 'billing' ? { ...EMPTY_SEARCH, results: [{ path: '.archcore/b.spec.md' }] } : undefined) })
   await run($, 'look', [search({ content: 'billing' }), search({ content: 'refunds' })])
-  await expectHint($, seen, '/archcore:document code refunds')
+  await expectHint($, seen, '/archcore:document refunds')
 })
 
 test('10: two empty searches name the first topic', async ($, on) => {
   const seen = engine(on)
   await run($, 'look', [search({ content: 'billing' }), search({ content: 'refunds' })])
-  await expectHint($, seen, '/archcore:document code billing')
+  await expectHint($, seen, '/archcore:document billing')
 })
 
 test('10: a multi-word empty search with near_misses [] still gives the topic', async ($, on) => {
   const seen = engine(on, { searchAnswer: { ...EMPTY_SEARCH, near_misses: [] } })
   await run($, 'look', [search({ content: 'billing refunds' })])
-  await expectHint($, seen, '/archcore:document code billing refunds')
+  await expectHint($, seen, '/archcore:document billing refunds')
 })
 
 test('10: an empty search of another MCP server is no Archcore gap', async ($, on) => {
@@ -940,7 +940,7 @@ test('order: plan > decision, drafts and push in one turn', async ($, on) => {
 test('order: decision > push, drafts and edits with no read', async ($, on) => {
   const seen = engine(on)
   await run($, 'решили: пушим', [edit('README.md'), DRAFT, PUSH])
-  await expectHint($, seen, '/archcore:document decision ')
+  await expectHint($, seen, '/archcore:document record the decision ')
 })
 
 test('order: push > drafts and edits with no read', async ($, on) => {
@@ -1565,7 +1565,7 @@ test('control characters never reach the band or the box', async ($, on) => {
   await run($, 'plan the band', [EXIT_PLAN])
   await expectHint($, seen, '/archcore:plan Add hint [31m band now')
   await run($, 'look', [search({ content: 'bill\u0000ing\u0085x' })], 't2')
-  await expectHint($, seen, '/archcore:document code bill ing x', 'Nothing in Archcore matches "bill ing x".')
+  await expectHint($, seen, '/archcore:document bill ing x', 'Nothing in Archcore matches "bill ing x".')
 })
 
 test('a suggestion the box declined at turn end is tried once more when idle', async ($, on) => {
@@ -1614,10 +1614,10 @@ test('a rejected suggestion leaves run: in the band', async ($, on) => {
 test("the engine's own suggestion yields to the hint and turns run: into Tab →", async ($, on) => {
   const seen = engine(on, { suggest: 'hide-own' })
   await run($, 'from now on we use cobra')
-  await expectBand($, '/archcore:document decision ', undefined, 'run:')
+  await expectBand($, '/archcore:document record the decision ', undefined, 'run:')
   await $.prompt.suggest({ text: 'some engine guess', origin: { kind: 'suggestion' } })
-  expect(seen.suggested).toEqual(['/archcore:document decision ', '/archcore:document decision '])
-  await expectBand($, '/archcore:document decision ')
+  expect(seen.suggested).toEqual(['/archcore:document record the decision ', '/archcore:document record the decision '])
+  await expectBand($, '/archcore:document record the decision ')
 })
 
 test("without a hint the engine's own suggestion passes", async ($, on) => {
@@ -1720,8 +1720,8 @@ const RESUMES: [string, string][] = [
   ['sdd.design', '/archcore:plan Hint band'],
   ['requirements-cascade.urd', '/archcore:plan Hint band'],
   ['research.gather', '/archcore:plan Hint band'],
-  ['decision.adr', '/archcore:document decision Hint band'],
-  ['describe.draft', '/archcore:document code Hint band'],
+  ['decision.adr', '/archcore:document Hint band'],
+  ['describe.draft', '/archcore:document Hint band'],
   ['actualize.verdict', '/archcore:review'],
   ['closeout.verify', '/archcore:review'],
   ['experience.offer', '/archcore:review'],
@@ -1736,12 +1736,12 @@ for (const [gate, command] of RESUMES) {
   })
 }
 
-test('session start resumes a stopped evidence draft with /archcore:document research', async ($, on) => {
+test('session start resumes a stopped evidence draft with /archcore:document', async ($, on) => {
   const clock = mock.clock(on)
   const evidence = track('Vendor report', block('research.gather'), { path: '.archcore/vendor-report.evidence.md', type: 'evidence' })
   const seen = engine(on, { docs: [evidence] })
   await begin($, clock)
-  await expectHint($, seen, '/archcore:document research Vendor report', 'Draft "Vendor report" stopped at the gather step.')
+  await expectHint($, seen, '/archcore:document Vendor report', 'Draft "Vendor report" stopped at the gather step.')
 })
 
 test('session start prefers a stopped plan over another stopped draft', async ($, on) => {
@@ -1955,7 +1955,7 @@ for (const [name, options] of [['left at its default', {}], ['true', { options: 
     await begin($, clock)
     await expectHint($, seen, '/archcore:plan Hint band', 'Draft "Hint band" stopped at the design step.')
     await run($, 'решили: используем cobra')
-    await expectHint($, seen, '/archcore:document decision ', 'This sounds like a decision. Record it?')
+    await expectHint($, seen, '/archcore:document record the decision ', 'This sounds like a decision. Record it?')
     await run($, 'ship it', [PUSH], 't2')
     await expectHint($, seen, '/archcore:review', 'The branch went out for review.')
     expect(seen.calls.map(call => call.tool)).toEqual(['search_documents', 'get_document'])

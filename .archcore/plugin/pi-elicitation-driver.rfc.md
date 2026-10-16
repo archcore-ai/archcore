@@ -1,6 +1,6 @@
 ---
 title: "Π Profile as the Elicitation Driver — Replacing Budget-from-Vagueness"
-status: draft
+status: rejected
 tags:
   - "architecture"
   - "component:plugin"

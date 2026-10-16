@@ -60,11 +60,11 @@ setup() {
     || fail "plan/SKILL.md argument-hint exposes an actor-subject type: $hint"
 }
 
-@test "document code reaches scenario through describe.draft; no document mode produces a journey" {
+@test "document reaches scenario through the describe track; no document track produces a journey" {
   local skill="$PLUGIN_ROOT/skills/document/SKILL.md"
-  grep -F -q '`describe.draft` selects `spec`,' "$skill" \
-    || fail "document/SKILL.md code mode does not name describe.draft as the type selector"
-  grep -F -q 'No mode produces a `journey`' "$skill" \
+  grep -F -q '| code-doc | `skills/_shared/tracks/describe.md`, `describe.read` | `spec`, `guide`, `task-type`, `scenario`, `doc` |' "$skill" \
+    || fail "document/SKILL.md does not route scenario through the describe track"
+  grep -F -q 'No track produces a `journey`' "$skill" \
     || fail "document/SKILL.md does not rule out journey production"
   grep -F -q 'This track never produces a `journey`' "$PLUGIN_ROOT/skills/_shared/tracks/describe.md" \
     || fail "describe.md does not rule out journey production"
@@ -97,15 +97,15 @@ setup() {
     || fail "journey-contract.md does not name document as a loader"
 }
 
-@test "a named type is a leading or backticked slug, applies before a mode entry, and every producer honors it" {
+@test "a named type is a leading or backticked slug, applies before classification, and every producer honors it" {
   local flat_skill
   flat_skill=$(tr '\n' ' ' < "$PLUGIN_ROOT/skills/document/SKILL.md" | sed 's/  */ /g')
-  [[ "$flat_skill" == *'a mode word — is a kernel document type slug, or the subject writes a slug in backticks'* ]] \
+  [[ "$flat_skill" == *'WHEN the first word of the subject is a kernel document type slug, or the subject writes a slug in backticks'* ]] \
     || fail "any slug in plain topic text hijacks routing"
   [[ "$flat_skill" == *'When two slugs qualify, the first one wins.'* ]] || fail "two named slugs have no tie rule"
   [[ "$flat_skill" == *'IF the subject names a type per Named type above, THEN apply Named type first.'* ]] \
-    || fail "a mode word bypasses the named-type path"
-  grep -F -q 'or names `rnd` or `research` per the document skill'"'"'s Named type rule, fix the artifact type' \
+    || fail "classification bypasses the named-type path"
+  grep -F -q 'or names `rnd` or `research` as an explicit type request per `skills/_shared/gate-contract.md`, Entry terms, fix the artifact type' \
     "$PLUGIN_ROOT/skills/_shared/tracks/research.md" || fail "the closing test overrides a named rnd"
   [[ "$flat_skill" == *'— `rule`, `journey`, `prd`, `idea`, `plan`, `cpat`, `task-type`, `mrd`, `brd`, `urd`, `brs`, `strs`, `syrs`, `srs` — THEN compose it directly'* ]] \
     || fail "a named rule goes through the decision track and its adr questions"

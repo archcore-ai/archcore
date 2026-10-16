@@ -1,6 +1,6 @@
 ---
 title: "File Context Resolution — The Documents That Constrain an Edit to One File"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "hooks"
@@ -18,7 +18,7 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 
 - Input: one file path, relative to the project root or absolute inside it.
 - Row fields: `path` (with the `.archcore/` prefix), `type`, `title`, `status`, `source_kind`, `reason`.
-- `reason` values: `file` (the body names the file), `kind` (an accepted `rule` or `cpat` names the file's compound extension, such as `.test.tsx`), `directory` (the body names a directory of the file), `general` (an accepted pathless `rule` or `cpat`).
+- `reason` values: `file` (the body names the file), `kind` (an accepted `rule` or `cpat` names the file's compound extension, such as `.test.tsx`, or a base name several tracked files share), `directory` (the body names a directory of the file), `general` (an accepted pathless `rule` or `cpat`).
 - Result parts, in order: matched rows (`file`, `kind`, then `directory`), general rows, one remainder line per part.
 - Header line of the hook text: `[Archcore Context] Read these before editing <file>:`.
 - Hook rendering: plain text opened by the `[Archcore Context]` marker line.
@@ -43,6 +43,10 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 14. The engine MUST mark a row from a global source as global in both renderings.
 15. WHEN the session already received this exact result for this file, the hook SHOULD emit one reminder line instead of the rows.
 16. WHEN an accepted `rule` or `cpat` names the compound extension of the edited file, the engine MUST give it reason `kind`.
+17. WHEN two general rows share a type priority, the engine MUST rank a local document above a global one.
+18. WHEN the stem of the edited file is a generic stem, the engine MUST NOT give reason `file` for its bare name.
+19. WHEN another tracked file shares the base name of the edited file, the engine MUST NOT give reason `file` for that bare name.
+20. WHEN another tracked file shares the base name and an accepted `rule` or `cpat` names it, the engine MUST give reason `kind`.
 
 ## Constraints & Invariants
 
@@ -55,6 +59,11 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 - Invariant: a document carries no code reference when no reference the `path_ref` extractor (`docs.ExtractPathRefs`) finds names an existing file or directory of the project.
 - Invariant: a document that qualifies for `kind` and for `general` takes `kind`.
 - Invariant: a document names a compound extension only where no file-name character precedes it: `*.test.tsx` names the kind, `Form.test.tsx` names one file.
+- Invariant: a document names a bare file name only where no file-name character and no `.` precedes it: `create_document.go` and `.mcp.json` do not name `document.go` and `mcp.json`.
+- Invariant: the generic stems are the `genericFileStems` list in @cli/internal/advisory/code_alignment.go; a full-path or `@`-path match still gives such a file reason `file`.
+- Invariant: the tracked files are the files `git ls-files` lists under the project root.
+- Invariant: the bare name of a file at the project root is its full path, so behaviors 18 and 19 do not remove its reason `file`.
+- Invariant: behavior 17 exists because a local document is authoritative over a global one on the same topic; on 2026-10-15 the path tie-break let 8 global rules fill every shown general row and hid each local pathless rule.
 
 ## Failure Behavior
 
@@ -62,10 +71,11 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 2. IF the scan cannot finish inside the host budget, THEN the hook MUST emit nothing and allow the edit.
 3. IF `for_path` names a path outside the project, THEN `search_documents` MUST return an error that holds no absolute path.
 4. IF one document cannot be read, THEN the engine MUST skip it and keep the other rows.
+5. IF the engine cannot list the tracked files, THEN the engine MUST apply only behavior 18 to bare names.
 
 ## Conformance
 
-An implementation is conformant when it satisfies behaviors 1–14 and 16, holds every constraint and invariant, and degrades per the failure rules. Behavior 15 is conformant when absent; a session stamp hides the rows after `/compact`, so it waits for a compaction signal.
+An implementation is conformant when it satisfies behaviors 1–14 and 16–20, holds every constraint and invariant, and degrades per the failure rules. Behavior 15 is conformant when absent; a session stamp hides the rows after `/compact`, so it waits for a compaction signal.
 
 Given `FullLayout.tsx` is named in `router-shim-hybrid-seam.doc.md` and only its directory in an accepted `rule`,
 When the agent calls `search_documents(for_path="apps/next-app/src/app/_components/FullLayout.tsx")`,

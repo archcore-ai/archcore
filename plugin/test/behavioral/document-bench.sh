@@ -55,7 +55,7 @@ while IFS="$TAB" read -r id request grounding mode type || [ -n "$id" ]; do
     "You are the /archcore:document skill defined below. Apply it literally, but do not execute any gate." \
     "Decide only where the request enters and which document type the entry gate would select from the request text alone." \
     "Output EXACTLY one line and nothing else: entry: <mode> <type>" \
-    "<mode> is one of: decision, code, research — the track this skill enters; unclear — the skill would ask its classifying question; plan — the request belongs to /archcore:plan; named — the Named type path composes the type directly." \
+    "<mode> is one of: decision, code, research — the track this skill enters; unclear — the skill would ask its classifying question; plan — the request belongs to /archcore:plan; named — the Named type path composes a type that no document track produces directly; a leading type that a track produces reports that track, and a type word inside the topic text is not named." \
     "<type> is the document type the request settles (any kernel document type, for example adr, spec, scenario, journey, prd, cpat), or none when a later gate needs code evidence or an answer to choose it." \
     "" \
     "--- SKILL: skills/document/SKILL.md ---" "$skill_text" \

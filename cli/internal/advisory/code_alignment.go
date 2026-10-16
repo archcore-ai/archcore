@@ -2,6 +2,7 @@ package advisory
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/docs"
+	"archcore-cli/internal/git"
 	"archcore-cli/templates"
 )
 
@@ -146,7 +148,8 @@ func ResolveFileContext(baseDir, filePath string) (FileContext, error) {
 		tokens = derivePathTokens(rel)
 	}
 	base := path.Base(rel)
-	nameIsDistinct := !genericFileStems[strings.ToLower(strings.TrimSuffix(base, path.Ext(base)))]
+	generic := genericFileStems[strings.ToLower(strings.TrimSuffix(base, path.Ext(base)))]
+	shared := !generic && baseNameShared(baseDir, rel)
 	kind := compoundExtension(base)
 
 	for _, doc := range scanAlignmentCorpus(baseDir) {
@@ -154,11 +157,17 @@ func ResolveFileContext(baseDir, filePath string) (FileContext, error) {
 		if !doc.InAgentContext() {
 			continue
 		}
+		nameHits := 0
+		if !generic {
+			nameHits = countStandalone(doc.Content, base)
+		}
 		switch {
 		case strings.Contains(doc.Content, rel):
 			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonFile, depth: 2, hits: strings.Count(doc.Content, rel)})
-		case nameIsDistinct && strings.Contains(doc.Content, base):
-			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonFile, depth: 1, hits: strings.Count(doc.Content, base)})
+		case !shared && nameHits > 0:
+			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonFile, depth: 1, hits: nameHits})
+		case shared && isAcceptedRule(doc) && nameHits > 0:
+			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonKind, depth: 1, hits: nameHits})
 		case kind != "" && isAcceptedRule(doc) && countStandalone(doc.Content, kind) > 0:
 			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonKind, depth: 1, hits: countStandalone(doc.Content, kind)})
 		default:
@@ -175,9 +184,30 @@ func ResolveFileContext(baseDir, filePath string) (FileContext, error) {
 		if c := cmp.Compare(alignmentTypePriority[b.Doc.Type], alignmentTypePriority[a.Doc.Type]); c != 0 {
 			return c
 		}
+		// A local rule overrides a global one on its topic, so a path tie-break
+		// that sorts "../global/" first must not hide it — file-context-resolution.spec §17.
+		if aLocal, bLocal := a.Doc.IsLocal(), b.Doc.IsLocal(); aLocal != bLocal {
+			if aLocal {
+				return -1
+			}
+			return 1
+		}
 		return strings.Compare(a.Doc.Path, b.Doc.Path)
 	})
 	return fc, nil
+}
+
+// baseNameShared reports whether another tracked file carries the base name of
+// rel; a document naming that name may be about either file —
+// bare-file-name-matches-only-when-unique.adr. At the project root the bare name
+// is the full path, so no query is needed. Advisory read: when git cannot list
+// the files, only the generic stems decide — file-context-resolution.spec failure 5.
+func baseNameShared(baseDir, rel string) bool {
+	if !strings.Contains(rel, "/") {
+		return false
+	}
+	shared, err := git.BaseNameShared(context.Background(), baseDir, rel)
+	return err == nil && shared
 }
 
 // compareMatched orders matched rows: file before directory, deeper first,
@@ -262,7 +292,8 @@ func compoundExtension(base string) string {
 
 // countStandalone counts occurrences of ext that no file-name character
 // precedes. `*.test.tsx` names the kind; `Form.test.tsx` names one file, and a
-// rule that lists its own test files is not a convention for every test.
+// rule that lists its own test files is not a convention for every test. The
+// same boundary keeps "document.go" from naming itself inside "create_document.go".
 func countStandalone(content, ext string) int {
 	n := 0
 	for i := 0; ; {
@@ -271,7 +302,8 @@ func countStandalone(content, ext string) int {
 			return n
 		}
 		at := i + rel
-		if at == 0 || !isFileNameByte(content[at-1]) {
+		// A dot also ends the match: "mcp.json" inside ".mcp.json" names another file.
+		if at == 0 || (!isFileNameByte(content[at-1]) && content[at-1] != '.') {
 			n++
 		}
 		i = at + len(ext)

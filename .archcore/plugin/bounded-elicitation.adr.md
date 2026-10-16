@@ -16,6 +16,8 @@ The current command spec caps every command at one scope question, which makes r
 
 Adopted a shared elicitation budget — a hard ceiling of 5 user questions per command invocation in auto mode, drawn down across all gates of the invocation, with expert invocation raising per-gate budgets up to the track's declared maximum — shipped as `skills/_shared/elicitation-contract.md`.
 
+Amended on 2026-10-16 by @.archcore/plugin/context-driven-routing-beneath-command-grammar.adr.md: the expert raise is retired with the mode words; the ceiling of 5 questions applies on every command and path, and the remaining material questions wait in `deferred` for the next invocation.
+
 ## Alternatives Considered
 
 1. Keep the one-scope-question invariant — rejected because the requirements tracks are unusable under it; the interview is the product for sources/iso cascades.
@@ -26,7 +28,7 @@ Adopted a shared elicitation budget — a hard ceiling of 5 user questions per c
 
 - Requirements tracks become usable by non-experts: guided interview, recommended default on every question, "you decide" escape recorded as `[assumption]`.
 - Every accepted answer persists in the artifact's `## Clarifications` at gate close, surviving session loss.
-- The auto-mode ceiling of 5 limits depth; reaching a track's full question maximum requires explicit expert invocation.
+- The ceiling of 5 limits depth per invocation; since 2026-10-16 a longer interview continues across invocations through `deferred` and resume.
 - The one-question invariant in the command spec is superseded; the spec rewrite lands in the same release.
 
 ## Superseded when

@@ -1,6 +1,7 @@
 package advisory
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"maps"
@@ -9,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"archcore-cli/internal/testsupport"
 )
 
 // Case names mirror test/unit/check-code-alignment.bats in the plugin.
@@ -545,5 +548,107 @@ func TestResolveFileContext_RefusesPathsItCannotServe(t *testing.T) {
 				t.Errorf("err = %v, want %v", err, tt.want)
 			}
 		})
+	}
+}
+
+// TestResolveFileContext_LocalGeneralRulesLead pins behavior 17: ten global
+// pathless rules sort before local ones by path, and must not hide them.
+func TestResolveFileContext_LocalGeneralRulesLead(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	base := filepath.Join(root, "project")
+	mkdirs(t, root, "project/.archcore", "org/.archcore")
+	testsupport.WriteFile(t, base, ".archcore/settings.json",
+		`{"sync":"none","globals":[{"id":"org","path":"../org/.archcore"}]}`)
+	for i := range 10 {
+		testsupport.WriteFile(t, root, fmt.Sprintf("org/.archcore/g%02d.rule.md", i),
+			fmt.Sprintf("---\ntitle: \"Global %d\"\nstatus: accepted\n---\n\nNo path here.\n", i))
+	}
+	writeAlignmentDoc(t, base, "local-a.rule.md", "Local A", "No path here.")
+	writeAlignmentDoc(t, base, "local-b.rule.md", "Local B", "No path here.")
+
+	fc, err := ResolveFileContext(base, "src/api/h.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fc.General) != 12 {
+		t.Fatalf("general rows = %d, want 12", len(fc.General))
+	}
+	for i, row := range fc.General[:2] {
+		if !row.Doc.IsLocal() {
+			t.Errorf("general[%d] = %s, want a local rule", i, row.Doc.Path)
+		}
+	}
+}
+
+// TestResolveFileContext_SharedBaseName pins behavior 19 and failure 5 of
+// file-context-resolution.spec.
+func TestResolveFileContext_SharedBaseName(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		git     bool
+		tracked []string
+		file    string
+		doc     string
+		want    int
+	}{
+		{name: "a name two tracked files share matches only by path", git: true,
+			tracked: []string{"a/settings.json", "b/settings.json"}, file: "a/settings.json", want: 0},
+		{name: "a new file sharing a tracked name matches only by path", git: true,
+			tracked: []string{"b/settings.json"}, file: "a/settings.json", want: 0},
+		{name: "a name one tracked file carries still matches", git: true,
+			tracked: []string{"a/settings.json", "b/other.json"}, file: "a/settings.json", want: 1},
+		{name: "a project outside git keeps the generic-stem rule only", git: false,
+			tracked: []string{"a/settings.json", "b/settings.json"}, file: "a/settings.json", want: 1},
+		{name: "a longer name does not name the file", git: false,
+			tracked: []string{"a/sync_settings.json"}, file: "a/settings.json", doc: "Each sync_settings.json holds the mode.", want: 0},
+		{name: "a dotted name does not name the file", git: false,
+			tracked: []string{"a/settings.json"}, file: "a/settings.json", doc: "The .settings.json file is separate.", want: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupArchcoreDir(t)
+			body := cmp.Or(tt.doc, "Each settings.json holds the sync mode.")
+			writeAlignmentDoc(t, base, "s.doc.md", "Settings", body)
+			for _, p := range tt.tracked {
+				writeAt(t, base, p, "{}")
+			}
+			if tt.git {
+				testsupport.NewGitRepo(t, base)
+				gitCommit(t, base, "initial")
+			}
+
+			fc, err := ResolveFileContext(base, tt.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(fc.Matched) != tt.want {
+				t.Errorf("matched rows = %d, want %d", len(fc.Matched), tt.want)
+			}
+		})
+	}
+}
+
+// TestResolveFileContext_SharedNameRule pins behavior 20: an accepted rule on a
+// shared base name reaches every file of that name, and a decision does not.
+func TestResolveFileContext_SharedNameRule(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	writeAlignmentDoc(t, base, "format.rule.md", "Settings Format", "Every settings.json declares sync first.")
+	writeAlignmentDoc(t, base, "one.adr.md", "One Settings", "This settings.json sets sync to none.")
+	for _, p := range []string{"a/settings.json", "b/settings.json"} {
+		writeAt(t, base, p, "{}")
+	}
+	testsupport.NewGitRepo(t, base)
+	gitCommit(t, base, "initial")
+
+	fc, err := ResolveFileContext(base, "a/settings.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fc.Matched) != 1 || fc.Matched[0].Doc.Path != ".archcore/format.rule.md" || fc.Matched[0].Reason != ReasonKind {
+		t.Fatalf("matched = %+v, want only format.rule.md with reason kind", fc.Matched)
 	}
 }

@@ -35,7 +35,7 @@ This spec defines the engine gate for the two actor-subject type names and the c
 8. IF the probe fails and the route engages the illustrate instrument, THEN the conductor MUST drop the instrument from the package.
 9. WHEN the conductor drops the instrument under behavior 8, the plan skill MUST report the required version once.
 10. The executing skill MUST NOT convert or rewrite an existing artifact of either type on an older engine.
-11. WHEN the subject text of `document code` names `scenario`, `describe.draft` MUST treat the type as settled.
+11. WHEN the subject text of a `document` request that describes code names `scenario`, `describe.draft` MUST treat the type as settled.
 12. WHEN `journey` leads the subject under `command-surface-v2.spec` behavior 29, the document skill MUST compose a `journey`.
 13. The document argument hint MUST NOT list either type.
 14. The plan skill MUST NOT accept either type as an entry.
@@ -67,4 +67,4 @@ This spec defines the engine gate for the two actor-subject type names and the c
 
 An implementation is conformant when the compatibility file exists with the surfaces above, behaviors 1–19 hold, and the failure rules produce the stated outcomes. Regression coverage: `@plugin/test/unit/cli-gte.bats` (helper contract), `@plugin/test/structure/cli-compat-invariant.bats` (file references resolve), `@plugin/test/structure/actor-subject-compat.bats` (hint parity, agent references), and `@plugin/test/integration/actor-subject-vocabulary.bats` against a real CLI 0.8.4 stdio MCP: 23 types in the `create_document` enum, `scenario` in knowledge, `journey` in vision, template sections as the CLI contract lists them.
 
-Given CLI 0.8.3 on PATH, When the user invokes `document code scenario for checkout`, Then the skill writes nothing and reports the required version once.
+Given CLI 0.8.3 on PATH, When the user invokes `/archcore:document a scenario for how checkout works`, Then the skill writes nothing and reports the required version once.

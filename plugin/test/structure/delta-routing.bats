@@ -2,12 +2,11 @@
 # Structure tests: the delta-routing conductor contract and its wiring.
 #
 # The conductor contract (skills/_shared/delta-routing.md) is the route
-# computation the plan skill loads at its Route step. These tests pin the
+# selection the plan skill loads at its Select step. These tests pin the
 # contract's presence, the companion contracts it references, the plan skill's
 # loading reference, the instrument registry's gate targets (every registry
 # entry must resolve to a real '### gate:' heading in its track file), the
-# five route names, the route announcement template, and the expert-path
-# argument hint.
+# owner and unknown tables, the selection line, and the free-text argument hint.
 
 setup() {
   load '../helpers/common'
@@ -63,86 +62,63 @@ setup() {
   [ -z "$bad" ] || fail "unresolvable instrument registry entries in skills/_shared/delta-routing.md:$bad"
 }
 
-@test "all five route names appear in the delta-routing contract" {
-  local missing=""
-  local r
-  for r in null decision amendment capability umbrella; do
-    grep -F -q "\`${r}\`" "$CONTRACT" || missing="$missing ${r}"
-  done
-  [ -z "$missing" ] || fail "route names missing from skills/_shared/delta-routing.md:$missing"
+@test "the contract retires route names, size labels, and the four fields" {
+  grep -F -q 'The retired route names (`null`, `decision`, `amendment`, `capability`,' "$CONTRACT" \
+    || fail "delta-routing.md does not retire the route names"
+  [[ "$(flat "$CONTRACT")" == *'Δ, Π, M, and R fields are not computed, printed, or asked.'* ]] \
+    || fail "delta-routing.md does not retire the four fields"
+  ! grep -F -q 'route: <route>' "$CONTRACT" || fail "the route announcement template is still present"
+  ! grep -E -q '^## (Route table|Expert invocation map|Π engagement)' "$CONTRACT" \
+    || fail "a retired section heading is still present"
 }
 
-@test "plan skill argument-hint leads with the four modes" {
+@test "plan skill argument-hint is free text" {
   local hint
   hint=$(awk '/^---$/ { if (++d == 2) exit; next }
               d == 1 && /^argument-hint:/ { print; exit }' "$PLAN_SKILL")
-  [ -n "$hint" ] || fail "plan/SKILL.md frontmatter has no argument-hint: line"
-  printf '%s' "$hint" | grep -F -q '"[sdd|sources|iso|research] [topic]"' \
-    || fail "plan/SKILL.md argument-hint is not '[sdd|sources|iso|research] [topic]'; got: ${hint}"
+  [ "$hint" = 'argument-hint: "[topic]"' ] || fail "plan/SKILL.md argument-hint is not [topic]; got: ${hint}"
 }
 
-@test "route announcement template line appears in the delta-routing contract" {
-  grep -F -q 'route: <route>' "$CONTRACT" \
-    || fail "route announcement template 'route: <route>' missing from skills/_shared/delta-routing.md"
+@test "selection line template appears in the contract" {
+  grep -F -q 'selection: <instruments in order, or none> — owners: <type → existing or new owner>; checks: <hazard checks or none>; open: <unknowns sent to an instrument or the interview, or none>' "$CONTRACT" \
+    || fail "selection line template missing from delta-routing.md"
 }
 
-@test "route table carries all eight contribution rows" {
-  local missing=""
+@test "owner table maps needs to owners" {
+  local missing="" frag
   while IFS= read -r frag; do
     [ -n "$frag" ] || continue
     grep -F -q "$frag" "$CONTRACT" || missing="$missing |${frag}|"
   done <<'ROWS'
-| every capability list empty ∧ `decision: none` ∧ `intent_gap: no` | nothing
-| `decision` non-empty | decision instrument (`adr` / `rfc`) |
-| `modifies` non-empty | per modified capability: one code-wrong/spec-wrong verdict
-| `retires` non-empty | per retired capability: a retirement entry reported for closeout discharge |
-| `intent_gap: yes` | one `prd` through the intent instrument WHEN the gap names goals or metrics
-| `creates` = 1 capability | one `spec` + one `plan` |
-| `creates` ≥ 2 capabilities | one umbrella `prd` + one `spec` per capability + one `plan` |
-| implementation spanning two or more tasks, on a `decision` or `amendment` route | one `plan` through the decompose instrument |
+| Product outcome, beneficiary, or measurable goal beyond one contract | `prd` |
+| Depended-on behavior, interface, invariant, or failure response | `spec` — amend the covering `spec` when one exists |
+| Settled choice with alternatives and reasons named in the request or evidence | `adr` |
+| Two or more dependent tasks, a coordination need, or a handoff | `plan` |
+| A formal traceability obligation named in the request or accepted canon | only the `brs`, `strs`, `syrs`, or `srs` levels that obligation names |
+| A repeatable human operation the work introduces | `guide` |
 ROWS
-  [ -z "$missing" ] || fail "contribution rows missing from delta-routing.md:$missing"
+  [ -z "$missing" ] || fail "owner rows missing from delta-routing.md:$missing"
 }
 
-@test "route-name and base-label table pins the six mappings" {
-  grep -F -q '| `creates` ≥ 2 | `umbrella` | L |' "$CONTRACT" || fail "umbrella/L row"
-  grep -F -q '| `creates` = 1 | `capability` | M |' "$CONTRACT" || fail "capability/M row"
-  grep -F -q '| `modifies` or `retires` | `amendment` | S |' "$CONTRACT" || fail "amendment/S row"
-  grep -F -q '| `decision` | `decision` | S |' "$CONTRACT" || fail "decision/S row"
-  grep -F -q '| `intent_gap` only | `null` — intent recorded, no build package | S |' "$CONTRACT" || fail "intent-gap-only/null row"
-  grep -F -q '| nothing | `null` | S |' "$CONTRACT" || fail "nothing/null row"
+@test "selection rules pin the package mismatches the held-out cases found" {
+  local c
+  c=$(flat "$CONTRACT")
+  [[ "$c" == *'A `plan` needs no `spec` or `prd`'* ]] || fail "plan-alone rule missing"
+  [[ "$c" == *'MUST NOT create an `idea` beside a `prd` in one invocation'* ]] || fail "no idea beside prd rule missing"
+  [[ "$c" == *'It engages requirement documents only under a named traceability obligation.'* ]] || fail "security-without-traceability rule missing"
+  [[ "$c" == *'the conductor MUST create an `adr` through the decision instrument'* ]] || fail "adr on named alternatives rule missing"
+  [[ "$c" == *'The result can be zero documents.'* ]] || fail "zero-document result missing"
 }
 
-@test "route announcement template carries the full delta-routing grammar" {
-  grep -F -q 'route: <route> (size <label>) — Δ: <non-empty fields>; Π: <sources engaged>; M: <pencil or stone>; R: <flags or none>; raised by: <flag or none>; instruments: <ordered list or none>' "$CONTRACT" \
-    || fail "full announcement template line missing from delta-routing.md"
+@test "unknown table maps the four kinds" {
+  grep -F -q '| `fact` answerable from the repository, canon, or git | read it; cite the artifact; no question |' "$CONTRACT" || fail "fact row"
+  grep -F -q '| `choice` the user owns | interview within the ceiling of `skills/_shared/elicitation-contract.md` |' "$CONTRACT" || fail "choice row"
+  grep -F -q '| `feasibility` | spike |' "$CONTRACT" || fail "feasibility row"
+  grep -F -q '| `acceptance` | interview; record the answer under `## Clarifications` |' "$CONTRACT" || fail "acceptance row"
 }
 
-@test "escalators and portfolio threshold are pinned" {
-  grep -F -q 'WHEN iso links engage, raise one' "$CONTRACT" || fail "iso-links extra label step missing"
-  grep -F -q 'Cap the label at `XL`' "$CONTRACT" || fail "XL cap missing"
-  grep -F -q 'two or more needs name `world`, `undecided`, or `empirical` sources' "$CONTRACT" \
-    || fail "portfolio threshold (world/undecided/empirical) missing"
-}
-
-@test "expert invocation map keeps the four alias rows" {
-  grep -F -q '| `sdd` | full package: intent → contract (per capability) → decompose, at per-gate maxima |' "$CONTRACT" || fail "sdd row"
-  grep -F -q '| `sources` | acquisition instrument, entry `requirements-cascade.mrd` |' "$CONTRACT" || fail "sources row"
-  grep -F -q '| `iso` | iso links, entry `requirements-cascade.brs` |' "$CONTRACT" || fail "iso row"
-  grep -F -q '| `research` | research instrument, entry `research.frame`; the instrument selects `research` or `rnd` by its closing test |' "$CONTRACT" || fail "research row"
-}
-
-@test "expert invocation map exposes no document-type entry: rnd and evidence are not plan paths" {
-  grep -F -q 'A document type name is not an entry' "$CONTRACT" \
-    || fail "delta-routing.md lost the 'document type name is not an entry' rule"
-  ! grep -E -q '^\| `(rnd|evidence)` \|' "$CONTRACT" \
-    || fail "expert invocation map still carries an rnd or evidence row"
-  ! grep -F -q 'a document type the registry lists' "$CONTRACT" \
-    || fail "expert invocation map still carries the registry-type catch-all row"
-  grep -F -q 'A route name is not an entry' "$CONTRACT" \
-    || fail "delta-routing.md lost the 'route name is not an entry' rule"
-  ! grep -F -q '| a route name' "$CONTRACT" \
-    || fail "expert invocation map still carries the route-name row"
+@test "legacy route and delta fields resume as a claim ledger" {
+  [[ "$(flat "$CONTRACT")" == *'read `delta:` as the claim ledger'* ]] || fail "legacy delta resume rule missing"
 }
 
 @test "verdict contract is wired into every consumer" {
@@ -170,14 +146,14 @@ ROWS
   [ -z "$bad" ] || fail "runtime asset mentions archived outside the kernel-absence statement: $bad"
 }
 
-@test "delta-routing state-carrier example lists the eight fields in order" {
+@test "delta-routing state-carrier example lists the seven fields in order" {
   local got
   got=$(awk '/<!-- archcore:track/ { f = 1; next }
              f && /-->/ { f = 0; next }
              f && /^[a-z_]+:/ { n = $0; sub(/:.*/, "", n); out = (out == "" ? n : out " " n) }
              END { print out }' "$CONTRACT")
-  [ "$got" = "track gate route delta taxonomy asked budget deferred" ] \
-    || fail "state-carrier example in delta-routing.md must list the eight fields in order; got: '${got}'"
+  [ "$got" = "track gate claims taxonomy asked budget deferred" ] \
+    || fail "state-carrier example in delta-routing.md must list the seven fields in order; got: '${got}'"
 }
 
 @test "sdd pre-gate list_documents type list includes guide" {
@@ -185,18 +161,9 @@ ROWS
     "$SHARED/tracks/sdd.md" || fail "sdd.md pre-gate type list lost 'guide' (or reordered)"
 }
 
-@test "pi engagement table maps all five sources" {
-  grep -F -q '| `machine` | compose without a question; cite the artifact |' "$CONTRACT" || fail "machine row"
-  grep -F -q '| `user` | interview within the ceiling of `skills/_shared/elicitation-contract.md` |' "$CONTRACT" || fail "user row"
-  grep -F -q '| `world` | research instrument |' "$CONTRACT" || fail "world row"
-  grep -F -q '| `undecided` | decision instrument |' "$CONTRACT" || fail "undecided row"
-  grep -F -q '| `empirical` | spike |' "$CONTRACT" || fail "empirical row"
-}
-
-@test "delta field and risk flag vocabulary tokens appear in the contract" {
+@test "claim, unknown, and evidence vocabulary tokens appear in the contract" {
   local missing="" t
-  for t in creates modifies retires intent_gap \
-           external-contract data-migration security-compliance irreversibility multi-team; do
+  for t in create amend retire none fact choice feasibility acceptance supported missing conflicted; do
     grep -F -q "\`${t}\`" "$CONTRACT" || missing="$missing ${t}"
   done
   [ -z "$missing" ] || fail "vocabulary tokens missing from delta-routing.md:$missing"
@@ -281,6 +248,6 @@ flat() { tr '\n' ' ' < "$1" | sed 's/  */ /g'; }
     || fail "elicitation-contract.md lacks the double-delegation scope"
   [[ "$elicit" == *'an interruption does not resolve a material user-owned choice'* ]] \
     || fail "elicitation-contract.md lets an interruption resolve a user-owned choice"
-  [[ "$(flat "$CONTRACT")" == *'de-escalates only the technical needs its recorded behavior and relevant constraints cover'* ]] \
-    || fail "delta-routing.md lets a precedent de-escalate needs it does not cover"
+  [[ "$(flat "$CONTRACT")" == *'resolves only the technical unknowns its recorded behavior and relevant constraints cover'* ]] \
+    || fail "delta-routing.md lets a precedent resolve unknowns it does not cover"
 }

@@ -251,7 +251,7 @@ async function nextStep($: EngineInterface, t: Turn, s: Session): Promise<Step |
   }
 
   if (t.isDecision) {
-    return { reason: 'This sounds like a decision. Record it?', command: '/archcore:document decision ' }
+    return { reason: 'This sounds like a decision. Record it?', command: '/archcore:document record the decision ' }
   }
 
   // Drift, coverage and closeout need the engine's code alignment and staleness
@@ -275,24 +275,24 @@ async function nextStep($: EngineInterface, t: Turn, s: Session): Promise<Step |
     return { reason: `${t.editCount} file(s) edited without reading any Archcore document this session.`, command: '/archcore:review' }
   }
   if (t.emptySearch) {
-    return { reason: `Nothing in Archcore matches "${t.emptySearch}".`, command: `/archcore:document code ${t.emptySearch}` }
+    return { reason: `Nothing in Archcore matches "${t.emptySearch}".`, command: `/archcore:document ${t.emptySearch}` }
   }
   return null
 }
 
 // The command that resumes a track, by its id (skills/_shared/tracks/<id>.md and the
-// argument hints of skills/*/SKILL.md). Standalone evidence is filed through document research.
+// argument hints of skills/*/SKILL.md). A title resumes its draft through context resolution.
 function resumeOf(track: string, title: string, type: string): string | undefined {
   switch (track) {
     case 'research':
-      return type === 'evidence' ? `/archcore:document research ${title}` : `/archcore:plan ${title}`
+      return type === 'evidence' ? `/archcore:document ${title}` : `/archcore:plan ${title}`
     case 'sdd':
     case 'requirements-cascade':
       return `/archcore:plan ${title}`
     case 'decision':
-      return `/archcore:document decision ${title}`
+      return `/archcore:document ${title}`
     case 'describe':
-      return `/archcore:document code ${title}`
+      return `/archcore:document ${title}`
     case 'actualize':
     case 'closeout':
     case 'experience':

@@ -52,25 +52,26 @@ The documents stay in your repo, in `.archcore/`. Details: [privacy](https://arc
 
 `/archcore:plan` reads the repo and the existing documents first. Then it asks you only what it cannot find there. Your answers become documents in `.archcore/`: a spec with requirements, and a plan with tasks mapped to files. A user-facing change also gets examples in Given/When/Then form. Larger work can add a PRD, research, or a formal requirements chain.
 
-Archcore weighs the change, computes the route, and reports its size from S to XL. You never choose a template or a size.
+Archcore reads what the change claims and who will read the result, then creates only the documents that reader needs. You never choose a template or a mode.
 
 | The change                    | What plan prepares                                             |
 | ----------------------------- | -------------------------------------------------------------- |
 | A small fix                   | No documents                                                   |
 | A settled choice              | A decision record                                              |
 | A change to existing behavior | A check of the covering spec: update the spec, or fix the code |
+| A sequenced migration         | A plan                                                         |
 | One new capability            | A spec and a plan                                              |
 | Several capabilities          | A PRD, one spec per capability, and a plan                     |
 
-Risk raises the size. A security requirement adds a formal requirements chain. A data migration adds a migration runbook.
+A risk adds the check it needs. A security fix gets a security check; a formal requirements chain starts only when an obligation asks for traceability. A data migration that people run by hand adds a migration runbook.
 
 The agent then implements from the spec, the examples, and the tasks. The open questions are settled before the code, not after it.
 
 ## Document: you say it once, Archcore writes the document
 
 ```text
-/archcore:document decision why we chose [X]
-/archcore:document code [module]
+/archcore:document why we chose [X]
+/archcore:document how [module] works
 ```
 
 `/archcore:document` records what is true now: a decision, a team standard, how a module works, or a how-to. You do not choose a format. Archcore selects the document type, reads the code and the existing documents, and checks that the document does not exist yet. It asks you only what it cannot find. It links the new document to the related ones. A decision can also produce the rule and the guide that follow from it.

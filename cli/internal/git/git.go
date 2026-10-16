@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path"
 	"strings"
 	"time"
 )
@@ -112,6 +113,35 @@ func LastCommitTouching(ctx context.Context, dir, pathspec string) (string, erro
 		return "", err
 	}
 	return out, nil
+}
+
+// BaseNameShared reports whether a tracked file other than rel carries the base
+// name of rel. rel is relative to dir, and git lists paths relative to dir too.
+func BaseNameShared(ctx context.Context, dir, rel string) (bool, error) {
+	base := path.Base(rel)
+	out, _, err := run(ctx, dir, "ls-files", "-z", "--", ":(glob)**/"+escapeGlob(base))
+	if err != nil {
+		return false, err
+	}
+	for name := range strings.SplitSeq(out, "\x00") {
+		if name != "" && name != rel {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// escapeGlob quotes the wildmatch characters, so a Next.js route file such as
+// "[id].tsx" names itself instead of every one-letter file.
+func escapeGlob(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		if strings.ContainsRune(`*?[\`, r) {
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // ChangedSince lists files changed between sha and HEAD. Each element of

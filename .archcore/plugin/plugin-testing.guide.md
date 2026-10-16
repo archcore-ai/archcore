@@ -65,7 +65,7 @@ The CI workflow pins CLI 0.8.6 and verifies the release archive's SHA-256. The r
 make lint
 ```
 
-Expected result: `ShellCheck: all clean`. The target runs `shellcheck -s sh -x` on every `bin/` script; `-x` follows `source` directives so the normalizer library is checked in context. The same target lints the six bench scripts under `test/behavioral/` that `TEST_SH_SCRIPTS` in @plugin/Makefile lists.
+Expected result: `ShellCheck: all clean`. The target runs `shellcheck -s sh -x` on every `bin/` script; `-x` follows `source` directives so the normalizer library is checked in context. The same target lints the five bench scripts under `test/behavioral/` that `TEST_SH_SCRIPTS` in @plugin/Makefile lists.
 
 ### 4. Run the quick structural checks
 
@@ -137,7 +137,7 @@ Structure tests validate configs and files.
 
 Prefer a table over a copy when a test is per-host. Four hosts means four near-identical tests, and the fourth is the one nobody writes. Worse, a copied test can pass on an empty set: `jq '.. | .command?'` returns nothing for `hooks/copilot.hooks.json`, whose entries use `bash`. `test/structure/hooks.bats` shows the shape — one table of `host|config|plugin-root-variable`, a union accessor, an assertion that the extraction was not empty, and an enrollment guard so a fifth config cannot slip past the table.
 
-A change to a command's argument hint, mode list, or description is pinned by `test/structure/command-grammar.bats`; update that file together with the skill, the command wrapper, and `test/fixtures/routing/fixtures.tsv`.
+A change to a command's argument hint, the retired mode words, or a description is pinned by `test/structure/command-grammar.bats`; update that file together with the skill, the command wrapper, and `test/fixtures/routing/fixtures.tsv`.
 
 A change to how `plan`, `document`, or `review` leaves a stopped gate, an open track, or an unfinished draft is pinned by `test/structure/loop-integrity.bats`; update that file together with the skill and the shared contract it changes.
 
@@ -210,15 +210,16 @@ Some questions no bats test can answer: whether a host loads the hooks config at
 
 ### 15. Check model routing and test sensitivity
 
-Eight behavioral benches spend model tokens, run only on request, and never run in CI. Each saves raw replies when its `*_OUTPUT_DIR` variable is set, separates mismatches (exit 1) from CLI errors (exit 2), rejects an empty or malformed fixture corpus before any model call, and has a harness test under `test/unit/` that uses a fake model process.
+Eight behavioral benches spend model tokens, run only on request, and never run in CI. Each of the eight saves raw replies when its `*_OUTPUT_DIR` variable is set, separates mismatches (exit 1) from CLI errors (exit 2), rejects an empty or malformed fixture corpus before any model call, and has a harness test under `test/unit/` that uses a fake model process. The delivery bench makes no model call: it sends read-only `search_documents` calls to one `archcore mcp`, and it has no harness test.
 
 | Target | Script and fixtures | What it measures | Harness test |
 |---|---|---|---|
-| `make test-routing-bench` | @plugin/test/behavioral/route-bench.sh, `test/behavioral/fixtures/routing-bench.tsv` | the route the `plan` conductor announces for a task and its grounding | @plugin/test/unit/route-bench.bats |
+| `make test-matrix-bench` | @plugin/test/behavioral/matrix-bench.py, `test/behavioral/fixtures/matrix-bench.tsv`, `test/behavioral/fixtures/matrix-holdout.tsv`, `test/behavioral/fixtures/matrix-holdout-fresh.tsv` | the types `plan`, `document`, and `review` create, the questions they ask, their entry, and the plan disposition; `MATRIX_BENCH_SET=fresh` scores the untuned held-out cases, the routing guard; `MATRIX_BENCH_SET=holdout` is the first held-out set, tuned on 2026-10-16; the report prints tokens and latency per call | @plugin/test/unit/python-benches.bats |
+| `make test-delivery-bench` | @plugin/test/behavioral/delivery-bench.py | which documents reach the file context of an edit; no model calls | none |
 | `make test-gate-bench` | @plugin/test/behavioral/gate-bench.sh, `test/behavioral/fixtures/gate-bench.tsv` | what `sdd.design` does in one step: whether `skip_when` holds, how many questions it asks, whether the gate stays open or advances, how many choices it marks `[assumption]`, whether it saves the state block, and where a resumed draft continues. `GATE_BENCH_HOST` selects `claude`, `codex`, or `copilot`; `GATE_BENCH_REF` reads the contracts from a git ref such as a release tag; `GATE_BENCH_REPS` repeats each fixture | @plugin/test/unit/gate-bench.bats |
-| `make test-document-bench` | @plugin/test/behavioral/document-bench.sh, `test/behavioral/fixtures/document-bench.tsv` | the mode and document type `/archcore:document` selects, including requests with no mode word and no arguments | @plugin/test/unit/document-bench.bats |
+| `make test-document-bench` | @plugin/test/behavioral/document-bench.sh, `test/behavioral/fixtures/document-bench.tsv` | the track and document type `/archcore:document` selects, including requests with no arguments | @plugin/test/unit/document-bench.bats |
 | `make test-import-bench` | @plugin/test/behavioral/import-bench.sh, `test/behavioral/fixtures/import-bench.tsv` | the route, the size tier, and the triage verdict of `/archcore:init` | @plugin/test/unit/import-bench.bats |
-| `make test-skill-bench` | @plugin/test/behavioral/skill-bench.sh, `test/behavioral/fixtures/skill-bench.tsv` | which of the four skills Claude Code starts, and the mode word it passes, for a message that names no command | @plugin/test/unit/skill-bench.bats |
+| `make test-skill-bench` | @plugin/test/behavioral/skill-bench.sh, `test/behavioral/fixtures/skill-bench.tsv` | which of the four skills Claude Code starts, and the arguments it passes, for a message that names no command | @plugin/test/unit/skill-bench.bats |
 | `make test-writer-fanout-bench HOST=claude VARIANT=A` | @plugin/test/behavioral/writer-fanout-bench.py, `test/behavioral/fixtures/writer-fanout-package.json` | document write latency and quality of parallel writers | @plugin/test/unit/python-benches.bats |
 | `make test-edits-bench HOST=claude` | @plugin/test/behavioral/edits-bench.py, `test/behavioral/fixtures/edits-bench.json` | `update_document` edits payloads on a live model | @plugin/test/unit/python-benches.bats |
 | `make test-review-bench` | @plugin/test/behavioral/review-bench.sh, `test/behavioral/fixtures/review-bench.tsv` | what a plain branch review writes and asks: the document types it creates, the documents it updates, the units it omits, its question count, and the plan disposition. `REVIEW_BENCH_HOST`, `REVIEW_BENCH_REF`, and `REVIEW_BENCH_REPS` work as in the gate bench | @plugin/test/unit/review-bench.bats |

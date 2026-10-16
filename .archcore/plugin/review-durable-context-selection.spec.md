@@ -14,7 +14,7 @@ This spec defines how `/archcore:review` selects durable project context from ch
 
 The selection runs with or without a matching `plan`. `command-surface-v2.spec` behavior 39 routes a planless branch review through it, and `delta-routing-instruments.spec` behavior 23 admits a review-side `spec` through the describe instrument.
 
-Out of scope: starting a review nobody invoked, editing source code, a new document type, a new command mode, and documenting the delivered part of a `plan` that stays open.
+Out of scope: starting a review nobody invoked, editing source code, and a new document type.
 
 ## Surface
 
@@ -50,10 +50,13 @@ Out of scope: starting a review nobody invoked, editing source code, a new docum
 22. BEFORE `closeout.capture` runs, the review skill MUST pass it the selection report, including the units still confined to the plan.
 23. The review skill MUST report created, updated, omitted, deferred, and declined units separately.
 24. The review skill MUST NOT copy source bodies, generated schemas, or file inventories where an `@path` reference answers the reader task.
+25. WHEN a matched plan stays open, the review skill MUST select units from its delivered tasks.
+26. WHEN the user declines a unit or an offer, the review skill MUST record it under `## Clarifications` of the retained plan or created draft.
+27. The review skill MUST list experience candidates in the same preview as the other units.
 
 ## Constraints & Invariants
 
-- Constraint: the visible palette, the modes, and the local git boundary stay unchanged; the selection is internal to a branch review.
+- Constraint: the visible palette and the local git boundary stay unchanged; the selection is internal to a branch review.
 - Constraint: the preview question draws from the 5-question ceiling of `@plugin/plugins/archcore/skills/_shared/elicitation-contract.md`; per-document acceptance and plan-removal confirmations keep their existing rules.
 - Constraint: the preview is the capture offer for a unit routed to the experience instrument; `experience.offer` MUST NOT ask again for an authorized unit.
 - Constraint: an instrument invoked for an authorized unit runs in callable mode with that unit's scope pre-filled.
@@ -77,7 +80,7 @@ Out of scope: starting a review nobody invoked, editing source code, a new docum
 
 ## Conformance
 
-The review skill conforms when the planned and planless paths satisfy behaviors 1–24, hold the invariants, and degrade per the failure rules. Regression coverage: `@plugin/test/structure/command-grammar.bats` and `@plugin/test/structure/loop-integrity.bats` pin the routing; `@plugin/test/behavioral/review-bench.sh` measures the selection on a live model against `@plugin/test/behavioral/fixtures/review-bench.tsv` — a simple public contract, a complex internal implementation, comprehensive capture, a focused update, a zero-document change, a mixed-origin diff, a one-case lesson, unknown rationale, and conflicting accepted canon.
+The review skill conforms when the planned and planless paths satisfy behaviors 1–27, hold the invariants, and degrade per the failure rules. Regression coverage: `@plugin/test/structure/command-grammar.bats` and `@plugin/test/structure/loop-integrity.bats` pin the routing; `@plugin/test/behavioral/review-bench.sh` measures the selection on a live model against `@plugin/test/behavioral/fixtures/review-bench.tsv` — a simple public contract, a complex internal implementation, comprehensive capture, a focused update, a zero-document change, a mixed-origin diff, a one-case lesson, unknown rationale, and conflicting accepted canon.
 
 Given a branch with no matching plan that adds a public API and an internal helper,
 When the review runs,
