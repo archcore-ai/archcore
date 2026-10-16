@@ -19,7 +19,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 - Removed commands and their absorbing homes: `context` → CLI hook injection; `capture` and `decide` → `document`; `audit` → `review` gate; `help` → command descriptions, the init closing summary, and CLI `archcore help`.
 - Write affinity: `plan` → vision types; `document` → knowledge types, with explicit `research` filing in vision; `review` → experience types.
 - Read scope: all three categories for every command — vision supplies intent and resumption targets, knowledge supplies constraints, experience supplies precedent.
-- Entry grammar: `/archcore:plan [topic]`, `/archcore:document [subject]`, `/archcore:review [path, tag, or scope]` — one optional free-text argument; shared context resolution (@plugin/plugins/archcore/skills/_shared/gate-contract.md) selects the track, and a gate inside the track selects the document type. `/archcore:init [mode] [subject]` keeps the modes `import` and `refresh`.
+- Entry grammar: `/archcore:plan [topic]`, `/archcore:document [subject]`, `/archcore:review [free text: a path, a topic, 'close out <plan>', 'are docs stale', 'audit']` — one optional free-text argument; shared context resolution (@plugin/plugins/archcore/skills/_shared/gate-contract.md) selects the track, and a gate inside the track selects the document type. `/archcore:init [mode] [subject]` keeps the modes `import` and `refresh`.
 - Retired mode words: `sdd`, `sources`, `iso`, `decision`, `code`, `drift`, `deep`, `closeout`, `experience`. At the head of a `plan`, `document`, or `review` request each is topic text with no handling of its own; the `research` slug at the head is a type request. The list exists for the release notes and the retired-form guard, not for runtime routing.
 - Settings: no argument hint carries a `--flag`. `init` offers `depth:light|standard|deep` and `scale:small|medium|large` as toggles inside its preview, per `init-import-mode.adr`. A setting changes how an entry runs, never which entry runs.
 - Document track map: a settled or proposed choice → `decision.classify` (`adr`, `rfc`, `rule`); a description of existing code → `describe.read` (`spec`, `doc`, `guide`, `task-type`, `scenario`); a finished report or one external material → `research.frame` (`research`, `rnd`, `evidence`).
@@ -31,9 +31,10 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 3. WHEN a plan gate surfaces a decision, the plan skill MUST record the `adr` through the decision track.
 4. WHEN the user invokes `document`, the document skill MUST classify the target as decision, code-doc, research material, or unclear before composing.
 5. WHEN the classification is unclear, the document skill MUST inspect git state and the working tree before asking one classifying question.
-6. WHEN the user invokes `review` without arguments, the review skill MUST resolve the merge base with the default branch and review the changes since divergence.
+6. WHEN the user invokes `review` without arguments on a feature branch, the review skill MUST resolve the merge base with the default branch and review the changes since divergence.
+6a. WHEN the user invokes `review` without arguments on the default branch, the review skill MUST review the commits the upstream does not hold plus the uncommitted changes; without an upstream, the uncommitted changes alone.
 7. WHEN `review` finds code and documents in conflict, the review skill MUST label the finding `spec-wrong`, `code-wrong`, or `ok`.
-8. WHEN reviewed changes carry an undocumented pattern the durable-context preview did not list, the review skill SHOULD offer a `cpat` or `task-type` capture.
+8. WHEN reviewed changes carry a repeated edit shape or a practice change that passes the transfer test, the durable-context selection SHOULD list a `cpat`, `task-type`, or procedural `guide` in its preview.
 9. WHEN a skill gathers context, the skill MUST search all three categories.
 10. A skill MUST NOT exclude a category from document reads.
 11. WHEN a skill gathers context, the skill SHOULD pass a type filter matched to the command's moment instead of relying on the global type ranking.
@@ -58,16 +59,16 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 30. WHEN a `review` request asks whether documents are stale against code, the review skill MUST run the actualize track.
 31. WHEN a `review` request asks for a full documentation audit, the review skill MUST run the actualize track over all documents.
 32. WHEN a `review` request asks to close out finished work, the review skill MUST run the closeout track.
-33. WHEN a `review` request asks to capture a repeated pattern, the review skill MUST run the experience track.
+33. WHEN a `review` request asks to capture a repeated pattern, the review skill MUST run the durable-context selection over the named or branch scope without plan matching.
 34. WHEN the user invokes `init refresh`, the init skill MUST bypass the already-seeded early exit and compose only missing documents.
 35. WHEN the user invokes `init refresh` with a detected domain slug as the subject, the init skill MUST scope the seed to that domain's tree.
 36. WHEN a skill reports to the user, the skill MUST NOT print a gate address of the form `<track>.<stage>`.
 37. WHEN the user invokes `init import`, the init skill MUST run the import track in @plugin/plugins/archcore/skills/_shared/tracks/import.md.
 38. WHEN a plain branch review matches a local `plan`, the review skill MUST run its closeout after the bidirectional check and actualize fixes.
-39. WHEN a plain branch review matches no local `plan` to the branch work, the review skill MUST run the durable-context selection before the experience offer.
+39. WHEN a plain branch review matches no local `plan` to the branch work, the review skill MUST run the durable-context selection.
 40. WHEN a matched plan has an unfulfilled task or criterion, the review skill MUST capture its delivered units.
-41. WHEN a closeout request meets the default branch or an empty diff without a named scope, the review skill MUST ask for that scope.
-42. WHEN an experience request meets the default branch or an empty diff without a named scope, the review skill MUST ask for that scope.
+41. WHEN a closeout request meets an empty diff without a named scope, the review skill MUST ask for that scope.
+42. WHEN a capture request meets an empty diff without a named scope, the review skill MUST ask for that scope.
 43. WHEN a branch review finds a draft with an open state block, the review skill MUST report its gate and resume command.
 44. WHEN a review reports a finding, the review skill MUST name the next command for that finding kind.
 45. WHEN `plan` or `document` runs without arguments and one matching draft carries a state block, the skill MUST resume that draft.
@@ -86,7 +87,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 - Constraint: a standalone material is filed only through `document`.
 - Constraint: a slug leads the subject when it is the subject's first word or written in backticks; a slug elsewhere in topic text leads nothing. Behavior 29 takes precedence over behavior 21.
 - Constraint: behavior 29 takes precedence over behavior 18: `document research <one external material>` produces `research`; a request that asks to file the material as evidence produces `evidence`.
-- Constraint: a no-argument `review` reviews the current branch boundary, or reports health on a clean default branch; it resumes no draft, because the review-side tracks keep no state block.
+- Constraint: a no-argument `review` reviews the current branch boundary and never reports a project health dashboard; it resumes no draft, because the review-side tracks keep no state block.
 - Constraint: a `journey` is produced at `sdd.require` on `plan`, or on the document skill's named-type path when the request names `journey`.
 - Constraint: the actor-subject types bind only when the engine gate in @plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md returns `yes`.
 - Invariant: every one of the 23 document types is producible through at least one command path when the engine supports the vocabulary.
@@ -97,7 +98,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 
 1. IF `.archcore/` exists but contains no documents, THEN the invoked skill MUST proceed on outer-context grounding and report that zero documents were found.
 2. IF `.archcore/` does not exist, THEN the invoked skill MUST announce initialization in one line and call `init_project` without asking a question.
-3. IF `review` runs on the default branch or the diff is empty, THEN the review skill MUST report project health, except under behaviors 41–42.
+3. IF the review diff is empty, THEN the review skill MUST request an explicit path, topic, or ref, except under staleness or audit wording, which widens the scope to all documents.
 4. IF git state is unavailable, THEN the review skill MUST request an explicit path or topic.
 
 ## Conformance

@@ -46,7 +46,7 @@ hosts. Gate execution, state block, and resume rules:
   `urd`'s acceptance criteria — recorded requirements are never re-asked.
 - WHEN a check-existing search returns a global document, the executing skill
   loads `skills/_shared/globals.md`; absent any global match, it proceeds as usual.
-- The `task-type` offer belongs to `skills/_shared/tracks/experience.md`.
+- The `task-type` offer belongs to `skills/_shared/durable-context-selection.md`.
 - One selection can produce several documents on one topic through these
   instruments. The content-kind ownership table in
   `skills/_shared/prd-contract.md` names the one document that owns each kind

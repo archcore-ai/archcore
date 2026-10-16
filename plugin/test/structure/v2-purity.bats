@@ -62,7 +62,6 @@ CLEAN=(
   "skills/_shared/tracks/actualize.md"
   "skills/_shared/tracks/decision.md"
   "skills/_shared/tracks/describe.md"
-  "skills/_shared/tracks/experience.md"
   "skills/_shared/tracks/requirements-cascade.md"
   "skills/_shared/tracks/sdd.md"
   "skills/_shared/grounding/detect-config.md"

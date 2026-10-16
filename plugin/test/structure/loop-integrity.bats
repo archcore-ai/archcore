@@ -89,8 +89,8 @@ gate_of() {
   [[ "$review" == *'a coverage gap: `/archcore:document <subject>`'* ]] || fail "a coverage gap has no next action"
   [[ "$review" == *'drafts the branch created with no matched `plan`: `/archcore:review close out <scope>`'* ]] \
     || fail "unplanned drafts never reach an acceptance offer"
-  [[ "$review" == *'On completion or capture wording, the `on-default-branch` and `empty-diff` sentinels do not fall back to project health.'* ]] \
-    || fail "review closeout on the default branch silently shows the dashboard"
+  [[ "$review" == *'On completion or capture wording under the `empty-diff` sentinel, WHEN the arguments name no plan, path, or commit range, ask one question for that scope'* ]] \
+    || fail "review closeout on an empty diff does not ask for a scope"
   [[ "$(flat "$TRACKS/actualize.md")" == *'propose a new decision through `/archcore:document <decision>` that supersedes it'* ]] \
     || fail "drift rewrites an adr's decision in place"
 }
@@ -128,15 +128,16 @@ gate_of() {
   [[ "$capture" == *'blocking: every write was authorized at the preview before the call.'* ]] || fail "capture writes without authorization"
   [[ "$capture" == *'blocking: no document created at this gate was offered for acceptance in this invocation.'* ]] \
     || fail "capture accepts the drafts it just created"
-  [[ "$(gate_of "$TRACKS/experience.md" experience.detect)" == *'selection of this invocation already listed or omitted it'* ]] \
-    || fail "the experience offer re-asks a pattern the preview listed"
+  [[ "$sel" == *'The preview is the capture offer; a decline writes nothing.'* ]] \
+    || fail "capture wording can write without the preview"
 }
 
 @test "the free-text rewrite keeps the review sentinels, the no-material exit, and the named-type path" {
   local review
   review=$(flat "$REVIEW_SKILL")
   [[ "$review" == *'| `detached-head` | State the detached state; request an explicit path, topic, or ref. |'* ]] || fail "review lost the detached-head sentinel"
-  [[ "$review" == *'Only `on-default-branch` and `empty-diff` fall back to project health.'* ]] || fail "another sentinel can fall back to health"
+  [[ "$review" == *'No sentinel reports'* ]] || fail "a sentinel can fall back to a health dashboard"
+  [[ "$review" != *'on-default-branch'* ]] || fail "review still treats the default branch as unreviewable"
   [[ "$(flat "$DOC_SKILL")" == *'### Named type'* ]] || fail "document lost the Named type path"
   [[ "$(flat "$DOC_SKILL")" == *'supplies neither a report nor a material → write nothing'* ]] || fail "document lost the no-material exit"
 }

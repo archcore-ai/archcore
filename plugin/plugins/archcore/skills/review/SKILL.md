@@ -1,12 +1,12 @@
 ---
 name: review
-argument-hint: "[path, tag, or scope]"
-description: "The pre-merge review of a branch in a project that records its specs, decisions, and rules in .archcore/. Run this first for 'review my branch', 'review the changes before merge', or 'review before merge': it checks the changed code against the project's recorded canon and the changed documents against the code, and reports which side is wrong — spec-wrong or code-wrong; with no diff, it reports project health. A bug-hunting code review complements this review and does not replace it. Also use for 'show status', 'documentation gaps', 'check if docs match code', 'close out the feature', 'ship the feature and close it out', or after a staleness warning. Takes an optional path, tag, topic, or ref in free text; no first word is a mode — say 'are docs out of date', 'audit the knowledge base', 'close out the feature', or 'capture this pattern' in plain words. Not for creating docs — use /archcore:document; not for planning — use /archcore:plan; not for a single-file edit with no branch review."
+argument-hint: "[free text: a path, a topic, 'close out <plan>', 'are docs stale', 'audit']"
+description: "The pre-merge review of a branch in a project that records its specs, decisions, and rules in .archcore/. Run this first for 'review my branch', 'review the changes before merge', or 'review before merge': it checks the changed code against the project's recorded canon and the changed documents against the code, and reports which side is wrong — spec-wrong or code-wrong; on the default branch it reviews the unpushed and uncommitted work. A bug-hunting code review complements this review and does not replace it. Also use for 'documentation gaps', 'check if docs match code', 'close out the feature', 'ship the feature and close it out', or after a staleness warning. Takes an optional path, tag, topic, or ref in free text; no first word is a mode — say 'are docs out of date', 'audit the knowledge base', 'close out the feature', or 'capture this pattern' in plain words. Not for creating docs — use /archcore:document; not for planning — use /archcore:plan; not for a single-file edit with no branch review."
 ---
 
 # /archcore:review
 
-Review the changes on the current branch against the `.archcore/` knowledge base, in both directions: whether the changed code still matches the documents that claim it, and whether the changed documents still match the code they describe. A plain branch review also checks a matching `plan` for completion and continues into closeout when one exists. On the default branch, or with an empty diff, the skill reports project health instead. Write affinity: experience types — `cpat` and `task-type` land through the experience track. A branch review also selects durable context — the claims of the change a later reader needs from `.archcore/` — and writes the units the user authorizes through their owning instruments, per `skills/_shared/durable-context-selection.md`. This is also the only skill that removes a document: `closeout.discharge` removes a completed `plan`, and `actualize.fix` may remove a long-stale draft of any type — both via `mcp__archcore__remove_document`, each under its own confirmation.
+Review the changes on the current branch against the `.archcore/` knowledge base, in both directions: whether the changed code still matches the documents that claim it, and whether the changed documents still match the code they describe. A plain branch review also checks a matching `plan` for completion and continues into closeout when one exists. On the default branch, the scope is the work the upstream does not hold yet plus the uncommitted changes; with an empty diff, the skill asks for a scope. A branch review also selects durable context — the claims of the change a later reader needs from `.archcore/` — and writes the units the user authorizes through their owning instruments, per `skills/_shared/durable-context-selection.md`. This is also the only skill that removes a document: `closeout.discharge` removes a completed `plan`, and `actualize.fix` may remove a long-stale draft of any type — both via `mcp__archcore__remove_document`, each under its own confirmation.
 
 Command tense: `/archcore:plan` declares a future canon delta, `/archcore:document`
 records the present state — including work that shipped without a plan — and
@@ -16,12 +16,11 @@ records the present state — including work that shipped without a plan — and
 ## When to use
 
 - "Review my branch" / "Review the changes before merge" → branch review
-- "Show status" / "How many docs do we have?" → project health dashboard
 - "Are any docs out of date?" / "Check if documentation matches the code" → staleness check
 - "Audit the knowledge base" / "Documentation gaps?" → full audit
 - Session-start staleness warning appeared → staleness check
 - "Close out the feature" / "Ship the feature and close it out" → closeout
-- "Capture this repeated change as a pattern" → experience capture
+- "Capture this repeated change as a pattern" → durable-context selection over the named scope
 
 **Not review:**
 - Documenting a module, decision, or topic → `/archcore:document`
@@ -33,12 +32,12 @@ records the present state — including work that shipped without a plan — and
 | Signal | Route |
 |---|---|
 | No arguments, branch with changes | → branch review, steps 1–4; step 3 runs closeout for each matched `plan`, or the durable-context selection when no plan reaches capture |
-| On the default branch, or empty diff | → project health dashboard (step 1 fallback), plus any explicit staleness signal; completion and capture wording ask for a scope instead (step 1) |
+| Empty diff | → ask one question for a path, topic, or ref; staleness and audit wording widen to all documents instead (step 1) |
 | Git resolves no scope and the request names none | → ask one question for a path, topic, or ref; show no health report |
-| Staleness wording: "are docs out of date", "check if documentation matches the code", a session-start staleness warning | → actualize track (step 3); scope from step 1 when the branch boundary resolves, all documents on `on-default-branch` or `empty-diff` |
+| Staleness wording: "are docs out of date", "check if documentation matches the code", a session-start staleness warning | → actualize track (step 3); scope from step 1 when the branch boundary resolves, all documents on `empty-diff` |
 | Audit wording: "audit the knowledge base", "documentation gaps" | → actualize track over all documents, plus coverage and relation findings (the full audit) |
-| Completion signals: "close out the feature", "ship the feature and close it out" — an explicit completion or acceptance verb | → closeout track (`skills/_shared/tracks/closeout.md`), scope pre-filled from the step 1 `branch-state` block; exits into the step 4 experience offer |
-| Capture wording: "capture this repeated change as a pattern" | → experience track (`skills/_shared/tracks/experience.md`) over the branch scope; the detect gate selects `cpat` or `task-type` |
+| Completion signals: "close out the feature", "ship the feature and close it out" — an explicit completion or acceptance verb | → closeout track (`skills/_shared/tracks/closeout.md`), scope pre-filled from the step 1 `branch-state` block |
+| Capture wording: "capture this repeated change as a pattern" | → durable-context selection (`skills/_shared/durable-context-selection.md`, Capture wording) over the named or branch scope, no plan matching |
 | Path, tag, topic, or ref argument | → the named scope narrows or replaces the branch scope |
 | Any first word, a track or type name included | → topic text; route by the signals above |
 
@@ -59,7 +58,7 @@ IF `.archcore/` does not exist, THEN announce initialization in one line and cal
 
 ### Step 1: Branch scope
 
-Resolve the branch work boundary per `skills/_shared/branch-state.md` — plain git, offline. On success, the `branch-state` output block (committed and uncommitted changes since the merge base) is the review scope. A path, tag, or scope argument narrows the changed-file list.
+Resolve the branch work boundary per `skills/_shared/branch-state.md` — plain git, offline. On success, the `branch-state` output block (committed and uncommitted changes since the merge base) is the review scope. On the default branch, the merge base is the upstream, so the scope is the unpushed commits plus the uncommitted changes; without an upstream, the uncommitted changes alone. A path, tag, or scope argument narrows the changed-file list.
 
 Handle every sentinel the contract defines:
 
@@ -69,29 +68,14 @@ Handle every sentinel the contract defines:
 | `detached-head` | State the detached state; request an explicit path, topic, or ref. |
 | `no-default-branch` | Request an explicit path or topic. |
 | `no-merge-base` | Request an explicit path or topic. |
-| `on-default-branch` | Report project health instead of a branch review. |
-| `empty-diff` | Report project health instead of a branch review. |
+| `empty-diff` | State that no changes exist since `<default-ref>`; request an explicit path, topic, or ref. |
 
-Only `on-default-branch` and `empty-diff` fall back to project health. Every other
-sentinel asks one question for a path, topic, or ref and shows no health report.
+Every sentinel asks one question for a path, topic, or ref. No sentinel reports
+project health; the review skill has no health dashboard.
 
-On staleness or audit wording, the `on-default-branch` and `empty-diff` sentinels widen the actualize scope to all documents instead of the health fallback, and Step 2 is skipped.
+On staleness or audit wording, the `empty-diff` sentinel widens the actualize scope to all documents instead of asking, and Step 2 is skipped.
 
-On completion or capture wording, the `on-default-branch` and `empty-diff` sentinels do not fall back to project health. WHEN the arguments name no plan, path, or commit range, ask one question for that scope, recommending the most recently modified draft `plan`. With the scope set, the track judges the named plan against the current tree and, when given, the commit range.
-
-**Project health fallback** — compact dashboard, data and mechanical checks, no judgement:
-
-- document counts by category, by status, and by type (skip types with 0);
-- relation counts by type, with the share of `related`;
-- unlinked documents (no incoming or outgoing relations), reported as inventory;
-- unresolved code paths and documents with line anchors, counted from one run of `bin/check-references` (`skills/_shared/tracks/actualize.md`, check 4) — never by reading each document; without a shell, state that the reference check did not run;
-- one-line summary of confirmed structural issues; counts alone do not establish a defect.
-
-An unlinked document or a high draft count alone is not an issue. The default
-branch holds the merged corpus, so the reference counts run here even though no
-diff exists: a path deleted by an earlier branch appears in no later diff.
-
-End with the closable vision drafts, if any — a draft `plan`, `idea`, `prd`, `rnd`, or `research` whose exit its producing gate names as met — and: *For staleness detection, run `/archcore:review are docs out of date`. For a full audit, run `/archcore:review audit the knowledge base`.*
+On completion or capture wording under the `empty-diff` sentinel, WHEN the arguments name no plan, path, or commit range, ask one question for that scope, recommending the most recently modified draft `plan`. With the scope set, the track judges the named plan against the current tree and, when given, the commit range.
 
 Before delegating an audit, supply the resolved branch scope, scoped diff, and
 relevant git history to the auditor. Identify missing history explicitly.
@@ -121,29 +105,17 @@ List open tracks in scope: each draft that carries an `archcore:track` state blo
 
 ### Step 3: Actualize gate
 
-WHEN step 2 surfaces a drift signal — any `spec-wrong` or `code-wrong` finding — or the request carries staleness or audit wording, route into the actualize track (`skills/_shared/tracks/actualize.md`) and run its gates: `actualize.scope` (pre-filled with the step 1 `branch-state` block), `actualize.verdict`, `actualize.fix`. On audit wording, widen the scope to all documents and run the track's deep checks within their stated budget — claim sampling, cross-document conflicts, type fitness, and relation candidates — alongside the drift verdicts, then report coverage gaps per the auditor's Coverage dimension (`agents/archcore-auditor.md`). Verdict vocabulary lives in `skills/_shared/verdict-contract.md`.
+WHEN step 2 surfaces a drift signal — any `spec-wrong` or `code-wrong` finding — or the request carries staleness or audit wording, route into the actualize track (`skills/_shared/tracks/actualize.md`) and run its gates: `actualize.scope` (pre-filled with the step 1 `branch-state` block), `actualize.verdict`, `actualize.fix`. On audit wording, widen the scope to all documents and run the track's deep checks within their stated budget — claim sampling, cross-document conflicts, type fitness, and relation candidates — alongside the drift verdicts, then report coverage gaps per the auditor's Coverage dimension (`agents/archcore-auditor.md`). An unlinked document or a high draft count alone is not an issue. Verdict vocabulary lives in `skills/_shared/verdict-contract.md`.
 
 On a plain branch review, after step 2 and any actualize fixes:
 
-1. IF step 2 matched no `plan`, THEN skip closeout and run the durable-context selection before step 4.
+1. IF step 2 matched no `plan`, THEN skip closeout and run the durable-context selection.
 2. For each matched `plan`, run the closeout track (`skills/_shared/tracks/closeout.md`) with the step 1 branch boundary and that plan's scope pre-filled.
 3. Run `closeout.verify` even when the request contains no completion wording.
 4. Never infer completion from branch readiness alone. The track's plain-review entry rule decides which gates run after `closeout.verify`.
 5. IF matched plans exist but none reached `closeout.capture`, THEN run the durable-context selection over the branch scope, including the delivered units of each unfinished plan; the unfinished plan stays, and no removal is offered for it.
-6. Run the step 4 experience offer once, after all matched plans have been checked.
 
 The durable-context selection follows `skills/_shared/durable-context-selection.md`. It treats an ambiguously matched plan as no match, and it never selects a `journey`.
-
-### Step 4: Experience offer
-
-WHEN the reviewed changes carry an undocumented pattern that the durable-context preview did not list, offer a `cpat` or `task-type` capture through the experience track (`skills/_shared/tracks/experience.md`): `experience.detect` establishes the pattern and its evidence; `experience.offer` asks once. The offer is optional — never force it; a decline writes nothing.
-
-On every branch review, report one experience line after the durable-context
-preview and this step: `experience: captured <types>`, `experience: offered
-<type> — declined`, or `experience: none — <reason>`. The reason names the
-first failed condition: no detection signal, no recorded reason, a failed
-transfer-test part, an existing owner, or an exhausted question budget. The line
-covers both sources — the durable-context selection and this step.
 
 ## Delegation
 
@@ -154,13 +126,12 @@ covers both sources — the durable-context selection and this step.
 ## Result
 
 - Branch review: findings grouped by verdict — `spec-wrong` / `code-wrong` / `ok` — with evidence, applied fixes, and declined fixes.
-- Health fallback: the dashboard — data and the reference helper's counts.
 - Ambiguous plan candidates: each candidate named, with closeout skipped.
 - Open tracks: each draft from step 2's open-track list, with its gate, its unresolved choices, and its resume command.
 - Durable context: units grouped created, updated, omitted, deferred, and declined — each with its claim, evidence, and owner, and a reason for every omitted or declined unit.
 - Closeout: per-task verdicts, applied and declined document updates, status transitions grouped applied / declined / skipped, units written at capture with the instrument that took each, removed plans, and retained plans with the remaining work or blocking reason.
-- Produced documents grouped by category — experience: a `cpat` or `task-type` draft from the experience offer or the durable-context selection; knowledge: a `spec`, `doc`, `guide`, `scenario`, or an `adr` plus its standard cascade (`rule`, `guide`), from the durable-context selection; knowledge / vision: documents updated by a drift fix or a closeout merge.
-- Experience: the step 4 experience line.
+- Produced documents grouped by category — experience: a `cpat` or `task-type` draft from the durable-context selection; knowledge: a `spec`, `doc`, `guide`, `scenario`, or an `adr` plus its standard cascade (`rule`, `guide`), from the durable-context selection; knowledge / vision: documents updated by a drift fix or a closeout merge.
+- Captured: the capture line of the durable-context selection report.
 - Removed documents: each completed `plan` closeout removed, and each long-stale draft a drift fix removed on the user's confirmation — each named with a verified recovery commit when available. For closeout, state explicitly when git history does not preserve the removed plan's current content.
 - Next actions — one line per finding kind present, naming only v2 commands:
   - a `code-wrong` finding: fix the code against the governing document, or, when the document should change instead, `/archcore:plan <capability>` to amend it;

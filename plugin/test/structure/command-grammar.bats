@@ -26,7 +26,7 @@ hint_of() {
 init|"[import|refresh] [path or domain]"
 plan|"[topic]"
 document|"[subject]"
-review|"[path, tag, or scope]"
+review|"[free text: a path, a topic, 'close out <plan>', 'are docs stale', 'audit']"
 HINTS
 }
 
@@ -106,12 +106,12 @@ $hits"
     || { fail "plain branch review does not search for matching plans"; return 1; }
   grep -F -q 'Run `closeout.verify` even when the request contains no completion wording.' "$skill" \
     || { fail "matching plan does not enter closeout on plain review"; return 1; }
-  grep -F -q 'IF step 2 matched no `plan`, THEN skip closeout and run the durable-context selection before step 4.' "$skill" \
+  grep -F -q 'IF step 2 matched no `plan`, THEN skip closeout and run the durable-context selection.' "$skill" \
     || { fail "plain review without a plan skips durable-context selection"; return 1; }
   grep -F -q 'IF matched plans exist but none reached `closeout.capture`, THEN run the durable-context selection' "$skill" \
     || { fail "a review whose plans stop at verify selects nothing from the branch"; return 1; }
-  grep -F -q 'Run the step 4 experience offer once, after all matched plans have been checked.' "$skill" \
-    || { fail "experience offer is not bounded to once per review"; return 1; }
+  grep -F -q 'reports the capture line once' "$PLUGIN_ROOT/skills/_shared/tracks/closeout.md" \
+    || { fail "capture line is not bounded to once per review"; return 1; }
   grep -F -q 'IF a candidate matches ambiguously, THEN report it as a candidate and skip closeout for it.' "$skill" \
     || { fail "ambiguous plan candidates are not bounded"; return 1; }
   grep -F -q 'a task or' "$closeout" && grep -F -q 'acceptance criterion of that plan carries a verdict other than fulfilled.' "$closeout" \

@@ -29,7 +29,7 @@ setup() {
 @test "guide contract is wired into every guide producer" {
   local f
   for f in "$SHARED/tracks/sdd.md" "$SHARED/tracks/describe.md" \
-           "$SHARED/tracks/experience.md" "$SHARED/tracks/decision.md"; do
+           "$SHARED/durable-context-selection.md" "$SHARED/tracks/decision.md"; do
     grep -F -q 'skills/_shared/guide-contract.md' "$f" \
       || fail "no guide-contract.md reference in ${f#"$PLUGIN_ROOT"/}"
   done
@@ -193,9 +193,11 @@ ROWS
   grep -F -q 'skills/_shared/delta-routing.md' "$PLUGIN_ROOT/skills/review/SKILL.md" || fail "review/SKILL.md"
 }
 
-@test "experience track keeps the actor boundary rule" {
-  grep -F -q 'the actor decides the type' "$SHARED/tracks/experience.md" \
-    || fail "actor boundary rule missing from experience.md"
+@test "durable-context selection keeps the actor boundary rule and the transfer test" {
+  grep -F -q 'the actor decides the type' "$SHARED/durable-context-selection.md" \
+    || fail "actor boundary rule missing from durable-context-selection.md"
+  grep -F -q '## Transfer test' "$SHARED/durable-context-selection.md" \
+    || fail "transfer test missing from durable-context-selection.md"
 }
 
 @test "every 'entry' gate reference in the contract resolves to a gate heading" {

@@ -1724,7 +1724,6 @@ const RESUMES: [string, string][] = [
   ['describe.draft', '/archcore:document Hint band'],
   ['actualize.verdict', '/archcore:review'],
   ['closeout.verify', '/archcore:review'],
-  ['experience.offer', '/archcore:review'],
   ['import.triage', '/archcore:init import'],
 ]
 for (const [gate, command] of RESUMES) {
