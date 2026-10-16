@@ -28,7 +28,7 @@ This matrix verifies that every shipped document type keeps at least one produce
 | `adr` | `decision.adr`; `decision.resolve` | a settled choice with named alternatives and reasons; a `choice` unknown sent to the decision instrument; a refactor's decision claim | widened |
 | `rfc` | `decision.rfc` | decision instrument; solution-shape uncertainty (judged panel of alternatives) | unchanged |
 | `rule` | `decision.cascade` standard branch | same producer — a `document` request that records a standard reaches it through `decision.classify`, directly when one local `adr` already records the decision; input role at grounding stays (conductor reads rules as constraints) | unchanged |
-| `guide` | `decision.cascade` standard branch; `describe.draft` | same producers, plus: runbook instrument — selected when a claim introduces a repeatable human operation, including a data migration procedure; capture target for human-actor procedures at the experience offer and at plan discharge | widened |
+| `guide` | `decision.cascade` standard branch; `describe.draft` | same producers, plus: runbook instrument — selected when a claim introduces a repeatable human operation, including a data migration procedure; capture target for human-actor procedures in the durable-context selection preview and at plan discharge | widened |
 | `doc` | `describe.draft` | same producer | unchanged |
 | `mrd` | `requirements-cascade.mrd` | acquisition instrument — a market, business, or user source question the request or a gate names | narrowed |
 | `brd` | `requirements-cascade.brd` | acquisition instrument — same condition | narrowed |
@@ -37,8 +37,8 @@ This matrix verifies that every shipped document type keeps at least one produce
 | `strs` | `requirements-cascade.strs` | iso chain link — same condition | narrowed |
 | `syrs` | `requirements-cascade.syrs` | iso chain link — same condition | narrowed |
 | `srs` | `requirements-cascade.srs` | iso chain link — same condition | narrowed |
-| `task-type` | `experience.offer` | `describe.draft` for an agent procedure; consumption — a precedent that answers a technical unknown; discharge target for a completed `plan` with an agent-actor procedure | widened |
-| `cpat` | `experience.offer`; `decision.cascade` opt-in | unchanged producers; consumption — a precedent that answers a technical unknown | widened |
+| `task-type` | durable-context selection, Write routing (`create_document`) | `describe.draft` for an agent procedure; consumption — a precedent that answers a technical unknown; discharge target for a completed `plan` with an agent-actor procedure | widened |
+| `cpat` | durable-context selection, Write routing (`create_document`); `decision.cascade` opt-in | unchanged producers; consumption — a precedent that answers a technical unknown | widened |
 
 Legend: added — introduced by a vocabulary release (research on CLI 0.8.3, actor-subject on CLI 0.8.4); narrowed — the type fires under a stricter computed condition than today's gate order; widened — the type gains a producer, a form, or a consumption role; unchanged — producer and condition survive as they are.
 

@@ -198,6 +198,10 @@ ROWS
     || fail "actor boundary rule missing from durable-context-selection.md"
   grep -F -q '## Transfer test' "$SHARED/durable-context-selection.md" \
     || fail "transfer test missing from durable-context-selection.md"
+  grep -F -q 'A pattern missing one part is omitted' "$SHARED/durable-context-selection.md" \
+    || fail "transfer test lost its four-part rule"
+  grep -F -q '## Capture wording' "$SHARED/durable-context-selection.md" \
+    || fail "capture wording section missing from durable-context-selection.md"
 }
 
 @test "every 'entry' gate reference in the contract resolves to a gate heading" {

@@ -233,8 +233,8 @@ contract inside a gate. A gate states only what is specific to it.
 Commands that resume a track: `/archcore:plan` — `sdd`, `requirements-cascade`,
 `research`, and `decision` as a conductor instrument; `/archcore:document` —
 `decision`, `describe`, and `research`, recommended for an `evidence` draft;
-`/archcore:init import` — `import`. The `actualize`,
-`closeout`, and `experience` tracks write no state block.
+`/archcore:init import` — `import`. The `actualize` and
+`closeout` tracks write no state block.
 
 ## Authoring rules for track files
 

@@ -256,7 +256,7 @@ not apply on this track.
   - blocking: no removal was offered for a plan with a task or criterion
     other than fulfilled.
 - Next: exit — after all matched plans finish closeout, the `review` skill
-  reports the capture line once.
+  reports the capture line once, merged across every selection run.
 
 ## Discharge report
 

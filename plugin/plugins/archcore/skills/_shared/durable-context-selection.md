@@ -2,8 +2,8 @@
 
 Plugin runtime asset. Loaded by the `review` skill on a branch review: inside
 `closeout.capture` when a `plan` matched (`skills/_shared/tracks/closeout.md`),
-and in step 3 of `skills/review/SKILL.md` when no plan matched. One procedure
-serves both paths. Interview mechanics and the question ceiling:
+in step 3 of `skills/review/SKILL.md` when no plan matched, and over the named
+scope on capture wording. One procedure serves all three paths. Interview mechanics and the question ceiling:
 `skills/_shared/elicitation-contract.md`.
 
 The procedure decides which claims of a reviewed change a later reader needs
@@ -95,6 +95,8 @@ that `spec`, even when a test covers the new behavior: the consumer reads the
 - IF no existing type owns a unit, THEN report the ownership gap; do not force a `cpat` or a `task-type`.
 - IF an experience candidate — `cpat`, `task-type`, or procedural `guide` — lacks a reusable trigger, mechanism, evidence, or limit per the transfer test below, THEN omit it with the missing part as the reason. Two similar edits alone do not prove transfer.
 - An incident-specific failure belongs in the owning `spec`'s Failure Behavior or a procedure's Pitfalls, not in a new experience document. Prefer a focused update to an existing `cpat`, `task-type`, or `guide` that owns the lesson.
+- IF code extends an accepted document without contradicting it, THEN propose the update of that owner; only a contradiction is an authority conflict per `skills/_shared/verdict-contract.md`.
+- Never select a `journey`. A discovered product goal is reported as an open question for `/archcore:plan`.
 
 ## Transfer test
 
@@ -109,9 +111,7 @@ Case paths and commits stay as evidence references; the body states the reusable
 
 ## Capture wording
 
-WHEN the request asks to capture a repeated change or a practice as a pattern ("capture this repeated change as a pattern"), the review skill runs this procedure over the named scope, or the branch scope when none is named, without plan matching. The preview is the capture offer; a decline writes nothing.
-- IF code extends an accepted document without contradicting it, THEN propose the update of that owner; only a contradiction is an authority conflict per `skills/_shared/verdict-contract.md`.
-- Never select a `journey`. A discovered product goal is reported as an open question for `/archcore:plan`.
+WHEN the request asks to capture a repeated change or a practice as a pattern, the review skill runs this procedure over the named scope, or the branch scope when none is named, without plan matching. The preview is the capture offer; a decline writes nothing.
 
 ## Preview and authorization
 
@@ -129,7 +129,7 @@ mode with the unit's scope and type pre-filled:
 
 - `spec`, `doc`, `guide` for a module, `scenario` → `skills/_shared/tracks/describe.md`; the pre-filled type settles `describe.draft` without its type question.
 - `adr` → `skills/_shared/tracks/decision.md` with the subject naming `adr` and the evidenced alternatives.
-- `cpat`, `task-type`, a procedural `guide` → `create_document` with the type pre-filled; the preview authorization is the offer for that unit. A `cpat` body covers What Changed, Why, Before, After, Scope; a `task-type` body covers What, When to Use, Steps, Example, Things to Watch Out For; a `guide` body carries every section `skills/_shared/guide-contract.md` requires. Each names at least one governed path or file kind with `@path` notation or a compound extension.
+- `cpat`, `task-type`, a procedural `guide` → `create_document` with the type pre-filled; the preview authorization is the offer for that unit. The body follows the type's `create_document` template; a `guide` follows `skills/_shared/guide-contract.md`. Each names at least one governed path or file kind with `@path` notation or a compound extension.
 - An update of an existing owner → `update_document` on that document; the preview authorization is its confirmation.
 
 A created document starts at `draft`. The same invocation does not offer its
@@ -141,6 +141,9 @@ reader task.
 
 Group the units as created, updated, omitted, deferred, and declined. Name the
 claim and reason for each omitted and declined unit, and the missing check for
-each deferred one. End with one capture line: `captured: <types>` for the
-created and updated units, or `captured: none — <reason>` naming the first
-failed test of the best candidate, the question ceiling, or the user's decline.
+each deferred one. The review skill prints one capture line per invocation,
+merged across every selection run: `captured: <types>` for the created and
+updated units, or `captured: none — <reason>`. The reason names the first of:
+no candidate, an existing owner holds or took the claim, an ownership gap, the
+first failed test of the best candidate, the question ceiling, or the user's
+decline.

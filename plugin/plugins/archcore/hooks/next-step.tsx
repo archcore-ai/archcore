@@ -295,7 +295,6 @@ function resumeOf(track: string, title: string, type: string): string | undefine
       return `/archcore:document ${title}`
     case 'actualize':
     case 'closeout':
-    case 'experience':
       return '/archcore:review'
     case 'import':
       return '/archcore:init import'

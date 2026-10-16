@@ -23,7 +23,7 @@ A branch written without an Archcore plan â€” by the user or by another agent â€
 
 ### Developer
 
-Anchors: @plugin/plugins/archcore/skills/review/SKILL.md, @plugin/plugins/archcore/skills/_shared/durable-context-selection.md, @plugin/plugins/archcore/skills/_shared/tracks/describe.md, @plugin/plugins/archcore/skills/_shared/tracks/experience.md, @plugin/test/behavioral/fixtures/review-bench.tsv
+Anchors: @plugin/plugins/archcore/skills/review/SKILL.md, @plugin/plugins/archcore/skills/_shared/durable-context-selection.md, @plugin/plugins/archcore/skills/_shared/tracks/describe.md, @plugin/test/behavioral/fixtures/review-bench.tsv
 
 1. Developer types `/archcore:review` on the branch; the skill finds no matching plan.
 2. Developer reads the bidirectional check; conflicts carry `spec-wrong`, `code-wrong`, or `ok`.

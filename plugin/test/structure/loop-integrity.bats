@@ -136,8 +136,13 @@ gate_of() {
   local review
   review=$(flat "$REVIEW_SKILL")
   [[ "$review" == *'| `detached-head` | State the detached state; request an explicit path, topic, or ref. |'* ]] || fail "review lost the detached-head sentinel"
-  [[ "$review" == *'No sentinel reports'* ]] || fail "a sentinel can fall back to a health dashboard"
+  [[ "$review" == *'No sentinel reports project health; the review skill has no health dashboard.'* ]] || fail "a sentinel can fall back to a health dashboard"
   [[ "$review" != *'on-default-branch'* ]] || fail "review still treats the default branch as unreviewable"
+  [[ "$(flat "$SHARED/branch-state.md")" == *'`git rev-parse --verify --quiet @{upstream}`'* ]] || fail "branch-state does not probe the upstream on the default branch"
+  [[ "$(flat "$SHARED/branch-state.md")" == *'otherwise set `<default-ref>` to `HEAD`.'* ]] || fail "branch-state has no HEAD fallback without an upstream"
+  [[ "$(flat "$SHARED/branch-state.md")" != *'on-default-branch'* ]] || fail "branch-state still stops on the default branch"
+  [[ "$(flat "$SHARED/durable-context-selection.md")" == *'`captured: none — <reason>`'* ]] || fail "the selection report has no captured line"
+  [[ "$review" == *'- Captured: one `captured:` line per invocation'* ]] || fail "review result has no Captured line"
   [[ "$(flat "$DOC_SKILL")" == *'### Named type'* ]] || fail "document lost the Named type path"
   [[ "$(flat "$DOC_SKILL")" == *'supplies neither a report nor a material → write nothing'* ]] || fail "document lost the no-material exit"
 }
