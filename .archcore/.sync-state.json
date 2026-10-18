@@ -5462,6 +5462,26 @@
       "source": "plugin/review-durable-context-selection.spec.md",
       "target": "plugin/experience-capture-through-durable-context-selection.adr.md",
       "type": "implements"
+    },
+    {
+      "source": "plugin/wrapper-hosts-defer-to-inner-agent-adapter.adr.md",
+      "target": "integrations/agent-host-landscape.rnd.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/wrapper-hosts-defer-to-inner-agent-adapter.adr.md",
+      "target": "plugin/multi-host-plugin-architecture.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "integrations/agent-host-landscape.rnd.md",
+      "target": "plugin/opencode-adapter.plan.md",
+      "type": "related"
+    },
+    {
+      "source": "integrations/agent-host-landscape.rnd.md",
+      "target": "integrations/supported-ai-agents.doc.md",
+      "type": "related"
     }
   ]
 }
