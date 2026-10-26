@@ -363,7 +363,7 @@ func reportMissingProject(w io.Writer, hosts []plugin.Host) {
 	for _, host := range hosts {
 		if spec, ok := plugin.SpecFor(host); ok && len(spec.ProjectConfigPaths) > 0 {
 			fmt.Fprintln(w, display.WarnLine(fmt.Sprintf(
-				"%s: run this inside a project with .archcore/, or pass --project — the plugin is installed per project.", spec.DisplayName)))
+				"%s: run this inside a project with .archcore/, or pass --project.", spec.DisplayName)))
 		}
 	}
 }

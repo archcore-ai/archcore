@@ -763,7 +763,7 @@ func TestExecuteRunsTheOpenCodeVerbsInTheProject(t *testing.T) {
 
 	reporter := &recordingReporter{}
 	results := Execute(t.Context(), Plan(VerbInstall, CollectEvidence(t.Context(), []Host{HostOpenCode}, root)), reporter, ExecuteOptions{})
-	if want := []string{"cd " + root + " && opencode plugin @archcore/opencode-plugin"}; !slices.Equal(reporter.texts("progress"), want) {
+	if want := []string{"cd " + root + " && opencode plugin -g @archcore/opencode-plugin"}; !slices.Equal(reporter.texts("progress"), want) {
 		t.Errorf("progress = %q, want %q", reporter.texts("progress"), want)
 	}
 	if len(results) != 1 || results[0].Failed || !results[0].Changed {

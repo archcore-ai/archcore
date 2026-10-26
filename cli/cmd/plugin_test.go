@@ -581,7 +581,7 @@ func TestPluginInstallRunsOpenCodeInTheProject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("install exited nonzero: %v\n%s", err, out)
 	}
-	if want := []string{project + " plugin @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
+	if want := []string{project + " plugin -g @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
 		t.Errorf("opencode ran %q, want %q", fixtureRuns(t, log), want)
 	}
 }
@@ -646,7 +646,7 @@ func TestPluginInstallUsesTheOpenCode2Command(t *testing.T) {
 	}
 }
 
-const missingProjectLine = "OpenCode: run this inside a project with .archcore/, or pass --project — the plugin is installed per project."
+const missingProjectLine = "OpenCode: run this inside a project with .archcore/, or pass --project."
 
 // TestPluginVerbsNamingOpenCodeExplainAMissingProject proves a run outside a
 // project leaves OpenCode alone and, when --agent named it, says why in one

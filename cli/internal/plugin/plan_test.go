@@ -34,7 +34,7 @@ var (
 	copilotRemoveLines  = []string{"copilot plugin uninstall archcore"}
 
 	// The tier matrix observes OpenCode in this project, so its install runs there.
-	openCodeInstallLine = "cd " + tierProjectRoot + " && opencode plugin @archcore/opencode-plugin"
+	openCodeInstallLine = "cd " + tierProjectRoot + " && opencode plugin -g @archcore/opencode-plugin"
 )
 
 const tierProjectRoot = "/work/project"
@@ -1257,7 +1257,7 @@ func TestPlanRunsTheOpenCodeInstallInTheProject(t *testing.T) {
 	if c.Dir != "/work/my project" {
 		t.Errorf("Dir = %q, want the project root", c.Dir)
 	}
-	if want := "cd '/work/my project' && opencode plugin @archcore/opencode-plugin"; c.String() != want {
+	if want := "cd '/work/my project' && opencode plugin -g @archcore/opencode-plugin"; c.String() != want {
 		t.Errorf("command = %q, want %q", c.String(), want)
 	}
 	if spec, _ := SpecFor(HostOpenCode); spec.Install[0].Dir != "" {
@@ -1277,8 +1277,8 @@ func TestPlanPicksTheOpenCodeCommandsOfTheHostMajor(t *testing.T) {
 		ev    Evidence
 		want  []string
 	}{
-		{name: "1.x install", verb: VerbInstall, major: 1, want: []string{"cd /p && opencode plugin @archcore/opencode-plugin"}},
-		{name: "unknown version install", verb: VerbInstall, major: 0, want: []string{"cd /p && opencode plugin @archcore/opencode-plugin"}},
+		{name: "1.x install", verb: VerbInstall, major: 1, want: []string{"cd /p && opencode plugin -g @archcore/opencode-plugin"}},
+		{name: "unknown version install", verb: VerbInstall, major: 0, want: []string{"cd /p && opencode plugin -g @archcore/opencode-plugin"}},
 		{name: "2.x install", verb: VerbInstall, major: 2, want: []string{"cd /p && opencode plugin add @archcore/opencode-plugin"}},
 		{name: "2.x remove", verb: VerbRemove, major: 2, ev: Evidence{Listed: true}, want: []string{"cd /p && opencode plugin remove @archcore/opencode-plugin"}},
 	} {
