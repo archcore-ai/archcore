@@ -19,7 +19,7 @@ import (
 // the trap silently, so the two are checked against each other in
 // isolate_test.go, which may import internal/plugin because nothing imports it
 // back.
-var hostCLIs = []string{"claude", "codex", "copilot", "cursor"}
+var hostCLIs = []string{"claude", "codex", "copilot", "cursor", "opencode"}
 
 // Isolation is a live ambient-state isolation, returned by IsolateAmbientState.
 type Isolation struct {

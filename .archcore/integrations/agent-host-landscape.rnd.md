@@ -41,17 +41,16 @@ Decide where Archcore ships next as a host plugin or adapter after the four ship
 
 ### 1. OpenCode adapter state
 
-The CLI side and the shell side are done. `archcore hooks opencode <event>` exists with the `opencode` row in `@cli/cmd/hook_dialect.go` (commit `ea474ad`); `@cli/cmd/hook_payload.go` folds `archcore_<tool>`; `@plugin/plugins/archcore/bin/lib/normalize-stdin.sh` accepts `ARCHCORE_HOST=opencode`; captured payloads sit in `@plugin/test/fixtures/stdin/opencode/`.
+The CLI side and the shell side are done. `archcore hooks opencode <event>` exists with the `opencode` row in `@cli/cmd/hook_dialect.go` (commit `ea474ad`); `@cli/cmd/hook_payload.go` folds `archcore_<tool>`; `@plugin/plugins/archcore/bin/lib/normalize-stdin.sh` accepts `ARCHCORE_HOST=opencode`; synthetic payloads sit in `@plugin/test/fixtures/stdin/opencode/`, and two of them use spellings OpenCode does not send (`mcp__archcore__*`, `file_path`), so `opencode-adapter.plan` rewrites them.
 
-The package side is absent. No local branch carries `plugin/plugins/opencode/`, and `@cli/internal/plugin/plugin.go` still lists OpenCode among hosts with no plugin. All five phases of the adapter plan stay open: bridge package, `bun test` suites, release export and npm publish, `archcore init` delivery, live probes on OpenCode 1.18.34.
+The package side is in progress on `dev` (local check, 2026-10-18, after this record was first written). Phases 1–4 of `opencode-adapter.plan` are implemented but not yet released: the bridge package in `@plugin/plugins/opencode/`, its `bun test` suites, the npm publish job, and the `HostOpenCode` row of `@cli/internal/plugin/plugin.go`. Phase 5, the live probes on OpenCode 1.18.34, stays open.
 
-Three blockers exist on the development machine (local check, 2026-10-18):
+Two blockers remain on the development machine (local check, 2026-10-18). Bun 1.4.3 is now installed, so the `bun test` phase runs locally.
 
-- Bun is absent, so the `bun test` phase cannot run locally.
 - `~/.config/opencode/opencode.json` already holds `mcp.archcore` pointing at `npx mcp-remote http://localhost:8080/mcp/message`. The bridge yields to an existing entry per the draft entry-ownership decision, so probe C on this machine reports a dead MCP server unless that entry is removed first.
 - npm publish rights on the `@archcore` scope and an `NPM_TOKEN` secret are still prerequisites.
 
-Kilo Code's CLI and v7 extension are OpenCode forks whose plugin behavior the Kilo documentation calls identical to OpenCode, with types from `@kilocode/plugin`. [assumption] `@archcore/opencode-plugin` loads under Kilo with no code change; the `engines.opencode` gate may reject it.
+Kilo Code's CLI and v7 extension are OpenCode forks whose plugin behavior the Kilo documentation calls identical to OpenCode, with types from `@kilocode/plugin`. Kilo CLI 7.8.14 is a Bun-compiled binary with the same plugin loader, and it compares `engines.opencode` against its own 7.x version (`packages/opencode/src/plugin/shared.ts` in Kilo-Org/kilocode, read 2026-10-18), so a `^1.x` range rejects the package and a `>=1.18.34` range admits it. [assumption] `@archcore/opencode-plugin` loads under Kilo with no code change; task 54 of `opencode-adapter.plan` checks it.
 
 ### 2. Hosts with their own agent loop
 

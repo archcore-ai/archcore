@@ -1,6 +1,8 @@
 package plugin
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -92,7 +94,7 @@ func TestExecuteStaysSilentWhenTheListingOmitsThePlugin(t *testing.T) {
 	useHostCLIs(t, dir, "claude")
 	rec := recordRuns(t)
 
-	evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode})
+	evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode}, "")
 	actions := Plan(VerbUpdate, evidence)
 	if len(actions) != 0 {
 		t.Fatalf("planned %+v for a host whose listing omits the plugin, want nothing", actions)
@@ -116,7 +118,7 @@ func TestExecuteProducesNothingWithoutEvidence(t *testing.T) {
 	setInteractive(t, true)
 	rec := recordRuns(t)
 
-	evidence := CollectEvidence(t.Context(), Hosts())
+	evidence := CollectEvidence(t.Context(), Hosts(), "")
 	for _, verb := range []Verb{VerbUpdate, VerbRemove} {
 		t.Run(verb.String(), func(t *testing.T) {
 			reporter := &recordingReporter{}
@@ -142,7 +144,7 @@ func TestExecutePrintsTheExactCommandForARegistryListedHost(t *testing.T) {
 	writeRegistryEntry(t, home, ".copilot/installed-plugins/_direct/archcore-ai--plugin--plugins-archcore")
 	rec := recordRuns(t)
 
-	evidence := CollectEvidence(t.Context(), []Host{HostCopilot})
+	evidence := CollectEvidence(t.Context(), []Host{HostCopilot}, "")
 	reporter := &recordingReporter{}
 	results := Execute(t.Context(), Plan(VerbUpdate, evidence), reporter, ExecuteOptions{})
 
@@ -740,5 +742,58 @@ func TestExecuteKeepsTheInstallationBesideTheNonInteractiveFlag(t *testing.T) {
 	want.Args = []string{"plugin", "update", spec.NonInteractiveFlag}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("effectiveCommand = %+v, want %+v", got, want)
+	}
+}
+
+// TestExecuteRunsTheOpenCodeVerbsInTheProject walks one OpenCode project
+// through each verb. The install runs in the project root, because that is the
+// config `opencode plugin` patches; a configured project reports the install
+// done; removal is a printed note; and update addresses nothing yet.
+func TestExecuteRunsTheOpenCodeVerbsInTheProject(t *testing.T) {
+	skipWithoutPOSIXShell(t)
+	isolateHome(t)
+	setInteractive(t, false)
+	dir := t.TempDir()
+	writeHostCLI(t, dir, "opencode", `pwd -P > "$0.cwd"`)
+	useHostCLIs(t, dir, "opencode")
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reporter := &recordingReporter{}
+	results := Execute(t.Context(), Plan(VerbInstall, CollectEvidence(t.Context(), []Host{HostOpenCode}, root)), reporter, ExecuteOptions{})
+	if want := []string{"cd " + root + " && opencode plugin @archcore/opencode-plugin"}; !slices.Equal(reporter.texts("progress"), want) {
+		t.Errorf("progress = %q, want %q", reporter.texts("progress"), want)
+	}
+	if len(results) != 1 || results[0].Failed || !results[0].Changed {
+		t.Errorf("results = %+v, want one install that changed the project", results)
+	}
+	ran, err := os.ReadFile(filepath.Join(dir, "opencode.cwd"))
+	if err != nil {
+		t.Fatalf("the install never ran: %v", err)
+	}
+	if got := strings.TrimSpace(string(ran)); got != root {
+		t.Errorf("the install ran in %q, want the project root %q", got, root)
+	}
+
+	writeProjectFile(t, root, ".opencode/opencode.json", `{"plugin":["@archcore/opencode-plugin"]}`)
+	rec := recordRuns(t)
+	for _, tt := range []struct {
+		verb Verb
+		want []recordedLine
+	}{
+		{verb: VerbInstall, want: []recordedLine{{kind: "installed", host: HostOpenCode}}},
+		{verb: VerbUpdate},
+		{verb: VerbRemove, want: []recordedLine{{kind: "note", host: HostOpenCode, text: hostTable[HostOpenCode].Notes.Remove}}},
+	} {
+		reporter := &recordingReporter{}
+		Execute(t.Context(), Plan(tt.verb, CollectEvidence(t.Context(), []Host{HostOpenCode}, root)), reporter, ExecuteOptions{})
+		if !reflect.DeepEqual(reporter.lines, tt.want) {
+			t.Errorf("%s over a configured project reported %+v, want %+v", tt.verb, reporter.lines, tt.want)
+		}
+	}
+	if len(rec.commands) != 0 {
+		t.Errorf("ran %q over a configured project, want nothing", rec.lines())
 	}
 }

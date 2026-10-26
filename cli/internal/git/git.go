@@ -184,7 +184,7 @@ func WorktreeRoots(ctx context.Context, dir string) (Roots, error) {
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 
-	current, err := toplevel(ctx, dir)
+	current, err := Toplevel(ctx, dir)
 	if err != nil {
 		return Roots{}, err
 	}
@@ -195,9 +195,9 @@ func WorktreeRoots(ctx context.Context, dir string) (Roots, error) {
 	return Roots{Current: current, Main: main}, nil
 }
 
-// toplevel returns the root of the working tree that holds dir. Inside a linked
+// Toplevel returns the root of the working tree that holds dir. Inside a linked
 // worktree it returns that worktree, not the main checkout.
-func toplevel(ctx context.Context, dir string) (string, error) {
+func Toplevel(ctx context.Context, dir string) (string, error) {
 	out, _, err := run(ctx, dir, "rev-parse", "--show-toplevel")
 	if err != nil {
 		return "", err
@@ -218,8 +218,8 @@ func toplevel(ctx context.Context, dir string) (string, error) {
 // names even a bare repository's own path — so these exist to stop an empty
 // answer from being returned as a valid empty path.
 //
-// Neither is exported: WorktreeRoots is the only caller, and its own caller
-// (config.deriveAnchor) treats every failure alike.
+// Neither is exported: WorktreeRoots and Toplevel are the only callers, and
+// theirs (config.deriveAnchor, plugin.projectEvidence) treat every failure alike.
 var (
 	errNoWorkingTree  = errors.New("directory is in no git working tree")
 	errNoMainWorktree = errors.New("repository has no main worktree")

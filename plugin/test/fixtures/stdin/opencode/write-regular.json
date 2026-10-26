@@ -1,1 +1,1 @@
-{"tool_name":"write","tool_input":{"file_path":"src/app.py","content":"print('hello')"}}
+{"tool_name":"write","tool_input":{"filePath":"src/app.py","content":"print('hello')"}}

@@ -37,11 +37,14 @@ make test
 
 Runs both unit and structure tests through bats-core. The suite grows with the plugin, so compare against the count `make test` prints rather than against a number written here.
 
+Before bats, `make test` runs `make test-opencode`: it packs `plugins/opencode/` and runs `bun test` there. Without `bun` on `PATH` the target prints a skip line, and `test/structure/opencode-package.bats` skips because the pack output is absent. When the `CI` variable is set, both fail instead of skipping, because CI installs Bun and a missing runtime there is a broken runner.
+
 To run a subset:
 
 ```bash
 make test-unit       # unit tests for bin/ script logic
 make test-structure  # structure tests for configs and frontmatter
+make test-opencode   # pack step and bun test for the OpenCode bridge
 ```
 
 To run a single test file:

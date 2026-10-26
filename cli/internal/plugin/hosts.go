@@ -9,7 +9,7 @@ package plugin
 // Entries the specs tag [assumption] are marked inline, so the first live
 // verification is a cheap edit rather than a hunt.
 //
-// OpenCode, Roo Code, Cline, and Gemini CLI ship no plugin and have no row.
+// Roo Code, Cline, and Gemini CLI ship no plugin and have no row.
 
 const (
 	// pluginDirName is the directory a host checks the plugin out as, below the
@@ -25,6 +25,10 @@ const (
 	// ~/.copilot/installed-plugins/_direct/archcore-ai--plugin--plugins-archcore.
 	copilotPluginDir          = "archcore-ai--plugin--plugins-archcore"
 	copilotCanonicalPluginDir = "archcore-ai--archcore--plugins-archcore"
+
+	// openCodePackage is the npm package OpenCode loads the plugin from —
+	// opencode-adapter.spec.
+	openCodePackage = "@archcore/opencode-plugin"
 )
 
 // UINotes carries the one-line instruction printed for a host with no CLI
@@ -102,6 +106,11 @@ type HostSpec struct {
 	// the project-scoped disclosure with nothing to catch it.
 	MachineScoped bool
 
+	// ProjectConfigPaths are the project-relative config files whose `plugin`
+	// array the host loads its plugins from. A host with any is project-bound:
+	// it is observed and run in a project root, and skipped without one.
+	ProjectConfigPaths []string
+
 	// Notes carries the printed instruction for a host with no CLI mechanism.
 	Notes UINotes
 }
@@ -111,6 +120,10 @@ type HostSpec struct {
 // says about a binary on PATH.
 func (s HostSpec) hasCLI() bool {
 	return s.CLI != ""
+}
+
+func (s HostSpec) projectBound() bool {
+	return len(s.ProjectConfigPaths) > 0
 }
 
 // InstallAddressing is how an update command names one installation.
@@ -237,6 +250,31 @@ var hostTable = map[Host]HostSpec{
 		// Copilot installs into its user-level store, outside any repository.
 		MachineScoped: true,
 	},
+
+	// Read from the OpenCode 1.18.34 source (packages/opencode/src/cli/cmd/
+	// plug.ts), not run live. `opencode plugin <pkg>` patches the config of the
+	// working directory's worktree and is a no-op for a listed package; the
+	// evidence reads the same directories (configDirs).
+	HostOpenCode: {
+		Host:        HostOpenCode,
+		DisplayName: "OpenCode",
+		CLI:         "opencode",
+		ProjectConfigPaths: []string{
+			".opencode/opencode.json",
+			".opencode/opencode.jsonc",
+			"opencode.json",
+			"opencode.jsonc",
+		},
+		Install: []Command{
+			{Name: "opencode", Args: []string{"plugin", openCodePackage}},
+		},
+		// No update command until a live probe shows how OpenCode refreshes an
+		// unpinned package, and OpenCode has no uninstall command —
+		// opencode-adapter.plan.
+		Notes: UINotes{
+			Remove: `Remove "` + openCodePackage + `" from the "plugin" array of the OpenCode config that lists it: .opencode/opencode.json at the root of the git working tree, unless you added it to another opencode.json.`,
+		},
+	},
 }
 
 // SpecFor returns the command-table row for a host. The second result is false
@@ -268,6 +306,7 @@ func copySpec(spec HostSpec) HostSpec {
 	spec.Update = cloneCommands(spec.Update)
 	spec.Install = cloneCommands(spec.Install)
 	spec.Remove = cloneCommands(spec.Remove)
+	spec.ProjectConfigPaths = cloneArgs(spec.ProjectConfigPaths)
 	return spec
 }
 

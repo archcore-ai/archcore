@@ -150,11 +150,11 @@ The `bin/` tree holds the three hook launchers, shared shell libraries under `bi
 | Integration tests | `test/integration/` | `research-vocabulary.bats`, `actor-subject-vocabulary.bats`, `search-response-shape.bats`, and `cursor-post-tool-use.bats` run the real CLI over stdio MCP in a temporary project (`make test-integration`); `research-agent.bats` runs the live assistant and auditor (`make test-research-agent`); `codex-plugin-smoke.bats` and `copilot-plugin-smoke.bats` install into real hosts, check that every shared file the installed agents read survives the install, and skip when the host binary is absent. |
 | Behavioral benches | `test/behavioral/` | `matrix-bench.py` (created types, questions, entry, and plan disposition), `delivery-bench.py` (file-context delivery, no model calls), `gate-bench.sh` (`sdd.design` questions and gate state), `document-bench.sh` (document track and type), `import-bench.sh` (init route, size tier, triage verdict), `review-bench.sh` (what a branch review writes and asks), `skill-bench.sh` (host skill selection through `claude -p --plugin-dir`), and the Python benches `writer-fanout-bench.py` and `edits-bench.py` (document write latency and `update_document` edits), each with its fixtures under `test/behavioral/fixtures/`. They spend model tokens and run only on request, never in CI. |
 | Probe harness | `test/probe/` | `mkprobe` builds a disposable wrapped copy of the plugin for live-session verification. See `host-probe-protocol.spec`. |
-| Fixtures | `test/fixtures/stdin/` | Mock stdin JSON for Claude Code, Cursor, Copilot, Codex CLI, OpenCode, and malformed inputs. The Codex `session-start.json` and `mcp-list-documents.json` payloads are captured from a live session per `host-probe-protocol.spec` item 9. |
+| Fixtures | `test/fixtures/stdin/` | Mock stdin JSON for Claude Code, Cursor, Copilot, Codex CLI, OpenCode, and malformed inputs. The Codex `session-start.json` and `mcp-list-documents.json` payloads are captured from a live session per `host-probe-protocol.spec` item 9. The OpenCode files are synthetic payloads in the bridge envelope of `opencode-adapter.spec`, read by both `bun test` and `hook-launchers.bats`. |
 | Helpers | `test/helpers/` | `common.bash` (setup, mocks, timeout shim, exports `REPO_ROOT` and `PLUGIN_ROOT`), `mcp.bash` (stdio MCP client for the integration suite), plus `bats-support` and `bats-assert` as git submodules. |
-| Makefile | `Makefile` | Targets `all`, `verify`, `test`, `test-unit`, `test-structure`, `test-integration`, `test-matrix-bench`, `test-delivery-bench`, `test-gate-bench`, `test-review-bench`, `test-document-bench`, `test-import-bench`, `test-skill-bench`, `test-writer-fanout-bench`, `test-edits-bench`, `test-mod`, `test-research-agent`, `test-codex-smoke`, `test-copilot-smoke`, `lint`, `check-json`, `check-perms`. Dev-only; stripped from the `main` distribution. |
-| CI | `.github/workflows/test.yml` | GitHub Actions on push and pull request to `dev`: a macOS and Linux matrix running bats and shellcheck, with the CLI release pinned by digest for the integration suite. |
-| Release | `.github/workflows/release.yml` | GitHub Actions on tag push: strips the dev-only artifacts and force-pushes the clean tree to `main`. `docs/release.md` holds the blocklist. |
+| Makefile | `Makefile` | Targets `all`, `verify`, `test`, `test-unit`, `test-structure`, `test-integration`, `test-matrix-bench`, `test-delivery-bench`, `test-gate-bench`, `test-review-bench`, `test-document-bench`, `test-import-bench`, `test-skill-bench`, `test-writer-fanout-bench`, `test-edits-bench`, `test-mod`, `test-opencode`, `test-research-agent`, `test-codex-smoke`, `test-copilot-smoke`, `lint`, `check-json`, `check-perms`. `make test` runs `test-opencode` first, which packs `plugins/opencode/` and runs `bun test`. It skips when `bun` is missing, except when `CI` is set, where it fails. Dev-only; stripped from the `main` distribution. |
+| CI | `.github/workflows/test.yml` | GitHub Actions on push and pull request to `dev`: a macOS and Linux matrix running bats, shellcheck, and Bun 1.4.3 for the OpenCode bridge, with the CLI release pinned by digest for the integration suite. |
+| Release | `.github/workflows/release.yml` | GitHub Actions on tag push: strips the dev-only artifacts and force-pushes the clean tree to `main`, which leaves out `plugins/opencode/`; the `publish-opencode` job publishes `@archcore/opencode-plugin` to npm after the tree export, and the CLI release waits for it. `docs/release.md` holds the blocklist. |
 
 Run `make verify` for the full check and `make test` for the tests alone; `plugin-testing.guide` holds the details.
 
@@ -199,6 +199,19 @@ Component manifests, hooks, and MCP configs are plugin-root-relative under `plug
 | `copilot-agents/*.agent.md` | GitHub Copilot CLI | Byte-identical copies of the MD agents under the extension Copilot's loader requires |
 | `rules/archcore-context.mdc` | Cursor | Always-apply context rule |
 | `rules/archcore-files.mdc` | Cursor | `.archcore/` glob-triggered MCP-only rule |
+
+### OpenCode package (`plugins/opencode/`)
+
+The second plugin root holds `@archcore/opencode-plugin`, the npm package OpenCode loads; `opencode-adapter.spec` is its contract.
+
+| Component | Location | Description |
+| --- | --- | --- |
+| Manifest | `plugins/opencode/package.json` | `main` and `exports["./server"]` point at `dist/index.js`; `engines.opencode` is `>=1.18.34`; `prepack` runs the pack step |
+| Bridge | `plugins/opencode/src/bridge.ts` | The `config`, `tool.execute.before`, `tool.execute.after`, and `experimental.chat.system.transform` hooks; spawns `bin/` launchers and decides nothing |
+| Agents | `plugins/opencode/src/agents.ts` | Turns `agents/*.md` into OpenCode subagents: description, `steps` from `maxTurns`, and a permission map from `tools:` |
+| Spawn | `plugins/opencode/src/spawn.ts` | One launcher run: env `ARCHCORE_HOST=opencode`, project cwd, closed stdin, budget, process-group kill |
+| Pack step | `plugins/opencode/scripts/pack.sh` | Copies `bin/`, `skills/` (with `archcore-<name>` skill names), and `agents/*.md` from `plugins/archcore/`, then runs `bun build` into `dist/`; the output is gitignored |
+| Tests | `plugins/opencode/src/*.test.ts`, `test/structure/opencode-package.bats` | `bun test` against stub launchers and the shared fixtures; byte parity of the packed trees and the tarball listing |
 
 ## Examples
 

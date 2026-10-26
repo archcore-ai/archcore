@@ -55,28 +55,30 @@ const (
 	HostCursor     Host = "cursor"
 	HostCodexCLI   Host = "codex-cli"
 	HostCopilot    Host = "copilot"
+	HostOpenCode   Host = "opencode"
 )
 
-// hostOrder is the canonical order of the four plugin hosts. Plan emits actions
+// hostOrder is the canonical order of the plugin hosts. Plan emits actions
 // in this order whatever order the evidence arrived in, so two entry points
 // that collect evidence differently still produce comparable plans.
-var hostOrder = []Host{HostClaudeCode, HostCursor, HostCodexCLI, HostCopilot}
+var hostOrder = []Host{HostClaudeCode, HostCursor, HostCodexCLI, HostCopilot, HostOpenCode}
 
-// Hosts returns the four plugin-capable hosts in a stable order. The slice is a
+// Hosts returns the plugin-capable hosts in a stable order. The slice is a
 // copy, so a caller may sort or filter it freely.
 func Hosts() []Host {
 	return slices.Clone(hostOrder)
 }
 
 // agentToHost maps the agent IDs of internal/agents onto the hosts that ship a
-// plugin. The other registered agents — gemini-cli, opencode, roo-code, cline —
-// ship none and never map, which is what lets `--agent <id>` reject them while
-// naming only the four supported hosts.
+// plugin. The other registered agents — gemini-cli, roo-code, cline — ship none
+// and never map, which is what lets `--agent <id>` reject them while naming only
+// the supported hosts.
 var agentToHost = map[string]Host{
 	string(HostClaudeCode): HostClaudeCode,
 	string(HostCursor):     HostCursor,
 	string(HostCodexCLI):   HostCodexCLI,
 	string(HostCopilot):    HostCopilot,
+	string(HostOpenCode):   HostOpenCode,
 }
 
 // HostFromAgent maps an internal/agents ID onto a plugin host. The second
@@ -127,6 +129,10 @@ type Evidence struct {
 	Listed         bool   // that listing names the plugin (meaningful only when ListingOK)
 	ListedVersion  string // when the host reports one
 	RegistryListed bool   // the host's on-disk registry names the plugin
+
+	// ProjectRoot is the project a project-bound host was observed in and runs
+	// its commands in. Plan skips a project-bound host whose evidence has none.
+	ProjectRoot string
 
 	// Installs holds every installation the listing reported, ordered and bounded
 	// by the collector. It is empty when the host reports one installation without

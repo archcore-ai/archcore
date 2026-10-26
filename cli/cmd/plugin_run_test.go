@@ -37,6 +37,7 @@ func isolatePluginRun(t *testing.T) string {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	bin := t.TempDir()
 	t.Setenv("PATH", bin)
+	t.Setenv("ARCHCORE_PROJECT_ROOT", "")
 	return bin
 }
 
@@ -141,7 +142,7 @@ func stubPluginEvidence(t *testing.T, evidence ...plugin.Evidence) *pluginEviden
 	t.Helper()
 	stub := &pluginEvidenceStub{evidence: evidence}
 	original := collectPluginEvidence
-	collectPluginEvidence = func(_ context.Context, hosts []plugin.Host) []plugin.Evidence {
+	collectPluginEvidence = func(_ context.Context, hosts []plugin.Host, _ string) []plugin.Evidence {
 		stub.hosts = hosts
 		return stub.evidence
 	}
@@ -689,8 +690,11 @@ func TestPluginHostsForAgentNamesOnlyThePluginHosts(t *testing.T) {
 	if hosts, err := pluginHostsForAgent("codex-cli"); err != nil || !slices.Equal(hosts, []plugin.Host{plugin.HostCodexCLI}) {
 		t.Errorf("pluginHostsForAgent(\"codex-cli\") = %v, %v, want the one host", hosts, err)
 	}
+	if hosts, err := pluginHostsForAgent("opencode"); err != nil || !slices.Equal(hosts, []plugin.Host{plugin.HostOpenCode}) {
+		t.Errorf("pluginHostsForAgent(\"opencode\") = %v, %v, want the one host", hosts, err)
+	}
 
-	for _, id := range []string{"gemini-cli", "opencode", "not-an-agent"} {
+	for _, id := range []string{"gemini-cli", "not-an-agent"} {
 		t.Run(id, func(t *testing.T) {
 			_, err := pluginHostsForAgent(id)
 			if err == nil {
@@ -773,7 +777,7 @@ func TestPluginRunningInCI(t *testing.T) {
 func stallPluginEvidence(t *testing.T, evidence ...plugin.Evidence) {
 	t.Helper()
 	original := collectPluginEvidence
-	collectPluginEvidence = func(ctx context.Context, _ []plugin.Host) []plugin.Evidence {
+	collectPluginEvidence = func(ctx context.Context, _ []plugin.Host, _ string) []plugin.Evidence {
 		select {
 		case <-ctx.Done():
 		case <-time.After(2 * time.Second):
@@ -820,7 +824,7 @@ func TestUnreachedHostsFallBackToPrintedCommandsForInstallOnly(t *testing.T) {
 			evidence: claudeOnPATH(),
 			run: func(t *testing.T) string {
 				var out strings.Builder
-				deliverPlugins(t.Context(), &out, []*agents.Agent{agents.ByID(agents.ClaudeCode)}, false)
+				deliverPlugins(t.Context(), &out, "", []*agents.Agent{agents.ByID(agents.ClaudeCode)}, false)
 				return out.String()
 			},
 			wantHandover: true,
@@ -959,7 +963,7 @@ func TestEveryMutatingEntryPointReportsTheOverlapItCaused(t *testing.T) {
 			evidence: claudeOnPATH(),
 			run: func(t *testing.T) string {
 				var out strings.Builder
-				deliverPlugins(t.Context(), &out, []*agents.Agent{agents.ByID(agents.ClaudeCode)}, false)
+				deliverPlugins(t.Context(), &out, "", []*agents.Agent{agents.ByID(agents.ClaudeCode)}, false)
 				return out.String()
 			},
 		},
@@ -1045,7 +1049,7 @@ func TestTheSelfCausedOverlapNoticeNeedsAMutationThatSucceeded(t *testing.T) {
 			evidence: claudeOnPATH(),
 			run: func(t *testing.T) string {
 				var out strings.Builder
-				deliverPlugins(t.Context(), &out, []*agents.Agent{agents.ByID(agents.ClaudeCode)}, true)
+				deliverPlugins(t.Context(), &out, "", []*agents.Agent{agents.ByID(agents.ClaudeCode)}, true)
 				return out.String()
 			},
 		},

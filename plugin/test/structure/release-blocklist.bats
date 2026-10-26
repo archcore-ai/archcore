@@ -73,6 +73,12 @@ setup() {
   assert_output --partial 'nested/.archcore'
 }
 
+@test "export leaves out the OpenCode package, which ships through npm" {
+  run "$EXPORT" "$OUTPUT" 1.2.3
+  assert_success
+  [ ! -e "$OUTPUT/plugins/opencode" ] || fail "plugins/opencode reached the exported plugin tree"
+}
+
 @test "export refuses a destination symlink without writing through it" {
   local target="$BATS_TEST_TMPDIR/target"
   mkdir -p "$target"

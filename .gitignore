@@ -13,3 +13,9 @@ plugin/reference-materials/
 # Written by Claude Code when it loads plugin/plugins/archcore with --plugin-dir (the next-step mod).
 plugin/plugins/archcore/.claude-plugin/types/
 plugin/plugins/archcore/tsconfig.json
+# Pack output of plugin/plugins/opencode/scripts/pack.sh (opencode-adapter.spec).
+plugin/plugins/opencode/bin/
+plugin/plugins/opencode/skills/
+plugin/plugins/opencode/agents/
+plugin/plugins/opencode/dist/
+plugin/plugins/opencode/node_modules/

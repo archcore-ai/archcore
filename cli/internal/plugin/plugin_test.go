@@ -33,7 +33,7 @@ func TestFrozenIdentifiers(t *testing.T) {
 
 func TestHosts(t *testing.T) {
 	t.Parallel()
-	want := []Host{HostClaudeCode, HostCursor, HostCodexCLI, HostCopilot}
+	want := []Host{HostClaudeCode, HostCursor, HostCodexCLI, HostCopilot, HostOpenCode}
 	if got := Hosts(); !slices.Equal(got, want) {
 		t.Errorf("Hosts() = %q, want %q", got, want)
 	}
@@ -63,7 +63,7 @@ func TestHostFromAgent(t *testing.T) {
 		{name: "codex cli", agentID: "codex-cli", want: HostCodexCLI, wantOK: true},
 		{name: "copilot", agentID: "copilot", want: HostCopilot, wantOK: true},
 		{name: "gemini cli ships no plugin", agentID: "gemini-cli"},
-		{name: "opencode ships no plugin", agentID: "opencode"},
+		{name: "opencode", agentID: "opencode", want: HostOpenCode, wantOK: true},
 		{name: "roo code ships no plugin", agentID: "roo-code"},
 		{name: "cline ships no plugin", agentID: "cline"},
 		{name: "unknown agent", agentID: "not-an-agent"},

@@ -42,6 +42,8 @@ func TestSpecForPinsTheCommandTable(t *testing.T) {
 		wantFlag        string
 		wantMerge       bool
 		wantNotes       bool
+		wantConfigs     []string
+		wantRemoveNote  string
 	}{
 		{
 			name:            "claude code",
@@ -100,6 +102,22 @@ func TestSpecForPinsTheCommandTable(t *testing.T) {
 			wantInstall:  []string{"copilot plugin install archcore-ai/archcore:plugins/archcore"},
 			wantRemove:   []string{"copilot plugin uninstall archcore"},
 		},
+		{
+			// Read from the OpenCode 1.18.34 source, not probed live. No update
+			// command until a live probe, and no uninstall command at all.
+			name:        "opencode",
+			host:        HostOpenCode,
+			wantCLI:     "opencode",
+			wantDisplay: "OpenCode",
+			wantInstall: []string{"opencode plugin @archcore/opencode-plugin"},
+			wantConfigs: []string{
+				".opencode/opencode.json",
+				".opencode/opencode.jsonc",
+				"opencode.json",
+				"opencode.jsonc",
+			},
+			wantRemoveNote: `Remove "@archcore/opencode-plugin" from the "plugin" array of the OpenCode config that lists it: .opencode/opencode.json at the root of the git working tree, unless you added it to another opencode.json.`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -143,6 +161,12 @@ func TestSpecForPinsTheCommandTable(t *testing.T) {
 			if spec.MergeAutoUpdate != tt.wantMerge {
 				t.Errorf("MergeAutoUpdate = %v, want %v", spec.MergeAutoUpdate, tt.wantMerge)
 			}
+			if !slices.Equal(spec.ProjectConfigPaths, tt.wantConfigs) {
+				t.Errorf("ProjectConfigPaths = %q, want %q", spec.ProjectConfigPaths, tt.wantConfigs)
+			}
+			if tt.wantRemoveNote != "" && spec.Notes.Remove != tt.wantRemoveNote {
+				t.Errorf("Notes.Remove = %q, want %q", spec.Notes.Remove, tt.wantRemoveNote)
+			}
 			hasNotes := spec.Notes.Install != "" && spec.Notes.Update != "" && spec.Notes.Remove != ""
 			if hasNotes != tt.wantNotes {
 				t.Errorf("all UI notes present = %v, want %v", hasNotes, tt.wantNotes)
@@ -154,8 +178,8 @@ func TestSpecForPinsTheCommandTable(t *testing.T) {
 	}
 }
 
-// TestSpecForRejectsHostsWithoutAPlugin keeps the table to the four hosts the
-// specs name. The other registered agents ship no plugin.
+// TestSpecForRejectsHostsWithoutAPlugin keeps the table to the hosts the specs
+// name. The other registered agents ship no plugin.
 func TestSpecForRejectsHostsWithoutAPlugin(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -163,7 +187,6 @@ func TestSpecForRejectsHostsWithoutAPlugin(t *testing.T) {
 		host Host
 	}{
 		{name: "gemini cli", host: "gemini-cli"},
-		{name: "opencode", host: "opencode"},
 		{name: "roo code", host: "roo-code"},
 		{name: "cline", host: "cline"},
 		{name: "empty host", host: ""},
@@ -226,8 +249,8 @@ func TestSpecCommandsAreCopies(t *testing.T) {
 
 // TestTableCarriesNoIdentifierVariant scans every argument of every command for
 // a token that mentions archcore. Each one must be a frozen identifier, the
-// Copilot uninstall's bare plugin name, or the Copilot install's repository
-// subpath. The scan is what catches a near-miss spelling — archcore-plugin,
+// Copilot uninstall's bare plugin name, the Copilot install's repository
+// subpath, or OpenCode's npm package. The scan is what catches a near-miss spelling — archcore-plugin,
 // archcore_ai/plugin, archcore@archcore-plugin — that a targeted assertion on
 // one command would walk straight past.
 func TestTableCarriesNoIdentifierVariant(t *testing.T) {
@@ -238,6 +261,7 @@ func TestTableCarriesNoIdentifierVariant(t *testing.T) {
 		PluginID:                     true,
 		"archcore":                   true, // copilot plugin update and uninstall take the bare name
 		RepoID + ":plugins/archcore": true, // copilot install subpath [assumption]
+		openCodePackage:              true, // the npm package OpenCode installs
 	}
 	for _, spec := range Specs() {
 		sequences := map[string][]Command{
@@ -316,6 +340,7 @@ func TestSpecForPinsHowAnUpdateAddressesAnInstallation(t *testing.T) {
 		HostCursor:     {addressing: AddressingNone},
 		HostCodexCLI:   {addressing: AddressingNone},
 		HostCopilot:    {addressing: AddressingName, emptyStdoutFails: true},
+		HostOpenCode:   {addressing: AddressingNone},
 	}
 	specs := Specs()
 	if len(specs) == 0 {

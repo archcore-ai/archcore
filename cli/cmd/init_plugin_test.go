@@ -77,7 +77,7 @@ func TestAgentPickerLabelDisclosesThePluginInstall(t *testing.T) {
 		{name: "codex cli is machine-scoped", id: agents.CodexCLI, wantDisclosure: true, wantMachineWide: true},
 		{name: "copilot is machine-scoped", id: agents.Copilot, wantDisclosure: true, wantMachineWide: true},
 		{name: "gemini cli ships no plugin", id: agents.GeminiCLI},
-		{name: "opencode ships no plugin", id: agents.OpenCode},
+		{name: "opencode is project-scoped", id: agents.OpenCode, wantDisclosure: true},
 		{name: "roo code ships no plugin", id: agents.RooCode},
 		{name: "cline ships no plugin", id: agents.Cline},
 	}
@@ -109,7 +109,7 @@ func TestAgentPickerLabelDisclosesThePluginInstall(t *testing.T) {
 }
 
 // TestAgentPickerLabelMarksEveryPluginHost is the guard on the table rather than
-// on today's four rows: a host added to internal/plugin without a label here
+// on today's rows: a host added to internal/plugin without a label here
 // would ship a screen that installs something it never mentioned.
 func TestAgentPickerLabelMarksEveryPluginHost(t *testing.T) {
 	t.Parallel()
@@ -302,12 +302,12 @@ func TestPluginHostsForAgentsFollowsTheCanonicalHostOrder(t *testing.T) {
 	}{
 		{
 			name:     "every plugin host, selected backwards",
-			selected: []agents.AgentID{agents.Copilot, agents.CodexCLI, agents.Cursor, agents.ClaudeCode},
+			selected: []agents.AgentID{agents.OpenCode, agents.Copilot, agents.CodexCLI, agents.Cursor, agents.ClaudeCode},
 			want:     plugin.Hosts(),
 		},
 		{
 			name:     "two hosts among agents that ship no plugin",
-			selected: []agents.AgentID{agents.CodexCLI, agents.GeminiCLI, agents.ClaudeCode, agents.OpenCode},
+			selected: []agents.AgentID{agents.CodexCLI, agents.GeminiCLI, agents.ClaudeCode, agents.RooCode},
 			want:     []plugin.Host{plugin.HostClaudeCode, plugin.HostCodexCLI},
 		},
 	}
@@ -459,9 +459,9 @@ func TestDeliverPluginsIsSilentWithoutAPluginHost(t *testing.T) {
 	stub := stubPluginEvidence(t, claudeOnPATH())
 
 	var out strings.Builder
-	deliverPlugins(t.Context(), &out, []*agents.Agent{
+	deliverPlugins(t.Context(), &out, "", []*agents.Agent{
 		agents.ByID(agents.GeminiCLI),
-		agents.ByID(agents.OpenCode),
+		agents.ByID(agents.RooCode),
 	}, false)
 
 	if out.String() != "" {
@@ -642,7 +642,7 @@ func TestInitPrintsOneOverlapNoticeAtMost(t *testing.T) {
 			project := setupArchcoreDir(t)
 			stdout := captureStdout(t, func() {
 				anyHooks := installAgents(project, list, false)
-				if !deliverPlugins(t.Context(), &out, list, tt.printOnly) && anyHooks {
+				if !deliverPlugins(t.Context(), &out, "", list, tt.printOnly) && anyHooks {
 					printPluginConflictNote()
 				}
 			})
@@ -658,5 +658,27 @@ func TestInitPrintsOneOverlapNoticeAtMost(t *testing.T) {
 				t.Errorf("printed both wordings of the overlap notice, which contradict each other:\n%s", text)
 			}
 		})
+	}
+}
+
+// TestInitWithAgentOpenCodeInstallsInTheProject covers the OpenCode row of
+// plugin-delivery.spec through init: the flag carries the consent, and the
+// install runs in the project init just wired, not in the process's directory.
+func TestInitWithAgentOpenCodeInstallsInTheProject(t *testing.T) {
+	withoutCIVars(t)
+	bin := isolatePluginRun(t)
+	log := writeWorkingDirFixture(t, bin, "opencode")
+	project, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(t.TempDir())
+
+	out, execErr := runInitCapturingStdout(t, "--agent", "opencode", "--project", project)
+	if execErr != nil {
+		t.Fatalf("init --agent opencode exited nonzero: %v\n%s", execErr, out)
+	}
+	if want := []string{project + " plugin @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
+		t.Errorf("opencode ran %q, want %q\n%s", fixtureRuns(t, log), want, out)
 	}
 }

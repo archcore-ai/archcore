@@ -28,9 +28,18 @@ lives under `cli/`.
 4. `publish-plugin` exports the public tree with `scripts/export-plugin.sh`,
    writes the tag's version into the four manifests, commits the tree as an
    orphan, and force-pushes `main`.
-5. `publish-cli` runs GoReleaser from `cli/`: six archives, `checksums.txt`, and
-   the GitHub Release for the tag with those assets plus `install.sh` and
-   `install.ps1`.
+5. `publish-opencode` runs after `publish-plugin`, so the lineage check gates
+   the npm package too. It writes the tag's version into
+   `plugin/plugins/opencode/package.json` and runs `npm publish` with the
+   `NPM_TOKEN` secret. If npm already has that version, the job skips the
+   publish, so a re-run of the tag's run succeeds. The package's `prepack`
+   script runs `plugins/opencode/scripts/pack.sh`, which copies `bin/`,
+   `skills/`, and `agents/*.md` from `plugins/archcore/` at the tag and bundles
+   `dist/` with Bun.
+6. `publish-cli` runs after `publish-plugin` and `publish-opencode`, so a CLI
+   release never installs an npm package that npm does not have. It runs
+   GoReleaser from `cli/`: six archives, `checksums.txt`, and the GitHub Release
+   for the tag with those assets plus `install.sh` and `install.ps1`.
 
 Every GitHub Release therefore carries the CLI assets, and
 `https://github.com/archcore-ai/archcore/releases/latest` resolves to a release
@@ -65,6 +74,8 @@ never enter it, including `cli/`, the shared `.archcore/`, `test/`,
 The exporter also removes `plugins/archcore/.claude-plugin/types/` and
 `plugins/archcore/tsconfig.json`, which Claude Code writes when it loads the
 plugin from a development checkout with `--plugin-dir`.
+The exporter removes `plugins/opencode/` as well: `@archcore/opencode-plugin`
+ships through npm, not through the tree on `main`.
 
 A recursive check rejects nested development directories, development instruction
 files, dev MCP config, and symlinks inside the exported runtime. The existing check

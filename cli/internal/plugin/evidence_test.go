@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"archcore-cli/internal/testsupport"
 )
 
 // TestCollectEvidenceReadsTheHostsOwnAnswer walks the answers a host CLI can
@@ -64,7 +66,7 @@ func TestCollectEvidenceReadsTheHostsOwnAnswer(t *testing.T) {
 			writeHostCLI(t, dir, "claude", tt.script)
 			useHostCLIs(t, dir, "claude")
 
-			evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode})
+			evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode}, "")
 			if len(evidence) != 1 {
 				t.Fatalf("collected %d observations, want 1", len(evidence))
 			}
@@ -96,7 +98,7 @@ func TestCollectEvidenceTimesOutALockedListing(t *testing.T) {
 	useHostCLIs(t, dir, "claude")
 	shrinkTimeouts(t, 50*time.Millisecond, time.Minute)
 
-	evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode})
+	evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode}, "")
 	if len(evidence) != 1 {
 		t.Fatalf("collected %d observations, want 1", len(evidence))
 	}
@@ -116,7 +118,7 @@ func TestCollectEvidenceRefusesATruncatedListing(t *testing.T) {
 		return commandOutcome{Stdout: pluginListing, Truncated: true}
 	})
 
-	evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode})
+	evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode}, "")
 	if len(evidence) != 1 {
 		t.Fatalf("collected %d observations, want 1", len(evidence))
 	}
@@ -134,7 +136,7 @@ func TestCollectEvidenceAsksNothingOfAnAbsentCLI(t *testing.T) {
 	rec := recordRuns(t)
 	writeRegistryEntry(t, home, ".claude/plugins/cache/archcore-plugins/archcore")
 
-	evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode})
+	evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode}, "")
 	if len(rec.commands) != 0 {
 		t.Errorf("ran %q with no host CLI on PATH, want no command at all", rec.lines())
 	}
@@ -157,8 +159,8 @@ func TestCollectEvidenceCoversEveryPluginHost(t *testing.T) {
 	isolateHome(t)
 	noHostCLIs(t)
 
-	hosts := append(Hosts(), "gemini-cli", "opencode", "not-a-host")
-	evidence := CollectEvidence(t.Context(), hosts)
+	hosts := append(Hosts(), "gemini-cli", "roo-code", "not-a-host")
+	evidence := CollectEvidence(t.Context(), hosts, "")
 	if len(evidence) != len(Hosts()) {
 		t.Fatalf("collected %d observations for %d hosts, want %d", len(evidence), len(hosts), len(Hosts()))
 	}
@@ -655,7 +657,7 @@ func TestCollectEvidenceLocatesInstallationProjects(t *testing.T) {
 	}
 	stubRuns(t, func(Command) commandOutcome { return commandOutcome{Stdout: string(answer)} })
 
-	evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode})
+	evidence := CollectEvidence(t.Context(), []Host{HostClaudeCode}, "")
 	if len(evidence) != 1 {
 		t.Fatalf("collected %d observations, want 1", len(evidence))
 	}
@@ -683,5 +685,266 @@ func TestParseJSONListingReadsAnUninstalledGroupAsAbsent(t *testing.T) {
 	got := parseJSONListing(`{"archcore@archcore-plugins":[{"installed":false,"scope":"user"}]}`)
 	if !got.ok || got.listed || len(got.installs) != 0 {
 		t.Errorf("listing = %+v, want parsed and not listed", got)
+	}
+}
+
+// TestCollectEvidenceReadsTheOpenCodeConfig walks the config files OpenCode
+// loads its plugins from. Each file name counts on its own, the files may be
+// JSONC, and a pinned spec names the package as much as a bare one does. A
+// lookalike package, a comment, or a key outside `plugin` names nothing.
+func TestCollectEvidenceReadsTheOpenCodeConfig(t *testing.T) {
+	tests := []struct {
+		name       string
+		file       string
+		content    string
+		wantListed bool
+	}{
+		{
+			name:       "the project config dir",
+			file:       ".opencode/opencode.json",
+			content:    `{"plugin": ["@archcore/opencode-plugin"]}`,
+			wantListed: true,
+		},
+		{
+			name: "a jsonc file with comments, a pinned spec, and trailing commas",
+			file: ".opencode/opencode.jsonc",
+			content: `{
+  // the Archcore bridge
+  "$schema": "https://opencode.ai/config.json",
+  /* pinned on purpose */
+  "plugin": [
+    "other-plugin",
+    "@archcore/opencode-plugin@1.2.3", // pinned
+  ],
+}`,
+			wantListed: true,
+		},
+		{
+			name:       "the root config",
+			file:       "opencode.json",
+			content:    `{"plugin":["@archcore/opencode-plugin@latest"]}`,
+			wantListed: true,
+		},
+		{
+			name:       "the root jsonc config",
+			file:       "opencode.jsonc",
+			content:    "{\n  \"plugin\": [\"@archcore/opencode-plugin\"] // bare\n}",
+			wantListed: true,
+		},
+		{
+			name:    "a lookalike package",
+			file:    ".opencode/opencode.json",
+			content: `{"plugin": ["@archcore/opencode-plugin-extra", "@archcore/opencode"]}`,
+		},
+		{
+			name:    "the package only inside a comment",
+			file:    ".opencode/opencode.json",
+			content: "{\n  // \"plugin\": [\"@archcore/opencode-plugin\"]\n  \"plugin\": []\n}",
+		},
+		{
+			name:    "the package outside the plugin array",
+			file:    "opencode.json",
+			content: `{"mcp": {"@archcore/opencode-plugin": {}}, "plugin": ["a//b", "/*c*/"]}`,
+		},
+		{
+			name:    "a config that does not parse",
+			file:    "opencode.json",
+			content: `{"plugin": ["@archcore/opencode-plugin"`,
+		},
+		{
+			name:    "a plugin key that is not an array",
+			file:    "opencode.json",
+			content: `{"plugin": "@archcore/opencode-plugin"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolateHome(t)
+			noHostCLIs(t)
+			root := t.TempDir()
+			writeProjectFile(t, root, tt.file, tt.content)
+
+			evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, root)
+			if len(evidence) != 1 {
+				t.Fatalf("collected %d observations, want 1", len(evidence))
+			}
+			got := evidence[0]
+			if got.ProjectRoot != root {
+				t.Errorf("ProjectRoot = %q, want %q", got.ProjectRoot, root)
+			}
+			if got.RegistryListed != tt.wantListed {
+				t.Errorf("RegistryListed = %v, want %v", got.RegistryListed, tt.wantListed)
+			}
+			if got.ListingOK || got.Listed {
+				t.Errorf("evidence = %+v, want no listing answer without the CLI", got)
+			}
+		})
+	}
+}
+
+// TestCollectEvidenceReadsTheOpenCodeConfigAsItsListing proves the config
+// stands as the listing once the CLI is present, so the install tier can report
+// a configured project instead of rerunning `opencode plugin`.
+func TestCollectEvidenceReadsTheOpenCodeConfigAsItsListing(t *testing.T) {
+	isolateHome(t)
+	useHostCLIs(t, t.TempDir(), "opencode")
+	rec := recordRuns(t)
+	root := t.TempDir()
+	writeProjectFile(t, root, ".opencode/opencode.json", `{"plugin":["@archcore/opencode-plugin"]}`)
+
+	evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, root)
+	if len(rec.commands) != 0 {
+		t.Errorf("ran %q, want the config read alone", rec.lines())
+	}
+	want := Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: true, Listed: true, RegistryListed: true, ProjectRoot: root}
+	if len(evidence) != 1 || !reflect.DeepEqual(evidence[0], want) {
+		t.Errorf("evidence = %+v, want %+v", evidence, want)
+	}
+}
+
+// TestCollectEvidenceReadsNoOpenCodeConfigWithoutAProject keeps the read off
+// the process's working directory: with no project root there is nowhere the
+// config belongs, and the evidence names no project for Plan to run in.
+func TestCollectEvidenceReadsNoOpenCodeConfigWithoutAProject(t *testing.T) {
+	isolateHome(t)
+	noHostCLIs(t)
+	cwd := t.TempDir()
+	writeProjectFile(t, cwd, "opencode.json", `{"plugin":["@archcore/opencode-plugin"]}`)
+	t.Chdir(cwd)
+
+	evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, "")
+	want := []Evidence{{Host: HostOpenCode}}
+	if !reflect.DeepEqual(evidence, want) {
+		t.Errorf("evidence = %+v, want %+v", evidence, want)
+	}
+}
+
+// TestCollectEvidenceReadsTheOpenCodeConfigFormsOpenCodeAccepts covers the
+// spellings OpenCode itself loads: a `[spec, options]` pair names its package
+// (packages/opencode/src/config/plugin.ts, pluginSpecifier), and a file saved
+// with a UTF-8 byte order mark is still the same config.
+func TestCollectEvidenceReadsTheOpenCodeConfigFormsOpenCodeAccepts(t *testing.T) {
+	for name, content := range map[string]string{
+		"a spec and options pair": `{"plugin": [["@archcore/opencode-plugin@1.0.0", {"x": 1}]]}`,
+		"a byte order mark":       "\xef\xbb\xbf" + `{"plugin": ["@archcore/opencode-plugin"]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			isolateHome(t)
+			noHostCLIs(t)
+			root := t.TempDir()
+			writeProjectFile(t, root, "opencode.json", content)
+
+			evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, root)
+			if len(evidence) != 1 || !evidence[0].RegistryListed {
+				t.Errorf("evidence = %+v, want the package listed", evidence)
+			}
+		})
+	}
+}
+
+// TestCollectEvidenceReadsTheOpenCodeConfigAtTheGitRoot follows OpenCode into
+// a project below the root of its git working tree: `opencode plugin` writes
+// .opencode/opencode.json at that root (install.ts, patchDir), and OpenCode
+// loads every config between the session directory and the root. A config
+// above the working tree belongs to no session in the project.
+func TestCollectEvidenceReadsTheOpenCodeConfigAtTheGitRoot(t *testing.T) {
+	tests := []struct {
+		name       string
+		file       string // relative to the directory above the repository
+		wantListed bool
+	}{
+		{name: "the root of the working tree", file: "repo/.opencode/opencode.json", wantListed: true},
+		{name: "a directory between the root and the project", file: "repo/services/opencode.jsonc", wantListed: true},
+		{name: "the project itself", file: "repo/services/api/.opencode/opencode.json", wantListed: true},
+		{name: "above the working tree", file: ".opencode/opencode.json"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolateHome(t)
+			useHostCLIs(t, t.TempDir(), "opencode")
+			outer := t.TempDir()
+			repo := filepath.Join(outer, "repo")
+			if err := os.Mkdir(repo, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			testsupport.NewGitRepo(t, repo)
+			project := filepath.Join(repo, "services", "api")
+			writeProjectFile(t, project, ".archcore/settings.json", "{}")
+			writeProjectFile(t, outer, tt.file, `{"plugin": ["@archcore/opencode-plugin"]}`)
+
+			evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, project)
+			want := Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: true, Listed: tt.wantListed, RegistryListed: tt.wantListed, ProjectRoot: project}
+			if len(evidence) != 1 || !reflect.DeepEqual(evidence[0], want) {
+				t.Errorf("evidence = %+v, want %+v", evidence, want)
+			}
+		})
+	}
+}
+
+// TestCollectEvidenceLeavesAnUnreadableOpenCodeConfigUnanswered keeps a config
+// the CLI could not read from passing for proof of absence. With the CLI
+// present, absence is what lets removal stay silent (planRemove), so a broken
+// or oversized config must answer nothing — the rule a host listing that did
+// not parse already follows. A project with no config at all is a real answer.
+func TestCollectEvidenceLeavesAnUnreadableOpenCodeConfigUnanswered(t *testing.T) {
+	tests := []struct {
+		name          string
+		content       string // empty writes no config file
+		wantListingOK bool
+	}{
+		{name: "no config file", wantListingOK: true},
+		{name: "a config that lists other plugins", content: `{"plugin": ["other"]}`, wantListingOK: true},
+		{name: "a config that does not parse", content: `{"plugin": ["@archcore/opencode-plugin"`},
+		{name: "a config above the size bound", content: `{"plugin": [], "pad": "` + strings.Repeat("x", maxProjectConfigBytes) + `"}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolateHome(t)
+			useHostCLIs(t, t.TempDir(), "opencode")
+			root := t.TempDir()
+			if tt.content != "" {
+				writeProjectFile(t, root, ".opencode/opencode.json", tt.content)
+			}
+
+			evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, root)
+			want := Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: tt.wantListingOK, ProjectRoot: root}
+			if len(evidence) != 1 || !reflect.DeepEqual(evidence[0], want) {
+				t.Fatalf("evidence = %+v, want %+v", evidence, want)
+			}
+			// The planner's side of the same answer: an unanswered listing
+			// still prints the removal note, a real absence prints nothing.
+			actions := Plan(VerbRemove, evidence)
+			if gotNote := len(actions) == 1 && actions[0].Kind == ActionPrintUINote; gotNote == tt.wantListingOK {
+				t.Errorf("remove plan = %+v, want a removal note: %v", actions, !tt.wantListingOK)
+			}
+		})
+	}
+}
+
+// TestCollectEvidenceTakesAListingOverAnUnreadableNeighbour keeps one broken
+// config from hiding another that lists the package: a listing is an answer
+// whatever the other files hold.
+func TestCollectEvidenceTakesAListingOverAnUnreadableNeighbour(t *testing.T) {
+	isolateHome(t)
+	useHostCLIs(t, t.TempDir(), "opencode")
+	root := t.TempDir()
+	writeProjectFile(t, root, ".opencode/opencode.json", `{"plugin": [`)
+	writeProjectFile(t, root, "opencode.json", `{"plugin": ["@archcore/opencode-plugin"]}`)
+
+	evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, root)
+	want := Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: true, Listed: true, RegistryListed: true, ProjectRoot: root}
+	if len(evidence) != 1 || !reflect.DeepEqual(evidence[0], want) {
+		t.Errorf("evidence = %+v, want %+v", evidence, want)
+	}
+}
+
+func writeProjectFile(t *testing.T, root, rel, content string) {
+	t.Helper()
+	path := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

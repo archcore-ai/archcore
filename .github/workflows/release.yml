@@ -116,9 +116,60 @@ jobs:
       - name: Force-push to main
         run: git push --force origin HEAD:main
 
+  # @archcore/opencode-plugin (opencode-adapter.spec). npm publish runs the
+  # package's prepack script, which bundles dist/ with Bun and copies bin/,
+  # skills/, and agents/ from plugins/archcore/ at this tag.
+  #
+  # It runs after publish-plugin, whose lineage check is the gate for every
+  # artifact of the tag: an npm version cannot be published twice or replaced,
+  # so a tag off dev must stop before it.
+  publish-opencode:
+    name: Publish @archcore/opencode-plugin to npm
+    needs: publish-plugin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: plugin/plugins/opencode
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
+      - name: Set up Node for npm publish
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Write the release version
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
+
+      # Recovery is a re-run of the tag's run, so a version npm already has is
+      # a finished step, not a failure.
+      - name: Publish
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if npm view "@archcore/opencode-plugin@${version}" version >/dev/null 2>&1; then
+            echo "@archcore/opencode-plugin@${version} is already on npm; nothing to publish."
+            exit 0
+          fi
+          npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # The CLI waits for the npm package: its OpenCode row installs
+  # @archcore/opencode-plugin, and a release whose package npm does not have
+  # would fail every `archcore plugin install` run beside OpenCode.
   publish-cli:
     name: Build the CLI and create the GitHub Release
-    needs: publish-plugin
+    needs: [publish-plugin, publish-opencode]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source

@@ -43,6 +43,12 @@ jobs:
             brew install shellcheck
           fi
 
+      # make test runs the OpenCode bridge tests and its pack step with Bun.
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+
       - name: Check JSON configs
         run: make check-json
 

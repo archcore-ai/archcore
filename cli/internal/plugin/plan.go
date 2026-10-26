@@ -24,6 +24,11 @@ func Plan(verb Verb, evidence []Evidence) []Action {
 		if !ok {
 			continue
 		}
+		// A project-bound host run from no project would patch whichever
+		// directory the process started in.
+		if spec.projectBound() && ev.ProjectRoot == "" {
+			continue
+		}
 		if action, ok := planHost(verb, spec, ev); ok {
 			actions = append(actions, action)
 		}
@@ -69,6 +74,10 @@ func planHost(verb Verb, spec HostSpec, ev Evidence) (Action, bool) {
 // reaches that silence from the shape of the evidence rather than from a host's
 // error text.
 func planUpdate(spec HostSpec, ev Evidence) (Action, bool) {
+	// OpenCode has neither yet, and planning it would print an empty note.
+	if len(spec.Update) == 0 && spec.Notes.Update == "" {
+		return Action{}, false
+	}
 	if !spec.hasCLI() {
 		if ev.RegistryListed {
 			return uiNoteAction(spec, VerbUpdate, ev), true
@@ -179,7 +188,7 @@ func planStatus(spec HostSpec, ev Evidence) (Action, bool) {
 // runAction plans the host's mutating sequence for a verb. A verb with no
 // commands on this host cannot run, so it falls back to the UI note.
 func runAction(spec HostSpec, verb Verb, ev Evidence) Action {
-	cmds := spec.commandsFor(verb)
+	cmds := plannedCommands(spec, verb, ev)
 	if len(cmds) == 0 {
 		return uiNoteAction(spec, verb, ev)
 	}
@@ -205,7 +214,7 @@ func runAction(spec HostSpec, verb Verb, ev Evidence) Action {
 // printCommandAction plans the exact command line for the user to run. It is
 // the tier for a host whose CLI the CLI cannot reach.
 func printCommandAction(spec HostSpec, verb Verb, ev Evidence) Action {
-	cmds := spec.commandsFor(verb)
+	cmds := plannedCommands(spec, verb, ev)
 	if len(cmds) == 0 {
 		return uiNoteAction(spec, verb, ev)
 	}
@@ -215,6 +224,18 @@ func printCommandAction(spec HostSpec, verb Verb, ev Evidence) Action {
 		Commands: cmds,
 		Evidence: ev,
 	}
+}
+
+// plannedCommands is a verb's sequence on a host, run in the observed project
+// when the host is project-bound.
+func plannedCommands(spec HostSpec, verb Verb, ev Evidence) []Command {
+	cmds := spec.commandsFor(verb)
+	if spec.projectBound() {
+		for i := range cmds {
+			cmds[i].Dir = ev.ProjectRoot
+		}
+	}
+	return cmds
 }
 
 // uiNoteAction plans the one-line instruction for a host with no CLI mechanism.

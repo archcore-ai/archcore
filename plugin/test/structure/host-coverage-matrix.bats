@@ -22,6 +22,24 @@ hooks/copilot.hooks.json|sessionStart|postToolUse,preToolUse,sessionStart,|preTo
 ROWS
 }
 
+# Programmatic hosts wire their hooks in code, so they have no hooks/*.json.
+# Row format: source-relative-to-REPO_ROOT|host-id|required-pre-mutation-tools
+# (opencode-adapter.spec: the pre- and post-mutation sets live in bridge.ts).
+bridge_rows() {
+  cat <<'ROWS'
+plugins/opencode/src/bridge.ts|opencode|write edit apply_patch
+ROWS
+}
+
+# The quoted members of `export const <name> = new Set([...])` in a bridge source.
+bridge_set() {
+  awk -v name="$2" '
+    $0 ~ "export const " name " = new Set\\(" { on = 1 }
+    on { print }
+    on && /\]\)/ { exit }
+  ' "$1" | grep -o '"[a-z_]*"' | tr -d '"'
+}
+
 # Normalize a hooks config's command list to sorted unique script basenames.
 #
 # Extraction matches the bin/<script> token rather than taking the tail of the
@@ -96,6 +114,42 @@ script_basenames() {
       fail "$file references a different script set than hooks.json"
     }
   done < <(matrix_rows)
+}
+
+@test "bridge matrix: every bridge host spawns the three shared launchers" {
+  local file host launcher
+  while IFS='|' read -r file host _; do
+    [ -z "$file" ] && continue
+    [ -f "$REPO_ROOT/$file" ] || fail "$host: bridge source $file is missing"
+    for launcher in session-start pre-tool-use post-tool-use; do
+      grep -q "\"$launcher\"" "$REPO_ROOT/$file" \
+        || fail "$host: $file never spawns bin/$launcher"
+    done
+  done < <(bridge_rows)
+}
+
+@test "bridge matrix: every bridge host guards its native mutation tools" {
+  local file host tools pre tok
+  while IFS='|' read -r file host tools; do
+    [ -z "$file" ] && continue
+    pre=$(bridge_set "$REPO_ROOT/$file" PRE_MUTATION)
+    [ -n "$pre" ] || fail "$host: no PRE_MUTATION set found in $file"
+    for tok in $tools; do
+      echo "$pre" | grep -qx "$tok" || fail "$host: PRE_MUTATION in $file misses mutation tool '$tok'"
+    done
+  done < <(bridge_rows)
+}
+
+@test "bridge matrix: every bridge host validates every archcore write tool" {
+  local file host post tool
+  while IFS='|' read -r file host _; do
+    [ -z "$file" ] && continue
+    post=$(bridge_set "$REPO_ROOT/$file" POST_MUTATION)
+    for tool in create_document update_document remove_document add_relation remove_relation; do
+      echo "$post" | grep -qx "archcore_$tool" \
+        || fail "$host: POST_MUTATION in $file misses archcore_$tool"
+    done
+  done < <(bridge_rows)
 }
 
 @test "enrollment guard: every hooks config file is a matrix row" {
