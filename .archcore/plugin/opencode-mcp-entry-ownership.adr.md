@@ -26,7 +26,7 @@ The bridge's `config` hook sets `cfg.mcp.archcore` to `{"type":"local","command"
 ## Consequences
 
 - [expected] A project wired by `archcore init` and a project carrying only the plugin entry reach the same document tool set; neither path depends on the other.
-- User fields on the file entry (`environment`, a timeout) survive every OpenCode start, the same guarantee `doctor --fix` gives through `mergeEntryFields` in `@cli/internal/agents/mcp_helpers.go`.
+- User fields on the file entry (`environment`, a timeout) survive every OpenCode start, the same guarantee `doctor --fix` gives through `ConvergeStandardMCPJSON` and `ConvergeCursorMCPJSON` in `@cli/internal/agents/mcp_helpers.go`.
 - Tradeoff: a stale file entry, for example a wrong `command` after a binary relocation, is not self-healed by the bridge; `archcore doctor --fix` stays the repair path.
 - Tradeoff: the bridge's registration depends on an ordering OpenCode does not document. In v1.18.34 `packages/opencode/src/project/bootstrap.ts` initializes plugins, and so runs `config` hooks, before MCP state is built; probe C of `host-probe-protocol.spec` re-confirms it per tested release.
 

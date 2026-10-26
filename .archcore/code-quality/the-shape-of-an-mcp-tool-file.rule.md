@@ -39,11 +39,11 @@ channel, where a host renders it as a server fault.
 
 **Good** — the pair, with the root resolved inside the closure.
 
-> `NewGetDocumentTool()` at @cli/internal/mcp/tools/get_document.go:16 and
-> `HandleGetDocument(root RootProvider)` at @cli/internal/mcp/tools/get_document.go:38.
+> `NewGetDocumentTool()` at @cli/internal/mcp/tools/get_document.go and
+> `HandleGetDocument(root RootProvider)` at @cli/internal/mcp/tools/get_document.go.
 
 **Good** — clause 4 and 5. `HandleInstallHostConfig(root RootProvider, wire HostWiringFunc)` at
-@cli/internal/mcp/tools/install_host_config.go:55 takes the cmd-layer work as a function type;
+@cli/internal/mcp/tools/install_host_config.go takes the cmd-layer work as a function type;
 @cli/cmd/mcp.go supplies it through `WithHostWiring`.
 
 **Bad** — a single constructor returning `(mcp.Tool, server.ToolHandlerFunc)` and closing over a

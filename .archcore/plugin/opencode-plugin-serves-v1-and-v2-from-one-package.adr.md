@@ -1,6 +1,6 @@
 ---
 title: "@archcore/opencode-plugin Serves OpenCode 1.x and 2.x From One Default Export With server and setup"
-status: draft
+status: accepted
 tags:
   - "component:plugin"
   - "multi-host"

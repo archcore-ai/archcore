@@ -112,4 +112,4 @@ Proceed. Adopt the three-test selection rule (reader task, evidence, owner), one
 
 ## Next Action
 
-No new `/archcore:plan` run is needed: `review-durable-context-selection.plan` decomposes this recommendation, and `durable-context-selection-by-reader-task.adr` records the decision.
+No new `/archcore:plan` run is needed: the recommendation shipped in commits `e5ad062e` and `f7a35b33`, and `durable-context-selection-by-reader-task.adr` records the decision.

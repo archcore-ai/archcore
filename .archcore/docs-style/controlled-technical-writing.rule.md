@@ -1,5 +1,5 @@
 ---
-title: "Controlled Technical Writing — Repository Scope and Enforcement"
+title: "Controlled Technical Writing — CLI Templates, Help Text, and MCP Tool Descriptions"
 status: accepted
 tags:
   - "component:cli"

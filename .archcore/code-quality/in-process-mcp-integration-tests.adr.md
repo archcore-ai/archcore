@@ -10,11 +10,11 @@ tags:
 
 ## Context
 
-Per-tool unit tests under `internal/mcp/tools/*_test.go` invoke handlers directly via a `callTool(handler, args)` helper (`internal/mcp/tools/list_documents_test.go:13`). They are thorough at the algorithm level — `search_documents_test.go` alone is 610 lines covering 22 cases — but they bypass three production-code paths:
+Per-tool unit tests under `internal/mcp/tools/*_test.go` invoke handlers directly via a `callTool(handler, args)` helper (`internal/mcp/tools/list_documents_test.go`). They are thorough at the algorithm level — `search_documents_test.go` alone is 610 lines covering 22 cases — but they bypass three production-code paths:
 
 1. **Tool registration** through `server.MCPServer.AddTool` in `internal/mcp/server.go:NewServer`. A deleted `s.AddTool(...)` line ships green because every per-tool test calls the handler directly.
 2. **JSON marshalling** through the `mcp-go` client/server layer. A breaking change to a request/response shape is not caught.
-3. **Multi-tool composition** — where one handler writes state (filesystem or `.archcore/.sync-state.json` manifest) and another reads it. The cross-tool coupling between `add_relation` (strips the `.archcore/` prefix at `internal/mcp/tools/add_relation.go:14`) and `search_documents` (reconstructs the prefix at `internal/mcp/tools/search_documents.go:284,291`) is the canonical example: both unit suites pass against hand-written manifests, but a regression at either site silently breaks the loop in production.
+3. **Multi-tool composition** — where one handler writes state (filesystem or `.archcore/.sync-state.json` manifest) and another reads it. The cross-tool coupling between `add_relation` (strips the `.archcore/` prefix at `internal/mcp/tools/add_relation.go`) and `search_documents` (reconstructs the prefix at `internal/mcp/tools/search_documents.go`) is the canonical example: both unit suites pass against hand-written manifests, but a regression at either site silently breaks the loop in production.
 
 The new `search_documents` tool (8 filter parameters, complex specificity scoring, manifest-aware relation enrichment) is the immediate motivator: its algorithmic surface is fully covered by unit tests, but its composition surface with `create_document`, `update_document`, `add_relation`, and `remove_document` was not.
 

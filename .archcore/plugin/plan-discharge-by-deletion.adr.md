@@ -28,7 +28,7 @@ Before requesting removal confirmation, closeout states whether git history pres
 2. Keep writing `rejected` on completed plans — ruled out because the temporal rule in `@plugin/plugins/archcore/skills/_shared/tracks/actualize.md` reads `rejected` plus an active `implements` edge as staleness, which is what produces the current fifteen unresolvable findings.
 3. Leave completed plans at `accepted` — ruled out because the three accepted plans stay in every grounding read as canon beside the `spec` they implement, while the content-kind ownership table in `@plugin/plugins/archcore/skills/_shared/prd-contract.md` assigns those statements to the spec.
 4. One gate carrying its own type menu — `task-type`, `guide`, `rule`, `cpat` — ruled out because it builds a third parallel type menu beside the decision cascade and the experience offer, and it breaks the instrument-layer invariant that a producer owns one type; the decision instrument is already callable from `review` and already produces `adr` plus a `rule` and `guide` cascade.
-5. Reverse the `closeout.accept` → experience ordering so the existing offer track extracts residue before disposal — deferred because `@plugin/plugins/archcore/skills/_shared/tracks/experience.md` states that the whole track is an offer, and a blocking prerequisite would contradict that contract.
+5. Reverse the `closeout.accept` → experience ordering so the existing offer track extracts residue before disposal — deferred because `@plugin/plugins/archcore/skills/_shared/tracks/experience.md` stated that the whole track is an offer, and a blocking prerequisite would have contradicted that contract. The file was removed in f7a35b33 and 9a638e88.
 
 ## Consequences
 

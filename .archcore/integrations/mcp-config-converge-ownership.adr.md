@@ -14,7 +14,7 @@ Agent MCP config writers (@cli/internal/agents/mcp_helpers.go) run in two modes:
 
 ## Decision
 
-Converge **merges, never replaces**. Archcore owns exactly the fields it writes — `command`, `args`, `type` — and overlays only those onto the existing entry (`mergeEntryFields` in @cli/internal/agents/mcp_helpers.go), preserving key order and every field it does not own. Ownership boundaries:
+Converge **merges, never replaces**. Archcore owns exactly the fields it writes — `command`, `args`, `type` — and overlays only those onto the existing entry (`writeMCPConfig` in @cli/internal/agents/mcp_helpers.go, reached through `ConvergeStandardMCPJSON` and `ConvergeCursorMCPJSON`, which call `jsonfile.MergeEntryFields`), preserving key order and every field it does not own. Ownership boundaries:
 
 - **Owned fields** (`command`, `args`, `type`): converge rewrites them to the desired values.
 - **User fields on the archcore entry** (`env`, timeouts, anything else): survive converge byte-for-byte.
@@ -34,4 +34,4 @@ Adding a new archcore-owned field in a future version is allowed (it starts bein
 
 - `doctor --fix` is safe to run unattended: it can only correct the three owned fields (pinned by `TestConvergeCursorMCPJSON_PreservesUserFieldsOnEntry` in @cli/internal/agents/cursor_workspacefolder_spec_test.go).
 - The `install_host_config` MCP tool inherits the same guarantee, which is part of why it can honestly declare itself non-destructive (see install-host-config-tool-contract.adr).
-- Anyone touching the config writers must keep the owned-field list in `mergeEntryFields` in sync with what the entry builders emit.
+- Anyone touching the config writers must keep the owned fields that `writeMCPConfig` overlays in converge mode (@cli/internal/agents/mcp_helpers.go) in sync with what the entry builders emit.

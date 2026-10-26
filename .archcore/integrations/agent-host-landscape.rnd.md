@@ -15,7 +15,7 @@ Decide where Archcore ships next as a host plugin or adapter after the four ship
 
 ## Questions
 
-1. Which state has the OpenCode adapter reached, and what blocks its first release?
+1. Which state has the OpenCode adapter reached, and what remains open after its release?
 2. Which agent hosts with their own agent loop can carry a full Archcore adapter, and at what cost?
 3. Which wrapper editors run Claude Code, Codex, or other agents, and does the inner agent's plugin still load under them?
 4. Which cross-host formats and distribution channels let one artifact reach several hosts?
@@ -43,12 +43,11 @@ Decide where Archcore ships next as a host plugin or adapter after the four ship
 
 The CLI side and the shell side are done. `archcore hooks opencode <event>` exists with the `opencode` row in `@cli/cmd/hook_dialect.go` (commit `ea474ad`); `@cli/cmd/hook_payload.go` folds `archcore_<tool>`; `@plugin/plugins/archcore/bin/lib/normalize-stdin.sh` accepts `ARCHCORE_HOST=opencode`; synthetic payloads sit in `@plugin/test/fixtures/stdin/opencode/`, and two of them use spellings OpenCode does not send (`mcp__archcore__*`, `file_path`), so `opencode-adapter.plan` rewrites them.
 
-The package side is in progress on `dev` (local check, 2026-10-18, after this record was first written). Phases 1–4 of `opencode-adapter.plan` are implemented but not yet released: the bridge package in `@plugin/plugins/opencode/`, its `bun test` suites, the npm publish job, and the `HostOpenCode` row of `@cli/internal/plugin/plugin.go`. Phase 5, the live probes on OpenCode 1.18.34, stays open.
+The package side shipped. `@archcore/opencode-plugin` has been on npm since v0.14.0 (2026-10-26): Phases 1–4 of `opencode-adapter.plan` cover the bridge package in `@plugin/plugins/opencode/`, its `bun test` suites, the npm publish job, and the `HostOpenCode` row of `@cli/internal/plugin/hosts.go`. OpenCode 2.x support and the install into the global OpenCode config followed in v0.14.2. A live load check on OpenCode 2.1.4 on 2026-10-26 showed the package loaded with both agents, four `/archcore-*` commands, and four skills registered. Phase 5, the live probes P0, A, B, and C, has not run and stays open.
 
-Two blockers remain on the development machine (local check, 2026-10-18). Bun 1.4.3 is now installed, so the `bun test` phase runs locally.
+One machine preparation step remains open (local check, 2026-10-18). Bun 1.4.3 is installed, so the `bun test` phase runs locally.
 
 - `~/.config/opencode/opencode.json` already holds `mcp.archcore` pointing at `npx mcp-remote http://localhost:8080/mcp/message`. The bridge yields to an existing entry per the draft entry-ownership decision, so probe C on this machine reports a dead MCP server unless that entry is removed first.
-- npm publish rights on the `@archcore` scope and an `NPM_TOKEN` secret are still prerequisites.
 
 Kilo Code's CLI and v7 extension are OpenCode forks whose plugin behavior the Kilo documentation calls identical to OpenCode, with types from `@kilocode/plugin`. Kilo CLI 7.8.14 is a Bun-compiled binary with the same plugin loader, and it compares `engines.opencode` against its own 7.x version (`packages/opencode/src/plugin/shared.ts` in Kilo-Org/kilocode, read 2026-10-18), so a `^1.x` range rejects the package and a `>=1.18.34` range admits it. [assumption] `@archcore/opencode-plugin` loads under Kilo with no code change; task 54 of `opencode-adapter.plan` checks it.
 
@@ -102,7 +101,7 @@ ACP Registry lists agents, not plugins, and does not apply to Archcore.
 
 Proceed, in this order:
 
-1. Finish the OpenCode adapter plan, then verify the same package under Kilo Code.
+1. Run the Phase 5 live probes of the OpenCode adapter plan, then verify the same package under Kilo Code.
 2. Take the near-zero-cost reach: publish the MCP server to the MCP Registry, add an Agent Plugins 1.0 manifest, verify the Claude Code layout on Factory, Auggie, and Qwen Code, and verify the Roo Code and Continue shutdowns before re-tiering them.
 3. Build a Pi package on the OpenCode bridge shape (Finding 2). Extract a shared spawn module only when Pi is the second TypeScript host.
 4. Add Antigravity and Gemini extension manifests (Finding 2).
@@ -113,8 +112,8 @@ Proceed, in this order:
 
 The order follows three supporting findings: a host with a blocking pre-tool event supports the full guard (Finding 2), every checked wrapper already loads the inner agent's plugin (Finding 3), and shared formats reach several hosts per artifact (Finding 4).
 
-Resulting host list: 4 shipped (Claude Code, Codex CLI, GitHub Copilot, Cursor); 2 CLI-wired without a plugin (Gemini CLI, Cline); 1 in progress (OpenCode); 10 adapter candidates (Kilo Code, Factory Droid, Auggie, Qwen Code, Antigravity, Gemini CLI with Goose, Kiro, Pi, Hermes, Amp); 8 wrapper entries needing verification or a thin plugin (bb, Conductor, Superset, Warp, Zed, JetBrains, Devin Desktop, Nimbalyst with Sculptor and Claude Squad); 2 documentation-only (Trae, Crush); retire or skip Roo Code, Continue, Vibe Kanban, Terragon, Omnara; Mosaic and Cube are not hosts.
+Resulting host list: 4 shipped (Claude Code, Codex CLI, GitHub Copilot, Cursor); 2 CLI-wired without a plugin (Gemini CLI, Cline); 1 shipped without live probes (OpenCode); 10 adapter candidates (Kilo Code, Factory Droid, Auggie, Qwen Code, Antigravity, Gemini CLI with Goose, Kiro, Pi, Hermes, Amp); 8 wrapper entries needing verification or a thin plugin (bb, Conductor, Superset, Warp, Zed, JetBrains, Devin Desktop, Nimbalyst with Sculptor and Claude Squad); 2 documentation-only (Trae, Crush); retire or skip Roo Code, Continue, Vibe Kanban, Terragon, Omnara; Mosaic and Cube are not hosts.
 
 ## Next Action
 
-`/archcore:plan` the OpenCode release using the existing adapter plan; before its probe C, remove the user-level `mcp.archcore` entry on the probe machine and install Bun. After the Roo Code and Continue checks, update the host roster in the `archcore` global source and `supported-ai-agents.doc` in one change.
+Run Phase 5 of the OpenCode adapter plan; before its probe C, remove the user-level `mcp.archcore` entry on the probe machine. After the Roo Code and Continue checks, update the host roster in the `archcore` global source and `supported-ai-agents.doc` in one change.

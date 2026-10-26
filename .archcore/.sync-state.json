@@ -819,11 +819,6 @@
       "type": "implements"
     },
     {
-      "source": "plugin/intent-based-skill-architecture.adr.md",
-      "target": "plugin/scenario-track-skills.idea.md",
-      "type": "extends"
-    },
-    {
       "source": "plugin/plugin-architecture.spec.md",
       "target": "plugin/intent-based-skill-architecture.adr.md",
       "type": "implements"
@@ -1120,57 +1115,7 @@
     },
     {
       "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/actualize-system.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/actualize-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/add-read-only-auditor-agent.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/agent-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/always-use-mcp-tools.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/claude-plugin.prd.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/commands-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
       "target": "plugin/component-registry.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/development-roadmap.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/intent-based-skill-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/mcp-only-operations.rule.md",
       "type": "related"
     },
     {
@@ -1180,37 +1125,7 @@
     },
     {
       "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/plugin-component-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
       "target": "plugin/plugin-development.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/scenario-track-skills.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/single-universal-agent.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/skill-file-structure.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/skill-mcp-interaction.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/multi-host-compatibility-layer.spec.md",
-      "target": "plugin/skills-system.spec.md",
       "type": "related"
     },
     {
@@ -1340,107 +1255,7 @@
     },
     {
       "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/actualize-system.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/actualize-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/add-read-only-auditor-agent.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/agent-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/always-use-mcp-tools.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/commands-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/component-registry.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/development-roadmap.plan.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/hooks-validation-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/intent-based-skill-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/mcp-only-operations.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/multi-host-compatibility-layer.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
       "target": "plugin/plugin-architecture.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/plugin-component-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/plugin-development.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/plugin-testing.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/scenario-track-skills.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/single-universal-agent.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/skill-file-structure.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/skill-mcp-interaction.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/bundled-cli-launcher.adr.md",
-      "target": "plugin/skills-system.spec.md",
       "type": "related"
     },
     {
@@ -1454,11 +1269,6 @@
       "type": "implements"
     },
     {
-      "source": "plugin/component-registry.doc.md",
-      "target": "plugin/bundled-cli-launcher.adr.md",
-      "type": "related"
-    },
-    {
       "source": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
       "target": "plugin/actualize-system.adr.md",
       "type": "related"
@@ -1516,11 +1326,6 @@
     {
       "source": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
       "target": "plugin/mcp-only-operations.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/remove-skill-verify-mcp-preamble.cpat.md",
-      "target": "plugin/multi-host-compatibility-layer.spec.md",
       "type": "related"
     },
     {
@@ -1600,11 +1405,6 @@
     },
     {
       "source": "plugin/inverted-invocation-policy.adr.md",
-      "target": "plugin/bundled-cli-launcher.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/inverted-invocation-policy.adr.md",
       "target": "plugin/claude-plugin.prd.md",
       "type": "related"
     },
@@ -1631,11 +1431,6 @@
     {
       "source": "plugin/inverted-invocation-policy.adr.md",
       "target": "plugin/mcp-only-operations.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/inverted-invocation-policy.adr.md",
-      "target": "plugin/multi-host-compatibility-layer.spec.md",
       "type": "related"
     },
     {
@@ -1731,11 +1526,6 @@
     {
       "source": "plugin/subagent-knowledge-tree-preload.idea.md",
       "target": "plugin/hooks-validation-system.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/subagent-knowledge-tree-preload.idea.md",
-      "target": "plugin/multi-host-compatibility-layer.spec.md",
       "type": "related"
     },
     {
@@ -1791,11 +1581,6 @@
     {
       "source": "plugin/pre-code-context-injection.idea.md",
       "target": "plugin/subagent-knowledge-tree-preload.idea.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/pre-code-context-injection.idea.md",
-      "target": "plugin/multi-host-compatibility-layer.spec.md",
       "type": "related"
     },
     {
@@ -1969,11 +1754,6 @@
       "type": "depends_on"
     },
     {
-      "source": "plugin/codex-host-support.prd.md",
-      "target": "plugin/bundled-cli-launcher.adr.md",
-      "type": "related"
-    },
-    {
       "source": "plugin/codex-local-plugin-testing.guide.md",
       "target": "plugin/plugin-testing.guide.md",
       "type": "extends"
@@ -1981,11 +1761,6 @@
     {
       "source": "plugin/codex-local-plugin-testing.guide.md",
       "target": "plugin/multi-host-compatibility-layer.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/codex-local-plugin-testing.guide.md",
-      "target": "plugin/bundled-cli-launcher.adr.md",
       "type": "related"
     },
     {
@@ -2014,21 +1789,6 @@
       "type": "related"
     },
     {
-      "source": "plugin/cli-integration-tests.rule.md",
-      "target": "plugin/bundled-cli-launcher.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/codex-path-resolution.adr.md",
-      "target": "plugin/bundled-cli-launcher.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/codex-path-resolution.adr.md",
-      "target": "plugin/multi-host-compatibility-layer.spec.md",
-      "type": "related"
-    },
-    {
       "source": "plugin/codex-path-resolution.adr.md",
       "target": "plugin/codex-host-support.prd.md",
       "type": "related"
@@ -2036,11 +1796,6 @@
     {
       "source": "plugin/codex-mcp-cwd-rebase-to-user-project.idea.md",
       "target": "plugin/codex-local-plugin-testing.guide.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/codex-mcp-cwd-rebase-to-user-project.idea.md",
-      "target": "plugin/bundled-cli-launcher.adr.md",
       "type": "related"
     },
     {
@@ -2089,11 +1844,6 @@
       "type": "related"
     },
     {
-      "source": "plugin/cursor-mcp-architecture.adr.md",
-      "target": "plugin/multi-host-compatibility-layer.spec.md",
-      "type": "related"
-    },
-    {
       "source": "plugin/plugin-as-mcp-enforcement-boundary.idea.md",
       "target": "plugin/always-use-mcp-tools.adr.md",
       "type": "extends"
@@ -2116,11 +1866,6 @@
     {
       "source": "plugin/plugin-as-mcp-enforcement-boundary.idea.md",
       "target": "plugin/cursor-mcp-architecture.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/plugin-as-mcp-enforcement-boundary.idea.md",
-      "target": "plugin/multi-host-compatibility-layer.spec.md",
       "type": "related"
     },
     {
@@ -2410,11 +2155,6 @@
     },
     {
       "source": "plugin/host-wiring-parity.adr.md",
-      "target": "plugin/bundled-cli-launcher.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/host-wiring-parity.adr.md",
       "target": "plugin/hooks-validation-system.spec.md",
       "type": "related"
     },
@@ -2565,11 +2305,6 @@
     },
     {
       "source": "plugin/four-command-palette.adr.md",
-      "target": "plugin/skill-surface-collapse.adr.md",
-      "type": "extends"
-    },
-    {
-      "source": "plugin/four-command-palette.adr.md",
       "target": "plugin/intent-based-skill-architecture.adr.md",
       "type": "related"
     },
@@ -2602,21 +2337,6 @@
       "source": "plugin/plugin-v2.prd.md",
       "target": "plugin/flow-patterns-and-sdd-gates.rnd.md",
       "type": "related"
-    },
-    {
-      "source": "plugin/command-surface-v2.spec.md",
-      "target": "plugin/skills-system.spec.md",
-      "type": "extends"
-    },
-    {
-      "source": "plugin/command-surface-v2.spec.md",
-      "target": "plugin/commands-system.spec.md",
-      "type": "extends"
-    },
-    {
-      "source": "plugin/remove-context-command.adr.md",
-      "target": "plugin/context-filtering-pipeline.doc.md",
-      "type": "extends"
     },
     {
       "source": "plugin/skill-file-structure.rule.md",
@@ -2790,11 +2510,6 @@
     },
     {
       "source": "plugin/delta-routing-conductor.spec.md",
-      "target": "plugin/delta-routing-model.idea.md",
-      "type": "implements"
-    },
-    {
-      "source": "plugin/delta-routing-conductor.spec.md",
       "target": "plugin/track-layer.spec.md",
       "type": "extends"
     },
@@ -2802,11 +2517,6 @@
       "source": "plugin/delta-routing-conductor.spec.md",
       "target": "plugin/delta-routing-bench.doc.md",
       "type": "related"
-    },
-    {
-      "source": "plugin/delta-routing-instruments.spec.md",
-      "target": "plugin/delta-routing-model.idea.md",
-      "type": "implements"
     },
     {
       "source": "plugin/delta-routing-instruments.spec.md",
@@ -3099,11 +2809,6 @@
       "type": "related"
     },
     {
-      "source": "plugin/command-surface-v2.spec.md",
-      "target": "plugin/command-entry-grammar.adr.md",
-      "type": "implements"
-    },
-    {
       "source": "plugin/command-entry-grammar.adr.md",
       "target": "plugin/research-runtime-category-and-evidence-entry.adr.md",
       "type": "related"
@@ -3114,39 +2819,9 @@
       "type": "related"
     },
     {
-      "source": "plugin/track-layer.spec.md",
-      "target": "plugin/command-entry-grammar.adr.md",
-      "type": "implements"
-    },
-    {
-      "source": "plugin/command-entry-grammar.plan.md",
-      "target": "plugin/command-surface-v2.spec.md",
-      "type": "implements"
-    },
-    {
-      "source": "plugin/command-entry-grammar.plan.md",
-      "target": "plugin/command-entry-grammar.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/command-entry-grammar.plan.md",
-      "target": "plugin/journey-produced-only-on-plan.adr.md",
-      "type": "related"
-    },
-    {
-      "source": "plugin/command-entry-grammar.plan.md",
-      "target": "plugin/scenario-and-journey-runtime.plan.md",
-      "type": "depends_on"
-    },
-    {
       "source": "plugin/command-entry-grammar.scenario.md",
       "target": "plugin/command-surface-v2.spec.md",
       "type": "depends_on"
-    },
-    {
-      "source": "plugin/command-entry-grammar.plan.md",
-      "target": "plugin/command-entry-grammar.scenario.md",
-      "type": "related"
     },
     {
       "source": "plugin/init-entry-and-assess.spec.md",
@@ -4724,39 +4399,14 @@
       "type": "related"
     },
     {
-      "source": "document-types/research-and-evidence-types.spec.md",
-      "target": "document-types/research-and-evidence-vocabulary.prd.md",
-      "type": "implements"
-    },
-    {
-      "source": "relations/evidential-and-temporal-relations.spec.md",
-      "target": "document-types/research-and-evidence-vocabulary.prd.md",
-      "type": "implements"
-    },
-    {
       "source": "relations/evidential-and-temporal-relations.spec.md",
       "target": "sync/sync-engine.spec.md",
       "type": "extends"
     },
     {
       "source": "mcp/document-update-frontmatter.spec.md",
-      "target": "document-types/research-and-evidence-vocabulary.prd.md",
-      "type": "implements"
-    },
-    {
-      "source": "mcp/document-update-frontmatter.spec.md",
       "target": "mcp/tag-update-semantics.rule.md",
       "type": "depends_on"
-    },
-    {
-      "source": "document-types/scenario-and-journey-types.spec.md",
-      "target": "document-types/scenario-and-journey-vocabulary.prd.md",
-      "type": "implements"
-    },
-    {
-      "source": "document-types/scenario-and-journey-advisory-canon.spec.md",
-      "target": "document-types/scenario-and-journey-vocabulary.prd.md",
-      "type": "implements"
     },
     {
       "source": "document-types/scenario-and-journey-advisory-canon.spec.md",
@@ -4782,31 +4432,6 @@
       "source": "document-types/add-a-document-type.task-type.md",
       "target": "cli-ui/building-the-cli.doc.md",
       "type": "related"
-    },
-    {
-      "source": "mcp/host-truncation-safe-read-tools.plan.md",
-      "target": "mcp/read-tool-responses-survive-host-truncation.adr.md",
-      "type": "implements"
-    },
-    {
-      "source": "mcp/host-truncation-safe-read-tools.plan.md",
-      "target": "mcp/search-matches-the-slug-and-folds-separators.adr.md",
-      "type": "implements"
-    },
-    {
-      "source": "mcp/host-truncation-safe-read-tools.plan.md",
-      "target": "mcp/search-documents.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/host-truncation-safe-read-tools.plan.md",
-      "target": "globals/session-globals-disclosure.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "mcp/host-truncation-safe-read-tools.plan.md",
-      "target": "code-quality/bounded-and-deterministic-output.rule.md",
-      "type": "depends_on"
     },
     {
       "source": "mcp/read-tool-responses-survive-host-truncation.adr.md",
@@ -4842,11 +4467,6 @@
       "source": "mcp/list-documents.spec.md",
       "target": "mcp/search-documents.spec.md",
       "type": "related"
-    },
-    {
-      "source": "mcp/host-truncation-safe-read-tools.plan.md",
-      "target": "mcp/list-documents.spec.md",
-      "type": "implements"
     },
     {
       "source": "mcp/tool-descriptions-fit-the-host-cap.adr.md",
@@ -4919,11 +4539,6 @@
       "type": "depends_on"
     },
     {
-      "source": "integrations/init-selection-screen-always-opens.plan.md",
-      "target": "integrations/plugin-delivery.spec.md",
-      "type": "implements"
-    },
-    {
       "source": "mcp/empty-all-words-search-partial-matches.rfc.md",
       "target": "mcp/global-recall-guarantees.rfc.md",
       "type": "extends"
@@ -4956,11 +4571,6 @@
     {
       "source": "mcp/empty-all-words-search-near-misses.plan.md",
       "target": "mcp/empty-all-words-search-partial-matches.rfc.md",
-      "type": "depends_on"
-    },
-    {
-      "source": "mcp/empty-all-words-search-near-misses.plan.md",
-      "target": "mcp/host-truncation-safe-read-tools.plan.md",
       "type": "depends_on"
     },
     {
@@ -5079,11 +4689,6 @@
       "type": "extends"
     },
     {
-      "source": "plugin/review-durable-context-selection.plan.md",
-      "target": "plugin/review-durable-context-selection.spec.md",
-      "type": "implements"
-    },
-    {
       "source": "plugin/review-durable-context-selection.spec.md",
       "target": "plugin/durable-context-selection-by-reader-task.adr.md",
       "type": "implements"
@@ -5097,11 +4702,6 @@
       "source": "plugin/durable-context-selection-by-reader-task.adr.md",
       "target": "plugin/precision-over-coverage.adr.md",
       "type": "extends"
-    },
-    {
-      "source": "plugin/review-durable-context-selection.plan.md",
-      "target": "plugin/review-durable-context-selection.rnd.md",
-      "type": "depends_on"
     },
     {
       "source": "plugin/review-durable-context-selection.spec.md",
@@ -5172,11 +4772,6 @@
       "source": "plugin/explicit-type-request-wins.adr.md",
       "target": "plugin/journey-produced-only-on-plan.adr.md",
       "type": "supersedes"
-    },
-    {
-      "source": "plugin/explicit-type-request-wins.adr.md",
-      "target": "plugin/command-entry-grammar.adr.md",
-      "type": "extends"
     },
     {
       "source": "plugin/cross-spec-scenario.adr.md",
@@ -5289,16 +4884,6 @@
       "type": "depends_on"
     },
     {
-      "source": "integrations/agent-context-delivery.plan.md",
-      "target": "integrations/file-context-resolution.spec.md",
-      "type": "implements"
-    },
-    {
-      "source": "integrations/agent-context-delivery.plan.md",
-      "target": "integrations/context-address-delivery.spec.md",
-      "type": "implements"
-    },
-    {
       "source": "integrations/managed-block-version-and-staleness-advisory.adr.md",
       "target": "integrations/instruction-nudge-on-init.adr.md",
       "type": "extends"
@@ -5409,22 +4994,7 @@
       "type": "contradicts"
     },
     {
-      "source": "integrations/file-context-local-rules-and-bare-names.plan.md",
-      "target": "integrations/file-context-resolution.spec.md",
-      "type": "implements"
-    },
-    {
-      "source": "integrations/file-context-local-rules-and-bare-names.plan.md",
-      "target": "globals/local-overrides-global.rule.md",
-      "type": "depends_on"
-    },
-    {
       "source": "integrations/file-context-resolution.spec.md",
-      "target": "integrations/bare-file-name-matches-only-when-unique.adr.md",
-      "type": "implements"
-    },
-    {
-      "source": "integrations/file-context-local-rules-and-bare-names.plan.md",
       "target": "integrations/bare-file-name-matches-only-when-unique.adr.md",
       "type": "implements"
     },
@@ -5522,6 +5092,26 @@
       "source": "plugin/opencode-plugin-serves-v1-and-v2-from-one-package.adr.md",
       "target": "plugin/opencode-adapter-packaging.adr.md",
       "type": "extends"
+    },
+    {
+      "source": "plugin/command-surface-v2.spec.md",
+      "target": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/track-layer.spec.md",
+      "target": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/delta-routing-conductor.spec.md",
+      "target": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/delta-routing-instruments.spec.md",
+      "target": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
+      "type": "implements"
     }
   ]
 }

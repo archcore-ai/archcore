@@ -13,7 +13,7 @@ tags:
 
 ## Context
 
-In May 2026 a Cursor user reported that, after installing the Archcore plugin and querying an empty project, the MCP returned about 35 documents that did not belong to that project. The documents were the plugin team's own development docs from the bundled `.archcore/`, served because Cursor had spawned the plugin's MCP server with its working directory pointing at the plugin install directory `~/.cursor/plugins/cache/archcore-plugins/archcore/<sha>/`. The CLI contributed by reading `.archcore/` from `os.Getwd()` in `cli/cmd/mcp.go:22`, with no walk-up, no project flag, and no sanity check on the resolved root.
+In May 2026 a Cursor user reported that, after installing the Archcore plugin and querying an empty project, the MCP returned about 35 documents that did not belong to that project. The documents were the plugin team's own development docs from the bundled `.archcore/`, served because Cursor had spawned the plugin's MCP server with its working directory pointing at the plugin install directory `~/.cursor/plugins/cache/archcore-plugins/archcore/<sha>/`. The CLI contributed by reading `.archcore/` from `os.Getwd()` in `cli/cmd/mcp.go`, with no walk-up, no project flag, and no sanity check on the resolved root.
 
 ## Findings
 
@@ -50,7 +50,7 @@ Each layer alone is sufficient for the scenario observed; together they cover sc
 - The CLI gained an explicit `--project` flag, reusable for any host that cannot guarantee the working directory.
 - Neutral: Codex is unaffected, because `.codex.mcp.json` was never on any host's discovery list and is reached through an explicit manifest key.
 - Neutral: Claude Code was the reason the discovered filename could not simply be deleted. That constraint turned out to be false — the manifest accepts an explicit path — and removing it is what let both this decision and `copilot-mcp-architecture.adr` close. The claim previously recorded here, that Claude's and Codex's plugin-root configs continue to work because both hosts inherit the working directory from the user's project process, was true of the *spawn* but silent about the *discovery*: Cursor was reading Claude's file. It is corrected rather than deleted, because the reasoning error — asserting that a host ignores a file without measuring it — is the reusable part.
-- Tradeoff: the `dev → main` split requires discipline, since nobody can hotfix `main` directly without re-syncing from `dev`. `docs/release.md` documents the process.
+- Tradeoff: the `dev → main` split requires discipline, since nobody can hotfix `main` directly without re-syncing from `dev`. `@plugin/docs/release.md` documents the process.
 - Closed tradeoff: Cursor onboarding once gained a manual step, copying the template into `~/.cursor/mcp.json`. `host-wiring-parity.adr` closed it — `/archcore:init` and `archcore init --agent cursor` now write a project-level `.cursor/mcp.json` carrying `--project ${workspaceFolder}`, and `archcore doctor --fix` converges configs written by older CLIs. The manual user-level copy remains only as a fallback before wiring has run.
 
 ## Superseded when

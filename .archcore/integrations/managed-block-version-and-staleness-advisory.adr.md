@@ -1,6 +1,6 @@
 ---
 title: "The Managed Block Carries a Format Version, and Archcore Reports a Stale Block Instead of Rewriting It"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "integrations"

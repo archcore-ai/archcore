@@ -73,7 +73,7 @@ CLI 1.0.76, opencode 1.15.13.
 | GitHub Copilot | Yes | `copilot plugin install <owner>/<repo>[:<path>]` — installs straight from a GitHub repository or subdirectory, with no marketplace registration | user-level store, no scope flags | **STRONG** — one command, no marketplace step |
 | Codex CLI | Yes | `codex plugin marketplace add archcore-ai/plugin` then `codex plugin add archcore@<marketplace>` | `~/.codex/config.toml`; machine-level | **PARTIAL** — machine-level side effect from a project-level command |
 | Cursor | Yes | None non-interactive: plugins are UI-only per cursor.com/docs/plugins (verified 2026-08-15) | Unknown | **Tier C** — print the UI instruction |
-| OpenCode | Adapter accepted, not shipped | `opencode plugin <module>` — "install plugin and update config" | `-g/--global` or project config | **DEFERRED** — no adapter to deliver yet |
+| OpenCode | Yes, the npm package `@archcore/opencode-plugin` | 1.x: `opencode plugin -g <module>`; 2.x: `opencode plugin add <module>` | global OpenCode config | **DELIVERED** since v0.14.0 (2026-10-26), into the global OpenCode config since v0.14.2; owner `plugin-delivery.spec` |
 
 ### Claude Code write experiment
 

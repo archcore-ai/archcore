@@ -35,7 +35,7 @@ One release ships the whole update-and-delivery path: the unattended update poli
 ### Phase 2 — Unattended policy, no caller
 
 12. Add a fail-closed claim to `@cli/internal/stamp/stamp.go` under a bias-carrying exported name, in its own scope directory. It inverts all four fail-open returns of the existing `Claim` path — the failed `MkdirAll`, the non-`ErrExist` open error, the lock open error in `reclaim`, and the failed `Chtimes` — and refuses on an empty `DirFor` result. Update the package doc, which today declares the whole package fail-open.
-13. Move the freshness cache into `internal/update` as the canonical implementation — path, 24 h TTL, 1 h negative TTL, and a pid-suffixed temp-file-and-rename write replacing the bare `os.WriteFile` at `@cli/cmd/update.go:83`. `--check` and the `doctor` advisory call through it. Rationale: the policy lives in `internal/update`, and `cmd` importing it back is a cycle.
+13. Move the freshness cache into `internal/update` as the canonical implementation — path, 24 h TTL, 1 h negative TTL, and a pid-suffixed temp-file-and-rename write replacing the bare `os.WriteFile` at `@cli/cmd/update.go`. `--check` and the `doctor` advisory call through it. Rationale: the policy lives in `internal/update`, and `cmd` importing it back is a cycle.
 14. Add the policy entry point to `internal/update`: conditions in the fixed order marker → `dev` → CI → claim, then cache read, then write-access check. A fresh failure stamp counts as stale and proceeds to the lookup; only a strictly newer, parseable semver replaces.
 15. Wire the claim scope keyed by the resolved binary path with a 24 h window.
 16. Add the pre-rename health probe: run the extracted binary with `--version` under a 3 s bound; a failure abandons the replacement as stage `replace`.
@@ -46,7 +46,7 @@ One release ships the whole update-and-delivery path: the unattended update poli
 
 ### Phase 3 — Triggers
 
-21. Add `WithBackgroundTask(func(ctx))` as a `ServerOption` in `internal/mcp`, started by `RunStdio` between `shieldStdout()` and `Listen` (`@cli/internal/mcp/server.go:265-268`); `cmd/mcp.go` supplies the closure — 60 s delay, policy invocation, once per process, exit on context cancellation. The update stack stays out of `internal/mcp`.
+21. Add `WithBackgroundTask(func(ctx))` as a `ServerOption` in `internal/mcp`, started by `RunStdio` between `shieldStdout()` and `Listen` (`@cli/internal/mcp/server.go`); `cmd/mcp.go` supplies the closure — 60 s delay, policy invocation, once per process, exit on context cancellation. The update stack stays out of `internal/mcp`.
 22. Write exactly one stderr line on a completed replacement, and nothing otherwise.
 23. Add the cached advisory line to the `doctor` report: read the cache through `internal/update`, wrap the line in `display.WarnLine` at the `doctor` call site, and leave the `issues` counter untouched — `@cli/cmd/doctor.go`.
 24. Tests: a context cancelled before the delay makes no network call and writes no file; stdout stays byte-identical across a session where an update runs; `RunStdio` without the option serves exactly as today; a `doctor` run with a stale cache and no network prints no advisory, exits unchanged, and never counts the advisory as an issue.

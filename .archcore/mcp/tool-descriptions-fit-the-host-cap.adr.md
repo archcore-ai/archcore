@@ -31,7 +31,7 @@ The relation policy is the first rule placed this way. `TestAddRelationDescripti
 1. Keep the policy in the server instructions only — rejected because the measured cut at unit 2,048 falls before the section that holds it.
 2. Move `DOCUMENT RELATIONS` above the type catalog in the server instructions — deferred because it pushes other text out of the first 2,048 units, and no measurement ranks which text matters most there.
 3. Put the rule in a parameter description — deferred because one observation supports it. [assumption] Other hosts pass parameter descriptions whole.
-4. Shorten every description under the cap in this change — deferred. `create_document` exceeds the cap by 1,648 units because of the type catalog. `search_documents` exceeds it by 9 units, and `host-truncation-safe-read-tools.plan` already schedules a shorter text.
+4. Shorten every description under the cap in this change — deferred. `create_document` exceeds the cap by 1,648 units because of the type catalog. `search_documents` exceeds it by 9 units, and the read-tools rework of 2026-09 scheduled a shorter text.
 
 ## Consequences
 

@@ -17,6 +17,7 @@ The former `archcore-ai/cli` channel receives no further releases, and this repo
 - Push access to the `archcore-ai/archcore` repository.
 - Every intended change merged to `dev`, with `Plugin Tests` and `CLI Tests` green on `dev`.
 - Repository variables `POSTHOG_KEY` and `POSTHOG_HOST` present in `archcore-ai/archcore` (copied 2026-09-22). Without them the GoReleaser post-build hook @cli/scripts/assert-not-inert.sh fails the release.
+- Repository secret `NPM_TOKEN`: an npm granular token with read-and-write (publish) permission on the `@archcore` scope and 2FA bypass. Without it `publish-opencode` fails.
 
 ## Procedure
 
@@ -46,7 +47,7 @@ Do not edit `version` in the four manifests under `plugin/plugins/archcore/`. Th
 
 5. Monitor the `Release` run at `https://github.com/archcore-ai/archcore/actions`.
 
-   Expected result: `verify-version`, `test-plugin`, `test-cli`, `publish-plugin`, and `publish-cli` complete in that order (@.github/workflows/release.yml).
+   Expected result: `verify-version`, `test-plugin` and `test-cli`, `publish-plugin`, `publish-opencode`, and `publish-cli` complete in that order (@.github/workflows/release.yml). `publish-opencode` needs `publish-plugin`; `publish-cli` needs both.
 
 6. Verify the published release.
 
@@ -54,11 +55,12 @@ Do not edit `version` in the four manifests under `plugin/plugins/archcore/`. Th
    gh release view vX.Y.Z
    git fetch origin main && git ls-tree --name-only origin/main
    git show origin/main:plugins/archcore/.claude-plugin/plugin.json | jq -r .version
+   npm view @archcore/opencode-plugin@X.Y.Z version
    ARCHCORE_VERSION=vX.Y.Z bash cli/install.sh
    archcore --version
    ```
 
-   Expected result: 9 assets on the release page (6 archives, `checksums.txt`, `install.sh`, `install.ps1`), the plugin layout on `main`, `X.Y.Z` from the published manifest, and `vX.Y.Z` from `archcore --version`.
+   Expected result: 9 assets on the release page (6 archives, `checksums.txt`, `install.sh`, `install.ps1`), the plugin layout on `main`, `X.Y.Z` from the published manifest, `X.Y.Z` from npm, and `vX.Y.Z` from `archcore --version`.
 
 Run the installer from the checkout, not from `archcore.ai`. The checkout copy carries the `__POSTHOG_KEY__` placeholder, so a release check installs without reporting an install event. See install-script-usage.guide.md.
 
@@ -108,7 +110,8 @@ The related reference document on release infrastructure carries the full build 
   ```
 
 - A test job fails: nothing was published. Fix on `dev`, delete the tag as above, and tag the fixed commit.
-- `publish-cli` fails after `publish-plugin`: `main` already carries the new tree. Fix the cause, delete the partial GitHub Release if one exists while keeping the tag, and re-run the failed job. GoReleaser replaces conflicting assets on a re-run (`release.replace_existing_artifacts` in @cli/.goreleaser.yaml).
+- `publish-opencode` fails: `main` already carries the new tree and `publish-cli` has not run. Fix the cause and re-run the tag's run. A version that npm already has is skipped, so the re-run does not fail on it.
+- `publish-cli` fails after `publish-opencode`: `main` already carries the new tree and npm already has the package. Fix the cause, delete the partial GitHub Release if one exists while keeping the tag, and re-run the failed job. GoReleaser replaces conflicting assets on a re-run (`release.replace_existing_artifacts` in @cli/.goreleaser.yaml).
 - GoReleaser fails: check the syntax of @cli/.goreleaser.yaml, and run `goreleaser check` locally when the binary is available.
 - `install.sh` or `install.ps1` cannot find the release: confirm that the tag follows the `v*` pattern, for example `v1.0.0` rather than `1.0.0`.
 - The Windows zips are missing from the release: confirm that `format_overrides` in @cli/.goreleaser.yaml still maps `windows` to `zip`.

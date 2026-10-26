@@ -22,7 +22,7 @@ Out of scope: `install-id`, which answers "which machine" for analytics and carr
 - Fields: `channel` (one of `install.sh`, `install.ps1`, `self-update`), `binary` (absolute, symlink-resolved path of the installed executable), `version` (the version placed at that path).
 - Writers: both installers on a successful install; the `update` command on a successful replacement.
 - Reader: the unattended update policy in `internal/update` [planned].
-- Resolution used for comparison: `os.Executable()` followed by `filepath.EvalSymlinks()`, the pair `Apply` already uses (`@cli/internal/update/update.go:308`).
+- Resolution used for comparison: `os.Executable()` followed by `filepath.EvalSymlinks()`, the pair `Apply` already uses (`@cli/internal/update/update.go`).
 
 ## Normative Behavior
 

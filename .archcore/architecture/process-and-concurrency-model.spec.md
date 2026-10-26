@@ -28,9 +28,9 @@ update trigger (`mcp-background-update.spec`), and the manifest schema (`sync-en
 
 | State | Location | Scope |
 |---|---|---|
-| `sharedScanCache` | @cli/internal/docs/cache.go:49 | process, keyed by absolute file path |
-| `sharedManifestStore` | @cli/internal/mcp/tools/manifest_store.go:41 | process, keyed by `baseDir` |
-| `mainCheckoutCache` | @cli/internal/config/globals.go:102 | process, keyed by project root |
+| `sharedScanCache` | @cli/internal/docs/cache.go | process, keyed by absolute file path |
+| `sharedManifestStore` | @cli/internal/mcp/tools/manifest_store.go | process, keyed by `baseDir` |
+| `mainCheckoutCache` | @cli/internal/config/globals.go | process, keyed by project root |
 | claim stamp | `internal/stamp` under the XDG state directory | machine, across processes |
 
 ## Normative Behavior
@@ -53,13 +53,13 @@ update trigger (`mcp-background-update.spec`), and the manifest schema (`sync-en
 ## Constraints & Invariants
 
 1. `sharedScanCache` retains at most `maxCachedContentBytes` (32 MiB) of document bodies. Past the
-   cap an entry keeps its frontmatter and drops its body — @cli/internal/docs/cache.go:31.
+   cap an entry keeps its frontmatter and drops its body — @cli/internal/docs/cache.go.
 2. `sharedScanCache` runs no eviction policy by decision, because the flat cap already bounds it.
 3. `sharedManifestStore.entries` carries no size bound today. One session that visits many git
    worktrees retains one parsed manifest per root for the life of the process.
 4. Keying by `baseDir` is load-bearing, not a test convenience: one MCP process serves several
    project roots over its life (`project-root-resolution.spec`).
-5. The background update starts after `backgroundUpdateDelay` (60 s) — @cli/cmd/mcp.go:87.
+5. The background update starts after `backgroundUpdateDelay` (60 s) — @cli/cmd/mcp.go.
 6. `mainCheckoutCache` memoizes the git worktree anchor per project root
    (`relative-globals-resolve-from-main-checkout.adr`). It carries no size bound, for the reason
    invariant 3 gives, and holds one short string per root. A project declaring no escaping relative
@@ -82,8 +82,8 @@ update trigger (`mcp-background-update.spec`), and the manifest schema (`sync-en
 
 ## Conformance
 
-- Clause 3 is verified by the clone-and-swap in @cli/internal/mcp/tools/manifest_store.go:79.
-- Clause 6 is verified by the stdio shield in `internal/mcp` and the stderr comment at @cli/cmd/mcp.go:50.
+- Clause 3 is verified by the clone-and-swap in @cli/internal/mcp/tools/manifest_store.go.
+- Clause 6 is verified by the stdio shield in `internal/mcp` and the stderr comment at @cli/cmd/mcp.go.
 - Clause 10 is verified for the root provider by
   `TestSessionRootProvider_ConcurrentCallsIssueOneQuery`, and for the anchor memo by
   `TestResolveGlobalPath_LookupMemoized`.

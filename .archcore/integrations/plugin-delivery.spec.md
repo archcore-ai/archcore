@@ -37,7 +37,7 @@ Per-host install actions:
 | Cursor | none — print the UI instruction (Marketplace or `/add-plugin`) | UI-only per cursor.com/docs/plugins |
 | OpenCode | The entry goes into the global config (`~/.config/opencode/opencode.json`), as OpenCode npm plugins usually install. 1.x: `opencode plugin -g @archcore/opencode-plugin`; removal is a printed note. 2.x: `opencode plugin add @archcore/opencode-plugin`; removal runs `opencode plugin remove @archcore/opencode-plugin`. The CLI still runs these commands only from a project with `.archcore/` | Read from the OpenCode 1.18.34 source (`packages/opencode/src/cli/cmd/plug.ts`); not run live [assumption] |
 
-Roo Code, Cline, and Gemini CLI have no plugin. Removal runs the host's own uninstall (`copilot plugin uninstall archcore`, `codex plugin remove archcore@archcore-plugins`; Claude Code equivalents [assumption]) and removes the `autoUpdate` entry this surface wrote. OpenCode has no uninstall command, so its removal is a printed note to delete `@archcore/opencode-plugin` from the `plugin` array.
+Roo Code, Cline, and Gemini CLI have no plugin. Removal runs the host's own uninstall (`copilot plugin uninstall archcore`, `codex plugin remove archcore@archcore-plugins`; Claude Code equivalents [assumption]) and removes the `autoUpdate` entry this surface wrote. OpenCode 1.x has no uninstall command, so its removal is a printed note to delete `@archcore/opencode-plugin` from the `plugin` array. OpenCode 2.x removal runs `opencode plugin remove @archcore/opencode-plugin`.
 
 ## Normative Behavior
 
@@ -85,10 +85,11 @@ Roo Code, Cline, and Gemini CLI have no plugin. Removal runs the host's own unin
 42. IF `archcore plugin install --help` does not name `ARCHCORE_PLUGIN_INSTALLER`, THEN the platform installer MUST skip the plugin step with a warning.
 43. WHEN the CLI runs or prints the OpenCode install command, the CLI MUST address the resolved project root.
 44. IF a run resolves no project root that carries `.archcore/`, THEN the CLI MUST NOT run an OpenCode command.
-45. WHEN `archcore plugin remove` finds the OpenCode plugin listed, the CLI MUST print the removal note instead of a host command.
+45. WHEN `archcore plugin remove` finds the OpenCode plugin on 1.x or an unknown version, the CLI MUST print the removal note, not a host command.
 46. WHILE `ARCHCORE_PLUGIN_INSTALLER=1`, the CLI MUST NOT install the OpenCode plugin.
 47. IF `archcore plugin install`, `remove`, or `status` names `--agent opencode` outside a project, THEN the CLI MUST print one line that asks for one.
 48. IF OpenCode was not named with `--agent`, THEN the CLI MUST NOT print a line for a skipped OpenCode.
+49. WHEN `archcore plugin remove` finds the OpenCode plugin listed on OpenCode 2.x, the CLI MUST run `opencode plugin remove @archcore/opencode-plugin`.
 
 ## Constraints & Invariants
 
