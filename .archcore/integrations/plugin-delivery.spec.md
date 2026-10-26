@@ -33,7 +33,7 @@ Per-host install actions:
 |---|---|---|
 | Claude Code | `claude plugin marketplace add archcore-ai/archcore`, then `claude plugin install archcore@archcore-plugins` (user scope by default); then merge the `autoUpdate: true` marketplace entry into `~/.claude/settings.json` | Commands verified 2026-08-12/15; already-registered marketplace tolerance [assumption] |
 | GitHub Copilot | `copilot plugin install archcore-ai/archcore:plugins/archcore` | Command form verified; the `plugins/archcore` subpath matches the repository layout [assumption until first run] |
-| Codex CLI | `codex plugin marketplace add archcore-ai/archcore`, then `codex plugin add archcore@archcore-plugins` | Verified 2026-08-12 |
+| Codex CLI | `codex plugin marketplace add archcore-ai/archcore --sparse .agents/plugins --sparse plugins/archcore`, then `codex plugin add archcore@archcore-plugins` | Verified 2026-08-12; `--sparse` added 2026-10-26. Without sparse paths, Codex clones the whole repository with `dev` and every tag (17 MB), and its 30 s clone timeout fails on a slow link. With them it clones without file contents and checks out the two paths (1.1 MB, `codex-rs/core-plugins/src/marketplace_upgrade/git.rs`). `--sparse` exists since the first `codex plugin marketplace` command (openai/codex `f9a8d1870`, 2026-04-11). |
 | Cursor | none — print the UI instruction (Marketplace or `/add-plugin`) | UI-only per cursor.com/docs/plugins |
 | OpenCode | `opencode plugin @archcore/opencode-plugin`, run in the project root; OpenCode writes the entry into `.opencode/opencode.json` at the root of the git working tree, or in the project root outside git (project-scoped) | Read from the OpenCode 1.18.34 source (`packages/opencode/src/cli/cmd/plug.ts`); not run live [assumption] |
 

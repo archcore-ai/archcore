@@ -85,7 +85,7 @@ func TestSpecForPinsTheCommandTable(t *testing.T) {
 			wantRegEntry:    "archcore",
 			wantUpdate:      []string{"codex plugin marketplace upgrade archcore-plugins"},
 			wantInstall: []string{
-				"codex plugin marketplace add archcore-ai/archcore",
+				"codex plugin marketplace add archcore-ai/archcore --sparse .agents/plugins --sparse plugins/archcore",
 				"codex plugin add archcore@archcore-plugins",
 			},
 			wantRemove: []string{"codex plugin remove archcore@archcore-plugins"},
@@ -250,7 +250,7 @@ func TestSpecCommandsAreCopies(t *testing.T) {
 // TestTableCarriesNoIdentifierVariant scans every argument of every command for
 // a token that mentions archcore. Each one must be a frozen identifier, the
 // Copilot uninstall's bare plugin name, the Copilot install's repository
-// subpath, or OpenCode's npm package. The scan is what catches a near-miss spelling — archcore-plugin,
+// subpath, OpenCode's npm package, or the Codex sparse path of the plugin. The scan is what catches a near-miss spelling — archcore-plugin,
 // archcore_ai/plugin, archcore@archcore-plugin — that a targeted assertion on
 // one command would walk straight past.
 func TestTableCarriesNoIdentifierVariant(t *testing.T) {
@@ -262,6 +262,7 @@ func TestTableCarriesNoIdentifierVariant(t *testing.T) {
 		"archcore":                   true, // copilot plugin update and uninstall take the bare name
 		RepoID + ":plugins/archcore": true, // copilot install subpath [assumption]
 		openCodePackage:              true, // the npm package OpenCode installs
+		"plugins/archcore":           true, // Codex sparse path: the frozen plugin directory
 	}
 	for _, spec := range Specs() {
 		sequences := map[string][]Command{

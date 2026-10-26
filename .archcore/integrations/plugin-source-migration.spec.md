@@ -16,7 +16,8 @@ The plugin update executor prepares installed Claude Code and Codex marketplaces
 - Active delivery is `archcore-ai/archcore` since `RepoID` changed on 2026-09-22 (unified release v0.10.2); the repository was renamed the same day, and GitHub redirects the legacy address `archcore-ai/plugin`.
 - Marketplace `archcore-plugins`, plugin `archcore@archcore-plugins`, public `main` and `plugins/archcore` retain their spelling.
 - Claude source declarations: known marketplaces, user settings and settings files belonging to listed, resolved project/local installations.
-- Codex source declaration: the native `[marketplaces.archcore-plugins]` table in its configured home, holding `source_type` and `source`, plus the refresh fields `last_updated` and `last_revision` when a refresh wrote them.
+- Codex source declaration: the native `[marketplaces.archcore-plugins]` table in its configured home, holding `source_type` and `source`, plus the refresh fields `last_updated` and `last_revision` when a refresh wrote them, and `sparse_paths` when the install or this migration wrote it.
+- Codex sparse paths: `[".agents/plugins", "plugins/archcore"]`, the catalog and the plugin. Codex `marketplace upgrade` reads `sparse_paths` from this table and then clones without file contents (`codex-rs/core-plugins/src/marketplace_upgrade.rs`, `git.rs`).
 - Cursor retains its UI update path. Copilot recognizes both legacy and canonical direct-install directory names and updates through its existing host command.
 - `@cli/internal/plugin/source_migration.go`, `@cli/internal/plugin/execute.go`, `@cli/internal/plugin/registry.go` implement this preparation.
 
@@ -34,6 +35,8 @@ The plugin update executor prepares installed Claude Code and Codex marketplaces
 10. WHEN migration changes settings, the writer MUST preserve unknown fields, enabled state, auto-update preference, permissions and symlinks.
 11. WHEN migration encounters an unreadable or concurrently changed file, the executor MUST report failure without running that host's update commands.
 12. WHEN a repeated migration finds canonical sources, the migrator MUST perform no write.
+13. WHEN the Codex table names an official source and has no `sparse_paths`, the migrator MUST add the Codex sparse paths.
+14. WHEN the Codex table already has `sparse_paths`, the migrator MUST keep its value.
 
 ## Constraints & Invariants
 

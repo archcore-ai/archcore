@@ -29,7 +29,7 @@ setup() {
   for path in assets/icon.png assets/logo.png .claude.mcp.json .codex.mcp.json hooks/copilot.hooks.json; do
     [ -f "$OUTPUT/plugins/archcore/$path" ] || fail "missing $path"
   done
-  for path in docs/TERMS.md docs/cursor.mcp.example.json docs/promo.gif README.md LICENSE NOTICE; do
+  for path in docs/TERMS.md docs/cursor.mcp.example.json README.md LICENSE NOTICE; do
     [ -f "$OUTPUT/$path" ] || fail "missing $path"
   done
 }
@@ -60,7 +60,6 @@ setup() {
   mkdir -p "$fixture/scripts" "$fixture/plugin" "$fixture/docs"
   cp "$EXPORT" "$fixture/scripts/export-plugin.sh"
   cp "$WORKSPACE_ROOT/LICENSE" "$WORKSPACE_ROOT/NOTICE" "$WORKSPACE_ROOT/README.md" "$fixture/"
-  cp "$WORKSPACE_ROOT/docs/promo.gif" "$fixture/docs/"
   local path
   for path in .agents .claude-plugin .cursor-plugin plugins docs; do
     cp -R "$REPO_ROOT/$path" "$fixture/plugin/"
@@ -71,6 +70,17 @@ setup() {
   assert_failure
   assert_output --partial 'Development files found'
   assert_output --partial 'nested/.archcore'
+}
+
+# Every host clones the exported tree on each plugin update, and Codex and the
+# Archcore CLI give a host command 30 s; media in the tree is what outgrew that.
+@test "export stays small enough for a host to clone on a slow link" {
+  run "$EXPORT" "$OUTPUT" 1.2.3
+  assert_success
+  [ ! -e "$OUTPUT/docs/promo.gif" ] || fail "docs/promo.gif reached the exported tree"
+  local kb
+  kb=$(du -sk "$OUTPUT" | cut -f1)
+  [ "$kb" -le 2048 ] || fail "exported tree is ${kb} KB, over the 2048 KB budget"
 }
 
 @test "export leaves out the OpenCode package, which ships through npm" {
