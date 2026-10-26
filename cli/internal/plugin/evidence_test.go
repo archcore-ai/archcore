@@ -995,6 +995,24 @@ func TestCollectEvidenceReadsTheGlobalOpenCodeConfig(t *testing.T) {
 	}
 }
 
+// TestCollectEvidenceReadsTheGlobalOpenCodeConfigWithoutAProject is the
+// evidence `archcore update` gets: no project, only the global config.
+func TestCollectEvidenceReadsTheGlobalOpenCodeConfigWithoutAProject(t *testing.T) {
+	isolateHome(t)
+	useHostCLIs(t, t.TempDir(), "opencode")
+	stubRuns(t, func(Command) commandOutcome { return commandOutcome{Stdout: "opencode v2.1.4"} })
+	config := t.TempDir()
+	t.Setenv("OPENCODE_CONFIG_DIR", "")
+	t.Setenv("XDG_CONFIG_HOME", config)
+	writeProjectFile(t, config, "opencode/opencode.json", `{"plugins": ["@archcore/opencode-plugin"]}`)
+
+	evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, "")
+	want := Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: true, Listed: true, RegistryListed: true, HostMajor: 2}
+	if len(evidence) != 1 || !reflect.DeepEqual(evidence[0], want) {
+		t.Errorf("evidence = %+v, want %+v", evidence, want)
+	}
+}
+
 func writeProjectFile(t *testing.T, root, rel, content string) {
 	t.Helper()
 	path := filepath.Join(root, filepath.FromSlash(rel))

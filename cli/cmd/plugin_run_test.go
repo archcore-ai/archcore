@@ -35,6 +35,8 @@ func isolatePluginRun(t *testing.T) string {
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home) // os.UserHomeDir on Windows
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("OPENCODE_CONFIG_DIR", "")
 	bin := t.TempDir()
 	t.Setenv("PATH", bin)
 	t.Setenv("ARCHCORE_PROJECT_ROOT", "")

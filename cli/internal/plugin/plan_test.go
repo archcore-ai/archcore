@@ -1300,3 +1300,29 @@ func TestPlanPicksTheOpenCodeCommandsOfTheHostMajor(t *testing.T) {
 		t.Errorf("1.x remove = %+v, want the note", actions)
 	}
 }
+
+// TestPlanUpdatesOpenCode2WithoutAProject covers `archcore update`, which names
+// no project: 2.x keeps the global install current only on request, so a
+// listed plugin gets `opencode plugin update`; 1.x has no such command.
+func TestPlanUpdatesOpenCode2WithoutAProject(t *testing.T) {
+	listed := Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: true, Listed: true}
+	v2 := listed
+	v2.HostMajor = 2
+	actions := Plan(VerbUpdate, []Evidence{v2})
+	if len(actions) != 1 || !slices.Equal(commandLines(actions[0].Commands), []string{"opencode plugin update @archcore/opencode-plugin"}) {
+		t.Errorf("2.x update = %+v, want opencode plugin update", actions)
+	}
+	v1 := listed
+	v1.HostMajor = 1
+	if actions := Plan(VerbUpdate, []Evidence{v1}); len(actions) != 0 {
+		t.Errorf("1.x update = %+v, want nothing", actions)
+	}
+	unlisted := v2
+	unlisted.Listed = false
+	if actions := Plan(VerbUpdate, []Evidence{unlisted}); len(actions) != 0 {
+		t.Errorf("unlisted 2.x update = %+v, want nothing", actions)
+	}
+	if actions := Plan(VerbInstall, []Evidence{v2}); len(actions) != 0 {
+		t.Errorf("install without a project = %+v, want nothing", actions)
+	}
+}
