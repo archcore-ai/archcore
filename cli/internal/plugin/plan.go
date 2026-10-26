@@ -230,6 +230,9 @@ func printCommandAction(spec HostSpec, verb Verb, ev Evidence) Action {
 // when the host is project-bound.
 func plannedCommands(spec HostSpec, verb Verb, ev Evidence) []Command {
 	cmds := spec.commandsFor(verb)
+	if spec.Since2 != nil && ev.HostMajor >= 2 {
+		cmds = cloneCommands(spec.Since2.commandsFor(verb))
+	}
 	if spec.projectBound() {
 		for i := range cmds {
 			cmds[i].Dir = ev.ProjectRoot

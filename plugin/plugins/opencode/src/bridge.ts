@@ -5,7 +5,8 @@ import { MISSING, run } from "./spawn"
 // Bridge between OpenCode's plugin hooks and the shared launchers in bin/
 // (opencode-adapter.spec). No guard or validation decision is made here.
 
-export const PRE_MUTATION = new Set(["write", "edit", "apply_patch"])
+// apply_patch is the OpenCode 1.x name of the patch tool; 2.x calls it patch.
+export const PRE_MUTATION = new Set(["write", "edit", "apply_patch", "patch"])
 export const POST_MUTATION = new Set([
   "archcore_create_document",
   "archcore_update_document",
@@ -20,12 +21,12 @@ export const BUDGET_MS = { gate: 2000, pre: 2000, post: 4000, session: 10000 }
 // archcore_* fold (plugin-cli-compatibility.rule, requirement 9).
 export const MIN_CLI = "0.10.0"
 
-type Gate = "yes" | "no" | "__NO_CLI__"
+export type Gate = "yes" | "no" | "__NO_CLI__"
 
 type Input = { directory: string }
 type ToolInput = { tool: string; sessionID: string; callID: string; args?: unknown }
 
-function warn(message: string) {
+export function warn(message: string) {
   process.stderr.write(`[archcore] ${message}\n`)
 }
 
@@ -99,7 +100,7 @@ export function createServer(root: string) {
   }
 }
 
-async function checkGate(file: string, directory: string): Promise<Gate> {
+export async function checkGate(file: string, directory: string): Promise<Gate> {
   const result = await run(file, [MIN_CLI], directory, "", BUDGET_MS.gate)
   const token = result.stdout.trim()
   if (result.code === 0 && (token === "yes" || token === "__NO_CLI__")) return token

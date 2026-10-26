@@ -793,7 +793,10 @@ func TestExecuteRunsTheOpenCodeVerbsInTheProject(t *testing.T) {
 			t.Errorf("%s over a configured project reported %+v, want %+v", tt.verb, reporter.lines, tt.want)
 		}
 	}
-	if len(rec.commands) != 0 {
-		t.Errorf("ran %q over a configured project, want nothing", rec.lines())
+	for _, line := range rec.lines() {
+		if line != "opencode --version" {
+			t.Errorf("ran %q over a configured project, want only version reads", rec.lines())
+			break
+		}
 	}
 }

@@ -538,11 +538,18 @@ func TestUnconfirmedInstallsRequiresOnlyInstallableHostsWithoutAgent(t *testing.
 // project-bound install ran.
 func writeWorkingDirFixture(t *testing.T, bin, name string) string {
 	t.Helper()
+	return writeVersionedFixture(t, bin, name, "1.18.34")
+}
+
+// writeVersionedFixture is writeWorkingDirFixture for a host that reports
+// version on `--version`. The version read changes nothing, so it is not logged.
+func writeVersionedFixture(t *testing.T, bin, name, version string) string {
+	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("the fixture host CLIs are #!/bin/sh scripts; CI runs Linux only")
 	}
 	log := filepath.Join(t.TempDir(), name+".log")
-	script := "#!/bin/sh\necho \"$(pwd -P) $*\" >> " + log + "\n"
+	script := "#!/bin/sh\n[ \"$1\" = --version ] && { echo '" + version + "'; exit 0; }\necho \"$(pwd -P) $*\" >> " + log + "\n"
 	if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0o755); err != nil {
 		t.Fatalf("writing the %s fixture: %v", name, err)
 	}
@@ -620,6 +627,22 @@ func TestPluginVerbsReadTheOpenCodeProjectNamedByFlag(t *testing.T) {
 				t.Errorf("opencode ran %q, want the config read alone", runs)
 			}
 		})
+	}
+}
+
+// TestPluginInstallUsesTheOpenCode2Command covers the host line that dropped
+// `opencode plugin <module>`: 2.x installs with `opencode plugin add`.
+func TestPluginInstallUsesTheOpenCode2Command(t *testing.T) {
+	bin := isolatePluginRun(t)
+	log := writeVersionedFixture(t, bin, "opencode", "opencode v2.1.4")
+	project := archcoreProject(t)
+
+	out, err := runPluginCmd(t, "install", "--agent", "opencode", "--project", project)
+	if err != nil {
+		t.Fatalf("install exited nonzero: %v\n%s", err, out)
+	}
+	if want := []string{project + " plugin add @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
+		t.Errorf("opencode ran %q, want %q", fixtureRuns(t, log), want)
 	}
 }
 

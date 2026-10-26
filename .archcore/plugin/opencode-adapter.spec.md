@@ -15,7 +15,7 @@ This spec is normative for the OpenCode adapter: the npm package `@archcore/open
 
 ## Surface
 
-- Package: source `@plugin/plugins/opencode/src/` (`index.ts` exports the module, `bridge.ts` holds the hooks), no runtime dependency, manifest `@plugin/plugins/opencode/package.json`, pack step `@plugin/plugins/opencode/scripts/pack.sh`. `main` and `exports["./server"]` point at `dist/index.js` (`opencode-plugin-ships-built-javascript.adr`). `engines.opencode` is a `>=` range; Kilo Code compares the same key against its own 7.x version.
+- Package: source `@plugin/plugins/opencode/src/` (`index.ts` exports the module, `bridge.ts` holds the hooks), no runtime dependency, manifest `@plugin/plugins/opencode/package.json`, pack step `@plugin/plugins/opencode/scripts/pack.sh`. `main` and `exports["./server"]` point at `dist/index.js` (`opencode-plugin-ships-built-javascript.adr`). `engines.opencode` is a `>=` range; Kilo Code compares the same key against its own 7.x version. The default export carries `server` for OpenCode 1.x and `setup(ctx)` for OpenCode 2.x (`@plugin/plugins/opencode/src/v2.ts`, `opencode-plugin-serves-v1-and-v2-from-one-package.adr`). OpenCode 2.x calls only `setup`, reads `plugins` and still normalizes `plugin`, and installs with `opencode plugin add <package>` into the global config.
 - Module shape: default export `{ id: "@archcore/opencode-plugin", server }`, the v1 form `readV1Plugin` accepts in `packages/opencode/src/plugin/shared.ts` (OpenCode v1.18.34). An unpinned `plugin` entry resolves to `@latest`.
 - Bundled trees, written by the pack step and absent from git: `bin/` from `@plugin/plugins/archcore/bin/`; `skills/` from `@plugin/plugins/archcore/skills/`, each `SKILL.md` `name:` line renamed to `archcore-<name>` (`opencode-archcore-prefixed-skill-names.adr`); `agents/<name>.md` from `@plugin/plugins/archcore/agents/`.
 - Agent definitions: `@plugin/plugins/opencode/src/agents.ts` maps `archcore-assistant` and `archcore-auditor` to `description`, `mode: "subagent"`, `steps`, and `permission`. The prompt is the body of the bundled `agents/<name>.md` below its frontmatter.
@@ -59,6 +59,13 @@ This spec is normative for the OpenCode adapter: the npm package `@archcore/open
 29. The npm tarball MUST NOT contain a directory named `test`.
 30. WHILE the held CLI gate result is `__NO_CLI__`, the bridge MUST spawn no launcher except `bin/session-start`.
 31. WHEN the bridge allows the `read` tool, the bridge MUST keep `ask` for `*.env` and `*.env.*` paths.
+32. WHEN OpenCode 2.x calls `setup` and no `archcore` MCP server exists, the bridge MUST add `{"type":"local","command":["archcore","mcp"]}`.
+33. WHEN OpenCode 2.x calls `setup`, the bridge MUST add each bundled skill with its `archcore-<name>` name as id.
+34. WHEN OpenCode 2.x calls `setup`, the bridge MUST add one `/archcore-<name>` command per bundled skill.
+35. WHEN an `/archcore-<name>` command runs, the bridge MUST prompt with that skill in the prompt's `skills` list.
+36. WHEN `execute.before` fires for `write`, `edit`, or `patch`, the bridge MUST spawn `bin/pre-tool-use` with the event's input.
+37. WHEN `execute.after` fires for a completed call in the post-mutation set, the bridge MUST hold `bin/post-tool-use` stdout for that session.
+38. WHEN the session `context` hook fires, the bridge MUST append the held validation text of that session once.
 
 ## Constraints & Invariants
 

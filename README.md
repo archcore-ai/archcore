@@ -82,7 +82,7 @@ Say `/archcore:init import` in your agent. Archcore turns those files into typed
 | Agent | Setup |
 | --- | --- |
 | Claude Code, Codex CLI, GitHub Copilot CLI | The installer adds the plugin |
-| OpenCode | `archcore init` adds the plugin to the project |
+| OpenCode | `archcore init` adds the plugin: to the project on OpenCode 1.x, globally on 2.x |
 | Gemini CLI, Roo Code, Cline | `archcore init` connects them |
 | Cursor | [One extra setup step](https://docs.archcore.ai/guides/connect-your-agent/) |
 
