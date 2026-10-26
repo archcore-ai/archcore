@@ -100,7 +100,7 @@ Exposed over MCP using `github.com/mark3labs/mcp-go`. Registered from `NewServer
 | `source`      | string   | no          | Scope: `local` (the primary's own documents), `global` (every mounted global source), `__global__` (undeclared reserved-tree content), or a declared global source id. Empty admits every source. Any other value is rejected (§1.9). |
 | `types`       | string[] | conditional | Filter by document type. OR semantics across the list.                                                                                        |
 | `status`      | string   | conditional | Filter by frontmatter status. Enum: `draft`, `accepted`, `rejected`.                                                                          |
-| `mtime_after` | string   | no          | Inclusive lower bound on document mtime. Accepts RFC3339 (ISO-8601) or a positive relative duration: `<N>h`, `<N>d`, `<N>w`, `<N>mo`, `<N>y`. |
+| `mtime_after` | string   | no          | Exclusive lower bound on document mtime. Accepts RFC3339 (ISO-8601) or a non-negative relative duration: `<N>h` or `<N>d`. |
 | `sort`        | string   | no          | Ordering mode. Enum: `relevance` (default), `mtime`.                                                                                          |
 | `mode`        | string   | no          | Output detail. Enum: `snippets` (default), `full`. `snippets` returns only excerpt windows around matches. `full` additionally returns each matched document's body inline (frontmatter stripped); a body the byte budget cannot hold arrives shortened (§12.4). Any value other than `full` maps to `snippets`. |
 | `limit`       | number   | no          | Maximum number of results. Mode-dependent: `snippets` = default 50 / max 200; `full` = default 3 / max 20. Values above the cap are clamped; `0` or omitted maps to the mode default. The byte budget can return fewer rows than `limit` (§8.6). |
@@ -167,7 +167,7 @@ Each `searchResult` object has the following fields:
 2. The handler MUST reject `limit < 0` with the error `limit must be non-negative`.
 3. The handler MUST treat `limit == 0` as equivalent to omitted — both produce the mode default (snippets: 50, full: 3).
 4. The handler MUST clamp `limit` above the mode cap (snippets: 200, full: 20) to that cap without emitting an error.
-5. `mtime_after` MUST accept both RFC3339 timestamps and positive relative durations of the form `<N>h`, `<N>d`, `<N>w`, `<N>mo`, `<N>y`. Invalid input MUST return the error `invalid mtime_after: <reason>`.
+5. `mtime_after` MUST accept both RFC3339 timestamps and non-negative relative durations of the form `<N>h` or `<N>d`. Invalid input MUST return the error `invalid mtime_after: <reason>`.
 6. The handler MUST normalize `mode` defensively: any value other than `full` (including omitted) maps to `snippets`. The framework enforces the enum, but the handler MUST NOT rely on that alone.
 7. The handler MUST normalize `match` defensively: any value other than `exact` or `any` (including omitted) maps to `all`.
 8. The handler MUST resolve `source` as: empty admits every document; `local` admits `source_kind == "local"`; `global` admits `source_kind == "global"`; `__global__` admits reserved-tree content; a declared global source id admits its documents.
