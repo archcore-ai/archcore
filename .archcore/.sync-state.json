@@ -5517,6 +5517,11 @@
       "source": "plugin/opencode-adapter.plan.md",
       "target": "plugin/opencode-plugin-ships-built-javascript.adr.md",
       "type": "depends_on"
+    },
+    {
+      "source": "plugin/opencode-plugin-serves-v1-and-v2-from-one-package.adr.md",
+      "target": "plugin/opencode-adapter-packaging.adr.md",
+      "type": "extends"
     }
   ]
 }

@@ -7,7 +7,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"archcore-cli/internal/git"
@@ -27,6 +29,9 @@ var errProjectConfigUnreadable = errors.New("project config cannot be read")
 // host's own record, so with the CLI present that array stands as its listing.
 func projectEvidence(ctx context.Context, ev Evidence, spec HostSpec, projectRoot string) Evidence {
 	ev.ProjectRoot = projectRoot
+	if ev.CLIPresent && spec.Version.Name != "" {
+		ev.HostMajor = readHostMajor(ctx, spec.Version)
+	}
 	// Guard, not advisory: the listing is what lets removal and update read
 	// the host as "not installed" and stay silent, so a config that cannot be
 	// read leaves it unanswered — the same as a host listing that did not
@@ -44,7 +49,11 @@ func projectEvidence(ctx context.Context, ev Evidence, spec HostSpec, projectRoo
 // read, it returns errProjectConfigUnreadable instead of false.
 func loadProjectConfigListing(ctx context.Context, spec HostSpec, projectRoot string) (bool, error) {
 	var unreadable error
-	for _, dir := range configDirs(ctx, projectRoot) {
+	dirs := configDirs(ctx, projectRoot)
+	if global := globalConfigDir(); global != "" {
+		dirs = append(dirs, global)
+	}
+	for _, dir := range dirs {
 		for _, rel := range spec.ProjectConfigPaths {
 			listed, err := loadConfigListsPackage(filepath.Join(dir, filepath.FromSlash(rel)), openCodePackage)
 			if listed {
@@ -102,6 +111,41 @@ func configDirs(ctx context.Context, projectRoot string) []string {
 	return dirs
 }
 
+// hostMajorRe finds the version in `opencode --version`, which prints
+// "1.18.34" on 1.x and "opencode v2.1.4" on 2.x.
+var hostMajorRe = regexp.MustCompile(`(\d+)\.\d+\.\d+`)
+
+// readHostMajor runs the host's version command and returns its major number.
+func readHostMajor(ctx context.Context, version Command) int {
+	out := runCommand(ctx, version)
+	match := hostMajorRe.FindStringSubmatch(out.Stdout)
+	// Advisory: an unknown version reads as 1.x, the line whose commands this
+	// row has always run — fail-open-or-fail-closed-reads.rule §7.
+	if out.Failed || match == nil {
+		return 0
+	}
+	major, _ := strconv.Atoi(match[1])
+	return major
+}
+
+// globalConfigDir is where OpenCode keeps its global config, and where
+// `opencode plugin add` and `opencode plugin -g` write the plugin entry
+// (packages/util/src/global-roots.ts, 2.1.4).
+func globalConfigDir() string {
+	if dir := os.Getenv("OPENCODE_CONFIG_DIR"); dir != "" {
+		return dir
+	}
+	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
+		return filepath.Join(dir, "opencode")
+	}
+	home, err := os.UserHomeDir()
+	// Advisory: without a home there is no global config to list the plugin.
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".config", "opencode")
+}
+
 // loadConfigListsPackage reads one JSONC config file without writing it. A
 // missing file is a config that lists nothing.
 func loadConfigListsPackage(path, pkg string) (bool, error) {
@@ -118,25 +162,34 @@ func loadConfigListsPackage(path, pkg string) (bool, error) {
 	if err != nil {
 		return false, errProjectConfigUnreadable
 	}
+	// OpenCode 1.x reads `plugin`; 2.x reads `plugins` and converts `plugin`.
 	var config struct {
-		Plugin []json.RawMessage `json:"plugin"`
+		Plugin  []json.RawMessage `json:"plugin"`
+		Plugins []json.RawMessage `json:"plugins"`
 	}
 	if json.Unmarshal(dropTrailingCommas(stripComments(bytes.TrimPrefix(data, utf8BOM))), &config) != nil {
 		return false, errProjectConfigUnreadable
 	}
-	return slices.ContainsFunc(config.Plugin, func(raw json.RawMessage) bool {
+	return slices.ContainsFunc(append(config.Plugin, config.Plugins...), func(raw json.RawMessage) bool {
 		spec := pluginSpecifier(raw)
 		return spec == pkg || strings.HasPrefix(spec, pkg+"@")
 	}), nil
 }
 
-// pluginSpecifier is the package an entry of the `plugin` array names: the
-// entry itself, or the first element of a `[spec, options]` pair
-// (packages/opencode/src/config/plugin.ts, OpenCode 1.18.34).
+// pluginSpecifier is the package an entry names: the entry itself, the first
+// element of a 1.x `[spec, options]` pair (packages/opencode/src/config/
+// plugin.ts, 1.18.34), or the `package` of a 2.x object (packages/schema/src/
+// config/plugin.ts, 2.1.4).
 func pluginSpecifier(raw json.RawMessage) string {
 	var spec string
 	if json.Unmarshal(raw, &spec) == nil {
 		return spec
+	}
+	var object struct {
+		Package string `json:"package"`
+	}
+	if json.Unmarshal(raw, &object) == nil && object.Package != "" {
+		return object.Package
 	}
 	var pair []json.RawMessage
 	if json.Unmarshal(raw, &pair) != nil || len(pair) == 0 || json.Unmarshal(pair[0], &spec) != nil {

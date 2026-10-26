@@ -134,6 +134,10 @@ type Evidence struct {
 	// its commands in. Plan skips a project-bound host whose evidence has none.
 	ProjectRoot string
 
+	// HostMajor is the host's major version when the host row reads one; zero
+	// when it is unknown.
+	HostMajor int
+
 	// Installs holds every installation the listing reported, ordered and bounded
 	// by the collector. It is empty when the host reports one installation without
 	// naming it, and the update tier then runs the host's plain update sequence.

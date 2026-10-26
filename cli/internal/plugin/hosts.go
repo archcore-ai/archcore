@@ -118,6 +118,14 @@ type HostSpec struct {
 	// it is observed and run in a project root, and skipped without one.
 	ProjectConfigPaths []string
 
+	// Version prints the host's version. A project-bound host reads it to pick
+	// between Install and Remove and the rows of Since2.
+	Version Command
+
+	// Since2 holds the Install, Update, and Remove sequences that replace this
+	// row's own on host major version 2 and later.
+	Since2 *HostSpec
+
 	// Notes carries the printed instruction for a host with no CLI mechanism.
 	Notes UINotes
 }
@@ -276,6 +284,15 @@ var hostTable = map[Host]HostSpec{
 		Install: []Command{
 			{Name: "opencode", Args: []string{"plugin", openCodePackage}},
 		},
+		Version: Command{Name: "opencode", Args: []string{"--version"}},
+		// OpenCode 2.x replaced `opencode plugin <module>` with subcommands that
+		// edit the global config only (packages/cli/src/commands/handlers/plugin/
+		// add.ts and remove.ts, 2.1.4) — opencode-plugin-serves-v1-and-v2-from-
+		// one-package.adr.
+		Since2: &HostSpec{
+			Install: []Command{{Name: "opencode", Args: []string{"plugin", "add", openCodePackage}}},
+			Remove:  []Command{{Name: "opencode", Args: []string{"plugin", "remove", openCodePackage}}},
+		},
 		// No update command until a live probe shows how OpenCode refreshes an
 		// unpinned package, and OpenCode has no uninstall command —
 		// opencode-adapter.plan.
@@ -315,6 +332,11 @@ func copySpec(spec HostSpec) HostSpec {
 	spec.Install = cloneCommands(spec.Install)
 	spec.Remove = cloneCommands(spec.Remove)
 	spec.ProjectConfigPaths = cloneArgs(spec.ProjectConfigPaths)
+	spec.Version = Command{Name: spec.Version.Name, Args: cloneArgs(spec.Version.Args)}
+	if spec.Since2 != nil {
+		since := copySpec(*spec.Since2)
+		spec.Since2 = &since
+	}
 	return spec
 }
 

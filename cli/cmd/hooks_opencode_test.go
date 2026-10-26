@@ -143,6 +143,29 @@ func TestOpenCode_BridgeFixtures(t *testing.T) {
 			payload:  `{"tool_name":"edit","tool_input":{"filePath":"src/app.py","oldString":"a","newString":"b"}}`,
 			wantDeny: false,
 		},
+		// OpenCode 2.x names the argument path and the patch tool patch
+		// (packages/core/src/tool/plugin/{write,edit,patch}.ts, 2.1.4), and its
+		// bridge passes the input through unchanged.
+		{
+			name:     "opencode 2.x write with path is guarded",
+			payload:  `{"tool_name":"write","tool_input":{"path":".archcore/my.rule.md","content":"# Rule"}}`,
+			wantDeny: true,
+		},
+		{
+			name:     "opencode 2.x edit with path is guarded",
+			payload:  `{"tool_name":"edit","tool_input":{"path":".archcore/my.rule.md","oldString":"a","newString":"b"}}`,
+			wantDeny: true,
+		},
+		{
+			name:     "opencode 2.x edit on a regular file passes",
+			payload:  `{"tool_name":"edit","tool_input":{"path":"src/app.py","oldString":"a","newString":"b"}}`,
+			wantDeny: false,
+		},
+		{
+			name:     "opencode 2.x patch is guarded",
+			payload:  `{"tool_name":"patch","tool_input":{"patchText":"*** Begin Patch\n*** Add File: .archcore/my.rule.md\n+# Rule\n*** End Patch"}}`,
+			wantDeny: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

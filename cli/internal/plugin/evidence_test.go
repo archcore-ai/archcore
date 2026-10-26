@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -793,8 +794,8 @@ func TestCollectEvidenceReadsTheOpenCodeConfigAsItsListing(t *testing.T) {
 	writeProjectFile(t, root, ".opencode/opencode.json", `{"plugin":["@archcore/opencode-plugin"]}`)
 
 	evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, root)
-	if len(rec.commands) != 0 {
-		t.Errorf("ran %q, want the config read alone", rec.lines())
+	if want := []string{"opencode --version"}; !slices.Equal(rec.lines(), want) {
+		t.Errorf("ran %q, want the version read and the config read alone", rec.lines())
 	}
 	want := Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: true, Listed: true, RegistryListed: true, ProjectRoot: root}
 	if len(evidence) != 1 || !reflect.DeepEqual(evidence[0], want) {
@@ -935,6 +936,62 @@ func TestCollectEvidenceTakesAListingOverAnUnreadableNeighbour(t *testing.T) {
 	want := Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: true, Listed: true, RegistryListed: true, ProjectRoot: root}
 	if len(evidence) != 1 || !reflect.DeepEqual(evidence[0], want) {
 		t.Errorf("evidence = %+v, want %+v", evidence, want)
+	}
+}
+
+// TestCollectEvidenceReadsTheOpenCodeMajorVersion picks the command line of the
+// OpenCode version on PATH: 1.x prints a bare version, 2.x prefixes its name,
+// and an answer without a version keeps the 1.x commands.
+func TestCollectEvidenceReadsTheOpenCodeMajorVersion(t *testing.T) {
+	for _, tt := range []struct {
+		out  commandOutcome
+		want int
+	}{
+		{out: commandOutcome{Stdout: "1.18.34\n"}, want: 1},
+		{out: commandOutcome{Stdout: "opencode v2.1.4\n"}, want: 2},
+		{out: commandOutcome{Stdout: "dev build\n"}, want: 0},
+		{out: commandOutcome{Failed: true, Stdout: "2.0.0"}, want: 0},
+	} {
+		t.Run(tt.out.Stdout, func(t *testing.T) {
+			isolateHome(t)
+			useHostCLIs(t, t.TempDir(), "opencode")
+			stubRuns(t, func(Command) commandOutcome { return tt.out })
+
+			evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, t.TempDir())
+			if len(evidence) != 1 || evidence[0].HostMajor != tt.want {
+				t.Errorf("evidence = %+v, want HostMajor %d", evidence, tt.want)
+			}
+		})
+	}
+}
+
+// TestCollectEvidenceReadsTheGlobalOpenCodeConfig finds the entry that
+// `opencode plugin add` (2.x) and `opencode plugin -g` (1.x) write: the global
+// config, under the 2.x `plugins` key in its object form as well.
+func TestCollectEvidenceReadsTheGlobalOpenCodeConfig(t *testing.T) {
+	for name, content := range map[string]string{
+		"2.x plugins with an object": `{"plugins": [{"package": "@archcore/opencode-plugin", "options": {}}]}`,
+		"2.x plugins with a string":  `{"plugins": ["@archcore/opencode-plugin@0.15.0"]}`,
+		"1.x plugin in a jsonc file": `{"plugin": ["@archcore/opencode-plugin"], // global
+}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			isolateHome(t)
+			noHostCLIs(t)
+			config := t.TempDir()
+			t.Setenv("OPENCODE_CONFIG_DIR", "")
+			t.Setenv("XDG_CONFIG_HOME", config)
+			file := "opencode.json"
+			if strings.Contains(name, "jsonc") {
+				file = "opencode.jsonc"
+			}
+			writeProjectFile(t, config, "opencode/"+file, content)
+
+			evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, t.TempDir())
+			if len(evidence) != 1 || !evidence[0].RegistryListed {
+				t.Errorf("evidence = %+v, want the global entry listed", evidence)
+			}
+		})
 	}
 }
 

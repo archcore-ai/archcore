@@ -271,6 +271,11 @@ func TestTableCarriesNoIdentifierVariant(t *testing.T) {
 			"install": spec.Install,
 			"remove":  spec.Remove,
 		}
+		if spec.Since2 != nil {
+			sequences["install since 2"] = spec.Since2.Install
+			sequences["update since 2"] = spec.Since2.Update
+			sequences["remove since 2"] = spec.Since2.Remove
+		}
 		for name, cmds := range sequences {
 			for _, cmd := range cmds {
 				for _, arg := range cmd.Args {

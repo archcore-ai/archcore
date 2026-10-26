@@ -3,6 +3,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSyn
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { BUDGET_MS, createServer } from "./bridge"
+import { createSetup, type Context } from "./v2"
 
 const FIXTURES = path.resolve(import.meta.dir, "../../../test/fixtures/stdin/opencode")
 const LAUNCHERS = ["cli-gte", "pre-tool-use", "post-tool-use", "session-start"]
@@ -337,4 +338,190 @@ test("every OpenCode fixture is valid JSON in the bridge envelope", () => {
     if (name === "session-start.json") continue
     expect(Object.keys(body).sort()).toEqual(["tool_input", "tool_name"])
   }
+})
+
+// OpenCode 2.x calls setup(ctx) and registers everything through ctx
+// (opencode-plugin-serves-v1-and-v2-from-one-package.adr). The fake records each
+// transform and hook so a test can run them the way the host would.
+function fakeHost() {
+  const transforms: Record<string, (editor: any) => void> = {}
+  const hooks: Record<string, (event: any) => Promise<void>> = {}
+  const prompts: any[] = []
+  const ctx = {
+    location: { directory: project },
+    mcp: { transform: async (cb: any) => void (transforms.mcp = cb) },
+    skill: { transform: async (cb: any) => void (transforms.skill = cb) },
+    command: { transform: async (cb: any) => void (transforms.command = cb) },
+    agent: { transform: async (cb: any) => void (transforms.agent = cb) },
+    tool: { hook: async (name: string, cb: any) => void (hooks[name] = cb) },
+    session: {
+      hook: async (name: string, cb: any) => void (hooks[name] = cb),
+      prompt: async (input: any) => void prompts.push(input),
+    },
+  }
+  return { ctx: ctx as unknown as Context, transforms, hooks, prompts }
+}
+
+async function setupV2() {
+  const host = fakeHost()
+  await createSetup(root)(host.ctx)
+  return host
+}
+
+function mapEditor(initial: Record<string, unknown> = {}) {
+  const items = new Map(Object.entries(initial))
+  return {
+    items,
+    get: (id: string) => items.get(id),
+    set: (id: string, value: unknown) => void items.set(id, value),
+    add: (value: any) => void items.set(value.id ?? value.name, value),
+  }
+}
+
+function writeSkill(dir: string, body: string) {
+  mkdirSync(path.join(root, "skills", dir), { recursive: true })
+  writeFileSync(path.join(root, "skills", dir, "SKILL.md"), body)
+}
+
+describe("OpenCode 2.x setup", () => {
+  test("registers the MCP server when absent and keeps an existing one", async () => {
+    const { transforms } = await setupV2()
+    const empty = mapEditor()
+    transforms.mcp(empty)
+    expect(empty.items.get("archcore")).toEqual({ type: "local", command: ["archcore", "mcp"] })
+    const mine = { type: "local", command: ["my-archcore"] }
+    const existing = mapEditor({ archcore: mine })
+    transforms.mcp(existing)
+    expect(existing.items.get("archcore")).toBe(mine)
+  })
+
+  test("adds each bundled skill under its archcore- name and keeps a skill of that id", async () => {
+    writeSkill("plan", '---\nname: archcore-plan\nargument-hint: "[topic]"\ndescription: "Plan future work."\n---\n\n# Plan\n')
+    const { transforms } = await setupV2()
+    const editor = mapEditor()
+    transforms.skill(editor)
+    expect(editor.items.get("archcore-plan")).toEqual({
+      id: "archcore-plan",
+      name: "archcore-plan",
+      description: "Plan future work.",
+      path: path.join(root, "skills", "plan", "SKILL.md"),
+      content: "# Plan\n",
+    })
+    const mine = { id: "archcore-plan" }
+    const existing = mapEditor({ "archcore-plan": mine })
+    transforms.skill(existing)
+    expect(existing.items.get("archcore-plan")).toBe(mine)
+  })
+
+  test("adds an /archcore-* command that attaches its skill to the prompt", async () => {
+    writeSkill("plan", '---\nname: archcore-plan\ndescription: "Plan future work."\n---\n\n# Plan\n')
+    const { transforms, prompts } = await setupV2()
+    const commands: any[] = []
+    transforms.command({ add: (command: any) => commands.push(command) })
+    expect(commands.map((c) => [c.name, c.description])).toEqual([["archcore-plan", "Plan future work."]])
+    await commands[0].execute({ sessionID: "s", prompt: { text: " the auth redesign " }, delivery: "queue" })
+    await commands[0].execute({ sessionID: "s", prompt: { text: "", skills: [{ id: "other" }] }, delivery: "steer" })
+    expect(prompts).toEqual([
+      { text: "the auth redesign", sessionID: "s", skills: [{ id: "archcore-plan" }], delivery: "queue" },
+      { text: "/archcore-plan", sessionID: "s", skills: [{ id: "other" }, { id: "archcore-plan" }], delivery: "steer" },
+    ])
+  })
+
+  test("defines both agents in the V2 shape with the read-only ruleset", async () => {
+    const { transforms } = await setupV2()
+    const agents: Record<string, Record<string, unknown>> = {}
+    transforms.agent({ update: (id: string, fn: (a: Record<string, unknown>) => void) => fn((agents[id] ??= { id })) })
+    expect(agents["archcore-auditor"]).toEqual({
+      id: "archcore-auditor",
+      name: "archcore-auditor",
+      description: "Read-only auditor.",
+      mode: "subagent",
+      steps: 40,
+      system: "You audit.\n",
+      permissions: [
+        { action: "*", resource: "*", effect: "deny" },
+        { action: "archcore_get_document", resource: "*", effect: "allow" },
+        { action: "read", resource: "*", effect: "allow" },
+        { action: "read", resource: "*.env", effect: "ask" },
+        { action: "read", resource: "*.env.*", effect: "ask" },
+        { action: "read", resource: "*.env.example", effect: "allow" },
+      ],
+    })
+  })
+
+  for (const name of ["v2-write-archcore.json", "v2-patch-archcore.json"]) {
+    test(`hands ${name} to pre-tool-use verbatim and throws the reason on exit 2`, async () => {
+      behave("pre-tool-use", "printf 'Use the MCP tools.\\n' >&2; exit 2\n")
+      const f = fixture(name)
+      const { hooks } = await setupV2()
+      await expect(hooks["execute.before"]({ tool: f.tool_name, sessionID: "s", id: "c", input: f.tool_input })).rejects.toThrow(
+        /^Use the MCP tools\.$/,
+      )
+      expect(received("pre-tool-use")).toEqual(f)
+      expect(readFileSync(path.join(stubs, "pre-tool-use.cwd"), "utf8").trim()).toBe(project)
+    })
+  }
+
+  test("ignores a tool outside the pre-mutation set", async () => {
+    const { hooks } = await setupV2()
+    await hooks["execute.before"]({ tool: "bash", sessionID: "s", id: "c", input: {} })
+    expect(count("pre-tool-use")).toBe(0)
+  })
+
+  test("appends held pre-tool context to the same call's content", async () => {
+    behave("pre-tool-use", "printf 'context'; exit 0\n")
+    const { hooks } = await setupV2()
+    await hooks["execute.before"]({ tool: "edit", sessionID: "s", id: "c", input: { path: "a.md" } })
+    const event: any = { tool: "edit", sessionID: "s", id: "c", status: "completed", result: { content: [{ type: "text", text: "done" }] } }
+    await hooks["execute.after"](event)
+    expect(event.result.content).toEqual([
+      { type: "text", text: "done" },
+      { type: "text", text: "context" },
+    ])
+  })
+
+  test("delivers post-tool validation on the session's next model request, once", async () => {
+    behave("post-tool-use", "printf 'validation'; exit 0\n")
+    behave("session-start", "exit 0\n")
+    const f = fixture("mcp-update.json")
+    const { hooks } = await setupV2()
+    await hooks["execute.after"]({ tool: f.tool_name, sessionID: "s", id: "c", input: f.tool_input, status: "completed", result: { output: "{}" } })
+    expect(received("post-tool-use")).toEqual(f)
+    const first = { sessionID: "s", system: [] as any[] }
+    await hooks.context(first)
+    const second = { sessionID: "s", system: [] as any[] }
+    await hooks.context(second)
+    expect(first.system).toEqual([{ type: "text", text: "validation" }])
+    expect(second.system).toEqual([])
+  })
+
+  test("skips post-tool validation for a failed call", async () => {
+    const f = fixture("mcp-update.json")
+    const { hooks } = await setupV2()
+    await hooks["execute.after"]({ tool: f.tool_name, sessionID: "s", id: "c", input: f.tool_input, status: "error" })
+    expect(count("post-tool-use")).toBe(0)
+  })
+
+  test("does not throw from execute.after or context on a malformed event", async () => {
+    const { hooks } = await setupV2()
+    await hooks["execute.after"]({ tool: "archcore_update_document", sessionID: "s", id: "c", status: "completed", result: null } as any)
+    await hooks.context({ sessionID: "s" } as any)
+  })
+
+  test("spawns session-start once per session and appends the recap on every request", async () => {
+    behave("session-start", "sleep 0.2; printf '[Archcore] recap\\n'; exit 0\n")
+    const { hooks } = await setupV2()
+    const requests = [{ sessionID: "s", system: [] as any[] }, { sessionID: "s", system: [] as any[] }]
+    await Promise.all(requests.map((r) => hooks.context(r)))
+    expect(count("session-start")).toBe(1)
+    for (const r of requests) expect(r.system).toEqual([{ type: "text", text: "[Archcore] recap\n" }])
+  })
+
+  test("spawns no launcher when the CLI is older than the gate", async () => {
+    behave("cli-gte", "echo no; exit 0\n")
+    const { hooks } = await setupV2()
+    await hooks["execute.before"]({ tool: "write", sessionID: "s", id: "c", input: {} })
+    await hooks.context({ sessionID: "s", system: [] })
+    expect(count("pre-tool-use") + count("session-start")).toBe(0)
+  })
 })

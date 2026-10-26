@@ -1264,3 +1264,39 @@ func TestPlanRunsTheOpenCodeInstallInTheProject(t *testing.T) {
 		t.Errorf("the host table row carries Dir %q after planning, want it untouched", spec.Install[0].Dir)
 	}
 }
+
+// TestPlanPicksTheOpenCodeCommandsOfTheHostMajor keeps one OpenCode row for two
+// command lines: 1.x takes `opencode plugin <module>`, and 2.x, which dropped
+// that form, takes `plugin add` and `plugin remove` — opencode-plugin-serves-
+// v1-and-v2-from-one-package.adr.
+func TestPlanPicksTheOpenCodeCommandsOfTheHostMajor(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		verb  Verb
+		major int
+		ev    Evidence
+		want  []string
+	}{
+		{name: "1.x install", verb: VerbInstall, major: 1, want: []string{"cd /p && opencode plugin @archcore/opencode-plugin"}},
+		{name: "unknown version install", verb: VerbInstall, major: 0, want: []string{"cd /p && opencode plugin @archcore/opencode-plugin"}},
+		{name: "2.x install", verb: VerbInstall, major: 2, want: []string{"cd /p && opencode plugin add @archcore/opencode-plugin"}},
+		{name: "2.x remove", verb: VerbRemove, major: 2, ev: Evidence{Listed: true}, want: []string{"cd /p && opencode plugin remove @archcore/opencode-plugin"}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ev := tt.ev
+			ev.Host, ev.CLIPresent, ev.ListingOK, ev.ProjectRoot, ev.HostMajor = HostOpenCode, true, true, "/p", tt.major
+			actions := Plan(tt.verb, []Evidence{ev})
+			if len(actions) != 1 || actions[0].Kind != ActionRun {
+				t.Fatalf("actions = %+v, want one run", actions)
+			}
+			if got := commandLines(actions[0].Commands); !slices.Equal(got, tt.want) {
+				t.Errorf("commands = %q, want %q", got, tt.want)
+			}
+		})
+	}
+	// 1.x has no remove command, so a listed 1.x project still gets the note.
+	actions := Plan(VerbRemove, []Evidence{{Host: HostOpenCode, CLIPresent: true, ListingOK: true, Listed: true, ProjectRoot: "/p", HostMajor: 1}})
+	if len(actions) != 1 || actions[0].Kind != ActionPrintUINote {
+		t.Errorf("1.x remove = %+v, want the note", actions)
+	}
+}
