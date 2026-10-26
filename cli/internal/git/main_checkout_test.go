@@ -189,11 +189,11 @@ func TestToplevel(t *testing.T) {
 	repo := initRepo(t, map[string]string{"a.txt": "a"})
 	wt := addWorktree(t, repo, filepath.Join(t.TempDir(), "wt"), "probe")
 
-	got, err := toplevel(context.Background(), wt)
+	got, err := Toplevel(context.Background(), wt)
 	if err != nil {
-		t.Fatalf("toplevel(%q): %v", wt, err)
+		t.Fatalf("Toplevel(%q): %v", wt, err)
 	}
 	if resolved(t, got) != resolved(t, wt) {
-		t.Errorf("toplevel(%q) = %q, want the linked worktree itself", wt, got)
+		t.Errorf("Toplevel(%q) = %q, want the linked worktree itself", wt, got)
 	}
 }

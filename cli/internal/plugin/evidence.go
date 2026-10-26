@@ -14,7 +14,8 @@ import (
 
 // CollectEvidence observes each host and returns what Plan needs to decide.
 // Hosts that ship no plugin are dropped, so a caller may pass its whole agent
-// selection without filtering it first.
+// selection without filtering it first. projectRoot is where a project-bound
+// host is observed; empty observes none there, and Plan then skips it.
 //
 // Per host, in order: resolve the binary on PATH; when it is there, ask the
 // host its own read-only listing; then read the host's on-disk registry. The
@@ -27,7 +28,7 @@ import (
 // host's error text: the silence a machine without the plugin gets has to come
 // from the shape of the evidence, because error wording is another project's to
 // change — updating-the-plugin.spec, Failure Behavior 1.
-func CollectEvidence(ctx context.Context, hosts []Host) []Evidence {
+func CollectEvidence(ctx context.Context, hosts []Host, projectRoot string) []Evidence {
 	out := make([]Evidence, 0, len(hosts))
 	for _, host := range hosts {
 		spec, ok := SpecFor(host)
@@ -46,6 +47,9 @@ func CollectEvidence(ctx context.Context, hosts []Host) []Evidence {
 			}
 		}
 		ev.RegistryListed = registryListsPlugin(spec)
+		if spec.projectBound() && projectRoot != "" {
+			ev = projectEvidence(ctx, ev, spec, projectRoot)
+		}
 		out = append(out, ev)
 	}
 	return out

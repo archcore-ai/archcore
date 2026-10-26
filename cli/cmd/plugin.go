@@ -6,6 +6,7 @@ import (
 	"os"
 	"slices"
 
+	"archcore-cli/internal/config"
 	"archcore-cli/internal/display"
 	"archcore-cli/internal/plugin"
 	"archcore-cli/internal/wiring"
@@ -49,11 +50,12 @@ const (
 
 // pluginFlags is the host selection every verb shares.
 //
-// project is read only by pluginInstallTargetFor under `--scope project`, so
-// only `archcore plugin install` declares the flag. The other three verbs write
-// no repository file at all, and a flag they accepted and ignored would answer
-// a user who passed it with silence instead of an unknown-flag error —
-// cmd/project_root_flag_test.go lists them as rootless for the same reason.
+// project is read by pluginInstallTargetFor under `--scope project` and by
+// pluginProjectRoot for the OpenCode row, which lives in a project. install,
+// remove, and status declare the flag. update reads no project, and a flag it
+// accepted and ignored would answer a user who passed it with silence instead
+// of an unknown-flag error — cmd/project_root_flag_test.go lists it as rootless
+// for that reason.
 type pluginFlags struct {
 	agent   string
 	project string
@@ -66,7 +68,7 @@ func newPluginCmd() *cobra.Command {
 		Use:   "plugin",
 		Short: "Manage the Archcore plugin on the hosts that ship one",
 		Long: "Install, update, remove, or report the Archcore plugin on the hosts that ship one: " +
-			"Claude Code, Cursor, Codex CLI, and GitHub Copilot.\n\n" +
+			"Claude Code, Cursor, Codex CLI, GitHub Copilot, and OpenCode.\n\n" +
 			"A typed verb is the consent for every host it targets, so each verb acts the same way " +
 			"with or without a terminal.",
 		// A bare `archcore plugin` is a question and answers with help. NoArgs is
@@ -103,15 +105,15 @@ func newPluginCmd() *cobra.Command {
 // one invocation rather than two that can drift apart.
 func bindPluginFlags(cmd *cobra.Command, f *pluginFlags) {
 	cmd.Flags().StringVar(&f.agent, "agent", "",
-		"act on one host (claude-code, cursor, codex-cli, copilot); default: every host that ships a plugin")
+		"act on one host (claude-code, cursor, codex-cli, copilot, opencode); default: every host that ships a plugin")
 }
 
-// bindPluginProjectFlag declares --project on the one command that reads it.
-// The group carries it too, so `archcore plugin --project X install` parses:
-// cobra consumes a parent's flag value before it resolves the subcommand.
+// bindPluginProjectFlag declares --project on the commands that read it. The
+// group carries it too, so `archcore plugin --project X install` parses: cobra
+// consumes a parent's flag value before it resolves the subcommand.
 func bindPluginProjectFlag(cmd *cobra.Command, f *pluginFlags) {
 	cmd.Flags().StringVar(&f.project, "project", "",
-		"project root containing .archcore/ under --scope project (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
+		"project root containing .archcore/, read by --scope project and by OpenCode (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
 }
 
 // newPluginVerbCmd builds a verb whose whole input is the host selection.
@@ -129,10 +131,14 @@ func newPluginVerbCmd(f *pluginFlags, use, short string, verb plugin.Verb) *cobr
 				return err
 			}
 			out := cmd.OutOrStdout()
-			outcome := runPluginActions(cmd.Context(), out, pluginRunOptions{
-				Verb:  verb,
-				Hosts: hosts,
-			})
+			opts := pluginRunOptions{Verb: verb, Hosts: hosts}
+			// An update has no OpenCode command even inside a project, so it
+			// reads none.
+			if verb != plugin.VerbUpdate {
+				opts.ProjectRoot = pluginProjectRoot(f)
+				opts.ExplainMissingProject = f.agent != ""
+			}
+			outcome := runPluginActions(cmd.Context(), out, opts)
 			// Update owes the overlap notice and removal does not. The helper
 			// reads that off the verb, so the two commands this constructor
 			// builds stay one line of code rather than two that can drift.
@@ -146,6 +152,9 @@ func newPluginVerbCmd(f *pluginFlags, use, short string, verb plugin.Verb) *cobr
 		},
 	}
 	bindPluginFlags(cmd, f)
+	if verb != plugin.VerbUpdate {
+		bindPluginProjectFlag(cmd, f)
+	}
 	return cmd
 }
 
@@ -177,6 +186,9 @@ func newPluginInstallCmd(f *pluginFlags) *cobra.Command {
 				Verb:         plugin.VerbInstall,
 				Hosts:        hosts,
 				SettingsPath: target.SettingsPath,
+				ProjectRoot:  pluginProjectRoot(f),
+				// The platform installer never names a project-bound host.
+				ExplainMissingProject: f.agent != "" && !plugin.InstallerMode(),
 				// A typed install the step bound cut short falls back to the
 				// printed commands for the hosts it never reached — the
 				// Constraints of plugin-delivery.spec. The user asked for the
@@ -259,14 +271,34 @@ func newPluginStatusCmd(f *pluginFlags) *cobra.Command {
 			// whole contract: a host that answered nothing is a row in it, never
 			// an exit code.
 			runPluginActions(cmd.Context(), cmd.OutOrStdout(), pluginRunOptions{
-				Verb:  plugin.VerbStatus,
-				Hosts: hosts,
+				Verb:                  plugin.VerbStatus,
+				Hosts:                 hosts,
+				ProjectRoot:           pluginProjectRoot(f),
+				ExplainMissingProject: f.agent != "",
 			})
 			return nil
 		},
 	}
 	bindPluginFlags(cmd, f)
+	bindPluginProjectFlag(cmd, f)
 	return cmd
+}
+
+// pluginProjectRoot is the project a verb observes and installs a project-bound
+// host in: the resolved root, when it carries .archcore/. The platform installer
+// gets none, because it installs only the machine-level plugins of Claude Code,
+// Codex CLI, and GitHub Copilot — plugin-delivery.spec §33.
+func pluginProjectRoot(f *pluginFlags) string {
+	if plugin.InstallerMode() {
+		return ""
+	}
+	// Advisory: no project skips the project-bound host instead of failing the
+	// verb for every other host — plugin-delivery.spec §19.
+	root, err := resolveProjectRoot(f.project, os.Getenv("ARCHCORE_PROJECT_ROOT"))
+	if err != nil || !config.DirExists(root) {
+		return ""
+	}
+	return root
 }
 
 // pluginExit turns one run into this command's exit contract. An attempted

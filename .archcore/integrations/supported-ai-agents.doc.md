@@ -74,8 +74,9 @@ Cline.
 ## Archcore plugin per host
 
 The Archcore plugin lives under `plugin/` of the `archcore-ai/archcore` monorepo, beside the CLI.
-Four hosts carry it: Claude Code, Cursor, Codex CLI, and GitHub Copilot. OpenCode's plugin is a
-different artifact and is not part of this surface; Gemini CLI, Roo Code, and Cline have none.
+Five hosts carry it: Claude Code, Cursor, Codex CLI, GitHub Copilot, and OpenCode. OpenCode's
+plugin is a different artifact, the npm package `@archcore/opencode-plugin`, and this surface
+delivers it per project; Gemini CLI, Roo Code, and Cline have none.
 
 Three frozen identifiers address it everywhere — repository `archcore-ai/archcore`, marketplace
 `archcore-plugins`, plugin id `archcore@archcore-plugins`. `plugin-cli-compatibility.rule`
@@ -91,7 +92,8 @@ Three entry points reach the plugin, and all three run one planner and one execu
   detected hosts arrive pre-checked, or named with `--agent`. `plugin-delivery.spec` is normative.
 
 The CLI asks each host for its own answer before it acts. With the host CLI on `PATH`, it reads that
-host's read-only plugin listing; with the CLI absent, it reads the host's on-disk plugin registry. A
+host's read-only plugin listing; with the CLI absent, it reads the host's on-disk plugin registry.
+OpenCode has no listing, so the CLI reads the `plugin` array of the project's OpenCode config instead. A
 host that reports no plugin produces no output at all, and no mutating command runs there.
 
 | Host | CLI | Install | Update |
@@ -100,6 +102,7 @@ host that reports no plugin produces no output at all, and no mutating command r
 | GitHub Copilot | `copilot` | `plugin install archcore-ai/archcore:plugins/archcore` [assumption on the subpath] | `plugin update archcore@archcore-plugins` |
 | Codex CLI | `codex` | `plugin marketplace add`, then `plugin add` | `plugin marketplace upgrade archcore-plugins` |
 | Cursor | none | print the UI instruction | print the UI instruction |
+| OpenCode | `opencode` | `plugin @archcore/opencode-plugin`, run in the project root | none until a live probe; `archcore update` skips it |
 
 Claude Code additionally gets an `autoUpdate: true` marketplace entry merged into
 `~/.claude/settings.json`, so the host refreshes the plugin on its own. The redundancy with
@@ -289,8 +292,12 @@ host's plugin install cache. Two surfaces resolve differently, and both matter w
   and its registry replaces both with `apply_patch` for `gpt-` models. The guard reads the camelCase
   key and the patch body for that reason.
 - Instruction file: `AGENTS.md` (fenced upsert)
-- Plugin: the Archcore OpenCode plugin is a separate artifact from `archcore@archcore-plugins` and is
-  not delivered by `archcore plugin`
+- Plugin: the Archcore OpenCode plugin is the npm package `@archcore/opencode-plugin`, a separate
+  artifact from `archcore@archcore-plugins`. `archcore init` and `archcore plugin install` deliver
+  it by running `opencode plugin @archcore/opencode-plugin` in the project root, which adds the
+  package to the `plugin` array of `.opencode/opencode.json`. It adds the `/archcore-init`,
+  `/archcore-plan`, `/archcore-document`, and `/archcore-review` commands. Removal is a printed
+  note; `archcore update` does not refresh it (`plugin-delivery.spec`)
 - Source: `@cli/internal/agents/opencode.go`, `@cli/cmd/hook_dialect.go`, `@cli/cmd/hook_payload.go`
 
 ### Roo Code

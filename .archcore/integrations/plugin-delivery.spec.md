@@ -19,10 +19,11 @@ Out of scope: the unattended update policy and the MCP background trigger — ne
 - Commands: `archcore plugin install|update|remove|status [--agent <id>] [--project <path>]`.
 - Platform installer: after installing the CLI, `install.sh` and `install.ps1` call `archcore plugin install --agent <id>` for each Claude Code, Codex CLI, and GitHub Copilot CLI executable already on `PATH`. They use the newly installed binary and user scope. They skip plugin setup in CI, with `ARCHCORE_SKIP_PLUGIN_INSTALL`, or when the binary has no installer mode. A binary has installer mode when `archcore plugin install --help` names `ARCHCORE_PLUGIN_INSTALLER`; v0.10.10 has `plugin install` without installer mode.
 - Engine shape: one pure planning function (host evidence → per-host actions) and one executor. Entry points differ only in which actions they select and how they word output.
-- Selection screen: init's agent multi-select, opened on every interactive run without `--agent`; a host `agents.Detect` finds in the project arrives pre-checked (`resolveAgents` in `@cli/cmd/init.go`). The four plugin-capable hosts are marked inside that same list; no separate screen and no second prompt exist.
+- Selection screen: init's agent multi-select, opened on every interactive run without `--agent`; a host `agents.Detect` finds in the project arrives pre-checked (`resolveAgents` in `@cli/cmd/init.go`). The five plugin-capable hosts are marked inside that same list; no separate screen and no second prompt exist.
 - Init integration: selecting a host in that multi-select is the consent for that host — hooks, MCP config, and the plugin arrive together.
 - Frozen identifiers: repository `archcore-ai/archcore`, marketplace `archcore-plugins`, plugin id `archcore@archcore-plugins` (`plugin-cli-compatibility.rule`, requirement 11).
 - Host evidence: the host CLI on `PATH` (`exec.LookPath`), the host's read-only plugin listing, and the on-disk registries named in the update-step spec. A listing shows the plugin under the definition in the Surface of `updating-the-plugin.spec`, which requirements 9 and 25 below read: a registered marketplace with nothing installed under it is not a plugin.
+- OpenCode evidence: OpenCode has no listing command. The `plugin` array of `.opencode/opencode.json`, `.opencode/opencode.jsonc`, `opencode.json`, or `opencode.jsonc` stands as its listing (`@cli/internal/plugin/project_config.go`). The CLI reads these files in the project root and in each parent directory up to the root of the git working tree, because OpenCode loads config from those directories and `opencode plugin` writes into `.opencode/` at that root (`packages/opencode/src/plugin/install.ts`, OpenCode 1.18.34). Outside git, the CLI reads the project root alone. An entry `@archcore/opencode-plugin`, `@archcore/opencode-plugin@<version>`, or a `[spec, options]` pair with either spec shows the plugin. A config file that exists but cannot be read leaves the listing unanswered. The CLI reads these JSONC files and never writes them.
 - Timeouts: 30 s per host command, 120 s for the whole delivery step [assumption] — the same pairing as the update step. The seam is `@cli/internal/git/git.go` with stderr captured.
 - Claude Code auto-update key: `extraKnownMarketplaces["archcore-plugins"]` with `"autoUpdate": true` in `~/.claude/settings.json` — documented Claude Code behavior; the host then refreshes the plugin in the background after session start.
 
@@ -34,8 +35,9 @@ Per-host install actions:
 | GitHub Copilot | `copilot plugin install archcore-ai/archcore:plugins/archcore` | Command form verified; the `plugins/archcore` subpath matches the repository layout [assumption until first run] |
 | Codex CLI | `codex plugin marketplace add archcore-ai/archcore`, then `codex plugin add archcore@archcore-plugins` | Verified 2026-08-12 |
 | Cursor | none — print the UI instruction (Marketplace or `/add-plugin`) | UI-only per cursor.com/docs/plugins |
+| OpenCode | `opencode plugin @archcore/opencode-plugin`, run in the project root; OpenCode writes the entry into `.opencode/opencode.json` at the root of the git working tree, or in the project root outside git (project-scoped) | Read from the OpenCode 1.18.34 source (`packages/opencode/src/cli/cmd/plug.ts`); not run live [assumption] |
 
-OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. Removal runs the host's own uninstall (`copilot plugin uninstall archcore`, `codex plugin remove archcore@archcore-plugins`; Claude Code equivalents [assumption]) and removes the `autoUpdate` entry this surface wrote.
+Roo Code, Cline, and Gemini CLI have no plugin. Removal runs the host's own uninstall (`copilot plugin uninstall archcore`, `codex plugin remove archcore@archcore-plugins`; Claude Code equivalents [assumption]) and removes the `autoUpdate` entry this surface wrote. OpenCode has no uninstall command, so its removal is a printed note to delete `@archcore/opencode-plugin` from the `plugin` array.
 
 ## Normative Behavior
 
@@ -81,12 +83,18 @@ OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. Removal run
 40. IF a platform installer's direct plugin action fails, THEN the installer MUST print the host-specific retry command.
 41. IF a platform installer's direct plugin action fails, THEN the installer MUST exit nonzero after it has tried the other detected hosts.
 42. IF `archcore plugin install --help` does not name `ARCHCORE_PLUGIN_INSTALLER`, THEN the platform installer MUST skip the plugin step with a warning.
+43. WHEN the CLI runs or prints the OpenCode install command, the CLI MUST address the resolved project root.
+44. IF a run resolves no project root that carries `.archcore/`, THEN the CLI MUST NOT run an OpenCode command.
+45. WHEN `archcore plugin remove` finds the OpenCode plugin listed, the CLI MUST print the removal note instead of a host command.
+46. WHILE `ARCHCORE_PLUGIN_INSTALLER=1`, the CLI MUST NOT install the OpenCode plugin.
+47. IF `archcore plugin install`, `remove`, or `status` names `--agent opencode` outside a project, THEN the CLI MUST print one line that asks for one.
+48. IF OpenCode was not named with `--agent`, THEN the CLI MUST NOT print a line for a skipped OpenCode.
 
 ## Constraints & Invariants
 
 - Constraint: the unattended update policy and the MCP trigger MUST NOT reach this surface.
-- Constraint: `archcore plugin` MUST carry the `--project` flag like every project-aware command; only `--scope project` writes consume the resolved root, and the command MUST NOT join `rootlessCommands` (`@cli/cmd/project_root_flag_test.go`).
-- Constraint: WHEN `--agent` names an agent without a shipping plugin, the error MUST name only the four supported hosts — `claude-code`, `cursor`, `codex-cli`, `copilot` — not the full registry.
+- Constraint: `archcore plugin` MUST carry the `--project` flag like every project-aware command; only `--scope project` writes and the OpenCode row consume the resolved root, and the command MUST NOT join `rootlessCommands` (`@cli/cmd/project_root_flag_test.go`).
+- Constraint: WHEN `--agent` names an agent without a shipping plugin, the error MUST name only the five supported hosts — `claude-code`, `cursor`, `codex-cli`, `copilot`, `opencode` — not the full registry.
 - Constraint: reads of host plugin state stay inside the plugin surface per `plugin-cli-compatibility.rule` requirement 3; no behavior outside it may change.
 - Constraint: a delivery failure MUST NOT fail `archcore init`, and MUST NOT change its exit code. Requirement 18 binds the direct command, not the init step.
 - Constraint: the delivery step MUST complete within its 120 s bound; requirement 27 governs the hosts it did not reach.

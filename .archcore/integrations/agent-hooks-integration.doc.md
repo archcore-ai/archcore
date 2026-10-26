@@ -152,7 +152,9 @@ OpenCode is never wired, and this is permanent rather than pending: the host loa
 code, so there is no declarative file to write. It gets the same three events from the Archcore
 OpenCode plugin, which registers the host's own events and calls
 `archcore hooks opencode <event>`. Installing the CLI alone gives an OpenCode user the MCP document
-tools but no hooks; installing the plugin adds the hooks.
+tools but no hooks; installing the plugin adds the hooks and the `/archcore-*` commands. Checking
+OpenCode in `archcore init`, or running `archcore plugin install --agent opencode` in the project,
+installs the plugin (`plugin-delivery.spec`).
 
 ### MCP (7 agents, Cline is manual)
 
@@ -393,8 +395,8 @@ archcore mcp install --agent opencode
 ### No hooks on OpenCode
 
 Expected without the plugin. `archcore init` writes OpenCode's MCP config but no hook config, because
-the host has no declarative hook file. Install the Archcore OpenCode plugin to get the three events;
-the CLI already ships the `archcore hooks opencode <event>` leaves it calls. A CLI older than the one
+the host has no declarative hook file. To get the three events, run
+`archcore plugin install --agent opencode` in the project; the CLI already ships the `archcore hooks opencode <event>` leaves it calls. A CLI older than the one
 that added those leaves makes the plugin degrade to no hooks rather than fail.
 
 ### Context appears twice

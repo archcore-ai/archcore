@@ -79,6 +79,7 @@ Evidence pointer is `<commit-sha>:<probe-id>`; the log itself lives in that comm
 | 2026-08-14 | cursor | — | — | — | deferred:not-installed-on-probe-machine | deferred:not-installed-on-probe-machine | deferred:not-installed-on-probe-machine | deferred:not-installed-on-probe-machine | deferred:not-installed-on-probe-machine | deferred:not-installed-on-probe-machine | — |
 | 2026-08-14 | codex | 0.147.0 | 0.0.0-probe | install+log | pass | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | pending-commit |
 | — | copilot | 1.0.76 | — | — | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | — |
+| — | opencode | 1.18.34 | — | — | deferred:bridge-not-released | deferred:bridge-not-released | deferred:bridge-not-released | deferred:bridge-not-released | deferred:bridge-not-released | deferred:bridge-not-released | — |
 
 <!-- PROBE-RECORDS:END -->
 

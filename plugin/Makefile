@@ -17,14 +17,27 @@ JSON_FILES := .agents/plugins/marketplace.json .claude-plugin/marketplace.json .
               $(PLUGIN_REL)/hooks/copilot.hooks.json \
               $(PLUGIN_REL)/.claude.mcp.json docs/cursor.mcp.example.json
 
-.PHONY: test test-mod test-unit test-structure test-integration test-gate-bench test-review-bench test-document-bench test-import-bench test-skill-bench test-writer-fanout-bench test-edits-bench test-delivery-bench test-matrix-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
+.PHONY: test test-mod test-opencode test-unit test-structure test-integration test-gate-bench test-review-bench test-document-bench test-import-bench test-skill-bench test-writer-fanout-bench test-edits-bench test-delivery-bench test-matrix-bench test-research-agent test-codex-smoke test-copilot-smoke lint check-json check-perms verify all
 
 all: check-json check-perms lint test
 
 test:
 	@command -v bats >/dev/null 2>&1 || { echo "bats-core not found. Install: brew install bats-core"; exit 1; }
+	@$(MAKE) --no-print-directory test-opencode
 	@PLUGIN_ROOT=$(PLUGIN_ROOT) REPO_ROOT=$(REPO_ROOT) bats test/unit/ test/structure/
 	@$(MAKE) --no-print-directory test-mod
+
+# The OpenCode bridge (plugins/opencode/) is TypeScript tested with bun test
+# (stack-and-tooling.rule, items 21-22). The pack step runs first, so the
+# structure tests in test/structure/opencode-package.bats find its output.
+# CI installs Bun, so a missing bun there is a broken runner, not a skip.
+test-opencode:
+	@if ! command -v bun >/dev/null 2>&1; then \
+	  if [ -n "$$CI" ]; then echo "bun not found on a CI runner; the OpenCode bridge tests cannot run"; exit 1; fi; \
+	  echo "bun not found, skipping the OpenCode bridge tests"; \
+	else \
+	  cd plugins/opencode && sh scripts/pack.sh >/dev/null && bun test; \
+	fi
 
 # The next-step mod (plugins/archcore/hooks/next-step.tsx) runs in the Claude Code mod runtime;
 # its tests run under `claude plugin test` (stack-and-tooling.rule, the Claude Code mod exception).
@@ -102,7 +115,7 @@ test-copilot-smoke:
 lint:
 	@command -v shellcheck >/dev/null 2>&1 || { echo "shellcheck not found, skipping"; exit 0; }
 	@cd $(PLUGIN_ROOT)/bin && shellcheck -s sh -x $(addprefix $(REPO_ROOT)/,$(ALL_SCRIPTS))
-	@shellcheck -s sh $(TEST_SH_SCRIPTS) $(WORKSPACE_ROOT)/scripts/export-plugin.sh
+	@shellcheck -s sh $(TEST_SH_SCRIPTS) $(WORKSPACE_ROOT)/scripts/export-plugin.sh plugins/opencode/scripts/pack.sh
 	@shellcheck -s bash $(TEST_BASH_SCRIPTS)
 	@echo "ShellCheck: all clean"
 

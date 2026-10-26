@@ -32,7 +32,12 @@ var (
 	copilotUpdateLines  = []string{"copilot plugin update archcore"}
 	copilotInstallLines = []string{"copilot plugin install archcore-ai/archcore:plugins/archcore"}
 	copilotRemoveLines  = []string{"copilot plugin uninstall archcore"}
+
+	// The tier matrix observes OpenCode in this project, so its install runs there.
+	openCodeInstallLine = "cd " + tierProjectRoot + " && opencode plugin @archcore/opencode-plugin"
 )
+
+const tierProjectRoot = "/work/project"
 
 // wantAction is the expected shape of one host's planned action. A nil
 // *wantAction means the tier table addresses nothing, which the specs spell as
@@ -86,13 +91,14 @@ func reportStatus() *wantAction {
 }
 
 // tierCase is one row of a verb's tier matrix: one evidence shape, and what
-// each of the four hosts does with it.
+// each host does with it.
 type tierCase struct {
-	ev      Evidence
-	claude  *wantAction
-	cursor  *wantAction
-	codex   *wantAction
-	copilot *wantAction
+	ev       Evidence
+	claude   *wantAction
+	cursor   *wantAction
+	codex    *wantAction
+	copilot  *wantAction
+	opencode *wantAction
 }
 
 // shapeKey packs the four observed booleans of an evidence shape into one
@@ -156,6 +162,9 @@ func runTierMatrix(t *testing.T, verb Verb, cases []tierCase) {
 			checkHostPlan(t, verb, HostCursor, tt.ev, tt.cursor)
 			checkHostPlan(t, verb, HostCodexCLI, tt.ev, tt.codex)
 			checkHostPlan(t, verb, HostCopilot, tt.ev, tt.copilot)
+			projectEv := tt.ev
+			projectEv.ProjectRoot = tierProjectRoot
+			checkHostPlan(t, verb, HostOpenCode, projectEv, tt.opencode)
 		})
 	}
 	for key := 0; key < allShapes; key++ {
@@ -352,124 +361,140 @@ func TestPlanInstallTiers(t *testing.T) {
 		// reported no-op the idempotence invariant asks for. Cursor answers the
 		// same question the same way, from the same registry evidence.
 		{
-			ev:      Evidence{},
-			claude:  printCmd(claudeInstallLines...),
-			cursor:  uiNote(),
-			codex:   printCmd(codexInstallLines...),
-			copilot: printCmd(copilotInstallLines...),
+			ev:       Evidence{},
+			opencode: printCmd(openCodeInstallLine),
+			claude:   printCmd(claudeInstallLines...),
+			cursor:   uiNote(),
+			codex:    printCmd(codexInstallLines...),
+			copilot:  printCmd(copilotInstallLines...),
 		},
 		{
-			ev:      Evidence{Listed: true},
-			claude:  printCmd(claudeInstallLines...),
-			cursor:  uiNote(),
-			codex:   printCmd(codexInstallLines...),
-			copilot: printCmd(copilotInstallLines...),
+			ev:       Evidence{Listed: true},
+			opencode: printCmd(openCodeInstallLine),
+			claude:   printCmd(claudeInstallLines...),
+			cursor:   uiNote(),
+			codex:    printCmd(codexInstallLines...),
+			copilot:  printCmd(copilotInstallLines...),
 		},
 		{
-			ev:      Evidence{ListingOK: true},
-			claude:  printCmd(claudeInstallLines...),
-			cursor:  uiNote(),
-			codex:   printCmd(codexInstallLines...),
-			copilot: printCmd(copilotInstallLines...),
+			ev:       Evidence{ListingOK: true},
+			opencode: printCmd(openCodeInstallLine),
+			claude:   printCmd(claudeInstallLines...),
+			cursor:   uiNote(),
+			codex:    printCmd(codexInstallLines...),
+			copilot:  printCmd(copilotInstallLines...),
 		},
 		{
-			ev:      Evidence{ListingOK: true, Listed: true},
-			claude:  printCmd(claudeInstallLines...),
-			cursor:  uiNote(),
-			codex:   printCmd(codexInstallLines...),
-			copilot: printCmd(copilotInstallLines...),
+			ev:       Evidence{ListingOK: true, Listed: true},
+			opencode: printCmd(openCodeInstallLine),
+			claude:   printCmd(claudeInstallLines...),
+			cursor:   uiNote(),
+			codex:    printCmd(codexInstallLines...),
+			copilot:  printCmd(copilotInstallLines...),
 		},
 		{
-			ev:      Evidence{RegistryListed: true},
-			claude:  reportInstalledMerging(),
-			cursor:  reportInstalled(),
-			codex:   reportInstalled(),
-			copilot: reportInstalled(),
+			ev:       Evidence{RegistryListed: true},
+			opencode: reportInstalled(),
+			claude:   reportInstalledMerging(),
+			cursor:   reportInstalled(),
+			codex:    reportInstalled(),
+			copilot:  reportInstalled(),
 		},
 		{
-			ev:      Evidence{Listed: true, RegistryListed: true},
-			claude:  reportInstalledMerging(),
-			cursor:  reportInstalled(),
-			codex:   reportInstalled(),
-			copilot: reportInstalled(),
+			ev:       Evidence{Listed: true, RegistryListed: true},
+			opencode: reportInstalled(),
+			claude:   reportInstalledMerging(),
+			cursor:   reportInstalled(),
+			codex:    reportInstalled(),
+			copilot:  reportInstalled(),
 		},
 		{
-			ev:      Evidence{ListingOK: true, RegistryListed: true},
-			claude:  reportInstalledMerging(),
-			cursor:  reportInstalled(),
-			codex:   reportInstalled(),
-			copilot: reportInstalled(),
+			ev:       Evidence{ListingOK: true, RegistryListed: true},
+			opencode: reportInstalled(),
+			claude:   reportInstalledMerging(),
+			cursor:   reportInstalled(),
+			codex:    reportInstalled(),
+			copilot:  reportInstalled(),
 		},
 		{
-			ev:      Evidence{ListingOK: true, Listed: true, RegistryListed: true},
-			claude:  reportInstalledMerging(),
-			cursor:  reportInstalled(),
-			codex:   reportInstalled(),
-			copilot: reportInstalled(),
+			ev:       Evidence{ListingOK: true, Listed: true, RegistryListed: true},
+			opencode: reportInstalled(),
+			claude:   reportInstalledMerging(),
+			cursor:   reportInstalled(),
+			codex:    reportInstalled(),
+			copilot:  reportInstalled(),
 		},
 
 		// The CLI is present. Consent is already given, so a listing that failed
 		// does not refuse the install — only a listing that ran and named the
 		// plugin does, which is requirement 9 and the rerun that never nags.
 		{
-			ev:      Evidence{CLIPresent: true},
-			claude:  runMerging(claudeInstallLines...),
-			cursor:  uiNote(),
-			codex:   wantRun(codexInstallLines...),
-			copilot: wantRun(copilotInstallLines...),
+			ev:       Evidence{CLIPresent: true},
+			opencode: wantRun(openCodeInstallLine),
+			claude:   runMerging(claudeInstallLines...),
+			cursor:   uiNote(),
+			codex:    wantRun(codexInstallLines...),
+			copilot:  wantRun(copilotInstallLines...),
 		},
 		// Listed without ListingOK is a listing that never parsed. It is not the
 		// evidence requirement 9 asks for, so the install still runs: dropping
 		// the ListingOK half of the guard turns this row into a silent no-op and
 		// a selected host never gets its plugin.
 		{
-			ev:      Evidence{CLIPresent: true, Listed: true},
-			claude:  runMerging(claudeInstallLines...),
-			cursor:  uiNote(),
-			codex:   wantRun(codexInstallLines...),
-			copilot: wantRun(copilotInstallLines...),
+			ev:       Evidence{CLIPresent: true, Listed: true},
+			opencode: wantRun(openCodeInstallLine),
+			claude:   runMerging(claudeInstallLines...),
+			cursor:   uiNote(),
+			codex:    wantRun(codexInstallLines...),
+			copilot:  wantRun(copilotInstallLines...),
 		},
 		{
-			ev:      Evidence{CLIPresent: true, ListingOK: true},
-			claude:  runMerging(claudeInstallLines...),
-			cursor:  uiNote(),
-			codex:   wantRun(codexInstallLines...),
-			copilot: wantRun(copilotInstallLines...),
+			ev:       Evidence{CLIPresent: true, ListingOK: true},
+			opencode: wantRun(openCodeInstallLine),
+			claude:   runMerging(claudeInstallLines...),
+			cursor:   uiNote(),
+			codex:    wantRun(codexInstallLines...),
+			copilot:  wantRun(copilotInstallLines...),
 		},
 		{
-			ev:      Evidence{CLIPresent: true, ListingOK: true, Listed: true},
-			claude:  reportInstalledMerging(),
-			cursor:  uiNote(),
-			codex:   reportInstalled(),
-			copilot: reportInstalled(),
+			ev:       Evidence{CLIPresent: true, ListingOK: true, Listed: true},
+			opencode: reportInstalled(),
+			claude:   reportInstalledMerging(),
+			cursor:   uiNote(),
+			codex:    reportInstalled(),
+			copilot:  reportInstalled(),
 		},
 		{
-			ev:      Evidence{CLIPresent: true, RegistryListed: true},
-			claude:  runMerging(claudeInstallLines...),
-			cursor:  reportInstalled(),
-			codex:   wantRun(codexInstallLines...),
-			copilot: wantRun(copilotInstallLines...),
+			ev:       Evidence{CLIPresent: true, RegistryListed: true},
+			opencode: wantRun(openCodeInstallLine),
+			claude:   runMerging(claudeInstallLines...),
+			cursor:   reportInstalled(),
+			codex:    wantRun(codexInstallLines...),
+			copilot:  wantRun(copilotInstallLines...),
 		},
 		{
-			ev:      Evidence{CLIPresent: true, Listed: true, RegistryListed: true},
-			claude:  runMerging(claudeInstallLines...),
-			cursor:  reportInstalled(),
-			codex:   wantRun(codexInstallLines...),
-			copilot: wantRun(copilotInstallLines...),
+			ev:       Evidence{CLIPresent: true, Listed: true, RegistryListed: true},
+			opencode: wantRun(openCodeInstallLine),
+			claude:   runMerging(claudeInstallLines...),
+			cursor:   reportInstalled(),
+			codex:    wantRun(codexInstallLines...),
+			copilot:  wantRun(copilotInstallLines...),
 		},
 		{
-			ev:      Evidence{CLIPresent: true, ListingOK: true, RegistryListed: true},
-			claude:  runMerging(claudeInstallLines...),
-			cursor:  reportInstalled(),
-			codex:   wantRun(codexInstallLines...),
-			copilot: wantRun(copilotInstallLines...),
+			ev:       Evidence{CLIPresent: true, ListingOK: true, RegistryListed: true},
+			opencode: wantRun(openCodeInstallLine),
+			claude:   runMerging(claudeInstallLines...),
+			cursor:   reportInstalled(),
+			codex:    wantRun(codexInstallLines...),
+			copilot:  wantRun(copilotInstallLines...),
 		},
 		{
-			ev:      Evidence{CLIPresent: true, ListingOK: true, Listed: true, RegistryListed: true},
-			claude:  reportInstalledMerging(),
-			cursor:  reportInstalled(),
-			codex:   reportInstalled(),
-			copilot: reportInstalled(),
+			ev:       Evidence{CLIPresent: true, ListingOK: true, Listed: true, RegistryListed: true},
+			opencode: reportInstalled(),
+			claude:   reportInstalledMerging(),
+			cursor:   reportInstalled(),
+			codex:    reportInstalled(),
+			copilot:  reportInstalled(),
 		},
 	})
 }
@@ -498,82 +523,92 @@ func TestPlanRemoveTiers(t *testing.T) {
 			ev: Evidence{ListingOK: true, Listed: true},
 		},
 		{
-			ev:      Evidence{RegistryListed: true},
-			claude:  printCmd(claudeRemoveLines...),
-			cursor:  uiNote(),
-			codex:   printCmd(codexRemoveLines...),
-			copilot: printCmd(copilotRemoveLines...),
+			ev:       Evidence{RegistryListed: true},
+			opencode: uiNote(),
+			claude:   printCmd(claudeRemoveLines...),
+			cursor:   uiNote(),
+			codex:    printCmd(codexRemoveLines...),
+			copilot:  printCmd(copilotRemoveLines...),
 		},
 		{
-			ev:      Evidence{Listed: true, RegistryListed: true},
-			claude:  printCmd(claudeRemoveLines...),
-			cursor:  uiNote(),
-			codex:   printCmd(codexRemoveLines...),
-			copilot: printCmd(copilotRemoveLines...),
+			ev:       Evidence{Listed: true, RegistryListed: true},
+			opencode: uiNote(),
+			claude:   printCmd(claudeRemoveLines...),
+			cursor:   uiNote(),
+			codex:    printCmd(codexRemoveLines...),
+			copilot:  printCmd(copilotRemoveLines...),
 		},
 		{
-			ev:      Evidence{ListingOK: true, RegistryListed: true},
-			claude:  printCmd(claudeRemoveLines...),
-			cursor:  uiNote(),
-			codex:   printCmd(codexRemoveLines...),
-			copilot: printCmd(copilotRemoveLines...),
+			ev:       Evidence{ListingOK: true, RegistryListed: true},
+			opencode: uiNote(),
+			claude:   printCmd(claudeRemoveLines...),
+			cursor:   uiNote(),
+			codex:    printCmd(codexRemoveLines...),
+			copilot:  printCmd(copilotRemoveLines...),
 		},
 		{
-			ev:      Evidence{ListingOK: true, Listed: true, RegistryListed: true},
-			claude:  printCmd(claudeRemoveLines...),
-			cursor:  uiNote(),
-			codex:   printCmd(codexRemoveLines...),
-			copilot: printCmd(copilotRemoveLines...),
+			ev:       Evidence{ListingOK: true, Listed: true, RegistryListed: true},
+			opencode: uiNote(),
+			claude:   printCmd(claudeRemoveLines...),
+			cursor:   uiNote(),
+			codex:    printCmd(codexRemoveLines...),
+			copilot:  printCmd(copilotRemoveLines...),
 		},
 
 		// The CLI is present. Only proof of absence refuses the verb: a listing
 		// that ran and omits the plugin. A listing that never parsed proves
 		// nothing, so the typed verb still reaches the host.
 		{
-			ev:      Evidence{CLIPresent: true},
-			claude:  runRemovingEntry(claudeRemoveLines...),
-			codex:   wantRun(codexRemoveLines...),
-			copilot: wantRun(copilotRemoveLines...),
+			ev:       Evidence{CLIPresent: true},
+			opencode: uiNote(),
+			claude:   runRemovingEntry(claudeRemoveLines...),
+			codex:    wantRun(codexRemoveLines...),
+			copilot:  wantRun(copilotRemoveLines...),
 		},
 		{
-			ev:      Evidence{CLIPresent: true, Listed: true},
-			claude:  runRemovingEntry(claudeRemoveLines...),
-			codex:   wantRun(codexRemoveLines...),
-			copilot: wantRun(copilotRemoveLines...),
+			ev:       Evidence{CLIPresent: true, Listed: true},
+			opencode: uiNote(),
+			claude:   runRemovingEntry(claudeRemoveLines...),
+			codex:    wantRun(codexRemoveLines...),
+			copilot:  wantRun(copilotRemoveLines...),
 		},
 		{
 			ev: Evidence{CLIPresent: true, ListingOK: true},
 		},
 		{
-			ev:      Evidence{CLIPresent: true, ListingOK: true, Listed: true},
-			claude:  runRemovingEntry(claudeRemoveLines...),
-			codex:   wantRun(codexRemoveLines...),
-			copilot: wantRun(copilotRemoveLines...),
+			ev:       Evidence{CLIPresent: true, ListingOK: true, Listed: true},
+			opencode: uiNote(),
+			claude:   runRemovingEntry(claudeRemoveLines...),
+			codex:    wantRun(codexRemoveLines...),
+			copilot:  wantRun(copilotRemoveLines...),
 		},
 		{
-			ev:      Evidence{CLIPresent: true, RegistryListed: true},
-			claude:  runRemovingEntry(claudeRemoveLines...),
-			cursor:  uiNote(),
-			codex:   wantRun(codexRemoveLines...),
-			copilot: wantRun(copilotRemoveLines...),
+			ev:       Evidence{CLIPresent: true, RegistryListed: true},
+			opencode: uiNote(),
+			claude:   runRemovingEntry(claudeRemoveLines...),
+			cursor:   uiNote(),
+			codex:    wantRun(codexRemoveLines...),
+			copilot:  wantRun(copilotRemoveLines...),
 		},
 		{
-			ev:      Evidence{CLIPresent: true, Listed: true, RegistryListed: true},
-			claude:  runRemovingEntry(claudeRemoveLines...),
-			cursor:  uiNote(),
-			codex:   wantRun(codexRemoveLines...),
-			copilot: wantRun(copilotRemoveLines...),
+			ev:       Evidence{CLIPresent: true, Listed: true, RegistryListed: true},
+			opencode: uiNote(),
+			claude:   runRemovingEntry(claudeRemoveLines...),
+			cursor:   uiNote(),
+			codex:    wantRun(codexRemoveLines...),
+			copilot:  wantRun(copilotRemoveLines...),
 		},
 		{
 			ev:     Evidence{CLIPresent: true, ListingOK: true, RegistryListed: true},
 			cursor: uiNote(),
 		},
 		{
-			ev:      Evidence{CLIPresent: true, ListingOK: true, Listed: true, RegistryListed: true},
-			claude:  runRemovingEntry(claudeRemoveLines...),
-			cursor:  uiNote(),
-			codex:   wantRun(codexRemoveLines...),
-			copilot: wantRun(copilotRemoveLines...),
+			ev:       Evidence{CLIPresent: true, ListingOK: true, Listed: true, RegistryListed: true},
+			opencode: uiNote(),
+			claude:   runRemovingEntry(claudeRemoveLines...),
+			cursor:   uiNote(),
+			codex:    wantRun(codexRemoveLines...),
+			copilot:  wantRun(copilotRemoveLines...),
 		},
 	})
 }
@@ -594,10 +629,11 @@ func TestPlanStatusTiers(t *testing.T) {
 				Listed:         key&4 != 0,
 				RegistryListed: key&8 != 0,
 			},
-			claude:  reportStatus(),
-			cursor:  reportStatus(),
-			codex:   reportStatus(),
-			copilot: reportStatus(),
+			claude:   reportStatus(),
+			cursor:   reportStatus(),
+			codex:    reportStatus(),
+			copilot:  reportStatus(),
+			opencode: reportStatus(),
 		})
 	}
 	runTierMatrix(t, VerbStatus, cases)
@@ -1183,5 +1219,48 @@ func TestPlanUpdateBoundsTheAddressedInstallations(t *testing.T) {
 	}
 	if first, last := addressed[0].Dir, addressed[len(addressed)-1].Dir; first != "/live/000" || last != fmt.Sprintf("/live/%03d", maxAddressedInstalls-1) {
 		t.Errorf("addressed %s through %s, want the first %d live projects", first, last, maxAddressedInstalls)
+	}
+}
+
+// TestPlanSkipsOpenCodeWithoutAProject keeps a project-bound host off every
+// verb when the evidence names no project. `opencode plugin` patches the
+// config of the directory it runs in, so a run from no project would write into
+// whichever directory the process started in.
+func TestPlanSkipsOpenCodeWithoutAProject(t *testing.T) {
+	t.Parallel()
+	for _, verb := range []Verb{VerbInstall, VerbUpdate, VerbRemove, VerbStatus} {
+		for key := 0; key < allShapes; key++ {
+			ev := Evidence{
+				Host:           HostOpenCode,
+				CLIPresent:     key&1 != 0,
+				ListingOK:      key&2 != 0,
+				Listed:         key&4 != 0,
+				RegistryListed: key&8 != 0,
+			}
+			if actions := Plan(verb, []Evidence{ev}); len(actions) != 0 {
+				t.Errorf("%s over %q with no project planned %v, want nothing", verb, shapeName(ev), actions)
+			}
+		}
+	}
+}
+
+// TestPlanRunsTheOpenCodeInstallInTheProject pins the working directory as
+// part of the command: the printed line carries it as `cd`, and the run sets
+// Dir to the project the evidence was read from.
+func TestPlanRunsTheOpenCodeInstallInTheProject(t *testing.T) {
+	t.Parallel()
+	actions := Plan(VerbInstall, []Evidence{{Host: HostOpenCode, CLIPresent: true, ProjectRoot: "/work/my project"}})
+	if len(actions) != 1 || len(actions[0].Commands) != 1 {
+		t.Fatalf("planned %+v, want one install command", actions)
+	}
+	c := actions[0].Commands[0]
+	if c.Dir != "/work/my project" {
+		t.Errorf("Dir = %q, want the project root", c.Dir)
+	}
+	if want := "cd '/work/my project' && opencode plugin @archcore/opencode-plugin"; c.String() != want {
+		t.Errorf("command = %q, want %q", c.String(), want)
+	}
+	if spec, _ := SpecFor(HostOpenCode); spec.Install[0].Dir != "" {
+		t.Errorf("the host table row carries Dir %q after planning, want it untouched", spec.Install[0].Dir)
 	}
 }

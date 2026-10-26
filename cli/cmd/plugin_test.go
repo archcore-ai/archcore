@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -306,8 +307,10 @@ func TestPluginStatusExitsZeroWithEveryHostAbsent(t *testing.T) {
 		t.Fatalf("status must exit zero, got %v\n%s", err, out)
 	}
 	for _, spec := range plugin.Specs() {
-		if !strings.Contains(out, spec.DisplayName) {
-			t.Errorf("the report skips %s:\n%s", spec.DisplayName, out)
+		// A project-bound host is reported only from a project, and this run
+		// starts in an empty directory.
+		if got := strings.Contains(out, spec.DisplayName); got == (len(spec.ProjectConfigPaths) > 0) {
+			t.Errorf("the report names %s = %v:\n%s", spec.DisplayName, got, out)
 		}
 	}
 	if !strings.Contains(out, "not installed") {
@@ -333,7 +336,7 @@ func TestPluginAgentFlagNamesOnlyThePluginHosts(t *testing.T) {
 			t.Errorf("the error does not name %q: %v", host, err)
 		}
 	}
-	for _, other := range []string{"roo-code", "cline", "opencode"} {
+	for _, other := range []string{"roo-code", "cline"} {
 		if strings.Contains(err.Error(), other) {
 			t.Errorf("the error names %q, which ships no plugin: %v", other, err)
 		}
@@ -527,5 +530,189 @@ func TestUnconfirmedInstallsRequiresOnlyInstallableHostsWithoutAgent(t *testing.
 	}
 	if got := outcome.unconfirmedInstalls([]plugin.Host{plugin.HostCursor}, true); !slices.Equal(got, []plugin.Host{plugin.HostCursor}) {
 		t.Errorf("named host: unconfirmed = %v, want the named host even with a UI-only install", got)
+	}
+}
+
+// writeWorkingDirFixture puts a stand-in host CLI on PATH that logs the
+// directory it ran in beside its arguments, so a test can prove where a
+// project-bound install ran.
+func writeWorkingDirFixture(t *testing.T, bin, name string) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the fixture host CLIs are #!/bin/sh scripts; CI runs Linux only")
+	}
+	log := filepath.Join(t.TempDir(), name+".log")
+	script := "#!/bin/sh\necho \"$(pwd -P) $*\" >> " + log + "\n"
+	if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0o755); err != nil {
+		t.Fatalf("writing the %s fixture: %v", name, err)
+	}
+	return log
+}
+
+// archcoreProject is a resolved project root that carries .archcore/.
+func archcoreProject(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, ".archcore"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+// TestPluginInstallRunsOpenCodeInTheProject covers the OpenCode row of
+// plugin-delivery.spec: `opencode plugin` patches the config of the directory
+// it runs in, so the install runs in the resolved project root.
+func TestPluginInstallRunsOpenCodeInTheProject(t *testing.T) {
+	bin := isolatePluginRun(t)
+	log := writeWorkingDirFixture(t, bin, "opencode")
+	project := archcoreProject(t)
+
+	out, err := runPluginCmd(t, "install", "--agent", "opencode", "--project", project)
+	if err != nil {
+		t.Fatalf("install exited nonzero: %v\n%s", err, out)
+	}
+	if want := []string{project + " plugin @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
+		t.Errorf("opencode ran %q, want %q", fixtureRuns(t, log), want)
+	}
+}
+
+// TestPluginVerbsReadTheOpenCodeProjectNamedByFlag pins --project on the verbs
+// that read the OpenCode row's project, after the verb and before it — the
+// Surface of plugin-delivery.spec lists the flag on every verb that does.
+func TestPluginVerbsReadTheOpenCodeProjectNamedByFlag(t *testing.T) {
+	for _, tt := range []struct {
+		args []string
+		want string
+	}{
+		{args: []string{"status", "--agent", "opencode", "--project"}, want: "installed (the host reports it)"},
+		{args: []string{"--project", "", "status", "--agent", "opencode"}, want: "installed (the host reports it)"},
+		{args: []string{"remove", "--agent", "opencode", "--project"}, want: `Remove "@archcore/opencode-plugin" from the "plugin" array`},
+		{args: []string{"--project", "", "remove", "--agent", "opencode"}, want: `Remove "@archcore/opencode-plugin" from the "plugin" array`},
+	} {
+		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
+			bin := isolatePluginRun(t)
+			log := writeWorkingDirFixture(t, bin, "opencode")
+			project := archcoreProject(t)
+			if err := os.MkdirAll(filepath.Join(project, ".opencode"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(project, ".opencode", "opencode.json"), []byte(`{"plugin":["@archcore/opencode-plugin"]}`), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			args := slices.Clone(tt.args)
+			if args[len(args)-1] == "--project" {
+				args = append(args, project)
+			} else {
+				args[1] = project
+			}
+
+			out, err := runPluginCmd(t, args...)
+			if err != nil {
+				t.Fatalf("%v exited nonzero: %v\n%s", args, err, out)
+			}
+			if !strings.Contains(out, tt.want) {
+				t.Errorf("output lacks %q:\n%s", tt.want, out)
+			}
+			if runs := fixtureRuns(t, log); len(runs) != 0 {
+				t.Errorf("opencode ran %q, want the config read alone", runs)
+			}
+		})
+	}
+}
+
+const missingProjectLine = "OpenCode: run this inside a project with .archcore/, or pass --project — the plugin is installed per project."
+
+// TestPluginVerbsNamingOpenCodeExplainAMissingProject proves a run outside a
+// project leaves OpenCode alone and, when --agent named it, says why in one
+// line with exit zero — plugin-delivery.spec §19 and §47. Update names nothing:
+// it has no OpenCode command even inside a project.
+func TestPluginVerbsNamingOpenCodeExplainAMissingProject(t *testing.T) {
+	for _, tt := range []struct {
+		verb     string
+		wantLine bool
+	}{
+		{verb: "install", wantLine: true},
+		{verb: "remove", wantLine: true},
+		{verb: "status", wantLine: true},
+		{verb: "update"},
+	} {
+		t.Run(tt.verb, func(t *testing.T) {
+			bin := isolatePluginRun(t)
+			log := writeWorkingDirFixture(t, bin, "opencode")
+
+			out, err := runPluginCmd(t, tt.verb, "--agent", "opencode")
+			if err != nil {
+				t.Fatalf("%s exited nonzero: %v\n%s", tt.verb, err, out)
+			}
+			if runs := fixtureRuns(t, log); len(runs) != 0 {
+				t.Errorf("opencode ran %q outside a project", runs)
+			}
+			if got := strings.Count(out, missingProjectLine); got != btoi(tt.wantLine) {
+				t.Errorf("printed the missing-project line %d times, want %d:\n%s", got, btoi(tt.wantLine), out)
+			}
+			if !tt.wantLine && strings.Contains(out, "OpenCode") {
+				t.Errorf("an update outside a project reported OpenCode:\n%s", out)
+			}
+		})
+	}
+}
+
+// TestPluginVerbsLeaveAnImplicitOpenCodeSilent keeps the line to a host the
+// user named: a run over every host, and the platform installer, say nothing
+// about OpenCode outside a project.
+func TestPluginVerbsLeaveAnImplicitOpenCodeSilent(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		args      []string
+		installer bool
+	}{
+		{name: "install over every host", args: []string{"install"}},
+		{name: "remove over every host", args: []string{"remove"}},
+		{name: "status over every host", args: []string{"status"}},
+		{name: "installer mode", args: []string{"install"}, installer: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			bin := isolatePluginRun(t)
+			writeWorkingDirFixture(t, bin, "opencode")
+			if tt.installer {
+				t.Setenv(plugin.InstallerModeEnv, "1")
+			}
+
+			out, err := runPluginCmd(t, tt.args...)
+			if err != nil {
+				t.Fatalf("%v exited nonzero: %v\n%s", tt.args, err, out)
+			}
+			if strings.Contains(out, "OpenCode") {
+				t.Errorf("an implicit run outside a project reported OpenCode:\n%s", out)
+			}
+		})
+	}
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// TestPluginInstallerModeLeavesOpenCodeAlone keeps the platform installer to
+// the machine-level hosts it names — plugin-delivery.spec §33. A project it
+// happens to start in is not a selection.
+func TestPluginInstallerModeLeavesOpenCodeAlone(t *testing.T) {
+	bin := isolatePluginRun(t)
+	log := writeWorkingDirFixture(t, bin, "opencode")
+	project := archcoreProject(t)
+	t.Setenv(plugin.InstallerModeEnv, "1")
+
+	out, err := runPluginCmd(t, "install", "--project", project)
+	if err != nil {
+		t.Fatalf("installer-mode install exited nonzero: %v\n%s", err, out)
+	}
+	if runs := fixtureRuns(t, log); len(runs) != 0 {
+		t.Errorf("the installer ran opencode %q", runs)
 	}
 }

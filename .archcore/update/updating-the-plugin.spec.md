@@ -33,8 +33,9 @@ Per-host update commands, probed live 2026-09-16 on the versions shown, plus off
 | GitHub Copilot (copilot 1.0.83) | per installation `copilot plugin update <listed name>`; printed tier `copilot plugin update archcore` | A direct install is listed as `archcore` and refuses `archcore@archcore-plugins`. A failed update exits 0 and writes only to stderr — verified 2026-09-16. |
 | Codex CLI (codex 0.154.0) | `codex plugin marketplace upgrade archcore-plugins` | Codex has no per-plugin update and no scope; the marketplace upgrade reinstalls the plugin cache (`codex-rs/core-plugins/src/manager.rs`). |
 | Cursor | none — no CLI mechanism (UI-only, cursor.com/docs/plugins) | Print a one-line instruction to update the plugin in the Cursor UI. |
+| OpenCode | none | No command until a live probe shows how OpenCode refreshes an unpinned `@archcore/opencode-plugin` entry. The OpenCode row is project-scoped (`plugin-delivery.spec`), and `archcore update` resolves no project root. |
 
-OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. The step does not address them.
+Roo Code, Cline, and Gemini CLI have no plugin. The step does not address them.
 
 ## Normative Behavior
 
@@ -64,6 +65,8 @@ OpenCode ships no plugin. Roo Code, Cline, and Gemini CLI have none. The step do
 24. WHEN a Copilot update command exits zero with empty stdout, the CLI MUST treat the command as failed.
 25. IF a listing shows installations and the CLI can address none of them, THEN the CLI MUST skip that host silently.
 26. WHEN the CLI addresses a Copilot installation, the CLI MUST pass only `archcore` or `archcore@archcore-plugins` as its name.
+27. The plugin-update step MUST NOT run a command for OpenCode.
+28. The plugin-update step MUST NOT print a line for OpenCode.
 
 ## Constraints & Invariants
 

@@ -32,7 +32,7 @@ records_rows() {
 
 # Host ids as they appear in the table, derived from the hook config names the
 # coverage matrix enrolls: hooks/copilot.hooks.json -> copilot,
-# hooks/hooks.json -> claude-code.
+# hooks/hooks.json -> claude-code; a bridge row carries its id directly.
 enrolled_hosts() {
   local rel base
   while IFS='|' read -r rel _; do
@@ -41,8 +41,11 @@ enrolled_hosts() {
     base=${base%.json}
     [ "$base" = "hooks" ] && base="claude-code"
     echo "$base"
-  done < <(grep -A 6 '^matrix_rows()' "$REPO_ROOT/test/structure/host-coverage-matrix.bats" \
+  done < <(sed -n '/^matrix_rows()/,/^}/p' "$REPO_ROOT/test/structure/host-coverage-matrix.bats" \
              | grep '^hooks/')
+  # Bridge rows name their host id in the second field.
+  sed -n '/^bridge_rows()/,/^}/p' "$REPO_ROOT/test/structure/host-coverage-matrix.bats" \
+    | grep '^plugins/' | cut -d'|' -f2
 }
 
 @test "the records section is delimited by both HTML markers" {

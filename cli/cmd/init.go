@@ -245,7 +245,7 @@ func newInitCmd(version string) *cobra.Command {
 					// because this line, not the picker, is the last thing
 					// between a selection and an unattended install — the seam
 					// is swappable, and requirement 7 binds the step that acts.
-					reportedOverlap = deliverPlugins(ctx, os.Stdout, sel.agents, assumeYes || !isInteractive())
+					reportedOverlap = deliverPlugins(ctx, os.Stdout, cwd, sel.agents, assumeYes || !isInteractive())
 				default:
 					printPluginInstallHint(os.Stdout, sel.agents)
 				}
@@ -309,7 +309,7 @@ func runInitForAgents(ctx context.Context, baseDir string, agentIDs []string, ve
 	// a terminal — plugin-delivery.spec §6 and §11. A CI variable is the one
 	// thing that turns this into printed commands, and deliverPlugins reads it
 	// itself so both call sites cannot answer §8 differently.
-	if !deliverPlugins(ctx, os.Stdout, list, false) && anyHooks {
+	if !deliverPlugins(ctx, os.Stdout, baseDir, list, false) && anyHooks {
 		// No plugin was installed here, so the overlap — if any — belongs to a
 		// plugin that was already in place, and takes the other wording.
 		printPluginConflictNote()
@@ -547,7 +547,7 @@ func agentPickerLabel(a *agents.Agent) string {
 // place — and --agent passes false, because the flag carries consent with or
 // without one (§6). A CI variable prints over either (§8), and it is read here so
 // the two call sites cannot answer that one differently.
-func deliverPlugins(ctx context.Context, w io.Writer, selected []*agents.Agent, printOnly bool) (reportedOverlap bool) {
+func deliverPlugins(ctx context.Context, w io.Writer, projectRoot string, selected []*agents.Agent, printOnly bool) (reportedOverlap bool) {
 	hosts := pluginHostsForAgents(selected)
 	if len(hosts) == 0 {
 		// A selection of hosts that ship no plugin produces no plugin output at
@@ -558,9 +558,10 @@ func deliverPlugins(ctx context.Context, w io.Writer, selected []*agents.Agent, 
 	}
 
 	outcome := runPluginActions(ctx, w, pluginRunOptions{
-		Verb:      plugin.VerbInstall,
-		Hosts:     hosts,
-		PrintOnly: printOnly || pluginRunningInCI(),
+		Verb:        plugin.VerbInstall,
+		Hosts:       hosts,
+		PrintOnly:   printOnly || pluginRunningInCI(),
+		ProjectRoot: projectRoot,
 		// A checked host whose install the step bound never reached gets its
 		// commands printed — the Constraints of plugin-delivery.spec. Silence
 		// here is the one outcome the selection screen cannot survive: the user
@@ -602,8 +603,8 @@ func printPluginInstallHint(w io.Writer, detected []*agents.Agent) {
 }
 
 // pluginHostsForAgents maps a host selection onto the plugin hosts it consents
-// to. An agent that ships no plugin contributes nothing: gemini-cli, opencode,
-// roo-code and cline are ordinary wiring selections, and only a typed
+// to. An agent that ships no plugin contributes nothing: gemini-cli, roo-code
+// and cline are ordinary wiring selections, and only a typed
 // `archcore plugin --agent <id>` refuses them (@cmd/plugin_run.go).
 //
 // The result follows the canonical host order rather than the selection's or the

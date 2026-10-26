@@ -5482,6 +5482,41 @@
       "source": "integrations/agent-host-landscape.rnd.md",
       "target": "integrations/supported-ai-agents.doc.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/opencode-archcore-prefixed-skill-names.adr.md",
+      "target": "plugin/opencode-adapter-packaging.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/opencode-plugin-ships-built-javascript.adr.md",
+      "target": "plugin/opencode-adapter-packaging.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/opencode-adapter.spec.md",
+      "target": "plugin/opencode-archcore-prefixed-skill-names.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/opencode-adapter.spec.md",
+      "target": "plugin/opencode-plugin-ships-built-javascript.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/opencode-adapter.spec.md",
+      "target": "integrations/plugin-cli-compatibility.rule.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/opencode-adapter.plan.md",
+      "target": "plugin/opencode-archcore-prefixed-skill-names.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/opencode-adapter.plan.md",
+      "target": "plugin/opencode-plugin-ships-built-javascript.adr.md",
+      "type": "depends_on"
     }
   ]
 }

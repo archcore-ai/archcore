@@ -125,6 +125,28 @@ CODEX_PAYLOAD='{"turn_id":"t1","tool_name":"Write","tool_input":{"file_path":"/t
   assert_output "hooks copilot post-tool-use "
 }
 
+# The OpenCode bridge pins the host by env only and sends the bridge envelope
+# (opencode-adapter.spec, spawn contract); the launchers pass it through.
+@test "pre-tool-use: ARCHCORE_HOST=opencode bridge envelope → 'hooks opencode pre-tool-use', stdin unchanged" {
+  make_cli "0.10.0"
+  ARCHCORE_HOST=opencode run "$PLUGIN_ROOT/bin/pre-tool-use" < "$FIXTURES/stdin/opencode/write-archcore.json"
+  assert_success
+  run cat "$BATS_TEST_TMPDIR/cli-args"
+  assert_output "hooks opencode pre-tool-use "
+  run cat "$BATS_TEST_TMPDIR/cli-stdin"
+  assert_output "$(cat "$FIXTURES/stdin/opencode/write-archcore.json")"
+}
+
+@test "post-tool-use: ARCHCORE_HOST=opencode archcore_* tool → 'hooks opencode post-tool-use', stdin unchanged" {
+  make_cli "0.10.0"
+  ARCHCORE_HOST=opencode run "$PLUGIN_ROOT/bin/post-tool-use" < "$FIXTURES/stdin/opencode/mcp-update.json"
+  assert_success
+  run cat "$BATS_TEST_TMPDIR/cli-args"
+  assert_output "hooks opencode post-tool-use "
+  run cat "$BATS_TEST_TMPDIR/cli-stdin"
+  assert_output "$(cat "$FIXTURES/stdin/opencode/mcp-update.json")"
+}
+
 @test "pre-tool-use: cursor payload (conversation_id) → CLI host cursor" {
   make_cli "0.7.0"
   run "$PLUGIN_ROOT/bin/pre-tool-use" <<< '{"conversation_id":"c1","hook_event_name":"preToolUse","tool_name":"Write"}'

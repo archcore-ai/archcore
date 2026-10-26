@@ -1,5 +1,5 @@
 ---
-title: "OpenCode Adapter: Bridge Package, Shared-Fixture Tests, Release Export, and init Delivery"
+title: "OpenCode Adapter: Bridge Package, Skills and Agents, Shared-Fixture Tests, Release Export, and init Delivery"
 status: draft
 tags:
   - "component:cli"
@@ -11,81 +11,107 @@ tags:
 
 ## Goal
 
-Ship `@archcore/opencode-plugin` so an OpenCode session behaves like the four shipped hosts — recap at session start, direct `.archcore/` writes refused with the redirect reason, document tools and skills available, post-write validation appended — and let `archcore init` deliver the package from the host selection screen. Zero edits under `@plugin/plugins/archcore/`; the contract is `opencode-adapter.spec`.
+Ship `@archcore/opencode-plugin` so an OpenCode session behaves like the four shipped hosts. It gets the recap at session start and has direct `.archcore/` writes refused with the redirect reason. It has the document tools, the `/archcore-init`, `/archcore-plan`, `/archcore-document`, and `/archcore-review` commands, and both Archcore agents, and it appends post-write validation. Then let `archcore init` deliver the package from the host selection screen. The plan makes zero edits under `@plugin/plugins/archcore/`; the contract is `opencode-adapter.spec`.
 
 ## Tasks
 
 ### Phase 1 — Package scaffold and bridge
 
-1. Create `@plugin/plugins/opencode/package.json`: name `@archcore/opencode-plugin`, `type` `module`, `engines.opencode`, `files` with `dist/`, `bin/`, `skills/`.
-2. Add a pack script copying `@plugin/plugins/archcore/bin/` and `@plugin/plugins/archcore/skills/` into the package root; gitignore both copies in `@.gitignore`.
-3. Write `@plugin/plugins/opencode/src/index.ts` exporting the plugin with the four hooks the spec names.
-4. Write the spawn helper: `ARCHCORE_HOST=opencode`, cwd `directory`, stdin envelope, exit translation, per-launcher budget.
-5. Implement `config`: set the MCP entry when absent; append the bundled `skills/` path to `cfg.skills.paths`.
-6. Implement the per-session recap cache behind `experimental.chat.system.transform`, keyed by `sessionID`.
-7. Implement the held pre-mutation context (spec behaviors 9–10) in `@plugin/plugins/opencode/src/index.ts`.
+1. Create `@plugin/plugins/opencode/package.json`: name `@archcore/opencode-plugin`, `type` `module`, `main` and `exports["./server"]` `dist/index.js`.
+2. Set `engines.opencode` to `>=1.18.34` and `files` to `dist/`, `bin/`, `skills/`, `agents/`.
+3. Declare no dependency; type the four hooks locally in `@plugin/plugins/opencode/src/bridge.ts`.
+4. Write `@plugin/plugins/opencode/scripts/pack.sh` copying `bin/` and `agents/*.md` from `@plugin/plugins/archcore/`.
+5. Make the pack step copy `skills/` and rewrite each `SKILL.md` `name:` line to `archcore-<name>`.
+6. Make the pack step run `bun build src/index.ts --outdir dist --target node --format esm`.
+7. Gitignore `bin/`, `skills/`, `agents/`, `dist/`, and `node_modules/` under `plugin/plugins/opencode/` in `@.gitignore`.
+8. Write `@plugin/plugins/opencode/src/spawn.ts`: env, cwd `directory`, closed stdin, exit translation, per-launcher budget, kill on timeout.
+9. Write `@plugin/plugins/opencode/src/index.ts` exporting `{ id, server }` with the four hooks the spec names.
+10. Run the CLI gate `bin/cli-gte 0.10.0` once inside `server()` and disable every spawn below it.
+11. Implement `config`: MCP entry when absent, `skills.paths` append with `skills` created, agent keys when absent.
+12. Write `@plugin/plugins/opencode/src/agents.ts` with both agent definitions and the prompt read from bundled `agents/<name>.md`.
+13. Implement the per-session recap promise behind `experimental.chat.system.transform`, keyed by `sessionID`.
+14. Implement the held pre-mutation context by `callID` and the post-mutation `content[]` push.
+15. Wrap `config`, `tool.execute.after`, and the transform so that no error escapes them.
 
 ### Phase 2 — Tests on both sides of the stdin contract
 
-8. Write `bun test` files beside `src/` in `@plugin/plugins/opencode/` feeding `@plugin/test/fixtures/stdin/opencode/` to a stub launcher.
-9. Assert in those tests the thrown reason on exit 2, appended context on exit 0, and verbatim `tool_input`.
-10. Add a bats structure test for byte parity between the bundled copies and their sources after the pack script runs.
-11. Enroll `opencode` in `@plugin/test/structure/host-coverage-matrix.bats` with a bridge row read from the TypeScript tool sets.
-12. Extend `enrolled_hosts()` in `@plugin/test/structure/probe-records.bats` so the bridge row yields `opencode`.
-13. Add the `opencode` row to the records table of `host-probe-protocol.spec` as `deferred:bridge-not-released` (issue #21).
-14. Widen the TypeScript-location assertion in `@plugin/test/structure/next-step-mod.bats` to allow `@plugin/plugins/opencode/`.
-15. Add a `test-opencode` target to `@plugin/Makefile` and Bun setup plus `bun test` steps to `@.github/workflows/test.yml`.
+16. Rewrite `@plugin/test/fixtures/stdin/opencode/mcp-update.json` to the `archcore_update_document` tool name.
+17. Rewrite both write fixtures to OpenCode's `filePath` argument key.
+18. Add `edit`, `apply_patch`, and session-start fixtures in the spec's envelope.
+19. Write `bun test` files beside `src/` driving those fixtures through a stub launcher.
+20. Assert the thrown reason without trailing newline, held and appended context, verbatim `tool_input`, and one session spawn.
+21. Assert agent `description`, `steps`, and permission parity against `@plugin/plugins/archcore/agents/*.md` frontmatter.
+22. Add a bats structure test for `bin/`, `skills/`, and `agents/` parity, masking the renamed `name:` line.
+23. Make that parity test skip with a message when the pack output is absent.
+24. Add an `opencode` case to `@plugin/test/structure/hook-launchers.bats`.
+25. Give `@plugin/test/structure/host-coverage-matrix.bats` a bridge row type read from the TypeScript tool sets.
+26. Extend `enrolled_hosts()` in `@plugin/test/structure/probe-records.bats` so the bridge row yields `opencode`.
+27. Add the `opencode` row to `host-probe-protocol.spec` as `deferred:bridge-not-released` (issue #21).
+28. Land tasks 25, 26, and 27 in one commit, because the row count must equal the enrolled host count.
+29. Add a `test-opencode` target to `@plugin/Makefile` that skips with a message when `bun` is missing.
+30. Add Bun setup, the pack step, and `bun test` to `@.github/workflows/test.yml`.
 
 ### Phase 3 — Release export and publish
 
-16. Run the pack script inside `@scripts/export-plugin.sh` before the copy, keeping test files out of any `test/` directory.
-17. Extend the `.archcore`-reference grep in `@scripts/export-plugin.sh` to cover `plugins/opencode/`.
-18. Add an npm publish job for the package to `@.github/workflows/release.yml`, gated on the release tag, using an `NPM_TOKEN` secret.
+31. Remove `plugins/opencode/` from the tree `@scripts/export-plugin.sh` writes, because npm is its channel.
+32. Pin that exclusion in `@plugin/test/structure/release-blocklist.bats`.
+33. Add an `npm pack --dry-run` check for `dist/index.js` and for no `test` directory.
+34. Add a `publish-opencode` job to `@.github/workflows/release.yml` after `publish-plugin` that writes the tag version and publishes with `NPM_TOKEN`, and that skips a version npm already has.
 
 ### Phase 4 — CLI delivery
 
-19. Add `HostOpenCode` to `hostOrder` and `agentToHost` in `@cli/internal/plugin/plugin.go`.
-20. Add an OpenCode row to `@cli/internal/plugin/hosts.go` whose install, remove, and status edit the `plugin` array of `opencode.json`.
-21. Teach `@cli/internal/plugin/plan.go`, `@cli/internal/plugin/execute.go`, and `@cli/internal/plugin/evidence.go` a file-edit action and file evidence.
-22. Reuse the JSON merge helpers of `@cli/internal/agents/mcp_helpers.go` for the array edit; back up invalid JSON first.
-23. Mark OpenCode project-level on the init selection screen (`pluginSelectionNote` in `@cli/cmd/init.go`).
-24. Name five hosts in the `--agent` rejection of `@cli/cmd/plugin_run.go`.
-25. Pin the row in `@cli/internal/plugin/hosts_test.go`, `@cli/internal/plugin/plan_test.go`, and `@cli/internal/plugin/execute_test.go`.
-26. Apply the recorded amendment to `plugin-delivery.spec` and `updating-the-plugin.spec` (Declared Delta below).
-27. Update the OpenCode rows of `.archcore/integrations/supported-ai-agents.doc.md` and `@README.md`; report the roster change to the `archcore` global source (`supported-ai-hosts.doc`, read-only here).
+35. Add `HostOpenCode` to `hostOrder` and `agentToHost` in `@cli/internal/plugin/plugin.go`.
+36. Add an OpenCode row to `@cli/internal/plugin/hosts.go`: CLI `opencode`, project-scoped, no listing.
+37. Set its install to `opencode plugin @archcore/opencode-plugin` with `Command.Dir` set to the project root.
+38. Set its remove to a printed note naming the `plugin` array of `.opencode/opencode.json`.
+39. Leave its update empty until a live check shows how the host refreshes an unpinned package.
+40. Pass the project root into `CollectEvidence` in `@cli/internal/plugin/evidence.go`.
+41. Read OpenCode evidence from `.opencode/opencode.json[c]` and `opencode.json[c]` in the project root and each parent up to the git working-tree root, for the package name.
+42. Skip OpenCode in `archcore update` and in `archcore plugin` runs without a resolved project root.
+43. Update the seven tests that pin "OpenCode ships no plugin" in `@cli/cmd/` and `@cli/internal/plugin/`.
+44. Add row tests to `@cli/internal/plugin/hosts_test.go`, `plan_test.go`, `execute_test.go`, and `evidence_test.go`.
+45. Correct the host-count comments in `@cli/internal/plugin/plugin.go`, `@cli/cmd/plugin_run.go`, and `@cli/cmd/init.go`.
+46. Apply the amendment to `plugin-delivery.spec` and `updating-the-plugin.spec` (Declared Delta below).
+47. Update the OpenCode statements of `supported-ai-agents.doc` and `agent-hooks-integration.doc` that call the plugin undelivered.
+48. Update the OpenCode row of `@README.md`; report the roster change to the `archcore` global `supported-ai-hosts.doc`.
 
 ### Phase 5 — Live verification
 
-28. Run probes P0, A, A-d, B, C, D on OpenCode 1.18.34 per `host-probe-protocol.spec`; append the dated row.
-29. Capture the host's hook payloads into `@plugin/test/fixtures/stdin/opencode/`, including a session-start shape.
-30. Set `engines.opencode` in `@plugin/plugins/opencode/package.json` from the Phase 5 probe outcome.
-31. If probe C shows `config` runs after MCP start, switch the guide to manual wiring.
-32. If probe C shows `config` runs after MCP start, record the outcome in `opencode-mcp-entry-ownership.adr`.
+49. Remove or override the global `mcp.archcore` entry in `~/.config/opencode/opencode.json` on the probe machine.
+50. Run probes P0, A, A-d, B, C, D on OpenCode 1.18.34 and 1.19.3 per `host-probe-protocol.spec`.
+51. Check that `/archcore-plan` runs the skill and that both agents appear as subagents.
+52. Capture the live hook payloads into `@plugin/test/fixtures/stdin/opencode/`, replacing the synthetic ones.
+53. Set `engines.opencode` from the lowest version that passed.
+54. Load the package once under Kilo CLI and record the result in `agent-host-landscape.rnd`.
+55. If probe C shows `config` runs after MCP start, switch the guide to manual wiring.
+56. If probe C shows `config` runs after MCP start, record the outcome in `opencode-mcp-entry-ownership.adr`.
+57. Restart OpenCode after a newer package release and record whether the unpinned entry refreshes.
 
 ## Acceptance Criteria
 
 - `make verify` passes at the repository root with no diff under `plugin/plugins/archcore/`.
-- `bun test` passes inside `plugin/plugins/opencode/`; `find plugin -name '*.ts'` lists only that directory and the Claude Code mod paths.
-- `scripts/export-plugin.sh` succeeds and the exported `plugins/opencode/` carries `bin/` and `skills/` and no `test` directory.
-- A second `archcore init --agent opencode` run over a wired project leaves `opencode.json` byte-identical.
+- `bun test` passes inside `plugin/plugins/opencode/`; outside that directory the set of tracked `.ts` files is unchanged.
+- `scripts/export-plugin.sh` succeeds without `plugins/opencode/`, and `npm pack --dry-run` lists `dist/index.js`, `bin/`, `skills/`, `agents/`, and no `test` directory.
+- In an OpenCode session, `/archcore-init`, `/archcore-plan`, `/archcore-document`, and `/archcore-review` run the Archcore skills, and `/init` and `/review` stay the OpenCode built-ins.
+- A second `archcore init --agent opencode` run over a wired project leaves `.opencode/opencode.json` byte-identical.
 - The `opencode` probe row records `pass` on P0, A, B, and C with an evidence pointer.
 
 ## Dependencies
 
-- Archcore CLI 0.10.0 or newer on the probe machine — the `archcore hooks opencode <leaf>` leaves (`ea474ad`).
-- Bun on CI runners and the developer machine — absent locally on 2026-10-09.
-- npm publish rights on the `@archcore` scope.
-- OpenCode 1.17.13 or newer for the verified hook set (`opencode-host-support.rnd`); 1.18.34 installed locally.
-- `opencode-adapter-packaging.adr` (accepted) and `opencode-mcp-entry-ownership.adr` (draft) for the package shape and the `config` hook.
+- Archcore CLI 0.10.0 or newer — the first release with the corrected OpenCode leaves (`ea474ad`); 0.13.1 installed locally.
+- Bun on CI runners and on the developer machine — absent locally on 2026-10-18.
+- npm publish rights on the `@archcore` scope and an `NPM_TOKEN` repository secret.
+- OpenCode 1.18.34 installed locally; 1.19.3 is the latest release on 2026-10-18.
+- `opencode-adapter-packaging.adr`, `opencode-archcore-prefixed-skill-names.adr`, and `opencode-plugin-ships-built-javascript.adr` (accepted, the last two on 2026-10-18); `opencode-mcp-entry-ownership.adr` (draft).
 - Issue #21 for the live probe run on the four shipped hosts; the OpenCode row joins that run.
 
 ## Declared Delta
 
 - Route: `capability` (size L); raised by M = stone (`host-adapter-contract.spec`, `stack-and-tooling.rule`, `opencode-adapter-packaging.adr` accepted) and R = `external-contract` (a published npm package against OpenCode's plugin API and a TS–shell stdin contract pinned by two suites).
 - creates: `opencode-adapter` → `opencode-adapter.spec`.
-- modifies: `plugin-delivery` → verdict `spec-wrong` against `plugin-delivery.spec` and `updating-the-plugin.spec`. Evidence: both state "OpenCode ships no plugin"; the maintainer's 2026-10-09 decision to deliver `@archcore/opencode-plugin` from `archcore init` makes that sentence stale. Amendment: an OpenCode row in the per-host install table (a file edit on the `plugin` array of `opencode.json`, no host command, project-level), `opencode` among the hosts `--agent` accepts, and the update step addressing OpenCode with no command [assumption: the host resolves an unpinned package at startup].
+- modifies: `plugin-delivery` → verdict `spec-wrong` against `plugin-delivery.spec` and `updating-the-plugin.spec`. Evidence: both state "OpenCode ships no plugin"; the maintainer's 2026-10-09 decision to deliver `@archcore/opencode-plugin` from `archcore init` makes that sentence stale once Phase 4 ships. Amendment: an OpenCode row in the per-host install table (`opencode plugin @archcore/opencode-plugin` run in the project root, which writes `.opencode/opencode.json`; project-scoped; remove as a printed note), `opencode` among the hosts `--agent` accepts, and the update step addressing OpenCode with no command until task 57 shows how the host refreshes an unpinned package.
 - retires: none.
-- decision: `mcp-archcore-entry-ownership` → `opencode-mcp-entry-ownership.adr`.
-- intent_gap: no — intent recorded in `opencode-adapter-packaging.adr` and `opencode-host-support.rnd`; the intent instrument was skipped on the compression path.
-- Π: machine (the canon and code cited above), user (two questions, both answered 2026-10-09), empirical (the six probes of the rnd's Next Action, run through `host-probe-protocol.spec` as Phase 5; no spike document because the probes need the bridge to exist first).
-- Illustrate: not engaged — no UI, skill, or new operator flow. Runbook: engaged — install and verify steps → `opencode-plugin-install.guide`.
+- decision: `mcp-archcore-entry-ownership` → `opencode-mcp-entry-ownership.adr`; `opencode-command-names` → `opencode-archcore-prefixed-skill-names.adr`; `opencode-package-build` → `opencode-plugin-ships-built-javascript.adr`.
+- intent_gap: no — intent recorded in `opencode-adapter-packaging.adr` and `opencode-host-support.rnd`.
+- Π: machine (OpenCode v1.18.34 source at commit `aec0b9a6`, the CLI and launcher code cited above), user (questions answered 2026-10-09 and 2026-10-18), empirical (the probes of Phase 5).
+- Illustrate: not engaged — no new operator flow beyond the install guide. Runbook: engaged → `opencode-plugin-install.guide`.

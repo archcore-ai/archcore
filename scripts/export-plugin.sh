@@ -27,6 +27,9 @@ done
 # Claude Code writes the mod's type declarations and a tsconfig.json into a plugin
 # it loads from a development directory; they describe one local build, not the release.
 rm -rf "$output/plugins/archcore/.claude-plugin/types" "$output/plugins/archcore/tsconfig.json"
+# @archcore/opencode-plugin ships through npm (the publish-opencode job of
+# release.yml), not through this tree, so its sources and pack output stay out.
+rm -rf "$output/plugins/opencode"
 mkdir -p "$output/docs"
 for file in TERMS.md cursor.mcp.example.json; do
   cp "$source_root/docs/$file" "$output/docs/$file"

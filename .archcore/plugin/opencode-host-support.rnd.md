@@ -46,6 +46,14 @@ A documentation and source sweep on 2026-07-05 over opencode.ai/docs — plugins
 
 **Distribution.** The ecosystem convention favors unscoped `opencode-*` names, which dominate the roughly 37 listed plugins, though a scoped `@org/name` is supported. A user installs by adding the package name to the `plugin` array, with no separate install step, and the config is not hot-reloaded, so a restart is required. A community template exists at `zenobi-us/opencode-plugin-template`; there is no first-party template.
 
+**Later source reading, 2026-10-18 (OpenCode v1.18.34, commit `aec0b9a6`).** Five findings above changed, and `opencode-adapter.spec` carries the current design:
+
+- Session start: the recap reaches the model through `experimental.chat.system.transform`, keyed by `sessionID`, not through `session.created`.
+- Skills: every skill becomes a slash command by its `name`, and `init` and `review` are built-in commands, so the bundled skills ship as `archcore-<name>` (`opencode-archcore-prefixed-skill-names.adr`).
+- Agents: a plugin cannot add files to `.opencode/agents/`; the `config` hook sets `cfg.agent` entries instead.
+- Distribution: `opencode plugin <module>` installs a package and writes the project's `.opencode/opencode.json`, so a user also has a one-command install.
+- Packaging: the package publishes built JavaScript (`opencode-plugin-ships-built-javascript.adr`), and the package name is `@archcore/opencode-plugin` per `opencode-adapter-packaging.adr`.
+
 ## Recommendation
 
 The updated adapter design, pending the maintainer ADR:

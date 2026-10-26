@@ -1,0 +1,33 @@
+{
+  "name": "@archcore/opencode-plugin",
+  "version": "0.0.0",
+  "description": "Archcore for OpenCode: the archcore MCP server, the /archcore-* commands, two subagents, and the .archcore/ write guard and validation hooks.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/archcore-ai/archcore.git",
+    "directory": "plugin/plugins/opencode"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./server": "./dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "skills/",
+    "agents/"
+  ],
+  "engines": {
+    "opencode": ">=1.18.34"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prepack": "sh scripts/pack.sh",
+    "test": "bun test"
+  }
+}

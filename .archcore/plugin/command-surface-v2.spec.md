@@ -92,7 +92,7 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 - Constraint: the actor-subject types bind only when the engine gate in @plugin/plugins/archcore/skills/_shared/actor-subject-compatibility.md returns `yes`.
 - Invariant: every one of the 23 document types is producible through at least one command path when the engine supports the vocabulary.
 - Invariant: category is computed from the document type; no command asks the user to select a category.
-- Invariant: skill content is byte-identical across hosts.
+- Invariant: skill content is byte-identical across hosts, except the frontmatter `name:` line that the OpenCode package renames to `archcore-<name>` (`opencode-archcore-prefixed-skill-names.adr`).
 
 ## Failure Behavior
 
