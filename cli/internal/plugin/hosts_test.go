@@ -109,14 +109,14 @@ func TestSpecForPinsTheCommandTable(t *testing.T) {
 			host:        HostOpenCode,
 			wantCLI:     "opencode",
 			wantDisplay: "OpenCode",
-			wantInstall: []string{"opencode plugin @archcore/opencode-plugin"},
+			wantInstall: []string{"opencode plugin -g @archcore/opencode-plugin"},
 			wantConfigs: []string{
 				".opencode/opencode.json",
 				".opencode/opencode.jsonc",
 				"opencode.json",
 				"opencode.jsonc",
 			},
-			wantRemoveNote: `Remove "@archcore/opencode-plugin" from the "plugin" array of the OpenCode config that lists it: .opencode/opencode.json at the root of the git working tree, unless you added it to another opencode.json.`,
+			wantRemoveNote: `Remove "@archcore/opencode-plugin" from the "plugin" array of ~/.config/opencode/opencode.json, or of the project opencode.json that lists it.`,
 		},
 	}
 	for _, tt := range tests {

@@ -267,10 +267,11 @@ var hostTable = map[Host]HostSpec{
 		MachineScoped: true,
 	},
 
-	// Read from the OpenCode 1.18.34 source (packages/opencode/src/cli/cmd/
-	// plug.ts), not run live. `opencode plugin <pkg>` patches the config of the
-	// working directory's worktree and is a no-op for a listed package; the
-	// evidence reads the same directories (configDirs).
+	// The plugin goes into the global config, as OpenCode's npm plugins usually
+	// do: `opencode plugin -g <pkg>` on 1.x (packages/opencode/src/cli/cmd/
+	// plug.ts, 1.18.34) and `opencode plugin add` on 2.x, which writes only the
+	// global config. The evidence also reads the project configs (configDirs),
+	// where releases before 0.14.2 wrote the entry.
 	HostOpenCode: {
 		Host:        HostOpenCode,
 		DisplayName: "OpenCode",
@@ -282,7 +283,7 @@ var hostTable = map[Host]HostSpec{
 			"opencode.jsonc",
 		},
 		Install: []Command{
-			{Name: "opencode", Args: []string{"plugin", openCodePackage}},
+			{Name: "opencode", Args: []string{"plugin", "-g", openCodePackage}},
 		},
 		Version: Command{Name: "opencode", Args: []string{"--version"}},
 		// OpenCode 2.x replaced `opencode plugin <module>` with subcommands that
@@ -297,7 +298,7 @@ var hostTable = map[Host]HostSpec{
 		// unpinned package, and OpenCode has no uninstall command —
 		// opencode-adapter.plan.
 		Notes: UINotes{
-			Remove: `Remove "` + openCodePackage + `" from the "plugin" array of the OpenCode config that lists it: .opencode/opencode.json at the root of the git working tree, unless you added it to another opencode.json.`,
+			Remove: `Remove "` + openCodePackage + `" from the "plugin" array of ~/.config/opencode/opencode.json, or of the project opencode.json that lists it.`,
 		},
 	},
 }

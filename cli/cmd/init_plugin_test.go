@@ -678,7 +678,7 @@ func TestInitWithAgentOpenCodeInstallsInTheProject(t *testing.T) {
 	if execErr != nil {
 		t.Fatalf("init --agent opencode exited nonzero: %v\n%s", execErr, out)
 	}
-	if want := []string{project + " plugin @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
+	if want := []string{project + " plugin -g @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
 		t.Errorf("opencode ran %q, want %q\n%s", fixtureRuns(t, log), want, out)
 	}
 }
