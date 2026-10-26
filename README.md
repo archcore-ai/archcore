@@ -82,7 +82,7 @@ Say `/archcore:init import` in your agent. Archcore turns those files into typed
 | Agent | Setup |
 | --- | --- |
 | Claude Code, Codex CLI, GitHub Copilot CLI | The installer adds the plugin |
-| OpenCode | `archcore init` adds the plugin to the global OpenCode config (1.x and 2.x) |
+| OpenCode | `archcore init` adds the plugin to the global OpenCode config, or run `opencode plugin add @archcore/opencode-plugin`. [Details](https://docs.archcore.ai/guides/connect-your-agent/#opencode) |
 | Gemini CLI, Roo Code, Cline | `archcore init` connects them |
 | Cursor | [One extra setup step](https://docs.archcore.ai/guides/connect-your-agent/) |
 
@@ -105,7 +105,7 @@ The documents stay in your repo, in `.archcore/`. Details: [privacy](https://arc
 | As you go | `/archcore:document [subject]` | One sentence from you becomes a finished, linked document |
 | Before merge | `/archcore:review` | The branch checked against the documents, with the side that is wrong |
 
-Use the three commands together on one change, or use one alone. The slash commands run in Claude Code, Cursor, Codex CLI, and GitHub Copilot. In every connected agent, a plain sentence works too.
+Use the three commands together on one change, or use one alone. The slash commands run in Claude Code, Cursor, Codex CLI, and GitHub Copilot. In OpenCode, they are `/archcore-plan`, `/archcore-document`, and `/archcore-review`. In every connected agent, a plain sentence works too.
 
 ### Plan: the agent builds from documents, not from a chat message
 
