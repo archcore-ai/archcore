@@ -24,7 +24,7 @@ var (
 
 	codexUpdateLines  = []string{"codex plugin marketplace upgrade archcore-plugins"}
 	codexInstallLines = []string{
-		"codex plugin marketplace add archcore-ai/archcore",
+		"codex plugin marketplace add archcore-ai/archcore --sparse .agents/plugins --sparse plugins/archcore",
 		"codex plugin add archcore@archcore-plugins",
 	}
 	codexRemoveLines = []string{"codex plugin remove archcore@archcore-plugins"}

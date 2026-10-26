@@ -31,6 +31,13 @@ const (
 	openCodePackage = "@archcore/opencode-plugin"
 )
 
+// codexSparsePaths are the two paths a Codex marketplace needs: its catalog and
+// the plugin. With them Codex clones without file contents and checks out only
+// these paths (codex-rs/core-plugins/src/marketplace_upgrade/git.rs). Without
+// them it clones the whole repository, dev history and every tag included,
+// which outlasts its 30 s clone timeout on a slow link.
+var codexSparsePaths = []string{".agents/plugins", "plugins/archcore"}
+
 // UINotes carries the one-line instruction printed for a host with no CLI
 // mechanism. Cursor is the only such host today: it manages plugins from its
 // UI, so every verb it takes part in resolves to a printed sentence.
@@ -207,7 +214,8 @@ var hostTable = map[Host]HostSpec{
 			{Name: "codex", Args: []string{"plugin", "marketplace", "upgrade", MarketplaceID}},
 		},
 		Install: []Command{
-			{Name: "codex", Args: []string{"plugin", "marketplace", "add", RepoID}},
+			{Name: "codex", Args: []string{"plugin", "marketplace", "add", RepoID,
+				"--sparse", codexSparsePaths[0], "--sparse", codexSparsePaths[1]}},
 			{Name: "codex", Args: []string{"plugin", "add", PluginID}},
 		},
 		Remove: []Command{

@@ -313,19 +313,21 @@ func canonicalSource(source string) (string, bool) {
 
 var codexSourceTableRe = regexp.MustCompile(`^\s*\[marketplaces\.(?:archcore-plugins|"archcore-plugins"|'archcore-plugins')\]\s*(?:#.*)?$`)
 var codexSourceFieldRe = regexp.MustCompile(`^\s*(source_type|source|last_updated|last_revision)\s*=\s*("[^"\\]*"|'[^']*')\s*(?:#.*)?$`)
+var codexSparseFieldRe = regexp.MustCompile(`^\s*sparse_paths\s*=\s*\[[^\]]*\]\s*(?:#.*)?$`)
 
 func rewriteCodexSource(data []byte) []byte {
 	text := string(data)
 	// This edits only the native table: source_type and source, plus the refresh
 	// fields last_updated and last_revision, which pin no revision —
 	// plugin-source-migration.spec. Inline tables and multiline strings stay
-	// untouched; a partial TOML parser would misread them.
+	// untouched; a partial TOML parser would misread them. A table without
+	// sparse_paths gains codexSparsePaths; one that has them keeps its own.
 	if strings.Contains(text, `"""`) || strings.Contains(text, "'''") {
 		return nil
 	}
-	inside, found := false, false
+	inside, found, sparse := false, false, false
 	fields := make(map[string]string, 2)
-	start, end, offset := 0, 0, 0
+	start, end, offset, last := 0, 0, 0, 0
 	for line := range strings.Lines(text) {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "[") {
@@ -342,6 +344,15 @@ func rewriteCodexSource(data []byte) []byte {
 				found = true
 			}
 		} else if inside && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			last = offset + len(line)
+			if codexSparseFieldRe.MatchString(strings.TrimSuffix(line, "\n")) {
+				if sparse {
+					return nil
+				}
+				sparse = true
+				offset += len(line)
+				continue
+			}
 			match := codexSourceFieldRe.FindStringSubmatchIndex(strings.TrimSuffix(line, "\n"))
 			if match == nil {
 				return nil
@@ -361,10 +372,23 @@ func rewriteCodexSource(data []byte) []byte {
 		return nil
 	}
 	next, ok := canonicalSource(fields["source"])
-	if !ok || next == fields["source"] {
+	if !ok {
 		return nil
 	}
-	return []byte(text[:start] + next + text[end:])
+	out := text
+	// The insertion follows the source value, so start and end stay valid.
+	if !sparse {
+		head := out[:last]
+		if !strings.HasSuffix(head, "\n") {
+			head += "\n"
+		}
+		out = head + `sparse_paths = ["` + strings.Join(codexSparsePaths, `", "`) + `"]` + "\n" + out[last:]
+	}
+	out = out[:start] + next + out[end:]
+	if out == text {
+		return nil
+	}
+	return []byte(out)
 }
 
 func verifyMigrationCatalog(ctx context.Context, host Host, client *http.Client) error {

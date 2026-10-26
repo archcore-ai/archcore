@@ -25,6 +25,10 @@ let root: string
 let stubs: string
 let project: string
 
+// Behavior tests do not measure time, and the first run of a freshly written
+// stub can take seconds on a loaded machine, so they get budgets far above that.
+const BUDGETS = { ...BUDGET_MS }
+
 function behave(name: string, script: string) {
   writeFileSync(path.join(stubs, `${name}.sh`), script)
 }
@@ -83,9 +87,11 @@ beforeEach(() => {
     "---\nname: archcore-auditor\ndescription: >\n  Read-only\n  auditor.\nmaxTurns: 40\ntools:\n  - archcore-get_document\n  - Read\n---\n\nYou audit.\n",
   )
   process.env.STUB_DIR = stubs
+  Object.assign(BUDGET_MS, { gate: 15000, pre: 15000, post: 15000, session: 15000 })
 })
 
 afterEach(() => {
+  Object.assign(BUDGET_MS, BUDGETS)
   rmSync(root, { recursive: true, force: true })
   rmSync(project, { recursive: true, force: true })
 })
@@ -200,12 +206,14 @@ describe("tool.execute.before", () => {
   // group reaches it, which is what Failure Behavior 4 asks of the bridge.
   test("allows the call and kills the launcher's process group when it exceeds its budget", async () => {
     const saved = BUDGET_MS.pre
-    BUDGET_MS.pre = 200
+    // The budget leaves a loaded machine time to start the stub and record the
+    // child's pid; the sleep still outlasts it by seconds.
+    BUDGET_MS.pre = 1500
     try {
-      behave("pre-tool-use", 'sleep 5 & echo $! > "$STUB_DIR/child.pid"; wait; exit 2\n')
+      behave("pre-tool-use", 'sleep 10 & echo $! > "$STUB_DIR/child.pid"; wait; exit 2\n')
       const started = Date.now()
       await (await hooks())["tool.execute.before"]({ tool: "write", sessionID: "s", callID: "c" }, { args: {} })
-      expect(Date.now() - started).toBeLessThan(2000)
+      expect(Date.now() - started).toBeLessThan(5000)
       const pid = Number(readFileSync(path.join(stubs, "child.pid"), "utf8"))
       const deadline = Date.now() + 1000
       while (alive(pid) && Date.now() < deadline) await Bun.sleep(20)

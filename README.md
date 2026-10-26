@@ -14,7 +14,7 @@
 
 <br><br>
 
-<img src="docs/promo.gif" alt="Archcore: from idea to reviewed code" width="900">
+<img src="https://raw.githubusercontent.com/archcore-ai/archcore/dev/docs/promo.gif" alt="Archcore: from idea to reviewed code" width="900">
 
 </div>
 

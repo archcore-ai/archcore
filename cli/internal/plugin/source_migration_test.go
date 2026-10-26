@@ -126,7 +126,10 @@ func TestRewriteCodexSource(t *testing.T) {
 		{name: "quoted table", input: strings.ReplaceAll(migrationCodexSettings, "[marketplaces.archcore-plugins]", `[marketplaces."archcore-plugins"]`), changed: true},
 		{name: "literal quotes", input: strings.ReplaceAll(migrationCodexSettings, `"https://github.com/archcore-ai/plugin.git"`, `'https://github.com/archcore-ai/plugin.git'`), changed: true},
 		{name: "refresh bookkeeping", input: strings.ReplaceAll(migrationCodexSettings, "source_type", "last_updated = \"2026-08-19T08:39:47Z\"\nlast_revision = \"ac4316ac408e977641069a964f41b0fddf34a1b4\"\nsource_type"), changed: true},
-		{name: "canonical", input: strings.ReplaceAll(migrationCodexSettings, legacyRepoID, canonicalRepoID)},
+		{name: "canonical", input: strings.ReplaceAll(migrationCodexSettings, legacyRepoID, canonicalRepoID), changed: true},
+		{name: "canonical with sparse paths", input: withCodexSparse(strings.ReplaceAll(migrationCodexSettings, legacyRepoID, canonicalRepoID))},
+		{name: "own sparse paths", input: strings.ReplaceAll(migrationCodexSettings, "source_type", "sparse_paths = [\"plugins\"]\nsource_type"), changed: true},
+		{name: "duplicate sparse paths", input: strings.ReplaceAll(migrationCodexSettings, "source_type", "sparse_paths = []\nsparse_paths = []\nsource_type")},
 		{name: "fork", input: strings.ReplaceAll(migrationCodexSettings, legacyRepoID, "other/fork")},
 		{name: "ref", input: strings.ReplaceAll(migrationCodexSettings, "source_type", "ref = \"dev\"\nsource_type")},
 		{name: "nested fetch fields", input: migrationCodexSettings + "[marketplaces.archcore-plugins.headers]\nToken=\"keep\"\n"},
@@ -145,11 +148,20 @@ archcore-plugins = {source_type = "git", source = "https://github.com/archcore-a
 				return
 			}
 			want := strings.Replace(tt.input, legacyRepoID, canonicalRepoID, 1)
+			if !strings.Contains(tt.input, "sparse_paths") {
+				want = withCodexSparse(want)
+			}
 			if string(after) != want {
 				t.Fatalf("got %q want %q", after, want)
 			}
 		})
 	}
+}
+
+// withCodexSparse places the sparse paths line where the migrator writes it:
+// after the last field of the archcore-plugins table in migrationCodexSettings.
+func withCodexSparse(s string) string {
+	return strings.Replace(s, "\n[plugins.", "\nsparse_paths = [\".agents/plugins\", \"plugins/archcore\"]\n[plugins.", 1)
 }
 
 func TestMigrateSourcePreservesSettingsAndIsIdempotent(t *testing.T) {
@@ -366,6 +378,34 @@ func TestReadSourceFileRefusesOversizedSettings(t *testing.T) {
 func TestReadSourceFileRefusesDirectories(t *testing.T) {
 	if _, _, err := readSourceFile(t.TempDir()); err == nil {
 		t.Fatal("directory accepted as settings")
+	}
+}
+
+// TestCodexMigrationNarrowsACanonicalSourceToSparsePaths covers installs the
+// repository cutover already moved: a canonical source without sparse_paths
+// makes every Codex upgrade clone the whole monorepo, dev history included.
+func TestCodexMigrationNarrowsACanonicalSourceToSparsePaths(t *testing.T) {
+	a, paths := migrationFixture(t, HostCodexCLI)
+	canonical := strings.ReplaceAll(migrationCodexSettings, legacyRepoID, canonicalRepoID)
+	writeMigrationFile(t, paths[0], canonical)
+	stubRuns(t, func(Command) commandOutcome {
+		return commandOutcome{Stdout: `{"marketplaces":[{"name":"archcore-plugins","marketplaceSource":{"sourceType":"git","source":"https://github.com/archcore-ai/archcore.git"}}]}`}
+	})
+	calls := 0
+	client := migrationClient(http.StatusOK, migrationCodexCatalog, &calls)
+	if err := migrateSource(t.Context(), a, canonicalRepoID, client); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(paths[0])
+	if want := withCodexSparse(canonical); string(data) != want {
+		t.Fatalf("config = %q, want %q", data, want)
+	}
+	aged := ageFile(t, paths[0])
+	if err := migrateSource(t.Context(), a, canonicalRepoID, client); err != nil {
+		t.Fatal(err)
+	}
+	if !modTime(t, paths[0]).Equal(aged) || calls != 1 {
+		t.Fatalf("repeat migration wrote again or probed again: probes=%d", calls)
 	}
 }
 
