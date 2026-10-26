@@ -1,6 +1,6 @@
 # Archcore Plugin
 
-The agent half of [Archcore](../README.md): one plugin tree that Claude Code, Cursor, Codex CLI, and GitHub Copilot CLI load, with four commands, the skills behind them, two agents, and the hook launchers that hand events to the CLI. Product overview and installation: the [repository README](../README.md). This file is for people and agents who change the plugin.
+The agent half of [Archcore](../README.md): one plugin tree that Claude Code, Cursor, Codex CLI, and GitHub Copilot CLI load, with four commands, the skills behind them, two agents, and the hook launchers that hand events to the CLI. OpenCode loads the same skills, agents, and launchers through the npm package `@archcore/opencode-plugin`, built from `plugins/opencode/`. Product overview and installation: the [repository README](../README.md). This file is for people and agents who change the plugin.
 
 The plugin needs the Archcore CLI on `PATH` (`archcore --version`). The hook launchers require CLI v0.7.0 or later and fail open on anything older; `make verify` requires v0.8.3 or later.
 
@@ -17,6 +17,7 @@ The plugin needs the Archcore CLI on `PATH` (`archcore --version`). The hook lau
 | `plugins/archcore/bin/` | POSIX sh launchers `session-start`, `pre-tool-use`, `post-tool-use`, plus `detect-host`, `cli-gte`, and `lib/` |
 | `plugins/archcore/rules/`, `plugins/archcore/assets/` | Cursor rules; the icon and logo |
 | `plugins/archcore/.claude.mcp.json`, `plugins/archcore/.codex.mcp.json` | MCP registration for Claude Code and Codex CLI |
+| `plugins/opencode/` | `@archcore/opencode-plugin`: the TypeScript bridge in `src/` (`bridge.ts` for OpenCode 1.x, `v2.ts` for 2.x) and `scripts/pack.sh`, which copies `bin/`, `agents/`, and `skills/` from `plugins/archcore/` and builds `dist/index.js` |
 | `docs/` | `cursor.mcp.example.json`, the user-level MCP template for Cursor; `TERMS.md`; `release.md` |
 | `test/` | bats suites under `structure/`, `unit/`, `integration/`, and the on-demand `behavioral/` benches |
 
@@ -58,6 +59,7 @@ A retired word at the head of a request is plain topic text: the command reads i
 | Cursor 2.5+ | None shipped: Cursor spawns a plugin MCP from the install directory. The user copies `docs/cursor.mcp.example.json` into `~/.cursor/mcp.json` | `hooks/cursor.hooks.json`, `${CURSOR_PLUGIN_ROOT}` | Plugins → paste the repository URL |
 | Codex CLI 0.117+ | `.codex.mcp.json` through the manifest | `hooks/codex.hooks.json`, `${PLUGIN_ROOT}` | Platform installer; retry: `archcore plugin install --agent codex-cli` |
 | GitHub Copilot CLI | None shipped: Copilot launches a plugin MCP without a project path. `archcore init --agent copilot --project "$PWD"` wires the project | `hooks/copilot.hooks.json`; the command probes three root variables | Platform installer; retry: `archcore plugin install --agent copilot` |
+| OpenCode 1.18.34+ (1.x, 2.x) | The bridge adds `archcore mcp` as `mcp.archcore` when the config has none; an existing entry wins | The bridge spawns the `bin/` launchers from OpenCode plugin events | Global: `opencode plugin add @archcore/opencode-plugin` (2.x), `opencode plugin -g @archcore/opencode-plugin` (1.x), or `archcore init --agent opencode` in a project. Not run by the platform installer |
 
 The platform installer (`curl -fsSL https://archcore.ai/install.sh | bash`, or `irm https://archcore.ai/install.ps1 | iex` on Windows) installs the CLI and the plugin for each Claude Code, Codex CLI, and GitHub Copilot CLI command on `PATH`. Use the retry command when a host was installed later or its plugin setup failed.
 
@@ -95,4 +97,4 @@ Rules of the tree:
 
 ## Where the design lives
 
-Under the repository's `.archcore/plugin/`, by name: `plugin-development.guide`, `plugin-testing.guide`, `component-registry.doc`, `plugin-architecture.spec`, `hooks-validation-system.spec`, `multi-host-plugin-architecture.adr`, `cursor-mcp-architecture.adr`, `copilot-mcp-architecture.adr`, and `stack-and-tooling.rule`. Read them through the MCP tools from the repository root.
+Under the repository's `.archcore/plugin/`, by name: `plugin-development.guide`, `plugin-testing.guide`, `component-registry.doc`, `plugin-architecture.spec`, `hooks-validation-system.spec`, `multi-host-plugin-architecture.adr`, `cursor-mcp-architecture.adr`, `copilot-mcp-architecture.adr`, `opencode-adapter.spec`, `opencode-plugin-install.guide`, and `stack-and-tooling.rule`. Read them through the MCP tools from the repository root.
