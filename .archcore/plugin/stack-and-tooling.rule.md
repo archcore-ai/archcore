@@ -89,7 +89,7 @@ set -eu
 }
 
 # OpenCode adapter hook — thin bridge inside plugins/opencode/, per items 4-6
-# plugins/opencode/src/hooks.ts
+# plugins/opencode/src/bridge.ts
 "tool.execute.before": async (input, output) => {
   const res = await runBinScript("check-archcore-write", payload(input, output))
   if (res.blocked) throw new Error(res.reason)   // translation only — no decision logic here

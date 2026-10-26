@@ -1,6 +1,6 @@
 ---
 title: "Read-Tool Responses Stay Under a Byte Budget and Lead With Their Summary"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "globals"

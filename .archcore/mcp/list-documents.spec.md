@@ -1,6 +1,6 @@
 ---
 title: "list_documents MCP Tool Contract"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "globals"
@@ -13,7 +13,7 @@ This specification is normative for the `list_documents` MCP tool: its filters, 
 
 It does not cover body search (`search-documents.spec`), the source annotation fields of a document row (`global-sources.spec`), or the scan and its cache (`@cli/internal/docs/scan.go`).
 
-Clauses 9, 14, 15, and 16 state behavior that `host-truncation-safe-read-tools.plan` Phase 5 adds; the code at commit `7a0150f` serializes `documents` first and has no byte budget.
+Clauses 9, 14, 15, and 16 hold since the byte budget shipped: `listResponseByteBudget` and `interleaveBySource` in @cli/internal/mcp/tools/list_documents.go.
 
 ## Surface
 

@@ -16,7 +16,7 @@ Normative for `@cli/cmd/mcp.go` and the server run loop. Dependents: the MCP ser
 
 ## Surface
 
-- Mechanism: a `ServerOption` in `internal/mcp` [planned] — `WithBackgroundTask(func(ctx context.Context))`, following the existing `WithHostWiring` seam (`@cli/internal/mcp/server.go:241`). `RunStdio` starts the task between `shieldStdout()` and `Listen` (`@cli/internal/mcp/server.go:265-268`), so the task inherits the fd-level stdout shield and the session context.
+- Mechanism: a `ServerOption` in `internal/mcp` [planned] — `WithBackgroundTask(func(ctx context.Context))`, following the existing `WithHostWiring` seam (`@cli/internal/mcp/server.go`). `RunStdio` starts the task between `shieldStdout()` and `Listen` (`@cli/internal/mcp/server.go`), so the task inherits the fd-level stdout shield and the session context.
 - Wiring: `cmd/mcp.go` supplies the closure — the 60 s delay, the policy invocation, and the stderr line. The update stack stays out of `internal/mcp`.
 - Delay before the attempt: 60 s. [assumption] session startup and the first tool calls complete inside that window.
 - Session context: `cmd.Context()`, cancelled by the host closing stdio or by `signal.NotifyContext` in `@cli/main.go`.

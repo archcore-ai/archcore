@@ -43,19 +43,19 @@ a tool package that imports `cmd` creates the import cycle the executor seam exi
 
 **Good** — the surface hands the server an opaque capability instead of importing it.
 
-> `RunStdio` takes `BackgroundTask func(context.Context)` — @cli/internal/mcp/server.go:238 — and
+> `RunStdio` takes `BackgroundTask func(context.Context)` — @cli/internal/mcp/server.go — and
 > `cmd/mcp.go` supplies the unattended-update run. `internal/mcp` never names `internal/update`.
 
 **Good** — `install_host_config` registers only when the cmd layer injects an executor through
-`WithHostWiring(tools.HostWiringFunc)` — @cli/internal/mcp/server.go:220.
+`WithHostWiring(tools.HostWiringFunc)` — @cli/internal/mcp/server.go.
 
 **Bad** — a tool handler that calls a helper in `cmd` directly. Go refuses the build, because `cmd`
 already imports `internal/mcp/tools`. The seam is not a preference; the cycle is the reason it exists.
 
 ## Enforcement
 
-- `TestPackage_DoesNotLinkTheUpdateStack` — @cli/internal/mcp/server_contract_test.go:67 — holds clause 3.
-- `TestPackage_DoesNotLinkThePluginSurface` — @cli/internal/update/plugin_link_test.go:37 — holds clause 4.
+- `TestPackage_DoesNotLinkTheUpdateStack` — @cli/internal/mcp/server_contract_test.go — holds clause 3.
+- `TestPackage_DoesNotLinkThePluginSurface` — @cli/internal/update/plugin_link_test.go — holds clause 4.
 - The Go compiler holds clause 5, because `cmd` imports `internal/mcp/tools`.
 - Clauses 1, 2, 6, 7, and 9 carry no automated check today. `go list -deps ./internal/<pkg>` reports
   the actual edges of one package, and review compares them against the table. [assumption] A single

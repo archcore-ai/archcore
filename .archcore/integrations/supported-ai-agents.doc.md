@@ -10,7 +10,7 @@ tags:
 
 Archcore integrates with 8 AI coding agents. Each agent has its own combination of hooks support
 (lifecycle event interception), MCP support (document tool access), an instruction-nudge file
-(discovery hint), and — for four of them — a shipping Archcore plugin the CLI can install and update.
+(discovery hint), and — for five of them — a shipping Archcore plugin the CLI can install and update.
 
 The canonical, tool-agnostic host roster lives in the `archcore` global source
 (`architecture/supported-ai-hosts`). This document is the CLI's per-host integration reference: config
@@ -26,7 +26,7 @@ carries the event matrix and the per-host protocol dialects.
 | Gemini CLI | `gemini-cli` | Yes | Yes | No | `.gemini/` dir | [github.com/google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) |
 | Codex CLI | `codex-cli` | Yes | Yes | Yes | `.codex/` dir | [github.com/openai/codex](https://github.com/openai/codex) |
 | GitHub Copilot | `copilot` | Yes | Yes | Yes | `.github/copilot-instructions.md` file | [github.com/features/copilot](https://github.com/features/copilot) |
-| OpenCode | `opencode` | Via plugin | Yes | No | `opencode.json` file or `.opencode/` dir | [opencode.ai](https://opencode.ai/) |
+| OpenCode | `opencode` | Via plugin | Yes | Yes | `opencode.json` file or `.opencode/` dir | [opencode.ai](https://opencode.ai/) |
 | Roo Code | `roo-code` | No | Yes | No | `.roo/` dir | [roocode.com](https://roocode.com/) |
 | Cline | `cline` | No | Manual | No | `.clinerules/` dir | [cline.bot](https://cline.bot/) |
 
@@ -76,7 +76,7 @@ Cline.
 The Archcore plugin lives under `plugin/` of the `archcore-ai/archcore` monorepo, beside the CLI.
 Five hosts carry it: Claude Code, Cursor, Codex CLI, GitHub Copilot, and OpenCode. OpenCode's
 plugin is a different artifact, the npm package `@archcore/opencode-plugin`, and this surface
-delivers it per project; Gemini CLI, Roo Code, and Cline have none.
+delivers it into the global OpenCode config; Gemini CLI, Roo Code, and Cline have none.
 
 Three frozen identifiers address it everywhere — repository `archcore-ai/archcore`, marketplace
 `archcore-plugins`, plugin id `archcore@archcore-plugins`. `plugin-cli-compatibility.rule`
@@ -93,16 +93,21 @@ Three entry points reach the plugin, and all three run one planner and one execu
 
 The CLI asks each host for its own answer before it acts. With the host CLI on `PATH`, it reads that
 host's read-only plugin listing; with the CLI absent, it reads the host's on-disk plugin registry.
-OpenCode has no listing, so the CLI reads the `plugin` array of the project's OpenCode config instead. A
+OpenCode has no listing command, so the CLI reads the `plugin` and `plugins` keys of the global OpenCode
+config and of the project configs up to the git root, and reads the major version from
+`opencode --version`. A
 host that reports no plugin produces no output at all, and no mutating command runs there.
 
 | Host | CLI | Install | Update |
 |---|---|---|---|
 | Claude Code | `claude` | `plugin marketplace add`, then `plugin install` | `plugin marketplace update`, then `plugin update` |
-| GitHub Copilot | `copilot` | `plugin install archcore-ai/archcore:plugins/archcore` [assumption on the subpath] | `plugin update archcore@archcore-plugins` |
-| Codex CLI | `codex` | `plugin marketplace add`, then `plugin add` | `plugin marketplace upgrade archcore-plugins` |
+| GitHub Copilot | `copilot` | `plugin install archcore-ai/archcore:plugins/archcore` [assumption on the subpath] | `plugin update archcore` |
+| Codex CLI | `codex` | `plugin marketplace add archcore-ai/archcore --sparse .agents/plugins --sparse plugins/archcore`, then `plugin add archcore@archcore-plugins` | `plugin marketplace upgrade archcore-plugins` |
 | Cursor | none | print the UI instruction | print the UI instruction |
-| OpenCode | `opencode` | `plugin @archcore/opencode-plugin`, run in the project root | none until a live probe; `archcore update` skips it |
+| OpenCode | `opencode` | 1.x: `plugin -g @archcore/opencode-plugin`; 2.x: `plugin add @archcore/opencode-plugin` | 2.x: `plugin update @archcore/opencode-plugin`; 1.x: none |
+
+OpenCode removal runs `opencode plugin remove @archcore/opencode-plugin` on 2.x and prints a note on 1.x.
+`plugin-delivery.spec` owns these facts.
 
 Claude Code additionally gets an `autoUpdate: true` marketplace entry merged into
 `~/.claude/settings.json`, so the host refreshes the plugin on its own. The redundancy with
@@ -208,7 +213,7 @@ host's plugin install cache. Two surfaces resolve differently, and both matter w
 - MCP format: standard `mcpServers` JSON inside the same `settings.json`
 - Instruction file: `GEMINI.md` (fenced upsert; Gemini CLI's default `contextFileName`)
 - Plugin: none. `archcore init --agent gemini-cli` stays a valid wiring run and delivers no plugin;
-  `archcore plugin --agent gemini-cli` errors and names the four hosts that have one
+  `archcore plugin --agent gemini-cli` errors and names the five hosts that have one
 - Source: `@cli/internal/agents/gemini_cli.go`, `@cli/internal/wiring/hooks_agents.go`
 - [assumption] The tool events are wired from the published reference and are not confirmed against a
   running host. Their event names, tool names, and timeout unit all differ from every other host.
@@ -294,10 +299,11 @@ host's plugin install cache. Two surfaces resolve differently, and both matter w
 - Instruction file: `AGENTS.md` (fenced upsert)
 - Plugin: the Archcore OpenCode plugin is the npm package `@archcore/opencode-plugin`, a separate
   artifact from `archcore@archcore-plugins`. `archcore init` and `archcore plugin install` deliver
-  it by running `opencode plugin @archcore/opencode-plugin` in the project root, which adds the
-  package to the `plugin` array of `.opencode/opencode.json`. It adds the `/archcore-init`,
-  `/archcore-plan`, `/archcore-document`, and `/archcore-review` commands. Removal is a printed
-  note; `archcore update` does not refresh it (`plugin-delivery.spec`)
+  it into the global OpenCode config (`~/.config/opencode/opencode.json`): `opencode plugin -g
+  @archcore/opencode-plugin` on 1.x, `opencode plugin add @archcore/opencode-plugin` on 2.x. It adds
+  the `/archcore-init`, `/archcore-plan`, `/archcore-document`, and `/archcore-review` commands.
+  Removal runs `opencode plugin remove` on 2.x and is a printed note on 1.x. `archcore update` runs
+  `opencode plugin update` on 2.x and nothing on 1.x (`plugin-delivery.spec`)
 - Source: `@cli/internal/agents/opencode.go`, `@cli/cmd/hook_dialect.go`, `@cli/cmd/hook_payload.go`
 
 ### Roo Code

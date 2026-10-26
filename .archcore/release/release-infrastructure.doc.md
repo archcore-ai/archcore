@@ -8,7 +8,7 @@ tags:
 
 ## Overview
 
-The Archcore CLI and the Archcore plugin share one tag-driven release pipeline in `archcore-ai/archcore`. Pushing a `v*` tag triggers @.github/workflows/release.yml, which checks that the tag is the next release version, runs both test suites, regenerates the plugin distribution on `main` with the tag's version in the four plugin manifests, and invokes GoReleaser from `cli/` to build cross-platform binaries and publish the GitHub Release. The tag is the only version source; the manifests on `dev` carry the placeholder `0.0.0`.
+The Archcore CLI and the Archcore plugin share one tag-driven release pipeline in `archcore-ai/archcore`. Pushing a `v*` tag triggers @.github/workflows/release.yml, which checks that the tag is the next release version, runs both test suites, regenerates the plugin distribution on `main` with the tag's version in the four plugin manifests, publishes `@archcore/opencode-plugin` to npm with the same version, and invokes GoReleaser from `cli/` to build cross-platform binaries and publish the GitHub Release. The tag is the only version source; the manifests on `dev` carry the placeholder `0.0.0`.
 
 Two former names remain in circulation. `archcore-ai/cli` published CLI releases up to v0.8.7 (2026-09-21) and receives no further releases. `archcore-ai/plugin` was this repository's name until 2026-09-22; GitHub redirects git and web traffic from it, and a new repository under that name would disable the redirect. The CLI workflow copies that lived under `cli/.github/workflows/` were removed on 2026-09-22.
 
@@ -23,7 +23,7 @@ Two former names remain in circulation. `archcore-ai/cli` published CLI releases
 | GoReleaser config | `@cli/.goreleaser.yaml` | Defines the build matrix, archive naming, checksums, the two ldflags injections, the inertness post-build hook, and the release assets |
 | Release tag check | `@scripts/check-release-tag.sh` | Accepts only a `vMAJOR.MINOR.PATCH` tag that is the next patch, minor, or major version after the highest other release tag |
 | Plugin export | `@scripts/export-plugin.sh` | Builds the public plugin tree and writes the release version into the four plugin manifests |
-| GitHub Actions — release | `@.github/workflows/release.yml` | `verify-version` → `test-plugin` and `test-cli` → `publish-plugin` (export and `main` push) → `publish-cli` (GoReleaser) on a tag push |
+| GitHub Actions — release | `@.github/workflows/release.yml` | `verify-version` → `test-plugin` and `test-cli` → `publish-plugin` (export and `main` push) → `publish-opencode` (npm; needs `publish-plugin`) → `publish-cli` (GoReleaser; needs `publish-plugin` and `publish-opencode`) on a tag push. `publish-opencode` skips a version npm already has, so recovery is a re-run of the tag's run. |
 | GitHub Actions — CLI tests | `@.github/workflows/cli-test.yml` | gofmt, vet, golangci-lint, `go test ./...`, the inertness self-test, and the examples fixture check on pull requests and `dev` pushes |
 | GitHub Actions — installer smoke | `@.github/workflows/cli-install-smoke.yml` | Runs both installers on Windows (PowerShell 5.1 and 7), Ubuntu, macOS, Alpine, and a dash-only Debian on pull requests and `dev` pushes that touch an installer |
 | GitHub Actions — landing nudge | none | [assumption] A root dispatcher for this repository is pending (plan `release/unified-release-cutover`, task 19) |
@@ -88,6 +88,7 @@ The contract, the event properties, and the opt-out procedure are in install-scr
 | Name | Location | Required | Purpose |
 |---|---|---|---|
 | `GITHUB_TOKEN` | this repo (automatic) | yes | Pushes `main` and publishes the release. GitHub Actions provides it; nothing to configure. |
+| `NPM_TOKEN` | this repo (secret) | yes | Publishes `@archcore/opencode-plugin` in `publish-opencode`. An npm granular token with read-and-write (publish) permission on the `@archcore` scope and 2FA bypass. |
 | `POSTHOG_KEY` | this repo (variable) | yes, for telemetry | Public PostHog project key, injected as `-X archcore-cli/internal/telemetry.apiKey` when `github.repository_id` is `1201781375`. `@cli/scripts/assert-not-inert.sh` fails the release when the built binary does not carry it. Copied from `archcore-ai/cli` on 2026-09-22. |
 | `POSTHOG_HOST` | this repo (variable) | no | Ingestion host. Present since 2026-09-22 for parity with the landing deploy. |
 | `ARCHCORE_OFFICIAL_BUILD` | workflow expression | yes | The official-build marker, `-X archcore-cli/internal/update.officialBuild`, injected only when `github.repository_id` is `1201781375`; the id survived the rename, and a fork builds without it and never self-replaces. |

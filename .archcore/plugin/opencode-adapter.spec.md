@@ -1,6 +1,6 @@
 ---
 title: "OpenCode Adapter — @archcore/opencode-plugin Bridge, Bundled Skills and Agents, and Package Contract"
-status: draft
+status: accepted
 tags:
   - "component:plugin"
   - "hooks"
@@ -16,13 +16,13 @@ This spec is normative for the OpenCode adapter: the npm package `@archcore/open
 ## Surface
 
 - Package: source `@plugin/plugins/opencode/src/` (`index.ts` exports the module, `bridge.ts` holds the hooks), no runtime dependency, manifest `@plugin/plugins/opencode/package.json`, pack step `@plugin/plugins/opencode/scripts/pack.sh`. `main` and `exports["./server"]` point at `dist/index.js` (`opencode-plugin-ships-built-javascript.adr`). `engines.opencode` is a `>=` range; Kilo Code compares the same key against its own 7.x version. The default export carries `server` for OpenCode 1.x and `setup(ctx)` for OpenCode 2.x (`@plugin/plugins/opencode/src/v2.ts`, `opencode-plugin-serves-v1-and-v2-from-one-package.adr`). OpenCode 2.x calls only `setup`, reads `plugins` and still normalizes `plugin`, and installs with `opencode plugin add <package>` into the global config.
-- Module shape: default export `{ id: "@archcore/opencode-plugin", server }`, the v1 form `readV1Plugin` accepts in `packages/opencode/src/plugin/shared.ts` (OpenCode v1.18.34). An unpinned `plugin` entry resolves to `@latest`.
+- Module shape: default export `{ id: "@archcore/opencode-plugin", server, setup }`. OpenCode 1.x calls `server`, the v1 form `readV1Plugin` accepts in `packages/opencode/src/plugin/shared.ts` (OpenCode v1.18.34). OpenCode 2.x calls `setup`. An unpinned `plugin` entry resolves to `@latest`.
 - Bundled trees, written by the pack step and absent from git: `bin/` from `@plugin/plugins/archcore/bin/`; `skills/` from `@plugin/plugins/archcore/skills/`, each `SKILL.md` `name:` line renamed to `archcore-<name>` (`opencode-archcore-prefixed-skill-names.adr`); `agents/<name>.md` from `@plugin/plugins/archcore/agents/`.
 - Agent definitions: `@plugin/plugins/opencode/src/agents.ts` maps `archcore-assistant` and `archcore-auditor` to `description`, `mode: "subagent"`, `steps`, and `permission`. The prompt is the body of the bundled `agents/<name>.md` below its frontmatter.
 - Hooks `server()` returns (`packages/plugin/src/index.ts`): `config`, `tool.execute.before`, `tool.execute.after`, `experimental.chat.system.transform`.
 - `tool.execute.after` output: a built-in tool passes `{title, output, metadata}`; an MCP tool passes the MCP `CallToolResult`, and OpenCode builds the model text from its `content[]` after the hook (`packages/opencode/src/session/tools.ts`).
 - Spawn contract: env `ARCHCORE_HOST=opencode`; cwd = the plugin input's `directory`; stdin = one JSON object, then closed. Tool events send `{"tool_name": <input.tool>, "tool_input": <output.args>}`; session start sends `{"cwd": <directory>}` with no `session_id`. A deny is exit 2 with the reason on stderr; context is plain text on stdout (`agents.OpenCode` row of `@cli/cmd/hook_dialect.go`).
-- Pre-mutation tool set: `write`, `edit`, `apply_patch`. Post-mutation tool set: `archcore_create_document`, `archcore_update_document`, `archcore_remove_document`, `archcore_add_relation`, `archcore_remove_relation` — the `<server>_<tool>` id of `packages/opencode/src/mcp/catalog.ts`, which `foldToolName` in `@cli/cmd/hook_payload.go` folds.
+- Pre-mutation tool set: `write`, `edit`, `apply_patch`, `patch` (the 2.x name of the patch tool). Post-mutation tool set: `archcore_create_document`, `archcore_update_document`, `archcore_remove_document`, `archcore_add_relation`, `archcore_remove_relation` — the `<server>_<tool>` id of `packages/opencode/src/mcp/catalog.ts`, which `foldToolName` in `@cli/cmd/hook_payload.go` folds.
 - CLI gate: `bin/cli-gte 0.10.0`. Release v0.10.0 is the first that carries the plain-text OpenCode session envelope and the `archcore_*` fold (commit `ea474ad`).
 - Spawn budgets: CLI gate 2 s [assumption], pre-mutation 2 s, post-mutation 4 s (the `timeout` values of `@plugin/plugins/archcore/hooks/hooks.json`), session start 10 s [assumption].
 
@@ -98,7 +98,7 @@ This spec is normative for the OpenCode adapter: the npm package `@archcore/open
 
 ## Conformance
 
-An implementation is conformant when it satisfies behaviors 1–31, holds every invariant, degrades per the failure rules, and passes: `bun test` inside `@plugin/plugins/opencode/` driven by `@plugin/test/fixtures/stdin/opencode/` against a stub launcher (behaviors 1–23, 27–28, and 30–31); the `opencode` rows of `@plugin/test/structure/host-coverage-matrix.bats`, `@plugin/test/structure/probe-records.bats`, and `@plugin/test/structure/hook-launchers.bats`; `@plugin/test/structure/host-logic-locality.bats` unchanged; a byte-parity structure test after the pack step (behaviors 24–26); an `npm pack --dry-run` listing check (behavior 29 and `dist/index.js`); and the `opencode` row of `host-probe-protocol.spec` with `pass` on P0, A, B, and C.
+An implementation is conformant when it satisfies behaviors 1–38, holds every invariant, degrades per the failure rules, and passes: `bun test` inside `@plugin/plugins/opencode/` driven by `@plugin/test/fixtures/stdin/opencode/` against a stub launcher (behaviors 1–23, 27–28, and 30–31); the `OpenCode 2.x setup` block of `@plugin/plugins/opencode/src/bridge.test.ts` under `bun test` (behaviors 32–38), plus the live load check of 2026-10-26 on OpenCode 2.1.4, where the npm package loaded with both agents, four `/archcore-*` commands, and four skills registered; the `opencode` rows of `@plugin/test/structure/host-coverage-matrix.bats`, `@plugin/test/structure/probe-records.bats`, and `@plugin/test/unit/hook-launchers.bats`; `@plugin/test/structure/host-logic-locality.bats` unchanged; a byte-parity structure test after the pack step (behaviors 24–26); an `npm pack --dry-run` listing check (behavior 29 and `dist/index.js`); and the `opencode` row of `host-probe-protocol.spec` with `pass` on P0, A, B, and C.
 
 Given a project with `.archcore/` and CLI 0.10.0 or newer, when the agent calls `write` on `.archcore/x.rule.md`, then `tool.execute.before` throws with the CLI's redirect-to-MCP reason and the file does not exist.
 

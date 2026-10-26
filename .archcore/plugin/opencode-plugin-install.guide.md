@@ -1,6 +1,6 @@
 ---
 title: "Installing the Archcore OpenCode Plugin and Verifying a Session"
-status: draft
+status: accepted
 tags:
   - "component:plugin"
   - "multi-host"

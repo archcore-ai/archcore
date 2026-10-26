@@ -12,7 +12,7 @@ tags:
 
 ## Purpose & Scope
 
-This spec defines the live-session verification a host adapter MUST pass before it counts as supported, and holds the dated records of those runs. Normative for every implemented host (Claude Code, Cursor, Codex CLI, GitHub Copilot CLI) and every future one. Depended on by `host-adapter-contract.spec`, whose item 17 this document satisfies. Out of scope: everything mechanically checkable, which belongs in bats.
+This spec defines the live-session verification a host adapter MUST pass before it counts as supported, and holds the dated records of those runs. Normative for every implemented host (Claude Code, Cursor, Codex CLI, GitHub Copilot CLI, OpenCode) and every future one. Depended on by `host-adapter-contract.spec`, whose item 17 this document satisfies. Out of scope: everything mechanically checkable, which belongs in bats.
 
 Static tests prove the wiring is *shaped* right. Only a live session proves the host *runs* it: that the host loads the config at all, that its matcher fires on the tool name the model actually chose, and that a deny is honored rather than merely displayed. The protocol asks those questions and no others.
 
