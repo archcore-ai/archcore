@@ -33,7 +33,7 @@ Per-host update commands, probed live 2026-09-16 on the versions shown, plus off
 | GitHub Copilot (copilot 1.0.83) | per installation `copilot plugin update <listed name>`; printed tier `copilot plugin update archcore` | A direct install is listed as `archcore` and refuses `archcore@archcore-plugins`. A failed update exits 0 and writes only to stderr — verified 2026-09-16. |
 | Codex CLI (codex 0.154.0) | `codex plugin marketplace upgrade archcore-plugins` | Codex has no per-plugin update and no scope; the marketplace upgrade reinstalls the plugin cache (`codex-rs/core-plugins/src/manager.rs`). Before the upgrade, the CLI adds `sparse_paths` to the marketplace table (`plugin-source-migration.spec`). A CLI older than 0.14.1 replaces itself and then runs this step with its old code in the same process, so the second `archcore update` applies the sparse paths. |
 | Cursor | none — no CLI mechanism (UI-only, cursor.com/docs/plugins) | Print a one-line instruction to update the plugin in the Cursor UI. |
-| OpenCode | none | No command until a live probe shows how OpenCode refreshes an unpinned `@archcore/opencode-plugin` entry. The OpenCode row is project-scoped (`plugin-delivery.spec`), and `archcore update` resolves no project root. |
+| OpenCode | 2.x: `opencode plugin update @archcore/opencode-plugin`; 1.x: none | 2.x marks an outdated package and updates it only on request (`packages/cli/src/commands/handlers/plugin/update.ts`, 2.1.4). The CLI finds the plugin in the global config without a project root. 1.x gets no command until a live probe shows how it refreshes an unpinned entry. |
 
 Roo Code, Cline, and Gemini CLI have no plugin. The step does not address them.
 
@@ -65,8 +65,9 @@ Roo Code, Cline, and Gemini CLI have no plugin. The step does not address them.
 24. WHEN a Copilot update command exits zero with empty stdout, the CLI MUST treat the command as failed.
 25. IF a listing shows installations and the CLI can address none of them, THEN the CLI MUST skip that host silently.
 26. WHEN the CLI addresses a Copilot installation, the CLI MUST pass only `archcore` or `archcore@archcore-plugins` as its name.
-27. The plugin-update step MUST NOT run a command for OpenCode.
-28. The plugin-update step MUST NOT print a line for OpenCode.
+27. WHILE OpenCode is 1.x or its version is unknown, the plugin-update step MUST NOT run a command for OpenCode.
+28. WHILE OpenCode is 1.x or its version is unknown, the plugin-update step MUST NOT print a line for OpenCode.
+29. WHEN OpenCode 2.x lists the plugin, the plugin-update step MUST run `opencode plugin update @archcore/opencode-plugin`.
 
 ## Constraints & Invariants
 

@@ -292,7 +292,10 @@ var hostTable = map[Host]HostSpec{
 		// one-package.adr.
 		Since2: &HostSpec{
 			Install: []Command{{Name: "opencode", Args: []string{"plugin", "add", openCodePackage}}},
-			Remove:  []Command{{Name: "opencode", Args: []string{"plugin", "remove", openCodePackage}}},
+			// 2.x marks an outdated package and updates it only on request
+			// (packages/cli/src/commands/handlers/plugin/update.ts, 2.1.4).
+			Update: []Command{{Name: "opencode", Args: []string{"plugin", "update", openCodePackage}}},
+			Remove: []Command{{Name: "opencode", Args: []string{"plugin", "remove", openCodePackage}}},
 		},
 		// No update command until a live probe shows how OpenCode refreshes an
 		// unpinned package, and OpenCode has no uninstall command —

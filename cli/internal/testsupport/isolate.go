@@ -91,6 +91,8 @@ func IsolateAmbientState() *Isolation {
 	config := filepath.Join(root, "config")
 	mustMkdir(config)
 	_ = os.Setenv("XDG_CONFIG_HOME", config)
+	// OpenCode reads its global config here before XDG_CONFIG_HOME.
+	_ = os.Unsetenv("OPENCODE_CONFIG_DIR")
 
 	iso.armHostTrap()
 	return iso

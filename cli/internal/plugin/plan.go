@@ -24,9 +24,9 @@ func Plan(verb Verb, evidence []Evidence) []Action {
 		if !ok {
 			continue
 		}
-		// A project-bound host run from no project would patch whichever
-		// directory the process started in.
-		if spec.projectBound() && ev.ProjectRoot == "" {
+		// A project-bound host installs and removes only from a project. An
+		// update refreshes the host's own package cache, so it needs none.
+		if spec.projectBound() && ev.ProjectRoot == "" && verb != VerbUpdate {
 			continue
 		}
 		if action, ok := planHost(verb, spec, ev); ok {
@@ -74,8 +74,8 @@ func planHost(verb Verb, spec HostSpec, ev Evidence) (Action, bool) {
 // reaches that silence from the shape of the evidence rather than from a host's
 // error text.
 func planUpdate(spec HostSpec, ev Evidence) (Action, bool) {
-	// OpenCode has neither yet, and planning it would print an empty note.
-	if len(spec.Update) == 0 && spec.Notes.Update == "" {
+	// OpenCode 1.x has neither, and planning it would print an empty note.
+	if len(plannedCommands(spec, VerbUpdate, ev)) == 0 && spec.Notes.Update == "" {
 		return Action{}, false
 	}
 	if !spec.hasCLI() {

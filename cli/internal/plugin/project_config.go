@@ -49,7 +49,10 @@ func projectEvidence(ctx context.Context, ev Evidence, spec HostSpec, projectRoo
 // read, it returns errProjectConfigUnreadable instead of false.
 func loadProjectConfigListing(ctx context.Context, spec HostSpec, projectRoot string) (bool, error) {
 	var unreadable error
-	dirs := configDirs(ctx, projectRoot)
+	var dirs []string
+	if projectRoot != "" {
+		dirs = configDirs(ctx, projectRoot)
+	}
 	if global := globalConfigDir(); global != "" {
 		dirs = append(dirs, global)
 	}

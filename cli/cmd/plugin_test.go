@@ -646,6 +646,29 @@ func TestPluginInstallUsesTheOpenCode2Command(t *testing.T) {
 	}
 }
 
+// TestPluginUpdateRefreshesTheGlobalOpenCode2Install runs where `archcore
+// update` runs: outside a project, with the plugin in the global config.
+func TestPluginUpdateRefreshesTheGlobalOpenCode2Install(t *testing.T) {
+	bin := isolatePluginRun(t)
+	log := writeVersionedFixture(t, bin, "opencode", "opencode v2.1.4")
+	config := os.Getenv("XDG_CONFIG_HOME")
+	if err := os.MkdirAll(filepath.Join(config, "opencode"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(config, "opencode", "opencode.json"), []byte(`{"plugins":["@archcore/opencode-plugin"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := runPluginCmd(t, "update", "--agent", "opencode")
+	if err != nil {
+		t.Fatalf("update exited nonzero: %v\n%s", err, out)
+	}
+	runs := fixtureRuns(t, log)
+	if len(runs) != 1 || !strings.HasSuffix(runs[0], " plugin update @archcore/opencode-plugin") {
+		t.Errorf("opencode ran %q, want one plugin update", runs)
+	}
+}
+
 const missingProjectLine = "OpenCode: run this inside a project with .archcore/, or pass --project."
 
 // TestPluginVerbsNamingOpenCodeExplainAMissingProject proves a run outside a
