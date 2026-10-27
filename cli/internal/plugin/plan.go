@@ -24,11 +24,6 @@ func Plan(verb Verb, evidence []Evidence) []Action {
 		if !ok {
 			continue
 		}
-		// A project-bound host installs and removes only from a project. An
-		// update refreshes the host's own package cache, so it needs none.
-		if spec.projectBound() && ev.ProjectRoot == "" && verb != VerbUpdate {
-			continue
-		}
 		if action, ok := planHost(verb, spec, ev); ok {
 			actions = append(actions, action)
 		}
@@ -226,19 +221,13 @@ func printCommandAction(spec HostSpec, verb Verb, ev Evidence) Action {
 	}
 }
 
-// plannedCommands is a verb's sequence on a host, run in the observed project
-// when the host is project-bound.
+// plannedCommands is a verb's sequence on a host, the Since2 row on host major
+// version 2 and later.
 func plannedCommands(spec HostSpec, verb Verb, ev Evidence) []Command {
-	cmds := spec.commandsFor(verb)
 	if spec.Since2 != nil && ev.HostMajor >= 2 {
-		cmds = cloneCommands(spec.Since2.commandsFor(verb))
+		return cloneCommands(spec.Since2.commandsFor(verb))
 	}
-	if spec.projectBound() {
-		for i := range cmds {
-			cmds[i].Dir = ev.ProjectRoot
-		}
-	}
-	return cmds
+	return spec.commandsFor(verb)
 }
 
 // uiNoteAction plans the one-line instruction for a host with no CLI mechanism.

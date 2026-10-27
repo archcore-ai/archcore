@@ -8,7 +8,7 @@ tags:
 
 ## Purpose
 
-Install the Archcore CLI on macOS, Linux, Windows, or WSL with the published install scripts. The scripts also install the Archcore plugin when Claude Code, Codex CLI, or GitHub Copilot CLI is already on `PATH`.
+Install the Archcore CLI on macOS, Linux, Windows, or WSL with the published install scripts. The scripts also install the Archcore plugin when Claude Code, Codex CLI, GitHub Copilot CLI, or OpenCode is already on `PATH`.
 
 ## Prerequisites
 
@@ -107,7 +107,8 @@ WSL provides a full Linux environment, so this path uses the macOS and Linux scr
 5. Extract the binary and install it atomically into the install directory.
 6. On Unix, check whether the install directory is in `$PATH` and print shell-specific guidance when it is not. On Windows, append the install directory to the user `PATH` through `HKCU\Environment` and prompt for a new terminal session.
 7. Send one anonymous `cli_installed` event, then print a one-line notice that the event was sent. See "Install analytics" below. An opt-out or a script copy without an injected key skips this step silently.
-8. For each Claude Code, Codex CLI, or GitHub Copilot CLI command already on `PATH`, call the new binary's `archcore plugin install --agent <id>` action. The action uses user scope, checks for an existing installation, and leaves project files untouched. The scripts skip this step in CI or when `ARCHCORE_SKIP_PLUGIN_INSTALL` is set to a nonzero value. Cursor still requires its UI.
+8. For each Claude Code, Codex CLI, GitHub Copilot CLI, or OpenCode command already on `PATH`, call the new binary's `archcore plugin install --agent <id>` action. The action uses user scope, checks for an existing installation, and leaves project files untouched. OpenCode gets `@archcore/opencode-plugin` in its global config. The scripts skip this step in CI or when `ARCHCORE_SKIP_PLUGIN_INSTALL` is set to a nonzero value. Cursor still requires its UI.
+   - A pinned CLI of v0.14.3 or older cannot install OpenCode from the installer. The scripts skip OpenCode with a notice, and the run does not fail.
 9. If a host plugin action fails, print its retry command and exit nonzero after trying the other detected hosts. The CLI remains installed, and the scripts send no `cli_install_failed` event. A CLI without installer mode, such as a pinned v0.10.10, skips the plugin step with a warning.
 
 Run `archcore init` later in each repository where you want `.archcore/`, MCP configuration, and lifecycle hooks. The machine-level plugin install does not initialize a project. GitHub Copilot's plugin cannot provide a project MCP server by itself, so Copilot needs this project step before document tools work.

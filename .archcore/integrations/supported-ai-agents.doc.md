@@ -298,8 +298,9 @@ host's plugin install cache. Two surfaces resolve differently, and both matter w
   key and the patch body for that reason.
 - Instruction file: `AGENTS.md` (fenced upsert)
 - Plugin: the Archcore OpenCode plugin is the npm package `@archcore/opencode-plugin`, a separate
-  artifact from `archcore@archcore-plugins`. `archcore init` and `archcore plugin install` deliver
-  it into the global OpenCode config (`~/.config/opencode/opencode.json`): `opencode plugin -g
+  artifact from `archcore@archcore-plugins`. The platform installer, `archcore init`, and
+  `archcore plugin install` deliver it machine-level, not per project, into the global OpenCode
+  config (`~/.config/opencode/opencode.json`). No delivery needs a project: `opencode plugin -g
   @archcore/opencode-plugin` on 1.x, `opencode plugin add @archcore/opencode-plugin` on 2.x. It adds
   the `/archcore-init`, `/archcore-plan`, `/archcore-document`, and `/archcore-review` commands.
   Removal runs `opencode plugin remove` on 2.x and is a printed note on 1.x. `archcore update` runs

@@ -746,15 +746,15 @@ func TestExecuteKeepsTheInstallationBesideTheNonInteractiveFlag(t *testing.T) {
 }
 
 // TestExecuteRunsTheOpenCodeVerbsInTheProject walks one OpenCode project
-// through each verb. The install runs in the project root, because that is the
-// config `opencode plugin` patches; a configured project reports the install
-// done; removal is a printed note; and update addresses nothing yet.
+// through each verb. The install writes the global config, so it runs with no
+// working directory of its own; a configured project reports the install done;
+// removal is a printed note; and update addresses nothing yet.
 func TestExecuteRunsTheOpenCodeVerbsInTheProject(t *testing.T) {
 	skipWithoutPOSIXShell(t)
 	isolateHome(t)
 	setInteractive(t, false)
 	dir := t.TempDir()
-	writeHostCLI(t, dir, "opencode", `pwd -P > "$0.cwd"`)
+	writeHostCLI(t, dir, "opencode", `: > "$0.ran"`)
 	useHostCLIs(t, dir, "opencode")
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -763,18 +763,14 @@ func TestExecuteRunsTheOpenCodeVerbsInTheProject(t *testing.T) {
 
 	reporter := &recordingReporter{}
 	results := Execute(t.Context(), Plan(VerbInstall, CollectEvidence(t.Context(), []Host{HostOpenCode}, root)), reporter, ExecuteOptions{})
-	if want := []string{"cd " + root + " && opencode plugin -g @archcore/opencode-plugin"}; !slices.Equal(reporter.texts("progress"), want) {
+	if want := []string{"opencode plugin -g @archcore/opencode-plugin"}; !slices.Equal(reporter.texts("progress"), want) {
 		t.Errorf("progress = %q, want %q", reporter.texts("progress"), want)
 	}
 	if len(results) != 1 || results[0].Failed || !results[0].Changed {
 		t.Errorf("results = %+v, want one install that changed the project", results)
 	}
-	ran, err := os.ReadFile(filepath.Join(dir, "opencode.cwd"))
-	if err != nil {
+	if _, err := os.Stat(filepath.Join(dir, "opencode.ran")); err != nil {
 		t.Fatalf("the install never ran: %v", err)
-	}
-	if got := strings.TrimSpace(string(ran)); got != root {
-		t.Errorf("the install ran in %q, want the project root %q", got, root)
 	}
 
 	writeProjectFile(t, root, ".opencode/opencode.json", `{"plugin":["@archcore/opencode-plugin"]}`)

@@ -62,7 +62,7 @@ func runInitCapturingStdout(t *testing.T, args ...string) (string, error) {
 
 // TestAgentPickerLabelDisclosesThePluginInstall covers requirements 1 and 2: the
 // screen states the install for every host that ships a plugin, and names it
-// machine-level for the two whose stores sit outside the repository.
+// machine-level for the three whose stores sit outside the repository.
 func TestAgentPickerLabelDisclosesThePluginInstall(t *testing.T) {
 	t.Parallel()
 
@@ -77,7 +77,7 @@ func TestAgentPickerLabelDisclosesThePluginInstall(t *testing.T) {
 		{name: "codex cli is machine-scoped", id: agents.CodexCLI, wantDisclosure: true, wantMachineWide: true},
 		{name: "copilot is machine-scoped", id: agents.Copilot, wantDisclosure: true, wantMachineWide: true},
 		{name: "gemini cli ships no plugin", id: agents.GeminiCLI},
-		{name: "opencode is project-scoped", id: agents.OpenCode, wantDisclosure: true},
+		{name: "opencode is machine-scoped", id: agents.OpenCode, wantDisclosure: true, wantMachineWide: true},
 		{name: "roo code ships no plugin", id: agents.RooCode},
 		{name: "cline ships no plugin", id: agents.Cline},
 	}
@@ -661,13 +661,13 @@ func TestInitPrintsOneOverlapNoticeAtMost(t *testing.T) {
 	}
 }
 
-// TestInitWithAgentOpenCodeInstallsInTheProject covers the OpenCode row of
+// TestInitWithAgentOpenCodeInstallsTheGlobalPlugin covers the OpenCode row of
 // plugin-delivery.spec through init: the flag carries the consent, and the
-// install runs in the project init just wired, not in the process's directory.
-func TestInitWithAgentOpenCodeInstallsInTheProject(t *testing.T) {
+// install writes the global config.
+func TestInitWithAgentOpenCodeInstallsTheGlobalPlugin(t *testing.T) {
 	withoutCIVars(t)
 	bin := isolatePluginRun(t)
-	log := writeWorkingDirFixture(t, bin, "opencode")
+	log := writeOpenCodeFixture(t, bin, "opencode")
 	project, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -678,7 +678,7 @@ func TestInitWithAgentOpenCodeInstallsInTheProject(t *testing.T) {
 	if execErr != nil {
 		t.Fatalf("init --agent opencode exited nonzero: %v\n%s", execErr, out)
 	}
-	if want := []string{project + " plugin -g @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
+	if want := []string{"plugin -g @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
 		t.Errorf("opencode ran %q, want %q\n%s", fixtureRuns(t, log), want, out)
 	}
 }

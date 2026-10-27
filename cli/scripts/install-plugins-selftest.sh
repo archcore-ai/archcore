@@ -42,15 +42,20 @@ run() {
     PATH="$work/bin:/usr/bin:/bin" install_detected_plugins "$work/bin/archcore" > /dev/null 2>&1
 }
 
-setup "ARCHCORE_PLUGIN_INSTALLER=1 is the platform installer's mode" "" claude codex
+setup "ARCHCORE_PLUGIN_INSTALLER=1 is the platform installer's mode. Installer mode covers OpenCode" "" claude codex opencode
 run || fail "a successful run returned nonzero"
 expected="1 plugin install --agent claude-code
-1 plugin install --agent codex-cli"
+1 plugin install --agent codex-cli
+1 plugin install --agent opencode"
 [[ "$(cat "$work/log")" == "$expected" ]] || fail "unexpected calls: $(cat "$work/log")"
 
-setup "ARCHCORE_PLUGIN_INSTALLER=1" claude-code claude codex copilot
+setup "ARCHCORE_PLUGIN_INSTALLER=1 Installer mode covers OpenCode" claude-code claude codex copilot opencode
 run && fail "a failed host returned zero"
-[[ "$(wc -l < "$work/log" | tr -d ' ')" == "3" ]] || fail "a failed host stopped the other hosts: $(cat "$work/log")"
+[[ "$(wc -l < "$work/log" | tr -d ' ')" == "4" ]] || fail "a failed host stopped the other hosts: $(cat "$work/log")"
+
+setup "ARCHCORE_PLUGIN_INSTALLER=1" "" claude opencode
+run || fail "a CLI without OpenCode installer mode returned nonzero"
+[[ "$(cat "$work/log")" == "1 plugin install --agent claude-code" ]] || fail "a CLI without OpenCode installer mode was called for opencode: $(cat "$work/log")"
 
 setup "Install the Archcore plugin on the selected hosts." "" claude
 run || fail "an old CLI returned nonzero"

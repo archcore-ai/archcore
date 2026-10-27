@@ -51,7 +51,7 @@ On Windows (PowerShell 5.1+):
 irm https://archcore.ai/install.ps1 | iex
 ```
 
-The installer adds the CLI. It also adds the plugins for Claude Code, Codex CLI, and GitHub Copilot CLI when it finds them.
+The installer adds the CLI. It also adds the plugins for Claude Code, Codex CLI, GitHub Copilot CLI, and OpenCode when it finds them.
 
 **2. Connect your project.**
 

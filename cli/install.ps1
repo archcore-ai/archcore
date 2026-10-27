@@ -497,15 +497,22 @@ function Install-DetectedPlugins {
 
     $env:Path = "$(Split-Path -Parent $InstallPath);$env:Path"
     $found = $false
-    foreach ($hostCli in @('claude', 'codex', 'copilot')) {
+    foreach ($hostCli in @('claude', 'codex', 'copilot', 'opencode')) {
         $hostCommand = Get-Command -Name $hostCli -CommandType Application -ErrorAction SilentlyContinue |
             Select-Object -First 1
         if (-not $hostCommand) { continue }
         $found = $true
+        # Before v0.14.4 the CLI skipped OpenCode in installer mode, and the
+        # named host then failed the run — plugin-delivery.spec §47.
+        if ($hostCli -eq 'opencode' -and $help -notmatch 'Installer mode covers OpenCode') {
+            Write-Info 'Skipping OpenCode: this CLI version installs its plugin only from archcore init.'
+            continue
+        }
         $agent = switch ($hostCli) {
             'claude' { 'claude-code' }
             'codex' { 'codex-cli' }
             'copilot' { 'copilot' }
+            'opencode' { 'opencode' }
         }
         Write-Info "Installing the Archcore plugin for ${hostCli}..."
         $previous = $ErrorActionPreference
@@ -531,7 +538,7 @@ function Install-DetectedPlugins {
         }
     }
     if (-not $found) {
-        Write-Info "No Claude Code, Codex, or Copilot CLI found on PATH. After installing a host, run: $InstallPath plugin install"
+        Write-Info "No Claude Code, Codex, Copilot, or OpenCode CLI found on PATH. After installing a host, run: $InstallPath plugin install"
     }
 }
 

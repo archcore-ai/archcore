@@ -432,15 +432,22 @@ install_detected_plugins() {
     local binary_dir
     binary_dir="$(dirname "$install_path")"
     export PATH="$binary_dir:$PATH"
-    for host_cli in claude codex copilot; do
+    for host_cli in claude codex copilot opencode; do
         if [[ -z "$(type -P "$host_cli" 2>/dev/null)" ]]; then
             continue
         fi
         found=1
+        # Before v0.14.4 the CLI skipped OpenCode in installer mode, and the
+        # named host then failed the run — plugin-delivery.spec §47.
+        if [[ "$host_cli" == opencode && "$help" != *"Installer mode covers OpenCode"* ]]; then
+            info "Skipping OpenCode: this CLI version installs its plugin only from archcore init."
+            continue
+        fi
         case "$host_cli" in
             claude) agent="claude-code" ;;
             codex) agent="codex-cli" ;;
             copilot) agent="copilot" ;;
+            opencode) agent="opencode" ;;
         esac
         info "Installing the Archcore plugin for ${host_cli}..."
         if ! ARCHCORE_PLUGIN_INSTALLER=1 "$install_path" plugin install --agent "$agent"; then
@@ -450,7 +457,7 @@ install_detected_plugins() {
     done
 
     if [[ "$found" == "0" ]]; then
-        info "No Claude Code, Codex, or Copilot CLI found on PATH. After installing a host, run: ${install_path} plugin install"
+        info "No Claude Code, Codex, Copilot, or OpenCode CLI found on PATH. After installing a host, run: ${install_path} plugin install"
     fi
     return "$failures"
 }
