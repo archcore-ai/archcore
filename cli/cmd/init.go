@@ -499,14 +499,15 @@ func defaultConfirmInstructions(paths []string) (bool, error) {
 
 // The selection screen's disclosure — plugin-delivery.spec §1 and §2. Two
 // constants because the marking is per host: every plugin host states the
-// install, and requirement 2 puts the machine-level half on the two whose plugin
-// stores have no repository scope at all.
+// install, and requirement 2 puts the machine-level half on the three whose
+// plugin stores have no repository scope at all.
 const (
 	pluginSelectionNote = "also installs the Archcore plugin"
 
-	// Codex CLI registers its marketplace in ~/.codex and Copilot installs into
-	// its user-level store; neither takes a project scope, so checking one in a
-	// command about this repository changes the machine.
+	// Codex CLI registers its marketplace in ~/.codex, Copilot installs into its
+	// user-level store, and OpenCode into its global config; none takes a project
+	// scope, so checking one in a command about this repository changes the
+	// machine.
 	pluginSelectionMachineNote = pluginSelectionNote + " machine-level, outside this project"
 )
 

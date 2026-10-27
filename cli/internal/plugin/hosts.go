@@ -114,12 +114,13 @@ type HostSpec struct {
 	MachineScoped bool
 
 	// ProjectConfigPaths are the project-relative config files whose `plugin`
-	// array the host loads its plugins from. A host with any is project-bound:
-	// it is observed and run in a project root, and skipped without one.
+	// array the host loads its plugins from. A host with any has no listing
+	// command: these files in the project and the host's global config stand as
+	// its listing.
 	ProjectConfigPaths []string
 
-	// Version prints the host's version. A project-bound host reads it to pick
-	// between Install and Remove and the rows of Since2.
+	// Version prints the host's version. A host with ProjectConfigPaths reads it
+	// to pick between this row's commands and the rows of Since2.
 	Version Command
 
 	// Since2 holds the Install, Update, and Remove sequences that replace this
@@ -137,7 +138,7 @@ func (s HostSpec) hasCLI() bool {
 	return s.CLI != ""
 }
 
-func (s HostSpec) projectBound() bool {
+func (s HostSpec) readsConfigListing() bool {
 	return len(s.ProjectConfigPaths) > 0
 }
 
@@ -271,7 +272,8 @@ var hostTable = map[Host]HostSpec{
 	// do: `opencode plugin -g <pkg>` on 1.x (packages/opencode/src/cli/cmd/
 	// plug.ts, 1.18.34) and `opencode plugin add` on 2.x, which writes only the
 	// global config. The evidence also reads the project configs (configDirs),
-	// where releases before 0.14.2 wrote the entry.
+	// where releases before 0.14.2 wrote the entry. No command needs a project,
+	// so the platform installer installs it too — plugin-delivery.spec §33.
 	HostOpenCode: {
 		Host:        HostOpenCode,
 		DisplayName: "OpenCode",
@@ -303,6 +305,7 @@ var hostTable = map[Host]HostSpec{
 		Notes: UINotes{
 			Remove: `Remove "` + openCodePackage + `" from the "plugin" array of ~/.config/opencode/opencode.json, or of the project opencode.json that lists it.`,
 		},
+		MachineScoped: true,
 	},
 }
 

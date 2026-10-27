@@ -45,15 +45,9 @@ type pluginRunOptions struct {
 	Hosts     []plugin.Host
 	PrintOnly bool
 
-	// ProjectRoot is the project a project-bound host is observed and installed
-	// in. Empty skips that host: `archcore update` names no project, and a
-	// guessed one would patch an unrelated directory.
+	// ProjectRoot is the project whose OpenCode configs the run reads as
+	// evidence. Empty reads the global config alone.
 	ProjectRoot string
-
-	// ExplainMissingProject prints why a project-bound host was skipped. Only a
-	// host the user named with --agent gets the line: an implicit run over every
-	// host must stay silent for the hosts it cannot reach.
-	ExplainMissingProject bool
 
 	// SettingsPath is the Claude Code settings file the marketplace entry is
 	// written into. An empty value resolves to user scope, the default
@@ -105,9 +99,6 @@ func runPluginActions(ctx context.Context, w io.Writer, opts pluginRunOptions) p
 		hosts = plugin.Hosts()
 	}
 
-	if opts.ExplainMissingProject && opts.ProjectRoot == "" {
-		reportMissingProject(w, hosts)
-	}
 	actions := plugin.Plan(opts.Verb, collectPluginEvidence(ctx, hosts, opts.ProjectRoot))
 	results := plugin.Execute(ctx, actions, &pluginReporter{w: w}, plugin.ExecuteOptions{PrintOnly: opts.PrintOnly})
 
@@ -354,18 +345,6 @@ func pluginHostName(h plugin.Host) string {
 		return spec.DisplayName
 	}
 	return string(h)
-}
-
-// reportMissingProject names each project-bound host a run skipped for want of
-// a project. Exit stays zero: a host skipped for missing evidence fails nothing
-// — plugin-delivery.spec §19.
-func reportMissingProject(w io.Writer, hosts []plugin.Host) {
-	for _, host := range hosts {
-		if spec, ok := plugin.SpecFor(host); ok && len(spec.ProjectConfigPaths) > 0 {
-			fmt.Fprintln(w, display.WarnLine(fmt.Sprintf(
-				"%s: run this inside a project with .archcore/, or pass --project.", spec.DisplayName)))
-		}
-	}
 }
 
 // pluginReporter is the one Reporter implementation the surface has. Execute

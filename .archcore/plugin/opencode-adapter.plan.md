@@ -13,7 +13,7 @@ tags:
 
 Ship `@archcore/opencode-plugin` so an OpenCode session behaves like the four shipped hosts. It gets the recap at session start and has direct `.archcore/` writes refused with the redirect reason. It has the document tools, the `/archcore-init`, `/archcore-plan`, `/archcore-document`, and `/archcore-review` commands, and both Archcore agents, and it appends post-write validation. Then let `archcore init` deliver the package from the host selection screen. The plan makes zero edits under `@plugin/plugins/archcore/`; the contract is `opencode-adapter.spec`.
 
-Status: Phases 1-4 shipped in v0.14.0-v0.14.2. OpenCode 2.x support and the global install followed, the global install since v0.14.2. Phase 5 remains open.
+Status: Phases 1-4 shipped in v0.14.0-v0.14.2. OpenCode 2.x support and the global install followed, the global install since v0.14.2. The platform installer installs the package since v0.14.4. Phase 5 remains open.
 
 ## Tasks
 

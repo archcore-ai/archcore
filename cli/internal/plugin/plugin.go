@@ -130,8 +130,8 @@ type Evidence struct {
 	ListedVersion  string // when the host reports one
 	RegistryListed bool   // the host's on-disk registry names the plugin
 
-	// ProjectRoot is the project a project-bound host was observed in and runs
-	// its commands in. Plan skips a project-bound host whose evidence has none.
+	// ProjectRoot is the project whose configs a host with ProjectConfigPaths
+	// was observed in; empty when the run read the global config alone.
 	ProjectRoot string
 
 	// HostMajor is the host's major version when the host row reads one; zero

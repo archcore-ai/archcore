@@ -51,7 +51,7 @@ const (
 // pluginFlags is the host selection every verb shares.
 //
 // project is read by pluginInstallTargetFor under `--scope project` and by
-// pluginProjectRoot for the OpenCode row, which lives in a project. install,
+// pluginProjectRoot for the OpenCode project configs. install,
 // remove, and status declare the flag. update reads no project, and a flag it
 // accepted and ignored would answer a user who passed it with silence instead
 // of an unknown-flag error — cmd/project_root_flag_test.go lists it as rootless
@@ -132,11 +132,9 @@ func newPluginVerbCmd(f *pluginFlags, use, short string, verb plugin.Verb) *cobr
 			}
 			out := cmd.OutOrStdout()
 			opts := pluginRunOptions{Verb: verb, Hosts: hosts}
-			// An update has no OpenCode command even inside a project, so it
-			// reads none.
+			// An update reads no project, so it carries no --project flag.
 			if verb != plugin.VerbUpdate {
 				opts.ProjectRoot = pluginProjectRoot(f)
-				opts.ExplainMissingProject = f.agent != ""
 			}
 			outcome := runPluginActions(cmd.Context(), out, opts)
 			// Update owes the overlap notice and removal does not. The helper
@@ -169,7 +167,8 @@ func newPluginInstallCmd(f *pluginFlags) *cobra.Command {
 		Long: "Install the Archcore plugin on the selected hosts.\n\n" +
 			plugin.InstallerModeEnv + "=1 is the platform installer's mode. " +
 			"Host commands run non-interactively, and the command exits nonzero when a host named by --agent, " +
-			"or without --agent a host whose CLI is on PATH, is left without the plugin.",
+			"or without --agent a host whose CLI is on PATH, is left without the plugin. " +
+			"Installer mode covers OpenCode: its plugin goes into the global OpenCode config.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			hosts, err := pluginHostsForAgent(f.agent)
@@ -187,8 +186,6 @@ func newPluginInstallCmd(f *pluginFlags) *cobra.Command {
 				Hosts:        hosts,
 				SettingsPath: target.SettingsPath,
 				ProjectRoot:  pluginProjectRoot(f),
-				// The platform installer never names a project-bound host.
-				ExplainMissingProject: f.agent != "" && !plugin.InstallerMode(),
 				// A typed install the step bound cut short falls back to the
 				// printed commands for the hosts it never reached — the
 				// Constraints of plugin-delivery.spec. The user asked for the
@@ -271,10 +268,9 @@ func newPluginStatusCmd(f *pluginFlags) *cobra.Command {
 			// whole contract: a host that answered nothing is a row in it, never
 			// an exit code.
 			runPluginActions(cmd.Context(), cmd.OutOrStdout(), pluginRunOptions{
-				Verb:                  plugin.VerbStatus,
-				Hosts:                 hosts,
-				ProjectRoot:           pluginProjectRoot(f),
-				ExplainMissingProject: f.agent != "",
+				Verb:        plugin.VerbStatus,
+				Hosts:       hosts,
+				ProjectRoot: pluginProjectRoot(f),
 			})
 			return nil
 		},
@@ -284,16 +280,16 @@ func newPluginStatusCmd(f *pluginFlags) *cobra.Command {
 	return cmd
 }
 
-// pluginProjectRoot is the project a verb observes and installs a project-bound
-// host in: the resolved root, when it carries .archcore/. The platform installer
-// gets none, because it installs only the machine-level plugins of Claude Code,
-// Codex CLI, and GitHub Copilot — plugin-delivery.spec §33.
+// pluginProjectRoot is the project whose OpenCode configs a verb reads: the
+// resolved root, when it carries .archcore/. The platform installer gets none,
+// because the directory it starts in is not a selection — plugin-delivery.spec
+// §46.
 func pluginProjectRoot(f *pluginFlags) string {
 	if plugin.InstallerMode() {
 		return ""
 	}
-	// Advisory: no project skips the project-bound host instead of failing the
-	// verb for every other host — plugin-delivery.spec §19.
+	// Advisory: no project reads the global OpenCode config alone instead of
+	// failing the verb for every host — plugin-delivery.spec §19.
 	root, err := resolveProjectRoot(f.project, os.Getenv("ARCHCORE_PROJECT_ROOT"))
 	if err != nil || !config.DirExists(root) {
 		return ""

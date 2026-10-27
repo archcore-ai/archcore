@@ -33,11 +33,8 @@ var (
 	copilotInstallLines = []string{"copilot plugin install archcore-ai/archcore:plugins/archcore"}
 	copilotRemoveLines  = []string{"copilot plugin uninstall archcore"}
 
-	// The tier matrix observes OpenCode in this project, so its install runs there.
-	openCodeInstallLine = "cd " + tierProjectRoot + " && opencode plugin -g @archcore/opencode-plugin"
+	openCodeInstallLine = "opencode plugin -g @archcore/opencode-plugin"
 )
-
-const tierProjectRoot = "/work/project"
 
 // wantAction is the expected shape of one host's planned action. A nil
 // *wantAction means the tier table addresses nothing, which the specs spell as
@@ -162,9 +159,7 @@ func runTierMatrix(t *testing.T, verb Verb, cases []tierCase) {
 			checkHostPlan(t, verb, HostCursor, tt.ev, tt.cursor)
 			checkHostPlan(t, verb, HostCodexCLI, tt.ev, tt.codex)
 			checkHostPlan(t, verb, HostCopilot, tt.ev, tt.copilot)
-			projectEv := tt.ev
-			projectEv.ProjectRoot = tierProjectRoot
-			checkHostPlan(t, verb, HostOpenCode, projectEv, tt.opencode)
+			checkHostPlan(t, verb, HostOpenCode, tt.ev, tt.opencode)
 		})
 	}
 	for key := 0; key < allShapes; key++ {
@@ -865,7 +860,7 @@ func TestPlanCommandsDoNotAliasTheHostTable(t *testing.T) {
 func TestPlanIgnoresHostsWithoutAPlugin(t *testing.T) {
 	t.Parallel()
 	full := Evidence{CLIPresent: true, ListingOK: true, Listed: true, RegistryListed: true}
-	hosts := []Host{"gemini-cli", "opencode", "roo-code", "cline", "", "not-a-host"}
+	hosts := []Host{"gemini-cli", "roo-code", "cline", "", "not-a-host"}
 	verbs := []Verb{VerbInstall, VerbUpdate, VerbRemove, VerbStatus}
 
 	for _, host := range hosts {
@@ -1222,46 +1217,27 @@ func TestPlanUpdateBoundsTheAddressedInstallations(t *testing.T) {
 	}
 }
 
-// TestPlanSkipsOpenCodeWithoutAProject keeps a project-bound host off every
-// verb when the evidence names no project. `opencode plugin` patches the
-// config of the directory it runs in, so a run from no project would write into
-// whichever directory the process started in.
-func TestPlanSkipsOpenCodeWithoutAProject(t *testing.T) {
+// TestPlanInstallsOpenCodeWithoutAProject proves the OpenCode install needs no
+// project: both command lines write the global config, so the plan neither
+// skips the host nor pins a working directory — plugin-delivery.spec §43 and
+// §44.
+func TestPlanInstallsOpenCodeWithoutAProject(t *testing.T) {
 	t.Parallel()
-	for _, verb := range []Verb{VerbInstall, VerbUpdate, VerbRemove, VerbStatus} {
-		for key := 0; key < allShapes; key++ {
-			ev := Evidence{
-				Host:           HostOpenCode,
-				CLIPresent:     key&1 != 0,
-				ListingOK:      key&2 != 0,
-				Listed:         key&4 != 0,
-				RegistryListed: key&8 != 0,
-			}
-			if actions := Plan(verb, []Evidence{ev}); len(actions) != 0 {
-				t.Errorf("%s over %q with no project planned %v, want nothing", verb, shapeName(ev), actions)
-			}
+	for _, major := range []int{1, 2} {
+		actions := Plan(VerbInstall, []Evidence{{Host: HostOpenCode, CLIPresent: true, HostMajor: major}})
+		if len(actions) != 1 || actions[0].Kind != ActionRun || len(actions[0].Commands) != 1 {
+			t.Fatalf("%d.x install planned %+v, want one run", major, actions)
+		}
+		if c := actions[0].Commands[0]; c.Dir != "" {
+			t.Errorf("%d.x install Dir = %q, want none", major, c.Dir)
 		}
 	}
-}
-
-// TestPlanRunsTheOpenCodeInstallInTheProject pins the working directory as
-// part of the command: the printed line carries it as `cd`, and the run sets
-// Dir to the project the evidence was read from.
-func TestPlanRunsTheOpenCodeInstallInTheProject(t *testing.T) {
-	t.Parallel()
-	actions := Plan(VerbInstall, []Evidence{{Host: HostOpenCode, CLIPresent: true, ProjectRoot: "/work/my project"}})
-	if len(actions) != 1 || len(actions[0].Commands) != 1 {
-		t.Fatalf("planned %+v, want one install command", actions)
+	project := Plan(VerbInstall, []Evidence{{Host: HostOpenCode, CLIPresent: true, ProjectRoot: "/work/my project"}})
+	if len(project) != 1 || len(project[0].Commands) != 1 {
+		t.Fatalf("planned %+v, want one install command", project)
 	}
-	c := actions[0].Commands[0]
-	if c.Dir != "/work/my project" {
-		t.Errorf("Dir = %q, want the project root", c.Dir)
-	}
-	if want := "cd '/work/my project' && opencode plugin -g @archcore/opencode-plugin"; c.String() != want {
-		t.Errorf("command = %q, want %q", c.String(), want)
-	}
-	if spec, _ := SpecFor(HostOpenCode); spec.Install[0].Dir != "" {
-		t.Errorf("the host table row carries Dir %q after planning, want it untouched", spec.Install[0].Dir)
+	if want := "opencode plugin -g @archcore/opencode-plugin"; project[0].Commands[0].String() != want {
+		t.Errorf("command from a project = %q, want %q", project[0].Commands[0].String(), want)
 	}
 }
 
@@ -1277,10 +1253,10 @@ func TestPlanPicksTheOpenCodeCommandsOfTheHostMajor(t *testing.T) {
 		ev    Evidence
 		want  []string
 	}{
-		{name: "1.x install", verb: VerbInstall, major: 1, want: []string{"cd /p && opencode plugin -g @archcore/opencode-plugin"}},
-		{name: "unknown version install", verb: VerbInstall, major: 0, want: []string{"cd /p && opencode plugin -g @archcore/opencode-plugin"}},
-		{name: "2.x install", verb: VerbInstall, major: 2, want: []string{"cd /p && opencode plugin add @archcore/opencode-plugin"}},
-		{name: "2.x remove", verb: VerbRemove, major: 2, ev: Evidence{Listed: true}, want: []string{"cd /p && opencode plugin remove @archcore/opencode-plugin"}},
+		{name: "1.x install", verb: VerbInstall, major: 1, want: []string{"opencode plugin -g @archcore/opencode-plugin"}},
+		{name: "unknown version install", verb: VerbInstall, major: 0, want: []string{"opencode plugin -g @archcore/opencode-plugin"}},
+		{name: "2.x install", verb: VerbInstall, major: 2, want: []string{"opencode plugin add @archcore/opencode-plugin"}},
+		{name: "2.x remove", verb: VerbRemove, major: 2, ev: Evidence{Listed: true}, want: []string{"opencode plugin remove @archcore/opencode-plugin"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			ev := tt.ev
@@ -1322,7 +1298,7 @@ func TestPlanUpdatesOpenCode2WithoutAProject(t *testing.T) {
 	if actions := Plan(VerbUpdate, []Evidence{unlisted}); len(actions) != 0 {
 		t.Errorf("unlisted 2.x update = %+v, want nothing", actions)
 	}
-	if actions := Plan(VerbInstall, []Evidence{v2}); len(actions) != 0 {
-		t.Errorf("install without a project = %+v, want nothing", actions)
+	if actions := Plan(VerbInstall, []Evidence{v2}); len(actions) != 1 || actions[0].Kind != ActionReportInstalled {
+		t.Errorf("install over a listed plugin without a project = %+v, want a report", actions)
 	}
 }

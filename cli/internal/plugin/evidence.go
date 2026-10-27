@@ -47,7 +47,7 @@ func CollectEvidence(ctx context.Context, hosts []Host, projectRoot string) []Ev
 			}
 		}
 		ev.RegistryListed = registryListsPlugin(spec)
-		if spec.projectBound() {
+		if spec.readsConfigListing() {
 			ev = projectEvidence(ctx, ev, spec, projectRoot)
 		}
 		out = append(out, ev)

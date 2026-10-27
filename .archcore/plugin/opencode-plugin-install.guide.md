@@ -19,7 +19,7 @@ Reader: a developer wiring an OpenCode project that carries `.archcore/`; task: 
 
 ## Steps
 
-1. If `archcore init` offers OpenCode as a plugin host, run `archcore init --agent opencode` and skip to step 3.
+1. If the platform installer or `archcore init --agent opencode` installed the plugin, skip to step 3.
 2. Run the command of your OpenCode line to add the plugin to the global config:
 
    ```sh
