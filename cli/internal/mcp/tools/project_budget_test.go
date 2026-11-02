@@ -34,10 +34,10 @@ func TestForPath_ReservesTheProjectField(t *testing.T) {
 			writeFixtureDoc(t, arch, name+".rule.md", strings.Repeat("t", titleLen), "x\n")
 		}
 		text := searchText(t, callSearch(t, base, map[string]any{"for_path": "src/api.go"}))
-		if len(text)+projectFieldBytes(base) > forPathByteBudget {
-			t.Fatalf("title %d: response %d bytes + project field %d > %d", titleLen, len(text), projectFieldBytes(base), forPathByteBudget)
+		if len(text)+projectFieldBytes(t.Context(), base) > forPathByteBudget {
+			t.Fatalf("title %d: response %d bytes + project field %d > %d", titleLen, len(text), projectFieldBytes(t.Context(), base), forPathByteBudget)
 		}
-		if len(text) > forPathByteBudget-2*projectFieldBytes(base) {
+		if len(text) > forPathByteBudget-2*projectFieldBytes(t.Context(), base) {
 			window++
 		}
 	}
@@ -54,7 +54,7 @@ func sweepNearTheCeiling(t *testing.T, docs, from, to, budget int, call func(bas
 	t.Helper()
 	base := filepath.Join(t.TempDir(), strings.Repeat("long-root-segment/", 6)+"p")
 	arch := filepath.Join(base, ".archcore")
-	field := projectFieldBytes(base)
+	field := projectFieldBytes(t.Context(), base)
 	window := 0
 	for titleLen := from; titleLen <= to; titleLen++ {
 		if err := os.RemoveAll(arch); err != nil {

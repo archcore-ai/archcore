@@ -117,11 +117,8 @@ func TestHandleRemoveRelation_PathTraversal(t *testing.T) {
 func TestHandleRemoveRelation_ResearchBoundaries(t *testing.T) {
 	t.Parallel()
 	tests := []struct{ name, source, target, settings string }{
-		{name: "global source", source: "global/source.evidence.md", target: "local.research.md"},
-		{name: "global target", source: "local.evidence.md", target: "global/target.research.md"},
 		{name: "traversal", source: "../source.evidence.md", target: "local.research.md"},
 		{name: "absolute", source: "/source.evidence.md", target: "local.research.md"},
-		{name: "unreadable settings", source: "local.evidence.md", target: "local.research.md", settings: "{"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

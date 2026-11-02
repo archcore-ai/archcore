@@ -189,7 +189,7 @@ func writeGlobalsBlock(b *strings.Builder, inspections []docs.GlobalInspection) 
 			globalDocs += in.Docs
 		}
 	}
-	b.WriteString("\nGLOBALS (read-only, query via MCP read tools):\n")
+	b.WriteString("\nGLOBALS (read with this project; write a source's documents through its project):\n")
 	okLines := 0
 	for i, in := range inspections {
 		if i == maxGlobalsSources {
@@ -209,12 +209,21 @@ func writeGlobalsBlock(b *strings.Builder, inspections []docs.GlobalInspection) 
 			continue
 		}
 		okLines++
-		fmt.Fprintf(b, "  - %s — %d docs (%s)%s\n", in.ID, in.Docs, categorySummary(in.DocsByCategory), dirSummary(in.TopDirs))
+		fmt.Fprintf(b, "  - %s — %d docs (%s)%s%s\n", in.ID, in.Docs, categorySummary(in.DocsByCategory), dirSummary(in.TopDirs), rootSummary(in.Root))
 	}
 	if okLines > 0 {
 		b.WriteString("  " + globalsPrecedenceLine + "\n")
 	}
 	return globalDocs
+}
+
+// rootSummary names the project argument that reaches a source, or nothing for
+// a source that is not a project's .archcore/.
+func rootSummary(root string) string {
+	if root == "" {
+		return ""
+	}
+	return fmt.Sprintf(" · project=%q", root)
 }
 
 // categorySummary renders per-category counts in the fixed category order the
@@ -379,7 +388,7 @@ func effectiveStatus(d docs.Document) templates.DocStatus {
 }
 
 // localDocuments returns only documents owned by the primary project, dropping
-// mounted read-only global sources. Globals are surfaced exclusively through the
+// declared global sources. Globals are surfaced exclusively through the
 // MCP read tools (list/get/search), never in CLI status or session-start context.
 func localDocuments(corpus []docs.Document) []docs.Document {
 	out := make([]docs.Document, 0, len(corpus))

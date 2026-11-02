@@ -5172,6 +5172,71 @@
       "source": "plugin/command-surface-v2.spec.md",
       "target": "mcp/explicit-target-project-per-call.adr.md",
       "type": "related"
+    },
+    {
+      "source": "globals/source-mounts.spec.md",
+      "target": "globals/global-sources-are-a-read-policy.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "globals/source-mounts.spec.md",
+      "target": "globals/global-sources.spec.md",
+      "type": "supersedes"
+    },
+    {
+      "source": "globals/source-mounts.spec.md",
+      "target": "globals/declaring-global-sources.rule.md",
+      "type": "supersedes"
+    },
+    {
+      "source": "globals/source-mounts.spec.md",
+      "target": "globals/global-sources-via-settings.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/source-mounts.spec.md",
+      "target": "globals/globals-are-mandatory.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/source-mounts.spec.md",
+      "target": "globals/missing-global-degrades-to-local.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/source-mounts.spec.md",
+      "target": "globals/relative-globals-resolve-from-main-checkout.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "globals/local-overrides-source.rule.md",
+      "target": "globals/global-sources-are-a-read-policy.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "globals/local-overrides-source.rule.md",
+      "target": "globals/local-overrides-global.rule.md",
+      "type": "supersedes"
+    },
+    {
+      "source": "globals/local-overrides-source.rule.md",
+      "target": "globals/globals-are-read-only-everywhere.rule.md",
+      "type": "supersedes"
+    },
+    {
+      "source": "globals/source-model-rollout.plan.md",
+      "target": "globals/source-mounts.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "globals/source-model-rollout.plan.md",
+      "target": "globals/global-sources-are-a-read-policy.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "globals/global-sources-are-a-read-policy.adr.md",
+      "target": "mcp/explicit-target-project-per-call.adr.md",
+      "type": "extends"
     }
   ]
 }

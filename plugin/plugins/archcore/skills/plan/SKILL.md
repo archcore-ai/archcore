@@ -87,12 +87,12 @@ MCP call that names either type.
 5. IF `.archcore/` exists but contains no documents, THEN proceed on outer-context grounding (git state and the codebase) and report that zero documents were found.
 6. IF the session root holds no `.archcore/`, THEN follow `skills/_shared/target-project.md`, section Projects without `.archcore/`: name the roots the session recap listed, ask which project to use or whether to initialize the session root, and do not call `mcp__archcore__init_project` before the answer.
 
-**Global sources.** If a `list_documents` / `search_documents` result has
-`global: true` / `read_only: true` / `source_kind: "global"`, load
+**Global sources.** If a `list_documents` / `search_documents` result has `source_kind: "global"`, load
 `skills/_shared/globals.md`. Also load it when a `search_documents` response's
 `coverage` names a source other than `"local"` — even when `results` is empty:
-the empty page is exactly where that file's retry ladder applies. Never modify
-a global document and never target one with `add_relation`. Absent any global
+the empty page is exactly where that file's retry ladder applies. Edit a global
+document only through its source project, per that file's write convention, and
+never join a local and a global document with `add_relation`. Absent any global
 match, proceed as usual.
 
 ### 2. Select

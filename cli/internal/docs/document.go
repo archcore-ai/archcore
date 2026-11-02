@@ -18,19 +18,14 @@ import (
 )
 
 // SourceKind says whether a document is the project's own or comes from a
-// mounted read-only source. A closed set, so it carries a type (§G).
+// declared source. A closed set, so it carries a type (§G).
 type SourceKind string
 
-// Source annotation vocabulary (wire values; see global-sources.spec §4).
+// Source annotation vocabulary (wire values; see source-mounts.spec).
 const (
 	SourceKindLocal  SourceKind = "local"
 	SourceKindGlobal SourceKind = "global"
 )
-
-// SourceIDReserved marks undeclared content in the reserved global/ tree.
-// Underscores are invalid in a declared id, so it can never collide. It is a
-// source *id*, not a kind, so it stays a plain string.
-const SourceIDReserved = "__global__"
 
 // DocumentRelation represents one side of a relation for enriched output.
 type DocumentRelation struct {
@@ -47,20 +42,19 @@ type EnrichedDocument struct {
 
 // Document represents a document discovered in .archcore/.
 type Document struct {
-	Path       string                 `json:"path"`                // relative: ".archcore/auth/jwt-strategy.adr.md"
-	Category   templates.Category     `json:"category"`            // virtual: vision, knowledge, experience (derived from type)
-	Type       templates.DocumentType `json:"type"`                // adr, rfc, rule...
-	Filename   string                 `json:"-"`                   // "jwt-strategy.adr.md"; derivable from Path, kept off the wire
-	Slug       string                 `json:"-"`                   // "jwt-strategy"; derivable from Path, kept off the wire
-	Title      string                 `json:"title,omitempty"`     // from frontmatter
-	Status     templates.DocStatus    `json:"status,omitempty"`    // from frontmatter
-	Tags       []string               `json:"tags,omitempty"`      // from frontmatter
-	ModTime    time.Time              `json:"mtime,omitzero"`      // file modification time
-	Content    string                 `json:"content,omitempty"`   // full markdown (optional)
-	SourceID   string                 `json:"source_id"`           // "local" or global source id
-	SourceKind SourceKind             `json:"source_kind"`         // "local" or "global"
-	Global     bool                   `json:"global,omitempty"`    // true for mounted global sources
-	ReadOnly   bool                   `json:"read_only,omitempty"` // true for mounted global sources
+	Path       string                 `json:"path"`                  // relative: ".archcore/auth/jwt-strategy.adr.md"
+	Category   templates.Category     `json:"category"`              // virtual: vision, knowledge, experience (derived from type)
+	Type       templates.DocumentType `json:"type"`                  // adr, rfc, rule...
+	Filename   string                 `json:"-"`                     // "jwt-strategy.adr.md"; derivable from Path, kept off the wire
+	Slug       string                 `json:"-"`                     // "jwt-strategy"; derivable from Path, kept off the wire
+	Title      string                 `json:"title,omitempty"`       // from frontmatter
+	Status     templates.DocStatus    `json:"status,omitempty"`      // from frontmatter
+	Tags       []string               `json:"tags,omitempty"`        // from frontmatter
+	ModTime    time.Time              `json:"mtime,omitzero"`        // file modification time
+	Content    string                 `json:"content,omitempty"`     // full markdown (optional)
+	SourceID   string                 `json:"source_id"`             // "local" or global source id
+	SourceKind SourceKind             `json:"source_kind"`           // "local" or "global"
+	SourceRoot string                 `json:"source_root,omitempty"` // a source's project root: the project argument that writes it
 }
 
 // IsLocal reports whether the document belongs to the primary project rather

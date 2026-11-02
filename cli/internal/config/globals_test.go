@@ -71,13 +71,23 @@ func TestCheckGlobalDir(t *testing.T) {
 		t.Errorf("ancestor of .archcore: got %v, want ErrGlobalSelfOverlap", err)
 	}
 
-	// A descendant of .archcore (legit in-tree vendoring) is NOT self-overlap.
+	// A descendant of .archcore overlaps too: one file would be both a local
+	// document and a source document (source-mounts.spec, behavior 16).
 	vendored := filepath.Join(archcore, "global", "company")
 	if err := os.MkdirAll(vendored, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := CheckGlobalDir(base, vendored); err != nil {
-		t.Errorf("vendored descendant: got %v, want nil", err)
+	if err := CheckGlobalDir(base, vendored); !errors.Is(err, ErrGlobalSelfOverlap) {
+		t.Errorf("descendant of .archcore: got %v, want ErrGlobalSelfOverlap", err)
+	}
+
+	// A sibling directory that holds its own .archcore/ is the migration target.
+	sibling := filepath.Join(base, "vendor", "company", ".archcore")
+	if err := os.MkdirAll(sibling, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckGlobalDir(base, sibling); err != nil {
+		t.Errorf("source outside .archcore: got %v, want nil", err)
 	}
 }
 
@@ -112,7 +122,7 @@ func TestDescribeGlobalDirError(t *testing.T) {
 		{ErrGlobalMissing, `global source "company" not found at "../company/.archcore"`},
 		{ErrGlobalNotDir, `global source "company" at "../company/.archcore" is not a directory`},
 		{ErrGlobalUnreadable, `global source "company" at "../company/.archcore" is not readable`},
-		{ErrGlobalSelfOverlap, `global source "company" at "../company/.archcore" resolves to the project's own .archcore`},
+		{ErrGlobalSelfOverlap, `global source "company" at "../company/.archcore" overlaps the project's own .archcore: move the source to a directory outside it that holds its own .archcore/, and point path at that .archcore`},
 	}
 	for _, tt := range tests {
 		if got := DescribeGlobalDirError(gs, tt.err); got != tt.want {

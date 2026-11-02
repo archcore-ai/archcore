@@ -86,6 +86,9 @@ Evidence pointer is `<commit-sha>:<probe-id>`; the log itself lives in that comm
 | 2026-11-02 | claude-code | 2.1.316 | 0.0.0-probe | wired+log | pass | pass | pass | pass | pass | fail-open-confirmed | pending-commit |
 | 2026-11-02 | codex | 0.166.0 | 0.0.0-probe | install+log | pass | pass | pass | pass | pass | fail-open-confirmed | pending-commit |
 | 2026-11-02 | opencode | 2.1.4 | 0.0.0-probe | wired+log | pass | pass | pass | pass | pass | fail-open-confirmed | pending-commit |
+| 2026-11-02 | claude-code | 2.1.316 | 0.0.0-probe | wired+log | pass | pass | pass | pass | pass | fail-open-confirmed | pending-commit |
+| 2026-11-02 | codex | 0.166.0 | 0.0.0-probe | install+log | pass | pass | pass | pass | pass | fail-open-confirmed | pending-commit |
+| 2026-11-02 | opencode | 2.1.4 | — | — | deferred:free-model-limit | deferred:free-model-limit | deferred:free-model-limit | deferred:free-model-limit | deferred:free-model-limit | deferred:free-model-limit | — |
 <!-- PROBE-RECORDS:END -->
 
 **Run of 2026-08-14.** Claude Code reached the tree through `--plugin-dir`, so its method is `wired`, not `install`; probe C additionally needed `--mcp-config` and `--allowedTools`, because headless `-p` exposes no plugin MCP server and gates MCP tools behind a prompt no non-interactive session can answer — the accommodation makes the tools reachable and changes nothing about the hook under test. **Probe D is the finding of this run: with a 5-second delay injected into the wrapper against a 2-second `timeout`, the write into `.archcore/` landed with no error, no hook output, and no timeout message** — Claude Code fails open on a PreToolUse timeout exactly as Copilot does, and silently, so the latency budget is a correctness concern on this host too. Codex reached P0 through a real marketplace install of the sentinel version and logged host `codex`; its remaining probes stopped at an unauthenticated isolated `CODEX_HOME`, a property of the probe machine rather than of the adapter. Cursor is not installed here, and Copilot has no isolated-home path that authenticates.
@@ -110,6 +113,23 @@ Explicit-target-project probes, outside the protocol columns: from a session in 
 4. Codex `exec` needed per-tool `approval_mode = "approve"` in the isolated `config.toml` to call MCP tools; this is a host setting, not an adapter defect.
 
 The explicit-target-project probes repeated with the same outcomes as on 2026-10-30. In X4, Claude Code's `acceptEdits` mode refused a write outside the working directory after the plugin allowed the write and emitted the `[Archcore Project]` note; the refusal belongs to the host.
+
+**Run of 2026-11-02, source model.** The last three rows ran archcore CLI v0.15.0-dev with the source model of `source-mounts.spec`. The probe project declared the sibling `../g/.archcore` as source `org`. OpenCode stopped before P0: every free model of the account returned `provider.free-limit` (HTTP 429), and the machine has no other provider, so no guard ran.
+
+Source probes, outside the protocol columns, on Claude Code and Codex:
+
+1. S0 — the session context carried `GLOBALS (read with this project; write a source's documents through its project):` and the line `org — 2 docs … project="<root of g>"`. Probe A context marked each source rule `[source:org]`. Both hosts passed.
+2. S1 — `update_document(project=<root of g>, path=".archcore/concepts/…")` changed the file in g and returned `"source":"org"`. Both hosts passed.
+3. S2 — `update_document(path="../g/.archcore/concepts/errors.rule.md")` failed with `path belongs to another project: pass that project's absolute root as project, … — this document belongs to source "org"` and changed nothing. Both hosts passed.
+4. S3 — a direct write into g's `.archcore/` was denied with the MCP-only reason, `pass project="<root of g>"`, and `That project is source "org" of this session's project`. Claude Code `Write` and Codex `apply_patch` both passed.
+5. S4 — `search_documents` rows of g carried `source_kind: "global"`, `source_id: "org"`, and `source_root: "<root of g>"`, with no `read_only` field. Both hosts passed.
+6. S5 — on Claude Code, `add_relation` from a local document to a `../g/` path failed with `target path must not contain '..'`; the same call inside g through `project` succeeded, and its response held one `source` key.
+7. S6 — on Claude Code, the request "change the organization-wide logging rule itself" led the agent to `list_documents`, `get_document`, and `update_document` with `project` set to the row's `source_root`. The agent reported `source: "org"` and that the change reaches every project that uses the source.
+
+Findings of this run:
+
+1. On Claude Code, the agent read the top-level `"source":"local"` of a search response whose only row was global as a contradiction. The field names the call root, not the rows. [EVIDENCE REQUIRED: a decision on the field name or its description]
+2. On Claude Code, a sub-agent tried to open the `../g/…` path from the `[Archcore Context]` row with the host `Read` tool, and the host refused a read outside the working directory. `get_document` reads the same path.
 
 ## Conformance
 

@@ -56,21 +56,18 @@ func HandleRemoveDocument(root RootProvider) func(ctx context.Context, request m
 
 		baseDir := root.Root(ctx)
 		// Validate path.
-		globals, guardFail := loadGlobalsFailClosed(baseDir)
-		if guardFail != nil {
-			return guardFail, nil
-		}
-		relPath, err = guardWritablePath(baseDir, relPath, globals)
+		cleaned, err := guardWritablePath(baseDir, relPath)
 		if err != nil {
 			switch {
-			case errors.Is(err, errPathReadOnlyGlobal):
-				return errorResult("cannot remove a read-only global source document"), nil
+			case errors.Is(err, errPathOtherProject):
+				return errorResult(otherProjectRefusal(baseDir, relPath)), nil
 			case errors.Is(err, errPathNotDocument):
 				return errorResult("invalid path: not a document — only .md document files can be removed"), nil
 			default:
 				return errorResult(err.Error()), nil
 			}
 		}
+		relPath = cleaned
 
 		// Read file metadata before deletion.
 		doc, err := readDocumentContent(baseDir, relPath)

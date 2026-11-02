@@ -46,7 +46,7 @@ Call this tool FIRST before reading or creating any document. Use it to:
 - Get valid file paths required by get_document
 - Browse what documentation is available by type, category, or status
 
-Returns: JSON, counts first: {"by_source": {...}, "total": N, "offset": N, "returned": N, "truncated": bool, "documents": [...]}. Each document carries path, title, type, category, status, tags (when present), and source_kind — the listing covers the local project AND every mounted read-only global source, interleaved so every source appears on the first page. "by_source" counts the full filtered set per source (e.g. {"local": 102, "org": 42}); compare it with the page to see what a truncation dropped. When "truncated" is true there are more matches beyond this page — narrow the filters, scope with "source", or request the next page with "offset". A response byte budget can return fewer rows than "limit"; the next page always starts at offset + returned.
+Returns: JSON, counts first: {"by_source": {...}, "total": N, "offset": N, "returned": N, "truncated": bool, "documents": [...]}. Each document carries path, title, type, category, status, tags (when present), and source_kind — the listing covers the local project AND every declared global source, interleaved so every source appears on the first page. "by_source" counts the full filtered set per source (e.g. {"local": 102, "org": 42}); compare it with the page to see what a truncation dropped. When "truncated" is true there are more matches beyond this page — narrow the filters, scope with "source", or request the next page with "offset". A response byte budget can return fewer rows than "limit"; the next page always starts at offset + returned.
 
 Use the returned paths directly as input to get_document. Do not construct paths manually.`),
 		mcp.WithArray("types",
@@ -174,7 +174,7 @@ func HandleListDocuments(root RootProvider) func(ctx context.Context, request mc
 		if page == nil {
 			page = []LocalDocument{}
 		}
-		page, err = fitListPage(page, bySource, projectFieldBytes(baseDir))
+		page, err = fitListPage(page, bySource, projectFieldBytes(ctx, baseDir))
 		if err != nil {
 			return nil, err
 		}

@@ -1,5 +1,5 @@
 ---
-title: "Vendoring a Global Source into .archcore/global/"
+title: "Vendoring a Global Source into the Project Tree"
 status: accepted
 tags:
   - "component:cli"
@@ -9,60 +9,56 @@ tags:
 
 ## Purpose
 
-Place a global source inside the project tree under `.archcore/global/<id>` and declare it, so that its documents mount read-only in this project.
+Place a global source inside the project tree, outside the project's own `.archcore/`, and declare it, so that this project reads its documents with its own (@.archcore/globals/source-mounts.spec.md).
 
 ## Prerequisites
 
 - An initialized project with `.archcore/settings.json`.
 - Access to the global source repository. Its documents live under its own `.archcore/`.
-- The related rule on declaring global sources.
+- An archcore CLI 0.15.0 or newer.
 
-`.archcore/global/` is reserved: the local document scan skips any directory named `global`, so content placed there stays invisible until it is declared. The reservation needs no configuration.
+A source path under the project's own `.archcore/` is fatal: the MCP server refuses to start and names the source id and the migration target. `.archcore/global/` is no longer reserved; a directory with that name is an ordinary local directory.
 
 ## Inputs
 
 - The global source repository URL.
 - The `id` to give the source in `settings.json`.
+- A directory for the source outside `.archcore/`. This guide uses `vendor/company`.
 
 ## Procedure
 
-### 1. Place the global content under `.archcore/global/<id>`
+### 1. Place the global repository under `vendor/<id>`
 
 Choose one distribution mechanism.
 
 Commit a vendored copy — reproducible, travels with the repository, updated by hand:
 
 ```bash
-git clone <global-repo-url> .archcore/global/company
-rm -rf .archcore/global/company/.git
-git add .archcore/global/company && git commit -m "vendor company global"
+git clone <global-repo-url> vendor/company
+rm -rf vendor/company/.git
+git add vendor/company && git commit -m "vendor company global"
 ```
 
 Git submodule — pinned to a ref, refreshed with `git submodule update`:
 
 ```bash
-git submodule add <global-repo-url> .archcore/global/company
+git submodule add <global-repo-url> vendor/company
 ```
 
 Gitignore and clone on setup — not committed; a setup step clones it. Until the clone exists, the server starts with the local documents only and prints a warning that names the missing source:
 
 ```bash
-echo ".archcore/global/" >> .gitignore
+echo "vendor/company/" >> .gitignore
 ```
 
-### 2. Point `path` at the directory that contains the documents
+### 2. Declare the source in `settings.json`
 
-What was cloned decides the value:
-
-- IF the whole global repository was cloned and it has its own `.archcore/`, THEN the documents sit at `.archcore/global/company/.archcore/knowledge/…`, so use `path: ".archcore/global/company/.archcore"`.
-- IF only the document tree was vendored, with `knowledge/` directly under the folder, THEN use `path: ".archcore/global/company"`.
-
-### 3. Declare the source in `settings.json`
+Point `path` at the `.archcore/` directory of the vendored repository:
 
 ```json
 {
   "sync": "none",
-  "globals": [ { "id": "company", "path": ".archcore/global/company" } ]
+  "globals": [ { "id": "company", "path": "vendor/company/.archcore" } ]
 }
 ```
 
@@ -74,19 +70,24 @@ Run the MCP server in the project and list the documents:
 archcore mcp   # .mcp.json args: ["mcp"]
 ```
 
-Expected result: `list_documents` shows the vendored documents with `source_kind: "global"`, `read_only: true`, `source_id: "company"`, and paths under `.archcore/global/company/…`.
+Expected result: `list_documents` shows the vendored documents with `source_kind: "global"`, `source_id: "company"`, and `source_root` set to the absolute path of `vendor/company`.
 
-Expected result: `update_document` on one of them returns `cannot update a read-only global source document`, because an in-tree path is a valid `.archcore/` path and reaches the read-only guard directly.
+Expected result: `update_document` with `project` set to that `source_root` and a path that starts with `.archcore/` changes the vendored document, and the response carries `source: "company"`.
 
-Expected result: `add_relation` with one of them as source or target is refused with `relations connect local documents only`.
+Expected result: `add_relation` between a local document and a vendored one is refused, because both endpoints must belong to one project.
 
-Expected result: undeclared content elsewhere under `.archcore/global/`, such as a second folder that `globals` does not list, does not appear in `list_documents`, and stays read-only and non-linkable.
+## Migration from `.archcore/global/<id>`
+
+1. Move the vendored folder out of `.archcore/`: `git mv .archcore/global/company vendor/company`.
+2. IF the moved folder holds the documents directly, without its own `.archcore/`, THEN move them into `vendor/company/.archcore/`.
+3. Set `path` to `vendor/company/.archcore`.
+
+Expected result: the MCP server starts, and `list_documents` shows the documents with `source_id: "company"`.
 
 ## Troubleshooting
 
-- Documents do not appear. `path` points at the wrong level. It must reach the directory whose subtree holds the `*.type.md` files, which is often `…/.archcore` after cloning a whole repository. Re-check step 2.
-- The server prints `global source "company" not found at "…" — starting without it`, and no global documents appear. The vendored folder is missing, for example gitignored and not yet cloned. Clone it to mount its documents; the local documents work without it.
-- A local document folder disappeared. A local directory was named `global`, and the scan skips any directory named `global` at any depth. Rename it.
-- The global was vendored outside `.archcore/global/`. An in-tree global under a folder not named `global`, such as the plural `.archcore/globals/<id>`, is de-duplicated by the scan: it appears once as a read-only global and never also as a writable local. It stays read-only and non-linkable. Vendoring under the reserved `.archcore/global/` directory remains the recommended, self-documenting layout.
-- In-tree versus `../` sibling. In-tree vendoring is self-contained and makes no assumption about the clone layout, and it yields the clean read-only message on a write. A `../` sibling instead fails a write with `invalid path: must start with ".archcore/"`. The related ADR on declaring globals in `settings.json` records this consequence.
-- Updating the global. A vendored copy and a submodule are both snapshots. Re-clone, or run `git submodule update`, to pull upstream changes. An automated refresh command is planned, not implemented; the related plan document tracks it.
+- The server refuses to start with `overlaps the project's own .archcore`. The declared `path` lies under `.archcore/`. Follow the migration above.
+- Documents do not appear. `path` points at the wrong level. It must reach the vendored repository's `.archcore/` directory.
+- The server prints `global source "company" not found at "…" — starting without it`, and no global documents appear. The vendored folder is missing, for example gitignored and not yet cloned. Clone it to read its documents; the local documents work without it.
+- A global row carries no `source_root`. The declared `path` does not end in `.archcore`, so no project argument reaches the source. Point `path` at the repository's `.archcore/`.
+- Updating the global. A vendored copy and a submodule are both snapshots. Re-clone, or run `git submodule update`, to pull upstream changes. A write through `project` changes the vendored copy only; send the change upstream as well.

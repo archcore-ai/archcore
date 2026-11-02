@@ -193,7 +193,7 @@ func TestSearchDocuments_SourceRepresentationSurvivesTheCut(t *testing.T) {
 			}
 			globals := 0
 			for _, r := range got {
-				if r.Global {
+				if r.SourceKind == "global" {
 					globals++
 				}
 			}

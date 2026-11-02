@@ -15,20 +15,21 @@ import (
 // messages via errors.Is; lexical failures keep ValidateArchcorePath's own text.
 // None of these embed filesystem paths.
 var (
-	ErrPathReadOnlyGlobal = errors.New("path is in read-only global space")
-	ErrPathNotDocument    = errors.New("path is not a document file")
-	ErrPathEscapes        = errors.New("invalid path: resolves outside .archcore/")
+	ErrPathOtherProject = errors.New("path belongs to another project")
+	ErrPathNotDocument  = errors.New("path is not a document file")
+	ErrPathEscapes      = errors.New("invalid path: resolves outside .archcore/")
 )
 
 // GuardWritablePath validates relPath (".archcore/…"-prefixed) as a mutable
 // local document target. Validation layers, in order:
-//  1. lexical: ValidateArchcorePath (unchanged semantics).
-//  2. document-only: the basename must end in ".md" and must not be a meta
+//  1. another project: a path that climbs out with "../" names a document of
+//     another project, which a write reaches through its project argument
+//     (source-mounts.spec, behavior 12).
+//  2. lexical: ValidateArchcorePath (unchanged semantics).
+//  3. document-only: the basename must end in ".md" and must not be a meta
 //     file (templates.SkipFiles) — settings.json and .sync-state.json are not
 //     documents and must never be rewritten or removed.
-//  3. reserved global tree, case-folded (isReservedGlobalDirFold).
-//  4. declared global sources, exact and case-folded (fail-closed).
-//  5. symlink containment: the deepest existing ancestor of the target must
+//  4. symlink containment: the deepest existing ancestor of the target must
 //     resolve inside the real .archcore/ root — the write-side mirror of the
 //     ValidateReadPath hardening, run BEFORE any MkdirAll so a symlinked
 //     directory can never route writes outside the tree.
@@ -37,7 +38,10 @@ var (
 //
 // Both the MCP write tools and the pre-tool-use hook call this, so a direct
 // editor write and an MCP mutation are judged by exactly the same rules.
-func GuardWritablePath(baseDir, relPath string, globals []config.GlobalSource) (string, error) {
+func GuardWritablePath(baseDir, relPath string) (string, error) {
+	if strings.HasPrefix(path.Clean(filepath.ToSlash(relPath)), "../") {
+		return "", ErrPathOtherProject
+	}
 	cleaned, err := ValidateArchcorePath(relPath)
 	if err != nil {
 		return "", err
@@ -45,9 +49,6 @@ func GuardWritablePath(baseDir, relPath string, globals []config.GlobalSource) (
 	base := path.Base(cleaned)
 	if !strings.HasSuffix(base, ".md") || templates.SkipFiles[base] {
 		return "", ErrPathNotDocument
-	}
-	if isReservedGlobalDirFold(cleaned) || IsGlobalPath(baseDir, cleaned, globals) || isGlobalPathFold(baseDir, cleaned, globals) {
-		return "", ErrPathReadOnlyGlobal
 	}
 	if err := checkSymlinkContainment(baseDir, cleaned); err != nil {
 		return "", err
@@ -119,9 +120,9 @@ func ValidateArchcorePath(relPath string) (string, error) {
 // globals, all under the primary's .archcore/ — with identical behavior. It
 // ADDITIONALLY accepts a document that resolves strictly inside a declared external
 // global source (one whose path is "../…" or absolute, so its documents render with
-// a leading ".." that ValidateArchcorePath rejects). Only reads of read-only globals
-// take this branch; the write path keeps the strict ValidateArchcorePath and never
-// reaches it, so a "../" global stays unwritable and non-linkable.
+// a leading ".." that ValidateArchcorePath rejects). Only reads take this branch;
+// a write addresses that document through its own project instead
+// (source-mounts.spec, behavior 12).
 //
 // The external-global branch is hardened, defense in depth:
 //  1. the path must be relative — list_documents only ever returns relative paths;
@@ -129,7 +130,7 @@ func ValidateArchcorePath(relPath string) (string, error) {
 //  3. it must resolve, lexically (".." collapsed by filepath.Join), strictly within a
 //     declared global root — blocking "../"-traversal escapes;
 //  4. after evaluating symlinks, the real file must STILL sit inside the real global
-//     root — blocking symlink escapes out of the read-only mount.
+//     root — blocking symlink escapes out of the mount.
 //
 // A path under a declared global that points at a missing file returns fs.ErrNotExist
 // so the caller reports an ordinary "document not found". Errors never embed an

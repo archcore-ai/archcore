@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"archcore-cli/internal/docs"
 	"archcore-cli/internal/testsupport"
 )
 
@@ -650,5 +651,17 @@ func TestResolveFileContext_SharedNameRule(t *testing.T) {
 	}
 	if len(fc.Matched) != 1 || fc.Matched[0].Doc.Path != ".archcore/format.rule.md" || fc.Matched[0].Reason != ReasonKind {
 		t.Fatalf("matched = %+v, want only format.rule.md with reason kind", fc.Matched)
+	}
+}
+
+func TestWriteContextRow_NamesTheSource(t *testing.T) {
+	t.Parallel()
+	var b strings.Builder
+	writeContextRow(&b, ContextRow{Doc: docs.Document{
+		Type: "rule", Title: "Org Logging", Path: "../org/.archcore/logging.rule.md",
+		Status: "accepted", SourceKind: docs.SourceKindGlobal, SourceID: "org",
+	}})
+	if got, want := b.String(), "- rule: Org Logging [../org/.archcore/logging.rule.md] [source:org]\n"; got != want {
+		t.Errorf("row = %q, want %q", got, want)
 	}
 }

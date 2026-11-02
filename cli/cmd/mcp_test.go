@@ -342,8 +342,8 @@ func TestCheckGlobals_InvalidSettingsFails(t *testing.T) {
 func TestCheckGlobals_EmptySourceWarnsNotFatal(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
-	writeMCPSettings(t, base, `{"sync":"none","globals":[{"id":"empty","path":".archcore/global/empty"}]}`)
-	if err := os.MkdirAll(filepath.Join(base, ".archcore", "global", "empty"), 0o755); err != nil {
+	writeMCPSettings(t, base, `{"sync":"none","globals":[{"id":"empty","path":"vendor/empty"}]}`)
+	if err := os.MkdirAll(filepath.Join(base, "vendor", "empty"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -392,8 +392,8 @@ func TestCheckGlobals_SelfOverlapFails(t *testing.T) {
 func TestCheckGlobals_DuplicatePathFails(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
-	writeMCPSettings(t, base, `{"sync":"none","globals":[{"id":"a","path":".archcore/global/d"},{"id":"b","path":".archcore/global/d"}]}`)
-	if err := os.MkdirAll(filepath.Join(base, ".archcore", "global", "d"), 0o755); err != nil {
+	writeMCPSettings(t, base, `{"sync":"none","globals":[{"id":"a","path":"vendor/d"},{"id":"b","path":"vendor/d"}]}`)
+	if err := os.MkdirAll(filepath.Join(base, "vendor", "d"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 

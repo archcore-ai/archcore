@@ -38,15 +38,17 @@ func HashFile(path string) (string, error) {
 
 // ScanFiles walks .archcore/ recursively and returns the current state of
 // every .md file found. Skips hidden directories, settings.json,
-// .sync-state.json, the reserved global/ tree, and any document under a
-// declared global source — globals are read-only mounts owned by another
-// repository and must never be pushed to the server as local documents.
+// .sync-state.json, and any document under a declared source — a source
+// belongs to another project and must never be pushed as this project's
+// document. The MCP server refuses a source under .archcore/
+// (source-mounts.spec, behavior 16); this skip keeps sync from pushing one
+// when the server has not been started against the misdeclared settings.
 func ScanFiles(baseDir string) ([]FileState, error) {
 	archcoreDir := filepath.Join(baseDir, ".archcore")
 	var files []FileState
 
-	// A guard, not an advisory: this list is the only thing keeping a read-only
-	// mount out of the push, so an unreadable settings.json must stop the scan
+	// A guard, not an advisory: this list is the only thing keeping a
+	// misdeclared source out of the push, so an unreadable settings.json must stop the scan
 	// rather than report that no globals are declared.
 	globals, err := config.LoadGlobals(baseDir)
 	if err != nil {
@@ -57,7 +59,7 @@ func ScanFiles(baseDir string) ([]FileState, error) {
 		globalDirs = append(globalDirs, filepath.ToSlash(config.ResolveGlobalPath(baseDir, gs.Path)))
 	}
 
-	err = templates.WalkArchcoreFilesSkipping(archcoreDir, []string{"global"}, func(path string, d fs.DirEntry) error {
+	err = templates.WalkArchcoreFilesSkipping(archcoreDir, nil, func(path string, d fs.DirEntry) error {
 		slashPath := filepath.ToSlash(path)
 		for _, dir := range globalDirs {
 			if slashPath == dir || strings.HasPrefix(slashPath, dir+"/") {

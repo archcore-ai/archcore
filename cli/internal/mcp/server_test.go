@@ -324,12 +324,12 @@ func TestBuildInstructions_EmptySearchRule(t *testing.T) {
 func TestGlobalIDsByPresence(t *testing.T) {
 	t.Parallel()
 	base := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(base, ".archcore", "global", "org"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(base, "vendor", "org"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	mounted, missing := globalIDsByPresence(base, []config.GlobalSource{
-		{ID: "org", Path: ".archcore/global/org"},
-		{ID: "gone", Path: ".archcore/global/gone"},
+		{ID: "org", Path: "vendor/org"},
+		{ID: "gone", Path: "vendor/gone"},
 	})
 	if len(mounted) != 1 || mounted[0] != "org" {
 		t.Errorf("mounted = %v, want [org]", mounted)

@@ -154,7 +154,7 @@ func TestBuildSessionContext_ExcludesGlobals(t *testing.T) {
 	if err := os.WriteFile(localDoc, []byte("---\ntitle: Local Rule\nstatus: accepted\ntags:\n  - localtag\n---\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	globalDoc := filepath.Join(base, ".archcore", "global", "company", "knowledge", "company-rule.rule.md")
+	globalDoc := filepath.Join(base, "vendor", "company", "knowledge", "company-rule.rule.md")
 	if err := os.MkdirAll(filepath.Dir(globalDoc), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestBuildSessionContext_ExcludesGlobals(t *testing.T) {
 		t.Fatal(err)
 	}
 	settings := filepath.Join(base, ".archcore", "settings.json")
-	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":".archcore/global/company"}]}`), 0o644); err != nil {
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":"vendor/company"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

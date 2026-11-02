@@ -13,5 +13,5 @@ packages/  ui (shared component library)
 ```
 
 Cross-cutting standards for the whole monorepo live in **this root
-`.archcore/`**. Every app and package mounts it as a read-only global, so the
+`.archcore/`**. Every app and package declares it as a global source, so the
 rules are defined once at the root and inherited everywhere.

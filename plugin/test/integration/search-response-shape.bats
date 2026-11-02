@@ -39,9 +39,9 @@ require_cli() {
 # settings.json must exist before the server starts; init_project keeps it.
 seed_global_source() {
   local root="$BATS_TEST_TMPDIR/project/.archcore" global long i
-  global="$root/global/company"
-  mkdir -p "$global"
-  printf '%s' '{"sync":"none","globals":[{"id":"company","path":".archcore/global/company"}]}' > "$root/settings.json"
+  global="$BATS_TEST_TMPDIR/company/.archcore"
+  mkdir -p "$root" "$global"
+  printf '%s' '{"sync":"none","globals":[{"id":"company","path":"../company/.archcore"}]}' > "$root/settings.json"
   long=$(printf 'Postgres is the org default database. %.0s' $(seq 1 3000))
   printf -- '---\ntitle: "Org Database Default"\nstatus: accepted\n---\n\n## Context\n%s\n' "$long" \
     > "$global/org-database.adr.md"
@@ -73,7 +73,14 @@ seed_global_source() {
 @test "a global match carries its source fields" {
   mcp_tool search_documents '{"content":"postgres","source":"global"}'
   mcp_assert '.hits == {"company":1}'
-  mcp_assert '.results[0] | .source_kind == "global" and .source_id == "company" and .read_only == true'
+  mcp_assert '.results[0] | .source_kind == "global" and .source_id == "company"'
+}
+
+@test "a global row names its project and carries no read-only flags" {
+  require_cli 0.15.0
+  mcp_tool search_documents '{"content":"postgres","source":"global"}'
+  mcp_assert '.results[0] | (.source_root | endswith("/company")) and (has("read_only") | not) and (has("global") | not)'
+  mcp_assert '.source == "local" and (.project | length) > 0'
 }
 
 @test "full mode shortens a long body and get_document returns the rest" {
@@ -82,7 +89,7 @@ seed_global_source() {
   mcp_assert '[.results[] | select(.source_id == "local")][0] | (has("body_truncated") | not) and (.body | contains("billing storage"))'
   mcp_assert '[.results[] | select(.source_id == "company")][0] | .body_truncated == true and (.body | length) > 0'
   shortened=$(jq '[.results[] | select(.source_id == "company")][0].body | length' <<< "$MCP_RESULT")
-  mcp_get ".archcore/global/company/org-database.adr.md"
+  mcp_get "../company/.archcore/org-database.adr.md"
   mcp_assert --argjson shortened "$shortened" '(.content | length) > $shortened'
 }
 

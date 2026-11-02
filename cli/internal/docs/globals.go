@@ -3,7 +3,6 @@ package docs
 import (
 	"path"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"archcore-cli/internal/config"
@@ -44,93 +43,15 @@ func resolveGlobalRoots(baseDir string, globals []config.GlobalSource) globalRoo
 	return gr
 }
 
-// match returns the id of the source containing target, an absolute
+// index returns the position of the source containing target, an absolute
 // slash-separated path.
-func (gr globalRoots) match(target string) (string, bool) {
+func (gr globalRoots) index(target string) (int, bool) {
 	for i, prefix := range gr.prefixes {
 		if target == prefix || strings.HasPrefix(target, prefix+"/") {
-			return gr.ids[i], true
+			return i, true
 		}
 	}
-	return "", false
-}
-
-// contains reports whether target falls under any declared source.
-func (gr globalRoots) contains(target string) bool {
-	_, ok := gr.match(target)
-	return ok
-}
-
-// matchGlobal returns the id of the declared global source that contains relPath
-// (relative to baseDir), and whether a match was found. Both relPath and each
-// gs.Path are anchored to baseDir before comparison, so embedded, "../"-relative,
-// and absolute global paths are all handled in the same coordinate space.
-//
-// One-shot: callers on the write path resolve a single document. The scan
-// resolves the roots once instead (resolveGlobalRoots).
-func matchGlobal(baseDir, relPath string, globals []config.GlobalSource) (string, bool) {
-	if len(globals) == 0 {
-		return "", false
-	}
-	return resolveGlobalRoots(baseDir, globals).match(filepath.ToSlash(filepath.Join(baseDir, relPath)))
-}
-
-// IsGlobalPath reports whether relPath (relative to baseDir) falls under any
-// declared global source. Used by the write handlers to reject mutations of
-// read-only global documents.
-func IsGlobalPath(baseDir, relPath string, globals []config.GlobalSource) bool {
-	_, ok := matchGlobal(baseDir, relPath, globals)
-	return ok
-}
-
-// IsReservedGlobalDir reports whether relPath sits in reserved global mount space:
-// any directory named "global" under .archcore/, at any depth, or anything inside
-// one. This matches the any-depth skip the local scan applies in
-// WalkArchcoreFilesSkipping (skipDirs=["global"]) so the read scan and the write
-// guard agree on what is reserved — a "global" segment hides a document from the
-// scan AND makes it read-only, never one without the other. Read-only regardless of
-// whether the directory is declared in settings.json. The match is on whole path
-// segments, so a sibling like ".archcore/global-ish/" is not reserved.
-func IsReservedGlobalDir(relPath string) bool {
-	rp := filepath.ToSlash(relPath)
-	if !strings.HasPrefix(rp, ".archcore/") {
-		return false
-	}
-	return slices.Contains(strings.Split(rp, "/"), "global")
-}
-
-// isReservedGlobalDirFold is IsReservedGlobalDir with case-insensitive segment
-// matching. On case-insensitive filesystems (APFS, NTFS) ".archcore/Global/x"
-// resolves to the reserved global/ tree on disk, so the write guard must fold
-// case or the read-only invariant is bypassable. The read path keeps exact
-// matching — folding there would reclassify scan results on case-sensitive
-// filesystems.
-func isReservedGlobalDirFold(relPath string) bool {
-	rp := filepath.ToSlash(relPath)
-	if !strings.HasPrefix(rp, ".archcore/") {
-		return false
-	}
-	return slices.ContainsFunc(strings.Split(rp, "/"), func(seg string) bool {
-		return strings.EqualFold(seg, "global")
-	})
-}
-
-// isGlobalPathFold mirrors IsGlobalPath with case-insensitive comparison, for
-// the same case-insensitive-filesystem bypass. Fail-closed: on a case-sensitive
-// filesystem this may reject a local directory differing from a declared global
-// only by case — acceptable for a write guard.
-func isGlobalPathFold(baseDir, relPath string, globals []config.GlobalSource) bool {
-	if len(globals) == 0 {
-		return false
-	}
-	target := strings.ToLower(filepath.ToSlash(filepath.Join(baseDir, relPath)))
-	for _, gs := range globals {
-		prefix := strings.ToLower(filepath.ToSlash(resolveGlobalPath(baseDir, gs.Path)))
-		if target == prefix || strings.HasPrefix(target, prefix+"/") {
-			return true
-		}
-	}
-	return false
+	return 0, false
 }
 
 // IsExternalGlobalDocument reports whether p is a document file inside a
@@ -143,11 +64,10 @@ func isGlobalPathFold(baseDir, relPath string, globals []config.GlobalSource) bo
 // host-supplied absolute path instead, so without this check a declared
 // external global stays editable straight from the editor while every in-tree
 // global is protected — and the two surfaces stop agreeing on the same path
-// (global-sources.spec, globals-are-read-only-everywhere.rule).
+// (source-mounts.spec, behavior 13).
 //
-// p may be absolute or baseDir-relative. Matching is case-folded for the reason
-// isGlobalPathFold folds: on APFS or NTFS a differently-cased prefix reaches the
-// same directory. Meta files and non-".md" files are excluded so the verdict
+// p may be absolute or baseDir-relative. Matching is case-folded: on APFS or
+// NTFS a differently-cased prefix reaches the same directory. Meta files and non-".md" files are excluded so the verdict
 // matches GuardWritablePath's ErrPathNotDocument step — a stray file inside a
 // global mount is none of the guard's business.
 func IsExternalGlobalDocument(baseDir, p string, globals []config.GlobalSource) bool {
@@ -171,26 +91,50 @@ func IsExternalGlobalDocument(baseDir, p string, globals []config.GlobalSource) 
 	return false
 }
 
-// AnnotateSource fills SourceID, SourceKind, Global, and ReadOnly on doc by
-// matching doc.Path against declared global sources in settings.json.
-//
-// A declared source is matched first so it keeps its own id; undeclared content
-// in the reserved tree gets the sentinel. Everything else is local.
+// AnnotateSource fills SourceID, SourceKind, and SourceRoot on doc by matching
+// doc.Path against the sources declared in settings.json; everything else is
+// local (source-mounts.spec, behaviors 4–5).
 func AnnotateSource(doc *Document, baseDir string, globals []config.GlobalSource) {
-	if id, ok := matchGlobal(baseDir, doc.Path, globals); ok {
-		doc.SourceID = id
-		doc.SourceKind = SourceKindGlobal
-		doc.Global = true
-		doc.ReadOnly = true
-		return
-	}
-	if IsReservedGlobalDir(doc.Path) {
-		doc.SourceID = SourceIDReserved
-		doc.SourceKind = SourceKindGlobal
-		doc.Global = true
-		doc.ReadOnly = true
-		return
+	if len(globals) > 0 {
+		roots := resolveGlobalRoots(baseDir, globals)
+		if i, ok := roots.index(filepath.ToSlash(filepath.Join(baseDir, doc.Path))); ok {
+			doc.SourceID = roots.ids[i]
+			doc.SourceKind = SourceKindGlobal
+			doc.SourceRoot = sourceRoot(filepath.FromSlash(roots.prefixes[i]))
+			return
+		}
 	}
 	doc.SourceID = string(SourceKindLocal)
 	doc.SourceKind = SourceKindLocal
+}
+
+// sourceRoot returns the project root of a source whose resolved directory is
+// dir: the parent of a directory named .archcore, else "" — a source that is not
+// a project's .archcore/ has no project argument that reaches it.
+func sourceRoot(dir string) string {
+	if filepath.Base(dir) != ".archcore" {
+		return ""
+	}
+	return filepath.Dir(dir)
+}
+
+// SourceIDFor returns the id under which the project at baseDir declares the
+// project at root as a source. Advisory: an unreadable settings.json declares
+// nothing, and the caller then names no source.
+func SourceIDFor(baseDir, root string) (string, bool) {
+	want := realDir(root)
+	for _, gs := range config.ReadGlobals(baseDir) {
+		if r := sourceRoot(resolveGlobalPath(baseDir, gs.Path)); r != "" && realDir(r) == want {
+			return gs.ID, true
+		}
+	}
+	return "", false
+}
+
+// realDir returns dir with symlinks evaluated, or cleaned when it cannot be.
+func realDir(dir string) string {
+	if real, err := filepath.EvalSymlinks(dir); err == nil {
+		return real
+	}
+	return filepath.Clean(dir)
 }

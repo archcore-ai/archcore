@@ -447,7 +447,7 @@ MOCK
   export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
   local workdir="$BATS_TEST_TMPDIR/project"
   mkdir -p "$workdir/.archcore"
-  printf '%s' '{"sync":"none","globals":[{"id":"company","path":".archcore/global/company"}]}' \
+  printf '%s' '{"sync":"none","globals":[{"id":"company","path":"../company/.archcore"}]}' \
     > "$workdir/.archcore/settings.json"
   cd "$workdir"
 
@@ -496,7 +496,7 @@ MOCK
   export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
   local workdir="$BATS_TEST_TMPDIR/project"
   mkdir -p "$workdir/.archcore"
-  printf '%s' '{"sync":"none","globals":[{"id":"c","path":".archcore/global/c"}]}' \
+  printf '%s' '{"sync":"none","globals":[{"id":"c","path":"../c/.archcore"}]}' \
     > "$workdir/.archcore/settings.json"
   cd "$workdir"
 
@@ -517,7 +517,7 @@ MOCK
   export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
   local workdir="$BATS_TEST_TMPDIR/project"
   mkdir -p "$workdir/.archcore"
-  printf '%s' '{"sync":"none","globals":[{"id":"c","path":".archcore/global/c"}]}' \
+  printf '%s' '{"sync":"none","globals":[{"id":"c","path":"../c/.archcore"}]}' \
     > "$workdir/.archcore/settings.json"
   cd "$workdir"
 
@@ -532,7 +532,7 @@ MOCK
   export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
   local workdir="$BATS_TEST_TMPDIR/project"
   mkdir -p "$workdir/.archcore"
-  printf '%s' '{"sync":"none","globals":[{"id":"c","path":".archcore/global/c"}]}' \
+  printf '%s' '{"sync":"none","globals":[{"id":"c","path":"../c/.archcore"}]}' \
     > "$workdir/.archcore/settings.json"
   cd "$workdir"
 
@@ -556,7 +556,7 @@ MOCK
   export CLAUDE_PLUGIN_DATA="$BATS_TEST_TMPDIR/data"
   local workdir="$BATS_TEST_TMPDIR/project"
   mkdir -p "$workdir/.archcore"
-  printf '%s' '{"sync":"none","globals":[{"id":"c","path":".archcore/global/c"}]}' \
+  printf '%s' '{"sync":"none","globals":[{"id":"c","path":"../c/.archcore"}]}' \
     > "$workdir/.archcore/settings.json"
   cd "$workdir"
 

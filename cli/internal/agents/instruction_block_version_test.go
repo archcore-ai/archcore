@@ -12,7 +12,7 @@ import (
 // instructionsBodySHA256 pins the body to InstructionsBlockVersion. A change to
 // the body that keeps the version would leave every committed block reading as
 // current, so the stale-block advisory would never fire for it.
-const instructionsBodySHA256 = "1b79a0bfc58a4876996b723d833aae3ae01532eff987aa2ac7c769e550524c78"
+const instructionsBodySHA256 = "701be0013bf239573d2db01b5d7835529ee2f2c3519a2547da88331f035e27ed"
 
 func TestInstructionsBlockVersion_TracksTheBody(t *testing.T) {
 	t.Parallel()

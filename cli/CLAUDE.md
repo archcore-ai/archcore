@@ -95,7 +95,7 @@ Before creating or updating an Archcore document:
 4. Preserve code identifiers, commands, flags, paths, MCP tool names, configuration keys, and literal values exactly.
 5. Mark unsupported technical claims with `[assumption]`.
 
-Treat mounted global documents as read-only. Do not edit them or create relations to them.
+Treat global documents as defaults a local document overrides. Edit one only when the user asks, through its source project (`project` set to its `source_root`). Do not create relations between projects.
 
 ### Archcore + Serena
 
@@ -252,7 +252,7 @@ Preserve these constraints:
 - Shared host-wiring logic in `internal/wiring/`.
 - Co-located table-driven Go tests.
 - Optional settings omit defaults where defined.
-- Global Archcore sources are read-only.
+- A global Archcore source is a read policy; writes are addressed by `project`, and relations stay inside one project.
 - Unattended update refuses without the official-build marker.
 - Telemetry stays inert without an injected key.
 - The plugin surface never changes behavior outside itself.
@@ -264,7 +264,7 @@ Exclude these directories from normal implementation searches unless the task ex
 - `reference-materials/` — vendored references and standards material; not part of the build.
 - `examples/` — example project layouts and manual-test fixtures.
 
-<!-- archcore:start --> managed by `archcore init`, block v2 — edit outside these markers
+<!-- archcore:start --> managed by `archcore init`, block v3 — edit outside these markers
 ## Archcore — project context for this repo
 
 `.archcore/` holds this project's recorded context as typed Markdown files,
@@ -288,10 +288,11 @@ Before you change, test, or explain code here, call `search_documents` with `for
 If the Archcore MCP tools are missing or fail to connect, tell the user once, then
 take the file route above. Do not write `.archcore/` files by hand.
 
-A `.archcore/` may also mount read-only **global sources** — shared, org-wide
-context. `list_documents` / `search_documents` surface them alongside local docs,
-tagged `source_kind: "global"`. When present, treat them as defaults a local doc
-can override — never edit or relate to one.
+A `.archcore/` may also declare **global sources** — shared, org-wide context.
+`list_documents` / `search_documents` surface them alongside local docs, tagged
+`source_kind: "global"` with a `source_root`. Treat them as defaults a local doc
+can override. A change to a source reaches every project that declares it: make
+one only when the user asks, with `project` set to its `source_root`.
 
 Skip these steps only for turns this repo would have no opinion on: syntax
 trivia, throwaway snippets, pure mechanics.

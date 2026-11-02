@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -10,7 +11,7 @@ import (
 func TestWithProjectField(t *testing.T) {
 	t.Parallel()
 	const root = `/w/a "quoted" \dir`
-	field := projectField(root)
+	field := projectField(root, "local")
 
 	tests := []struct {
 		name   string
@@ -28,7 +29,7 @@ func TestWithProjectField(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := WithProjectField(tt.result, root)
+			got := WithProjectField(tt.result, root, "local")
 			text, _ := mcp.AsTextContent(got.Content[0])
 			if text.Text != tt.want {
 				t.Fatalf("text = %q, want %q", text.Text, tt.want)
@@ -44,11 +45,11 @@ func TestWithProjectField(t *testing.T) {
 			}
 		})
 	}
-	if WithProjectField(nil, root) != nil {
+	if WithProjectField(nil, root, "local") != nil {
 		t.Error("nil result was not passed through")
 	}
 	two := &mcp.CallToolResult{Content: []mcp.Content{mcp.NewTextContent(`{}`), mcp.NewTextContent(`{}`)}}
-	if text, _ := mcp.AsTextContent(WithProjectField(two, root).Content[0]); text.Text != `{}` {
+	if text, _ := mcp.AsTextContent(WithProjectField(two, root, "local").Content[0]); text.Text != `{}` {
 		t.Error("a result with two contents was rewritten")
 	}
 }
@@ -57,9 +58,9 @@ func TestProjectFieldBytes(t *testing.T) {
 	t.Parallel()
 	for _, root := range []string{"/a", `/x "y"`, "/путь/проект"} {
 		before := `{"k":1}`
-		after, _ := mcp.AsTextContent(WithProjectField(mcp.NewToolResultText(before), root).Content[0])
-		if got := len(after.Text) - len(before); got != projectFieldBytes(root) {
-			t.Errorf("root %q: field added %d bytes, projectFieldBytes = %d", root, got, projectFieldBytes(root))
+		after, _ := mcp.AsTextContent(WithProjectField(mcp.NewToolResultText(before), root, "local").Content[0])
+		if got := len(after.Text) - len(before); got != projectFieldBytes(t.Context(), root) {
+			t.Errorf("root %q: field added %d bytes, projectFieldBytes = %d", root, got, projectFieldBytes(t.Context(), root))
 		}
 	}
 }
@@ -77,5 +78,29 @@ func TestWithProjectArgument(t *testing.T) {
 				t.Errorf("%s: project must stay optional", tool.Name)
 			}
 		}
+	}
+}
+
+func TestSourceOf(t *testing.T) {
+	t.Parallel()
+	base, root := setupSourceLayout(t)
+	ctx := WithSessionRoot(t.Context(), base)
+	tests := []struct {
+		name, callRoot, want string
+	}{
+		{name: "session root", callRoot: base, want: "local"},
+		{name: "declared source", callRoot: filepath.Join(root, "company"), want: "company"},
+		{name: "undeclared project", callRoot: filepath.Join(root, "other"), want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := SourceOf(ctx, tt.callRoot); got != tt.want {
+				t.Errorf("SourceOf(%q) = %q, want %q", tt.callRoot, got, tt.want)
+			}
+		})
+	}
+	if got := SourceOf(t.Context(), root); got != "local" {
+		t.Errorf("SourceOf without a session root = %q, want local", got)
 	}
 }

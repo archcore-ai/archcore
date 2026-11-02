@@ -59,11 +59,14 @@ func TestGlobalsBlock_HealthySource(t *testing.T) {
 
 	ctx, counts := buildSessionContext(bg(), base)
 
-	if !strings.Contains(ctx, "GLOBALS (read-only, query via MCP read tools):") {
+	if !strings.Contains(ctx, "GLOBALS (read with this project; write a source's documents through its project):") {
 		t.Fatalf("GLOBALS heading missing; ctx=%q", ctx)
 	}
 	if !strings.Contains(ctx, "- src-00 — 3 docs (knowledge 2, vision 1) · concepts/ 2, product/ 1") {
 		t.Errorf("source line wrong; ctx=%q", ctx)
+	}
+	if want := fmt.Sprintf(" · project=%q", filepath.Join(filepath.Dir(base), "src-00")); !strings.Contains(ctx, want) {
+		t.Errorf("source line must name the project that writes it (%s); ctx=%q", want, ctx)
 	}
 	if !strings.Contains(ctx, globalsPrecedenceLine) {
 		t.Error("precedence sentence missing")
@@ -183,7 +186,8 @@ func TestGlobalsBlock_Ceilings(t *testing.T) {
 	}
 	firstLine := ctx[strings.Index(ctx, "  - src-00"):]
 	firstLine = firstLine[:strings.Index(firstLine, "\n")]
-	if got := strings.Count(firstLine, "/"); got != maxGlobalsDirs {
+	dirs := firstLine[:strings.Index(firstLine, " · project=")]
+	if got := strings.Count(dirs, "/"); got != maxGlobalsDirs {
 		t.Errorf("rendered %d directories on the line, want %d; line=%q", got, maxGlobalsDirs, firstLine)
 	}
 	if !strings.Contains(firstLine, "… and 2 more dirs") {

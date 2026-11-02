@@ -14,7 +14,7 @@ type listedDoc struct {
 	Path       string `json:"path"`
 	SourceID   string `json:"source_id"`
 	SourceKind string `json:"source_kind"`
-	ReadOnly   bool   `json:"read_only"`
+	SourceRoot string `json:"source_root"`
 }
 
 // writeFixtureFile writes content to path, creating parent directories.
@@ -62,7 +62,7 @@ func setupPrimaryWithSiblingGlobal(t *testing.T) string {
 // behind this test's existence: an agent asks "what are our X standards?", the
 // MCP tools return only the local docs, and the agent falls back to reading the
 // mounted global off disk. A mounted sibling global MUST appear through the real
-// server's list_documents — tagged read-only — so the agent never touches the
+// server's list_documents — tagged with its source — so the agent never touches the
 // filesystem directly. The per-tool unit suite exercises ScanDocuments() but not
 // the registered handler over the protocol; this closes that gap.
 func TestGlobals_SurfacedThroughTools(t *testing.T) {
@@ -89,8 +89,8 @@ func TestGlobals_SurfacedThroughTools(t *testing.T) {
 
 	if len(locals) != 1 {
 		t.Errorf("want 1 local doc, got %d", len(locals))
-	} else if locals[0].ReadOnly {
-		t.Error("local doc must be writable (read_only=false)")
+	} else if locals[0].SourceRoot != "" {
+		t.Errorf("local doc: source_root = %q, want none", locals[0].SourceRoot)
 	}
 
 	if len(globals) != 2 {
@@ -102,8 +102,8 @@ func TestGlobals_SurfacedThroughTools(t *testing.T) {
 		if g.SourceID != "company" {
 			t.Errorf("global %s: source_id = %q, want company", g.Path, g.SourceID)
 		}
-		if !g.ReadOnly {
-			t.Errorf("global %s: want read_only=true", g.Path)
+		if want := filepath.Join(filepath.Dir(base), "company-global"); g.SourceRoot != want {
+			t.Errorf("global %s: source_root = %q, want %q", g.Path, g.SourceRoot, want)
 		}
 	}
 	for _, want := range []string{"error-handling.rule.md", "logging.rule.md"} {
@@ -142,10 +142,9 @@ func TestGlobals_SearchSeesGlobals(t *testing.T) {
 	}
 }
 
-// TestGlobals_WriteToGlobalRejected verifies the read-only invariant through the
-// real server: update_document targeting a mounted global document must fail.
-// (For a "../"-relative global the path-validation guard fires first — spec
-// §5.5 — so we assert the call errors, not the exact message.)
+// TestGlobals_WriteToGlobalRejected verifies through the real server that a
+// write addressed by a source row path is refused with the pass-project
+// instruction and the source id (source-mounts.spec, failure rules).
 func TestGlobals_WriteToGlobalRejected(t *testing.T) {
 	base := setupPrimaryWithSiblingGlobal(t)
 	c := newTestClient(t, base)
@@ -154,20 +153,66 @@ func TestGlobals_WriteToGlobalRejected(t *testing.T) {
 		"path":  "../company-global/.archcore/knowledge/logging.rule.md",
 		"title": "Hijacked",
 	})
-	if errText == "" {
-		t.Error("expected a non-empty error message rejecting the global write")
+	for _, want := range []string{"pass that project's absolute root as project", `source "company"`} {
+		if !strings.Contains(errText, want) {
+			t.Errorf("error = %q, want %q", errText, want)
+		}
 	}
-	// Rejected by the write-path guard (validateArchcorePath), not by some later
-	// incidental failure — otherwise removing the guard would go unnoticed.
-	if !strings.Contains(errText, "must start with") {
-		t.Errorf("error = %q, want the \".archcore/\" path-guard rejection", errText)
+}
+
+// TestGlobals_WriteThroughSourceProject verifies the write path the refusal
+// names: project set to the row's source_root edits the source document, and
+// the response names that project and its source id.
+func TestGlobals_WriteThroughSourceProject(t *testing.T) {
+	base := setupPrimaryWithSiblingGlobal(t)
+	c := newTestClient(t, base)
+	sourceRoot := filepath.Join(filepath.Dir(base), "company-global")
+
+	res := mustCallTool(t, c, "update_document", map[string]any{
+		"project": sourceRoot,
+		"path":    ".archcore/knowledge/logging.rule.md",
+		"title":   "Logging (edited)",
+	})
+	got := decodeJSON[struct {
+		Project string `json:"project"`
+		Source  string `json:"source"`
+	}](t, res)
+	if got.Source != "company" {
+		t.Errorf("source = %q, want company", got.Source)
+	}
+	if got.Project == "" {
+		t.Error("project missing from the response")
+	}
+	data, err := os.ReadFile(filepath.Join(sourceRoot, ".archcore", "knowledge", "logging.rule.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "Logging (edited)") {
+		t.Errorf("source document not updated:\n%s", data)
+	}
+
+	relation := firstText(mustCallTool(t, c, "add_relation", map[string]any{
+		"project": sourceRoot,
+		"source":  ".archcore/knowledge/logging.rule.md",
+		"target":  ".archcore/knowledge/error-handling.rule.md",
+		"type":    "related",
+	}))
+	if n := strings.Count(relation, `"source":`); n != 1 {
+		t.Errorf("add_relation response holds %d \"source\" keys, want 1 (the endpoint): %s", n, relation)
+	}
+
+	local := decodeJSON[struct {
+		Source string `json:"source"`
+	}](t, mustCallTool(t, c, "list_documents", map[string]any{}))
+	if local.Source != "local" {
+		t.Errorf("session-root response source = %q, want local", local.Source)
 	}
 }
 
 // TestGlobals_GetExternalGlobalReadable verifies the read-path relaxation end to
 // end: a sibling global declared via a "../" path — the canonical examples/05
-// layout — must be readable through get_document, tagged read-only with its source
-// id and its body inlined. Before the relaxation this returned `invalid path: must
+// layout — must be readable through get_document, tagged with its source id and
+// source_root, with its body inlined. Before the relaxation this returned `invalid path: must
 // start with ".archcore/"` because the document renders with a leading "..".
 func TestGlobals_GetExternalGlobalReadable(t *testing.T) {
 	base := setupPrimaryWithSiblingGlobal(t)
@@ -179,70 +224,28 @@ func TestGlobals_GetExternalGlobalReadable(t *testing.T) {
 	doc := decodeJSON[struct {
 		SourceID   string `json:"source_id"`
 		SourceKind string `json:"source_kind"`
-		ReadOnly   bool   `json:"read_only"`
+		SourceRoot string `json:"source_root"`
 		Content    string `json:"content"`
 	}](t, res)
-	if doc.SourceKind != "global" || doc.SourceID != "company" || !doc.ReadOnly {
-		t.Errorf("got source_kind=%q source_id=%q read_only=%v; want global/company/true",
-			doc.SourceKind, doc.SourceID, doc.ReadOnly)
+	wantRoot := filepath.Join(filepath.Dir(base), "company-global")
+	if doc.SourceKind != "global" || doc.SourceID != "company" || doc.SourceRoot != wantRoot {
+		t.Errorf("got source_kind=%q source_id=%q source_root=%q; want global/company/%s",
+			doc.SourceKind, doc.SourceID, doc.SourceRoot, wantRoot)
 	}
 	if !strings.Contains(doc.Content, "structured logging") {
 		t.Errorf("global body not inlined; content=%q", doc.Content)
 	}
 }
 
-// setupPrimaryWithInTreeGlobal builds a primary with a global vendored in-tree
-// under the reserved .archcore/global/company directory. An in-tree global's
-// documents have valid .archcore/ paths, so the relation guard — which validates
-// endpoints with the strict path check — can be exercised against them directly.
-// (External "../" globals are now readable via get_document too; see
-// TestGlobals_GetExternalGlobalReadable.)
-func setupPrimaryWithInTreeGlobal(t *testing.T) string {
-	t.Helper()
-	base := t.TempDir()
-	writeFixtureFile(t, filepath.Join(base, ".archcore", "service.doc.md"),
-		"---\ntitle: \"Service\"\nstatus: accepted\n---\n\nbody\n")
-	writeFixtureFile(t, filepath.Join(base, ".archcore", "global", "company", "knowledge", "logging.rule.md"),
-		"---\ntitle: \"Logging (company)\"\nstatus: accepted\n---\n\nstructured logging only\n")
-	writeFixtureFile(t, filepath.Join(base, ".archcore", "settings.json"),
-		"{\n  \"sync\": \"none\",\n  \"globals\": [\n    { \"id\": \"company\", \"path\": \".archcore/global/company\" }\n  ]\n}\n")
-	return base
-}
-
-// TestGlobals_GetDocumentAnnotatesGlobal closes the §4.2/§4.3 coverage gap: reading
-// a mounted global through get_document must tag it read-only with its source id.
-func TestGlobals_GetDocumentAnnotatesGlobal(t *testing.T) {
-	base := setupPrimaryWithInTreeGlobal(t)
-	c := newTestClient(t, base)
-
-	res := mustCallTool(t, c, "get_document", map[string]any{
-		"path": ".archcore/global/company/knowledge/logging.rule.md",
-	})
-	doc := decodeJSON[struct {
-		SourceID   string `json:"source_id"`
-		SourceKind string `json:"source_kind"`
-		ReadOnly   bool   `json:"read_only"`
-	}](t, res)
-	if doc.SourceKind != "global" {
-		t.Errorf("source_kind = %q, want global", doc.SourceKind)
-	}
-	if doc.SourceID != "company" {
-		t.Errorf("source_id = %q, want company", doc.SourceID)
-	}
-	if !doc.ReadOnly {
-		t.Error("want read_only=true")
-	}
-}
-
 // TestGlobals_RelationToGlobalRejected verifies through the real server that a
 // relation touching a global document (here as target) is refused.
 func TestGlobals_RelationToGlobalRejected(t *testing.T) {
-	base := setupPrimaryWithInTreeGlobal(t)
+	base := setupPrimaryWithSiblingGlobal(t)
 	c := newTestClient(t, base)
 
 	errText := expectToolError(t, c, "add_relation", map[string]any{
-		"source": ".archcore/service.doc.md",
-		"target": ".archcore/global/company/knowledge/logging.rule.md",
+		"source": ".archcore/error-handling.rule.md",
+		"target": "../company-global/.archcore/knowledge/logging.rule.md",
 		"type":   "related",
 	})
 	if errText == "" {

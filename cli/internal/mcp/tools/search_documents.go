@@ -92,18 +92,18 @@ const (
 // hit (bounded-and-deterministic-output.rule).
 const contentFreqCap = 20
 
-const searchDocumentsDescription = `Search .archcore/ documents across the local project and every mounted global source. Prefer it over list_documents + get_document loops.
+const searchDocumentsDescription = `Search .archcore/ documents of the local project and every mounted global source. Prefer it to list_documents + get_document.
 
 Before you change, test, or explain a file, call it with for_path set to that file: it returns the documents that name the file or its directories, then the accepted rules that name no path. for_path combines with types, status, and source only.
 
 Otherwise give at least one filter (path_ref, content, types, status); filters combine as AND. content matches every word by default, in any order; match="exact" takes one literal substring, match="any" at least one word. path_ref matches @-notation and qualified bare paths. source scopes to "local", "global", or a declared source id.
 
 Returns JSON, summary first:
-- coverage: documents scanned per source. Empty results under match="all" mean no document passing the filters holds every word; near_misses then lists up to 3 that hold at least half, and missing names the words each lacks. Open those documents (get_document) before you broaden the words or conclude absence.
+- coverage: documents scanned per source. Empty results under match="all" mean no document passing the filters holds every word; near_misses then lists up to 3 that hold at least half, and missing names the words each lacks. Open those documents before you broaden the words or conclude absence.
 - hits: matches per source before the cut; truncated: true when the byte budget cut rows.
 - index: path, title, source_id of every admitted row.
-- results: at most 5 matches and 5 relations per direction per row; matches_total and the relation totals count the rest. Under for_path a row carries reason, why it applies to the file; omitted counts the matched and general rows the caps cut, and more_matched and more_general name the calls that return them.
-Read source_kind on each row. A matching global is part of the answer. IF a local and a global document conflict, THEN the local one is authoritative.
+- results: at most 5 matches and 5 relations per direction per row; matches_total and the relation totals count the rest. Under for_path a row's reason says why it applies to the file; omitted counts the matched and general rows the caps cut, and more_matched and more_general name the calls that return them.
+Read source_kind on each row; a global row is part of the answer and has its project in source_root. IF a local and a global document conflict, THEN the local one is authoritative.
 
 mode="full" adds each body inline, default limit 3; a long body arrives shortened with body_truncated: true and body_bytes. Call get_document for the rest and before update_document — never write back a shortened body.
 
@@ -197,12 +197,11 @@ type searchResult struct {
 	Tags    []string               `json:"tags,omitempty"`
 	// Source annotation, mirroring LocalDocument so all three read tools
 	// (list_documents, get_document, search_documents) carry the same machine-
-	// checkable local/global distinction. local-overrides-global.rule requires
+	// checkable local/source distinction. local-overrides-source.rule requires
 	// agents to read these rather than guess authority from the path.
 	SourceID   string          `json:"source_id"`
 	SourceKind docs.SourceKind `json:"source_kind"`
-	Global     bool            `json:"global,omitempty"`
-	ReadOnly   bool            `json:"read_only,omitempty"`
+	SourceRoot string          `json:"source_root,omitempty"`
 	Matches    []searchMatch   `json:"matches"`
 	// Reason says why the row applies to the for_path file; empty outside that mode.
 	Reason advisory.ContextReason `json:"reason,omitempty"`
@@ -327,7 +326,7 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 			if pathRefFilter != "" || contentFilter != "" {
 				return errorResult("for_path cannot be combined with path_ref or content"), nil
 			}
-			return searchFileContext(baseDir, forPath, sourceFilter, types, status)
+			return searchFileContext(ctx, baseDir, forPath, sourceFilter, types, status)
 		}
 
 		// Validate and clamp limit (mode-aware bounds).
@@ -512,8 +511,7 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 				Tags:           doc.Tags,
 				SourceID:       doc.SourceID,
 				SourceKind:     doc.SourceKind,
-				Global:         doc.Global,
-				ReadOnly:       doc.ReadOnly,
+				SourceRoot:     doc.SourceRoot,
 				Matches:        matches,
 				score:          100*specSum + freq,
 				typeRank:       rank,
@@ -579,14 +577,14 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 		// Each missing list grows with the query, so near misses leave from the
 		// tail until the head fits the byte budget (search-documents.spec §13.10).
 		nearMissCut := false
-		for len(head)+projectFieldBytes(baseDir) > searchResponseByteBudget && len(response.NearMisses) > 0 {
+		for len(head)+projectFieldBytes(ctx, baseDir) > searchResponseByteBudget && len(response.NearMisses) > 0 {
 			response.NearMisses = response.NearMisses[:len(response.NearMisses)-1]
 			nearMissCut = true
 			if head, err = json.Marshal(response); err != nil {
 				return nil, fmt.Errorf("marshaling result head: %w", err)
 			}
 		}
-		response.Results, response.Truncated, err = fitSearchPage(ranked, len(results), len(head)+projectFieldBytes(baseDir), sortMode)
+		response.Results, response.Truncated, err = fitSearchPage(ranked, len(results), len(head)+projectFieldBytes(ctx, baseDir), sortMode)
 		if err != nil {
 			return nil, err
 		}
@@ -602,14 +600,13 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 }
 
 // validSourceScope reports whether scope names a queryable source: empty (no
-// scope), one of the two kinds, the reserved global tree, or a declared global
-// source id. The ReadGlobals call is an advisory read, fail-open by design: on
+// scope), one of the two kinds, or a declared source id. The ReadGlobals call is an advisory read, fail-open by design: on
 // an unreadable settings.json the declared-id set degrades to empty and only
 // the id form is rejected — the read tools stay available, while `archcore
 // mcp` startup separately fails closed on invalid settings (checkGlobals).
 func validSourceScope(baseDir, scope string) bool {
 	switch scope {
-	case "", string(docs.SourceKindLocal), string(docs.SourceKindGlobal), docs.SourceIDReserved:
+	case "", string(docs.SourceKindLocal), string(docs.SourceKindGlobal):
 		return true
 	}
 	for _, gs := range config.ReadGlobals(baseDir) {
@@ -901,13 +898,13 @@ func dedupeWords(words []string) []string {
 
 // computeRelevanceKeys returns the type rank and the effective mtime of doc. A global
 // document's mtime is its clone date, not a relevance signal; the zero time
-// also makes a fully tied local document rank first (local-overrides-global.rule).
+// also makes a fully tied local document rank first (local-overrides-source.rule).
 func computeRelevanceKeys(doc LocalDocument) (typeRank int, effectiveMtime time.Time) {
 	rank, ok := typePriority[doc.Type]
 	if !ok {
 		rank = typePriorityDefault
 	}
-	if doc.Global {
+	if doc.SourceKind == docs.SourceKindGlobal {
 		return rank, time.Time{}
 	}
 	return rank, doc.ModTime

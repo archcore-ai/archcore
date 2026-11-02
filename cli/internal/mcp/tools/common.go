@@ -9,21 +9,25 @@ import (
 	"strings"
 
 	"archcore-cli/internal/config"
+	"archcore-cli/internal/docs"
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"gopkg.in/yaml.v3"
 )
 
-// loadGlobalsFailClosed loads declared global sources for a write guard. On
-// failure it returns a non-nil tool result: a corrupt settings.json must fail
-// closed so a mutation can never slip past an unverifiable global list.
-func loadGlobalsFailClosed(baseDir string) ([]config.GlobalSource, *mcp.CallToolResult) {
-	globals, err := config.LoadGlobals(baseDir)
-	if err != nil {
-		return nil, errorResult("cannot verify global sources: settings.json is unreadable")
+// otherProjectRefusal answers a write whose path climbs out of the call root:
+// that document belongs to another project, reached through its project
+// argument (source-mounts.spec, behavior 12). It names the declared source the
+// path falls under, and never the path itself (no-absolute-paths-in-mcp-errors.rule).
+func otherProjectRefusal(baseDir, relPath string) string {
+	const refusal = "path belongs to another project: pass that project's absolute root as project, and the document path relative to it, starting with .archcore/"
+	doc := LocalDocument{Path: relPath}
+	annotateSource(&doc, baseDir, config.ReadGlobals(baseDir))
+	if doc.SourceKind == docs.SourceKindGlobal && doc.SourceRoot != "" {
+		return fmt.Sprintf("%s — this document belongs to source %q", refusal, doc.SourceID)
 	}
-	return globals, nil
+	return refusal
 }
 
 // validateTags checks that every tag matches the required format.

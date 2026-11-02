@@ -42,13 +42,23 @@ func (r callRootResolver) wrap(toolName string, handle server.ToolHandlerFunc) s
 		if refusal != "" {
 			return mcp.NewToolResultError(refusal), nil
 		}
-		result, err := handle(context.WithValue(ctx, callRootKey{}, root), request)
+		ctx = tools.WithSessionRoot(context.WithValue(ctx, callRootKey{}, root), r.settledSessionRoot(ctx))
+		result, err := handle(ctx, request)
 		if err != nil {
 			return result, err
 		}
-		return tools.WithProjectField(result, root), nil
+		source := tools.SourceOf(ctx, root)
+		if relationEndpointTools[toolName] {
+			// "source" already names the relation endpoint in these payloads.
+			source = ""
+		}
+		return tools.WithProjectField(result, root, source), nil
 	}
 }
+
+// relationEndpointTools are the tools whose payload carries a top-level "source"
+// key of its own; the response names their project only.
+var relationEndpointTools = map[string]bool{"add_relation": true, "remove_relation": true}
 
 func (r callRootResolver) resolve(ctx context.Context, toolName string, request mcp.CallToolRequest) (root, refusal string) {
 	if project := strings.TrimSpace(request.GetString(tools.ProjectArgument, "")); project != "" {

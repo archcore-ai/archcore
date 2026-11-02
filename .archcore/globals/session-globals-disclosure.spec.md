@@ -23,8 +23,8 @@ Out of scope: read-tool paging and ranking (@.archcore/mcp/global-recall-guarant
 Block format, with this repository's measured data:
 
 ```
-GLOBALS (read-only, query via MCP read tools):
-  - archcore — 42 docs (knowledge 40, vision 1, experience 1) · product/ 14, concepts/ 14, architecture/ 7, market/ 4, web/ 3
+GLOBALS (read with this project; write a source's documents through its project):
+  - archcore — 42 docs (knowledge 40, vision 1, experience 1) · product/ 14, concepts/ 14, architecture/ 7, market/ 4, web/ 3 · project="/home/dev/archcore"
   ⚠ global source "company" not found at "../company/.archcore" — skipped until it is cloned; local documents are unaffected
   ⚠ global source "vendor" at "../vendor.txt" is not a directory — fix .archcore/settings.json
   Local documents take precedence over same-topic globals; a matching global is still part of the answer.
@@ -51,13 +51,15 @@ GLOBALS (read-only, query via MCP read tools):
 17. The builder MUST NOT add a corpus scan to the session start.
 18. IF `config.LoadGlobals` fails, THEN the builder MUST render only the invalid-settings warning.
 19. WHEN a source is missing, the builder MUST end its line with "skipped until it is cloned; local documents are unaffected".
+20. WHEN a `GlobalOK` source resolves to a directory named `.archcore`, the builder MUST end its line with ` · project="<root>"`, where `<root>` is the parent of that directory — the `project` argument that writes the source (@.archcore/globals/source-mounts.spec.md).
+21. The builder MUST render the heading "GLOBALS (read with this project; write a source's documents through its project):".
 
 ## Constraints & Invariants
 
 - Output ceiling: 8 source lines, their warnings, the heading, and the precedence sentence. Block size is a function of the ceilings, never of corpus size.
 - I/O ceiling: directory walks only, identical to the cost `InspectGlobals` pays today (@cli/internal/docs/inspect.go `countGlobalDocs`).
 - No global document path, title, or tag appears in the block; global content surfaces through the MCP read tools only (@.archcore/globals/global-sources.spec.md).
-- No absolute filesystem path appears in any line; a line carries the declared id and the declared path only (@.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md).
+- No absolute filesystem path appears in any line except the `project` root of clause 20; a warning line carries the declared id and the declared path only (@.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md).
 - Category derivation matches the scan: filename type suffix to virtual category (@cli/templates/templates.go `CategoryForType`).
 - The governing documents agree with this contract: the invariant and warning placement in @.archcore/globals/global-sources.spec.md, the section order in @.archcore/integrations/session-start-context.spec.md, and clauses 6–7 of @.archcore/globals/globals-are-read-only-everywhere.rule.md were amended together with this specification's acceptance.
 
@@ -74,6 +76,6 @@ GLOBALS (read-only, query via MCP read tools):
 
 ## Conformance
 
-An implementation conforms when it satisfies clauses 1–19 and the failure rows, and `TestBuildSessionContext_ScansTheCorpusOnce` (@cli/cmd/hook_scan_budget_test.go) still passes.
+An implementation conforms when it satisfies clauses 1–21 and the failure rows, and `TestBuildSessionContext_ScansTheCorpusOnce` (@cli/cmd/hook_scan_budget_test.go) still passes.
 
 The conformance tests are @cli/cmd/hooks_globals_block_test.go: block presence and absence, both ceilings with named drops, the warning merge, the precedence sentence, the `CORPUS` label, and the banner suffix.

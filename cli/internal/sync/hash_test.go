@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -212,10 +213,10 @@ func TestScanFiles(t *testing.T) {
 	}
 }
 
-// TestScanFiles_SkipsGlobalSpace pins that sync never pushes read-only global
-// space: the reserved global/ tree and documents under a declared in-tree
-// global source are excluded from the scan.
-func TestScanFiles_SkipsGlobalSpace(t *testing.T) {
+// TestScanFiles_SkipsDeclaredSources pins that sync never pushes a declared
+// source's document, even one misdeclared under .archcore/, while a "global"
+// directory is ordinary local space and syncs.
+func TestScanFiles_SkipsDeclaredSources(t *testing.T) {
 	t.Parallel()
 	baseDir := t.TempDir()
 	write := func(rel, content string) {
@@ -240,11 +241,13 @@ func TestScanFiles_SkipsGlobalSpace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ScanFiles: %v", err)
 	}
-	if len(files) != 1 {
-		t.Fatalf("ScanFiles returned %d files, want 1 (only the local doc): %+v", len(files), files)
+	var got []string
+	for _, f := range files {
+		got = append(got, f.RelPath)
 	}
-	if files[0].RelPath != "knowledge/local.adr.md" {
-		t.Errorf("RelPath = %q, want the local document", files[0].RelPath)
+	want := []string{"global/corp/x.rule.md", "knowledge/local.adr.md"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("ScanFiles = %v, want %v (the local documents, never the declared source)", got, want)
 	}
 }
 
