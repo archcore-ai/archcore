@@ -31,9 +31,7 @@ cost is tokens the user pays for.
 
 **Undetermined order.** Cutting in encounter order makes the output a function of where the input
 happened to sit. `archcore status` printed an unchanged corpus's warnings in a different order every
-run until `@cli/cmd/status.go` sorted the map keys; the precision advisory says it outright — capping in
-encounter order makes the reported set a function of where the words appear
-(`@cli/internal/advisory/precision.go`). A session recap that varies run to run is not reproducible, and
+run until `@cli/cmd/status.go` sorted the map keys. A session recap that varies run to run is not reproducible, and
 a test that diffs it is flaky for a reason nobody can find.
 
 Requirement 5 exists because truncation is silent and refusal is not. Reading exactly `limit` bytes
@@ -43,60 +41,6 @@ must handle (`@cli/internal/update/update.go`).
 Requirement 4 is the half that gets forgotten. Sorting by frequency alone leaves equal-frequency
 elements in map order, which Go randomizes — the cut is stable but the set is not.
 
-## Examples
-
-### Good
-
-```go
-// maxSessionTags caps the number of tags emitted in SessionStart context.
-// Capped at 20 (top-N by frequency) to limit static token overhead per session
-// while preserving enough coverage for projects with rich tag namespaces.
-const maxSessionTags = 20
-
-slices.SortFunc(sorted, func(a, b tagCount) int {
-    if c := cmp.Compare(b.count, a.count); c != 0 {
-        return c // most frequent first
-    }
-    return cmp.Compare(a.tag, b.tag) // ties broken by name, so the set is stable
-})
-tags := sorted[:min(maxSessionTags, len(sorted))]
-```
-
-```go
-// One byte past the limit, so an oversized body is an error rather than a
-// silently truncated document.
-body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes+1))
-if int64(len(body)) > maxBodyBytes {
-    return fmt.Errorf("response exceeds %d bytes", maxBodyBytes)
-}
-```
-
-### Bad
-
-```go
-const maxTags = 20 // maximum number of tags
-
-// Cut in map order: the same corpus emits a different set on every run.
-for tag := range tagFreq {
-    tags = append(tags, tag)
-    if len(tags) == maxTags {
-        break
-    }
-}
-
-// Sorted, then cut, but ties left in map order: the set is unstable at the edge.
-slices.SortFunc(sorted, func(a, b tagCount) int { return cmp.Compare(b.count, a.count) })
-
-// Reads exactly the limit, so an oversized body arrives as a valid-looking prefix.
-body, _ := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
-```
-
 ## Enforcement
 
-- Code review: any new constant that bounds output, and any slice expression that cuts a collection.
-- `@cli/internal/advisory/precision.go`, `@cli/internal/advisory/code_alignment.go`,
-  `@cli/internal/advisory/staleness.go` — sort-then-cut, each with the tie-break.
-- `@cli/cmd/hooks_common.go` — the session recap budget.
-- `@cli/cmd/hook_payload.go` — the payload cap and the patch line bound.
-- `@cli/internal/update/update.go` — the `limit+1` reads.
-- `@cli/cmd/status.go` — sorted map keys, with the reason on the line.
+Code review: any new constant that bounds output, and any slice expression that cuts a collection. Reference sites: the advisory engines in `@cli/internal/advisory/` (sort-then-cut with the tie-break), the session recap budget in `@cli/cmd/hooks_common.go`, the payload cap in `@cli/cmd/hook_payload.go`, and the `limit+1` reads in `@cli/internal/update/update.go`.

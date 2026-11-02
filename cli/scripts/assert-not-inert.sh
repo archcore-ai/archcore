@@ -22,7 +22,7 @@
 # that a successful injection wrote into the string table.
 #
 # Called from the goreleaser post-build hook once per target
-# (keeping-the-cli-current-rollout.plan, Phase 0 task 5).
+# (version-injection-via-ldflags.rule).
 # scripts/assert-not-inert-selftest.sh is its own guard: it builds a binary with
 # a misspelled `-X` path and requires this script to reject it.
 

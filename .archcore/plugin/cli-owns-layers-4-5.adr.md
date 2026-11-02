@@ -11,7 +11,7 @@ tags:
 
 ## Context
 
-Track logic leaked into the CLI twice: five MCP track prompts (@cli `internal/mcp/prompts/` — iso, sources, product, standard, architecture) whose per-phase gate is a single fixed sentence, and REQUIREMENTS TRACKS / WORKFLOW PROMPTS sections in the server instructions — so layer 2 currently has two owners and neither is canonical. Precision policy is also encoded twice (the `create_document` content-parameter description versus the plugin's `check-precision` hook), and guardrail hooks exist only as plugin shell scripts on 4 of 8 registry hosts.
+Track logic leaked into the CLI twice: five MCP track prompts whose per-phase gate is a single fixed sentence, and track sections in the server instructions. Layer 2 had two owners and neither was canonical. Precision policy was also encoded twice, in the `create_document` content-parameter description and in the plugin's precision check. Guardrail hooks existed only as plugin shell scripts on 4 of 8 registry hosts.
 
 ## Decision
 
@@ -25,8 +25,7 @@ The CLI owns layers 4–5 only: delete `internal/mcp/prompts/`, strip the track 
 
 ## Consequences
 
-- Layer 2 has one owner (plugin track files); no drift between MCP prompts and skill flows.
-- Guardrails (write-guard, injection, validation, staleness) reach all 8 registry hosts; shell/Go hook duplication collapses.
+- Layer 2 has one owner (plugin track files), and guardrails reach all 8 registry hosts.
 - CLI-only users lose the five track prompts; the bare-host flow-guidance floor is the type-selection rules in server instructions.
 - [expected] Dual-canon window for type templates stays within one release until phase 2 lands.
 - The ecosystem-level statement of this boundary lives in the `archcore` global source as `architecture/engine-runtime-boundary`, which names the owner of each responsibility without numbering. The layer numbers in this record are local to this repository and do not line up with the numbered roles in `architecture/conceptual-architecture`; a document crossing the repository boundary names the role rather than a number.

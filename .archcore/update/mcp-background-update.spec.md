@@ -10,13 +10,13 @@ tags:
 
 ## Purpose & Scope
 
-This spec defines the **background update trigger inside `archcore mcp`** — the only caller of the unattended update policy in this release. It answers "when"; every "whether" belongs to the policy.
+This spec defines the **background update trigger inside `archcore mcp`** — the only caller of the unattended update policy. It answers "when"; every "whether" belongs to the policy.
 
 Normative for `@cli/cmd/mcp.go` and the server run loop. Dependents: the MCP server run loop, and any host that reads the server's stdout as a JSON-RPC stream. Out of scope: which conditions permit a replacement, and the behavior of `archcore update`.
 
 ## Surface
 
-- Mechanism: a `ServerOption` in `internal/mcp` [planned] — `WithBackgroundTask(func(ctx context.Context))`, following the existing `WithHostWiring` seam (`@cli/internal/mcp/server.go`). `RunStdio` starts the task between `shieldStdout()` and `Listen` (`@cli/internal/mcp/server.go`), so the task inherits the fd-level stdout shield and the session context.
+- Mechanism: a `ServerOption` in `internal/mcp` — `WithBackgroundTask(func(ctx context.Context))`, following the existing `WithHostWiring` seam (`@cli/internal/mcp/server.go`). `RunStdio` starts the task between `shieldStdout()` and `Listen` (`@cli/internal/mcp/server.go`), so the task inherits the fd-level stdout shield and the session context.
 - Wiring: `cmd/mcp.go` supplies the closure — the 60 s delay, the policy invocation, and the stderr line. The update stack stays out of `internal/mcp`.
 - Delay before the attempt: 60 s. [assumption] session startup and the first tool calls complete inside that window.
 - Session context: `cmd.Context()`, cancelled by the host closing stdio or by `signal.NotifyContext` in `@cli/main.go`.

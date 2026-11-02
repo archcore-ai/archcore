@@ -1,6 +1,6 @@
 ---
 title: "A Rule or Code Pattern That Names No Code Path Applies to Every File"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "hooks"

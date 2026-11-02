@@ -309,7 +309,7 @@ var hostTable = map[Host]HostSpec{
 		},
 		// No update command until a live probe shows how OpenCode refreshes an
 		// unpinned package, and OpenCode has no uninstall command —
-		// opencode-adapter.plan.
+		// opencode-adapter.spec.
 		Notes: UINotes{
 			Remove: `Remove "` + openCodePackage + `" from the "plugin" array of ~/.config/opencode/opencode.json, or of the project opencode.json that lists it.`,
 		},

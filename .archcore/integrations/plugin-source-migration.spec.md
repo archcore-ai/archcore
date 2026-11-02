@@ -13,40 +13,34 @@ The plugin update executor prepares installed Claude Code and Codex marketplaces
 
 ## Surface
 
-- Active delivery is `archcore-ai/archcore` since `RepoID` changed on 2026-09-22 (unified release v0.10.2); the repository was renamed the same day, and GitHub redirects the legacy address `archcore-ai/plugin`.
+- Active delivery is `archcore-ai/archcore` since `RepoID` changed on 2026-09-22 (unified release v0.10.2); GitHub redirects the legacy address `archcore-ai/plugin`.
 - Marketplace `archcore-plugins`, plugin `archcore@archcore-plugins`, public `main` and `plugins/archcore` retain their spelling.
-- Claude source declarations: known marketplaces, user settings and settings files belonging to listed, resolved project/local installations.
-- Codex source declaration: the native `[marketplaces.archcore-plugins]` table in its configured home, holding `source_type` and `source`, plus the refresh fields `last_updated` and `last_revision` when a refresh wrote them, and `sparse_paths` when the install or this migration wrote it.
-- Codex sparse paths: `[".agents/plugins", "plugins/archcore"]`, the catalog and the plugin. Codex `marketplace upgrade` reads `sparse_paths` from this table and then clones without file contents (`codex-rs/core-plugins/src/marketplace_upgrade.rs`, `git.rs`).
-- Cursor retains its UI update path. Copilot recognizes both legacy and canonical direct-install directory names and updates through its existing host command.
-- `@cli/internal/plugin/source_migration.go`, `@cli/internal/plugin/execute.go`, `@cli/internal/plugin/registry.go` implement this preparation.
+- Claude source declarations: known marketplaces, user settings and settings files of listed, resolved project/local installations.
+- Codex source declaration: the native `[marketplaces.archcore-plugins]` table, holding `source_type` and `source`, plus the refresh fields `last_updated` and `last_revision` when a refresh wrote them, and `sparse_paths` when the install or this migration wrote it.
+- Codex sparse paths: `[".agents/plugins", "plugins/archcore"]`. Codex `marketplace upgrade` reads `sparse_paths` from this table and then clones without file contents.
+- Cursor retains its UI update path. Copilot recognizes both legacy and canonical direct-install directory names.
+- Implementation: @cli/internal/plugin/source_migration.go.
 
 ## Normative Behavior
 
 1. WHEN the active repository is canonical, the executor MUST prepare source migration before an explicitly planned update runs.
 2. WHEN the active repository remains legacy, the executor MUST leave source declarations unchanged.
-3. WHEN an action only prints instructions, the executor MUST NOT migrate source declarations.
-4. WHEN no installed plugin is confirmed, the planner MUST NOT request source migration.
-5. WHEN a source is a recognized unpinned official address, the migrator MUST replace only its repository locator.
-6. WHEN a source carries custom fetch fields, the migrator MUST preserve that declaration.
-7. WHEN Claude declarations disagree with the supported official source shapes, the migrator MUST leave that host's declarations unchanged.
-8. BEFORE changing a declaration, the migrator MUST verify the canonical marketplace name and plugin path over a bounded read.
-9. BEFORE replacing a settings file, the migrator MUST save its original bytes in a restricted sibling backup.
-10. WHEN migration changes settings, the writer MUST preserve unknown fields, enabled state, auto-update preference, permissions and symlinks.
-11. WHEN migration encounters an unreadable or concurrently changed file, the executor MUST report failure without running that host's update commands.
-12. WHEN a repeated migration finds canonical sources, the migrator MUST perform no write.
-13. WHEN the Codex table names an official source and has no `sparse_paths`, the migrator MUST add the Codex sparse paths.
-14. WHEN the Codex table already has `sparse_paths`, the migrator MUST keep its value.
+3. WHEN a source is a recognized unpinned official address, the migrator MUST replace only its repository locator.
+4. WHEN a source carries custom fetch fields, the migrator MUST preserve that declaration.
+5. WHEN Claude declarations disagree with the supported official source shapes, the migrator MUST leave that host's declarations unchanged.
+6. BEFORE changing a declaration, the migrator MUST verify the canonical marketplace name and plugin path over a bounded read.
+7. BEFORE replacing a settings file, the migrator MUST save its original bytes in a restricted sibling backup.
+8. WHEN migration encounters an unreadable or concurrently changed file, the executor MUST report failure without running that host's update commands.
+9. WHEN a repeated migration finds canonical sources, the migrator MUST perform no write.
+10. WHEN the Codex table names an official source and has no `sparse_paths`, the migrator MUST add the Codex sparse paths, and WHEN it already has `sparse_paths`, the migrator MUST keep its value.
 
 ## Constraints & Invariants
 
-1. The migrator MUST NOT remove a marketplace or uninstall a plugin.
-2. The migrator MUST NOT rewrite managed declarations or user-selected refs.
-3. The migrator MUST NOT send a telemetry event.
-4. The migration probe MUST finish within 10 seconds inside the existing whole-step deadline.
-5. The migrator MUST reject config files over 1 MiB and catalogs over 64 KiB.
-6. The Claude migrator MUST refuse more than 66 candidate settings paths rather than migrate a prefix.
-7. The Codex migrator MUST preserve unsupported TOML shapes instead of rewriting the whole configuration.
+1. The migrator MUST NOT remove a marketplace, uninstall a plugin, rewrite managed declarations or user-selected refs, or send a telemetry event.
+2. The migration probe MUST finish within 10 seconds inside the existing whole-step deadline.
+3. The migrator MUST reject config files over 1 MiB and catalogs over 64 KiB.
+4. The Claude migrator MUST refuse more than 66 candidate settings paths rather than migrate a prefix.
+5. The Codex migrator MUST preserve unsupported TOML shapes instead of rewriting the whole configuration.
 
 ## Failure Behavior
 
@@ -57,7 +51,7 @@ The plugin update executor prepares installed Claude Code and Codex marketplaces
 
 ## Conformance
 
-Tests cover unchanged defaults, explicit-update selection, source shapes, refresh fields, custom refs, unknown fields, disabled state, project scopes, idempotency, bounded reads and failed target validation. Source migration is not evidence of a successful public GitHub rename.
+Source migration is not evidence of a successful public GitHub rename.
 
 The local native-host probe on 2026-09-22 (Claude Code 2.1.278, Codex CLI 0.155.1) showed that both hosts reject `marketplace add` for an existing name with another source. Codex marketplace remove temporarily hides installed plugins. Direct declaration changes followed by native refresh preserve the plugin ID; Claude updated 0.9.4 to 0.9.5 and Codex updated 0.9.5 to 0.9.6, both retaining `enabled = false`. The probe used isolated homes and local Git fixtures, not user settings or production repositories.
 

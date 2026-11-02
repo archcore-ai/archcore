@@ -40,29 +40,11 @@ The trade this accepts: a field archcore used to write and no longer does is pre
 
 The same principle governs MCP entries; the converge-ownership decision records it for that surface.
 
-### Superseded: the JSONC skip-install exception
+### Scope
 
-This decision once carried an exception for `.vscode/mcp.json`, Copilot's MCP config at the time. VS Code files legitimately contain JSONC, so "invalid strict JSON" there usually meant a valid JSONC config whose other servers must not be replaced; that target used a `corruptSkipInstall` policy — leave the file, print manual instructions, return success — rather than backup-and-reset.
+Every host hook installer hands its event table to `installHookEvents`, which owns the read-parse-backup step (@cli/internal/wiring/hooks_install.go). The MCP JSON writers share it through @cli/internal/agents/mcp_helpers.go. `.codex/config.toml` is not covered: the Codex MCP entry is TOML, and hook wiring writes a separate `.codex/hooks.json` so that one writer owns each file.
 
-The exception no longer applies and its implementation is gone. Copilot CLI dropped `.vscode/mcp.json` as a source in v1.0.37 (github/copilot-cli#3019), so archcore writes Copilot's MCP entry to the workspace-root `.mcp.json`, the same standard `mcpServers` file Claude Code gets (@cli/internal/agents/copilot.go). No target archcore writes is JSONC, so every one takes backup-and-reset, and `WriteVSCodeMCPJSON` and `corruptSkipInstall` were removed with the path.
-
-Recorded rather than deleted: the JSONC reasoning stands on its own and would apply again to any VS Code-owned target archcore starts writing.
-
-### Affected Files
-
-Hook config surgery is shared: every host installer builds its event table and hands it to `installHookEvents`, which owns the read-parse-backup step. The file each host is wired through comes from one map, `hookConfigPaths` (@cli/internal/wiring/hooks_agents.go), so the installer and the "is this host wired?" probe can never disagree about the path.
-
-| File | Agent | Policy | Implementation |
-|------|-------|--------|----------------|
-| `.claude/settings.json` | Claude Code | backup-and-reset | @cli/internal/wiring/hooks_agents.go via @cli/internal/wiring/hooks_install.go |
-| `.cursor/hooks.json` | Cursor | backup-and-reset | @cli/internal/wiring/hooks_agents.go via @cli/internal/wiring/hooks_install.go |
-| `.gemini/settings.json` | Gemini CLI | backup-and-reset | @cli/internal/wiring/hooks_agents.go via @cli/internal/wiring/hooks_install.go |
-| `.codex/hooks.json` | Codex CLI | backup-and-reset | @cli/internal/wiring/hooks_agents.go via @cli/internal/wiring/hooks_install.go |
-| `.github/hooks/archcore.json` | Copilot (hooks) | backup-and-reset | @cli/internal/wiring/hooks_agents.go via @cli/internal/wiring/hooks_install.go |
-| Standard MCP JSON files (`.mcp.json`, `.cursor/mcp.json`, `.gemini/settings.json`, …) | Multiple, Copilot included | backup-and-reset | @cli/internal/agents/mcp_helpers.go (`WriteStandardMCPJSON`) |
-| `opencode.json` | OpenCode | backup-and-reset | @cli/internal/agents/opencode.go (delegates to `writeMCPConfig`) |
-
-`.codex/config.toml` is not covered: the Codex MCP entry is TOML, and the hook wiring writes a separate `.codex/hooks.json` so that one writer owns each file.
+No target archcore writes is JSONC, so every one takes backup-and-reset. A JSONC exception for `.vscode/mcp.json` was dropped when Copilot CLI stopped reading that file (v1.0.37). Its reasoning would apply again to any VS Code-owned target archcore starts writing: a valid JSONC config must not be replaced because strict JSON rejects it.
 
 ## Alternatives Considered
 

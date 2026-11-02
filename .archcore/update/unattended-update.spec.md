@@ -16,12 +16,12 @@ Out of scope: `archcore update` typed by a user, whose behavior this spec does n
 
 ## Surface
 
-- Policy entry point: an exported function in `internal/update` [planned], callable in-process. This release adds no command flag; the MCP trigger is the only caller.
+- Policy entry point: an exported function in `internal/update`, callable in-process. It adds no command flag; the MCP trigger is the only caller.
 - Conditions, in the fixed order of Normative Behavior 3–6.
-- Official-build marker: a second `-X` ldflags variable [planned], injected only by this repository's release workflow. It is distinct from the telemetry key — a fork may inject its own key legitimately, and telemetry variables govern telemetry only.
+- Official-build marker: a second `-X` ldflags variable, injected only by this repository's release workflow. It is distinct from the telemetry key — a fork may inject its own key legitimately, and telemetry variables govern telemetry only.
 - CI variables: the set `is_ci()` enumerates in `@cli/install.sh` — `CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `BUILDKITE`, `JENKINS_URL`, `TEAMCITY_VERSION`.
-- Cross-process claim: a fail-closed claim in its own scope [planned], keyed by the resolved binary path, window 24 h. `stamp.Claim` (`@cli/internal/stamp/stamp.go`) supplies the atomic mechanism but not the failure bias — it returns `true` on every filesystem error.
-- Freshness cache: one canonical implementation in `internal/update` [planned] — path, the 24 h TTL, the 1 h negative TTL, and an atomic temp-file-and-rename write. `archcore update --check` and the `doctor` advisory call through it; today's copies at `@cli/cmd/update.go` move there.
+- Cross-process claim: a fail-closed claim in its own scope, keyed by the resolved binary path, window 24 h. `stamp.Claim` (`@cli/internal/stamp/stamp.go`) supplies the atomic mechanism but not the failure bias — it returns `true` on every filesystem error.
+- Freshness cache: one canonical implementation in `internal/update` — path, the 24 h TTL, the 1 h negative TTL, and an atomic temp-file-and-rename write. `archcore update --check` and the `doctor` advisory call through it.
 - Replacement: `Updater.Apply` — `@cli/internal/update/update.go` — plus a pre-rename health probe. Its temporary file is `<base>.tmp.<pid>`; the Windows aside name becomes per-attempt, `<target>.old.<pid>`, swept as `<target>.old.*`.
 - Health probe: the extracted binary run with `--version`, bounded by 3 s [assumption], before the rename.
 - Telemetry: `cli_updated`, `cli_update_failed`, and `cli_update_skipped`, each carrying `trigger` set to `auto`.

@@ -15,23 +15,16 @@ Implemented 2026-08-14: @cli/internal/mcp/tools/search_documents.go, @cli/intern
 
 ## Motivation
 
-Second user report against globals: the global explained how a subsystem works, the local project held nothing on it, and the agent answered "no data". The first report and the measured page-cut thresholds are in @.archcore/globals/global-discovery-gap.idea.md.
+Two user reports against globals: the global explained how a subsystem works, the local project held nothing on it, and the agent answered "no data". With 500 or more local documents, `list_documents` returned no global row at any limit.
 
-Live reproduction on this repository, 2026-08-14. The topic "plugin/CLI compatibility" is owned by a local rule ("Compatibility Contract Between the Archcore CLI and the Archcore Plugin") and a global rule ("Plugin / CLI Compatibility Across Independent Release Trains"). Four natural phrasings of one question return disjoint sets:
-
-| Query | Local rule | Global rule | Returned instead |
-| --- | --- | --- | --- |
-| `compatibility contract` | hit (title) | miss | — |
-| `plugin compatibility` | miss | miss | one body mention in an unrelated doc |
-| `release trains` | miss | hit (title) | — |
-| `independent release` | miss | hit (title) | — |
+The topic "plugin/CLI compatibility" is owned by a local rule and a global rule with different titles. Four natural phrasings of one question returned disjoint sets: `plugin compatibility` missed both rules, while `compatibility contract` hit only the local one and `release trains` only the global one.
 
 The engine does not skip globals — the scan covers the full mounted corpus (@cli/internal/mcp/tools/search_documents.go). The misses come from four mechanisms:
 
 1. Exact-substring matching: `strings.Contains` over lowercased title and body; "plugin compatibility" does not match "Plugin / CLI Compatibility" (@cli/internal/mcp/tools/search_documents.go `extractContentMatch`, removed with this change).
 2. Vocabulary asymmetry: the session recap shows the agent every local title and nothing of the global corpus, so query terms come from local and user vocabulary — the disclosure block narrows this (@.archcore/globals/session-globals-disclosure.spec.md).
-3. Page cuts: with 500 or more local documents, `list_documents` returns no global row at any limit (measured in @.archcore/globals/global-discovery-gap.idea.md).
-4. Ranking keys unrelated to relevance: binary specificity, type priority, and clone-date mtime (same idea, Measurements).
+3. Page cuts: with 500 or more local documents, `list_documents` returns no global row at any limit.
+4. Ranking keys unrelated to relevance: binary specificity, type priority, and clone-date mtime.
 
 An empty result is indistinguishable from an unsearched corpus: the bare array carries no record of what was scanned, so the agent cannot tell absence from invisibility.
 
@@ -63,20 +56,20 @@ An empty result is indistinguishable from an unsearched corpus: the bare array c
 
 @.archcore/globals/session-globals-disclosure.spec.md tells the agent that a global exists and shows its top-level vocabulary; this RFC makes the query side forgiving enough that approximate vocabulary still lands. Disclosure without tokenized matching still demands phrase guessing; tokenized matching without disclosure still demands knowing there is something to search for.
 
-### Version-skew obligation on the plugin side
+### Version skew
 
-An older CLI silently ignores the `match` and `source` parameters (the handler reads known argument keys only) and returns the bare array, so a plugin that teaches the agent these capabilities against an old CLI degrades silently — the agent believes it searched with all-words semantics and coverage when it did not. A plugin release that teaches `match`, `source`, `coverage`, or the `GLOBALS` block gates that teaching on the CLI version that shipped them, through the plugin's existing `cli-gte` mechanism. The obligation is plugin-side and tracked in the plugin repository; it is recorded here because this RFC creates it.
+An older CLI silently ignores `match` and `source`, so a plugin that teaches them gates that teaching on the CLI version that shipped them (the plugin's `cli-gte` mechanism).
 
 ## Drawbacks
 
-- The envelope change breaks any consumer parsing the bare array. Verified against the installed plugin 0.7.4 (2026-08-14): no plugin file claims a response shape, and the plugin's `bin/` scripts splice only the session-start hook envelope by anchor — no code parses read-tool output. The remaining exposure is external MCP clients, which are not enumerable; the release notes carry the migration note.
+- The envelope change breaks any consumer parsing the bare array. No plugin code parses read-tool output. The remaining exposure is external MCP clients, which are not enumerable; the release notes carry the migration note.
 - The `all` default widens result sets for multi-word queries; where today's exact phrase was intended, precision drops — `match: "exact"` remains available.
 - A reserved slot can push a higher-scored local row off a full page; bounded to one row per source.
-- Tokenized scoring costs one pass per token plus a frequency count instead of one `strings.Index` call. Measured 2026-08-14 against `BenchmarkReadToolsScaling` at baseline 27f7959, benchtime 10x: search snippets 54.3 ms → 61.8 ms at N=10000 (+13%), 15.6 ms → 17.7 ms at N=3000; `list_documents` at parity after the single-source fast path (2.59 ms → 2.52 ms at N=1000). The scan still dominates the call (@.archcore/mcp/read-path-scan-performance.idea.md); the +13% buys the heading tier and the frequency signal.
+- Tokenized scoring costs one pass per token plus a frequency count instead of one `strings.Index` call, about +13% at 10,000 documents. The scan still dominates the call; the cost buys the heading tier and the frequency signal.
 
 ## Alternatives
 
-- Semantic retrieval (embeddings, GraphRAG): the real fix for vocabulary and cross-language queries, out of local-binary scope; tracked in @.archcore/sync/falkordb-graphrag-hybrid-indexing.idea.md. Tokenized matching is the step that fits a local CLI.
+- Semantic retrieval (embeddings, GraphRAG): the real fix for vocabulary and cross-language queries, out of local-binary scope. Tokenized matching is the step that fits a local CLI.
 - Instructions-only (teach the agent to retry with synonyms): keeps recall probabilistic; rejected as the sole fix.
 - OR-matching as default: highest recall, noisy pages; kept as opt-in `match: "any"`.
 - English plural folding ("train" / "trains"): helps morphology misses, risks folding code identifiers; deferred until tokenized matching proves insufficient. [assumption]

@@ -1,7 +1,7 @@
 package tools
 
 // Tests for the list_documents envelope order and byte budget
-// (list-documents.spec, read-tool-responses-survive-host-truncation.adr).
+// (read-tool-responses-survive-host-truncation.adr).
 
 import (
 	"strings"

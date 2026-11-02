@@ -10,18 +10,19 @@ tags:
 
 ## Context
 
-Industrial research consistently shows that documentation usefulness is determined by accuracy, freshness, and relevance rather than volume. Aghajani et al. (2020) ranked erroneous examples at 59%, code-doc inconsistency at 59%, outdated examples at 51%, and superfluous content at 55% as the top maintenance pains across 146 practitioners. Context-engineering research — arxiv 2510.21413, Mohsenimofidi et al., 2026 — measured `AGENTS.md`-style auto-generated context files across 466 open-source projects and found they reduced agent task success in 5 of 8 settings and increased inference cost by 20–23%. Against that evidence, Archcore skills used the pattern `Compose content covering [section list]`, leaving content quality to LLM defaults, which produced descriptive prose such as "the system handles requests appropriately" rather than operational artifacts; documents were created but rarely re-read, because they encoded no falsifiable, code-grounded claim.
+Research on documentation points to accuracy, freshness, and relevance, not volume. Aghajani et al. (2020) found code-doc inconsistency (59%) and superfluous content (55%) among the top maintenance pains of 146 practitioners. Mohsenimofidi et al. (arxiv 2510.21413, 2026) measured auto-generated `AGENTS.md`-style context files across 466 open-source projects. The files reduced agent task success in 5 of 8 settings and raised inference cost by 20–23%.
+
+Archcore skills used the pattern `Compose content covering [section list]`, which left content quality to LLM defaults. The result was descriptive prose such as "the system handles requests appropriately". Documents were created but rarely re-read, because they encoded no falsifiable, code-grounded claim.
 
 ## Decision
 
-Archcore default skill behavior generates **operational artifacts rather than descriptive prose**, enforced by per-type content contracts shipped under `skills/_shared/` that skills MUST load before composition, and by a `bin/check-precision` PostToolUse hook that emits warnings through `additionalContext`.
+Archcore default skill behavior generates **operational artifacts rather than descriptive prose**, enforced by per-type content contracts shipped under `skills/_shared/` that skills MUST load before composition, and by the precision check that the Archcore engine (the CLI) runs after `create_document` and `update_document` and reports through the PostToolUse hook.
 
 The mechanism has five parts:
 
-- Each major document type — `adr`, `spec`, `rule`, `guide` — has an explicit content contract shipped with the plugin under `skills/_shared/`. Phase 1 covered `skills/_shared/adr-contract.md`; later phases added the rest.
+- Each major document type — `adr`, `spec`, `rule`, `guide` — has an explicit content contract shipped with the plugin under `skills/_shared/`. `skills/_shared/adr-contract.md` is the first of them.
 - A skill authoring one of those types MUST load the matching contract and `skills/_shared/precision-rules.md` before composing.
-- `bin/check-precision` warns when a created or updated document carries a forbidden vague word, lacks a mandatory section, has incomplete frontmatter, or falls below 200 characters.
-- Phase 1 kept the hook in soft mode, always exiting 0; blocking semantics were deferred pending observability data.
+- The engine's precision check warns when a created or updated document carries a forbidden vague word, lacks a mandatory section, or has incomplete frontmatter. The check is advisory and never blocks a write.
 - Plugin-internal runtime assets under `skills/_shared/` are the canonical source. A skill instruction MUST NOT reference the consumer's project environment for loading rules — only plugin-shipped paths.
 
 ## Alternatives Considered
@@ -38,8 +39,8 @@ The mechanism has five parts:
 - Tradeoff: document creation latency in full mode increases an estimated 20–40%, from contract loading and evidence harvest.
 - Tradeoff: authors accept stricter skill prompts; draft mode preserves a fast path for rapid capture.
 - Tradeoff: the contract files become first-class plugin assets in `skills/_shared/` and require maintenance as document standards evolve.
-- An existing document in any `.archcore/` is not retroactively flagged as invalid: no validation gate rejects one, and the post-write check reports without blocking. `controlled-technical-writing-profile.adr` narrows this on 2026-08-03 by normalizing the plugin's own corpus in one authoring pass.
-- Correction. The diff-only property this record claimed for `update_document` never shipped. Neither the deleted `check-precision` script nor the engine's `Precision` scopes a check to the changed lines — both read the whole body — so an edit to an older document surfaces that document's pre-existing findings as well. The no-rejection guarantee above is unaffected: a report is not a rejection.
+- An existing document in any `.archcore/` is not retroactively flagged as invalid: no validation gate rejects one, and the post-write check reports without blocking. `docs-style/controlled-technical-writing.rule` narrows this for the plugin's own corpus.
+- The check is not diff-only. The engine's precision check reads the whole body, so an edit to an older document surfaces that document's pre-existing findings too. A report is not a rejection, so the no-rejection guarantee holds.
 
 ## Superseded when
 

@@ -11,7 +11,7 @@ tags:
 
 ## Context
 
-`opencode-adapter.spec` listed `dist/` in the package `files`, while no task of `opencode-adapter.plan` produced it. Every host that loads the package today imports a `.ts` entry: OpenCode 1.18.34 and Kilo CLI 7.8.14 run plugins under a Bun-compiled binary through `await import(entry)` (`packages/opencode/src/plugin/loader.ts` in both repositories), and Pi 1.3.0 loads extensions through jiti (`packages/coding-agent/src/core/extensions/loader.ts`). Plain Node refuses to strip types for files under `node_modules` (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`, nodejs.org/api/typescript.html, read 2026-10-18), and the OpenCode plugins `oh-my-opencode` 5.1.35, `opencode-wakatime` 1.4.0, `opencode-gemini-auth` 2.0.1, plus `@opencode-ai/plugin` itself, all publish built JavaScript.
+`opencode-adapter.spec` lists `dist/` in the package `files`, but nothing produced it. Every host that loads the package imports a `.ts` entry: OpenCode and Kilo CLI run plugins under a Bun-compiled binary through `await import(entry)` (`packages/opencode/src/plugin/loader.ts` in both repositories), and Pi loads extensions through jiti. Plain Node refuses to strip types for files under `node_modules` (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`, nodejs.org/api/typescript.html, read 2026-10-18). Published OpenCode plugins, including `@opencode-ai/plugin` itself, ship built JavaScript.
 
 ## Decision
 

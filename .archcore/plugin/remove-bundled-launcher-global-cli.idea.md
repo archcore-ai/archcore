@@ -30,15 +30,7 @@ The cost of removing them is one roughly 30-second install per developer or CI b
 
 ## Possible Implementation
 
-1. Delete `bin/archcore`, `bin/archcore.cmd`, `bin/archcore.ps1`, and `bin/CLI_VERSION`.
-2. Set the Claude Code MCP config to `"command": "archcore"`, resolving through PATH.
-3. Set `.codex.mcp.json` to `"command": "archcore"`, removing the `cwd` rebase and the `env_vars` allowlist.
-4. Remove `env.ARCHCORE_CWD` from the Cursor template. (Recorded at the time as "keep `cwd: "${workspaceFolder}"`". That was wrong: Cursor's MCP stdio schema has no `cwd` field. The shipped template is `docs/cursor.mcp.example.json`, which carries `--project ${workspaceFolder}` in `args` — see `cursor-mcp-architecture.adr`.)
-5. Simplify `bin/session-start` and `bin/validate-archcore` to exec `archcore` directly.
-6. Remove the launcher-related tests `test/unit/launcher.bats`, `test/structure/cli-contract.bats`, and `test/structure/cli-allowlist-consistency.bats`.
-7. Remove the launcher assertions from `test/structure/scripts.bats` and `test/integration/codex-plugin-smoke.bats`.
-8. Add a CLI availability check to the onboarding skill that prompts the user once to run the official installer when `archcore` is absent, and recommends no other channel, because a package-manager wrapper risks a version-incompatible binary.
-9. Update the README with a prerequisites section pointing at the install docs, removing the offline and BYO-CLI section and the launcher cache descriptions.
+Delete the launcher files and the version pin, and point every MCP config at `"command": "archcore"` on PATH. Drop the `cwd` rebase and `env_vars` allowlist from the Codex config. For Cursor, the shipped template carries `--project ${workspaceFolder}` in `args`, because Cursor's MCP stdio schema has no `cwd` field (`cursor-mcp-architecture.adr`). The onboarding skill prompts once for the official installer when `archcore` is absent and recommends no other channel, because a package-manager wrapper risks a version-incompatible binary.
 
 ## Risks
 
@@ -50,4 +42,4 @@ The cost of removing them is one roughly 30-second install per developer or CI b
 
 ## Outcome (2026-05-12)
 
-Shipped in plugin v0.4.0, commit `2f99997`. All eight bug classes resolved and the plugin source shrank by roughly 2300 lines across the deleted launcher scripts, tests, and version pin. The superseded design records — `bundled-cli-launcher.adr`, `codex-mcp-cwd-rebase-to-user-project.idea`, `codex-path-resolution.adr`, and `cwd-guard-for-cursor-and-claude.idea` — are marked rejected. Commits `2f99997`, `682d079`, and `c0d6019` hold the rollback set.
+Shipped in plugin v0.4.0, commit `2f99997`. All eight bug classes resolved and the plugin source shrank by roughly 2300 lines across the deleted launcher scripts, tests, and version pin. The superseded launcher, Codex cwd-rebase, and cwd-guard designs were removed from the corpus; `multi-host-plugin-architecture.adr` holds the surviving host-path decisions. Commits `2f99997`, `682d079`, and `c0d6019` hold the rollback set.

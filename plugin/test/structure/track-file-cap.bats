@@ -3,7 +3,7 @@
 #
 # A track file hosts one gate record per instrument (sdd hosts six), and a gate
 # record in the gate-contract template costs 30–45 lines, so the cap is 300 —
-# recorded in track-file-line-cap-300.adr. A file past the cap is a signal to
+# recorded in plugin-architecture.spec. A file past the cap is a signal to
 # route prose out of the track file (Track notes → a shared contract) or to
 # split the track, never to compress a gate record.
 

@@ -10,7 +10,7 @@ tags:
 
 ## Context
 
-`@plugin/plugins/archcore/skills/_shared/scenario-contract.md` binds a `scenario` to "the clauses of one `spec`", with one `depends_on` edge to it, and `@plugin/plugins/archcore/skills/_shared/journey-contract.md` limits a `journey` to an intended path before any `spec` exists. A realized end-to-end flow that crosses several contracts fits neither: the plugin's own build cycle `/archcore:plan` → implementation → `/archcore:review` illustrates clauses of `command-surface-v2.spec`, `delta-routing-conductor.spec`, `delta-routing-instruments.spec`, and `review-durable-context-selection.spec`. On 2026-10-09 that gap forced the plugin usage catalog into a `doc`, which loses the actor-subject form and receives no cascade notice when one of those specs changes.
+`@plugin/plugins/archcore/skills/_shared/scenario-contract.md` binds a `scenario` to "the clauses of one `spec`", with one `depends_on` edge to it, and `@plugin/plugins/archcore/skills/_shared/journey-contract.md` limits a `journey` to an intended path before any `spec` exists. A realized end-to-end flow that crosses several contracts fits neither: the plugin's own build cycle `/archcore:plan` → implementation → `/archcore:review` illustrates clauses of `command-surface-v2.spec`, `track-layer.spec`, and the routing and selection contracts under `@plugin/plugins/archcore/skills/_shared/` (`delta-routing.md`, `durable-context-selection.md`). On 2026-10-09 that gap forced the plugin usage catalog into a `doc`, which loses the actor-subject form and receives no cascade notice when one of those specs changes.
 
 ## Decision
 
@@ -31,7 +31,7 @@ Positive:
 
 Negative:
 
-- `scenario-contract.md` and `actor-subject-content-contracts.spec` change. The CLI needs no change: on 2026-10-09 the post-write hook reported no finding for three cross-spec scenarios carrying 2, 3, and 4 `depends_on` edges to specs.
+- `scenario-contract.md` and `actor-subject-compatibility.md` change. The CLI needs no change: on 2026-10-09 the post-write hook reported no finding for three cross-spec scenarios carrying 2, 3, and 4 `depends_on` edges to specs.
 - A cross-spec scenario changes whenever any of its specs changes, so it drifts more often than a single-spec one. [expected]
 - The 120-line cap still binds; a long flow splits by actor, not by `spec`.
 

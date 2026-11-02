@@ -37,8 +37,8 @@ Positive:
 - The agent sees the overlap in the response to the write, with no extra call.
 - The check does not depend on insertion order: `related` after a specific edge and a specific edge after `related` produce the same warning.
 - The response shape is additive. `source`, `target`, `type`, and `added` are unchanged.
-- The array holds at most two entries in a fixed order; both together are 418 bytes (measured 2026-09-21).
-- No known consumer reads the response keys of `add_relation`. The plugin at commit `3c2d2c9` names the tool only in hook matchers (`plugins/archcore/hooks/hooks.json`, `plugins/archcore/hooks/codex.hooks.json`, `plugins/archcore/bin/lib/normalize-stdin.sh`), and the CLI hooks do not parse the response (checked 2026-09-22).
+- The array holds at most two entries in a fixed order.
+- No known consumer reads the response keys of `add_relation`; the plugin names the tool only in hook matchers.
 
 Negative:
 

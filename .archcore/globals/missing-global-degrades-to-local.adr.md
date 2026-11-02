@@ -12,13 +12,15 @@ tags:
 
 This repository commits `.archcore/settings.json` with the global source `archcore` at `../global/.archcore`. On a clone without that sibling repository, `checkGlobals` in @cli/cmd/mcp.go aborted `archcore mcp`, so the host lost all ten MCP tools, including `create_document` and `init_project` for purely local work. When a session root changed to such a project, `docs.Scan` in @cli/internal/docs/scan.go failed `list_documents` and `search_documents` for the whole corpus. The SessionStart hook degraded to local documents with a warning, the code-alignment advisory in @cli/internal/advisory/code_alignment.go degraded without one, and `archcore status` ran its local checks but counted the source as an issue and exited non-zero.
 
+Global sources originally carried a per-entry `required` flag. The flag was removed because the optional mode was a foot-gun: a typo in `path` or an uncloned source gave zero global documents with no signal, and the agent ran on a silently incomplete context. Declared meant needed, so a missing source was first made fatal. The flag stays removed; each entry is `{ id, path }`, and an old `"required"` key is carried through unread (@.archcore/cli/forward-compatible-settings-parsing.rule.md). Distribution stays open; the interim answer is in-tree vendoring (@.archcore/globals/vendoring-a-global.guide.md).
+
 ## Decision
 
 A declared global source whose resolved directory does not exist (`GlobalMissing`) is a warning state like `GlobalEmpty`: `archcore mcp` starts, prints `… — starting without it` to stderr, and names the source under `GLOBAL SOURCES NOT ON DISK` in its `initialize` instructions instead of as mounted, the scan mounts no documents from it, the SessionStart `GLOBALS` block prints `… — skipped until it is cloned; local documents are unaffected`, and `archcore status` and `archcore doctor` print a warning and exit zero, while a source that is not a directory, unreadable, self-overlapping, or a duplicate path, and an invalid `settings.json`, stay fatal.
 
 ## Alternatives Considered
 
-1. Keep a missing source fatal, as the mandatory-globals decision set it — rejected because one uncloned repository removes every local tool, and the user requires local work to continue unchanged.
+1. Keep a missing source fatal, as the removal of `required` first set it — rejected because one uncloned repository removes every local tool, and the user requires local work to continue unchanged.
 2. Add a per-entry `optional: true` flag — rejected because it restores the removed `required` flag and leaves every existing declaration fatal by default.
 3. Report the missing source inside every `list_documents` and `search_documents` response — deferred because it changes two tool contracts for a signal that stderr, `archcore status`, the SessionStart `GLOBALS` block, and the `initialize` instructions already carry; the `coverage` map of `search_documents` already omits the absent source.
 4. Add an `ARCHCORE_NO_GLOBALS` environment override — rejected because it is a hidden manual switch that each user has to discover.
