@@ -1,6 +1,6 @@
 ---
 title: "Global Sources Are a Read Policy — a Write Addresses a Project by project, and No Mount Is Read-Only"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "component:plugin"
@@ -57,4 +57,6 @@ Negative:
 - 2026-11-02 — Shipped in v0.15.0 together with the `project` argument (user choice).
 - 2026-11-02 — A write through a path that starts with `..` is refused with a message naming the owning project and `project` (user choice, recommended).
 - 2026-11-02 — The managed instruction block moves to version 3 (user choice, recommended).
-- 2026-11-02 — Implementation deviations, pending the user's review: (1) a global row keeps its 0.14 read path relative to the call root, `../g/.archcore/x.md`, so a 0.14 plugin and its fixtures keep working; (2) a row carries `source_root`, not `project`, because a row-level `project` collides with the response-level key in `get_document`; (3) `source` is a response-level field only; (4) `add_relation` and `remove_relation` responses carry no `source`, because their payload uses that key for the relation endpoint; (5) the hook's external-global branch and the sync exclusion of declared sources stay as defense in depth.
+- 2026-11-02 — Implementation deviations, accepted by the user after the v0.15.0 release: (1) a global row keeps its 0.14 read path relative to the call root, `../g/.archcore/x.md`, so a 0.14 plugin and its fixtures keep working; (2) a row carries `source_root`, not `project`, because a row-level `project` collides with the response-level key in `get_document`; (3) `source` is a response-level field only; (4) `add_relation` and `remove_relation` responses carry no `source`, because their payload uses that key for the relation endpoint; (5) the hook's external-global branch and the sync exclusion of declared sources stay as defense in depth.
+- 2026-11-02 — The response-level `source` keeps its name; the `search_documents` description and the plugin's globals convention state that it names the project of the call, not its rows. Reason: a live probe agent read `"source":"local"` on an all-global search as a contradiction, and a rename would break the released v0.15.0 contract (user choice, recommended).
+- 2026-11-02 — `source_root` stays on every global row; a shared `id → root` map is not introduced. Reason: a row stays self-contained for a write, and the response byte budget already counts the field (user choice, recommended).

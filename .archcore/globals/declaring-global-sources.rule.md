@@ -1,6 +1,6 @@
 ---
 title: "Declaring Global Sources in settings.json"
-status: accepted
+status: rejected
 tags:
   - "component:cli"
   - "config"

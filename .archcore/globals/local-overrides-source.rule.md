@@ -1,6 +1,6 @@
 ---
 title: "Local Documents Take Precedence Over Source Documents, and a Write to a Source Names Its project"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "component:plugin"

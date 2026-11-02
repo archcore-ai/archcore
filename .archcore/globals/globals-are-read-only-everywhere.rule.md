@@ -1,6 +1,6 @@
 ---
 title: "Globals Are Read-Only Everywhere Outside the MCP Read Tools"
-status: accepted
+status: rejected
 tags:
   - "component:cli"
   - "globals"

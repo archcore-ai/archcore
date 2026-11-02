@@ -1,6 +1,6 @@
 ---
 title: "Local Documents Take Precedence Over Global Sources"
-status: accepted
+status: rejected
 tags:
   - "component:cli"
   - "globals"
