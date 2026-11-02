@@ -44,4 +44,4 @@ Adopt a computed routing model for sdd with four inputs: canon delta as demand (
 
 ## Next Action
 
-The companion delta-routing idea records the model design; its contested points — the `archived` status kernel change and the capability-granularity policy — go to `/archcore:document` as rfc when taken up.
+The model design and the bench are recorded in @.archcore/plugin/delta-routing-bench.doc.md; its contested points — the `archived` status kernel change and the capability-granularity policy — go to `/archcore:document` as rfc when taken up.

@@ -38,7 +38,7 @@ Negative:
 
 - `body` in `mode=full` stops being the whole document in every case, which narrows §12.1 of the search contract and the 2026-06 addendum of the matching-primitive ADR ("unmodified body").
 - A consumer that writes a shortened `body` back through `update_document` would delete the rest of the document; `body_truncated` and `body_bytes` are the only guard, and the tool description names `get_document` as the source for a write.
-- `matches` no longer lists every path-reference hit; §5.6 and §5.7 of the search contract change, and `matches_total` carries the count.
+- `matches` no longer lists every path-reference hit; §5.5 and §5.6 of the search contract change, and `matches_total` carries the count.
 - With `limit=3` each body receives about 12,500 bytes; in this repository the p90 body is 11.7 KB and the largest 39 KB, so about 10% of bodies arrive shortened.
 - `index` costs about 140 bytes per row, about 7 KB at 50 rows, inside the budget [expected].
 - The plugin teaches `hits`, `index`, and `body_truncated` as "read them when present" and adds no `cli-gte` gate; this departs from the version-skew obligation the recall RFC recorded, on the ground that the fields are additive on a read response.

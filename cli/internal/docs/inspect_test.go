@@ -11,7 +11,7 @@ import (
 
 // TestInspectGlobals_NestedTraversalFailure pins the invariant the startup gate
 // rests on: InspectGlobals and the runtime scan classify a source identically
-// (global-sources.spec).
+// (project-root-resolution.spec, session-globals-disclosure.spec).
 //
 // config.CheckGlobalDir opens only the top directory, so a subdirectory nobody
 // can enter passes it. The document walk is where that surfaces — and while its

@@ -9,17 +9,13 @@ tags:
 
 ## Purpose & Scope
 
-This spec defines the contract for the Archcore plugin's two subagents — `archcore-assistant` (read/write) and `archcore-auditor` (read-only) — across every host that loads them. Normative for both agent definitions, their per-host file formats, their system prompts, tool restrictions, invocation triggers, and domain expertise. Depended on by every host loader and by `@plugin/test/structure/agents.bats`. `single-universal-agent.adr` records the original rationale, `add-read-only-auditor-agent.adr` extends it, and `subagent-knowledge-tree-bootstrap.adr` is authoritative for the mandatory preamble. Out of scope: skills, which `skills-system.spec` governs.
+This spec defines the contract for the Archcore plugin's two subagents — `archcore-assistant` (read/write) and `archcore-auditor` (read-only) — across every host that loads them. Normative for both agent definitions, their per-host file formats, their system prompts, tool restrictions, invocation triggers, and domain expertise. Depended on by every host loader and by `@plugin/test/structure/agents.bats`. `add-read-only-auditor-agent.adr` records the two-agent rationale, and `subagent-knowledge-tree-bootstrap.adr` is authoritative for the mandatory preamble. Out of scope: skills, which `command-surface-v2.spec` governs.
 
 ## Surface
 
 **Definitions.** Each agent is one definition, shipped in the format each host's loader accepts. Content is identical across formats; only the container differs. Canonical sources: `@plugin/plugins/archcore/agents/archcore-assistant.md` and `@plugin/plugins/archcore/agents/archcore-auditor.md`.
 
-| Format | Location | Read by | Notes |
-|---|---|---|---|
-| `<name>.md` | `agents/` | Claude Code, Cursor | The canonical source; agent id comes from frontmatter `name:` |
-| `<name>.toml` | `agents/` | Codex CLI | Adds `sandbox_mode` and `disabled_tools[]`; body kept in parity with the MD |
-| `<name>.agent.md` | `copilot-agents/` | GitHub Copilot CLI | Byte-identical copy of the MD; agent id comes from the filename |
+The MD file is canonical. The Codex TOML adds `sandbox_mode` and `disabled_tools[]` and keeps its body in parity. The Copilot `.agent.md` copy is byte-identical, and Copilot derives the agent id from its filename.
 
 Copilot's copies sit in a directory of their own rather than beside the originals. Its loader accepts only the `*.agent.md` extension, and that extension still matches the `*.md` glob Claude Code and Cursor use, so a sibling copy would give both hosts two files declaring the same `name:`. The TOML variants never had this problem, because their extension is foreign to every md-globbing host.
 
@@ -34,23 +30,7 @@ Copilot's copies sit in a directory of their own rather than beside the original
 
 **MCP tool naming.** The same MCP server appears under three names depending on registration: `mcp__archcore__*` (project `.mcp.json`), `mcp__plugin_archcore_archcore__*` (plugin-bundled on Claude Code), and the flat `archcore-<tool>` (Copilot, which joins server and tool with a hyphen). Every allow-list and deny-list in an agent file carries all three. The asymmetry matters: an allow-list missing a name loses a capability, while the auditor's TOML **deny**-list missing a name silently grants the read-only agent the power to mutate.
 
-**Tool access matrix.**
-
-| Tool | assistant | auditor |
-|------|-----------|---------|
-| list_documents | Yes | Yes |
-| search_documents | Yes | Yes |
-| get_document | Yes | Yes |
-| create_document | Yes | No |
-| update_document | Yes | No |
-| remove_document | Yes | No |
-| add_relation | Yes | No |
-| remove_relation | Yes | No |
-| list_relations | Yes | Yes |
-| Read | Yes | Yes |
-| Grep | Yes | Yes |
-| Glob | Yes | Yes |
-| Write/Edit/Bash | No | No |
+**Tool access.** The assistant holds every MCP tool plus Read, Grep, and Glob. The auditor holds only `list_documents`, `search_documents`, `get_document`, and `list_relations` plus Read, Grep, and Glob. Neither holds Write, Edit, or Bash.
 
 **Invocation triggers.** The host invokes `archcore-assistant` when the user requests several related documents, when the task decomposes requirements ("break this PRD into specifications"), when existing documentation structure is refactored, or when a decision needs the full relation graph. The host invokes `archcore-auditor` when the user asks for an audit, health check, or review; when the user asks what is missing or what needs attention; proactively after a batch of documents has been created; before a release or milestone; or to check documentation against current code.
 
@@ -123,7 +103,7 @@ A restart is the wrong recovery from item 5: it repeats the bootstrap and spends
 An agent is conformant when:
 
 1. It resides at `agents/<name>.md` with the required frontmatter, and every format variant its hosts require exists: `agents/<name>.toml` for Codex and `copilot-agents/<name>.agent.md` for Copilot.
-2. Its tool list matches the tool access matrix exactly, under all three MCP namings.
+2. Its tool list matches the tool access rule in Surface exactly, under all three MCP namings.
 3. Its system prompt covers the shared domain knowledge above.
 4. It satisfies the normative behavior for its role.
 5. `archcore-auditor` produces no mutation, and `archcore-assistant` produces structured output.

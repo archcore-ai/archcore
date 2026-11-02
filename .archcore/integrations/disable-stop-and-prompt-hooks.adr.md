@@ -14,16 +14,7 @@ Stop and UserPromptSubmit relied on keyword matching against natural language. C
 
 ## Decision
 
-Remove Stop and UserPromptSubmit hooks entirely. Keep only SessionStart.
-
-Removed across all agents (Claude Code, Cursor, Gemini CLI):
-
-- Stop/UserPromptSubmit hook commands and event registrations
-- `stopKeywords`, `promptKeywords` tables and all matching functions
-- `handleStop()`, `handleUserPromptSubmit()` handlers
-- `newStopHookCmd()`, `newPromptHookCmd()` factories
-- Instruction constants (`adrInstruction`, `planInstruction`, `cpatInstruction`)
-- Unused `hookInput` fields (`StopHookActive`, `LastAssistantMessage`, `Prompt`) and `hookOutput` fields (`Decision`, `Reason`)
+Remove Stop and UserPromptSubmit hooks entirely, with their keyword tables and handlers, on every agent. At the time only SessionStart stayed; PreToolUse and PostToolUse were added later, and they match tool names and file paths, not message text.
 
 ## Alternatives Considered
 

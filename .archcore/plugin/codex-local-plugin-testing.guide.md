@@ -30,13 +30,7 @@ Notes on the test environment, non-normative:
 
 ## Steps
 
-1. Run the standard repository checks.
-
-   ```bash
-   make all
-   ```
-
-   Expected result: exit 0, having validated JSON, executable permissions, shell lint, unit tests, and structure tests. Fix any failure here before opening Codex — UI testing is noisy when the package is already structurally invalid.
+1. Run `make all` (see `plugin-testing.guide`). Fix any failure before opening Codex, because UI testing is noisy when the package is already structurally invalid.
 
 2. Run the Codex-specific automated smoke tests.
 
@@ -76,30 +70,7 @@ Notes on the test environment, non-normative:
 
 6. For the most reliable manual local test, add an entry to `~/.agents/plugins/marketplace.json`.
 
-   ```json
-   {
-     "name": "archcore-personal",
-     "interface": {
-       "displayName": "Archcore Local"
-     },
-     "plugins": [
-       {
-         "name": "archcore",
-         "source": {
-           "source": "local",
-           "path": "./Documents/archcore/plugin/plugins/archcore"
-         },
-         "policy": {
-           "installation": "AVAILABLE",
-           "authentication": "ON_INSTALL"
-         },
-         "category": "Coding"
-       }
-     ]
-   }
-   ```
-
-   Adjust `source.path` for the checkout you are testing. Keep it `./`-prefixed and relative to the home-directory marketplace root where possible, and point it at the `plugins/archcore` subdirectory that holds `.codex-plugin/plugin.json` — never at the repo root, which Codex silently skips (issue #2).
+   Copy the entry shape from the repo-root `.agents/plugins/marketplace.json`, with the name `archcore-personal` and the display name `Archcore Local`. Set `source.path` for the checkout you are testing. Keep it `./`-prefixed and relative to the home-directory marketplace root where possible, and point it at the `plugins/archcore` subdirectory that holds `.codex-plugin/plugin.json` — never at the repo root, which Codex silently skips (issue #2).
 
 7. Install the plugin through the Codex CLI plugin browser.
 
@@ -173,17 +144,13 @@ Notes on the test environment, non-normative:
 
 Confirm first that the catalog's `source.path` resolves to the `plugins/archcore` subdirectory rather than the repo root. A root `source.path` of `./` is the issue #2 failure mode, and Codex omits the plugin from `/plugins` without an error. Then close the current Codex TUI and start a new session, because the plugin browser groups entries by marketplace and a stale session may not show a newly added marketplace file. Clear the plugin search box and switch away from `OpenAI Curated` to the local marketplace tab.
 
-### `codex plugin marketplace add` succeeded, but the plugin is not installed
+### The plugin appears under Available but not Installed
 
-Marketplace registration exposes a catalog; installation is a separate `/plugins` action. Open the plugin details and select `Install plugin`, then start a new thread before testing skill invocation.
+Marketplace registration exposes a catalog; installation is a separate `/plugins` action. Select `Install plugin` in the details. `Space` toggles the enabled state for an installed plugin only.
 
 ### The local personal marketplace does not show `Archcore Local`
 
-Validate `~/.agents/plugins/marketplace.json` with `jq`. Confirm that `source.path` starts with `./`, points at the `plugins/archcore` subdirectory holding `.codex-plugin/plugin.json` rather than the repo root, and that `policy.installation`, `policy.authentication`, and `category` are present. Codex skips an unresolvable plugin entry instead of failing the whole marketplace.
-
-### The plugin appears under Available but not Installed
-
-Open the plugin details and select `Install plugin`. `Space` toggles the enabled state for an installed plugin only; it does not install an available entry.
+Validate `~/.agents/plugins/marketplace.json` with `jq`, and check `source.path` as in step 6. Codex skips an unresolvable plugin entry instead of failing the whole marketplace.
 
 ### MCP list shows `archcore`, but not from the plugin
 
@@ -197,27 +164,19 @@ Symptom: from `mktemp -d`, after creating `.archcore/tmpdir-marker.doc.md`, the 
 2. Check for a project-level `.codex/config.toml` registering `archcore` with an explicit `cwd`, which overrides the plugin-managed MCP's CWD. Remove it or align it with your intent.
 3. Restart Codex from the correct directory. MCP servers are spawned at session start.
 
-If the symptom persists, your Codex CLI version may be rebasing CWD silently; `codex-path-resolution.adr` holds the historical context for that bug class.
+If the symptom persists, your Codex CLI version may be rebasing CWD silently; `multi-host-plugin-architecture.adr` holds the context for that bug class.
 
 ### MCP startup fails with `command not found`
 
 `archcore` is not on PATH for the Codex process. Install it per https://docs.archcore.ai/cli/install/ and confirm with `archcore --version` from a regular terminal. If that works and Codex still cannot find it, the Codex process likely has a stripped PATH — check Codex's environment configuration, or launch `codex` from a shell that has `~/.local/bin`, or the installer's target directory, on PATH.
 
-### Skill discovery works only after a restart
+### Skill discovery or local edits only after a restart
 
-Expected. The official Codex flow requires a new thread after plugin installation. Close the existing session and start a new one before testing `@` skill discovery.
-
-### Local edits are not picked up
-
-Codex installs a copy into `~/.codex/plugins/cache/...`. Restart Codex after source edits. If the installed copy stays stale, uninstall and reinstall the plugin from `/plugins`, or run a marketplace upgrade for the registered marketplace, then restart.
+Expected. Codex requires a new thread after installation and installs a copy into `~/.codex/plugins/cache/...`. See step 12 for a stale copy.
 
 ### Hook guardrails do not fire
 
 The plugin can package `plugins/archcore/hooks/codex.hooks.json`, but live hook execution depends on Codex's `hooks` feature flag. Run `codex features enable plugin_hooks` and retest with a fresh session. If the feature is unavailable in your Codex version — `hooks` is stable on the verified Codex 0.153.4 — upgrade Codex or treat plugin hooks as best-effort until it stabilizes.
-
-### `codex debug prompt-input` fails with session permission errors
-
-Treat this as a local Codex session-file permission or sandbox problem rather than a plugin packaging failure. Use the `/plugins` details screen and a new interactive thread to validate skill discovery.
 
 ## References
 

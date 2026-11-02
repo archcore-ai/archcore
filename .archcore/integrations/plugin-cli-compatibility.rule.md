@@ -103,38 +103,10 @@ on. The plugin repository guards these with a property-based check.
 
 ## Examples
 
-Non-normative examples.
-
-### Good
-
-```
-$ archcore hooks unknown-host session-start
-$ echo $?
-0
-```
-
-```
-Warning: An Archcore plugin is installed (.claude/plugins/archcore). Until it is updated, its own
-hooks and these may both fire and you will see duplicated context. Updating the plugin resolves it.
-```
-
-### Bad
-
-```
-$ archcore hooks unknown-host session-start
-Usage:
-  archcore hooks [command]
-...
-```
-
-Usage text on stdout reaches the model as session context.
+Good: `archcore hooks unknown-host session-start` prints nothing and exits 0. Bad: it prints cobra usage on stdout, which reaches the model as session context.
 
 ## Enforcement
 
-- `@cli/cmd/hook_command.go` — `Args: cobra.ArbitraryArgs` with a silent `RunE` on the host group, so an
-  unrecognized event never reaches cobra's help printer.
-- `@cli/cmd/hooks.go` — the same guard on the `hooks` group itself.
-- `@cli/internal/wiring/hooks_effective.go` — `detectInstalledPlugin`, `EffectiveHookNotes`.
-- `@cli/cmd/hook_session_start.go` and `@cli/internal/stamp/` — the dedup claim shared by every hook scope.
-- `@cli/cmd/hook_dialect.go` and `@cli/cmd/hook_payload.go` — the per-host wire protocol requirements 9 and
-  10 govern.
+- `@cli/cmd/hook_command.go` and `@cli/cmd/hooks.go` — a silent `RunE` with `cobra.ArbitraryArgs`, so an unrecognized event never reaches cobra's help printer.
+- `@cli/internal/wiring/hooks_effective.go` — plugin detection and the duplicate-hook notice.
+- `@cli/cmd/hook_dialect.go` and `@cli/cmd/hook_payload.go` — the per-host wire protocol requirements 9 and 10 govern.

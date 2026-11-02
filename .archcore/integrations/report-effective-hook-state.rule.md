@@ -54,40 +54,13 @@ summary line in a project with no wiring at all. Both describe wiring that does 
 
 ## Examples
 
-Non-normative examples.
-
-### Good
-
-```
-Codex CLI: hooks are written but will not run — the hooks feature is experimental and off by
-default. Enable it with `codex --enable hooks`, or add `[features]` with `hooks = true`
-(`codex_hooks = true` before Codex 0.129.0) to ~/.codex/config.toml.
-```
-
-### Bad
-
-```
-✓ Codex CLI hooks installed
-```
-
-The file exists. Nothing will read it.
-
-```
-✓ Wired hosts can act on their hook configs
-```
-
-Printed in a project with no host wired. The claim is about an empty set.
+Good: `Codex CLI: hooks are written but will not run — the hooks feature is experimental and off by default. Enable it with codex --enable hooks ...`. Bad: `✓ Codex CLI hooks installed`, because the file exists and nothing will read it. Also bad: `✓ Wired hosts can act on their hook configs` in a project with no host wired, a claim about an empty set.
 
 ## Enforcement
 
-- `@cli/internal/wiring/hooks_effective.go` — `DescribeEffectiveHooks` returns the notes for one agent;
-  an empty result means the wiring works. `DescribePluginConflict` describes the machine, not a host,
-  so a caller covering several agents reports it once.
-- `@cli/internal/wiring/hooks_agents.go` — `HookConfigPath` and `CarriesArchcoreHooks` answer "is this
-  host wired?" from the same path map the installers write through, so the two cannot drift.
-- `@cli/cmd/hooks.go` — `printEffectiveHookNotes`, called after every successful hook install. The host
-  was just written to, so it needs no wired check.
-- `@cli/cmd/doctor.go` — `reportEffectiveHooks`, which applies requirement 9 before reporting.
+- `@cli/internal/wiring/hooks_effective.go` — `DescribeEffectiveHooks` returns the notes for one agent; an empty result means the wiring works.
+- `@cli/internal/wiring/hooks_agents.go` — "is this host wired?" reads the same path map the installers write through, so the two cannot drift.
+- `@cli/cmd/hooks.go` and `@cli/cmd/doctor.go` — the callers; `doctor` applies requirement 9 before reporting.
 - A host added to `hooksInstallers` without a matching entry in `hookConfigPaths` is never reported
   as wired, and one added without a review of `DescribeEffectiveHooks` reports nothing — which
   requirement 1 permits only when the wiring works as installed.

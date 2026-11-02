@@ -130,6 +130,13 @@ type Evidence struct {
 	ListedVersion  string // when the host reports one
 	RegistryListed bool   // the host's on-disk registry names the plugin
 
+	// ServiceListingOK and ServiceListed are OpenCode 2.x's own answer, `opencode
+	// plugin list`, read from the running OpenCode service. The update command
+	// asks the same service, so only this answer authorizes it; the config files
+	// above can disagree with it — updating-the-plugin.spec §29.
+	ServiceListingOK bool
+	ServiceListed    bool
+
 	// ProjectRoot is the project whose configs a host with ProjectConfigPaths
 	// was observed in; empty when the run read the global config alone.
 	ProjectRoot string

@@ -18,33 +18,11 @@ Two shared rules in the mounted `archcore` global source own the writing policy.
 
 ## Rationale
 
-Requirement 5 is the point of this file. This repository and the plugin repository each held a full copy of the profile under the same filename, and the copies had already diverged on the precedence order, on the covered document types, and on whether a repository may claim conformance to an external writing standard. The split between the two profiles was then stated a third time in `@cli/CLAUDE.md`, with a fourth wording in the plugin's instruction file. One policy with four owners produces four policies.
+Requirement 5 is the point of this file. This repository and the plugin repository each held a full copy of the profile under the same filename, and the copies had already diverged on the precedence order, on the covered document types, and on whether a repository may claim conformance to an external writing standard. One policy with several owners produces several policies.
 
 Requirement 4 exists because the engine is the delivery mechanism. The global source is mounted by the two tool repositories only; a consumer project receives the canon through the document templates and the post-write checks this repository ships.
 
 Requirement 2 exists because the templates and the section contract define structure that the general profile does not describe, so the general profile MUST NOT displace them.
-
-## Examples
-
-Non-normative examples.
-
-### Good
-
-```markdown
-WHEN `sync` receives a non-2xx response, the CLI MUST leave the manifest unchanged.
-```
-
-A `guide` in this repository states a step in the imperative and keeps it under 20 words, because the prose canon assigns `guide` the STE profile and format F3.
-
-### Bad
-
-```markdown
-## Rule
-3. In the normative section of a `rule`, the author MUST state one obligation
-   in each numbered item.
-```
-
-The shared profile already carries that obligation. Restating it here creates the second copy requirement 5 forbids, and the copy is what drifts.
 
 ## Enforcement
 

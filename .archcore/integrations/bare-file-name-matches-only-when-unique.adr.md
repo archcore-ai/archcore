@@ -21,7 +21,7 @@ Adopted three changes in the file-context engine: a bare file name gives reason 
 1. A document-count threshold N, where a base name that more than N documents name stops matching by name — rejected because the count measures how central a file is, not whether its name is ambiguous: at N = 20 the threshold cuts 21 base names on 2026-10-15, among them `server.go` and `session-start`, which one tracked file each carries.
 2. Add `settings`, `agents`, `claude`, and `skill` to `genericFileStems` — rejected because a shared name is a property of one project: `settings.json` is shared here and unique in a project with one settings file, and each new shared name would need a CLI release.
 3. Keep only the `genericFileStems` test — rejected because 3 071 of the 3 557 bare-name rows on this repository land on files whose base name another tracked file carries.
-4. Drop every row on a shared base name, the rule included — rejected because `declaring-global-sources.rule` and `forward-compatible-settings-parsing.rule` govern the format of every `settings.json` and stopped reaching `cli/examples/01-minimal/.archcore/settings.json`; the user chose the `kind` reason on 2026-10-16.
+4. Drop every row on a shared base name, the rule included — rejected because `forward-compatible-settings-parsing.rule` and the other rules on the format of `settings.json` govern every `settings.json` and stopped reaching `cli/examples/01-minimal/.archcore/settings.json`; the user chose the `kind` reason on 2026-10-16.
 
 ## Consequences
 

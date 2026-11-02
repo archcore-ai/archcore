@@ -1,6 +1,6 @@
 ---
 title: "The Context Address Leads Every Agent Channel, and Server Instructions Fit 2,048 Characters"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "component:plugin"

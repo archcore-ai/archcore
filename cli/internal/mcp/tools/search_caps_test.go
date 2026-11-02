@@ -2,7 +2,7 @@ package tools
 
 // Tests for the evidence caps of a search_documents row
 // (read-tool-responses-survive-host-truncation.adr, search-documents.spec
-// §5.6-§5.9, §6.6, §10).
+// §5.5-§5.8, §6.6, §10).
 
 import (
 	"encoding/json"
@@ -186,7 +186,7 @@ func TestHandleSearchDocuments_ContentCapDoesNotChangeTheScore(t *testing.T) {
 	}
 }
 
-// TestRankPathRefs_TieBreaking pins search-documents.spec §5.6. The first
+// TestRankPathRefs_TieBreaking pins search-documents.spec §5.5. The first
 // mention sits ahead of the explicit reference in the body, so body order alone
 // would rank it first.
 func TestRankPathRefs_TieBreaking(t *testing.T) {

@@ -28,14 +28,10 @@ Method: one live marker probe per host, source and documentation reads, a transc
 
 Inputs:
 
-- Marker probe. A stdio MCP server sent 20 000 characters of instructions with a marker every 500 characters, a 4 000-character tool description, and a 120 637-character tool result. Each marker carries a random suffix; every reported marker was checked against the generator output, and none was invented. Hosts: Claude Code 2.1.295, Codex CLI 0.159.0, Copilot CLI 1.0.93. The throwaway server lives in the session scratchpad, outside the repository.
-- Claude Code documentation: <https://code.claude.com/docs/en/mcp>, <https://code.claude.com/docs/en/hooks>, <https://code.claude.com/docs/en/memory>, <https://code.claude.com/docs/en/skills> — accessed 2026-10-09.
-- Codex source at tag `rust-v0.159.0` (commit `687a119f`): `codex-rs/codex-mcp/src/rmcp_client.rs`, `codex-rs/core/src/tools/handlers/mcp.rs`, `codex-rs/hooks/src/output_spill.rs`, `codex-rs/core/src/agents_md.rs`, `codex-rs/config/src/config_toml.rs`; config reference <https://learn.chatgpt.com/docs/config-file/config-reference> — accessed 2026-10-09.
-- Copilot: `github/docs` commit `9f65179` (`cli-command-reference.md`, `context-management.md`, `tool-search.md`); `microsoft/vscode` commit `51ac693`, `extensions/copilot/src/` — accessed 2026-10-09.
-- Cursor: <https://cursor.com/docs/context/mcp>, <https://cursor.com/docs/agent/hooks>, <https://cursor.com/blog/dynamic-context-discovery> — accessed 2026-10-09 through a summarizing fetch, so quotes are not verbatim.
-- Transcripts: 33 Claude Code sessions with code edits in the Litres monorepo (302 documents), 250 `Edit`/`Write` calls on code files.
-- Hook runs: `archcore hooks claude-code pre-tool-use` and `session-start`, CLI v0.11.0, on the same monorepo.
-- Pilot: 12 `claude -p` runs, model Sonnet 5.5, prompt "Write unit tests for apps/next-app/src/utils/<file>.ts. Do not run them.", 3 files × 2 variants × 2 repeats. Variant A kept the current managed block; variant B carried a block with explicit tool calls and a plain-file fallback. Each variant and repeat ran in its own local clone. Cost: about 3.4 USD.
+- Marker probe. A stdio MCP server sent 20 000 characters of instructions with a marker every 500 characters, a 4 000-character tool description, and a 120 637-character tool result. Every reported marker was checked against the generator output. Hosts: Claude Code 2.1.295, Codex CLI 0.159.0, Copilot CLI 1.0.93.
+- Host documentation and source reads for Claude Code, Codex (tag `rust-v0.159.0`), Copilot (`github/docs`, `microsoft/vscode`), and Cursor (through a summarizing fetch, so quotes are not verbatim).
+- Transcripts: 33 Claude Code sessions with code edits in a 302-document monorepo, 250 `Edit`/`Write` calls on code files.
+- Pilot: 12 `claude -p` runs, model Sonnet 5.5, on a test-writing prompt, 3 files × 2 variants × 2 repeats. Variant A kept the current managed block; variant B carried a block with explicit tool calls and a plain-file fallback.
 
 ## Findings
 
@@ -91,4 +87,5 @@ proceed. Supporting findings: 1, 2, 4, 5, 6.
 
 ## Next Action
 
-`/archcore:plan` continues this route: decision records, the `prd`, the two `spec` documents, and the `plan`.
+Done: the decisions and specs linked to this record carry the route.
+

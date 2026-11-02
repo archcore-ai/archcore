@@ -25,19 +25,8 @@ what the executor-injection pattern exists to avoid.
 Move the document model out of the MCP tool layer into `internal/docs`, and reach it from
 `internal/mcp/tools` through one seam file.
 
-- `@cli/internal/docs/document.go` — `Document`, `EnrichedDocument`, `DocumentRelation`,
-  `ReadDocumentContent`, `NormalizeRelPath`, `WriteFileAtomic`.
-- `@cli/internal/docs/scan.go` — `Scan`, `ScanFull`, `ScanTypes`, `ScanLocal`, `ScanLocalTypes`,
-  `ScanCount`, and the package-private `buildDoc` they share.
-- `@cli/internal/docs/cache.go` — the mtime-and-size-keyed per-file cache, `InvalidateCache`, `ResetCache`.
-- `@cli/internal/docs/relpath.go` — `RelativeToBase`.
-- `@cli/internal/docs/guard.go` — `GuardWritablePath`, `ValidateReadPath`, `ValidateArchcorePath`, and the
-  package-private `checkSymlinkContainment` they layer.
-- `@cli/internal/docs/globals.go` — `IsGlobalPath`, `IsReservedGlobalDir`, `IsExternalGlobalDocument`,
-  `AnnotateSource`.
-- `@cli/internal/docs/inspect.go` — `InspectGlobals`, `GlobalState`, `GlobalInspection`.
-- `@cli/internal/mcp/tools/docs_bridge.go` — the seam. It aliases `LocalDocument` to `docs.Document` and
-  re-exports the helpers under the short names the tool handlers already call.
+`@cli/internal/docs` holds the document struct, the scan, the per-file cache, the path guards, and the global-source helpers. `@cli/internal/mcp/tools/docs_bridge.go` is the seam. It aliases `LocalDocument` to `docs.Document` and
+re-exports the helpers under the short names the tool handlers already call.
 
 `LocalDocument` stays the name on the MCP wire and in every caller outside the package;
 `docs.Document` is the domain name. A type alias keeps both true without a conversion layer.
@@ -66,6 +55,3 @@ is part of the MCP response shape that the plugin reads.
   hook path and the MCP tool layer depend on it — `architecture/package-dependency-direction.rule`.
 - Documents that reference `internal/mcp/tools/common.go`, `scan_cache.go`, or `globals_inspect.go`
   point at paths that no longer exist and need updating when they are next touched.
-- The symbol list above drifted once already: it named `CheckSymlinkContainment` and
-  `IsReadOnlyGlobalPath` after both had been renamed. Verify it against `grep -n '^func [A-Z]'
-  internal/docs/*.go` when this document is next touched.

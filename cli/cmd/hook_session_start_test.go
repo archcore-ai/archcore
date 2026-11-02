@@ -65,7 +65,7 @@ func TestHandleSessionStart_WithDocuments(t *testing.T) {
 	if !strings.Contains(ctx, "mvp.plan.md") {
 		t.Error("context missing vision doc")
 	}
-	// session-start-context.spec §19 and §20.
+	// session-start-context.spec §12 and §13.
 	if !strings.HasPrefix(ctx, "[Archcore — Git-native context for AI coding agents]\n"+agents.ContextAddress+"\n") {
 		t.Error("the context address does not follow the header line")
 	}

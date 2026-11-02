@@ -20,9 +20,7 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 - Row fields: `path` (with the `.archcore/` prefix), `type`, `title`, `status`, `source_kind`, `reason`.
 - `reason` values: `file` (the body names the file), `kind` (an accepted `rule` or `cpat` names the file's compound extension, such as `.test.tsx`, or a base name several tracked files share), `directory` (the body names a directory of the file), `general` (an accepted pathless `rule` or `cpat`).
 - Result parts, in order: matched rows (`file`, `kind`, then `directory`), general rows, one remainder line per part.
-- Header line of the hook text: `[Archcore Context] Read these before editing <file>:`.
-- Hook rendering: plain text opened by the `[Archcore Context]` marker line.
-- MCP rendering: the JSON envelope of `search_documents` under `for_path`.
+- Renderings: the hook text, opened by the marker line `[Archcore Context] Read these before editing <file>:`, and the JSON envelope of `search_documents` under `for_path`.
 - Ranked types: `rule`, `cpat`, `adr`, `spec`, `scenario`, `guide`, `doc`, in that priority.
 
 ## Normative Behavior
@@ -51,7 +49,7 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 ## Constraints & Invariants
 
 - Constraint: matched rows MUST NOT exceed 5, so five documents fit the hook budget with their titles.
-- Constraint: general rows MUST NOT exceed 10. The monorepo holds 15 pathless rules (2026-10-09), so the remainder line is exercised.
+- Constraint: general rows MUST NOT exceed 10.
 - Constraint: the hook text MUST NOT exceed 2 048 runes. Codex caps hook context at 2 500 tokens per handler.
 - Constraint: the `for_path` response MUST NOT exceed 8 000 characters. Copilot in VS Code stores a result over 8 × 1 024 characters in a file.
 - Constraint: the hook computation MUST finish inside the one-second host budget of the hook runtime contract.
@@ -60,9 +58,7 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 - Invariant: a document that qualifies for `kind` and for `general` takes `kind`.
 - Invariant: a document names a compound extension only where no file-name character precedes it: `*.test.tsx` names the kind, `Form.test.tsx` names one file.
 - Invariant: a document names a bare file name only where no file-name character and no `.` precedes it: `create_document.go` and `.mcp.json` do not name `document.go` and `mcp.json`.
-- Invariant: the generic stems are the `genericFileStems` list in @cli/internal/advisory/code_alignment.go; a full-path or `@`-path match still gives such a file reason `file`.
-- Invariant: the tracked files are the files `git ls-files` lists under the project root.
-- Invariant: the bare name of a file at the project root is its full path, so behaviors 18 and 19 do not remove its reason `file`.
+- Invariant: a full-path or `@`-path match still gives a generic-stem file reason `file`; the stems are `genericFileStems` in @cli/internal/advisory/code_alignment.go. The tracked files are those `git ls-files` lists.
 - Invariant: behavior 17 exists because a local document is authoritative over a global one on the same topic; on 2026-10-15 the path tie-break let 8 global rules fill every shown general row and hid each local pathless rule.
 
 ## Failure Behavior
@@ -77,7 +73,3 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 ## Conformance
 
 An implementation is conformant when it satisfies behaviors 1–14 and 16–20, holds every constraint and invariant, and degrades per the failure rules. Behavior 15 is conformant when absent; a session stamp hides the rows after `/compact`, so it waits for a compaction signal.
-
-Given `FullLayout.tsx` is named in `router-shim-hybrid-seam.doc.md` and only its directory in an accepted `rule`,
-When the agent calls `search_documents(for_path="apps/next-app/src/app/_components/FullLayout.tsx")`,
-Then the `doc` row with reason `file` precedes the `rule` row with reason `directory`.

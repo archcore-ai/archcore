@@ -21,7 +21,7 @@ Out of scope: `install-id`, which answers "which machine" for analytics and carr
 - Path: `${XDG_STATE_HOME:-$HOME/.local/state}/archcore/install-receipt.json` on Unix, `%USERPROFILE%\.local\state\archcore\install-receipt.json` on Windows — the directory `install_id_path()` in `@cli/install.sh` already creates.
 - Fields: `channel` (one of `install.sh`, `install.ps1`, `self-update`), `binary` (absolute, symlink-resolved path of the installed executable), `version` (the version placed at that path).
 - Writers: both installers on a successful install; the `update` command on a successful replacement.
-- Reader: the unattended update policy in `internal/update` [planned].
+- Reader: the unattended update policy in `internal/update`.
 - Resolution used for comparison: `os.Executable()` followed by `filepath.EvalSymlinks()`, the pair `Apply` already uses (`@cli/internal/update/update.go`).
 
 ## Normative Behavior

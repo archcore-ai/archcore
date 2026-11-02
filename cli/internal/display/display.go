@@ -71,7 +71,7 @@ func KeyValue(key, value string) string {
 
 // HookConnectedLine is the SessionStart banner. A non-zero globalDocCount
 // appends the mounted total so the user-facing count and the GLOBALS block in
-// the context agree (session-globals-disclosure.spec clause 15).
+// the context agree (session-globals-disclosure.spec clause 13).
 func HookConnectedLine(version string, docCount, globalDocCount int) string {
 	if globalDocCount > 0 {
 		return fmt.Sprintf("Archcore %s · MCP connected · %d docs + %d global", version, docCount, globalDocCount)

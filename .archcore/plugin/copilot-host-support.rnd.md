@@ -25,7 +25,7 @@ Verify against the official GitHub documentation that the Archcore plugin can sh
 
 A documentation sweep of docs.github.com — cli-plugin-reference, hooks-reference, about-plugins, plugins-creating, add-skills, custom-agents-configuration, cli-config-dir-reference, and configure-mcp-servers — plus the `github/copilot-cli` changelog, performed on 2026-07-05. Copilot's plugin-authoring path is itself fully documented for the native format, covering the manifest, the hooks config schema, the payloads, and the install specs; only the Claude-compatibility layer is partially documented.
 
-Two findings below were corrected on 2026-07-27 against the same pages, and two more on 2026-08-03 against a live CLI. Read the re-verification and the dated update before treating any hook or MCP claim here as current.
+Read the re-verification and the 2026-08-03 update before treating any hook or MCP claim here as current.
 
 ## Findings
 
@@ -37,11 +37,11 @@ Read that discovery order again in light of the 2026-08-03 update. It is not mer
 
 **Hooks — confirmed, in two authoring formats.** Native events are camelCase — `sessionStart`, `preToolUse`, `postToolUse`, `postToolUseFailure`, `sessionEnd`, `subagentStart` and `subagentStop`, `userPromptSubmitted`, `agentStop` — with a fully documented config schema covering `version`, the per-event entry list, the `bash`, `powershell`, and `command` variants, `cwd`, `env`, a `timeoutSec` defaulting to 30, and a regex `matcher` compiled as `^(?:PATTERN)$`. PascalCase names select the Claude-compatible format, with snake_case payload fields, Claude matcher semantics, and Claude tool-name mapping where `create` becomes `Write`, `apply_patch` and `str_replace_editor` become `Edit`, and `bash` becomes `Bash`. The payload arrives as JSON on stdin in both formats.
 
-Two claims this paragraph carried until 2026-07-27 did not hold up on re-reading, and both were load-bearing: the environment-variable list, and the exit-code semantics that recorded exit 2 as a warning requiring stdout JSON for a deny. Both are corrected below. A timeout failing **open** is the one hook claim that survived unchanged.
+The environment-variable list and the exit-code semantics are corrected in the re-verification below. A timeout failing **open** is the one hook claim that survived unchanged.
 
 **MCP — confirmed for the CLI.** A plugin ships `.mcp.json` at its root, or `mcpServers` in the manifest, and a plugin MCP config loads with last-wins precedence over `~/.copilot/mcp-config.json`. The cloud agent and code review support MCP tools only, with no resources or prompts, and no OAuth remote servers.
 
-This paragraph once continued that the MCP config names `archcore` from PATH with no plugin-root variables, so no expansion question arises. That was true about expansion and beside the point: the question that mattered was not how the command string expands but whether the file should be discoverable at all. The plugin now ships no filename Copilot discovers.
+The question that mattered was not how the command string expands but whether the file should be discoverable at all. The plugin now ships no filename Copilot discovers.
 
 **Skills and agents — confirmed.** A plugin skill uses the Claude layout at `skills/NAME/SKILL.md`, with `name`, `description`, `license`, and `allowed-tools` recognized in frontmatter. Skills deduplicate by `name`, and a project or personal skill wins over a plugin skill. Repo-level `.claude/skills` and `.agents/skills` are also read, while home-level `~/.claude` no longer is. A plugin agent is documented as an `*.agent.md` file in `agents/`; the general custom-agents reference accepts both `.md` and `.agent.md`, but the plugin documentation shows only `.agent.md`, so whether a plain `NAME.md` loads from a plugin was the one open compatibility question. `description` is required, Claude tool aliases are accepted case-insensitively, and an unrecognized tool name is ignored.
 
@@ -49,11 +49,11 @@ This paragraph once continued that the MCP config names `archcore` from PATH wit
 
 ## Re-verification (2026-07-27)
 
-Triggered by a field report rather than a scheduled sweep: a user session emitted `/bin/sh: /bin/session-start: No such file or directory`, which is what `"${COPILOT_PLUGIN_ROOT}"/bin/session-start` collapses to when the variable is empty.
+Triggered by a field report: a user session emitted `/bin/sh: /bin/session-start: No such file or directory`, which is what `"${COPILOT_PLUGIN_ROOT}"/bin/session-start` collapses to when the variable is empty.
 
-**`COPILOT_PLUGIN_ROOT` is undocumented.** Neither it nor `CLAUDE_PLUGIN_ROOT` appears anywhere on the plugin reference or the hooks reference. The only documented plugin-path variable is `${PLUGIN_ROOT}` — "Use `${PLUGIN_ROOT}` to reference paths within the plugin directory" — which appears on the plugin reference in the LSP server section, alongside an optional `pluginRoot?` field in `marketplace.json`. For writable state the documented pair is `${COPILOT_PLUGIN_DATA}` and `${CLAUDE_PLUGIN_DATA}`. The original three-name list has no source that can be pointed at today; it may have been read off a changelog fragment or inferred from the Claude-compatibility layer.
+**`COPILOT_PLUGIN_ROOT` is undocumented.** Neither it nor `CLAUDE_PLUGIN_ROOT` appears anywhere on the plugin reference or the hooks reference. The only documented plugin-path variable is `${PLUGIN_ROOT}` — "Use `${PLUGIN_ROOT}` to reference paths within the plugin directory" — which appears on the plugin reference in the LSP server section, alongside an optional `pluginRoot?` field in `marketplace.json`. For writable state the documented pair is `${COPILOT_PLUGIN_DATA}` and `${CLAUDE_PLUGIN_DATA}`.
 
-**Exit codes are the reverse of what was recorded.** Verbatim: "exit 2 is treated as a deny: any stdout JSON is merged with the deny decision and the tool call is denied even if that JSON reports `permissionDecision: allow`"; "Other non-zero exits denies the tool call with `Denied by preToolUse hook (hook errored)`"; and "Timeouts are fail-open for every event, including `preToolUse` and admin-deployed policy hooks". So on Copilot every non-zero exit denies. The stdout-JSON arm remains correct, since exit 0 has its stdout parsed as hook output, but its reason for existing changes: it is how a deny carries its reason text, not the only way a deny lands.
+**Exit codes.** Verbatim: "exit 2 is treated as a deny: any stdout JSON is merged with the deny decision and the tool call is denied even if that JSON reports `permissionDecision: allow`"; "Other non-zero exits denies the tool call with `Denied by preToolUse hook (hook errored)`"; and "Timeouts are fail-open for every event, including `preToolUse` and admin-deployed policy hooks". So on Copilot every non-zero exit denies. The stdout-JSON arm remains correct, since exit 0 has its stdout parsed as hook output, but its reason for existing changes: it is how a deny carries its reason text, not the only way a deny lands.
 
 The corollary is the actual severity of the field report. A guard that cannot start is an "other non-zero exit", so an unresolved plugin root denies every matched mutation call rather than merely printing noise at session start. `hooks/copilot.hooks.json` now probes three candidate roots with `-x` and exits 0 with a warning when none resolves, and `copilot-plugin.bats` runs those commands rather than string-matching them.
 

@@ -22,40 +22,8 @@ Only an explicit presence check on the raw argument map separates the two. The `
 
 ## Examples
 
-Non-normative examples.
-
-**Good** — check presence in the argument map:
-
-```go
-var newTags []string
-tagsProvided := false
-if _, ok := request.GetArguments()["tags"]; ok {
-    tagsProvided = true
-    // parse and validate...
-}
-```
-
-**Bad** — check the parsed value; omission and clear become indistinguishable:
-
-```go
-if tags != nil {  // an empty array [] parses to a non-nil empty slice — clear works
-    // BUT an omitted field also parses to nil — indistinguishable from "not provided"
-}
-```
-
-**Bad** — check the length; omission and clear collapse into one case:
-
-```go
-if len(tags) > 0 {  // both omission and clear produce len 0
-    // the clear case is silently ignored
-}
-```
+Good: check whether the key exists in `request.GetArguments()`. Bad: check the parsed slice for `nil` or for `len > 0`. An omitted field and an empty array then look the same, so one of the two cases is silently lost.
 
 ## Enforcement
 
-Test cases in `@cli/internal/mcp/tools/update_document_test.go` verify the distinction:
-
-- `TestHandleUpdateDocument_ClearTags` — an empty array clears all tags
-- `TestHandleUpdateDocument_PreserveTags` — omitted tags stay unchanged
-- `TestHandleUpdateDocument_ReplaceTags` — provided tags fully replace the existing tags
-- `TestHandleUpdateDocument_AddTags` — tags are added to a previously untagged document
+The tests in `@cli/internal/mcp/tools/update_document_test.go` cover clear, preserve, and replace.
