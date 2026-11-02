@@ -1,7 +1,7 @@
 package tools
 
 // Regression tests for the measured list_documents cutoffs
-// (global-discovery-gap.idea): with pure walk order, 100+ local documents
+// (global-recall-guarantees.rfc): with pure walk order, 100+ local documents
 // evicted every global row from the default page, and 500+ made globals
 // unreachable at any limit. The interleave closes both.
 

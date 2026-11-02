@@ -12,9 +12,7 @@ tags:
 
 Record the scaling behaviour of the relation **write path** and the observed
 graph-growth law, measured on a real corpus, so relation-storage work starts
-from data instead of guesses. This is the write-path complement to
-@.archcore/mcp/read-path-scan-performance.idea.md, which covers only the read
-path (`list_documents` / `search_documents` / `get_document`).
+from data instead of guesses. The read path (`list_documents` / `search_documents` / `get_document`) is a separate axis and already optimised.
 
 Relations are stored as a flat JSON array in `.sync-state.json`
 (@.archcore/relations/local-relations-in-sync-state.adr.md). Every mutation goes
@@ -54,16 +52,7 @@ projection is modeled (linear extrapolation of the measured 162 bytes/relation).
 | Max degree node | `auth/popup/architecture.doc.md` — 23 |
 
 **Graph structure — relations form near-complete cliques inside leaf
-directories:**
-
-| Leaf directory | Docs | Edges / max | Fill |
-|----------------|------|-------------|------|
-| `code-quality/tests/e2e` | 7 | 21/21 | 100% (K₇) |
-| `translations` | 5 | 10/10 | 100% (K₅) |
-| `core/bdui` | 4 | 6/6 | 100% (K₄) |
-| `code-quality/tests/units` | 14 | 81/91 | 89% |
-| `auth/iframe` | 6 | 12/15 | 80% |
-| `auth/popup` | 19 | 99/171 | 58% |
+directories** (three leaf folders are at 100% fill; the largest, `auth/popup`, holds 19 docs and 99 of 171 possible edges).
 
 The decisive number: if *every* leaf directory were a full clique the graph
 would have **497** undirected edges; it actually has **506**. To within 2%, the
@@ -85,11 +74,6 @@ guard: no per-node degree cap and no "relate to cluster" primitive.
 **Edge signal.** 59% of edges are intra-directory `related` — they restate the
 directory co-location the filesystem already encodes. Only 41% (cross-directory
 or typed) carry graph signal beyond the tree.
-
-| | `related` | typed |
-|--|-----------|-------|
-| **intra-dir** | 305 (59%) | 32 (6%) |
-| **inter-dir** | 164 (32%) | 12 (2%) |
 
 ## Risks
 
@@ -139,6 +123,4 @@ context.
   `SaveManifest` / `add_relation` write bench in the style of the read-path
   harnesses (@cli/internal/mcp/tools/realistic_bench_test.go) would turn them into
   measurements.
-- Read-path axis (scan / search / get) is separate and already optimised:
-  @.archcore/mcp/read-path-scan-performance.idea.md.
 - Tracked as GitHub issue archcore-ai/cli#26.

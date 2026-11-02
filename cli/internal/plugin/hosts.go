@@ -155,6 +155,10 @@ const (
 	AddressingName
 )
 
+// openCodeServiceNote is printed when the OpenCode config lists the plugin and
+// the running service, which `opencode plugin update` asks, does not.
+const openCodeServiceNote = "The OpenCode config lists " + openCodePackage + ", but the running OpenCode service does not see it. Restart the OpenCode service, then run: opencode plugin update " + openCodePackage
+
 var hostTable = map[Host]HostSpec{
 	HostClaudeCode: {
 		Host:          HostClaudeCode,
@@ -293,6 +297,10 @@ var hostTable = map[Host]HostSpec{
 		// add.ts and remove.ts, 2.1.4) — opencode-plugin-serves-v1-and-v2-from-
 		// one-package.adr.
 		Since2: &HostSpec{
+			// The update command finds the plugin through the running service, not
+			// the config file (cli.plugin.inspect, 2.1.4), so the update asks the
+			// same service first.
+			Listing: Command{Name: "opencode", Args: []string{"plugin", "list"}},
 			Install: []Command{{Name: "opencode", Args: []string{"plugin", "add", openCodePackage}}},
 			// 2.x marks an outdated package and updates it only on request
 			// (packages/cli/src/commands/handlers/plugin/update.ts, 2.1.4).
@@ -300,8 +308,8 @@ var hostTable = map[Host]HostSpec{
 			Remove: []Command{{Name: "opencode", Args: []string{"plugin", "remove", openCodePackage}}},
 		},
 		// No update command until a live probe shows how OpenCode refreshes an
-		// unpinned package, and OpenCode has no uninstall command —
-		// opencode-adapter.plan.
+		// unpinned package (updating-the-plugin.spec). OpenCode has no uninstall
+		// command.
 		Notes: UINotes{
 			Remove: `Remove "` + openCodePackage + `" from the "plugin" array of ~/.config/opencode/opencode.json, or of the project opencode.json that lists it.`,
 		},

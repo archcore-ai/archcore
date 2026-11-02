@@ -48,32 +48,7 @@ stdout carries the host protocol and stderr is read as a diagnostic.
 Accepted trade-off: protection against a typo in a field name is lost. This reverses the strictness
 recorded in the ADR on backing up invalid configs, and the reversal is deliberate.
 
-## Examples
-
-Non-normative examples.
-
-### Good
-
-```go
-// Unknown to this binary → captured, load continues.
-if s.Extra == nil {
-    s.Extra = make(map[string]json.RawMessage)
-}
-s.Extra[key] = raw[key]
-```
-
-```json
-{ "sync": "none", "language": "ru", "somethingNewer": { "on": true } }
-```
-
-`archcore config set language en` leaves `somethingNewer` in the file unchanged.
-
-### Bad
-
-```go
-// Rejects a field a newer release added, and breaks every command that loads settings.
-return fmt.Errorf("field %q is not allowed for sync type %q", key, s.Sync)
-```
+Optional fields resolve their defaults at read time and are never written back, so an absent key stays absent.
 
 ## Enforcement
 
@@ -83,10 +58,3 @@ return fmt.Errorf("field %q is not allowed for sync type %q", key, s.Sync)
 - Co-located tests cover an unknown field on load, round-trip preservation through `config set`, and
   the two retained error paths (wrong-mode field, malformed known value).
 - The release guide carries the sequencing step for a release that adds a `settings.json` field.
-
-## Status
-
-Current behavior. One item from the originating work is deferred and not started: an opt-in
-`ARCHCORE_AUTO_UPDATE=1` self-heal. Auto-running `archcore update` from a hook path is rejected as a
-default because it replaces the global binary without asking, does not restart a running MCP server,
-and fails in CI, offline, and on a pinned version.

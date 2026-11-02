@@ -132,7 +132,7 @@ hook_root_vars() {
 }
 
 @test "cursor.hooks.json: preToolUse matcher is exactly 'Write' (Cursor has no Edit tool)" {
-  # Invariant from .archcore/plugin/multi-host-compatibility-layer.spec.md:
+  # Invariant from .archcore/plugin/hooks-validation-system.spec.md:
   # Cursor's API exposes only a Write tool; Edit/apply_patch don't exist there.
   local matcher
   matcher=$(jq -r '.hooks.preToolUse[0].matcher' "$PLUGIN_ROOT/hooks/cursor.hooks.json")

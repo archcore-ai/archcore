@@ -10,13 +10,6 @@ tags:
 
 The `.archcore/` directory originally enforced a rigid 3-directory structure: `vision/`, `knowledge/`, and `experience/`. Every document had to live in one of these directories, and the directory determined the document's category.
 
-### Current State
-
-- Documents were organized into exactly three fixed directories
-- The physical directory path was the source of truth for a document's category
-- `archcore init` created all three directories upfront
-- Teams couldn't organize documents by domain, feature, or team
-
 ### Problem Statement
 
 The fixed directory structure didn't scale for projects with many documents. Teams wanted to organize by domain (e.g., `auth/`, `payments/`, `infra/`) or by team, but the rigid structure forced everything into three flat buckets. As document count grew, navigating `knowledge/` with 30+ files became unwieldy.
@@ -51,7 +44,7 @@ The `slug.type.md` naming convention is the sole source of category information.
 
 ### Positive
 
-- Flexible organization: any nesting depth, any directory names
+- Any nesting depth and any directory names
 - Full backward compatibility: existing projects with `vision/`/`knowledge/`/`experience/` continue to work without changes
 - Simpler initialization: just `.archcore/` directory
 - Category information remains available in all interfaces (CLI, MCP) via type derivation
@@ -61,14 +54,6 @@ The `slug.type.md` naming convention is the sole source of category information.
 - Type segment in filename is now mandatory for category derivation — files without a recognized type default to "knowledge"
 - Users must understand the `slug.type.md` naming convention to ensure correct categorization
 
-## Implementation Notes
-
-- `CategoryForType()` in `templates/templates.go` handles the type → category mapping
-- File scanning uses `filepath.WalkDir` recursively instead of scanning three fixed directories
-- Hidden directories (`.`-prefixed) and meta files (`settings.json`, `.sync-state.json`) are skipped during scanning
-- `archcore status` checks filename format and type validity across all directories
-
 ## References
 
-- [Rule: Directory Structure and Document Naming Rules](./free-form-directory-rules.rule.md)
 - `concepts/naming-and-layout` in the `archcore` global source — the layout model, the filename contract, and the layout guidance

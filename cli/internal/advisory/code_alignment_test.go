@@ -251,7 +251,7 @@ func TestCodeAlignment_ExcludesResearchVocabulary(t *testing.T) {
 }
 
 // TestCodeAlignment_ScenarioRankedBetweenSpecAndGuide pins
-// scenario-and-journey-advisory-canon.spec §15: a scenario reaches the edit
+// scenario-and-journey-advisory-canon.spec §6: a scenario reaches the edit
 // through its Anchors line, below the spec it illustrates and above a guide.
 func TestCodeAlignment_ScenarioRankedBetweenSpecAndGuide(t *testing.T) {
 	t.Parallel()

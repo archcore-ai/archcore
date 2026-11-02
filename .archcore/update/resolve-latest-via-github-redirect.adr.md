@@ -11,15 +11,7 @@ tags:
 
 `archcore update` and both install scripts must resolve "what is the newest published release" before they can download anything. All three originally asked the GitHub REST API — `GET https://api.github.com/repos/archcore-ai/cli/releases/latest` — and parsed `tag_name` out of the JSON body.
 
-### Current State
-
-Before this decision, the same lookup was implemented three times:
-
-- `internal/update/update.go` — `CheckLatest` decoded a `releaseResponse{TagName string}` struct
-- `install.sh` — `parse_version_from_json` with a jq → python3 → grep/sed fallback cascade
-- `install.ps1` — `Invoke-RestMethod`, then read `.tag_name`
-
-All three optionally attached `Authorization: Bearer $GITHUB_TOKEN` when the variable was set.
+The same lookup was implemented three times: `CheckLatest` in `internal/update/update.go`, `install.sh`, and `install.ps1`. All three optionally attached `Authorization: Bearer $GITHUB_TOKEN`.
 
 ### Problem Statement
 
@@ -104,11 +96,3 @@ Cache locally and send `If-None-Match`; a `304` does not count against the budge
 - The decision rests on **stable but undocumented** github.com behavior rather than a versioned API contract. If GitHub changes the redirect shape, `CheckLatest` now fails cleanly — into one of four distinguishable errors (non-3xx status, no `Location`, unparseable `Location`, redirect not landing on a tag page), each pinned by its own test row — and both installers tell the user to pin `ARCHCORE_VERSION`. This only holds because the tag is taken from a *resolved* URL; the first implementation substring-matched the raw header and silently produced garbage tags instead.
 - The redirect carries only the tag — no release notes, publish date, or asset list. Any future need for richer metadata (deprecation notices, staged rollouts, minimum-version gates) reopens this decision, with Alternative 1 as the upgrade path.
 - Residual: `url.URL.Path` is percent-decoded, so a `Location` of `…/releases/tag/v1.2.3%2F..%2Fevil` still yields a tag string containing `/../`. Not exploitable in practice — it requires control of the TLS-protected redirect target, checksum verification still gates installation, and the download request re-escapes the path — but it is the one gap left by extracting from `.Path`.
-
-### Changes Made
-
-- @cli/internal/update/update.go — `CheckLatest` resolves the tag via `resp.Location()` and searches the resolved path; accepts any `3xx`; `releaseResponse` and the `encoding/json` import removed; `tagPathMarker` and `maxRedirectBodyDrain` constants and a `client()` helper added; redirect body drain bounded
-- @cli/install.sh — `parse_version_from_json` deleted; `get_latest_version` reads `%{redirect_url}` and validates the `*/releases/tag/*` shape
-- @cli/install.ps1 — `Get-LatestVersion` reads `Location` off the thrown exception, guarding both the PS7 typed-property and PS5.1 indexer shapes
-- @cli/internal/update/update_test.go, @cli/cmd/update_test.go, @cli/cmd/update_check_test.go — test servers answer a redirect with `Location` instead of JSON; `TestCheckLatest` is table-driven over 302/301/307/308 plus relative-`Location` and dot-segment rows, each asserting no `CheckRedirect` leak; the error table asserts `errContains` per row and covers non-3xx-with-valid-tag, traversal segments, unparseable `Location`, missing `Location`, empty tag, and no-release-published
-- Updated self-update-command.doc.md (retyped from guide on 2026-08-14) and install-script-usage.guide.md

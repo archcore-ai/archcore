@@ -26,43 +26,7 @@ Tests call internal functions directly (`runInit`, `doSync`, `getSettingsValue`)
 
 Gating at the command layer keeps the re-enablement diff small: the guards come out, the prompts come back, and nothing else moves. Internal packages, validation logic, and tests stay exercised while the feature is off.
 
-## Examples
-
-Non-normative examples.
-
-### Good
-
-```go
-// cmd/sync.go — hide command, block at handler
-cmd := &cobra.Command{
-    Use:    "sync",
-    Hidden: true,
-    RunE: func(cmd *cobra.Command, args []string) error {
-        return fmt.Errorf("sync is not available yet — this feature is coming soon")
-    },
-}
-```
-
-```go
-// cmd/config.go — block config set for gated keys
-case "set":
-    if args[1] == "sync" || args[1] == "project_id" {
-        return fmt.Errorf("%s is not available yet — sync features are coming soon", args[1])
-    }
-```
-
-### Bad
-
-```go
-// Deleting the sync package or removing sync functions
-// BAD: breaks tests, large re-enablement diff
-
-// Commenting out command registration in root.go
-// BAD: makes the command unreachable, even for testing
-
-// Modifying internal validation logic to reject sync modes
-// BAD: breaks unit tests that call internal functions directly
-```
+Three shortcuts break this: deleting the gated package (breaks tests, large re-enablement diff), commenting out the registration in `root.go` (the command becomes unreachable even for testing), and changing internal validation to reject the gated modes (breaks unit tests that call internal functions directly).
 
 ## Enforcement
 

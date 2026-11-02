@@ -427,7 +427,7 @@ var StepSections = map[DocumentType][]SectionRule{
 // word cap and the modal check that its flows are measured by. The step
 // sections are listed too: an observation under Flows or Journeys is the same
 // step whether or not it carries a number —
-// scenario-and-journey-advisory-canon.spec §6.
+// scenario-and-journey-advisory-canon.spec.
 var ObservationSections = map[DocumentType][]SectionRule{
 	TypeScenario: {SectionFlows, SectionExamples},
 	TypeJourney:  {SectionJourneys},
@@ -436,7 +436,7 @@ var ObservationSections = map[DocumentType][]SectionRule{
 // ActorStepSections lists, per type, the step sections whose every numbered
 // step opens with an actor from the Actors table. It is the line-level test
 // that separates the pair from a spec: component with a modal on one side,
-// actor without one on the other — scenario-and-journey-advisory-canon.spec §8.
+// actor without one on the other — scenario-and-journey-advisory-canon.spec.
 var ActorStepSections = map[DocumentType][]SectionRule{
 	TypeScenario: {SectionFlows},
 	TypeJourney:  {SectionJourneys},

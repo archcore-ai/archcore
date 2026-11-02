@@ -52,7 +52,7 @@ Four defects on record came from crossing the modes:
   to allow on an error class it did not enumerate (`@cli/cmd/hook_write_guard.go`).
 - The same file later read the globals list through the advisory variant, so a write into an
   externally mounted global source was permitted exactly when the guard could not verify the mount
-  list. Fixed September 2026; the Bad example below is what the code said until then.
+  list. Fixed September 2026.
 - `archcore status` reported a healthy global source whose every read failed, because the inspection
   discarded the error (`@cli/internal/docs/inspect.go`).
 - The MCP write tools were denied on a host whose tool-name spelling was unrecognized, because an
@@ -62,51 +62,12 @@ Clause 12 is the counterweight the write-guard fix needed. Failing closed on eve
 have blocked a `README.md` edit on a `settings.json` typo, and failing closed inside `.archcore/`
 would have blocked editing `settings.json` itself — the one write that ends the failing state.
 
-## Examples
-
-### Good
-
-```go
-// Guard: a settings.json that cannot be parsed must not be read as "no globals
-// declared", because that is also what an empty file looks like.
-globals, err := config.LoadGlobals(baseDir)
-if err != nil {
-    return fmt.Errorf("cannot verify global sources: %w", err)
-}
-
-// Advisory: the recap is context, not permission. No globals is a fine answer
-// to "which globals are declared" when the file is unreadable.
-globals := config.ReadGlobals(baseDir)
-```
-
-### Bad
-
-```go
-// A guard reading the degrading variant. An invalid settings.json now means
-// "no globals are declared", so a write into a global source is permitted.
-if docs.IsExternalGlobalDocument(baseDir, path, config.ReadGlobals(baseDir)) {
-    return denyHook(reason)
-}
-
-// One function, one flag, and the decision pushed to every call site.
-func LoadGlobals(baseDir string, strict bool) ([]GlobalSource, error)
-
-// A guard that refuses the repair. The user cannot fix settings.json because
-// settings.json is unreadable.
-if globalsErr != nil {
-    return denyHook(reason) // covers every path, including settings.json itself
-}
-```
-
 ## Enforcement
 
 - Code review: any new `Read*`/`Load*` pair, and any call to one from a guard.
 - No linter distinguishes the modes. A `Read*` call inside a function whose name or doc comment says
   "guard" is the pattern to grep for.
 - `@cli/internal/config/config.go` — `ReadGlobals` / `LoadGlobals`, the reference pair.
-- `@cli/internal/mcp/tools/common.go` — `loadGlobalsFailClosed`, the name states the mode.
-- `@cli/internal/sync/hash.go` — `ScanFiles` refuses rather than pushing an unverifiable corpus.
-  `TestScanFiles_UnreadableSettingsRefuses` pins it.
 - `@cli/cmd/hook_write_guard.go` — enumerates the allow cases and denies everything else, and carries the
   clause 12 narrowing. `TestWriteGuard_UnreadableSettingsFailsClosedOutsideTheProject` and
   `TestWriteGuard_UnreadableSettingsStillAllowsRepairingIt` pin both halves.

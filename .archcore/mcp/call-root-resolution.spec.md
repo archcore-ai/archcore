@@ -18,11 +18,9 @@ Out of scope: how the session root is chosen and followed through `roots/list` (
 
 ## Surface
 
-- `project` — optional string on every tool `@cli/internal/mcp/server.go` registers: an absolute path to a project root, the directory that holds `.archcore/`, never `.archcore/` itself.
-- `for_path` of `search_documents` — accepts an absolute path outside the session root.
-- Response field `project` — the absolute root the call resolved, on every tool response that carries a document path.
-- Acceptance checks — the five checks of the project root resolution contract, shared with the session root provider; symlinks evaluated before comparison.
-- Hook input — the edited file path the payload reader yields (@cli/cmd/hook_payload.go).
+- `project` — optional string on every tool: an absolute path to a project root, the directory that holds `.archcore/`, never `.archcore/` itself.
+- Response field `project` — the absolute root the call resolved.
+- Acceptance checks — the five checks of the project root resolution contract, shared with the session root provider.
 - Precedence — `project`, then an absolute `for_path`, then the session root.
 
 ## Normative Behavior
@@ -82,8 +80,13 @@ Out of scope: how the session root is chosen and followed through `roots/list` (
 
 ## Conformance
 
-An implementation is conformant when it satisfies behaviors 1–18, holds every constraint and invariant, and degrades per the failure rules. The unit cases live beside the resolver and the write guard; the in-process integration suite adds a session in one project writing to a second, a `for_path` outside the session root, a `project` inside a plugin cache, and two `project` spellings of one directory through a symlink.
+An implementation is conformant when it satisfies behaviors 1–22, holds every constraint and invariant, and degrades per the failure rules.
 
 Given a session started in `/w/a` and a second project at `/w/b`, each holding `.archcore/`,
 When the agent calls `create_document(project="/w/b", type="adr", filename="x")`,
 Then the file lands at `/w/b/.archcore/x.adr.md` and the response carries `project: "/w/b"` and `path: ".archcore/x.adr.md"`.
+
+## Clarifications
+
+- 2026-11-02 — A Codex `post-tool-use` payload carries `tool_input` with the call arguments: in the host probe run of 2026-10-30 on Codex 0.166.0, `post-tool-use` validated the document of the second project named by `project` (@.archcore/plugin/host-probe-protocol.spec.md).
+- 2026-11-02 — The grounding report of a plugin skill keeps global sources per project: `skills/_shared/target-project.md` runs grounding in each target project, and each project's grounding reads the global sources that project declares. This is read from the skill contract, not measured in a session [assumption].

@@ -32,53 +32,20 @@ The install side is split the same way. `install.sh` delivers the CLI and report
 7. One `archcore update` leaves the plugin as current as the binary on every host where it is installed, so the plugin population ages no faster than the binary population.
 8. A user who selects a plugin-capable host in `archcore init` ends up with the plugin installed without knowing it was a separate artifact — the install story is one selection, not one install per surface.
 
-Out of scope: package-manager channels (Homebrew, Scoop, winget) and the install provenance receipt that depends on them — the receipt activates with the first package-manager channel; release signing — decided against 2026-08-15, the trust anchor stays GitHub account and pipeline security with the health probe, the official-build marker, and the non-inertness gate as the compensating controls; `cli_command`, `mcp_tool_call`, `sync_*`, and every other event in `telemetry-provider-selection.rfc.md`, which stays `draft`.
+Out of scope: package-manager channels (Homebrew, Scoop, winget) and the install provenance receipt that depends on them — the receipt activates with the first package-manager channel; release signing — decided against 2026-08-15, the trust anchor stays GitHub account and pipeline security with the health probe, the official-build marker, and the non-inertness gate as the compensating controls; `cli_command`, `mcp_tool_call`, `sync_*`, and every other event the telemetry provider RFC proposed and the CLI never built.
 
 ## Requirements
 
-**Updating**
+The normative behavior lives in the specs: `unattended-update.spec` and `mcp-background-update.spec` for the update path, `cli-update-telemetry.spec` for reporting, `updating-the-plugin.spec` for the plugin step, and `plugin-delivery.spec` for delivery. This section keeps the product decisions behind them.
 
-1. An agent session that outlives one minute leaves the machine on the current release, without anyone doing anything.
-2. The MCP server's startup, its request handling, and its shutdown are unaffected by the update path.
-3. The JSON-RPC stream carries nothing the update path produced.
-4. A replacement never interrupts a running process. The new version takes effect at the next launch of `archcore`.
-5. Marker-less builds — forks and repackaged binaries — development builds, CI environments, and binaries another process has already claimed are left alone.
-6. One machine attempts at most one unattended update per 24 h, however many Archcore processes run on it.
-7. Unattended update has no opt-out surface: no environment variable, no flag, and no setting disables it. A per-project `settings.json` has no say over a machine-global action. A root-owned install directory is the supported operator answer for machines that must not self-update.
-8. `archcore update` typed by a user updates the binary exactly as it does today, and then updates the plugin per host tier. The plugin step never changes the command's exit code.
-9. `archcore doctor` tells a terminal-only user that a newer version exists.
-10. A replacement lands only after the downloaded binary passed a health probe; a fleet cannot be bricked by a release that cannot start.
-
-**Reporting**
-
-11. Each replacement is countable, carrying the version it came from, the version it reached, and whether a human or the mechanism started it.
-12. Each failure is attributable to one of five stages: `check`, `download`, `checksum`, `extract`, `replace`.
-13. Each declined attempt is attributable to one of two reasons, `current` or `not_writable`, so an empty series means the mechanism never ran rather than "every machine was already current".
-14. No error text, file path, host name, user name, or repository data leaves the machine.
-15. The `--check` call the SessionStart advisory makes on every session stays silent.
-16. A binary built without an injected key is inert: no request, and no identifier file created. The release pipeline proves the published artifact is not inert.
-17. `DO_NOT_TRACK` and `ARCHCORE_TELEMETRY_OPTOUT` each suppress every event, and each leaves no trace on disk.
-18. Update events join to install events with no second identifier introduced, so retention is answerable in one query.
-19. A telemetry failure changes no exit code and no command output.
-20. The PostHog key reaches the binary only through the release build, never through this repository.
-21. `/privacy` describes both the events and the update behavior before the release that emits them is downloadable.
-
-**Plugin update**
-
-22. The plugin step runs only inside a user-typed `archcore update`: after the binary phase, whether that phase replaced the binary or found it current — and never when the binary phase failed or `--check` was passed. It covers the hosts a plugin ships for: Claude Code, GitHub Copilot, Codex CLI, and Cursor.
-23. The step reads host evidence and, inside the plugin surface, the host's own plugin state; nothing outside that surface changes on what it finds (`plugin-cli-compatibility.rule.md`, clause 3).
-24. With the host CLI on `PATH`, the step asks the host's own plugin listing and runs the update command only for a listed plugin. With only the host's registry listing the plugin, it prints the exact command — for Cursor, the UI instruction. Otherwise it skips silently.
-25. A nonzero exit or a timeout prints the exact command for the user to run and changes no exit code of `archcore update`.
-26. A user who never installed the plugin sees no plugin output from `archcore update` and pays no mutating host command.
-27. The plugin step emits no telemetry event; an `archcore update` invocation reports the binary phase only.
-28. The unattended update path and the MCP background trigger never reach the plugin step.
-
-**Plugin delivery**
-
-29. Selecting a host in `archcore init` delivers everything that host needs — hooks, MCP config, and the plugin. The selection screen says the plugin comes with the selection; deselecting the host is the opt-out, and no second prompt exists.
-30. A rerun of `archcore init` over an installed plugin reports it and changes nothing.
-31. Non-interactive init installs a plugin only for a host named with `--agent`, which carries the consent the way it already does for wiring; `--yes` alone and CI environments print the per-host commands instead of running them.
-32. The selection screen names Codex CLI and GitHub Copilot installs as machine-level, not project-level.
-33. Claude Code delivery defaults to user scope and enables marketplace auto-update (`autoUpdate: true`), so the host keeps the plugin current on its own; `--scope project` is the opt-in that delivers the declaration to the whole team, said at write time.
-34. A delivery failure prints the exact command, never fails `archcore init`, and never changes its exit code; a directly typed `archcore plugin` command reports its failures with a nonzero exit.
-35. `archcore plugin install|update|remove|status` exposes the same engine the init step and the update step run — one engine, three entry points.
+1. Unattended update has no opt-out surface: no environment variable, flag, or setting disables it. A per-project `settings.json` has no say over a machine-global action. A root-owned install directory is the supported operator answer for machines that must not self-update.
+2. A replacement lands only after the downloaded binary passed a health probe; a fleet cannot be bricked by a release that cannot start.
+3. Each declined attempt is attributable to `current` or `not_writable`, so an empty series means the mechanism never ran rather than "every machine was already current".
+4. Update events join to install events with no second identifier, so retention is answerable in one query.
+5. The PostHog key reaches the binary only through the release build, never through this repository, and the release pipeline proves the published artifact is not inert.
+6. `/privacy` describes both the events and the update behavior before the release that emits them is downloadable.
+7. The plugin step runs only inside a user-typed `archcore update`. The unattended path and the MCP trigger never reach it, and it emits no telemetry event.
+8. Selecting a host in `archcore init` delivers everything that host needs — hooks, MCP config, and the plugin. Deselecting the host is the opt-out, and no second prompt exists.
+9. Non-interactive init installs a plugin only for a host named with `--agent`, which carries the consent. `--yes` alone and CI environments print the per-host commands instead of running them.
+10. Claude Code delivery defaults to user scope with marketplace auto-update, so the host keeps the plugin current on its own. `--scope project` is the opt-in that delivers the declaration to the whole team.
+11. A delivery or plugin-step failure prints the exact command and never changes the exit code of `archcore init` or `archcore update`. A directly typed `archcore plugin` command reports its failures with a nonzero exit.

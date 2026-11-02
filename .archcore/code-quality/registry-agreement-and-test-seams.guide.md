@@ -35,10 +35,7 @@ host-side matcher `wiring.mcpDocumentTools`. Each pair that must agree needs a t
 
 The load-bearing rule. Build the real thing and ask it what it holds.
 
-```go
-srv := mcpserver.NewServer(base, "test", mcpserver.WithHostWiring(hostWiringExecutor(base)))
-registered := srv.ListTools()
-```
+In the MCP case, construct the server with `mcpserver.NewServer` and call `ListTools()`.
 
 A second hand-written list is not the registration — it is a copy of it, and one copy agrees with
 another no matter what the code does. An earlier version of this test listed the constructors
@@ -52,13 +49,7 @@ with a message naming the consequence rather than the mismatch.
 ### 4. Refuse to pass on an empty read
 
 The read side can come back empty — `ListTools` returns `nil` for a server holding nothing — and
-every assertion then passes vacuously.
-
-```go
-if len(registered) == 0 {
-    t.Fatal("the server registered no tools, so this test proves nothing")
-}
-```
+every assertion then passes vacuously. Fail the test when the read is empty.
 
 ### 5. Build the set from the tree, not from a list
 
@@ -70,13 +61,7 @@ applies.
 ### 6. Name a seam and say production does not use it
 
 A package-level variable or counter that exists only so a test can reach behavior the parameters do
-not expose. Declare it with a comment saying so:
-
-```go
-// hookExit is os.Exit, indirected so a test can observe the code without the
-// process leaving. Production never reassigns it.
-var hookExit = os.Exit
-```
+not expose. Declare it with a comment saying so (`hookExit` is `os.Exit`, indirected for a test; production never reassigns it).
 
 Without the note the next reader cannot tell a seam from a mutable global, and the one after that
 writes to it.
@@ -89,13 +74,7 @@ the test alone.
 
 ## Verification
 
-- [ ] The agreement test reads one side from a constructed object
-- [ ] Both directions are asserted
-- [ ] An empty read fails rather than passes
-- [ ] A tree-shaped subject is walked, not listed
-- [ ] Every exemption carries its reason in the data, not in a comment beside it
-- [ ] Every seam says that production does not use it
-- [ ] The test fails when the behavior is removed — verified by removing it, not assumed
+Remove one registry entry and confirm the test fails. Do not assume it would.
 
 ## Common Issues
 

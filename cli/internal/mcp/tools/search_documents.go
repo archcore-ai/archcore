@@ -224,7 +224,7 @@ type searchResult struct {
 	// capped occurrence count; effectiveMtime is the mtime
 	// for a local document and the zero time for a global one — a vendored
 	// global's mtime is its clone date, not a relevance signal, and on a full
-	// tie a local document ranks first (local-overrides-global.rule).
+	// tie a local document ranks first (search-documents.spec).
 	score          int
 	typeRank       int
 	effectiveMtime time.Time
@@ -575,7 +575,7 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 			return nil, fmt.Errorf("marshaling result head: %w", err)
 		}
 		// Each missing list grows with the query, so near misses leave from the
-		// tail until the head fits the byte budget (search-documents.spec §13.10).
+		// tail until the head fits the byte budget (search-documents.spec §13.7).
 		nearMissCut := false
 		for len(head)+projectFieldBytes(ctx, baseDir) > searchResponseByteBudget && len(response.NearMisses) > 0 {
 			response.NearMisses = response.NearMisses[:len(response.NearMisses)-1]
@@ -857,7 +857,7 @@ func representSources[T any](ranked []T, limit int, sourceOf func(T) string) []T
 // rankNearMisses orders the candidates by the query words they hold, then by
 // the relevance keys, and keeps searchNearMissCap of them with every source
 // that has one represented (search-documents.spec §13.3–§13.5). The result is
-// never nil, because search-documents.spec §13.6 serializes an empty set as [].
+// never nil, because search-documents.spec §13.5 serializes an empty set as [].
 func rankNearMisses(candidates []nearMissCandidate) []searchNearMiss {
 	// Every document of the corpus can be a candidate, so the sort moves
 	// pointers rather than whole rows.

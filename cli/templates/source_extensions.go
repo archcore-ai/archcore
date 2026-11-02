@@ -24,7 +24,7 @@ var sourceExtensions = map[string]bool{
 	".sh":   true,
 	".sql":  true,
 	// A Gherkin feature file is the executable half of a scenario, cited from a
-	// spec's Conformance or a scenario's Anchors line — scenario-and-journey-types.spec §14.
+	// spec's Conformance or a scenario's Anchors line — scenario-and-journey-types.spec §6.
 	".feature": true,
 	".md":      true,
 	".yaml":    true,

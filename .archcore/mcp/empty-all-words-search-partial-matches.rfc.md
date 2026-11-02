@@ -86,20 +86,11 @@ The ADR limits the tool to "ranked matches with evidence and manifest relations"
 
 Proposed addendum text: "`near_misses` is matching data. It applies one deterministic rule, at least half of the distinct query words, to the documents that pass the filters, and it reports the words each row lacks. It carries no prose, retry instruction, grouping, or excerpt, and it never enters `results`. The threshold and the cap are contract values in the spec, not presentation settings."
 
-### 4. Cost
-
-- Time: the handler records matched-word counts inside the existing matching loop, so no body is lowercased or folded twice. `BenchmarkReadToolsScaling` (@cli/internal/mcp/tools/scaling_bench_test.go) runs only `content: "lorem"` today. It gains an empty two-word case, `lorem zephyrite`, where every document is a near miss, and the result is recorded before merge. [assumption] The overhead stays below the cost of the scan.
-- Bytes: a row costs about 160 bytes for an ASCII path and title, and about 340 bytes for a long global path with a Cyrillic title. Three rows stay near 1 KB, inside the 40,000-byte budget, and `results` is empty whenever the field appears.
-
-### 5. Version skew
-
-A current CLI always emits the key on a triggering response, so the key's absence there identifies an older CLI. A plugin skill that teaches the field reads it when present, as @.archcore/mcp/read-tool-responses-survive-host-truncation.adr.md arranges for additive fields. No `cli-gte` gate is needed.
-
 ## Drawbacks
 
 - The response grows by one key on empty all-words results. A client that validates responses strictly sees the new key.
 - For two words, the half rule equals "either word". On the fixture, `a zephyrite` lists 3 arbitrary documents, because every document contains `a`. The trigger still starts at two words: two-word queries came back empty 1 of 37 times in real sessions, and `missing` names the absent word on every row.
-- A local near miss stays hidden when a global document matches every word, because the trigger requires 0 hits in every source. This touches the local-overrides-global rule.
+- A local near miss stays hidden when a global document matches every word, because the trigger requires 0 hits in every source. This touches @.archcore/globals/local-overrides-source.rule.md.
 - The field does not help when every word misses, such as `fee` for `price`. Vocabulary gaps stay with semantic retrieval.
 - In the bench, the change addresses 1 of the 4 runs that deleted decided code. The other 3 never searched; that failure belongs to recipes and instructions.
 - `near_misses` lowers the cost of a vague query, so agents can send multi-topic queries more often. [assumption]
@@ -116,17 +107,6 @@ A current CLI always emits the key on a triggering response, so the key's absenc
 - Recipe guidance only: the `ponytail-minimal` recipe kept the decided code in 3 of 3 runs, but only projects that load such a recipe benefit.
 - `any` ranked by distinct-word count first: it helps callers that already use `any`, and it belongs in a separate RFC.
 
-## Verification
-
-1. Unit tests next to @cli/internal/mcp/tools/search_documents.go cover the trigger for one, two, and three or more distinct words, repeated words, the half rule on 8 words and on a two-language query, `missing` for a compound word and for Cyrillic, `[]` presence, omission on non-empty results, order under `sort: "mtime"`, per-source representation, the wording under filters, and the byte budget.
-2. `TestSearchDocuments_EnvelopeKeyOrder` and the description test move to the new key order and wording.
-3. A replay of the failing run-1 conversation with the new tool result, at least 10 samples, measures whether the agent reads the ADR. Three bench repetitions cannot tell 1 failure in 3 from none.
-4. integration-bench reruns `review-seam-buried` with the `ponytail-archcore-lean` arm.
-5. A transcript scan compares, before and after the release, the share of empty multi-word `all` queries that end without another search.
-
 ## Unresolved Questions
 
-1. Whether the trigger evaluates per source, so that a local near miss appears next to a global full match.
-2. Whether the cap follows `limit`, as the smaller of 3 and `limit`.
-3. Whether the half rule holds on real queries. Replaying the 5 empty real queries with three or more words would measure it, but their corpora changed since.
-4. Whether a `path_ref` search with no rows needs a similar signal. The observed `path_ref` misses were true absences, because the ADR carries no path.
+Whether the trigger should evaluate per source, so that a local near miss appears next to a global full match. Whether a `path_ref` search with no rows needs a similar signal: the observed `path_ref` misses were true absences.

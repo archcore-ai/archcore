@@ -18,7 +18,7 @@ Out of scope: the unattended update policy and the MCP background trigger — bo
 
 - Caller: manual `archcore update` only.
 - Frozen identifiers: repository `archcore-ai/archcore`, marketplace `archcore-plugins`, plugin id `archcore@archcore-plugins`.
-- Evidence order: the host's own answer first. With the host CLI on `PATH`, its read-only listing — `claude plugin list --json`, `copilot plugin list`, `codex plugin list --json`; with the CLI absent, the host's on-disk registry — `~/.claude/plugins`, `~/.cursor/plugins`, `~/.copilot/installed-plugins`, `~/.codex/plugins`. Each listing command enumerates installed plugins only — verified 2026-08-17 for the two JSON listings and 2026-09-16 for `copilot plugin list` — and a flag that adds uninstalled marketplace entries, `codex plugin list --available`, stays out of these command lines. A listing shows the Archcore plugin when it carries an entry that names the plugin itself, not the marketplace it ships in, and that the host does not report as uninstalled.
+- Evidence order: the host's own answer first. With the host CLI on `PATH`, its read-only listing — `claude plugin list --json`, `copilot plugin list`, `codex plugin list --json`, and on OpenCode 2.x `opencode plugin list`; with the CLI absent, the host's on-disk registry — `~/.claude/plugins`, `~/.cursor/plugins`, `~/.copilot/installed-plugins`, `~/.codex/plugins`. Each listing command enumerates installed plugins only — verified 2026-08-17 for the two JSON listings and 2026-09-16 for `copilot plugin list` — and a flag that adds uninstalled marketplace entries, `codex plugin list --available`, stays out of these command lines. A listing shows the Archcore plugin when it carries an entry that names the plugin itself, not the marketplace it ships in, and that the host does not report as uninstalled.
 - Installation: one listing entry that shows the plugin. It carries the name the host listed, and on Claude Code a `scope` and, for `project` and `local` scope, a `projectPath`. `claude plugin list --json` lists one entry per scope and project — verified 2026-09-16.
 - Timeouts: 30 s per host command [assumption]; the whole step bounded at 120 s [assumption]. One Claude Code update takes about 2 s — measured 2026-09-16.
 - Ceiling: at most 32 addressed installations per host, taken in scope-then-project-path order after the skips of requirements 21, 22 and 26 [assumption]; the rest are skipped silently. 32 at about 2 s each leaves the 120 s step room for the other hosts.
@@ -33,7 +33,7 @@ Per-host update commands, probed live 2026-09-16 on the versions shown, plus off
 | GitHub Copilot (copilot 1.0.83) | per installation `copilot plugin update <listed name>`; printed tier `copilot plugin update archcore` | A direct install is listed as `archcore` and refuses `archcore@archcore-plugins`. A failed update exits 0 and writes only to stderr — verified 2026-09-16. |
 | Codex CLI (codex 0.154.0) | `codex plugin marketplace upgrade archcore-plugins` | Codex has no per-plugin update and no scope; the marketplace upgrade reinstalls the plugin cache (`codex-rs/core-plugins/src/manager.rs`). Before the upgrade, the CLI adds `sparse_paths` to the marketplace table (`plugin-source-migration.spec`). A CLI older than 0.14.1 replaces itself and then runs this step with its old code in the same process, so the second `archcore update` applies the sparse paths. |
 | Cursor | none — no CLI mechanism (UI-only, cursor.com/docs/plugins) | Print a one-line instruction to update the plugin in the Cursor UI. |
-| OpenCode | 2.x: `opencode plugin update @archcore/opencode-plugin`; 1.x: none | 2.x marks an outdated package and updates it only on request (`packages/cli/src/commands/handlers/plugin/update.ts`, 2.1.4). The CLI finds the plugin in the global config without a project root. 1.x gets no command until a live probe shows how it refreshes an unpinned entry. |
+| OpenCode | 2.x: `opencode plugin update @archcore/opencode-plugin`; 1.x: none | 2.x marks an outdated package and updates it only on request (`packages/cli/src/commands/handlers/plugin/update.ts`, 2.1.4). The update finds the plugin through the running OpenCode service (`plugin.list` in `cli.plugin.inspect`), not the config file, so its listing is `opencode plugin list` — a table with an `ID VERSION SOURCE` header, or `No plugins found`; verified 2026-11-02. A service started with another `XDG_CONFIG_HOME` can miss a plugin the global config lists. 1.x gets no command until a live probe shows how it refreshes an unpinned entry. |
 
 Roo Code, Cline, and Gemini CLI have no plugin. The step does not address them.
 
@@ -67,7 +67,9 @@ Roo Code, Cline, and Gemini CLI have no plugin. The step does not address them.
 26. WHEN the CLI addresses a Copilot installation, the CLI MUST pass only `archcore` or `archcore@archcore-plugins` as its name.
 27. WHILE OpenCode is 1.x or its version is unknown, the plugin-update step MUST NOT run a command for OpenCode.
 28. WHILE OpenCode is 1.x or its version is unknown, the plugin-update step MUST NOT print a line for OpenCode.
-29. WHEN OpenCode 2.x lists the plugin, the plugin-update step MUST run `opencode plugin update @archcore/opencode-plugin`.
+29. WHEN `opencode plugin list` on OpenCode 2.x shows the plugin, the plugin-update step MUST run `opencode plugin update @archcore/opencode-plugin`.
+30. IF the OpenCode 2.x config lists the plugin and the parsed `opencode plugin list` does not, THEN the plugin-update step MUST print one hint line.
+31. IF requirement 30 applies, THEN the plugin-update step MUST NOT run an OpenCode command.
 
 ## Constraints & Invariants
 

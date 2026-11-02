@@ -18,9 +18,9 @@ A documentation cross-check established the subdirectory as the canonical layout
 
 Relocate the entire plugin into the dedicated subdirectory **`plugins/archcore/`** and point all three marketplace catalogs at it, keeping one copy of every shared component as the single source of truth.
 
-Moved under `plugins/archcore/`, as host-runtime-loaded content: `.codex-plugin/plugin.json`, `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `skills/`, `agents/`, `commands/`, `hooks/`, `bin/`, `assets/`, `rules/`, `.codex.mcp.json`, and `.mcp.json`. Kept at the repo root: the three marketplace catalogs (`.agents/plugins/marketplace.json`, `.claude-plugin/marketplace.json`, `.cursor-plugin/marketplace.json`), each with `source` and `path` set to `./plugins/archcore`, plus the dev tooling and non-runtime files `test/`, `Makefile`, `.github/`, `.gitmodules`, `.archcore/`, `reference-materials/`, `docs/`, `README.md`, `LICENSE`, and `NOTICE`.
+Everything a host loads at runtime moves under `plugins/archcore/`: the host manifests, `skills/`, `agents/`, `commands/`, `hooks/`, `bin/`, `assets/`, `rules/`, and the MCP configs. The three marketplace catalogs stay at the repo root, each with `source` and `path` set to `./plugins/archcore`. Dev tooling and non-runtime files (`test/`, `Makefile`, `.github/`, `.archcore/`, `docs/`, `README.md`, `LICENSE`, `NOTICE`) also stay at the root, because no host loads them at runtime.
 
-This is the canonical "catalog at root, plugin manifest in subdirectory" pattern shared by all three hosts. `docs/`, `README.md`, `LICENSE`, and `NOTICE` stay at the root because no host loads them at runtime — `termsOfServiceURL` is an absolute GitHub blob URL — so leaving them avoids churn while every reference stays valid.
+This is the canonical "catalog at root, plugin manifest in subdirectory" pattern shared by all three hosts.
 
 ## Alternatives Considered
 
@@ -33,12 +33,10 @@ This is the canonical "catalog at root, plugin manifest in subdirectory" pattern
 The 2026-09-22 monorepo migration places source files under `plugin/`. The generated distribution keeps this ADR's root catalogs and `plugins/archcore/` runtime path; @scripts/export-plugin.sh implements that projection.
 
 
-- The fix itself is three catalog `source` and `path` edits; the bulk of the change was relocating the content those catalogs point at, through `git mv`, so history is preserved.
 - Regression coverage was added: a structure-level guard asserts that every catalog `source` resolves to a subdirectory that is not the marketplace root — manifest presence alone is insufficient, because it passed under the bug — and the Codex integration smoke test now runs the real `marketplace add → plugin list → plugin add` cycle instead of a symlinked fake, which is what let the bug ship green.
 - The dev `.archcore/` sits at the repo root, outside `plugins/archcore/`, so it is naturally excluded from the per-host plugin install subtree, with the release strip remaining as a second line of defense.
 - Tradeoff: the test harness now needs a `REPO_ROOT` distinct from `PLUGIN_ROOT`, which is `…/plugins/archcore`. Tests for root-staying artifacts use `REPO_ROOT`; everything else rides along with `PLUGIN_ROOT`.
 - Tradeoff: release synthesis for `dev → main` had to be updated, so the `.archcore`-reference grep guard scans `plugins/archcore/{skills,agents,commands,rules,hooks,bin}` plus `README.md`.
-- The version was bumped to 0.4.9.
 - The directory trees in `multi-host-plugin-architecture.adr` and `component-registry.doc` describe the layout question as this decision settles it.
 
 ## Superseded when

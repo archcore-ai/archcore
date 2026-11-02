@@ -9,35 +9,19 @@ tags:
 
 ## Purpose & Scope
 
-This contract defines the `research` and `evidence` document types for MCP clients and document readers. The vocabulary follows `concepts/research-and-evidence-types` [global · archcore · read-only]. Execution of research methods is outside scope.
+This contract defines the `research` and `evidence` document types for MCP clients and document readers. The vocabulary follows `concepts/research-and-evidence-types` [global · archcore · read-only]. Execution of research methods is outside scope. The registry, templates, and precision data live in @cli/templates/templates.go and @cli/templates/precision.go; the generated sections are pinned by tests there.
 
 ## Surface
 
-The registry and template dispatcher live in @cli/templates/templates.go; precision data lives in @cli/templates/precision.go. MCP creation and discovery use @cli/internal/mcp/tools/create_document.go, @cli/internal/mcp/tools/list_documents.go, and @cli/internal/mcp/tools/search_documents.go.
-
-| Type | Category | Generated sections, in order |
-|---|---|---|
-| `research` | `vision` | Goal, Scope, Coverage, Sources, Findings, Synthesis, Open Gaps |
-| `evidence` | `knowledge` | Locator, Extract, Notes |
-
-The generated Locator starts with `Address:`, `Access date:`, `Publication date:`, and `Publisher:`, in that order. Unknown publication dates and publishers use visible placeholders.
+`research` is a `vision` type with sections Goal, Scope, Coverage, Sources, Findings, Synthesis, Open Gaps. `evidence` is a `knowledge` type with sections Locator, Extract, Notes. The generated Locator starts with `Address:`, `Access date:`, `Publication date:`, and `Publisher:`, in that order. Unknown publication dates and publishers use visible placeholders.
 
 ## Normative Behavior
 
-1. The template registry MUST recognize both types in the Surface table.
-2. The template registry MUST assign each type its category from the Surface table.
-3. WHEN generating either type, the template generator MUST emit the corresponding section sequence.
-4. WHEN generating `research`, the template generator MUST include a table placeholder in Coverage.
-5. WHEN generating `research`, the template generator MUST include a table placeholder in Sources.
-6. WHEN generating `evidence`, the template generator MUST emit the four Locator lines.
-7. The precision checker MUST require every section assigned to each type.
-8. The precision checker MUST apply the ISO profile to both types.
-9. The Archcore MCP server MUST expose both types through creation and type-filtered discovery.
-10. The server instructions MUST distinguish coverage-based `research` from recommendation-based `rnd`.
-11. The server instructions MUST describe `evidence` as one material.
-12. The `create_document` `tags` parameter description MUST describe source classes through the five source tags below.
-13. The search ranker MUST use its default type priority for both types.
-14. The CodeAlignment selector MUST exclude both types.
+1. The Archcore MCP server MUST expose both types through creation and type-filtered discovery.
+2. The server instructions MUST distinguish coverage-based `research` from recommendation-based `rnd`.
+3. The server instructions MUST describe `evidence` as one material.
+4. The `create_document` `tags` parameter description MUST describe source classes through the five source tags below.
+5. The CodeAlignment selector MUST exclude both types.
 
 ## Constraints & Invariants
 
@@ -60,4 +44,4 @@ The accepted-status meanings are authoring conventions: research synthesis is cu
 
 ## Conformance
 
-Conformance requires every numbered obligation above. Regression coverage includes @cli/templates/templates_test.go, @cli/internal/advisory/precision_findings_test.go, @cli/internal/mcp/tools/search_documents_test.go, and @cli/internal/advisory/code_alignment_test.go. Registered-schema and lifecycle scenarios in @cli/internal/mcp/integration/research_spec_test.go cover creation, listing, retrieval, search, and rejected-document visibility.
+Conformance requires every numbered obligation above. Lifecycle scenarios in @cli/internal/mcp/integration/research_spec_test.go cover creation, listing, retrieval, search, and rejected-document visibility.

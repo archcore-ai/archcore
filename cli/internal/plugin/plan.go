@@ -60,9 +60,12 @@ func planHost(verb Verb, spec HostSpec, ev Evidence) (Action, bool) {
 // planUpdate implements requirements 5 to 10 of updating-the-plugin.spec.
 // The tiers in order: a host with no CLI mechanism prints its UI note on
 // registry evidence; a present CLI whose own listing names the plugin runs the
-// update; a present CLI whose listing failed, did not parse, or does not name
-// the plugin is skipped in silence; an absent CLI over a registry that names the
-// plugin prints the exact command; anything else is skipped in silence.
+// update; on OpenCode 2.x the service listing decides instead, and a config
+// that names the plugin while the service does not prints the restart note
+// (updating-the-plugin.spec §30); a present CLI whose listing failed, did not
+// parse, or does not name the plugin is skipped in silence; an absent CLI over
+// a registry that names the plugin prints the exact command; anything else is
+// skipped in silence.
 //
 // The middle tier is the load-bearing one. It is why a machine that never
 // installed the plugin pays no mutating command and sees no output, and it
@@ -80,7 +83,16 @@ func planUpdate(spec HostSpec, ev Evidence) (Action, bool) {
 		return Action{}, false
 	}
 	if ev.CLIPresent {
-		if !ev.ListingOK || !ev.Listed {
+		if usesServiceListing(spec, ev) {
+			// The config lists the plugin and the service the update asks does
+			// not: the command would fail, so say why instead — §30.
+			if ev.ServiceListingOK && !ev.ServiceListed && ev.ListingOK && ev.Listed {
+				return Action{Host: spec.Host, Kind: ActionPrintUINote, Note: openCodeServiceNote, Evidence: ev}, true
+			}
+			if !ev.ServiceListingOK || !ev.ServiceListed {
+				return Action{}, false
+			}
+		} else if !ev.ListingOK || !ev.Listed {
 			return Action{}, false
 		}
 		action := runAction(spec, VerbUpdate, ev)
@@ -219,6 +231,12 @@ func printCommandAction(spec HostSpec, verb Verb, ev Evidence) Action {
 		Commands: cmds,
 		Evidence: ev,
 	}
+}
+
+// usesServiceListing reports whether the update on this host is authorized by
+// the Since2 listing — OpenCode 2.x, whose update asks its running service.
+func usesServiceListing(spec HostSpec, ev Evidence) bool {
+	return spec.Since2 != nil && ev.HostMajor >= 2 && spec.Since2.Listing.Name != ""
 }
 
 // plannedCommands is a verb's sequence on a host, the Since2 row on host major

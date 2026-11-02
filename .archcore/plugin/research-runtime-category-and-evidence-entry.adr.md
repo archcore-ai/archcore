@@ -16,13 +16,11 @@ The same day, the first runtime cut exposed three research entries on `/archcore
 
 ## Decision
 
-Use `research` in vision. Expose one research path on `/archcore:plan`, named `research`, that selects `research` or `rnd` by the closing test: a named pending decision or candidate set produces `rnd`; any other investigation produces `research`. Apply the same test to `document research`, where a report that ends in a recommendation is an `rnd`. Remove `rnd` and `evidence` as entries on `plan`, and remove the registry-type catch-all: the argument hint is the complete expert surface. File a standalone material only through `/archcore:document`, permit it without a consumer, and decline evidence writes on engines without the vocabulary.
+Use `research` in vision. Expose one research path on `/archcore:plan`, named `research`, that selects `research` or `rnd` by the closing test: a named pending decision or candidate set produces `rnd`; any other investigation produces `research`. Apply the same test to `document research`, where a report that ends in a recommendation is an `rnd`. Remove `rnd` and `evidence` as entries on `plan`, and remove the registry-type catch-all: the argument hint is the complete expert surface. Permit a standalone material without a consumer, and decline evidence writes on engines without the vocabulary.
 
-Amended on 2026-09-16 by the command entry grammar: the standalone material enters through `document research` with one external material, and `research.frame` routes it to gather. The named entry `document evidence` of this decision's first form is retired.
+Under `context-driven-routing-beneath-command-grammar.adr` no first word is a mode, so `plan research` and `document research` are not paths. A leading `research` slug requests the type `research`. Wording that asks to choose selects `rnd`. A supplied report or material reaches the research instrument through context resolution, and one external material without a leading slug produces `evidence` through `/archcore:document` (`command-surface-v2.spec`, behavior 29). The named entry `document evidence` is retired.
 
-Amended on 2026-10-16 by the context-driven routing decision: no first word is a mode, so `plan research` and `document research` are no paths; a leading `research` slug requests the type `research`, wording that asks to choose selects `rnd`, and a supplied report or material reaches the research instrument through context resolution. One external material without a leading slug produces `evidence`; `document research <one material>`, the 2026-09-16 entry above, now produces `research`, per behavior 29 of `command-surface-v2.spec`.
-
-The global RFC `concepts/research-and-evidence-types` was revised on 2026-09-07 to the first form of this surface; it still names `document evidence`, and the plugin departs from that clause.
+The global RFC `concepts/research-and-evidence-types` still names `document evidence`, and the plugin departs from that clause.
 
 ## Alternatives Considered
 
@@ -38,7 +36,6 @@ The global RFC `concepts/research-and-evidence-types` was revised on 2026-09-07 
 ### Enabled
 
 - [expected] Plugin results and taxonomy match the CLI's 12 vision, 7 knowledge, and 2 experience types.
-- [expected] The `plan` argument hint is `[topic]` since 2026-10-16; it was `[sdd|sources|iso|research] [topic]` before.
 - [expected] A user asks for an investigation once; the instrument records the type by what closes it.
 - [expected] A standalone material produces one evidence draft with zero frame questions.
 
