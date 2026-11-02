@@ -32,6 +32,9 @@ func projectEvidence(ctx context.Context, ev Evidence, spec HostSpec, projectRoo
 	if ev.CLIPresent && spec.Version.Name != "" {
 		ev.HostMajor = readHostMajor(ctx, spec.Version)
 	}
+	if ev.CLIPresent && usesServiceListing(spec, ev) {
+		ev.ServiceListingOK, ev.ServiceListed = readServiceListing(ctx, spec.Since2.Listing)
+	}
 	// Guard, not advisory: the listing is what lets removal and update read
 	// the host as "not installed" and stay silent, so a config that cannot be
 	// read leaves it unanswered — the same as a host listing that did not
@@ -272,4 +275,48 @@ func stringEnd(data []byte, start int) int {
 		}
 	}
 	return len(data)
+}
+
+// openCodeEmptyListing is what `opencode plugin list` prints when the service
+// reports no plugin (2.1.4).
+const openCodeEmptyListing = "No plugins found"
+
+// readServiceListing runs `opencode plugin list` and reports whether it answered
+// and whether a row names the plugin package, bare or pinned. The 2.1.4 answer
+// is a table with an `ID VERSION SOURCE` header, or openCodeEmptyListing.
+//
+// Guard, not advisory: this answer authorizes `opencode plugin update`, so
+// output of any other shape is no answer — fail-open-or-fail-closed-reads.rule §6.
+func readServiceListing(ctx context.Context, listing Command) (ok, listed bool) {
+	out := runCommand(ctx, listing)
+	if out.Failed || out.Truncated {
+		return false, false
+	}
+	if strings.TrimSpace(out.Stdout) == openCodeEmptyListing {
+		return true, false
+	}
+	header := false
+	for line := range strings.Lines(out.Stdout) {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		if !header {
+			if len(fields) < 3 || fields[0] != "ID" || fields[1] != "VERSION" || fields[2] != "SOURCE" {
+				return false, false
+			}
+			header = true
+			continue
+		}
+		if slices.ContainsFunc(fields, namesOpenCodePackage) {
+			return true, true
+		}
+	}
+	return header, false
+}
+
+// namesOpenCodePackage reports whether a listing field is the plugin package,
+// bare or pinned as `<package>@<version>`.
+func namesOpenCodePackage(field string) bool {
+	return field == openCodePackage || strings.HasPrefix(field, openCodePackage+"@")
 }

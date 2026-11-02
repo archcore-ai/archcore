@@ -5237,6 +5237,11 @@
       "source": "globals/global-sources-are-a-read-policy.adr.md",
       "target": "mcp/explicit-target-project-per-call.adr.md",
       "type": "extends"
+    },
+    {
+      "source": "update/opencode-update-uses-host-listing.plan.md",
+      "target": "update/updating-the-plugin.spec.md",
+      "type": "implements"
     }
   ]
 }

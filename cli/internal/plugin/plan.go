@@ -80,7 +80,16 @@ func planUpdate(spec HostSpec, ev Evidence) (Action, bool) {
 		return Action{}, false
 	}
 	if ev.CLIPresent {
-		if !ev.ListingOK || !ev.Listed {
+		if usesServiceListing(spec, ev) {
+			// The config lists the plugin and the service the update asks does
+			// not: the command would fail, so say why instead — §30.
+			if ev.ServiceListingOK && !ev.ServiceListed && ev.ListingOK && ev.Listed {
+				return Action{Host: spec.Host, Kind: ActionPrintUINote, Note: openCodeServiceNote, Evidence: ev}, true
+			}
+			if !ev.ServiceListingOK || !ev.ServiceListed {
+				return Action{}, false
+			}
+		} else if !ev.ListingOK || !ev.Listed {
 			return Action{}, false
 		}
 		action := runAction(spec, VerbUpdate, ev)
@@ -219,6 +228,12 @@ func printCommandAction(spec HostSpec, verb Verb, ev Evidence) Action {
 		Commands: cmds,
 		Evidence: ev,
 	}
+}
+
+// usesServiceListing reports whether the update on this host is authorized by
+// the Since2 listing — OpenCode 2.x, whose update asks its running service.
+func usesServiceListing(spec HostSpec, ev Evidence) bool {
+	return spec.Since2 != nil && ev.HostMajor >= 2 && spec.Since2.Listing.Name != ""
 }
 
 // plannedCommands is a verb's sequence on a host, the Since2 row on host major

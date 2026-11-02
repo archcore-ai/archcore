@@ -1023,3 +1023,48 @@ func writeProjectFile(t *testing.T, root, rel, content string) {
 		t.Fatal(err)
 	}
 }
+
+// TestCollectEvidenceReadsTheOpenCode2ServiceListing reads `opencode plugin
+// list` on 2.x only, from output captured on opencode 2.1.4.
+func TestCollectEvidenceReadsTheOpenCode2ServiceListing(t *testing.T) {
+	table := "ID                         VERSION  SOURCE\n@archcore/opencode-plugin  0.15.1   @archcore/opencode-plugin\n"
+	for _, tt := range []struct {
+		name       string
+		version    string
+		list       commandOutcome
+		wantOK     bool
+		wantListed bool
+		wantList   bool
+	}{
+		{name: "a table naming the plugin", version: "opencode v2.1.4", list: commandOutcome{Stdout: table}, wantOK: true, wantListed: true, wantList: true},
+		{name: "a pinned package", version: "opencode v2.1.4", list: commandOutcome{Stdout: "ID VERSION SOURCE\nx 0.15.1 @archcore/opencode-plugin@0.15.1\n"}, wantOK: true, wantListed: true, wantList: true},
+		{name: "another plugin only", version: "opencode v2.1.4", list: commandOutcome{Stdout: "ID VERSION SOURCE\nfoo 1.0.0 foo\n"}, wantOK: true, wantList: true},
+		{name: "no plugins", version: "opencode v2.1.4", list: commandOutcome{Stdout: "\nNo plugins found\n"}, wantOK: true, wantList: true},
+		{name: "a similar name", version: "opencode v2.1.4", list: commandOutcome{Stdout: "ID VERSION SOURCE\n@archcore/opencode-plugin-x 1.0.0 @archcore/opencode-plugin-x\n"}, wantOK: true, wantList: true},
+		{name: "unknown output", version: "opencode v2.1.4", list: commandOutcome{Stdout: "@archcore/opencode-plugin\n"}, wantList: true},
+		{name: "a failed listing", version: "opencode v2.1.4", list: commandOutcome{Failed: true, Stdout: table}, wantList: true},
+		{name: "a truncated listing", version: "opencode v2.1.4", list: commandOutcome{Truncated: true, Stdout: table}, wantList: true},
+		{name: "1.x", version: "1.18.34", list: commandOutcome{Stdout: table}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			isolateHome(t)
+			useHostCLIs(t, t.TempDir(), "opencode")
+			var ran []string
+			stubRuns(t, func(c Command) commandOutcome {
+				ran = append(ran, strings.Join(append([]string{c.Name}, c.Args...), " "))
+				if slices.Equal(c.Args, []string{"--version"}) {
+					return commandOutcome{Stdout: tt.version}
+				}
+				return tt.list
+			})
+
+			evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, "")
+			if len(evidence) != 1 || evidence[0].ServiceListingOK != tt.wantOK || evidence[0].ServiceListed != tt.wantListed {
+				t.Errorf("evidence = %+v, want ServiceListingOK %v ServiceListed %v", evidence, tt.wantOK, tt.wantListed)
+			}
+			if got := slices.Contains(ran, "opencode plugin list"); got != tt.wantList {
+				t.Errorf("ran %q, want the listing run: %v", ran, tt.wantList)
+			}
+		})
+	}
+}
