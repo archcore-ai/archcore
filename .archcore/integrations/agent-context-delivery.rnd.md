@@ -1,6 +1,6 @@
 ---
 title: "Agent Context Delivery — Host Channel Limits, Session Baseline, and an Instruction-Block Pilot"
-status: accepted
+status: draft
 tags:
   - "component:cli"
   - "component:plugin"

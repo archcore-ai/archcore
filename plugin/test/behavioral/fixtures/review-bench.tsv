@@ -1,4 +1,4 @@
-# Behavioral review durable-context bench fixtures — one row per case of the matrix in .archcore/plugin/durable-context-selection-by-reader-task.adr.md.
+# Behavioral review durable-context bench fixtures — one row per case; the rows are the case matrix. Decision: .archcore/plugin/durable-context-selection-by-reader-task.adr.md.
 # Columns (tab-separated): id, situation (what the branch review established), expected (key=value pairs joined by ';').
 # Keys: created (types, alphabetical, or none), updated, omitted, questions (a number or >0), plan (offer|retain|none). A row pins only the keys it names.
 # Each row guards one of the two error kinds: a miss (a contract the next agent needs and does not get) or an excess (a record of what code already says).

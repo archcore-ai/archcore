@@ -23,7 +23,7 @@ const moreGeneralCall = `list_documents(types=["rule","cpat"], status="accepted"
 
 // searchFileContext serves search_documents for_path: the file-context result
 // the pre-edit hook renders, filtered by source, types, and status, then capped
-// (search-documents.spec §1.13–§1.14).
+// (search-documents.spec §1.12).
 func searchFileContext(ctx context.Context, baseDir, forPath, sourceFilter string, types []templates.DocumentType, status templates.DocStatus) (*mcp.CallToolResult, error) {
 	fc, err := advisory.ResolveFileContext(baseDir, forPath)
 	switch {

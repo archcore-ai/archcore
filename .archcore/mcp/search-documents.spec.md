@@ -127,7 +127,7 @@ A pure-metadata `snippets` query does not retain bodies; any `path_ref`, `conten
 3. Sources claim their swap in rank order of their top row. WHEN every page row is its source's last, the handler MUST stop swapping.
 4. The handler MUST re-sort the page with the §7 keys after the swaps.
 5. The handler MUST keep the serialized response at or under the byte budget.
-6. WHEN the rows do not fit with each body at its floor (§12.5), the handler MUST remove rows from the tail and set `truncated`.
+6. WHEN the rows do not fit with each body at its floor (§12.4), the handler MUST remove rows from the tail and set `truncated`.
 7. After each removal, the handler MUST re-apply §8.2–§8.4.
 8. The handler MUST keep at least one row. A single row whose fields other than `body` exceed the budget is the only response that may exceed it.
 9. `index` MUST list the admitted rows in §7 order, including rows §8.6 removed from `results`.

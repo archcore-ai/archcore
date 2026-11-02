@@ -1,6 +1,6 @@
 ---
 title: "Context Address Delivery — One Sentence First in Every Agent Channel"
-status: accepted
+status: draft
 tags:
   - "component:cli"
   - "component:plugin"

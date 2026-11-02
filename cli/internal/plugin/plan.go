@@ -60,9 +60,12 @@ func planHost(verb Verb, spec HostSpec, ev Evidence) (Action, bool) {
 // planUpdate implements requirements 5 to 10 of updating-the-plugin.spec.
 // The tiers in order: a host with no CLI mechanism prints its UI note on
 // registry evidence; a present CLI whose own listing names the plugin runs the
-// update; a present CLI whose listing failed, did not parse, or does not name
-// the plugin is skipped in silence; an absent CLI over a registry that names the
-// plugin prints the exact command; anything else is skipped in silence.
+// update; on OpenCode 2.x the service listing decides instead, and a config
+// that names the plugin while the service does not prints the restart note
+// (updating-the-plugin.spec §30); a present CLI whose listing failed, did not
+// parse, or does not name the plugin is skipped in silence; an absent CLI over
+// a registry that names the plugin prints the exact command; anything else is
+// skipped in silence.
 //
 // The middle tier is the load-bearing one. It is why a machine that never
 // installed the plugin pays no mutating command and sees no output, and it
