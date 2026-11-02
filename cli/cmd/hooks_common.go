@@ -10,6 +10,7 @@ import (
 
 	"archcore-cli/internal/advisory"
 	"archcore-cli/internal/agents"
+	"archcore-cli/internal/config"
 	"archcore-cli/internal/docs"
 	"archcore-cli/internal/git"
 	"archcore-cli/internal/stamp"
@@ -76,7 +77,11 @@ func buildSessionContext(ctx context.Context, baseDir string) (string, sessionDo
 		fmt.Fprintf(&b, "\n⚠ invalid .archcore/settings.json: %v — global sources not loaded; context limited to local documents\n", iErr)
 	}
 
-	writeCorpusLine(&b, corpus, len(inspections) > 0)
+	if config.DirExists(baseDir) {
+		writeCorpusLine(&b, corpus, len(inspections) > 0)
+	} else {
+		writeProjectInventory(&b, baseDir)
+	}
 	writeBranchLine(ctx, &b, baseDir)
 	globalDocs := writeGlobalsBlock(&b, inspections)
 	writeRecap(&b, corpus)

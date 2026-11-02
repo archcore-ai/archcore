@@ -73,7 +73,7 @@ func searchFileContext(baseDir, forPath, sourceFilter string, types []templates.
 		if err != nil {
 			return nil, fmt.Errorf("marshaling file context: %w", err)
 		}
-		if len(data) <= forPathByteBudget || shownMatched+shownGeneral <= 1 {
+		if len(data)+projectFieldBytes(baseDir) <= forPathByteBudget || shownMatched+shownGeneral <= 1 {
 			return mcp.NewToolResultText(string(data)), nil
 		}
 		truncated = true

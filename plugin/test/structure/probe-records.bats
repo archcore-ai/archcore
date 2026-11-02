@@ -53,14 +53,20 @@ enrolled_hosts() {
   grep -q '<!-- PROBE-RECORDS:END -->' "$SPEC" || fail "no PROBE-RECORDS:END marker"
 }
 
-@test "the parser finds one row per enrolled host and nothing else" {
+@test "the parser finds a row for every enrolled host and nothing else" {
   # Guards the loop below against silently iterating an empty set — the way a
-  # table-parsing test usually dies.
-  local hosts rows
-  hosts=$(enrolled_hosts | grep -c .)
+  # table-parsing test usually dies. The table is append-only and a re-run
+  # appends (host-probe-protocol.spec), so a host may hold several rows; every
+  # row must still name an enrolled host.
+  local hosts rows row_hosts stray
+  hosts=$(enrolled_hosts | sort -u)
   rows=$(records_rows | grep -c .)
-  [ "$hosts" -ge 4 ] || fail "derived only $hosts hosts from the coverage matrix; expected >= 4"
-  [ "$rows" = "$hosts" ] || fail "table has $rows data rows for $hosts enrolled hosts"
+  [ "$(printf '%s\n' "$hosts" | grep -c .)" -ge 4 ] || fail "derived only $(printf '%s\n' "$hosts" | grep -c .) hosts from the coverage matrix; expected >= 4"
+  [ "$rows" -ge "$(printf '%s\n' "$hosts" | grep -c .)" ] || fail "table has $rows data rows for fewer than the enrolled hosts"
+  row_hosts=$(records_rows | awk -F'|' '{ gsub(/^ +| +$/, "", $3); print $3 }' | sort -u)
+  stray=$(comm -23 <(printf '%s\n' "$row_hosts") <(printf '%s\n' "$hosts"))
+  [ -z "$stray" ] || fail "rows name hosts the coverage matrix does not enroll: $stray"
+  [ "$row_hosts" = "$hosts" ] || fail "hosts with rows ($row_hosts) differ from enrolled hosts ($hosts)"
 }
 
 @test "every host enrolled in the coverage matrix has a probe row" {

@@ -80,10 +80,36 @@ Evidence pointer is `<commit-sha>:<probe-id>`; the log itself lives in that comm
 | 2026-08-14 | codex | 0.147.0 | 0.0.0-probe | install+log | pass | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | deferred:isolated-home-unauthenticated | pending-commit |
 | — | copilot | 1.0.76 | — | — | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | deferred:needs-authenticated-home | — |
 | — | opencode | 1.18.34 | — | — | deferred:bridge-not-released | deferred:bridge-not-released | deferred:bridge-not-released | deferred:bridge-not-released | deferred:bridge-not-released | deferred:bridge-not-released | — |
-
+| 2026-10-30 | claude-code | 2.1.314 | 0.0.0-probe | wired+log | pass | pass | deferred:not-run-this-pass | pass | pass | deferred:not-run-this-pass | pending-commit |
+| 2026-10-30 | codex | 0.166.0 | 0.0.0-probe | install+log | pass | fail | deferred:not-run-this-pass | pass | pass | deferred:not-run-this-pass | pending-commit |
+| 2026-10-30 | opencode | 2.1.4 | local-build | wired+log | pass | pass | deferred:not-run-this-pass | pass | pass | deferred:not-run-this-pass | pending-commit |
+| 2026-11-02 | claude-code | 2.1.316 | 0.0.0-probe | wired+log | pass | pass | pass | pass | pass | fail-open-confirmed | pending-commit |
+| 2026-11-02 | codex | 0.166.0 | 0.0.0-probe | install+log | pass | pass | pass | pass | pass | fail-open-confirmed | pending-commit |
+| 2026-11-02 | opencode | 2.1.4 | 0.0.0-probe | wired+log | pass | pass | pass | pass | pass | fail-open-confirmed | pending-commit |
 <!-- PROBE-RECORDS:END -->
 
 **Run of 2026-08-14.** Claude Code reached the tree through `--plugin-dir`, so its method is `wired`, not `install`; probe C additionally needed `--mcp-config` and `--allowedTools`, because headless `-p` exposes no plugin MCP server and gates MCP tools behind a prompt no non-interactive session can answer — the accommodation makes the tools reachable and changes nothing about the hook under test. **Probe D is the finding of this run: with a 5-second delay injected into the wrapper against a 2-second `timeout`, the write into `.archcore/` landed with no error, no hook output, and no timeout message** — Claude Code fails open on a PreToolUse timeout exactly as Copilot does, and silently, so the latency budget is a correctness concern on this host too. Codex reached P0 through a real marketplace install of the sentinel version and logged host `codex`; its remaining probes stopped at an unauthenticated isolated `CODEX_HOME`, a property of the probe machine rather than of the adapter. Cursor is not installed here, and Copilot has no isolated-home path that authenticates.
+
+**Run of 2026-10-30.** The three rows above ran archcore CLI v0.15.0-dev on the PATH of each host, with the project-b sibling next to the probe project for the explicit-target-project probes of `call-root-resolution.spec`. Claude Code loaded the tree through `--plugin-dir` and the init event named `archcore@inline` at `0.0.0-probe`. Codex installed the sentinel version through a local marketplace in an isolated `HOME`; its plugin hooks ran only with `--dangerously-bypass-hook-trust`, which is the hook-trust consent recorded in `codex-host-verification.rnd`, not an adapter defect. OpenCode loaded the bridge from an isolated `XDG_CACHE_HOME` that held the published package layout with this repository's `dist/`, `bin/`, and `skills/`; a `file://` plugin entry did not load on 2.1.4, so the plugin version cell names the build, not a manifest version.
+
+Findings, each with a fix and a test in the same change:
+
+1. Codex 0.166.0 sends an `apply_patch` call as `tool_input.command`. The write guard read no such key, so a patch into `.archcore/` landed on Codex. Probe B was `fail` before the fix and `pass` after it. The captured payload replaced the hand-written fixture at `@plugin/test/fixtures/stdin/codex/apply-patch-archcore.json`.
+2. A write into the session's own `.archcore/` spelled through a symlink of the root — `/tmp` against the `/private/tmp` working directory — was allowed on every host, CLI 0.14.4 included. `docs.RelativeToBase` now compares again with symlinks evaluated.
+3. The OpenCode bridge sent no session id with tool events, so the project-touch advisory repeated on every edit there. The bridge now passes `session_id`.
+
+Probe A on Codex is `fail`: Codex edits every file with `apply_patch`, and the code-alignment advisory reads only a `file_path` target, so no context reaches a patch edit. The fix is open for an owner decision on which targets of a multi-file patch feed the advisory. Decided 2026-11-02: the first patch target feeds the advisory (hook-runtime.spec behavior 18), pinned by `TestPreToolUse_CodeAlignmentFromThePatchsFirstTarget`; The live re-probe of 2026-11-02 passed: the Codex transcript carried `[Archcore Context]` for the patched file.
+
+Explicit-target-project probes, outside the protocol columns: from a session in the probe project, `create_document` and `update_document` with `project` wrote under project-b; `search_documents` with an absolute `for_path` in project-b returned its rule; a direct write into project-b's `.archcore/` was denied with `project="<root>"`; a source edit in project-b carried one `[Archcore Project]` note per session; `post-tool-use` validated the project-b document. All passed on the three hosts. In a folder without `.archcore/`, Claude Code and Codex asked which project to use and created nothing; OpenCode's non-interactive `run` cancelled the question and told the model to continue, and the model wrote to an existing project through `project` — the session folder stayed without `.archcore/` on all three hosts.
+
+**Run of 2026-11-02.** The three rows above ran archcore CLI v0.15.0-dev with the same setup as the run of 2026-10-30, and completed every probe column on each host.
+
+1. Codex Probe A passed after the first-patch-target change: a developer message in the transcript named `src/probe/gamma.ts` under `[Archcore Context]`.
+2. Probe D failed open on all three hosts. A 5-second delay in the `pre-tool-use` wrapper let the write into `.archcore/` land. On OpenCode the bridge stopped the guard at its 2000 ms budget: the guard logged its start, and the write completed 2.25 s after the call began.
+3. OpenCode Probe C passed through Code Mode: the `[Archcore Precision]` advice reached the model in the system context of the next request, not in the tool result. This is the designed path of the v2 bridge.
+4. Codex `exec` needed per-tool `approval_mode = "approve"` in the isolated `config.toml` to call MCP tools; this is a host setting, not an adapter defect.
+
+The explicit-target-project probes repeated with the same outcomes as on 2026-10-30. In X4, Claude Code's `acceptEdits` mode refused a write outside the working directory after the plugin allowed the write and emitted the `[Archcore Project]` note; the refusal belongs to the host.
 
 ## Conformance
 

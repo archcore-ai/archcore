@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"archcore-cli/internal/config"
 	"archcore-cli/templates"
 )
 
@@ -146,7 +147,7 @@ func TestScanCache_ByteAccountingIsBalanced(t *testing.T) {
 
 	c.store("/p/c", withBody("xx"))
 	c.store("/p/d", withBody("yy"))
-	c.prune(map[string]bool{"/p/a": true})
+	c.prune(map[string]bool{"/p/a": true}, []string{"/p"})
 	if c.contentBytes != 1 {
 		t.Errorf("after prune contentBytes = %d, want 1", c.contentBytes)
 	}
@@ -240,5 +241,38 @@ func TestWriteFileAtomic_LeavesNoTempOnFailure(t *testing.T) {
 	}
 	if _, err := os.Stat(target + ".tmp"); err == nil {
 		t.Error("the temp file was left behind")
+	}
+}
+
+// TestScanAll_PrunesItsOwnStaleEntries: a scan sweeps the stale entries under
+// its local tree and under each global source it walked, and keeps the entries
+// of another project the same process serves.
+func TestScanAll_PrunesItsOwnStaleEntries(t *testing.T) {
+	ResetCache()
+	base := newProject(t, map[string]string{"knowledge/keep.adr.md": testDoc})
+	global := t.TempDir()
+	if err := os.WriteFile(filepath.Join(global, "g.adr.md"), []byte(testDoc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	other := t.TempDir()
+	staleLocal := absOf(base, "knowledge/stale.adr.md")
+	staleGlobal := filepath.Join(global, "stale.adr.md")
+	otherEntries := []string{absOf(other, "y.adr.md"), absOf(other, "z.adr.md")}
+	for _, k := range append([]string{staleLocal, staleGlobal}, otherEntries...) {
+		sharedScanCache.store(k, docCacheEntry{})
+	}
+
+	if _, err := scanAll(base, scanOptions{globals: []config.GlobalSource{{ID: "g", Path: global}}}); err != nil {
+		t.Fatalf("scanAll: %v", err)
+	}
+	for _, k := range []string{staleLocal, staleGlobal} {
+		if _, ok := sharedScanCache.entries[k]; ok {
+			t.Errorf("the stale entry %s survived the scan", k)
+		}
+	}
+	for _, k := range append([]string{absOf(base, "knowledge/keep.adr.md"), filepath.Join(global, "g.adr.md")}, otherEntries...) {
+		if _, ok := sharedScanCache.entries[k]; !ok {
+			t.Errorf("the scan dropped %s", k)
+		}
 	}
 }

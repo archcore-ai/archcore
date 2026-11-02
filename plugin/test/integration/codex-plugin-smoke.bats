@@ -93,7 +93,7 @@ installed_root() {
   run --separate-stderr env HOME="$TEST_HOME" codex debug prompt-input "use archcore review"
   assert_success
   local skills
-  skills=$(jq -r '.[] | select(.role == "developer") | .content[] | .text? // empty | select(contains("<skills_instructions>"))' <<< "$output")
+  skills=$(jq -r '.[] | select(.role == "developer") | .content[]? | .text? // empty | select(contains("<skills_instructions>"))' <<< "$output")
   grep -q '^- archcore:review:' <<< "$skills" || { fail "installed review skill is absent from the host catalog"; return 1; }
   # Codex may abbreviate installed skill paths through its rN root aliases.
   grep -Eq '\(file: (r[0-9]+/review/SKILL.md|/[^)]*/skills/review/SKILL.md)\)' <<< "$skills" \

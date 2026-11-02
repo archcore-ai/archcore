@@ -378,16 +378,18 @@ func TestFitListPage(t *testing.T) {
 	tests := []struct {
 		name     string
 		page     []LocalDocument
+		reserved int
 		wantRows int
 	}{
-		{"fits to the byte", exact, 10},
-		{"one byte over drops the last row", over, 9},
-		{"an oversized first row stays alone", oversized, 1},
+		{"fits to the byte", exact, 0, 10},
+		{"one byte over drops the last row", over, 0, 9},
+		{"one reserved byte drops the last row", exact, 1, 9},
+		{"an oversized first row stays alone", oversized, 0, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			page, err := fitListPage(tt.page, bySource)
+			page, err := fitListPage(tt.page, bySource, tt.reserved)
 			if err != nil {
 				t.Fatal(err)
 			}

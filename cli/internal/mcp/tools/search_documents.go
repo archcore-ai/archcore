@@ -236,7 +236,7 @@ func NewSearchDocumentsTool() mcp.Tool {
 	return mcp.NewTool("search_documents",
 		mcp.WithDescription(searchDocumentsDescription),
 		mcp.WithString("for_path",
-			mcp.Description("One repository file. Returns the documents that constrain an edit to it, ranked, then the accepted rules that name no path. Cannot be combined with path_ref or content."),
+			mcp.Description("One repository file, relative to the project or absolute. Returns the documents that constrain an edit to it, ranked, then the accepted rules that name no path. An absolute path in another project searches that project. Cannot be combined with path_ref or content."),
 		),
 		mcp.WithString("path_ref",
 			mcp.Description("Match documents that reference this path (either @-notation or qualified bare paths) in their body."),
@@ -579,14 +579,14 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 		// Each missing list grows with the query, so near misses leave from the
 		// tail until the head fits the byte budget (search-documents.spec §13.10).
 		nearMissCut := false
-		for len(head) > searchResponseByteBudget && len(response.NearMisses) > 0 {
+		for len(head)+projectFieldBytes(baseDir) > searchResponseByteBudget && len(response.NearMisses) > 0 {
 			response.NearMisses = response.NearMisses[:len(response.NearMisses)-1]
 			nearMissCut = true
 			if head, err = json.Marshal(response); err != nil {
 				return nil, fmt.Errorf("marshaling result head: %w", err)
 			}
 		}
-		response.Results, response.Truncated, err = fitSearchPage(ranked, len(results), len(head), sortMode)
+		response.Results, response.Truncated, err = fitSearchPage(ranked, len(results), len(head)+projectFieldBytes(baseDir), sortMode)
 		if err != nil {
 			return nil, err
 		}

@@ -16,7 +16,7 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 
 ## Surface
 
-- Input: one file path, relative to the project root or absolute inside it.
+- Input: one file path, relative to the project root or absolute. An absolute path outside the session root selects the nearest ancestor holding `.archcore/` as the project, per @.archcore/mcp/call-root-resolution.spec.md.
 - Row fields: `path` (with the `.archcore/` prefix), `type`, `title`, `status`, `source_kind`, `reason`.
 - `reason` values: `file` (the body names the file), `kind` (an accepted `rule` or `cpat` names the file's compound extension, such as `.test.tsx`, or a base name several tracked files share), `directory` (the body names a directory of the file), `general` (an accepted pathless `rule` or `cpat`).
 - Result parts, in order: matched rows (`file`, `kind`, then `directory`), general rows, one remainder line per part.
@@ -69,7 +69,8 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 
 1. IF no matched row and no general row exists, THEN the hook MUST emit nothing.
 2. IF the scan cannot finish inside the host budget, THEN the hook MUST emit nothing and allow the edit.
-3. IF `for_path` names a path outside the project, THEN `search_documents` MUST return an error that holds no absolute path.
+3. IF `for_path` names an absolute path with no ancestor directory holding `.archcore/`, THEN `search_documents` MUST return an error that holds no absolute path and names the `project` argument.
+3a. IF `for_path` names a relative path that escapes the project root, THEN `search_documents` MUST return an error that holds no absolute path.
 4. IF one document cannot be read, THEN the engine MUST skip it and keep the other rows.
 5. IF the engine cannot list the tracked files, THEN the engine MUST apply only behavior 18 to bare names.
 

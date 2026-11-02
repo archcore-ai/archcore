@@ -94,7 +94,8 @@ Exposed over MCP using `github.com/mark3labs/mcp-go`. Registered from `NewServer
 | Name          | Type     | Required    | Description                                                                                                                                   |
 | ------------- | -------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `path_ref`    | string   | conditional | Path reference to match in document bodies. Leading `@` is stripped during comparison.                                                        |
-| `for_path`    | string   | conditional | One repository file. Returns the file-context result for that file: the ranked documents that constrain an edit to it, then the general rules. Row order, row caps, and the `reason` values follow the file context resolution spec. |
+| `for_path`    | string   | conditional | One repository file, relative to the call root or absolute. Returns the file-context result for that file: the ranked documents that constrain an edit to it, then the general rules. Row order, row caps, and the `reason` values follow the file context resolution spec. An absolute path outside the session root derives the call root as the nearest ancestor holding `.archcore/` (@.archcore/mcp/call-root-resolution.spec.md). |
+| `project`     | string   | no          | Absolute root of the project to search. Overrides the session root and a pinned root for this call after the acceptance checks of @.archcore/mcp/call-root-resolution.spec.md. Absent: the session root, as before. |
 | `content`     | string   | conditional | Case-insensitive word search against `title + slug + body`. Split on whitespace; the `match` parameter decides how many words must occur. Separators fold under `all` and `any` (§6.1). No stemming, no fuzzy matching. |
 | `match`       | string   | no          | How content words must match. Enum: `all` (default; every word occurs somewhere in the document, any order, any distance), `any` (at least one word occurs), `exact` (the whole content string as one literal substring — the pre-2026-08 behavior). Any other value maps to `all`. |
 | `source`      | string   | no          | Scope: `local` (the primary's own documents), `global` (every mounted global source), `__global__` (undeclared reserved-tree content), or a declared global source id. Empty admits every source. Any other value is rejected (§1.9). |
@@ -117,6 +118,7 @@ A JSON object whose keys serialize in this order: `{"coverage": {...}, "hits": {
 - `index` lists `path`, `title`, and `source_id` of the admitted rows, in §7 order, inside its own byte ceiling (§8.10).
 - `near_misses` lists up to 3 documents that pass the filters and hold at least half of the distinct query words, each naming the words it lacks (§13). Present only under §13.1.
 - `results` is the array of `searchResult` objects (fields below).
+- `project` is the absolute root the call resolved, present on every response per @.archcore/mcp/call-root-resolution.spec.md; the caller passes it back as the `project` argument. This is the one field the no-absolute-paths rule exempts.
 - `omitted` is present only under `for_path` when a cap cut rows: `matched` and `general` count the cut rows; `more_matched` and `more_general` name the call that returns them. The matched remainder points to `path_ref`, because `for_path` stays capped.
 
 (Behavior change 2026-08: the response was previously a bare array. Behavior change 2026-09: `hits`, `truncated`, and `index` were added and the key order was fixed; `near_misses` followed; see Compatibility.)
@@ -177,6 +179,9 @@ Each `searchResult` object has the following fields:
 12. WHEN `for_path` and `content` are both set, the handler MUST reject the call with the error of §1.11.
 13. WHEN `for_path` is set, the handler MUST order and cap `results` as the file context resolution spec defines, not by §7 and §8.1.
 14. WHEN `for_path` is set, the handler MUST apply `source`, `types`, and `status` as filters on the file-context rows.
+15. WHEN `project` is set, the handler MUST search that root and none other.
+16. WHEN `for_path` is absolute and `project` is absent, the handler MUST search the nearest ancestor of `for_path` that holds `.archcore/`.
+17. WHEN `for_path` is absolute and `project` is set, the handler MUST reject the call if `for_path` lies outside `project`.
 
 ### §2 Document loading
 
@@ -538,7 +543,7 @@ search_documents({ content: "logging", source: "orgg" })
 
 ## Security Considerations
 
-- The tool operates only under `baseDir/.archcore/` and declared global mounts, never elsewhere. No path traversal is possible via the filters (no filter accepts a filesystem path as input — `path_ref` is matched against document body content, not dereferenced).
+- The tool operates only under the call root's `.archcore/` and declared global mounts, never elsewhere. `path_ref` is matched against document body content, not dereferenced. `project` and an absolute `for_path` are the two inputs that name a filesystem location; each resolves to a root only after the acceptance checks of @.archcore/mcp/call-root-resolution.spec.md, and a value that fails them produces an error without an absolute path.
 - The tool is read-only; no content can be written, modified, or deleted through it.
 - Every error message is sanitized: OS-level failures map to a fixed I/O class, so no absolute filesystem path ever reaches the MCP client (see @.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md). Nothing is written to stdout besides protocol frames.
 

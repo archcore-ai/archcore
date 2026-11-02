@@ -3,9 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"archcore-cli/internal/advisory"
+	"archcore-cli/internal/config"
 	"archcore-cli/internal/docs"
 	archsync "archcore-cli/internal/sync"
 )
@@ -23,6 +25,12 @@ const maxValidationIssues = 5
 // postToolUseHandler runs the checks a document mutation warrants.
 func postToolUseHandler(_ context.Context, r hookRequest) hookDecision {
 	baseDir := r.baseDir
+	// A call that named its project was served there, so its document is
+	// checked there (hook-runtime.spec §17). An advisory read: a project
+	// without .archcore/ keeps the working directory.
+	if project := r.payload.toolProject(); filepath.IsAbs(project) && config.DirExists(project) {
+		baseDir = project
+	}
 	tool := r.payload.toolName()
 	// Gate on "did this change anything", not on "is this ours". Cursor installs
 	// its post-MCP event with no matcher, so every read would otherwise scan the

@@ -64,7 +64,7 @@ export function createServer(root: string) {
 
       "tool.execute.before": async (call: ToolInput, output: { args: unknown }) => {
         if (!tools || !PRE_MUTATION.has(call.tool)) return
-        const result = await launch("pre-tool-use", { tool_name: call.tool, tool_input: output.args }, BUDGET_MS.pre)
+        const result = await launch("pre-tool-use", { tool_name: call.tool, tool_input: output.args, session_id: call.sessionID }, BUDGET_MS.pre)
         if (result.code === 2) throw new Error(result.stderr.replace(/\r?\n$/, ""))
         if (result.code === 0 && result.stdout) held.set(call.callID, result.stdout)
       },
@@ -75,7 +75,7 @@ export function createServer(root: string) {
           held.delete(call.callID)
           if (context) output.output = output.output ? `${output.output}\n\n${context}` : context
           if (!tools || !POST_MUTATION.has(call.tool)) return
-          const result = await launch("post-tool-use", { tool_name: call.tool, tool_input: call.args }, BUDGET_MS.post)
+          const result = await launch("post-tool-use", { tool_name: call.tool, tool_input: call.args, session_id: call.sessionID }, BUDGET_MS.post)
           if (result.code === 0 && result.stdout && Array.isArray(output.content)) {
             output.content.push({ type: "text", text: result.stdout })
           }

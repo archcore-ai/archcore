@@ -132,8 +132,11 @@ resume it per the resume rules in `skills/_shared/gate-contract.md` instead of
 opening a new track; a block this command does not resume follows resume
 rules 8 and 9 there.
 
-If `.archcore/` does not exist, announce initialization in one line and call
-`mcp__archcore__init_project` without asking a question. If `.archcore/` exists
+If the session root holds no `.archcore/`, follow
+`skills/_shared/target-project.md`, section Projects without `.archcore/`: name
+the roots the session recap listed, ask which project to use or whether to
+initialize the session root, and do not call `mcp__archcore__init_project`
+before the answer. If `.archcore/` exists
 but contains no documents, proceed on outer-context grounding and report that
 zero documents were found.
 

@@ -75,6 +75,10 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 46. WHEN several candidates qualify for a no-argument `plan` or `document` invocation, the skill MUST show an evidenced menu of at most four items.
 47. WHEN a no-argument invocation finds no reliable signal, the skill MUST ask one scope question before any write.
 48. WHILE a matched plan has an unfulfilled task or criterion, the review skill MUST NOT offer its removal.
+49. WHEN a request names a path outside the session root, the skill MUST treat the nearest ancestor of that path holding `.archcore/` as a target project.
+50. WHEN a read or write concerns a target project other than the session root, the skill MUST pass that root as the `project` argument.
+51. WHEN a request names more than one target project, the skill MUST ground and report per target project.
+52. WHEN a target project holds no `.archcore/`, the skill MUST report it and ask before calling `init_project` for that project.
 
 ## Constraints & Invariants
 
@@ -97,10 +101,10 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 ## Failure Behavior
 
 1. IF `.archcore/` exists but contains no documents, THEN the invoked skill MUST proceed on outer-context grounding and report that zero documents were found.
-2. IF `.archcore/` does not exist, THEN the invoked skill MUST announce initialization in one line and call `init_project` without asking a question.
+2. IF the session root holds no `.archcore/`, THEN the invoked skill MUST name the project roots the session recap listed and ask one question: which project to use, or whether to initialize the session root. The skill MUST NOT call `init_project` before the answer (supersedes the unasked `init_project` call of the pre-2026-10-30 text; see @.archcore/mcp/explicit-target-project-per-call.adr.md).
 3. IF the review diff is empty, THEN the review skill MUST request an explicit path, topic, or ref, except under staleness or audit wording, which widens the scope to all documents.
 4. IF git state is unavailable, THEN the review skill MUST request an explicit path or topic.
 
 ## Conformance
 
-The skill set is conformant when it satisfies behaviors 1–48, holds all invariants, and degrades per the failure rules. Regression coverage: @plugin/test/structure/command-grammar.bats pins the hints, the absence of a retired-word notice, the retired-form guard, the description parity, and the gate-address rule; @plugin/test/structure/loop-integrity.bats pins the exits from stopped, open, and unfinished states across plan, document, and review; @plugin/test/behavioral/document-bench.sh measures classification of `document` requests on a live model; @plugin/test/behavioral/import-bench.sh measures the route, the size tier, and the triage verdict of `init` on a live model.
+The skill set is conformant when it satisfies behaviors 1–52, holds all invariants, and degrades per the failure rules. Regression coverage: @plugin/test/structure/command-grammar.bats pins the hints, the absence of a retired-word notice, the retired-form guard, the description parity, and the gate-address rule; @plugin/test/structure/loop-integrity.bats pins the exits from stopped, open, and unfinished states across plan, document, and review; @plugin/test/behavioral/document-bench.sh measures classification of `document` requests on a live model; @plugin/test/behavioral/import-bench.sh measures the route, the size tier, and the triage verdict of `init` on a live model.

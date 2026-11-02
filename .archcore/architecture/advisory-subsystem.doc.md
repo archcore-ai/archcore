@@ -86,7 +86,7 @@ language), and a code reference with a line number is reported when the path end
 `CodeReferenceExtensions` — `plugin/language-neutral-structure-tokens.adr` and
 `plugin/code-references-name-a-file-or-directory.adr`.
 
-`Restatement` reads the documents the written one builds on through `implements` relations and reports
+`Restatement` reads the documents the written one builds on through `implements` and `extends` relations and reports
 a statement that survived the move nearly word for word. It matches near-verbatim text only: a
 paraphrase scores far under the threshold, because a `prd` requirement and the `spec` behavior that
 grades it are meant to differ. The rule it enforces is ownership rule 1 of

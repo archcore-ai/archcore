@@ -50,7 +50,7 @@ Load `skills/_shared/gate-contract.md` and `skills/_shared/elicitation-contract.
 Before relation review, load `skills/_shared/relation-authoring.md`. Read the
 affected claims before reporting missing, unsupported, or redundant edges.
 
-IF `.archcore/` does not exist, THEN announce initialization in one line and call `mcp__archcore__init_project` without asking a question. IF `.archcore/` contains zero documents, THEN proceed on git and codebase grounding and report that zero documents were found.
+IF the session root holds no `.archcore/`, THEN follow `skills/_shared/target-project.md`, section Projects without `.archcore/`: name the roots the session recap listed, ask which project to use or whether to initialize the session root, and do not call `mcp__archcore__init_project` before the answer. IF `.archcore/` contains zero documents, THEN proceed on git and codebase grounding and report that zero documents were found.
 
 **Grounding.** Search all three categories — vision, knowledge, experience — with `mcp__archcore__search_documents` / `mcp__archcore__list_documents`; never exclude a category from reads. Pass a type filter matched to the review moment — `spec`, `rule`, `adr`, `doc`, `guide` for claims on changed code; `cpat`, `task-type` for precedent; `plan` on every branch review; `prd`, `idea`, `rnd`, and `research` (when `skills/_shared/research-compatibility.md` returned `yes`), plus `scenario` and `journey` (when `skills/_shared/actor-subject-compatibility.md` returned `yes`), for the closeout track's plan-and-implements-chain scope — instead of relying on the global type ranking. When a found document has `implements`, `depends_on`, or `related` relations, pull the linked documents one hop across categories.
 

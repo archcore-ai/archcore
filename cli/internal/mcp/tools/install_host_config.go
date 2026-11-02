@@ -32,7 +32,7 @@ func NewInstallHostConfigTool() mcp.Tool {
 	return mcp.NewTool("install_host_config",
 		mcp.WithDescription(`GATED — call ONLY when the user has explicitly asked to set up/wire Archcore into this coding agent (hooks, MCP config, usage hint) AND has confirmed a plan you stated first (which agent, which files). Do NOT call this proactively — not because you noticed missing hooks or MCP config, not for a generic "set up my project" request, not as part of routine document work. When in doubt, ask the user first; never call speculatively.
 
-Writes host config outside .archcore/: MCP server entry, SessionStart hook (hosts that support hooks), and the Archcore usage hint in the agent's instructions file (e.g. .mcp.json, .claude/settings.json, AGENTS.md) — the same artifacts 'archcore init' writes. All writes land under the project root this MCP server was started for.
+Writes host config outside .archcore/: MCP server entry, SessionStart hook (hosts that support hooks), and the Archcore usage hint in the agent's instructions file (e.g. .mcp.json, .claude/settings.json, AGENTS.md) — the same artifacts 'archcore init' writes. All writes land under the project root of this call: the project argument, or this session's project.
 
 Idempotent: existing archcore entries are kept or updated in place; foreign config content is never touched — safe to call again to converge. Complements init_project, which only initializes .archcore/ itself and never touches host config.
 

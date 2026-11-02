@@ -17,24 +17,26 @@ MOCK
   chmod +x "$MOCK_BIN/archcore"
 }
 
-@test "missing .archcore/ — nudge mentions /archcore:init" {
+@test "missing .archcore/ — no advice to initialize the folder (explicit-target-project-per-call.adr)" {
   mock_archcore ""
   cd "$BATS_TEST_TMPDIR"
 
   run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
   assert_success
   assert_output --partial "no .archcore/ directory"
-  assert_output --partial "mcp__archcore__init_project"
-  assert_output --partial "/archcore:init"
+  assert_output --partial "ask the user which project to use"
+  refute_output --partial "init_project"
+  refute_output --partial "/archcore:init"
 }
 
-@test "missing .archcore/ with ARCHCORE_HIDE_EMPTY_NUDGE=1 — init nudge stays, /archcore:init hint suppressed" {
+@test "missing .archcore/ with ARCHCORE_HIDE_EMPTY_NUDGE=1 — the same message, still no init advice" {
   mock_archcore ""
   cd "$BATS_TEST_TMPDIR"
 
   run sh -c "printf '%s' '{}' | ARCHCORE_HIDE_EMPTY_NUDGE=1 '${PLUGIN_ROOT}/bin/session-start'"
   assert_success
-  assert_output --partial "mcp__archcore__init_project"
+  assert_output --partial "ask the user which project to use"
+  refute_output --partial "init_project"
   refute_output --partial "/archcore:init"
 }
 

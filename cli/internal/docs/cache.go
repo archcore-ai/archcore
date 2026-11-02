@@ -1,6 +1,8 @@
 package docs
 
 import (
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -44,6 +46,10 @@ type scanCache struct {
 	mu           sync.Mutex
 	entries      map[string]docCacheEntry
 	contentBytes int
+	// swept is the entry count a sweep left behind. Entries of another project
+	// survive a sweep, so the cache stays larger than one corpus; sweeping again
+	// before it grows would only walk them again.
+	swept int
 }
 
 var sharedScanCache = scanCache{entries: map[string]docCacheEntry{}}
@@ -96,24 +102,37 @@ func (s *scanCache) invalidate(absPath string) {
 func (s *scanCache) needsPrune(corpusSize int) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return len(s.entries) > 2*corpusSize
+	return len(s.entries) > 2*corpusSize && len(s.entries) > s.swept
 }
 
-// prune drops entries absent from seen, but only once the cache has grown
-// well past the current corpus — an amortized bound on stale entries from
-// deleted or renamed files, with no timers or background goroutines.
-func (s *scanCache) prune(seen map[string]bool) {
+// prune drops entries under dirs that are absent from seen, but only once the
+// cache has grown well past the current corpus — an amortized bound on stale
+// entries from deleted or renamed files, with no timers or background
+// goroutines. Entries outside dirs belong to another project the same process
+// serves, and a scan of this one says nothing about them
+// (call-root-resolution.spec, the invariant on caches keyed by root).
+func (s *scanCache) prune(seen map[string]bool, dirs []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if len(s.entries) <= 2*len(seen) {
 		return
 	}
 	for k, e := range s.entries {
-		if !seen[k] {
+		if !seen[k] && underAny(k, dirs) {
 			s.contentBytes -= len(e.content)
 			delete(s.entries, k)
 		}
 	}
+	s.swept = len(s.entries)
+}
+
+func underAny(path string, dirs []string) bool {
+	for _, dir := range dirs {
+		if strings.HasPrefix(path, dir+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }
 
 // reset empties the cache.
@@ -122,6 +141,7 @@ func (s *scanCache) reset() {
 	defer s.mu.Unlock()
 	s.entries = map[string]docCacheEntry{}
 	s.contentBytes = 0
+	s.swept = 0
 }
 
 // InvalidateCache drops the cached parse of one document. Callers that mutate a

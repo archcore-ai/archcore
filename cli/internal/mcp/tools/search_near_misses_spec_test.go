@@ -285,17 +285,41 @@ func TestSearchDocuments_NearMissesFillTheByteBudgetExactly(t *testing.T) {
 		return map[string]any{"content": "alpha " + strings.Repeat("q", wordLen)}
 	}
 	probe := len(searchText(t, callSearch(t, base, query(1))))
+	// The server appends the project field after the handler returns, so the
+	// handler fills the budget less the bytes that field takes.
+	budget := searchResponseByteBudget - projectFieldBytes(base)
 
-	text := searchText(t, callSearch(t, base, query(1+searchResponseByteBudget-probe)))
+	text := searchText(t, callSearch(t, base, query(1+budget-probe)))
 	raw := rawEnvelope(t, text)
 	var rows []searchNearMiss
 	if err := json.Unmarshal(raw["near_misses"], &rows); err != nil {
 		t.Fatal(err)
 	}
-	if len(text) != searchResponseByteBudget {
-		t.Fatalf("response is %d bytes, want exactly the %d-byte budget", len(text), searchResponseByteBudget)
+	if len(text) != budget {
+		t.Fatalf("response is %d bytes, want exactly the %d-byte budget less the project field", len(text), budget)
 	}
 	if len(rows) != 1 || string(raw["truncated"]) != "false" {
 		t.Errorf("got %d near misses and truncated=%s, want the row kept at the exact budget", len(rows), raw["truncated"])
+	}
+}
+
+func TestSearchDocuments_NearMissOneByteOverTheBudgetLeaves(t *testing.T) {
+	t.Parallel()
+	base, localArch, _ := manySourceFixture(t)
+	writeFixtureDoc(t, localArch, "a.adr.md", "A", "alpha\n")
+	query := func(wordLen int) map[string]any {
+		return map[string]any{"content": "alpha " + strings.Repeat("q", wordLen)}
+	}
+	probe := len(searchText(t, callSearch(t, base, query(1))))
+	budget := searchResponseByteBudget - projectFieldBytes(base)
+
+	text := searchText(t, callSearch(t, base, query(2+budget-probe)))
+	raw := rawEnvelope(t, text)
+	var rows []searchNearMiss
+	if err := json.Unmarshal(raw["near_misses"], &rows); err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 0 || string(raw["truncated"]) != "true" {
+		t.Errorf("got %d near misses and truncated=%s, want the row dropped one byte past the budget less the project field", len(rows), raw["truncated"])
 	}
 }

@@ -43,6 +43,11 @@ and an exit code.
     before it opens the file.
 12. WHEN `ARCHCORE_DISABLE_INJECTION` is `1`, the command MUST emit no code-alignment context.
 13. Each dedup scope MUST claim its stamp in a directory of its own.
+14. WHEN a target path is absolute, the write guard MUST resolve the project root as the nearest ancestor directory of that path that holds `.archcore/`, per @.archcore/mcp/call-root-resolution.spec.md.
+15. WHEN a target path is relative, the write guard MUST read the path against the payload working directory before it resolves the project root per behavior 14.
+16. WHEN the resolved root of a target differs from the session root, the pre-tool-use command MUST emit one advisory per session, root, and host naming the `project` argument, claimed through a dedup stamp keyed by session id, root, and host.
+17. WHEN a `post-tool-use` payload carries `project` in `tool_input`, the command MUST validate the document under that root.
+18. WHEN a `pre-tool-use` payload names no file path and carries a patch, the command MUST feed the first patch target to the code-alignment advisory.
 
 ## Constraints & Invariants
 
@@ -67,12 +72,12 @@ and an exit code.
 2. IF the host name is unrecognized, THEN the command MUST write an empty stdout and exit 0.
 3. IF the event name is unrecognized, THEN the command MUST write an empty stdout and exit 0.
 4. IF a positional argument is present, THEN the command MUST ignore it.
-5. IF the project root cannot be resolved, THEN the command MUST allow.
+5. IF the project root cannot be resolved from the working directory and no target path has an ancestor holding `.archcore/`, THEN the command MUST allow.
 6. IF `settings.json` is unreadable or invalid, THEN the command MUST NOT deny for that reason.
 7. IF the payload names no target, THEN the write guard MUST allow.
 
 ## Conformance
 
-An implementation is conformant when it satisfies behaviors 1–13, holds every invariant, and degrades
+An implementation is conformant when it satisfies behaviors 1–18, holds every invariant, and degrades
 per the failure rules. Failure rules 2 and 3 need a zero exit, so failure rule 4 is what keeps an
 argument parser from refusing before the handler runs: Copilot reads any non-zero exit as a deny.

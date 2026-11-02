@@ -115,7 +115,7 @@ jobs:
 
       - name: Build the CLI from this commit
         working-directory: cli
-        run: go build -ldflags '-X main.version=0.10.1-dev' -o "${RUNNER_TEMP}/archcore-source" .
+        run: go build -ldflags '-X main.version=0.15.0-dev' -o "${RUNNER_TEMP}/archcore-source" .
 
       - name: MCP integration tests against the source CLI
         run: make test-integration ARCHCORE_BIN="${RUNNER_TEMP}/archcore-source"

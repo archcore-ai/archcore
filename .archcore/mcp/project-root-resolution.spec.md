@@ -18,7 +18,7 @@ It is normative for the root provider (@cli/internal/mcp/root_provider.go), for 
 
 - Global source declaration, resolution, and health classification — @.archcore/globals/global-sources.spec.md.
 - Root resolution for short-lived CLI commands and for hook invocations, which resolve per invocation and are unaffected.
-- Serving more than one writable project in one session — @.archcore/cli/multi-project-mcp-access.idea.md.
+- Addressing a project other than the session root for one call through the `project` argument or an absolute `for_path` — @.archcore/mcp/call-root-resolution.spec.md, which extends this contract and takes precedence for a call that names a project.
 
 ## Surface
 
@@ -35,7 +35,7 @@ It is normative for the root provider (@cli/internal/mcp/root_provider.go), for 
 
 ## Normative Behavior
 
-1. WHEN `--project` or `ARCHCORE_PROJECT_ROOT` is non-empty, the server MUST serve that root for the process lifetime.
+1. WHEN `--project` or `ARCHCORE_PROJECT_ROOT` is non-empty, the server MUST serve that root for the process lifetime to every call that names no `project` argument.
 2. WHEN a root is pinned, the server MUST NOT query `roots/list`.
 3. WHEN no root is pinned, the server MUST resolve the root once per tool call from the request context.
 4. WHEN the client declared no `roots` capability at `initialize`, the provider MUST serve the start-time root without a query.
@@ -49,6 +49,7 @@ It is normative for the root provider (@cli/internal/mcp/root_provider.go), for 
 12. WHEN exactly one candidate passes, the provider MUST adopt it as the current root.
 13. WHEN no candidate passes, the provider MUST keep the current root.
 14. WHEN more than one candidate passes, the provider MUST keep the current root.
+14a. WHEN more than one candidate passes, the server MUST serve each other candidate only to a call that names it in `project`, per @.archcore/mcp/call-root-resolution.spec.md.
 15. WHEN the provider rejects a candidate, it MUST write one line naming the failed check to its warning stream.
 16. The provider MUST write that line at most once per distinct reason.
 17. A warning line MUST NOT contain an absolute filesystem path, per @.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md.
@@ -74,12 +75,13 @@ Check 4 governs a move away from the start-time root only. The start-time root M
 | ---------- | ----- | --------- |
 | Writable roots per call | exactly 1 | Preserves the single-primary model of @.archcore/globals/global-sources.spec.md |
 | Root sources that may change mid-session | `roots/list` only | A pinned root states user intent |
+| Root sources that override for one call | the `project` argument, an absolute `for_path` | Per @.archcore/mcp/call-root-resolution.spec.md; the session root is unchanged after the call |
 | `roots/list` calls per cache lifetime | at most 1 | The transport writes outside the response mutex |
 | Query timeout | 500 ms | The transport applies none of its own, and a stalled query holds one of five tool workers |
 | Cache lifetime | 2 s [assumption] | A burst of calls costs one query; a worktree switch is picked up by the call after next at the latest |
 | Trust level of a reported root | untrusted | Same treatment as the process working directory |
 
-- A tool call reads and writes exactly one root; a root never changes inside one call.
+- A tool call reads and writes exactly one root; a root never changes inside one call. The root is the session root of this contract, or the call root of @.archcore/mcp/call-root-resolution.spec.md when the call names one.
 - A root the provider serves has passed every acceptance check, or is the start-time root.
 - The server never serves a root whose declared global sources hold a fatal state, except the start-time root, which the startup gate already validated.
 - The `initialize` instructions describe the start-time root for the process lifetime.

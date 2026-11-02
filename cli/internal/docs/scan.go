@@ -133,8 +133,10 @@ func scanAll(baseDir string, opt scanOptions) ([]Document, error) {
 	// disagree; a source not on disk yet contributes nothing, and InspectGlobals
 	// reports it on every surface (missing-global-degrades-to-local.adr).
 	seen := make(map[string]string, len(opt.globals)) // resolved dir -> first source id
+	walked := []string{filepath.Join(baseDir, ".archcore")}
 	for _, gs := range opt.globals {
 		gsDir := resolveGlobalPath(baseDir, gs.Path)
+		walked = append(walked, gsDir)
 		if firstID, dup := seen[gsDir]; dup {
 			return nil, fmt.Errorf("global sources %q and %q resolve to the same path %q", firstID, gs.ID, gs.Path)
 		}
@@ -175,7 +177,7 @@ func scanAll(baseDir string, opt scanOptions) ([]Document, error) {
 		for _, doc := range docs {
 			seenPaths[filepath.Join(baseDir, filepath.FromSlash(doc.Path))] = true
 		}
-		sharedScanCache.prune(seenPaths)
+		sharedScanCache.prune(seenPaths, walked)
 	}
 
 	return docs, nil

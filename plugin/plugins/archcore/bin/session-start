@@ -303,26 +303,31 @@ _archcore_config_rejected() {
 # shellcheck source=lib/empty-state.sh
 . "$SCRIPT_DIR/lib/empty-state.sh"
 
-# Check if .archcore/ exists. If not, the plugin's MCP server starts in
-# uninitialized mode — the agent can call mcp__archcore__init_project to
-# initialize on demand. No manual setup required.
+# Check if .archcore/ exists. A session outside a project gives no advice to
+# create one: the folder may be a workspace parent or a home directory, and
+# the user names the project to work in (explicit-target-project-per-call.adr).
+# A CLI from 0.15.0 lists the reachable projects and names the project
+# argument; the session falls through to it below. An older CLI would advise
+# create_document for this folder, so the plugin answers itself instead.
 #
 # Copilot is the exception: the plugin ships no MCP server there
-# (copilot-mcp-architecture.adr), so mcp__archcore__init_project does not
-# exist in a day-one Copilot session — the instruction body is forked to the
-# CLI wiring command instead. The /archcore:init suffix below stays shared
-# byte-for-byte across hosts (it is what skills/init/SKILL.md mirrors).
+# (copilot-mcp-architecture.adr), so the instruction body is forked to the CLI
+# wiring command instead.
+_ac_outside_project=0
 if [ ! -d ".archcore" ]; then
+  _ac_outside_project=1
   if [ "$ARCHCORE_HOST" = "copilot" ]; then
     _init_msg="[Archcore] no .archcore/ directory in this project yet. On Copilot the archcore MCP tools come from project wiring, not the plugin. When the user asks for any Archcore operation (create ADR, audit docs, etc.), run: archcore init --agent copilot --project \"\$PWD\" once (initializes .archcore/ and registers the MCP server; a session restart connects the tools), then proceed. Do NOT write to .archcore/ directly — hooks will block it."
-  else
-    _init_msg="[Archcore] no .archcore/ directory in this project yet. When the user asks for any Archcore operation (create ADR, audit docs, etc.), call mcp__archcore__init_project once to initialize, then proceed. Do NOT write to .archcore/ directly — hooks will block it."
+    if [ "${ARCHCORE_HIDE_EMPTY_NUDGE:-}" != "1" ]; then
+      _init_msg="${_init_msg} After init, suggest the user run /archcore:init to seed initial content (stack rule, run-the-app guide, optional import of existing CLAUDE.md / AGENTS.md / .cursorrules). Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1."
+    fi
+    _archcore_emit_info "$_init_msg"
+    exit 0
   fi
-  if [ "${ARCHCORE_HIDE_EMPTY_NUDGE:-}" != "1" ]; then
-    _init_msg="${_init_msg} After init, suggest the user run /archcore:init to seed initial content (stack rule, run-the-app guide, optional import of existing CLAUDE.md / AGENTS.md / .cursorrules). Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1."
+  if [ "$("$SCRIPT_DIR/cli-gte" 0.15.0)" != "yes" ]; then
+    _archcore_emit_info "[Archcore] no .archcore/ directory in this folder. Before any Archcore operation, ask the user which project to use. Do NOT write to .archcore/ directly — hooks will block it. Reaching another project with the project argument needs archcore CLI 0.15.0 or newer; run: archcore update"
+    exit 0
   fi
-  _archcore_emit_info "$_init_msg"
-  exit 0
 fi
 
 # Initialized project — run the host-specific session-start hook via CLI.
@@ -366,7 +371,7 @@ fi
 # Empty-state nudge: .archcore/ exists but carries no substantive documents.
 # Goes through _archcore_note: plain text on hosts that read plain text, folded
 # into the single JSON document on Copilot.
-if [ "${ARCHCORE_HIDE_EMPTY_NUDGE:-}" != "1" ] && archcore_is_functionally_empty ".archcore"; then
+if [ "$_ac_outside_project" -eq 0 ] && [ "${ARCHCORE_HIDE_EMPTY_NUDGE:-}" != "1" ] && archcore_is_functionally_empty ".archcore"; then
   _archcore_note "[Archcore] .archcore/ is empty. Run /archcore:init to seed a stack rule, a run-the-app guide, and (optionally) imports from existing agent-instruction files like CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1."
 fi
 

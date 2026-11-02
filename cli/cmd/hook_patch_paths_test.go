@@ -3,6 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -55,6 +57,9 @@ func TestPatchPaths_ReadsEveryCarrierKey(t *testing.T) {
 		{"tool_input", "patch"},
 		{"toolArgs", "patch"},
 		{"tool_args", "patch"},
+		{"tool_input", "command"},
+		{"toolArgs", "command"},
+		{"tool_args", "command"},
 	}
 	for _, keyPath := range keyPaths {
 		t.Run(strings.Join(keyPath, "."), func(t *testing.T) {
@@ -64,6 +69,29 @@ func TestPatchPaths_ReadsEveryCarrierKey(t *testing.T) {
 				t.Errorf("patchPaths() = %v, want [.archcore/my.rule.md]", got)
 			}
 		})
+	}
+}
+
+// TestPreToolUse_CodexApplyPatchIsDenied replays the apply_patch payload Codex
+// 0.166.0 sent in a live session (host-probe-protocol.spec run of 2026-10-30):
+// the patch rides in tool_input.command, and a guard that misses that key lets
+// the write land.
+func TestPreToolUse_CodexApplyPatchIsDenied(t *testing.T) {
+	t.Parallel()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, ".archcore", "probe"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const payload = `{"cwd":"/w/a","hook_event_name":"PreToolUse","model":"gpt-5.5","permission_mode":"bypassPermissions","session_id":"s1","tool_input":{"command":"*** Begin Patch\n*** Add File: .archcore/probe/direct.adr.md\n+# direct\n*** End Patch"},"tool_name":"apply_patch","tool_use_id":"call_1","transcript_path":"/w/.codex/sessions/rollout.jsonl","turn_id":"t1"}`
+	if dec := preToolUseHandler(bg(), reqFor(t, "codex-cli", dir, payload)); !dec.deny {
+		t.Errorf("a Codex apply_patch into .archcore/ = %+v, want a deny", dec)
+	}
+	source := strings.Replace(payload, ".archcore/probe/direct.adr.md", "src/alpha.ts", 1)
+	if dec := preToolUseHandler(bg(), reqFor(t, "codex-cli", dir, source)); dec.deny {
+		t.Errorf("a Codex apply_patch of a source file was denied: %q", dec.reason)
 	}
 }
 
