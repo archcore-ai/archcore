@@ -146,3 +146,19 @@ gate_of() {
   [[ "$(flat "$DOC_SKILL")" == *'### Named type'* ]] || fail "document lost the Named type path"
   [[ "$(flat "$DOC_SKILL")" == *'supplies neither a report nor a material → write nothing'* ]] || fail "document lost the no-material exit"
 }
+
+@test "a plan no branch matched leaves the corpus through one batch on every review" {
+  local review actualize describe
+  review=$(flat "$REVIEW_SKILL")
+  actualize=$(flat "$TRACKS/actualize.md")
+  describe=$(flat "$TRACKS/describe.md")
+  [[ "$review" == *'Run the hung-plan check (actualize check 7) over every `plan` step 2 did not match'* ]] \
+    || fail "a plain branch review never looks at plans the branch did not match"
+  [[ "$actualize" == *'7. **Hung plans.**'* ]] || fail "actualize has no hung-plan check"
+  [[ "$actualize" == *'- Hung plans, `spec-wrong`: one batch, not one question per plan'* ]] \
+    || fail "hung plans cost one question each and exhaust the budget"
+  [[ "$actualize" == *'every `remove_document` call on a `plan` followed the one batch confirmation'* ]] \
+    || fail "a plan can be removed outside the confirmed batch"
+  [[ "$describe" == *'Tag each gathered fact `code-says` with its `@path` or `code-cannot-say` with its kind'* ]] \
+    || fail "describe does not sort facts into what the code says and what it cannot"
+}
