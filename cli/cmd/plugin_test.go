@@ -553,6 +553,36 @@ func writeVersionedFixture(t *testing.T, bin, name, version string) string {
 	return log
 }
 
+// writeOpenCode2Fixture is an OpenCode 2.x CLI whose `plugin list` prints
+// list, the way the running OpenCode service answers it. Every call except
+// --version is logged.
+func writeOpenCode2Fixture(t *testing.T, bin, list string) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the fixture host CLIs are #!/bin/sh scripts; CI runs Linux only")
+	}
+	log := filepath.Join(t.TempDir(), "opencode.log")
+	script := "#!/bin/sh\n[ \"$1\" = --version ] && { echo 'opencode v2.1.4'; exit 0; }\necho \"$*\" >> " + log + "\n" +
+		"[ \"$1 $2\" = 'plugin list' ] && printf '%s\\n' '" + list + "'\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(bin, "opencode"), []byte(script), 0o755); err != nil {
+		t.Fatalf("writing the opencode fixture: %v", err)
+	}
+	return log
+}
+
+// writeGlobalOpenCodeConfig lists the plugin in the global OpenCode config,
+// where `opencode plugin add` writes it.
+func writeGlobalOpenCodeConfig(t *testing.T) {
+	t.Helper()
+	config := os.Getenv("XDG_CONFIG_HOME")
+	if err := os.MkdirAll(filepath.Join(config, "opencode"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(config, "opencode", "opencode.json"), []byte(`{"plugins":["@archcore/opencode-plugin"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // archcoreProject is a resolved project root that carries .archcore/.
 func archcoreProject(t *testing.T) string {
 	t.Helper()
@@ -636,7 +666,7 @@ func TestPluginInstallUsesTheOpenCode2Command(t *testing.T) {
 	if err != nil {
 		t.Fatalf("install exited nonzero: %v\n%s", err, out)
 	}
-	if want := []string{"plugin add @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
+	if want := []string{"plugin list", "plugin add @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
 		t.Errorf("opencode ran %q, want %q", fixtureRuns(t, log), want)
 	}
 }
@@ -645,22 +675,35 @@ func TestPluginInstallUsesTheOpenCode2Command(t *testing.T) {
 // update` runs: outside a project, with the plugin in the global config.
 func TestPluginUpdateRefreshesTheGlobalOpenCode2Install(t *testing.T) {
 	bin := isolatePluginRun(t)
-	log := writeVersionedFixture(t, bin, "opencode", "opencode v2.1.4")
-	config := os.Getenv("XDG_CONFIG_HOME")
-	if err := os.MkdirAll(filepath.Join(config, "opencode"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(config, "opencode", "opencode.json"), []byte(`{"plugins":["@archcore/opencode-plugin"]}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	log := writeOpenCode2Fixture(t, bin, "ID VERSION SOURCE\n@archcore/opencode-plugin 0.15.1 @archcore/opencode-plugin")
+	writeGlobalOpenCodeConfig(t)
 
 	out, err := runPluginCmd(t, "update", "--agent", "opencode")
 	if err != nil {
 		t.Fatalf("update exited nonzero: %v\n%s", err, out)
 	}
-	runs := fixtureRuns(t, log)
-	if len(runs) != 1 || runs[0] != "plugin update @archcore/opencode-plugin" {
-		t.Errorf("opencode ran %q, want one plugin update", runs)
+	if want := []string{"plugin list", "plugin update @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
+		t.Errorf("opencode ran %q, want %q", fixtureRuns(t, log), want)
+	}
+}
+
+// TestPluginUpdateExplainsAnOpenCodeServiceThatMissesThePlugin covers
+// updating-the-plugin.spec §30, the 2026-11-02 incident: the global config
+// lists the plugin, the running service does not, so the update would fail.
+func TestPluginUpdateExplainsAnOpenCodeServiceThatMissesThePlugin(t *testing.T) {
+	bin := isolatePluginRun(t)
+	log := writeOpenCode2Fixture(t, bin, "No plugins found")
+	writeGlobalOpenCodeConfig(t)
+
+	out, err := runPluginCmd(t, "update", "--agent", "opencode")
+	if err != nil {
+		t.Fatalf("update exited nonzero: %v\n%s", err, out)
+	}
+	if want := []string{"plugin list"}; !slices.Equal(fixtureRuns(t, log), want) {
+		t.Errorf("opencode ran %q, want the listing alone", fixtureRuns(t, log))
+	}
+	if !strings.Contains(out, "Restart the OpenCode service") || strings.Contains(out, "failed") {
+		t.Errorf("output = %q, want the service hint and no failure line", out)
 	}
 }
 

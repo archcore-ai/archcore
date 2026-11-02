@@ -1284,6 +1284,7 @@ func TestPlanUpdatesOpenCode2WithoutAProject(t *testing.T) {
 	listed := Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: true, Listed: true}
 	v2 := listed
 	v2.HostMajor = 2
+	v2.ServiceListingOK, v2.ServiceListed = true, true
 	actions := Plan(VerbUpdate, []Evidence{v2})
 	if len(actions) != 1 || !slices.Equal(commandLines(actions[0].Commands), []string{"opencode plugin update @archcore/opencode-plugin"}) {
 		t.Errorf("2.x update = %+v, want opencode plugin update", actions)
@@ -1294,11 +1295,53 @@ func TestPlanUpdatesOpenCode2WithoutAProject(t *testing.T) {
 		t.Errorf("1.x update = %+v, want nothing", actions)
 	}
 	unlisted := v2
-	unlisted.Listed = false
+	unlisted.Listed, unlisted.ServiceListed = false, false
 	if actions := Plan(VerbUpdate, []Evidence{unlisted}); len(actions) != 0 {
 		t.Errorf("unlisted 2.x update = %+v, want nothing", actions)
 	}
 	if actions := Plan(VerbInstall, []Evidence{v2}); len(actions) != 1 || actions[0].Kind != ActionReportInstalled {
 		t.Errorf("install over a listed plugin without a project = %+v, want a report", actions)
+	}
+}
+
+// TestPlanUpdatesOpenCode2OnTheServiceListing covers the 2026-11-02 incident:
+// `opencode plugin update` asks the running service, so the service listing,
+// not the config, decides — updating-the-plugin.spec §29 and §30.
+func TestPlanUpdatesOpenCode2OnTheServiceListing(t *testing.T) {
+	base := Evidence{Host: HostOpenCode, CLIPresent: true, HostMajor: 2}
+	for _, tt := range []struct {
+		name                     string
+		configOK, configListed   bool
+		serviceOK, serviceListed bool
+		want                     ActionKind
+		wantNone                 bool
+	}{
+		{name: "both list it", configOK: true, configListed: true, serviceOK: true, serviceListed: true, want: ActionRun},
+		{name: "only the service lists it", configOK: true, serviceOK: true, serviceListed: true, want: ActionRun},
+		{name: "only the config lists it", configOK: true, configListed: true, serviceOK: true, want: ActionPrintUINote},
+		{name: "the service listing failed", configOK: true, configListed: true, wantNone: true},
+		{name: "neither lists it", configOK: true, serviceOK: true, wantNone: true},
+		{name: "an unreadable config", serviceOK: true, wantNone: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ev := base
+			ev.ListingOK, ev.Listed = tt.configOK, tt.configListed
+			ev.ServiceListingOK, ev.ServiceListed = tt.serviceOK, tt.serviceListed
+			actions := Plan(VerbUpdate, []Evidence{ev})
+			if tt.wantNone {
+				if len(actions) != 0 {
+					t.Errorf("actions = %+v, want nothing", actions)
+				}
+				return
+			}
+			if len(actions) != 1 || actions[0].Kind != tt.want {
+				t.Fatalf("actions = %+v, want one %v", actions, tt.want)
+			}
+			if tt.want == ActionPrintUINote {
+				if actions[0].Note != openCodeServiceNote || len(actions[0].Commands) != 0 {
+					t.Errorf("note action = %+v, want the service note and no command", actions[0])
+				}
+			}
+		})
 	}
 }
