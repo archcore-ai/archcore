@@ -166,16 +166,12 @@ func HandleCreateDocument(root RootProvider) func(ctx context.Context, request m
 		relPath, _ := filepath.Rel(baseDir, outputFile)
 		relPath = filepath.ToSlash(relPath)
 
-		// Guard the full target path BEFORE MkdirAll: a symlinked ancestor or a
-		// (case-variant) global directory must be rejected before any side effect.
-		globals, guardFail := loadGlobalsFailClosed(baseDir)
-		if guardFail != nil {
-			return guardFail, nil
-		}
-		if _, err := guardWritablePath(baseDir, relPath, globals); err != nil {
+		// Guard the full target path BEFORE MkdirAll: a symlinked ancestor must be
+		// rejected before any side effect.
+		if _, err := guardWritablePath(baseDir, relPath); err != nil {
 			switch {
-			case errors.Is(err, errPathReadOnlyGlobal):
-				return errorResult("cannot create document in a read-only global source"), nil
+			case errors.Is(err, errPathOtherProject):
+				return errorResult(otherProjectRefusal(baseDir, relPath)), nil
 			case errors.Is(err, errPathNotDocument):
 				return errorResult("invalid path: not a document — only .md document files can be created"), nil
 			default:

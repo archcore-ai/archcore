@@ -53,8 +53,8 @@ func TestGlobals_SurfacedFromAWorktree(t *testing.T) {
 	for _, d := range docs {
 		if d.SourceKind == "global" {
 			globals++
-			if !d.ReadOnly {
-				t.Errorf("global doc %q is not read_only", d.Path)
+			if filepath.Base(d.SourceRoot) != "company-global" {
+				t.Errorf("global doc %q source_root = %q, want the company-global checkout", d.Path, d.SourceRoot)
 			}
 			if d.SourceID != "company" {
 				t.Errorf("global doc %q source_id = %q, want %q", d.Path, d.SourceID, "company")

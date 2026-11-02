@@ -287,7 +287,7 @@ func TestSearchDocuments_NearMissesFillTheByteBudgetExactly(t *testing.T) {
 	probe := len(searchText(t, callSearch(t, base, query(1))))
 	// The server appends the project field after the handler returns, so the
 	// handler fills the budget less the bytes that field takes.
-	budget := searchResponseByteBudget - projectFieldBytes(base)
+	budget := searchResponseByteBudget - projectFieldBytes(t.Context(), base)
 
 	text := searchText(t, callSearch(t, base, query(1+budget-probe)))
 	raw := rawEnvelope(t, text)
@@ -311,7 +311,7 @@ func TestSearchDocuments_NearMissOneByteOverTheBudgetLeaves(t *testing.T) {
 		return map[string]any{"content": "alpha " + strings.Repeat("q", wordLen)}
 	}
 	probe := len(searchText(t, callSearch(t, base, query(1))))
-	budget := searchResponseByteBudget - projectFieldBytes(base)
+	budget := searchResponseByteBudget - projectFieldBytes(t.Context(), base)
 
 	text := searchText(t, callSearch(t, base, query(2+budget-probe)))
 	raw := rawEnvelope(t, text)

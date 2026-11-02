@@ -79,8 +79,8 @@ func collectStatus(baseDir string) *statusReport {
 	// this on every document mutation, and the structural checks used to re-read
 	// each file with os.ReadFile — bypassing the scan cache and doubling the I/O.
 	//
-	// Local only: mounted read-only globals belong to their own repo and the
-	// consumer cannot fix their naming or tags. Their health is reported by
+	// Local only: declared globals belong to their own repo, whose own status
+	// reports their naming and tags. Their health is reported by
 	// checkGlobalSources, which is also why these checks keep running when a
 	// declared global is broken.
 	corpus, scanErr := docs.ScanLocal(baseDir, true)

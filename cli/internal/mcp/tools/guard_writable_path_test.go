@@ -8,18 +8,11 @@ import (
 	"strings"
 	"sync"
 	"testing"
-
-	"archcore-cli/internal/config"
 )
 
 func TestGuardWritablePath(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
-	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "vendored", Path: ".archcore/vendored"}})
-	globals, err := config.LoadGlobals(base)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	tests := []struct {
 		name    string
@@ -29,15 +22,12 @@ func TestGuardWritablePath(t *testing.T) {
 	}{
 		{name: "valid local document", relPath: ".archcore/knowledge/a.adr.md"},
 		{name: "valid root document", relPath: ".archcore/a.adr.md"},
-		{name: "reserved global exact", relPath: ".archcore/global/x.rule.md", wantErr: errPathReadOnlyGlobal},
-		{name: "reserved global capitalized", relPath: ".archcore/Global/x.rule.md", wantErr: errPathReadOnlyGlobal},
-		{name: "reserved global mixed case nested", relPath: ".archcore/team/gLoBaL/x.rule.md", wantErr: errPathReadOnlyGlobal},
 		{name: "settings.json is not a document", relPath: ".archcore/settings.json", wantErr: errPathNotDocument},
 		{name: "sync state is not a document", relPath: ".archcore/.sync-state.json", wantErr: errPathNotDocument},
 		{name: "non-md file is not a document", relPath: ".archcore/notes.txt", wantErr: errPathNotDocument},
 		{name: "nested meta file is not a document", relPath: ".archcore/sub/settings.json", wantErr: errPathNotDocument},
-		{name: "declared global exact", relPath: ".archcore/vendored/x.rule.md", wantErr: errPathReadOnlyGlobal},
-		{name: "declared global case variant", relPath: ".archcore/Vendored/x.rule.md", wantErr: errPathReadOnlyGlobal},
+		{name: "global directory is local", relPath: ".archcore/Global/x.rule.md"},
+		{name: "other project", relPath: "../company/.archcore/x.rule.md", wantErr: errPathOtherProject},
 		{name: "path traversal", relPath: ".archcore/../etc/passwd.md", lexical: true},
 		{name: "absolute path", relPath: "/etc/x.md", lexical: true},
 		{name: "outside archcore", relPath: "src/x.md", lexical: true},
@@ -45,7 +35,7 @@ func TestGuardWritablePath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := guardWritablePath(base, tt.relPath, globals)
+			_, err := guardWritablePath(base, tt.relPath)
 			switch {
 			case tt.lexical:
 				if err == nil {
@@ -78,7 +68,7 @@ func TestGuardWritablePath_SymlinkEscape(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := guardWritablePath(base, ".archcore/lnk/x.adr.md", nil)
+	_, err := guardWritablePath(base, ".archcore/lnk/x.adr.md")
 	if !errors.Is(err, errPathEscapes) {
 		t.Fatalf("error = %v, want errPathEscapes", err)
 	}
@@ -179,49 +169,6 @@ func TestHandleRemoveDocument_SyncStateBlocked(t *testing.T) {
 	}
 	if _, err := os.Stat(manifestFile); err != nil {
 		t.Error(".sync-state.json must still exist after a rejected removal")
-	}
-}
-
-func TestHandleCreateDocument_CaseVariantGlobalBlocked(t *testing.T) {
-	t.Parallel()
-	base := setupTestArchcore(t)
-
-	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
-		"type":      "rule",
-		"filename":  "sneaky",
-		"directory": "Global/corp",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !result.IsError {
-		t.Fatal("expected error for create under case-variant Global/")
-	}
-	if msg := resultText(t, result); !strings.Contains(msg, "cannot create document in a read-only global source") {
-		t.Errorf("message = %q, want pinned global rejection", msg)
-	}
-	if _, err := os.Stat(filepath.Join(base, ".archcore", "Global")); !os.IsNotExist(err) {
-		t.Error("no directory may be created for a rejected path")
-	}
-}
-
-func TestHandleUpdateDocument_CaseVariantGlobalBlocked(t *testing.T) {
-	t.Parallel()
-	base := setupTestArchcore(t)
-	writeDoc(t, base, "global/corp", "x.rule.md", "---\ntitle: G\nstatus: accepted\n---\n\nbody\n")
-
-	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
-		"path":  ".archcore/Global/corp/x.rule.md",
-		"title": "Pwned",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !result.IsError {
-		t.Fatal("expected error for update through case-variant Global/ path")
-	}
-	if msg := resultText(t, result); !strings.Contains(msg, "cannot update a read-only global source document") {
-		t.Errorf("message = %q, want pinned global rejection", msg)
 	}
 }
 

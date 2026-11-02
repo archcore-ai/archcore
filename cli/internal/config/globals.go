@@ -23,7 +23,7 @@ var (
 	ErrGlobalMissing     = errors.New("global source directory does not exist")
 	ErrGlobalNotDir      = errors.New("global source path is not a directory")
 	ErrGlobalUnreadable  = errors.New("global source directory is not readable")
-	ErrGlobalSelfOverlap = errors.New("global source resolves to the project's own .archcore")
+	ErrGlobalSelfOverlap = errors.New("global source overlaps the project's own .archcore")
 )
 
 // ResolveGlobalPath returns the absolute, cleaned directory a global source path
@@ -204,8 +204,8 @@ func holdsArchcoreDir(dir string) bool {
 
 // CheckGlobalDir classifies a global source's resolved directory at the
 // filesystem level, returning one of the ErrGlobal* sentinels (match with
-// errors.Is) or nil when the directory exists, is a readable directory, and does
-// not overlap the primary's own .archcore tree.
+// errors.Is) or nil when the directory exists, is a readable directory, and
+// neither contains nor lies inside the primary's own .archcore tree.
 //
 // It deliberately does NOT inspect document contents: an existing, readable
 // directory holding zero archcore documents returns nil here. "Empty" is a
@@ -215,13 +215,15 @@ func holdsArchcoreDir(dir string) bool {
 // error never embeds resolvedDir, so callers can format a message from the
 // declared id/path without leaking an absolute path.
 func CheckGlobalDir(baseDir, resolvedDir string) error {
-	// Self-overlap: a global may not resolve to the primary's own .archcore or an
-	// ancestor of it, which would re-mount the primary's local documents as
-	// read-only globals. In-tree vendored globals (descendants such as
-	// .archcore/global/<id>) are allowed and intentionally not flagged.
+	// Overlap: a source may not be the primary's own .archcore, an ancestor of
+	// it, or a directory inside it. The first two re-mount the primary's own
+	// documents; the third makes one file both a local document and a source
+	// document, with two answers to which project a write reaches
+	// (source-mounts.spec, behavior 16).
 	archcoreDir := filepath.Clean(filepath.Join(baseDir, dirName))
 	if resolvedDir == archcoreDir ||
-		strings.HasPrefix(archcoreDir, resolvedDir+string(filepath.Separator)) {
+		strings.HasPrefix(archcoreDir, resolvedDir+string(filepath.Separator)) ||
+		strings.HasPrefix(resolvedDir, archcoreDir+string(filepath.Separator)) {
 		return ErrGlobalSelfOverlap
 	}
 
@@ -267,7 +269,7 @@ func DescribeGlobalDirError(gs GlobalSource, err error) string {
 	case errors.Is(err, ErrGlobalUnreadable):
 		return fmt.Sprintf("global source %q at %q is not readable", gs.ID, gs.Path)
 	case errors.Is(err, ErrGlobalSelfOverlap):
-		return fmt.Sprintf("global source %q at %q resolves to the project's own .archcore", gs.ID, gs.Path)
+		return fmt.Sprintf("global source %q at %q overlaps the project's own .archcore: move the source to a directory outside it that holds its own .archcore/, and point path at that .archcore", gs.ID, gs.Path)
 	default:
 		return fmt.Sprintf("global source %q at %q is not usable", gs.ID, gs.Path)
 	}

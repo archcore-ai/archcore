@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,7 +24,7 @@ const moreGeneralCall = `list_documents(types=["rule","cpat"], status="accepted"
 // searchFileContext serves search_documents for_path: the file-context result
 // the pre-edit hook renders, filtered by source, types, and status, then capped
 // (search-documents.spec §1.13–§1.14).
-func searchFileContext(baseDir, forPath, sourceFilter string, types []templates.DocumentType, status templates.DocStatus) (*mcp.CallToolResult, error) {
+func searchFileContext(ctx context.Context, baseDir, forPath, sourceFilter string, types []templates.DocumentType, status templates.DocStatus) (*mcp.CallToolResult, error) {
 	fc, err := advisory.ResolveFileContext(baseDir, forPath)
 	switch {
 	case errors.Is(err, advisory.ErrOutsideProject):
@@ -73,7 +74,7 @@ func searchFileContext(baseDir, forPath, sourceFilter string, types []templates.
 		if err != nil {
 			return nil, fmt.Errorf("marshaling file context: %w", err)
 		}
-		if len(data)+projectFieldBytes(baseDir) <= forPathByteBudget || shownMatched+shownGeneral <= 1 {
+		if len(data)+projectFieldBytes(ctx, baseDir) <= forPathByteBudget || shownMatched+shownGeneral <= 1 {
 			return mcp.NewToolResultText(string(data)), nil
 		}
 		truncated = true
@@ -101,7 +102,7 @@ func fileContextResponse(rel string, coverage, hits map[string]int, matched, gen
 		// spend the byte budget that keeps the result inline.
 		response.Results = append(response.Results, searchResult{
 			Path: d.Path, Title: d.Title, Type: d.Type, Status: d.Status, ModTime: d.ModTime, Tags: d.Tags,
-			SourceID: d.SourceID, SourceKind: d.SourceKind, Global: d.Global, ReadOnly: d.ReadOnly,
+			SourceID: d.SourceID, SourceKind: d.SourceKind, SourceRoot: d.SourceRoot,
 			Matches: []searchMatch{}, Reason: row.Reason,
 			IncomingRelations: []DocumentRelation{}, OutgoingRelations: []DocumentRelation{},
 		})

@@ -38,7 +38,7 @@ type scanOptions struct {
 }
 
 // Scan discovers all .md files recursively inside .archcore/.
-// Global sources declared in settings.json are scanned read-only.
+// Global sources declared in settings.json are scanned with it.
 func Scan(baseDir string) ([]Document, error) {
 	return scanAll(baseDir, scanOptions{globals: config.ReadGlobals(baseDir)})
 }
@@ -77,22 +77,22 @@ func ScanLocalTypes(baseDir string, types map[templates.DocumentType]bool) ([]Do
 	return scanLocal(baseDir, scanOptions{includeContent: true, types: types, globals: config.ReadGlobals(baseDir)})
 }
 
-// scanLocal performs phase 1 of the scan: the primary's own documents.
-// It skips the reserved global/ mount directory and any document that falls under
-// a declared global source (surfaced read-only in phase 2 instead), so a document
-// is never scanned as both local and global. A missing .archcore/ yields (nil, nil).
+// scanLocal performs phase 1 of the scan: the primary's own documents. A source
+// declared under .archcore/ is refused by config.CheckGlobalDir; until the user
+// moves it, the local-only surfaces (hooks, status) skip its documents instead
+// of counting them as local. A missing .archcore/ yields (nil, nil).
 func scanLocal(baseDir string, opt scanOptions) ([]Document, error) {
 	scanCount.Add(1)
 	archcoreDir := filepath.Join(baseDir, ".archcore")
 	roots := resolveGlobalRoots(baseDir, opt.globals)
 	var docs []Document
 
-	err := templates.WalkArchcoreFilesSkipping(archcoreDir, []string{"global"}, func(p string, d fs.DirEntry) error {
+	err := templates.WalkArchcoreFilesSkipping(archcoreDir, nil, func(p string, d fs.DirEntry) error {
 		if !opt.accepts(d.Name()) {
 			return nil
 		}
-		if roots.contains(filepath.ToSlash(p)) {
-			return nil // surfaced read-only in phase 2, never as a local document
+		if _, misdeclared := roots.index(filepath.ToSlash(p)); misdeclared {
+			return nil
 		}
 		doc := buildDoc(baseDir, p, d, opt.includeContent)
 		doc.SourceID = string(SourceKindLocal)
@@ -118,9 +118,9 @@ func (o scanOptions) accepts(filename string) bool {
 }
 
 // scanAll walks .archcore/ in two phases:
-//  1. Local documents — skips the global/ subdirectory entirely (scanLocal).
-//  2. Global sources declared in settings.json — each source is walked
-//     independently and documents are tagged read-only.
+//  1. Local documents (scanLocal).
+//  2. Sources declared in settings.json — each source is walked independently
+//     and its documents are tagged with the source id and root.
 func scanAll(baseDir string, opt scanOptions) ([]Document, error) {
 	docs, err := scanLocal(baseDir, opt)
 	if err != nil {
@@ -147,6 +147,7 @@ func scanAll(baseDir string, opt scanOptions) ([]Document, error) {
 			}
 			return nil, errors.New(config.DescribeGlobalDirError(gs, dirErr))
 		}
+		root := sourceRoot(gsDir)
 		walkErr := templates.WalkArchcoreFilesSkipping(gsDir, nil, func(p string, d fs.DirEntry) error {
 			// Mount only recognized document types: a misconfigured path (e.g. a
 			// parent directory) must not surface stray .md files as malformed docs.
@@ -156,8 +157,7 @@ func scanAll(baseDir string, opt scanOptions) ([]Document, error) {
 			doc := buildDoc(baseDir, p, d, opt.includeContent)
 			doc.SourceID = gs.ID
 			doc.SourceKind = SourceKindGlobal
-			doc.Global = true
-			doc.ReadOnly = true
+			doc.SourceRoot = root
 			docs = append(docs, doc)
 			return nil
 		})

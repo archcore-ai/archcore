@@ -4,7 +4,7 @@ The shared Archcore project is the repository root (`..` from this directory).
 All `.archcore/` references below name that root, not `cli/.archcore/`.
 Run CLI build and test commands from `cli/`.
 
-<!-- archcore:start --> managed by `archcore init`, block v2 — edit outside these markers
+<!-- archcore:start --> managed by `archcore init`, block v3 — edit outside these markers
 ## Archcore — project context for this repo
 
 `.archcore/` holds this project's recorded context as typed Markdown files,
@@ -28,10 +28,11 @@ Before you change, test, or explain code here, call `search_documents` with `for
 If the Archcore MCP tools are missing or fail to connect, tell the user once, then
 take the file route above. Do not write `.archcore/` files by hand.
 
-A `.archcore/` may also mount read-only **global sources** — shared, org-wide
-context. `list_documents` / `search_documents` surface them alongside local docs,
-tagged `source_kind: "global"`. When present, treat them as defaults a local doc
-can override — never edit or relate to one.
+A `.archcore/` may also declare **global sources** — shared, org-wide context.
+`list_documents` / `search_documents` surface them alongside local docs, tagged
+`source_kind: "global"` with a `source_root`. Treat them as defaults a local doc
+can override. A change to a source reaches every project that declares it: make
+one only when the user asks, with `project` set to its `source_root`.
 
 Skip these steps only for turns this repo would have no opinion on: syntax
 trivia, throwaway snippets, pure mechanics.
@@ -153,7 +154,7 @@ Before researching project behavior, architecture, conventions, or implementatio
 3. Search the codebase when `.archcore/` does not provide enough evidence.
 4. Use external sources only when repository context and source code are insufficient.
 
-Treat mounted global Archcore documents as read-only defaults. Do not edit them or create relations to them.
+Treat global Archcore documents as defaults a local document overrides. Edit one only when the user asks, through its source project (`project` set to its `source_root`). Do not create relations between projects.
 
 ## Go code quality
 

@@ -21,7 +21,6 @@ Codex CLI**.
 | [05-global-single-source](05-global-single-source/) | reuse one shared source |
 | [06-global-multiple-sources](06-global-multiple-sources/) | reuse several shared sources at once |
 | [07-local-overrides-global](07-local-overrides-global/) | keep the company standards, override one locally |
-| [08-global-in-archcore](08-global-in-archcore/) | keep the shared standards inside your own `.archcore/` |
 
 ## In a monorepo
 

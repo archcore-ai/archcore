@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"archcore-cli/internal/config"
 )
 
 // The guard is the single answer to "may this path be written?", shared by the
@@ -56,7 +54,6 @@ func TestValidateArchcorePath(t *testing.T) {
 
 func TestGuardWritablePath(t *testing.T) {
 	t.Parallel()
-	globals := []config.GlobalSource{{ID: "company", Path: ".archcore/global/company"}}
 
 	tests := []struct {
 		name    string
@@ -68,10 +65,9 @@ func TestGuardWritablePath(t *testing.T) {
 		{name: "settings.json is not a document", relPath: ".archcore/settings.json", wantErr: ErrPathNotDocument},
 		{name: "sync state is not a document", relPath: ".archcore/.sync-state.json", wantErr: ErrPathNotDocument},
 		{name: "non-markdown is not a document", relPath: ".archcore/knowledge/a.txt", wantErr: ErrPathNotDocument},
-		{name: "reserved global tree is read-only", relPath: ".archcore/global/x.rule.md", wantErr: ErrPathReadOnlyGlobal},
-		{name: "nested reserved global is read-only", relPath: ".archcore/a/global/b.rule.md", wantErr: ErrPathReadOnlyGlobal},
-		{name: "case-variant reserved global is read-only", relPath: ".archcore/Global/x.rule.md", wantErr: ErrPathReadOnlyGlobal},
-		{name: "declared global source is read-only", relPath: ".archcore/global/company/x.rule.md", wantErr: ErrPathReadOnlyGlobal},
+		{name: "a global directory is an ordinary local directory", relPath: ".archcore/global/x.rule.md"},
+		{name: "a path climbing to another project", relPath: "../g/.archcore/x.rule.md", wantErr: ErrPathOtherProject},
+		{name: "a path climbing out after cleaning", relPath: ".archcore/../../g/.archcore/x.rule.md", wantErr: ErrPathOtherProject},
 		{name: "global-ish sibling stays writable", relPath: ".archcore/global-ish/x.rule.md"},
 		{name: "global in filename stays writable", relPath: ".archcore/knowledge/global.rule.md"},
 	}
@@ -82,7 +78,7 @@ func TestGuardWritablePath(t *testing.T) {
 			if err := os.MkdirAll(filepath.Join(base, ".archcore"), 0o755); err != nil {
 				t.Fatal(err)
 			}
-			got, err := GuardWritablePath(base, tt.relPath, globals)
+			got, err := GuardWritablePath(base, tt.relPath)
 			if tt.wantErr != nil {
 				if !errors.Is(err, tt.wantErr) {
 					t.Fatalf("GuardWritablePath(%q) error = %v, want %v", tt.relPath, err, tt.wantErr)

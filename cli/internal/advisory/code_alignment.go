@@ -374,11 +374,10 @@ func writeContextRow(b *strings.Builder, row ContextRow) {
 	if row.Doc.Status == templates.StatusDraft {
 		b.WriteString(" [draft]")
 	}
-	if row.Doc.Global {
-		// Org-wide rules constrain the edit as much as local ones, but they
-		// live in a read-only mount — marking them stops the reader from
-		// trying to update what they cannot write.
-		b.WriteString(" [global]")
+	if row.Doc.SourceKind == docs.SourceKindGlobal {
+		// A source rule binds the edit as a local one does, but it belongs to
+		// another project: a change to it goes through that project, not this one.
+		fmt.Fprintf(b, " [source:%s]", row.Doc.SourceID)
 	}
 	b.WriteByte('\n')
 }

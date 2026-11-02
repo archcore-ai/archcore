@@ -24,8 +24,8 @@ const (
 // globalIDRe validates a global source id: lowercase alphanumeric with hyphens.
 var globalIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
-// GlobalSource declares a read-only external knowledge base mounted into the
-// local project for read operations.
+// GlobalSource declares another project's .archcore/ whose documents every read
+// of this project includes (source-mounts.spec).
 type GlobalSource struct {
 	ID string `json:"id"`
 	// Path points at the global source's .archcore directory, e.g.

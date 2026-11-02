@@ -311,7 +311,7 @@ func TestHandleSearchDocuments_BudgetCutKeepsSourceRepresentation(t *testing.T) 
 	}
 	globals := 0
 	for _, row := range got.Results {
-		if row.Global {
+		if row.SourceKind == "global" {
 			globals++
 		}
 	}

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"archcore-cli/internal/docs"
 	"archcore-cli/internal/projectroot"
 	"archcore-cli/internal/stamp"
 )
@@ -129,11 +130,16 @@ func (h *hookRoots) guard(root string) *writeGuard {
 
 // withProjectHint names the project argument in a deny for a file of another
 // project, so the agent's retry through the MCP tools reaches that project and
-// not the session's.
+// not the session's. A project the session declares as a source is named by its
+// id too, because a change there reaches every project that declares it
+// (source-mounts.spec, behavior 13).
 func withProjectHint(dec hookDecision, root, session string) hookDecision {
 	if root != session {
 		root = projectroot.Canonical(root)
 		dec.reason += fmt.Sprintf("\nThis file belongs to the Archcore project at %s: pass project=\"%s\" to these tools.", root, root)
+		if id, ok := docs.SourceIDFor(session, root); ok {
+			dec.reason += fmt.Sprintf(" That project is source %q of this session's project; a change there reaches every project that declares it.", id)
+		}
 	}
 	return dec
 }

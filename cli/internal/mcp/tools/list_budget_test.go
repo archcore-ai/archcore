@@ -63,7 +63,7 @@ func TestHandleListDocuments_ResponseStaysUnderByteBudget(t *testing.T) {
 	}
 	globals := 0
 	for _, d := range got.Documents {
-		if d.Global {
+		if d.SourceKind == "global" {
 			globals++
 		}
 	}

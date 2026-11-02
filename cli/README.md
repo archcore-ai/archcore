@@ -63,7 +63,7 @@ Three events. `session-start` injects the recap of decisions and work in progres
 
 ### Configuration
 
-`.archcore/settings.json`: `sync` (`none`, `cloud`, `on-prem`), `language` (document language, default `en`), and `globals` (read-only external sources, each with an `id` and a `path`). `archcore config`, `archcore config get <key>`, `archcore config set <key> <value>`.
+`.archcore/settings.json`: `sync` (`none`, `cloud`, `on-prem`), `language` (document language, default `en`), and `globals` (sources read with this project, each with an `id` and a `path` to another project's `.archcore/`). `archcore config`, `archcore config get <key>`, `archcore config set <key> <value>`.
 
 ### Update and telemetry
 
@@ -75,6 +75,6 @@ Three events. `session-start` injects the recap of decisions and work in progres
 - Free-form `.archcore/` layout; a document's category is derived from its type suffix.
 - Path traversal protection and no absolute filesystem paths in MCP errors.
 - Shared host-wiring logic in `internal/wiring/`; co-located, table-driven tests.
-- Global sources are read-only everywhere.
+- A global source is a read policy: a write reaches it only through its own project (`project` argument), and no relation joins two projects.
 - Unattended update refuses without the official-build marker; telemetry stays inert without an injected key.
 - The plugin surface never changes behavior outside itself.

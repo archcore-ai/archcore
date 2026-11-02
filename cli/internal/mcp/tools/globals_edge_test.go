@@ -27,10 +27,10 @@ func TestScanDocuments_EmptyGlobalIsNotFatal(t *testing.T) {
 	base := setupTestArchcore(t)
 	writeDoc(t, base, "knowledge", "local.rule.md",
 		"---\ntitle: Local\nstatus: accepted\n---\n\nbody\n")
-	if err := os.MkdirAll(filepath.Join(base, ".archcore", "global", "empty"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(base, "vendor", "empty"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "empty", Path: ".archcore/global/empty"}})
+	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "empty", Path: "vendor/empty"}})
 
 	docs, err := scanDocuments(base)
 	if err != nil {
@@ -75,14 +75,14 @@ func TestScanDocuments_UnreadableGlobalFails(t *testing.T) {
 	}
 	t.Parallel()
 	base := setupTestArchcore(t)
-	writeGlobalDoc(t, base, ".archcore/global/noperm", "knowledge", "a.rule.md",
+	writeGlobalDoc(t, base, "vendor/noperm", "knowledge", "a.rule.md",
 		"---\ntitle: A\nstatus: accepted\n---\n\nbody\n")
-	noperm := filepath.Join(base, ".archcore", "global", "noperm")
+	noperm := filepath.Join(base, "vendor", "noperm")
 	if err := os.Chmod(noperm, 0o000); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(noperm, 0o755) })
-	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "noperm", Path: ".archcore/global/noperm"}})
+	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "noperm", Path: "vendor/noperm"}})
 
 	_, err := scanDocuments(base)
 	if err == nil {
@@ -119,11 +119,11 @@ func TestScanDocuments_SelfOverlapFails(t *testing.T) {
 func TestScanDocuments_DuplicatePathFails(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
-	writeGlobalDoc(t, base, ".archcore/global/dup", "knowledge", "a.rule.md",
+	writeGlobalDoc(t, base, "vendor/dup", "knowledge", "a.rule.md",
 		"---\ntitle: A\nstatus: accepted\n---\n\nbody\n")
 	writeGlobalsSettings(t, base, []config.GlobalSource{
-		{ID: "a", Path: ".archcore/global/dup"},
-		{ID: "b", Path: ".archcore/global/dup"},
+		{ID: "a", Path: "vendor/dup"},
+		{ID: "b", Path: "vendor/dup"},
 	})
 
 	_, err := scanDocuments(base)
@@ -141,10 +141,10 @@ func TestScanDocuments_DuplicatePathFails(t *testing.T) {
 func TestScanDocuments_GlobalValidTypeFilter(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
-	writeGlobalDoc(t, base, ".archcore/global/co", "knowledge", "good.rule.md",
+	writeGlobalDoc(t, base, "vendor/co", "knowledge", "good.rule.md",
 		"---\ntitle: Good\nstatus: accepted\n---\n\nbody\n")
-	writeGlobalDoc(t, base, ".archcore/global/co", "knowledge", "notes.bogus.md", "stray\n")
-	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "co", Path: ".archcore/global/co"}})
+	writeGlobalDoc(t, base, "vendor/co", "knowledge", "notes.bogus.md", "stray\n")
+	writeGlobalsSettings(t, base, []config.GlobalSource{{ID: "co", Path: "vendor/co"}})
 
 	docs, err := scanDocuments(base)
 	if err != nil {
@@ -166,16 +166,16 @@ func TestScanDocuments_GlobalValidTypeFilter(t *testing.T) {
 func TestInspectGlobals_States(t *testing.T) {
 	t.Parallel()
 	base := setupTestArchcore(t)
-	writeGlobalDoc(t, base, ".archcore/global/ok", "knowledge", "a.rule.md",
+	writeGlobalDoc(t, base, "vendor/ok", "knowledge", "a.rule.md",
 		"---\ntitle: A\nstatus: accepted\n---\n\nbody\n")
-	if err := os.MkdirAll(filepath.Join(base, ".archcore", "global", "empty"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(base, "vendor", "empty"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	writeGlobalsSettings(t, base, []config.GlobalSource{
-		{ID: "ok", Path: ".archcore/global/ok"},
-		{ID: "empty", Path: ".archcore/global/empty"},
-		{ID: "gone", Path: ".archcore/global/gone"},
-		{ID: "dup", Path: ".archcore/global/ok"},
+		{ID: "ok", Path: "vendor/ok"},
+		{ID: "empty", Path: "vendor/empty"},
+		{ID: "gone", Path: "vendor/gone"},
+		{ID: "dup", Path: "vendor/ok"},
 	})
 
 	got, err := inspectGlobals(base)

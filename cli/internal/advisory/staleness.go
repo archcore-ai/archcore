@@ -85,8 +85,8 @@ func Staleness(ctx context.Context, baseDir, stampDir string, corpus []docs.Docu
 }
 
 // correlateStaleness maps changed source files to documents that mention their
-// top-level directory. Global sources are excluded: they are read-only, so
-// asking the reader to update one is advice they cannot take.
+// top-level directory. Global sources are excluded: they belong to another
+// project, whose own session reports their staleness.
 func correlateStaleness(corpus []docs.Document, changed []string) []string {
 	counts := countChangedDirs(changed)
 	if len(counts) == 0 {

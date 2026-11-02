@@ -56,7 +56,7 @@ func buildInstructions(language string, mounted, missing []string) string {
 	if len(mounted) > 0 {
 		// An agent that does not know a global is mounted never queries it
 		// (global-recall-guarantees.rfc).
-		fmt.Fprintf(&b, "\n\nGLOBAL SOURCES, read-only, never relation endpoints: %s. Read a matching global too; a local document on one topic overrides it. If a retry returns only local rows, add source=\"global\".", joinSourceIDs(mounted))
+		fmt.Fprintf(&b, "\n\nGLOBAL SOURCES: %s. Read a matching global too; a local document on one topic overrides it. Write one with project=<its source_root>. If a retry returns only local rows, add source=\"global\".", joinSourceIDs(mounted))
 	}
 	if len(missing) > 0 {
 		// Without the notice an empty result from an uncloned source reads as

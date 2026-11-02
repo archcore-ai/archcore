@@ -40,14 +40,14 @@ const (
 	// instructionsHeader is the full start-marker line, including the human note
 	// that steers manual edits outside the managed span. Its "block vN" must equal
 	// InstructionsBlockVersion; a test holds the two together.
-	instructionsHeader = instructionsMarkerStart + " managed by `archcore init`, block v2 — edit outside these markers"
+	instructionsHeader = instructionsMarkerStart + " managed by `archcore init`, block v3 — edit outside these markers"
 )
 
 // InstructionsBlockVersion numbers the format of instructionsBody. Bump it with
 // every change to the body: a session compares it with the version a committed
 // block carries and names the command that closes the gap
 // (managed-block-version-and-staleness-advisory.adr).
-const InstructionsBlockVersion = 2
+const InstructionsBlockVersion = 3
 
 // codexProjectDocBudget is how much AGENTS.md text Codex reads: every AGENTS.md
 // of a session shares 32 KiB, and the tail is dropped without a notice
@@ -92,10 +92,11 @@ const instructionsBody = "## Archcore — project context for this repo\n" +
 	"If the Archcore MCP tools are missing or fail to connect, tell the user once, then\n" +
 	"take the file route above. Do not write `.archcore/` files by hand.\n" +
 	"\n" +
-	"A `.archcore/` may also mount read-only **global sources** — shared, org-wide\n" +
-	"context. `list_documents` / `search_documents` surface them alongside local docs,\n" +
-	"tagged `source_kind: \"global\"`. When present, treat them as defaults a local doc\n" +
-	"can override — never edit or relate to one.\n" +
+	"A `.archcore/` may also declare **global sources** — shared, org-wide context.\n" +
+	"`list_documents` / `search_documents` surface them alongside local docs, tagged\n" +
+	"`source_kind: \"global\"` with a `source_root`. Treat them as defaults a local doc\n" +
+	"can override. A change to a source reaches every project that declares it: make\n" +
+	"one only when the user asks, with `project` set to its `source_root`.\n" +
 	"\n" +
 	"Skip these steps only for turns this repo would have no opinion on: syntax\n" +
 	"trivia, throwaway snippets, pure mechanics."

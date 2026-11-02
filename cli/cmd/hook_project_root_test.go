@@ -607,3 +607,26 @@ func TestPreToolUse_CodeAlignmentFromThePatchsFirstTarget(t *testing.T) {
 		})
 	}
 }
+
+// TestPreToolUse_DenyNamesTheSource: a direct write to a document of a project
+// the session declares as a source is denied, and the deny names that project
+// and the source id (source-mounts.spec, behavior 13).
+func TestPreToolUse_DenyNamesTheSource(t *testing.T) {
+	t.Parallel()
+	w := newHookWorkspace(t)
+	settings := `{"sync":"none","globals":[{"id":"shared","path":"../b/.archcore"}]}`
+	if err := os.WriteFile(filepath.Join(w.a, ".archcore", "settings.json"), []byte(settings), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range []string{filepath.Join(w.b, ".archcore", "knowledge", "x.adr.md"), "../b/.archcore/knowledge/x.adr.md"} {
+		dec := preToolUseHandler(bg(), reqFor(t, "claude-code", w.a, writePayload(target, "")))
+		if !dec.deny {
+			t.Fatalf("%s: a write into a source store was allowed", target)
+		}
+		for _, want := range []string{`project="` + w.b + `"`, `source "shared"`} {
+			if !strings.Contains(dec.reason, want) {
+				t.Errorf("%s: reason %q does not name %s", target, dec.reason, want)
+			}
+		}
+	}
+}

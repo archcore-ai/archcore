@@ -95,7 +95,7 @@ func TestScanCount_TracksEveryWalk(t *testing.T) {
 	}
 
 	before = ScanCount()
-	if _, err := GuardWritablePath(base, ".archcore/knowledge/a.rule.md", nil); err != nil {
+	if _, err := GuardWritablePath(base, ".archcore/knowledge/a.rule.md"); err != nil {
 		t.Fatal(err)
 	}
 	if got := ScanCount() - before; got != 0 {
@@ -156,9 +156,10 @@ func TestScanCache_ByteAccountingIsBalanced(t *testing.T) {
 	}
 }
 
-// TestScanLocal_SkipsTheReservedGlobalTree: a "global" segment hides a document
-// from the local scan and makes it read-only — never one without the other.
-func TestScanLocal_SkipsTheReservedGlobalTree(t *testing.T) {
+// TestScanLocal_GlobalIsAnOrdinaryDirectory: no directory name is reserved; a
+// document under "global/" is a local document like any other
+// (source-mounts.spec, invariant: one address per document).
+func TestScanLocal_GlobalIsAnOrdinaryDirectory(t *testing.T) {
 	ResetCache()
 	base := newProject(t, map[string]string{
 		"knowledge/local.rule.md":         testDoc,
@@ -176,13 +177,15 @@ func TestScanLocal_SkipsTheReservedGlobalTree(t *testing.T) {
 	for _, d := range got {
 		paths = append(paths, d.Path)
 	}
-	for _, unwanted := range []string{".archcore/global/company/x.rule.md", ".archcore/nested/global/deep.rule.md"} {
-		if slicesContains(paths, unwanted) {
-			t.Errorf("reserved global document %s appeared in the local scan", unwanted)
+	for _, want := range []string{".archcore/global/company/x.rule.md", ".archcore/nested/global/deep.rule.md", ".archcore/global-ish/not-reserved.rule.md"} {
+		if !slicesContains(paths, want) {
+			t.Errorf("local document %s is missing from the local scan: %v", want, paths)
 		}
 	}
-	if !slicesContains(paths, ".archcore/global-ish/not-reserved.rule.md") {
-		t.Errorf("a directory merely starting with \"global\" was skipped: %v", paths)
+	for _, d := range got {
+		if d.SourceKind != SourceKindLocal {
+			t.Errorf("%s: SourceKind = %q, want local", d.Path, d.SourceKind)
+		}
 	}
 }
 

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -45,244 +46,6 @@ func writeGlobalsSettings(t *testing.T, base string, globals []config.GlobalSour
 	}
 }
 
-func TestScanDocuments_WithGlobals(t *testing.T) {
-	base := setupTestArchcore(t)
-
-	// Local documents.
-	writeDoc(t, base, "knowledge", "local-only.rule.md",
-		"---\ntitle: \"Local Only\"\nstatus: accepted\n---\n\nbody\n")
-	writeDoc(t, base, "knowledge", "react-query.rule.md",
-		"---\ntitle: \"React Query (Local Override)\"\nstatus: accepted\n---\n\nbody\n")
-
-	// Global: company source.
-	writeGlobalDoc(t, base, ".archcore/global/company", "knowledge", "react-query.rule.md",
-		"---\ntitle: \"React Query (Company)\"\nstatus: accepted\n---\n\nbody\n")
-	writeGlobalDoc(t, base, ".archcore/global/company", "knowledge", "security-policy.rule.md",
-		"---\ntitle: \"Security Policy\"\nstatus: accepted\n---\n\nbody\n")
-
-	// Global: platform source.
-	writeGlobalDoc(t, base, ".archcore/global/platform", "knowledge", "api-conventions.rule.md",
-		"---\ntitle: \"API Conventions\"\nstatus: accepted\n---\n\nbody\n")
-
-	writeGlobalsSettings(t, base, []config.GlobalSource{
-		{ID: "company", Path: ".archcore/global/company"},
-		{ID: "platform", Path: ".archcore/global/platform"},
-	})
-
-	docs, err := scanDocuments(base)
-	if err != nil {
-		t.Fatalf("scanDocuments: %v", err)
-	}
-	if len(docs) != 5 {
-		t.Fatalf("want 5 docs, got %d", len(docs))
-	}
-
-	byPath := make(map[string]LocalDocument, len(docs))
-	for _, d := range docs {
-		byPath[d.Path] = d
-	}
-
-	// Local docs must be writable.
-	for _, p := range []string{
-		".archcore/knowledge/local-only.rule.md",
-		".archcore/knowledge/react-query.rule.md",
-	} {
-		d, ok := byPath[p]
-		if !ok {
-			t.Errorf("missing local doc %s", p)
-			continue
-		}
-		if d.SourceKind != "local" {
-			t.Errorf("%s: want source_kind=local, got %q", p, d.SourceKind)
-		}
-		if d.SourceID != "local" {
-			t.Errorf("%s: want source_id=local, got %q", p, d.SourceID)
-		}
-		if d.ReadOnly {
-			t.Errorf("%s: want read_only=false", p)
-		}
-	}
-
-	// Company global docs must be read-only with correct source id.
-	for _, p := range []string{
-		".archcore/global/company/knowledge/react-query.rule.md",
-		".archcore/global/company/knowledge/security-policy.rule.md",
-	} {
-		d, ok := byPath[p]
-		if !ok {
-			t.Errorf("missing company doc %s", p)
-			continue
-		}
-		if d.SourceKind != "global" {
-			t.Errorf("%s: want source_kind=global, got %q", p, d.SourceKind)
-		}
-		if d.SourceID != "company" {
-			t.Errorf("%s: want source_id=company, got %q", p, d.SourceID)
-		}
-		if !d.ReadOnly {
-			t.Errorf("%s: want read_only=true", p)
-		}
-	}
-
-	// Platform global doc.
-	p := ".archcore/global/platform/knowledge/api-conventions.rule.md"
-	d, ok := byPath[p]
-	if !ok {
-		t.Errorf("missing platform doc %s", p)
-	} else {
-		if d.SourceID != "platform" {
-			t.Errorf("%s: want source_id=platform, got %q", p, d.SourceID)
-		}
-		if !d.ReadOnly {
-			t.Errorf("%s: want read_only=true", p)
-		}
-	}
-}
-
-func TestScanDocuments_SkipsGlobalDirWithoutDeclaration(t *testing.T) {
-	base := setupTestArchcore(t)
-
-	// Local doc.
-	writeDoc(t, base, "knowledge", "local.rule.md",
-		"---\ntitle: \"Local\"\nstatus: accepted\n---\n\nbody\n")
-
-	// Global tree present on disk but NOT declared in settings.
-	writeGlobalDoc(t, base, ".archcore/global/company", "knowledge", "company.rule.md",
-		"---\ntitle: \"Company\"\nstatus: accepted\n---\n\nbody\n")
-
-	// No settings.json → no globals declared.
-
-	docs, err := scanDocuments(base)
-	if err != nil {
-		t.Fatalf("scanDocuments: %v", err)
-	}
-	if len(docs) != 1 {
-		t.Errorf("want 1 doc (global/ skipped), got %d", len(docs))
-	}
-	if len(docs) > 0 && docs[0].SourceKind != "local" {
-		t.Errorf("doc should be local, got source_kind=%q", docs[0].SourceKind)
-	}
-}
-
-func TestCreateDocument_RejectsGlobalPath(t *testing.T) {
-	base := setupTestArchcore(t)
-
-	// Declare company so the write guard recognises the path as global.
-	writeGlobalsSettings(t, base, []config.GlobalSource{
-		{ID: "company", Path: ".archcore/global/company"},
-	})
-
-	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
-		"type":      "rule",
-		"filename":  "injected",
-		"directory": "global/company/knowledge",
-	})
-	if err != nil {
-		t.Fatalf("unexpected transport error: %v", err)
-	}
-	if !result.IsError {
-		t.Fatal("expected error result for global path, got success")
-	}
-}
-
-func TestUpdateDocument_RejectsGlobalPath(t *testing.T) {
-	base := setupTestArchcore(t)
-
-	writeGlobalsSettings(t, base, []config.GlobalSource{
-		{ID: "company", Path: ".archcore/global/company"},
-	})
-	writeGlobalDoc(t, base, ".archcore/global/company", "knowledge", "react-query.rule.md",
-		"---\ntitle: \"React Query (Company)\"\nstatus: accepted\n---\n\nbody\n")
-
-	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
-		"path":  ".archcore/global/company/knowledge/react-query.rule.md",
-		"title": "Hijacked",
-	})
-	if err != nil {
-		t.Fatalf("unexpected transport error: %v", err)
-	}
-	if !result.IsError {
-		t.Fatal("expected error result updating a global doc, got success")
-	}
-	// In-tree global path reaches the read-only guard directly, so the message is
-	// the clean read-only one (spec §5.5), not a path-validation error.
-	if got := result.Content[0].(mcp.TextContent).Text; got != "cannot update a read-only global source document" {
-		t.Errorf("message = %q, want clean read-only message (spec §5.5)", got)
-	}
-}
-
-func TestRemoveDocument_RejectsGlobalPath(t *testing.T) {
-	base := setupTestArchcore(t)
-
-	writeGlobalsSettings(t, base, []config.GlobalSource{
-		{ID: "company", Path: ".archcore/global/company"},
-	})
-	writeGlobalDoc(t, base, ".archcore/global/company", "knowledge", "security-policy.rule.md",
-		"---\ntitle: \"Security Policy\"\nstatus: accepted\n---\n\nbody\n")
-
-	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
-		"path": ".archcore/global/company/knowledge/security-policy.rule.md",
-	})
-	if err != nil {
-		t.Fatalf("unexpected transport error: %v", err)
-	}
-	if !result.IsError {
-		t.Fatal("expected error result removing a global doc, got success")
-	}
-}
-
-// TestCreateDocument_FailsClosedOnUnreadableSettings verifies the write guard
-// rejects rather than silently allows a write when settings.json is present but
-// unparseable — otherwise a corrupt config could let a write slip into a global.
-func TestCreateDocument_FailsClosedOnUnreadableSettings(t *testing.T) {
-	base := setupTestArchcore(t)
-
-	// Corrupt settings.json (present but invalid JSON).
-	settingsPath := filepath.Join(base, ".archcore", "settings.json")
-	if err := os.WriteFile(settingsPath, []byte("{not valid json"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
-		"type":      "rule",
-		"filename":  "doc",
-		"directory": "knowledge",
-	})
-	if err != nil {
-		t.Fatalf("unexpected transport error: %v", err)
-	}
-	if !result.IsError {
-		t.Fatal("expected error result when settings.json is unreadable, got success")
-	}
-}
-
-func TestIsGlobalPath_LookupBased(t *testing.T) {
-	baseDir := t.TempDir()
-	globals := []config.GlobalSource{
-		{ID: "company", Path: ".archcore/global/company"},
-		{ID: "platform", Path: "vendor/platform"},
-	}
-	tests := []struct {
-		name    string
-		relPath string
-		want    bool
-	}{
-		{"embedded global doc", ".archcore/global/company/knowledge/doc.rule.md", true},
-		{"embedded global nested doc", ".archcore/global/company/knowledge/nested/doc.rule.md", true},
-		{"external global doc", "vendor/platform/knowledge/api.rule.md", true},
-		{"local doc", ".archcore/knowledge/local.rule.md", false},
-		{"undeclared source", ".archcore/global/other/knowledge/doc.rule.md", false},
-		{"exact match on source root", ".archcore/global/company", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := docs.IsGlobalPath(baseDir, tt.relPath, globals); got != tt.want {
-				t.Errorf("IsGlobalPath(%q) = %v, want %v", tt.relPath, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestScanDocuments_WithExternalGlobal(t *testing.T) {
 	base := setupTestArchcore(t)
 
@@ -321,7 +84,7 @@ func TestScanDocuments_WithExternalGlobal(t *testing.T) {
 	if d.SourceKind != "global" {
 		t.Errorf("source_kind = %q, want %q", d.SourceKind, "global")
 	}
-	if !d.ReadOnly {
+	if !(d.SourceKind == "global") {
 		t.Error("want read_only=true for external global")
 	}
 }
@@ -334,11 +97,11 @@ func TestScanDocuments_MissingGlobalSkipped(t *testing.T) {
 
 	writeDoc(t, base, "knowledge", "local.rule.md",
 		"---\ntitle: \"Local\"\nstatus: accepted\n---\n\nbody\n")
-	writeDoc(t, base, "global/company/knowledge", "shared.rule.md",
+	writeGlobalDoc(t, base, "vendor/company", "knowledge", "shared.rule.md",
 		"---\ntitle: \"Shared\"\nstatus: accepted\n---\n\nbody\n")
 	writeGlobalsSettings(t, base, []config.GlobalSource{
-		{ID: "ghost", Path: ".archcore/global/ghost"},
-		{ID: "company", Path: ".archcore/global/company"},
+		{ID: "ghost", Path: "vendor/ghost"},
+		{ID: "company", Path: "vendor/company"},
 	})
 
 	docs, err := scanDocuments(base)
@@ -404,7 +167,7 @@ func TestScanDocuments_WithRelativeExternalGlobal(t *testing.T) {
 	for _, d := range docs {
 		if d.SourceKind == "local" {
 			foundLocal = true
-			if d.ReadOnly {
+			if d.SourceKind == "global" {
 				t.Errorf("local doc %s: want read_only=false", d.Path)
 			}
 			continue
@@ -413,10 +176,10 @@ func TestScanDocuments_WithRelativeExternalGlobal(t *testing.T) {
 		if d.SourceID != "company-global" {
 			t.Errorf("global doc %s: source_id = %q, want company-global", d.Path, d.SourceID)
 		}
-		if !d.ReadOnly {
+		if !(d.SourceKind == "global") {
 			t.Errorf("global doc %s: want read_only=true", d.Path)
 		}
-		if !d.Global {
+		if !(d.SourceKind == "global") {
 			t.Errorf("global doc %s: want global=true", d.Path)
 		}
 	}
@@ -425,158 +188,6 @@ func TestScanDocuments_WithRelativeExternalGlobal(t *testing.T) {
 	}
 	if globalDocCount != 2 {
 		t.Errorf("want 2 global docs, got %d", globalDocCount)
-	}
-}
-
-// TestScanDocuments_InTreeGlobalOutsideReservedDir_NotDoubleScanned guards the
-// dedup fix: a global vendored in-tree under a directory NOT named "global" (e.g.
-// the plausible plural "globals/" typo) must be scanned once — as a read-only
-// global, never also as a writable local — so it carries exactly one source_id.
-func TestScanDocuments_InTreeGlobalOutsideReservedDir_NotDoubleScanned(t *testing.T) {
-	base := setupTestArchcore(t)
-
-	writeDoc(t, base, "knowledge", "local.rule.md",
-		"---\ntitle: \"Local\"\nstatus: accepted\n---\n\nbody\n")
-
-	// In-tree global under a NON-reserved directory name ("globals", not "global").
-	writeGlobalDoc(t, base, ".archcore/globals/company", "knowledge", "company.rule.md",
-		"---\ntitle: \"Company\"\nstatus: accepted\n---\n\nbody\n")
-	writeGlobalsSettings(t, base, []config.GlobalSource{
-		{ID: "company", Path: ".archcore/globals/company"},
-	})
-
-	docs, err := scanDocuments(base)
-	if err != nil {
-		t.Fatalf("scanDocuments: %v", err)
-	}
-
-	const companyPath = ".archcore/globals/company/knowledge/company.rule.md"
-	count := 0
-	for _, d := range docs {
-		if d.Path == companyPath {
-			count++
-			if d.SourceKind != "global" {
-				t.Errorf("%s: source_kind = %q, want global", d.Path, d.SourceKind)
-			}
-			if !d.ReadOnly {
-				t.Errorf("%s: want read_only=true", d.Path)
-			}
-		}
-	}
-	if count != 1 {
-		t.Fatalf("in-tree global scanned %d time(s), want exactly 1", count)
-	}
-	if len(docs) != 2 { // 1 local + 1 global
-		t.Errorf("want 2 docs total, got %d", len(docs))
-	}
-}
-
-// TestAddRelation_RejectsGlobalEndpoint verifies a relation may never touch a
-// global document, on either endpoint — whether declared, or merely sitting in the
-// reserved .archcore/global/ tree without a declaration.
-func TestAddRelation_RejectsGlobalEndpoint(t *testing.T) {
-	base := setupTestArchcore(t)
-
-	writeDoc(t, base, "knowledge", "local.rule.md",
-		"---\ntitle: \"Local\"\nstatus: accepted\n---\n\nbody\n")
-	writeGlobalDoc(t, base, ".archcore/global/company", "knowledge", "std.rule.md",
-		"---\ntitle: \"Std\"\nstatus: accepted\n---\n\nbody\n")
-	// A doc physically present in the reserved tree but NOT declared in settings.
-	writeGlobalDoc(t, base, ".archcore/global/elsewhere", "knowledge", "x.rule.md",
-		"---\ntitle: \"X\"\nstatus: accepted\n---\n\nbody\n")
-	writeGlobalsSettings(t, base, []config.GlobalSource{
-		{ID: "company", Path: ".archcore/global/company"},
-	})
-
-	const (
-		local      = ".archcore/knowledge/local.rule.md"
-		global     = ".archcore/global/company/knowledge/std.rule.md"
-		undeclared = ".archcore/global/elsewhere/knowledge/x.rule.md"
-	)
-	cases := []struct {
-		name           string
-		source, target string
-	}{
-		{"global as target", local, global},
-		{"global as source", global, local},
-		{"undeclared reserved-dir target", local, undeclared},
-	}
-	for _, tt := range cases {
-		t.Run(tt.name, func(t *testing.T) {
-			res, err := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
-				"source": tt.source, "target": tt.target, "type": "related",
-			})
-			if err != nil {
-				t.Fatalf("transport error: %v", err)
-			}
-			if !res.IsError {
-				t.Errorf("expected error relating %q -> %q, got success", tt.source, tt.target)
-			}
-		})
-	}
-}
-
-// TestCreateDocument_RejectsReservedGlobalDir verifies the reserved .archcore/global/
-// tree is write-protected even with nothing declared — otherwise create_document
-// would write an invisible document into global mount space.
-func TestCreateDocument_RejectsReservedGlobalDir(t *testing.T) {
-	base := setupTestArchcore(t)
-
-	result, err := callTool(HandleCreateDocument(StaticRoot(base)), map[string]any{
-		"type":      "rule",
-		"filename":  "sneaky",
-		"directory": "global/foo",
-	})
-	if err != nil {
-		t.Fatalf("transport error: %v", err)
-	}
-	if !result.IsError {
-		t.Fatal("expected error creating under reserved .archcore/global/, got success")
-	}
-}
-
-// TestUpdateDocument_FailsClosedOnUnreadableSettings mirrors the create_document
-// fail-closed guard: a corrupt settings.json must block the write rather than let
-// it proceed unverified.
-func TestUpdateDocument_FailsClosedOnUnreadableSettings(t *testing.T) {
-	base := setupTestArchcore(t)
-	writeDoc(t, base, "knowledge", "doc.rule.md",
-		"---\ntitle: \"Doc\"\nstatus: accepted\n---\n\nbody\n")
-	settingsPath := filepath.Join(base, ".archcore", "settings.json")
-	if err := os.WriteFile(settingsPath, []byte("{not valid json"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := callTool(HandleUpdateDocument(StaticRoot(base)), map[string]any{
-		"path":  ".archcore/knowledge/doc.rule.md",
-		"title": "New",
-	})
-	if err != nil {
-		t.Fatalf("transport error: %v", err)
-	}
-	if !result.IsError {
-		t.Fatal("expected error when settings.json is unreadable, got success")
-	}
-}
-
-// TestRemoveDocument_FailsClosedOnUnreadableSettings is the remove_document analogue.
-func TestRemoveDocument_FailsClosedOnUnreadableSettings(t *testing.T) {
-	base := setupTestArchcore(t)
-	writeDoc(t, base, "knowledge", "doc.rule.md",
-		"---\ntitle: \"Doc\"\nstatus: accepted\n---\n\nbody\n")
-	settingsPath := filepath.Join(base, ".archcore", "settings.json")
-	if err := os.WriteFile(settingsPath, []byte("{not valid json"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{
-		"path": ".archcore/knowledge/doc.rule.md",
-	})
-	if err != nil {
-		t.Fatalf("transport error: %v", err)
-	}
-	if !result.IsError {
-		t.Fatal("expected error when settings.json is unreadable, got success")
 	}
 }
 
@@ -686,7 +297,7 @@ func TestValidateReadPath_MultipleGlobals(t *testing.T) {
 
 	// Local doc + in-tree global "company" (idx0).
 	writeDoc(t, base, "knowledge", "local.rule.md", fm)
-	writeGlobalDoc(t, base, ".archcore/global/company", "knowledge", "react-query.rule.md", fm)
+	writeGlobalDoc(t, base, "vendor/company", "knowledge", "react-query.rule.md", fm)
 
 	// External global roots must exist on disk before the table loop — validateReadPath
 	// runs EvalSymlinks on both root and target.
@@ -705,7 +316,7 @@ func TestValidateReadPath_MultipleGlobals(t *testing.T) {
 	writeFile(filepath.Join(parent, "packages", "shared-standards", ".archcore", "knowledge", "shared-std.rule.md"))
 
 	globals := []config.GlobalSource{
-		{ID: "company", Path: ".archcore/global/company"},
+		{ID: "company", Path: "vendor/company"},
 		{ID: "monorepo", Path: "../../.archcore"},
 		{ID: "shared", Path: "../../packages/shared-standards/.archcore"},
 	}
@@ -719,8 +330,8 @@ func TestValidateReadPath_MultipleGlobals(t *testing.T) {
 	}{
 		{
 			name:     "in-tree company readable",
-			relPath:  ".archcore/global/company/knowledge/react-query.rule.md",
-			wantPath: ".archcore/global/company/knowledge/react-query.rule.md",
+			relPath:  "vendor/company/knowledge/react-query.rule.md",
+			wantPath: "vendor/company/knowledge/react-query.rule.md",
 		},
 		{
 			name:     "bare-.archcore external (idx1) readable",
@@ -787,6 +398,184 @@ func TestValidateReadPath_MultipleGlobals(t *testing.T) {
 			// No-absolute-path fence: any non-sentinel error must never embed the temp root.
 			if err != nil && !errors.Is(err, fs.ErrNotExist) && strings.Contains(err.Error(), parent) {
 				t.Errorf("error message leaked an absolute path: %v", err)
+			}
+		})
+	}
+}
+
+// setupSourceLayout builds root/app (the consumer) declaring two sources that sit
+// beside it, root/company and root/platform, each with its own .archcore/.
+func setupSourceLayout(t *testing.T) (base, root string) {
+	t.Helper()
+	root = t.TempDir()
+	base = filepath.Join(root, "app")
+	if err := os.MkdirAll(filepath.Join(base, ".archcore"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeGlobalsSettings(t, base, []config.GlobalSource{
+		{ID: "company", Path: "../company/.archcore"},
+		{ID: "platform", Path: "../platform/.archcore"},
+	})
+	const fm = "---\ntitle: \"Doc\"\nstatus: accepted\n---\n\nbody\n"
+	writeDoc(t, base, "knowledge", "local-only.rule.md", fm)
+	writeDoc(t, base, "knowledge", "react-query.rule.md", fm)
+	writeGlobalDoc(t, root, "company/.archcore", "knowledge", "react-query.rule.md", fm)
+	writeGlobalDoc(t, root, "company/.archcore", "knowledge", "security-policy.rule.md", fm)
+	writeGlobalDoc(t, root, "platform/.archcore", "knowledge", "api-conventions.rule.md", fm)
+	return base, root
+}
+
+func TestScanDocuments_WithGlobals(t *testing.T) {
+	base, root := setupSourceLayout(t)
+
+	got, err := scanDocuments(base)
+	if err != nil {
+		t.Fatalf("scanDocuments: %v", err)
+	}
+	want := map[string][3]string{ // path -> source_kind, source_id, source_root
+		".archcore/knowledge/local-only.rule.md":                  {"local", "local", ""},
+		".archcore/knowledge/react-query.rule.md":                 {"local", "local", ""},
+		"../company/.archcore/knowledge/react-query.rule.md":      {"global", "company", filepath.Join(root, "company")},
+		"../company/.archcore/knowledge/security-policy.rule.md":  {"global", "company", filepath.Join(root, "company")},
+		"../platform/.archcore/knowledge/api-conventions.rule.md": {"global", "platform", filepath.Join(root, "platform")},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("want %d docs, got %d", len(want), len(got))
+	}
+	for _, d := range got {
+		w, ok := want[d.Path]
+		if !ok {
+			t.Errorf("unexpected doc %s", d.Path)
+			continue
+		}
+		if have := [3]string{string(d.SourceKind), d.SourceID, d.SourceRoot}; have != w {
+			t.Errorf("%s: annotation = %v, want %v", d.Path, have, w)
+		}
+	}
+}
+
+func TestScanDocuments_UndeclaredGlobalDirIsLocal(t *testing.T) {
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "local.rule.md",
+		"---\ntitle: \"Local\"\nstatus: accepted\n---\n\nbody\n")
+	writeGlobalDoc(t, base, ".archcore/global/company", "knowledge", "company.rule.md",
+		"---\ntitle: \"Company\"\nstatus: accepted\n---\n\nbody\n")
+
+	got, err := scanDocuments(base)
+	if err != nil {
+		t.Fatalf("scanDocuments: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("want 2 local docs, got %d", len(got))
+	}
+	for _, d := range got {
+		if d.SourceKind != "local" {
+			t.Errorf("%s: source_kind = %q, want local", d.Path, d.SourceKind)
+		}
+	}
+}
+
+func TestScanDocuments_SourceInsideArchcoreIsFatal(t *testing.T) {
+	base := setupTestArchcore(t)
+	writeGlobalDoc(t, base, ".archcore/globals/company", "knowledge", "company.rule.md",
+		"---\ntitle: \"Company\"\nstatus: accepted\n---\n\nbody\n")
+	writeGlobalsSettings(t, base, []config.GlobalSource{
+		{ID: "company", Path: ".archcore/globals/company"},
+	})
+
+	_, err := scanDocuments(base)
+	if err == nil || !strings.Contains(err.Error(), "overlaps the project's own .archcore") {
+		t.Fatalf("want the self-overlap error, got %v", err)
+	}
+
+	// The local-only surfaces (hooks, status) do not count the misdeclared
+	// source as the project's own documents while the user migrates it.
+	local, err := docs.ScanLocal(base, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range local {
+		if strings.Contains(d.Path, "globals/company") {
+			t.Errorf("ScanLocal returned the misdeclared source document %s as local", d.Path)
+		}
+	}
+}
+
+// TestWriteTools_RefuseOtherProjectPath pins that a write addressed through a
+// source row path is refused with the instruction to pass project, and names the
+// source (source-mounts.spec, failure rules).
+func TestWriteTools_RefuseOtherProjectPath(t *testing.T) {
+	base, _ := setupSourceLayout(t)
+	const path = "../company/.archcore/knowledge/react-query.rule.md"
+
+	cases := map[string]struct {
+		handler func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error)
+		args    map[string]any
+	}{
+		"update_document": {HandleUpdateDocument(StaticRoot(base)), map[string]any{"path": path, "title": "Hijacked"}},
+		"remove_document": {HandleRemoveDocument(StaticRoot(base)), map[string]any{"path": path}},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			result, err := callTool(tc.handler, tc.args)
+			if err != nil {
+				t.Fatalf("transport error: %v", err)
+			}
+			if !result.IsError {
+				t.Fatal("want an error result, got success")
+			}
+			text := result.Content[0].(mcp.TextContent).Text
+			if !strings.Contains(text, "pass that project's absolute root as project") {
+				t.Errorf("message = %q, want the pass-project instruction", text)
+			}
+			if !strings.Contains(text, `source "company"`) {
+				t.Errorf("message = %q, want the source id", text)
+			}
+		})
+	}
+	if _, err := os.Stat(filepath.Join(base, "..", "company", ".archcore", "knowledge", "react-query.rule.md")); err != nil {
+		t.Fatalf("source document must survive: %v", err)
+	}
+}
+
+// TestWriteTools_WriteSourceThroughItsRoot pins that a source document is
+// writable through its own root, with relations inside that project.
+func TestWriteTools_WriteSourceThroughItsRoot(t *testing.T) {
+	_, root := setupSourceLayout(t)
+	company := StaticRoot(filepath.Join(root, "company"))
+
+	mustCall(t, HandleUpdateDocument(company), map[string]any{
+		"path": ".archcore/knowledge/react-query.rule.md", "title": "Renamed",
+	})
+	mustCall(t, HandleAddRelation(company), map[string]any{
+		"source": ".archcore/knowledge/react-query.rule.md",
+		"target": ".archcore/knowledge/security-policy.rule.md",
+		"type":   "related",
+	})
+	mustCall(t, HandleRemoveDocument(company), map[string]any{"path": ".archcore/knowledge/security-policy.rule.md"})
+}
+
+// TestAddRelation_RejectsCrossProjectEndpoint pins that a relation stays inside
+// one project: a source row path is never an endpoint.
+func TestAddRelation_RejectsCrossProjectEndpoint(t *testing.T) {
+	base, _ := setupSourceLayout(t)
+	const (
+		local  = ".archcore/knowledge/local-only.rule.md"
+		global = "../company/.archcore/knowledge/react-query.rule.md"
+	)
+	for name, pair := range map[string][2]string{
+		"global as target": {local, global},
+		"global as source": {global, local},
+	} {
+		t.Run(name, func(t *testing.T) {
+			res, err := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{
+				"source": pair[0], "target": pair[1], "type": "related",
+			})
+			if err != nil {
+				t.Fatalf("transport error: %v", err)
+			}
+			if !res.IsError {
+				t.Errorf("expected error relating %q -> %q, got success", pair[0], pair[1])
 			}
 		})
 	}

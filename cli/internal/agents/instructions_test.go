@@ -372,10 +372,11 @@ func TestWriteInstructions_AgentsMDHasMarkers(t *testing.T) {
 func TestInstructionsBody_FlagsGlobalSources(t *testing.T) {
 	t.Parallel()
 	for _, want := range []string{
-		"global sources",              // the feature is named
-		"may also mount",              // conditional framing: not every project has one
-		"source_kind: \"global\"",     // the tag agents must look for to spot a global
-		"never edit or relate to one", // read-only + relation constraint
+		"global sources",                          // the feature is named
+		"may also declare",                        // conditional framing: not every project has one
+		"source_kind: \"global\"",                 // the tag agents must look for to spot a global
+		"reaches every project that declares it",  // a source is shared
+		"with `project` set to its `source_root`", // how a source is written
 	} {
 		if !strings.Contains(instructionsBody, want) {
 			t.Errorf("instructionsBody missing %q", want)

@@ -42,7 +42,7 @@ func TestDescribeInstructionBlocks(t *testing.T) {
 		want    []string
 	}{
 		{name: "legacy block asks for a refresh", file: "AGENTS.md", content: legacyManagedBlock,
-			want: []string{"AGENTS.md holds an older Archcore block (v1; this CLI writes v2)",
+			want: []string{"AGENTS.md holds an older Archcore block (v1; this CLI writes v3)",
 				"run 'archcore instructions install --agent codex-cli'"}},
 		{name: "refresh names the agent that writes the file", file: "GEMINI.md", content: legacyManagedBlock,
 			want: []string{"GEMINI.md holds an older Archcore block", "--agent gemini-cli"}},
@@ -52,7 +52,7 @@ func TestDescribeInstructionBlocks(t *testing.T) {
 				"--agent claude-code"}},
 		{name: "newer block asks for a CLI update", file: "AGENTS.md",
 			content: strings.Replace(legacyManagedBlock, "`archcore init`", "`archcore init`, block v7", 1),
-			want:    []string{"from a newer CLI (v7; this CLI writes v2)", "run 'archcore update'"}},
+			want:    []string{"from a newer CLI (v7; this CLI writes v3)", "run 'archcore update'"}},
 		{name: "block past the Codex budget asks for a move", file: "AGENTS.md",
 			content: strings.Repeat("user notes line\n", 40<<10/16) + current,
 			want:    []string{"past 32 KiB", "move the block to the top of the file"}},
@@ -71,7 +71,7 @@ func TestDescribeInstructionBlocks(t *testing.T) {
 					t.Errorf("notes %q lack %q", got.String(), want)
 				}
 			}
-			if strings.Contains(got.String(), "older") && strings.Contains(got.String(), "v2; this CLI writes v2") {
+			if strings.Contains(got.String(), "older") && strings.Contains(got.String(), "v3; this CLI writes v3") {
 				t.Errorf("a v2 block is called older: %q", got.String())
 			}
 		})
@@ -96,7 +96,7 @@ func TestInstructionsAdvisory_OncePerWindow(t *testing.T) {
 	stampDir := t.TempDir()
 
 	first := instructionsAdvisory(base, stampDir)
-	want := "[Archcore Instructions] CLAUDE.md holds an older Archcore block (v1; this CLI writes v2). " +
+	want := "[Archcore Instructions] CLAUDE.md holds an older Archcore block (v1; this CLI writes v3). " +
 		"With the user's consent, run 'archcore instructions install --agent claude-code'.\n"
 	if first != want {
 		t.Fatalf("first advisory = %q, want %q", first, want)
@@ -129,7 +129,7 @@ func TestReportInstructionBlocks_WarnsWithTheFix(t *testing.T) {
 	var out bytes.Buffer
 	reportInstructionBlocks(&out, base)
 	got := out.String()
-	if !strings.Contains(got, "CLAUDE.md holds an older Archcore block (v1; this CLI writes v2) — run 'archcore instructions install --agent claude-code'") {
+	if !strings.Contains(got, "CLAUDE.md holds an older Archcore block (v1; this CLI writes v3) — run 'archcore instructions install --agent claude-code'") {
 		t.Errorf("doctor report = %q", got)
 	}
 	if strings.Contains(got, "consent") {

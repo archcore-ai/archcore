@@ -242,11 +242,8 @@ func TestHandleAddRelation_ResearchBoundaries(t *testing.T) {
 		{name: "same document", source: "local.evidence.md", target: "local.evidence.md"},
 		{name: "same dotted document", source: "./local.evidence.md", target: "local.evidence.md", want: "different documents"},
 		{name: "same nested document", source: "nested//./one.evidence.md", target: "nested/one.evidence.md", want: "different documents"},
-		{name: "global source", source: "global/source.evidence.md", target: "local.research.md", want: "read-only global source"},
-		{name: "global target", source: "local.evidence.md", target: "global/target.research.md", want: "read-only global source"},
 		{name: "traversal", source: "../source.evidence.md", target: "local.research.md"},
 		{name: "absolute", source: "/source.evidence.md", target: "local.research.md"},
-		{name: "unreadable settings", source: "local.evidence.md", target: "local.research.md", settings: "{"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -338,7 +338,6 @@ var searchFieldsWithoutMention = map[string]string{
 	"type":                     "row metadata that list_documents and get_document carry under the same name",
 	"mtime":                    "row metadata that list_documents and get_document carry under the same name",
 	"tags":                     "row metadata that list_documents and get_document carry under the same name",
-	"read_only":                "restates source_kind, which the description tells the agent to read",
 	"incoming_relations":       "named as a group: \"5 relations per direction\"",
 	"outgoing_relations":       "named as a group: \"5 relations per direction\"",
 	"incoming_relations_total": "named as a group: \"the relation totals\"",

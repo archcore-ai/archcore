@@ -29,6 +29,9 @@ resolution. It implements behaviors 49–52 and Failure Behavior 2 of
 2. WHEN a call concerns the session root, omit `project`.
 3. Keep both documents of one `add_relation` or `remove_relation` call in one target project.
 4. IF a relation would join two target projects, THEN report the pair and create no relation.
+5. WHEN a write concerns a global document, use the row's `source_root` as the target project.
+6. WHEN a response carries a `source` other than `"local"`, name that source in the report. A change there reaches every project that declares the source.
+7. Absent any global row and any `source` field, proceed as usual.
 
 ## Old CLI
 

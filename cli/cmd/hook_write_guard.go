@@ -136,11 +136,7 @@ func (g *writeGuard) decide(filePath string) hookDecision {
 	rel, inProject := docs.RelativeToBase(baseDir, filePath)
 	if inProject {
 		if cleaned, err := docs.ValidateArchcorePath(rel); err == nil {
-			// The error is dropped here and only here: a missing list cannot turn
-			// a document into a non-document, so an unreadable settings.json still
-			// denies. Failing closed instead would deny settings.json itself.
-			globals, _ := g.declaredGlobals()
-			if _, err := docs.GuardWritablePath(baseDir, cleaned, globals); errors.Is(err, docs.ErrPathNotDocument) {
+			if _, err := docs.GuardWritablePath(baseDir, cleaned); errors.Is(err, docs.ErrPathNotDocument) {
 				return allowHook() // settings.json, .sync-state.json, a non-markdown file
 			}
 			return denyHook(writeGuardReason)
@@ -149,9 +145,9 @@ func (g *writeGuard) decide(filePath string) hookDecision {
 
 	// Not lexically under .archcore/: outside the project, or a "../" sibling of
 	// it. Either can still be a declared global source mounted from outside the
-	// store, and those documents are as read-only as in-tree ones — the MCP
-	// tools cannot even address them. Returning allow here is what left them
-	// writable straight from the editor.
+	// store, whose documents change only through the MCP tools, like any other
+	// document. Returning allow here is what left them editable straight from
+	// the editor.
 	//
 	// Gated on the extension so an ordinary source edit — the overwhelming
 	// majority of what this hook sees — never pays for the settings read: a

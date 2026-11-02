@@ -230,9 +230,9 @@ func TestHandleUpdateDocument_PathTraversal(t *testing.T) {
 	if !result.IsError {
 		t.Error("expected error for path traversal")
 	}
-	// Rejected by validateArchcorePath, not by an incidental filesystem miss.
-	if got := resultText(t, result); !strings.Contains(got, "invalid path") {
-		t.Errorf("error = %q, want a path-guard rejection (\"invalid path: ...\")", got)
+	// Rejected by the path guard, not by an incidental filesystem miss.
+	if got := resultText(t, result); !strings.Contains(got, "another project") {
+		t.Errorf("error = %q, want the other-project refusal", got)
 	}
 }
 

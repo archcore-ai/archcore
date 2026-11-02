@@ -76,17 +76,11 @@ func HandleRemoveRelation(root RootProvider) func(ctx context.Context, request m
 
 		var removed bool
 		baseDir := root.Root(ctx)
-		globals, guardFail := loadGlobalsFailClosed(baseDir)
-		if guardFail != nil {
-			return guardFail, nil
-		}
 		endpoints := []string{source, target}
 		for i, endpoint := range endpoints {
-			cleaned, err := guardWritablePath(baseDir, ".archcore/"+endpoint, globals)
+			cleaned, err := guardWritablePath(baseDir, ".archcore/"+endpoint)
 			if err != nil {
 				switch {
-				case errors.Is(err, errPathReadOnlyGlobal):
-					return errorResult("cannot remove a relation involving a read-only global source document — relations connect local documents only"), nil
 				case errors.Is(err, errPathNotDocument):
 					return errorResult("relation endpoints must be .md document files"), nil
 				default:

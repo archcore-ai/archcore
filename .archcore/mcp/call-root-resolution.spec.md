@@ -45,6 +45,10 @@ Out of scope: how the session root is chosen and followed through `roots/list` (
 16. WHEN a post-tool-use payload carries `project` in `tool_input`, the hook MUST validate the document against that root.
 17. The resolver MUST NOT keep a `project` value beyond the call that carried it.
 18. The server MUST describe `project` in the instructions it sends at `initialize`, inside the instruction cap.
+19. WHEN a call succeeds and the call root is the session root, the server MUST append `"source": "local"` after the `project` field.
+20. WHEN the session root declares the call root as a global source, the server MUST append the declared id as `source` after `project`.
+21. WHEN a call succeeds and the session root does not declare the call root, the server MUST NOT append `source`.
+22. WHEN the tool is `add_relation` or `remove_relation`, the server MUST NOT append `source`. The payload of both tools already uses `source` for the relation endpoint.
 
 ## Constraints & Invariants
 
@@ -73,6 +77,8 @@ Out of scope: how the session root is chosen and followed through `roots/list` (
 7. IF `add_relation` or `remove_relation` receives document paths that resolve under two roots, THEN the tool MUST return an error stating that relations stay inside one project.
 8. IF a hook cannot read the directories above the edited file, THEN the hook MUST resolve from the payload working directory.
 9. IF the session root holds no `.archcore/` and the call carries no `project`, THEN the tool MUST answer as it does today for an uninitialized root.
+10. IF `update_document` or `remove_document` receives a path that starts with `../`, THEN the tool MUST return an error that names `project` and no absolute path.
+11. IF that path lies under a global source the call root declares, THEN the error MUST also name the source id.
 
 ## Conformance
 

@@ -37,7 +37,7 @@ Relation types:
 
 Requirements layers: a specification implements the source it formalizes (brs → mrd or brd, strs → urd); the ISO cascade runs strs → brs, syrs → strs, srs → syrs.
 
-Both source and target must be distinct existing local documents. Global sources cannot be relation endpoints. Paths must remain inside the project. The tool mutates the manifest only; it does not change document status or resolve contradictions. An invalid input or manifest leaves the manifest unchanged. Successful calls return whether the relation was added, plus warnings that name a reverse related edge or related beside a more specific edge. A warning never blocks the write. Paths can be given with or without the ".archcore/" prefix.`),
+Both endpoints must be distinct existing documents inside one project; for a global source, pass project=<its source_root>. The tool mutates the manifest only; it does not change document status or resolve contradictions. An invalid input or manifest leaves the manifest unchanged. Successful calls return whether the relation was added, plus warnings that name a reverse related edge or related beside a more specific edge. A warning never blocks the write. Paths can be given with or without the ".archcore/" prefix.`),
 		mcp.WithString("source",
 			mcp.Description("Path to the source document (e.g. \"auth/jwt-strategy.adr.md\" or \".archcore/auth/jwt-strategy.adr.md\")"),
 			mcp.Required(),
@@ -89,21 +89,13 @@ func HandleAddRelation(root RootProvider) func(ctx context.Context, request mcp.
 		}
 
 		baseDir := root.Root(ctx)
-		// Relations connect local documents only. A read-only global source — a
-		// declared source or anything in the reserved .archcore/global/ tree —
-		// must never be a relation endpoint, in either direction. Fail closed if
-		// settings.json cannot be read so a corrupt config can't slip an edge in.
-		globals, guardFail := loadGlobalsFailClosed(baseDir)
-		if guardFail != nil {
-			return guardFail, nil
-		}
+		// Both endpoints live under the call root: a relation stays inside one
+		// project (source-mounts.spec, behavior 14).
 		endpoints := []string{source, target}
 		for i, endpoint := range endpoints {
-			cleaned, err := guardWritablePath(baseDir, ".archcore/"+endpoint, globals)
+			cleaned, err := guardWritablePath(baseDir, ".archcore/"+endpoint)
 			if err != nil {
 				switch {
-				case errors.Is(err, errPathReadOnlyGlobal):
-					return errorResult("cannot add a relation involving a read-only global source document — relations connect local documents only"), nil
 				case errors.Is(err, errPathNotDocument):
 					return errorResult("relation endpoints must be .md document files"), nil
 				default:

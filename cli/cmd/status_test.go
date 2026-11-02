@@ -391,11 +391,17 @@ func TestStatus_ExcludesGlobalTagsFromHygiene(t *testing.T) {
 	dir := initValidDir(t)
 	writeDoc(t, dir, "knowledge", "local.rule.md",
 		"---\ntitle: Local\nstatus: accepted\ntags:\n  - shared\n---\n\nbody\n")
-	// In-tree global carrying a tag that exists ONLY in the global.
-	writeDoc(t, dir, "global/company/knowledge", "company.rule.md",
-		"---\ntitle: Company\nstatus: accepted\ntags:\n  - globalonly\n---\n\nbody\n")
+	// A declared source carrying a tag that exists ONLY in the global.
+	companyDir := filepath.Join(dir, "vendor", "company", "knowledge")
+	if err := os.MkdirAll(companyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(companyDir, "company.rule.md"),
+		[]byte("---\ntitle: Company\nstatus: accepted\ntags:\n  - globalonly\n---\n\nbody\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	settings := filepath.Join(dir, ".archcore", "settings.json")
-	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":".archcore/global/company"}]}`), 0o644); err != nil {
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":"vendor/company"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -451,10 +457,10 @@ func TestStatus_EmptyGlobalWarnsNotIssue(t *testing.T) {
 	dir := initValidDir(t)
 	writeDoc(t, dir, "knowledge", "local.rule.md", validFrontmatter)
 	settings := filepath.Join(dir, ".archcore", "settings.json")
-	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":".archcore/global/empty"}]}`), 0o644); err != nil {
+	if err := os.WriteFile(settings, []byte(`{"sync":"none","globals":[{"id":"company","path":"vendor/empty"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(dir, ".archcore", "global", "empty"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "vendor", "empty"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 

@@ -44,8 +44,8 @@ func HandleGetDocument(root RootProvider) func(ctx context.Context, request mcp.
 
 		baseDir := root.Root(ctx)
 		// Validate path safety. Reads additionally allow a document that resolves
-		// inside a declared read-only external global source; the write tools keep
-		// the strict validateArchcorePath and never reach this relaxation.
+		// inside a declared external source, the path list_documents returns for
+		// it; a write to that document goes through its project instead.
 		// Globals are loaded once per request and reused for annotation.
 		globals := config.ReadGlobals(baseDir)
 		cleanPath, err := validateReadPath(baseDir, reqPath, globals)

@@ -63,6 +63,9 @@ type GlobalInspection struct {
 	// TopDirs counts mounted documents per top-level directory under the
 	// source root, from the same walk. A root-level document carries no entry.
 	TopDirs map[string]int
+	// Root is the project argument that reaches the source, filled with the
+	// counts; "" for a source that is not a project's .archcore/.
+	Root string
 }
 
 // Message returns a user-facing description of a non-OK inspection, built from
@@ -129,6 +132,7 @@ func InspectGlobals(baseDir string) ([]GlobalInspection, error) {
 			out = append(out, in)
 			continue
 		}
+		in.Root = sourceRoot(resolved)
 		in.Docs = counts.total
 		in.DocsByCategory = counts.byCategory
 		in.TopDirs = counts.topDirs

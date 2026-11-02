@@ -75,7 +75,7 @@ func TestListDocuments_GlobalsSurviveThePageCut(t *testing.T) {
 
 			locals, globals := 0, 0
 			for _, d := range res.Documents {
-				if d.Global {
+				if d.SourceKind == "global" {
 					globals++
 				} else {
 					locals++
@@ -107,7 +107,7 @@ func TestListDocuments_TinySourceOnFirstPage(t *testing.T) {
 	res := callList(t, base, map[string]any{})
 
 	for i, d := range res.Documents {
-		if d.Global {
+		if d.SourceKind == "global" {
 			if i > 1 {
 				t.Errorf("tiny source's row at position %d, want within the seeded head (index <= 1)", i)
 			}
@@ -127,7 +127,7 @@ func TestListDocuments_SourceScope(t *testing.T) {
 		t.Errorf("total = %d, want 3 global docs", res.Total)
 	}
 	for _, d := range res.Documents {
-		if !d.Global {
+		if !(d.SourceKind == "global") {
 			t.Errorf("local document %s leaked through source=global", d.Path)
 		}
 	}

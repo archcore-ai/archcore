@@ -20,13 +20,13 @@ type (
 // Classified write-path failures. Handlers map them to their spec-pinned
 // per-tool messages via errors.Is.
 var (
-	errPathReadOnlyGlobal = docs.ErrPathReadOnlyGlobal
-	errPathNotDocument    = docs.ErrPathNotDocument
-	errPathEscapes        = docs.ErrPathEscapes
+	errPathOtherProject = docs.ErrPathOtherProject
+	errPathNotDocument  = docs.ErrPathNotDocument
+	errPathEscapes      = docs.ErrPathEscapes
 )
 
 // scanDocuments discovers all .md files recursively inside .archcore/, including
-// declared global sources (read-only).
+// the declared sources.
 func scanDocuments(baseDir string) ([]LocalDocument, error) { return docs.Scan(baseDir) }
 
 // scanDocumentsFull mirrors scanDocuments and also populates Content.
@@ -37,8 +37,8 @@ func readDocumentContent(baseDir, relPath string) (LocalDocument, error) {
 	return docs.ReadDocumentContent(baseDir, relPath)
 }
 
-func guardWritablePath(baseDir, relPath string, globals []config.GlobalSource) (string, error) {
-	return docs.GuardWritablePath(baseDir, relPath, globals)
+func guardWritablePath(baseDir, relPath string) (string, error) {
+	return docs.GuardWritablePath(baseDir, relPath)
 }
 
 func validateArchcorePath(relPath string) (string, error) {
