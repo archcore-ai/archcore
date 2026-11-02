@@ -194,10 +194,12 @@ const maxPatchLines = 20000
 //
 // The hole is not OpenCode's alone. Codex CLI and Copilot both match apply_patch
 // in their installed pre-write matchers (@internal/wiring/hooks_agents.go), so
-// the same path-less call reaches this guard on hosts the CLI does wire.
-// [assumption] Their argument keys are unverified from this repository, so
-// "input" and "patch" are read alongside OpenCode's "patchText". A key that
-// names something other than a patch costs a scan that finds no directives.
+// the same path-less call reaches this guard on hosts the CLI does wire. Codex
+// sends the patch as tool_input.command (measured on Codex 0.166.0,
+// host-probe-protocol.spec run of 2026-10-30). [assumption] Copilot's key is
+// unverified, so "input" and "patch" are read too. A key that names something
+// other than a patch costs a scan that finds no directives; a shell command
+// that carries a patch envelope is a write and is guarded as one.
 //
 // Unparsable or empty patch text yields no paths, which allows. That is the
 // same direction every other read in this file fails. A line is matched after
@@ -215,6 +217,9 @@ func (p *hookPayload) patchPaths() []string {
 		[]string{"tool_input", "patch"},
 		[]string{"toolArgs", "patch"},
 		[]string{"tool_args", "patch"},
+		[]string{"tool_input", "command"},
+		[]string{"toolArgs", "command"},
+		[]string{"tool_args", "command"},
 	)
 	if text == "" {
 		return nil
@@ -247,6 +252,15 @@ func (p *hookPayload) docPath() string {
 		[]string{"toolArgs", "path"},
 		[]string{"tool_args", "path"},
 		[]string{"path"},
+	)
+}
+
+// toolProject returns the project argument an MCP tool call carried, or "".
+func (p *hookPayload) toolProject() string {
+	return p.firstStr(
+		[]string{"tool_input", "project"},
+		[]string{"toolArgs", "project"},
+		[]string{"tool_args", "project"},
 	)
 }
 

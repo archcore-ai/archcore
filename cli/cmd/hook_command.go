@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"archcore-cli/internal/advisory"
 
@@ -160,21 +161,21 @@ func sessionStartHandler(version string) hookHandler {
 // never alter the verdict on someone's edit.
 func preToolUseHandler(ctx context.Context, r hookRequest) hookDecision {
 	filePath := r.payload.filePath()
+	patchPaths := r.payload.patchPaths()
+	targets := append([]string{filePath}, patchPaths...)
 
-	// One guard for the whole call. Every target below asks the same questions
-	// about the same project, and a patch can carry thousands of them.
-	guard := newWriteGuard(r.baseDir)
+	// One guard per project for the whole call. Every target of one project asks
+	// the same questions about it, and a patch can carry thousands of them.
+	roots := newHookRoots(r.baseDir)
 
-	if dec := guard.decide(filePath); dec.deny {
-		return dec
-	}
 	// A patch call names its targets only inside the patch body, and one call can
 	// carry several. Any guarded target blocks the whole call: a patch applies as
 	// a unit, so allowing it because only one of its files is protected would
 	// write that file anyway.
-	for _, target := range r.payload.patchPaths() {
-		if dec := guard.decide(target); dec.deny {
-			return dec
+	for _, target := range targets {
+		root := roots.rootOf(target)
+		if dec := roots.guard(root).decide(roots.guardPath(target, root)); dec.deny {
+			return withProjectHint(dec, root, r.baseDir)
 		}
 	}
 
@@ -184,8 +185,33 @@ func preToolUseHandler(ctx context.Context, r hookRequest) hookDecision {
 	if !r.dialect.preToolContext {
 		return allowHook()
 	}
-	if note := advisory.CodeAlignment(r.baseDir, filePath); note != "" {
-		return adviseHook(note)
+	var notes []string
+	// A patch is how Codex edits every file, so its targets name the projects a
+	// call touches as a file path does (hook-runtime.spec §16).
+	noted := map[string]bool{r.baseDir: true}
+	for _, target := range targets {
+		if target == "" {
+			continue
+		}
+		if other := roots.rootOf(target); !noted[other] {
+			noted[other] = true
+			if note := projectTouchAdvisory(r, other); note != "" {
+				notes = append(notes, note)
+			}
+		}
 	}
-	return allowHook()
+	// Codex edits every file through a patch, so a call without file_path aligns
+	// on the patch's first target (hook-runtime.spec §18): one file, one scan.
+	alignTarget := filePath
+	if alignTarget == "" && len(patchPaths) > 0 {
+		alignTarget = patchPaths[0]
+	}
+	root := roots.rootOf(alignTarget)
+	if note := advisory.CodeAlignment(root, alignTarget); note != "" {
+		notes = append(notes, note)
+	}
+	if len(notes) == 0 {
+		return allowHook()
+	}
+	return adviseHook(strings.Join(notes, "\n\n"))
 }

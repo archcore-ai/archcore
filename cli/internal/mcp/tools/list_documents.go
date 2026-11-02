@@ -174,7 +174,7 @@ func HandleListDocuments(root RootProvider) func(ctx context.Context, request mc
 		if page == nil {
 			page = []LocalDocument{}
 		}
-		page, err = fitListPage(page, bySource)
+		page, err = fitListPage(page, bySource, projectFieldBytes(baseDir))
 		if err != nil {
 			return nil, err
 		}
@@ -201,16 +201,17 @@ func HandleListDocuments(root RootProvider) func(ctx context.Context, request mc
 // weighted round-robin proportional to each source's remaining count. Within a
 // source the walk order is preserved. A single-source corpus returns unchanged,
 // so a project without globals keeps today's ordering exactly.
-// fitListPage cuts page from the tail until the response fits
-// listResponseByteBudget. One row always stays.
-func fitListPage(page []LocalDocument, bySource map[string]int) ([]LocalDocument, error) {
+// fitListPage cuts page from the tail until the response, with reserved bytes
+// the server appends after the handler returns, fits listResponseByteBudget.
+// One row always stays.
+func fitListPage(page []LocalDocument, bySource map[string]int, reserved int) ([]LocalDocument, error) {
 	head, err := json.Marshal(listDocumentsResult{BySource: bySource, Total: len(page), Offset: len(page), Returned: len(page), Truncated: false, Documents: []LocalDocument{}})
 	if err != nil {
 		return nil, fmt.Errorf("marshaling result head: %w", err)
 	}
 	// Total and offset can each print wider than the page length does.
 	const counterSlack = 16
-	used := len(head) + counterSlack
+	used := len(head) + counterSlack + reserved
 	for i, doc := range page {
 		data, mErr := json.Marshal(doc)
 		if mErr != nil {

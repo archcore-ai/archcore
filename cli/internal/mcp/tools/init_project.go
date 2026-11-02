@@ -15,7 +15,7 @@ import (
 
 func NewInitProjectTool() mcp.Tool {
 	return mcp.NewTool("init_project",
-		mcp.WithDescription(`Initialize the .archcore/ knowledge base for the current project.
+		mcp.WithDescription(`Initialize the .archcore/ knowledge base for this session's project, or for the project the project argument names.
 
 Call this tool ONCE per project, before creating any documents, if list_documents reports the project is not yet initialized (empty result with no .archcore/ directory). Idempotent — safe to call on an already-initialized project (existing settings preserved and returned).
 

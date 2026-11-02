@@ -98,7 +98,7 @@ export function createSetup(root: string) {
 
     await ctx.tool.hook("execute.before", async (event) => {
       if (!tools || !PRE_MUTATION.has(event.tool)) return
-      const result = await launch("pre-tool-use", { tool_name: event.tool, tool_input: event.input }, BUDGET_MS.pre)
+      const result = await launch("pre-tool-use", { tool_name: event.tool, tool_input: event.input, session_id: event.sessionID }, BUDGET_MS.pre)
       if (result.code === 2) throw new Error(result.stderr.replace(/\r?\n$/, ""))
       if (result.code === 0 && result.stdout) held.set(event.id, result.stdout)
     })
@@ -113,7 +113,7 @@ export function createSetup(root: string) {
           event.result = { ...event.result, content: [...event.result.content, { type: "text", text: context }] }
         }
         if (!tools || !POST_MUTATION.has(event.tool)) return
-        const result = await launch("post-tool-use", { tool_name: event.tool, tool_input: event.input }, BUDGET_MS.post)
+        const result = await launch("post-tool-use", { tool_name: event.tool, tool_input: event.input, session_id: event.sessionID }, BUDGET_MS.post)
         // MCP tools run inside Code Mode by default, where text added to their
         // result never reaches the model; the next model request carries it.
         if (result.code === 0 && result.stdout) {

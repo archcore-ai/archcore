@@ -51,6 +51,10 @@ The mode words were retired on 2026-10-16 (`context-driven-routing-beneath-comma
 
 A retired word at the head of a request is plain topic text: the command reads it as wording and prints no notice. The `research` and `evidence` types need CLI v0.8.3 or later; an older CLI falls back to `rnd` and reports the version.
 
+### Another project
+
+A path in the request selects its own project: the nearest directory above the path that holds `.archcore/`. The commands pass that root as the `project` argument of the Archcore tools; the contract is `skills/_shared/target-project.md`. A command never creates `.archcore/` before the user answers which project to use. The `project` argument needs archcore CLI 0.15.0 or later; with an older CLI a command stops before it writes and names `archcore update`.
+
 ## Hosts
 
 | Host | MCP | Hooks | Install |

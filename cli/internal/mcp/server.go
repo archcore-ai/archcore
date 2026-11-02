@@ -20,6 +20,7 @@ import (
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/mcp/tools"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -37,9 +38,9 @@ const instructionsLead = "Archcore project context lives in .archcore/ as <slug>
 
 const instructionsRules = `
 
-READ: search_documents first; get_document takes a path an Archcore tool or hook returned. Before you call a search empty, read near_misses and retry with fewer words.
+READ: search_documents first; get_document takes a path an Archcore tool or hook returned. If a search is empty, read near_misses and retry with fewer words.
 
-WRITE: only through the Archcore tools. Search for a duplicate first. Create as draft; set accepted only after the user confirms. Ask before remove_document. Call init_project only when the user asks for documents and .archcore/ is missing.
+WRITE: only through the Archcore tools. Search for a duplicate first. Create as draft; set accepted only after the user confirms. Ask before remove_document. Call init_project only when the user asks for it. For another project, pass project=<its absolute root>.
 
 TYPES: create_document lists them. rnd closes on a recommendation; research on scope coverage. evidence records one external material. A spec line obligates a component with a modal; a scenario step takes the actor as subject and illustrates an existing spec; a journey is a user path no spec covers yet.
 
@@ -185,21 +186,26 @@ func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPS
 	// One provider serves every tool: the root is resolved per call, and the
 	// decision is shared so a session pays for at most one roots/list query per
 	// cache window however many tools it calls (project-root-resolution.spec).
-	root := newSessionRootProvider(baseDir, cfg.pinnedRoot, cfg.warnTo)
+	session := newSessionRootProvider(baseDir, cfg.pinnedRoot, cfg.warnTo)
+	root := callRoot{session: session}
+	resolver := callRootResolver{session: session}
+	add := func(tool mcp.Tool, handle server.ToolHandlerFunc) {
+		s.AddTool(tools.WithProjectArgument(tool), resolver.wrap(tool.Name, handle))
+	}
 
-	s.AddTool(tools.NewInitProjectTool(), tools.HandleInitProject(root))
-	s.AddTool(tools.NewListDocumentsTool(), tools.HandleListDocuments(root))
-	s.AddTool(tools.NewGetDocumentTool(), tools.HandleGetDocument(root))
-	s.AddTool(tools.NewSearchDocumentsTool(), tools.HandleSearchDocuments(root))
-	s.AddTool(tools.NewCreateDocumentTool(), tools.HandleCreateDocument(root))
-	s.AddTool(tools.NewUpdateDocumentTool(), tools.HandleUpdateDocument(root))
-	s.AddTool(tools.NewRemoveDocumentTool(), tools.HandleRemoveDocument(root))
-	s.AddTool(tools.NewAddRelationTool(), tools.HandleAddRelation(root))
-	s.AddTool(tools.NewRemoveRelationTool(), tools.HandleRemoveRelation(root))
-	s.AddTool(tools.NewListRelationsTool(), tools.HandleListRelations(root))
+	add(tools.NewInitProjectTool(), tools.HandleInitProject(root))
+	add(tools.NewListDocumentsTool(), tools.HandleListDocuments(root))
+	add(tools.NewGetDocumentTool(), tools.HandleGetDocument(root))
+	add(tools.NewSearchDocumentsTool(), tools.HandleSearchDocuments(root))
+	add(tools.NewCreateDocumentTool(), tools.HandleCreateDocument(root))
+	add(tools.NewUpdateDocumentTool(), tools.HandleUpdateDocument(root))
+	add(tools.NewRemoveDocumentTool(), tools.HandleRemoveDocument(root))
+	add(tools.NewAddRelationTool(), tools.HandleAddRelation(root))
+	add(tools.NewRemoveRelationTool(), tools.HandleRemoveRelation(root))
+	add(tools.NewListRelationsTool(), tools.HandleListRelations(root))
 
 	if cfg.hostWiring != nil {
-		s.AddTool(tools.NewInstallHostConfigTool(), tools.HandleInstallHostConfig(root, cfg.hostWiring))
+		add(tools.NewInstallHostConfigTool(), tools.HandleInstallHostConfig(root, cfg.hostWiring))
 	}
 
 	return s

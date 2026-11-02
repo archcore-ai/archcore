@@ -5112,6 +5112,66 @@
       "source": "plugin/delta-routing-instruments.spec.md",
       "target": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
       "type": "implements"
+    },
+    {
+      "source": "mcp/explicit-target-project-per-call.adr.md",
+      "target": "integrations/host-cwd-misrouting.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/explicit-target-project-per-call.adr.md",
+      "target": "mcp/session-following-project-root.adr.md",
+      "type": "supersedes"
+    },
+    {
+      "source": "mcp/explicit-target-project-per-call.adr.md",
+      "target": "cli/multi-project-mcp-access.idea.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/call-root-resolution.spec.md",
+      "target": "mcp/explicit-target-project-per-call.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/call-root-resolution.spec.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/cross-project-session.scenario.md",
+      "target": "mcp/call-root-resolution.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/session-outside-a-project.scenario.md",
+      "target": "mcp/call-root-resolution.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/explicit-target-project-rollout.plan.md",
+      "target": "mcp/call-root-resolution.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/explicit-target-project-rollout.plan.md",
+      "target": "mcp/explicit-target-project-per-call.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "integrations/hook-runtime.spec.md",
+      "target": "mcp/call-root-resolution.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/search-documents.spec.md",
+      "target": "mcp/call-root-resolution.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/command-surface-v2.spec.md",
+      "target": "mcp/explicit-target-project-per-call.adr.md",
+      "type": "related"
     }
   ]
 }

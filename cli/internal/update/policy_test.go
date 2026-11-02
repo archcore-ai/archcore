@@ -1199,6 +1199,7 @@ func TestRunUnattended_ProbeFailureReportsReplaceStage(t *testing.T) {
 func TestRunUnattended_SuccessReplacesAndReports(t *testing.T) {
 	requiresExec(t)
 	unattendedEnv(t)
+	withInstantProbe(t)
 
 	rec := newTelemetryRecorder(t)
 	host := newReleaseHost(t, "v2.0.0", []byte(healthyPayload))
@@ -1270,6 +1271,7 @@ func TestRunUnattended_TelemetryOptOutLeavesTheUpdateWorking(t *testing.T) {
 		t.Run(optOut, func(t *testing.T) {
 			requiresExec(t)
 			unattendedEnv(t)
+			withInstantProbe(t)
 			t.Setenv(optOut, "1")
 
 			rec := newTelemetryRecorder(t)

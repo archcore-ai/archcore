@@ -1,1 +1,1 @@
-{"turn_id":"t1","hook_event_name":"PreToolUse","tool_name":"apply_patch","tool_input":{"file_path":".archcore/auth/jwt-strategy.adr.md","content":"*** Begin Patch"}}
+{"session_id":"s1","turn_id":"t1","transcript_path":"/w/.codex/sessions/rollout.jsonl","cwd":"/w/a","hook_event_name":"PreToolUse","model":"gpt-6.1-sol","permission_mode":"bypassPermissions","tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Add File: .archcore/probe/direct.adr.md\n+# direct\n*** End Patch"},"tool_use_id":"call_1"}

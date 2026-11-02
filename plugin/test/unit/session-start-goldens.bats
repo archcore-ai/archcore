@@ -42,13 +42,13 @@ EOF
 
 expected_no_archcore_plain() {
   cat <<'EOF'
-[Archcore] no .archcore/ directory in this project yet. When the user asks for any Archcore operation (create ADR, audit docs, etc.), call mcp__archcore__init_project once to initialize, then proceed. Do NOT write to .archcore/ directly — hooks will block it. After init, suggest the user run /archcore:init to seed initial content (stack rule, run-the-app guide, optional import of existing CLAUDE.md / AGENTS.md / .cursorrules). Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.
+[Archcore] no .archcore/ directory in this folder. Before any Archcore operation, ask the user which project to use. Do NOT write to .archcore/ directly — hooks will block it. Reaching another project with the project argument needs archcore CLI 0.15.0 or newer; run: archcore update
 EOF
 }
 
 expected_no_archcore_claude() {
   cat <<'EOF'
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"[Archcore] no .archcore/ directory in this project yet. When the user asks for any Archcore operation (create ADR, audit docs, etc.), call mcp__archcore__init_project once to initialize, then proceed. Do NOT write to .archcore/ directly — hooks will block it. After init, suggest the user run /archcore:init to seed initial content (stack rule, run-the-app guide, optional import of existing CLAUDE.md / AGENTS.md / .cursorrules). Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1.\n"}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"[Archcore] no .archcore/ directory in this folder. Before any Archcore operation, ask the user which project to use. Do NOT write to .archcore/ directly — hooks will block it. Reaching another project with the project argument needs archcore CLI 0.15.0 or newer; run: archcore update\n"}}
 EOF
 }
 

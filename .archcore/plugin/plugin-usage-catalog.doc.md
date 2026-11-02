@@ -95,8 +95,11 @@ All produced documents start at `draft`. Only `closeout.accept` and `decision.re
 | Trigger | What happens | Owner |
 |---|---|---|
 | Session start | recap of the corpus, open drafts, staleness; empty-state nudge to `/archcore:init` | `@plugin/plugins/archcore/bin/session-start` |
+| Session start in a folder without `.archcore/` | the project above and the projects below, with no `init_project` advice; with archcore CLI older than 0.15.0, one line that asks the agent to ask which project to use | `@plugin/plugins/archcore/bin/session-start`, `@cli/cmd/hook_project_root.go` |
+| A request names a path in another project | the command resolves that project and passes its root as `project`; it asks before `init_project` | `@plugin/plugins/archcore/skills/_shared/target-project.md` |
+| An agent edits a file of another project | one advisory per session that names the project root and the `project` argument | `@plugin/plugins/archcore/bin/pre-tool-use` |
 | An agent edits a code file | code-alignment advisory with the documents that claim the file | `@plugin/plugins/archcore/bin/pre-tool-use` |
-| An agent writes `.archcore/` outside MCP | the write guard denies it | `@plugin/plugins/archcore/bin/pre-tool-use` |
+| An agent writes `.archcore/` outside MCP | the write guard denies it, in any project the path belongs to | `@plugin/plugins/archcore/bin/pre-tool-use` |
 | A document is created or updated | precision findings and a cascade notice naming related documents | `@plugin/plugins/archcore/bin/post-tool-use` |
 | A Claude Code session runs (no `/archcore:*` command in the request) | next-step hints — at session start, after a settled decision, before a push, and the resume command of a stopped track — plus a line counting the Archcore documents found and read in the turn | `@plugin/plugins/archcore/hooks/next-step.tsx`, `@plugin/plugins/archcore/tests/next-step.test.ts` |
 | Multi-document work in a conversation | the `archcore-assistant` agent | `@plugin/plugins/archcore/agents/archcore-assistant.md` |

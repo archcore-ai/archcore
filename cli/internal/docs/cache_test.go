@@ -196,3 +196,37 @@ func TestScanCache_PruneOnlyOnceOutgrown(t *testing.T) {
 		})
 	}
 }
+
+// TestScanCache_PruneKeepsOtherProjects: a scan of one project drops its own
+// stale entries and keeps those of another project the same process serves.
+func TestScanCache_PruneKeepsOtherProjects(t *testing.T) {
+	t.Parallel()
+	c := scanCache{entries: map[string]docCacheEntry{}}
+	for _, k := range []string{"/a/.archcore/x.md", "/a/.archcore/stale.md", "/a/.archcore2/s.md", "/b/.archcore/y.md", "/b/.archcore/z.md"} {
+		c.store(k, docCacheEntry{})
+	}
+	c.prune(map[string]bool{"/a/.archcore/x.md": true}, []string{"/a/.archcore"})
+	if _, ok := c.entries["/a/.archcore/stale.md"]; ok {
+		t.Error("the stale entry of the scanned project survived")
+	}
+	for _, k := range []string{"/a/.archcore/x.md", "/a/.archcore2/s.md", "/b/.archcore/y.md", "/b/.archcore/z.md"} {
+		if _, ok := c.entries[k]; !ok {
+			t.Errorf("prune dropped %s", k)
+		}
+	}
+	if c.needsPrune(1) {
+		t.Error("a sweep that left another project's entries is due again before the cache grew")
+	}
+	c.store("/a/.archcore/new.md", docCacheEntry{})
+	if !c.needsPrune(1) {
+		t.Error("a grown cache is not due for a sweep")
+	}
+
+	c.reset()
+	for _, k := range []string{"/a/.archcore/p.md", "/a/.archcore/q.md", "/a/.archcore/r.md"} {
+		c.store(k, docCacheEntry{})
+	}
+	if !c.needsPrune(1) {
+		t.Error("a reset cache keeps the sweep mark of the cache it emptied")
+	}
+}

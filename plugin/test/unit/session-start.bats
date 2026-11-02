@@ -6,13 +6,14 @@ setup() {
   common_setup
 }
 
-@test "reports missing .archcore/ directory and tells agent to call init_project" {
+@test "reports missing .archcore/ directory and tells the agent to ask for the project, not to call init_project" {
   mock_archcore ""
   cd "$BATS_TEST_TMPDIR"
   run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
   assert_success
   assert_output --partial "no .archcore/ directory"
-  assert_output --partial "mcp__archcore__init_project"
+  assert_output --partial "ask the user which project to use"
+  refute_output --partial "init_project"
   assert_output --partial "hookSpecificOutput"
 }
 

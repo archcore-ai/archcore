@@ -71,6 +71,7 @@ The command leaves live in `cmd/`; the advisory logic they call lives in `intern
 | `session-start` | project recap | no | `@cli/cmd/hooks_common.go`, `@cli/cmd/hook_session_start.go` |
 | `session-start` | staleness advisory | no | `@cli/internal/advisory/staleness.go` |
 | `pre-tool-use` | write guard | **yes** | `@cli/cmd/hook_write_guard.go` |
+| `pre-tool-use` | project-touch advisory | no | `@cli/cmd/hook_project_root.go` |
 | `pre-tool-use` | code-alignment injection | no | `@cli/internal/advisory/code_alignment.go` |
 | `post-tool-use` | structure validation | no | `@cli/cmd/hook_post_tool_use.go` |
 | `post-tool-use` | relation cascade notice | no | `@cli/cmd/hook_post_tool_use.go` |
@@ -93,7 +94,9 @@ ordinary source file and lets the patch land a document in the store.
 The patch scan stops after 20000 lines. The payload cap bounds the bytes; this bounds the lines,
 because the pre-write guard blocks the user while it runs. A target past that line is not guarded.
 
-One invocation builds one guard, so the project state a verdict reads — whether the store exists, and
+Each target resolves its own project root: the nearest directory above an absolute target that holds `.archcore/`, else the root from the payload `cwd` (call-root-resolution.spec behaviors 13–15). A write into another project's `.archcore/` is therefore denied, and the deny reason names that root as `project="<root>"`. A source file edit under another root is allowed and adds one `[Archcore Project]` advisory per session, root, and host, claimed through the stamp directory `project-touch-stamps` with a 24-hour window [assumption: the window length is a chosen value, not a measured one].
+
+One invocation builds one guard per resolved root, so the project state a verdict reads — whether the store exists, and
 which globals are declared — is read once however many targets the call carries, and only when a
 verdict needs it. Read per target, `settings.json` alone put a maximal patch within reach of the
 one-second host budget.
@@ -161,6 +164,10 @@ states the same rows normatively.
 | Codex CLI | `hookSpecificOutput` + `systemMessage` | `hookSpecificOutput` wrapper | stderr, exit 2 | yes |
 | OpenCode | plain text, no banner | plain text | stderr, exit 2 | yes |
 
+Codex CLI edits every file through `apply_patch`, so its payload names no file path. The code-alignment
+context then comes from the first file of the patch, and a later file of a multi-file patch gets none
+(hook-runtime.spec behavior 18).
+
 Copilot's `preToolUse` carries only a permission decision, so code-alignment context is discarded
 there rather than emitted. Copilot also reads any non-zero exit as a deny and drops the reason with
 it, which is why its deny writes JSON and exits 0.
@@ -174,7 +181,9 @@ which the plain-text envelope therefore drops, on the reasoning Copilot's envelo
 banner is a line for the user, and the context channel is input for the model. A deny stays exit 2
 with the reason on stderr, which the bridge rethrows as an `Error` whose message the model receives.
 
-Source: `@cli/cmd/hook_dialect.go`, `@cli/cmd/hook_session_start.go`, and the bridge contract in the plugin
+WHEN the session folder holds no `.archcore/`, the recap carries no `init_project` or `create_document` advice. It prints `NO PROJECT HERE`, then `PROJECT ABOVE` with the nearest ancestor that holds `.archcore/`, then `PROJECTS BELOW` with the projects a bounded scan finds: depth 3, at most 2000 directories, at most 10 roots shown [assumption: the three limits are chosen values]. The plugin's `bin/session-start` hands this case to the CLI only for archcore CLI 0.15.0 or newer; an older CLI receives a static line that tells the agent to ask which project to use.
+
+Source: `@cli/cmd/hook_dialect.go`, `@cli/cmd/hook_session_start.go`, `@cli/cmd/hook_project_root.go`, and the bridge contract in the plugin
 repository (`plugins/archcore/bin/lib/normalize-stdin.sh`, `host-adapter-contract.spec`).
 
 ## Hook input
@@ -194,6 +203,7 @@ is the current key list.
 | Patch document | `tool_input.patchText`, `toolArgs.patchText`, `tool_args.patchText`, `patchText`, then the same three containers for `input`, then for `patch` |
 | Patch targets | inside that text: every `*** Add File:`, `*** Update File:`, `*** Delete File:`, `*** Move to:` line, up to 20000 lines |
 | Document path | `tool_input.path`, `toolArgs.path`, `path` |
+| Target project | `tool_input.project`, `toolArgs.project`, `tool_args.project`; post-tool-use validates the document under that root when the value is an absolute directory |
 
 An empty, truncated, or non-JSON stdin yields an empty payload, and every guard then allows. Bytes
 after the leading JSON object are ignored rather than rejected — rejecting them would produce that

@@ -116,6 +116,15 @@ func TestBuildInstructions_CarriesTheTypeContracts(t *testing.T) {
 	}
 }
 
+// TestBuildInstructions_NamesTheProjectArgument pins call-root-resolution.spec
+// §18: the instructions tell the agent how to reach another project.
+func TestBuildInstructions_NamesTheProjectArgument(t *testing.T) {
+	t.Parallel()
+	if got := buildInstructions("", nil, nil); !strings.Contains(got, "For another project, pass project=<its absolute root>.") {
+		t.Errorf("the instructions do not name the project argument: %q", got)
+	}
+}
+
 func TestJoinSourceIDs_StatesTheRemainder(t *testing.T) {
 	t.Parallel()
 	many := []string{"archcore", "platform-standards", "security-baseline", "team-frontend", "team-backend", "data-contracts"}

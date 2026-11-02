@@ -236,42 +236,73 @@ func (p *sessionRootProvider) warnOnce(reason, message string) {
 	_, _ = fmt.Fprintln(p.warnTo, display.Dim.Render("  "+message))
 }
 
-// acceptRoot reports whether dir may become the project root, and names the
-// failed check otherwise. The reason never embeds a filesystem path
-// (no-absolute-paths-in-mcp-errors.rule); a declared source id is named
-// because the user wrote it.
+// The refusal reasons of checkRoot. None embeds a filesystem path
+// (no-absolute-paths-in-mcp-errors.rule).
+var (
+	errRootNotAbsolute        = errors.New("root is not an absolute path")
+	errRootNotDirectory       = errors.New("root is not an existing directory")
+	errRootPluginCache        = errors.New("root is inside an AI-host plugin install cache")
+	errRootNoArchcore         = errors.New("root holds no .archcore/ directory")
+	errRootSettingsUnreadable = errors.New("root has an unreadable .archcore/settings.json")
+)
+
+// fatalGlobalError refuses a root whose declared global source is
+// misconfigured. It carries the declared id alone, never the declared path:
+// config.LoadGlobals returns the declaration verbatim, and a source declared
+// with an absolute path would put that path into the message
+// (project-root-resolution.spec §17).
+type fatalGlobalError struct{ sourceID string }
+
+func (e fatalGlobalError) Error() string {
+	return fmt.Sprintf("root declares a global source %q that is misconfigured", e.sourceID)
+}
+
+// checkRoot is the one predicate for whether dir may be served as a project
+// root, shared by the session provider and the project argument
+// (call-root-resolution.spec, Acceptance checks). The layers run in this order:
+// absolute path, existing directory, not a plugin install cache, then — only
+// when requireArchcore is true — a .archcore/ directory and declared global
+// sources without a fatal state.
 //
 // A guard, not an advisory (fail-open-or-fail-closed-reads.rule §4): every stat
-// and every globals read below refuses the candidate on error, because a root
-// the provider cannot verify is a root it must not move onto.
-func acceptRoot(dir string) (reason string, ok bool) {
+// and every globals read below refuses the root on error, because a root the
+// server cannot verify is a root it must not serve.
+func checkRoot(dir string, requireArchcore bool) error {
 	if !filepath.IsAbs(dir) {
-		return "the reported path is not absolute", false
+		return errRootNotAbsolute
 	}
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
-		return "the reported path is not an existing directory", false
+		return errRootNotDirectory
 	}
 	if projectroot.IsPluginCachePath(dir) {
-		return "the reported path is inside an AI-host plugin install cache, not a user project", false
+		return errRootPluginCache
+	}
+	if !requireArchcore {
+		return nil
 	}
 	archcoreDir, err := os.Stat(filepath.Join(dir, ".archcore"))
 	if err != nil || !archcoreDir.IsDir() {
-		return "the reported directory holds no .archcore/ directory", false
+		return errRootNoArchcore
 	}
 	inspections, err := docs.InspectGlobals(dir)
 	if err != nil {
-		return "the reported project has an unreadable .archcore/settings.json", false
+		return errRootSettingsUnreadable
 	}
 	for _, in := range inspections {
 		if in.State.Fatal() {
-			// The id alone, never in.Message(). GlobalInspection.Path is the
-			// declaration verbatim, and config.LoadGlobals returns it verbatim,
-			// so a source declared with an absolute path puts that path into the
-			// message — which this line may not carry
-			// (project-root-resolution.spec §17).
-			return fmt.Sprintf("the reported project declares a global source %q that is misconfigured", in.ID), false
+			return fatalGlobalError{sourceID: in.ID}
 		}
+	}
+	return nil
+}
+
+// acceptRoot reports whether a reported working directory may become the
+// session root, and names the failed check otherwise, in the words of the
+// root provider's warning stream.
+func acceptRoot(dir string) (reason string, ok bool) {
+	if err := checkRoot(dir, true); err != nil {
+		return rootRefusal("the reported path", err), false
 	}
 	return "", true
 }

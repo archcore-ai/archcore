@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -29,6 +29,9 @@ let project: string
 // Behavior tests do not measure time, and the first run of a freshly written
 // stub can take seconds on a loaded machine, so they get budgets far above that.
 const BUDGETS = { ...BUDGET_MS }
+
+// The 15 s launcher budgets set in beforeEach must fit inside the test timeout.
+setDefaultTimeout(30_000)
 
 function behave(name: string, script: string) {
   writeFileSync(path.join(stubs, `${name}.sh`), script)
@@ -171,10 +174,10 @@ describe("CLI gate", () => {
 
 describe("tool.execute.before", () => {
   for (const name of ["write-archcore.json", "write-regular.json", "edit-archcore.json", "apply-patch-archcore.json"]) {
-    test(`hands ${name} to pre-tool-use verbatim, from the project, as host opencode`, async () => {
+    test(`hands ${name} to pre-tool-use with the session id, from the project, as host opencode`, async () => {
       const f = fixture(name)
       await (await hooks())["tool.execute.before"]({ tool: f.tool_name, sessionID: "s", callID: "c" }, { args: f.tool_input })
-      expect(received("pre-tool-use")).toEqual(f)
+      expect(received("pre-tool-use")).toEqual({ ...f, session_id: "s" })
       expect(readFileSync(path.join(stubs, "pre-tool-use.cwd"), "utf8").trim()).toBe(project)
       expect(readFileSync(path.join(stubs, "pre-tool-use.host"), "utf8")).toBe("opencode")
     })
@@ -211,6 +214,8 @@ describe("tool.execute.before", () => {
     // child's pid; the sleep still outlasts it by seconds.
     BUDGET_MS.pre = 1500
     try {
+      // Pay the first start of the freshly written stub outside the measured budget.
+      Bun.spawnSync([path.join(root, "bin", "pre-tool-use")], { stdin: "ignore" })
       behave("pre-tool-use", 'sleep 10 & echo $! > "$STUB_DIR/child.pid"; wait; exit 2\n')
       const started = Date.now()
       await (await hooks())["tool.execute.before"]({ tool: "write", sessionID: "s", callID: "c" }, { args: {} })
@@ -248,7 +253,7 @@ describe("tool.execute.after", () => {
     const f = fixture("mcp-update.json")
     const out = { content: [{ type: "text", text: "updated" }] }
     await (await hooks())["tool.execute.after"]({ tool: f.tool_name, sessionID: "s", callID: "c", args: f.tool_input }, out)
-    expect(received("post-tool-use")).toEqual(f)
+    expect(received("post-tool-use")).toEqual({ ...f, session_id: "s" })
     expect(out.content).toEqual([
       { type: "text", text: "updated" },
       { type: "text", text: "[Archcore Validation] ok\n" },
@@ -450,14 +455,14 @@ describe("OpenCode 2.x setup", () => {
   })
 
   for (const name of ["v2-write-archcore.json", "v2-patch-archcore.json"]) {
-    test(`hands ${name} to pre-tool-use verbatim and throws the reason on exit 2`, async () => {
+    test(`hands ${name} to pre-tool-use with the session id and throws the reason on exit 2`, async () => {
       behave("pre-tool-use", "printf 'Use the MCP tools.\\n' >&2; exit 2\n")
       const f = fixture(name)
       const { hooks } = await setupV2()
       await expect(hooks["execute.before"]({ tool: f.tool_name, sessionID: "s", id: "c", input: f.tool_input })).rejects.toThrow(
         /^Use the MCP tools\.$/,
       )
-      expect(received("pre-tool-use")).toEqual(f)
+      expect(received("pre-tool-use")).toEqual({ ...f, session_id: "s" })
       expect(readFileSync(path.join(stubs, "pre-tool-use.cwd"), "utf8").trim()).toBe(project)
     })
   }
@@ -486,7 +491,7 @@ describe("OpenCode 2.x setup", () => {
     const f = fixture("mcp-update.json")
     const { hooks } = await setupV2()
     await hooks["execute.after"]({ tool: f.tool_name, sessionID: "s", id: "c", input: f.tool_input, status: "completed", result: { output: "{}" } })
-    expect(received("post-tool-use")).toEqual(f)
+    expect(received("post-tool-use")).toEqual({ ...f, session_id: "s" })
     const first = { sessionID: "s", system: [] as any[] }
     await hooks.context(first)
     const second = { sessionID: "s", system: [] as any[] }

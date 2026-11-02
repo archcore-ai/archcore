@@ -3,6 +3,8 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -98,6 +100,29 @@ func TestSearchForPath_RowsCarryReasonAndFullPaths(t *testing.T) {
 	}
 	if resp.Omitted != nil {
 		t.Errorf("omitted = %+v, want absent", resp.Omitted)
+	}
+}
+
+// TestSearchForPath_ThroughASymlinkOfTheRoot: an absolute for_path spelled
+// through a symlink of the served root — /tmp against /private/tmp on macOS —
+// is a file inside the project (host-probe-protocol.spec run of 2026-10-30).
+func TestSearchForPath_ThroughASymlinkOfTheRoot(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "", "guard.rule.md", acceptedDoc("Guard", "Return early."))
+	link := filepath.Join(t.TempDir(), "project-link")
+	if err := os.Symlink(base, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	for _, served := range []string{base, link} {
+		other := link
+		if served == link {
+			other = base
+		}
+		resp, text := searchForPath(t, served, map[string]any{"for_path": filepath.Join(other, "src", "a.go")})
+		if len(resp.Results) != 1 || resp.Results[0].Path != ".archcore/guard.rule.md" {
+			t.Errorf("served %q, for_path through %q: %s; want the guard rule", served, other, text)
+		}
 	}
 }
 

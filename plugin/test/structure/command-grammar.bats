@@ -155,3 +155,55 @@ $hits"
   grep -F -q '| No arguments, branch with changes | → branch review' "$PLUGIN_ROOT/skills/review/SKILL.md" || { fail "review has no no-arguments row"; return 1; }
   grep -F -q 'No arguments, or any other first word' "$PLUGIN_ROOT/skills/init/SKILL.md" || { fail "init does not state the plain run"; return 1; }
 }
+
+# call-root-resolution.spec and command-surface-v2.spec Failure Behavior 2: a
+# skill asks before init_project and passes project for another project.
+@test "plan, document, and review never call init_project unasked" {
+  local skill
+  for skill in plan document review; do
+    if grep -n 'init_project` without asking' "$PLUGIN_ROOT/skills/$skill/SKILL.md"; then
+      fail "$skill calls init_project without asking"; return 1
+    fi
+    grep -q 'skills/_shared/target-project.md' "$PLUGIN_ROOT/skills/$skill/SKILL.md" \
+      || { fail "$skill does not route a missing .archcore/ to the target-project contract"; return 1; }
+    # The rule wraps across lines in document/SKILL.md, so join lines before the match.
+    tr '\n' ' ' < "$PLUGIN_ROOT/skills/$skill/SKILL.md" | tr -s ' ' \
+      | grep -q 'ask which project to use or whether to initialize the session root, and do not call `mcp__archcore__init_project` before the answer' \
+      || { fail "$skill does not ask before init_project"; return 1; }
+  done
+}
+
+@test "the target-project contract carries the project argument, the question, and the old-CLI stop" {
+  local f="$PLUGIN_ROOT/skills/_shared/target-project.md"
+  [ -f "$f" ] || { fail "missing $f"; return 1; }
+  grep -q 'pass that root as `project`' "$f" || fail "no project argument rule"
+  grep -q 'WHEN a call concerns the session root, omit `project`' "$f" || fail "no omit-project rule for the session root"
+  grep -q 'Do not call `init_project` before the user answers' "$f" || fail "no ask-before-init rule"
+  grep -q 'IF a successful response to a call with `project` has no `project` field, THEN stop' "$f" \
+    || fail "the old-CLI stop is not limited to a successful response"
+  grep -q 'IF an error response names `project` or `init_project`, THEN treat the CLI as 0.15.0 or newer' "$f" \
+    || fail "an error from a new CLI is read as an old CLI"
+  grep -q 'Do not make the call of step 1 before `init_project`' "$f" \
+    || fail "the old-CLI probe runs before init_project"
+  grep -q 'Before the first write to a target project other than the session root, call `list_documents`' "$f" \
+    || fail "no read before the first write to another project"
+  grep -q 'cannot deliver the question.*write nothing, and stop' "$f" || fail "no stop when the question cannot be asked"
+  grep -q 'skills/_shared/target-project.md' "$PLUGIN_ROOT/skills/_shared/gate-contract.md" \
+    || fail "gate-contract.md does not reference the target-project contract"
+  tr '\n' ' ' < "$PLUGIN_ROOT/skills/_shared/gate-contract.md" | tr -s ' ' \
+    | grep -q 'pass `project` on each call that concerns a project other than the session root' \
+    || fail "gate-contract.md does not pass project for another project"
+}
+
+# command-surface-v2.spec behavior 51: a request that names more than one
+# target project is grounded and reported per project, and the plan report
+# names each document's project.
+@test "a request with several target projects is grounded and reported per project" {
+  local f="$PLUGIN_ROOT/skills/_shared/target-project.md"
+  grep -q 'more than one target project, run grounding in each target project' "$f" \
+    || fail "no per-project grounding rule"
+  grep -q 'list each produced or reviewed document beside its project root in the report' "$f" \
+    || fail "no per-project report rule"
+  awk '/^## Result/,0' "$PLUGIN_ROOT/skills/plan/SKILL.md" | grep -q 'beside its project root' \
+    || fail "the plan Result section does not name each document's project"
+}
