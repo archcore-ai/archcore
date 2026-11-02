@@ -19,7 +19,7 @@ This spec defines documentation-freshness detection: the SessionStart staleness 
 
 ## Surface
 
-Three kinds of staleness: **code→doc drift** (source changes that invalidate documentation), **doc→doc cascade** (an update that leaves related documents behind), and **temporal staleness** (a document left in one status longer than expected). Layer 3 adds three checks that read the document alone: **reference resolution** (a cited code path that no longer exists, independent of the diff), **line anchors** (a code reference that carries a line number), and **shipped drafts** (a `draft` whose claims all verify against the code). Detection runs at three depths.
+Three kinds of staleness: **code→doc drift** (source changes that invalidate documentation), **doc→doc cascade** (an update that leaves related documents behind), and **temporal staleness** (a document left in one status longer than expected). Layer 3 adds three checks that read the document alone: **reference resolution** (a cited code path that no longer exists, independent of the diff), **line anchors** (a code reference that carries a line number), **shipped drafts** (a `draft` whose claims all verify against the code), and **hung plans** (a `plan` no branch matched whose work shipped, or whose paths stopped moving). Detection runs at three depths.
 
 | Layer | Trigger | Depth | Output | Runs in |
 |---|---|---|---|---|
@@ -54,6 +54,7 @@ The direction is fixed: A is the mutated target, B holds the relation into it, a
 15. WHEN git is unavailable, each layer MUST degrade to a skip.
 16. Each launcher MUST be POSIX shell compatible.
 17. Each launcher MUST exit 0 except where it propagates the CLI's deny.
+18. WHEN `actualize.fix` removes hung plans, one confirmation over a list naming every plan MUST count as the confirmation of item 13 (approved 2026-11-02).
 
 ## Constraints & Invariants
 
