@@ -53,7 +53,7 @@ func TestBuildInstructions_NonEnglish(t *testing.T) {
 }
 
 // TestBuildInstructions_AddressLeadsAndNoticesPrecedeRules pins the order a
-// truncating host depends on — context-address-delivery.spec §4 and §5: the
+// truncating host depends on — context-address-delivery.spec §3 and §5: the
 // address comes first and every notice comes before the working rules.
 func TestBuildInstructions_AddressLeadsAndNoticesPrecedeRules(t *testing.T) {
 	t.Parallel()
@@ -70,7 +70,7 @@ func TestBuildInstructions_AddressLeadsAndNoticesPrecedeRules(t *testing.T) {
 	}
 }
 
-// TestBuildInstructions_FitTheHostCap holds context-address-delivery.spec §5 on
+// TestBuildInstructions_FitTheHostCap holds context-address-delivery.spec §4 on
 // the largest instructions a project can produce: many declared sources, some
 // mounted and some not, and a non-English language.
 func TestBuildInstructions_FitTheHostCap(t *testing.T) {
@@ -93,9 +93,9 @@ func TestBuildInstructions_FitTheHostCap(t *testing.T) {
 }
 
 // TestBuildInstructions_CarriesTheTypeContracts pins the clauses other accepted
-// specs place in the server instructions: research-and-evidence-types.spec §10
-// and §11, evidential-and-temporal-relations.spec §8, and
-// scenario-and-journey-types.spec §10 to §12.
+// specs place in the server instructions: research-and-evidence-types.spec §2
+// and §11, evidential-and-temporal-relations.spec §2, and
+// scenario-and-journey-types.spec §2 to §12.
 func TestBuildInstructions_CarriesTheTypeContracts(t *testing.T) {
 	t.Parallel()
 	got := buildInstructions("", nil, nil)

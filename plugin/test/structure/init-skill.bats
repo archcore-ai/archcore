@@ -393,7 +393,7 @@ setup() {
 @test "SKILL.md and host-wiring-parity.adr.md agree on the CLI wiring gate version" {
   # Derived from the skill rather than hardcoded twice: the next bump then
   # touches one literal, and this test still catches the ADR falling behind.
-  # The gate history lives in the accepted host-wiring-parity ADR.
+  # The accepted host-wiring-parity ADR pins the current gate.
   local gate
   gate=$(grep -o 'cli-gte" [0-9]\+\.[0-9]\+\.[0-9]\+' "$INIT" | head -1 | awk '{print $2}')
   [ -n "$gate" ] || fail "SKILL.md has no cli-gte call to read the gate version from"

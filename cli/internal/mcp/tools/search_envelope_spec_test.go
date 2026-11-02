@@ -114,7 +114,7 @@ func TestSearchDocuments_EnvelopeKeyOrder(t *testing.T) {
 // TestSearchDocuments_VerifiedAbsenceCarriesEmptyArrays reads the raw text: a
 // decoded nil slice and an empty one look the same. It fails against the
 // current handler, which serializes "results":null because fitSearchPage
-// returns a nil page for zero rows (search-documents.spec §11.1).
+// returns a nil page for zero rows (search-documents.spec §11).
 func TestSearchDocuments_VerifiedAbsenceCarriesEmptyArrays(t *testing.T) {
 	t.Parallel()
 	base := envelopeFixture(t)

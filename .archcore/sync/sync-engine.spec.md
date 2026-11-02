@@ -34,6 +34,8 @@ State file: `.archcore/.sync-state.json` — `version`, `files` (path relative t
 - Manifest `version` MUST equal 1; any other version is rejected on load (migration requires a version bump, not silent rewrite).
 - The manifest MUST NOT exceed 10,000 file entries or 50,000 relations (bounds memory use on corrupt or hostile input).
 - Every manifest and payload path MUST be relative and confined to `.archcore/` — no `..` escape, no absolute paths.
+- The document walk MUST NOT follow symlinks, so nothing outside `.archcore/` is hashed or read. A sync payload carries full file content that the server writes and indexes, so one escaped path exposes a file outside the project.
+- Code review: the reviewer verifies that a new sync boundary calls one of the path validators before it reads a file or writes a manifest entry. No test covers a boundary that does not exist yet.
 - The manifest validator MUST accept only `related`, `implements`, `extends`, `depends_on`, `supports`, `contradicts`, and `supersedes` as relation types.
 - The manifest validator MUST reject a relation whose source equals its target, and duplicate relation triples.
 - Unknown manifest root fields fail closed — the manifest is machine-owned state, and rewriting it MUST NOT silently drop fields written by a newer binary.

@@ -63,7 +63,7 @@ func (d Document) IsLocal() bool { return d.SourceKind == SourceKindLocal }
 
 // InAgentContext reports whether the document belongs in context pushed at an
 // agent. A rejected document is excluded from the push; the read tools still
-// return it (session-start-context.spec behavior 4).
+// return it (session-start-context.spec behavior 3).
 func (d Document) InAgentContext() bool {
 	return d.Status != templates.StatusRejected
 }

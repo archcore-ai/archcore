@@ -1,6 +1,6 @@
 ---
 title: "An Open Choice Offers Three Exits, and a Lone Question Without Evidence Goes to Investigation"
-status: accepted
+status: draft
 tags:
   - "commands"
   - "component:plugin"

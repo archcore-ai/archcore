@@ -2422,6 +2422,51 @@
       "source": "plugin/plugin-architecture.spec.md",
       "target": "plugin/multi-host-plugin-architecture.adr.md",
       "type": "implements"
+    },
+    {
+      "source": "plugin/sdd-routing-bases.rnd.md",
+      "target": "plugin/context-driven-routing-beneath-command-grammar.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/delta-routing-bench.doc.md",
+      "target": "plugin/sdd-routing-bases.rnd.md",
+      "type": "related"
+    },
+    {
+      "source": "plugin/track-machinery-enforcement-audit.rnd.md",
+      "target": "plugin/sdd-routing-bases.rnd.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "mcp/search-documents.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "cli/mcp-token-optimization.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "cli/docs-package-owns-the-document-model.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/read-path-scan-performance.idea.md",
+      "target": "globals/source-mounts.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/relation-write-path-graph-growth.idea.md",
+      "target": "mcp/read-path-scan-performance.idea.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/process-and-concurrency-model.spec.md",
+      "target": "mcp/read-path-scan-performance.idea.md",
+      "type": "related"
     }
   ]
 }

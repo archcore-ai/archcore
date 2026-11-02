@@ -25,8 +25,10 @@ const maxProjectConfigBytes = 1 << 20
 var errProjectConfigUnreadable = errors.New("project config cannot be read")
 
 // projectEvidence fills in what a project-bound host's config says. OpenCode
-// has no listing command, and the `plugin` array it loads plugins from is the
+// 1.x has no listing command, and the `plugin` array it loads plugins from is the
 // host's own record, so with the CLI present that array stands as its listing.
+// On OpenCode 2.x the running service's listing (`opencode plugin list`) is
+// read as well, because the update command asks the service, not the config.
 func projectEvidence(ctx context.Context, ev Evidence, spec HostSpec, projectRoot string) Evidence {
 	ev.ProjectRoot = projectRoot
 	if ev.CLIPresent && spec.Version.Name != "" {
