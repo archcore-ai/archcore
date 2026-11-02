@@ -1,6 +1,6 @@
 ---
 title: "Writable Global Sources (Content-Only, Relations Stay Forbidden)"
-status: draft
+status: rejected
 tags:
   - "component:cli"
   - "config"

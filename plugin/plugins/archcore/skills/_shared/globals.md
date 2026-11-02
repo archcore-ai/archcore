@@ -31,7 +31,9 @@ path or title (`local-overrides-source.rule`):
 | `source_root` | absent | the absolute root of the source project (CLI 0.15.0+) |
 
 `list_documents` and `get_document` always carry `source_kind` and `source_id`.
-Detect a global document by `source_kind` only. An older CLI also sends
+Detect a global document by `source_kind` only. The top-level `source` of a
+response names the project of the call, not its rows: a search from this
+project answers `"local"` even when every row is global. An older CLI also sends
 `global` and `read_only`; ignore both fields. `search_documents`
 carries `source_kind` and `source_id` on a current CLI; an older CLI may omit them — when absent, treat
 every result as local (the safe no-op default).

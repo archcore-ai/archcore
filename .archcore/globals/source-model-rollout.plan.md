@@ -1,6 +1,6 @@
 ---
 title: "Rollout: Global Sources as a Read Policy — Addressed Writes, One Address per Document, No Reserved Directory"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "component:plugin"
@@ -53,7 +53,7 @@ Ship the source-mounts contract in v0.15.0 together with the `project` argument:
 20. Add the new cases: `source` on rows for a session root, a declared source, and an undeclared project; a write and a relation inside a source through `project`; the startup refusal for a path under the declaring `.archcore/`; the hook deny naming `source`. @cli/internal/mcp/integration/globals_test.go, @cli/cmd/hook_write_guard_test.go, @cli/internal/config/globals_test.go, @plugin/test/integration/cross-project.bats.
 21. Run the live probes on the three hosts per the host probe protocol and record the rows. @.archcore/plugin/host-probe-protocol.spec.md, @plugin/test/probe/mkprobe.
 22. Amend the two specs this plan keeps: the session disclosure spec for the `id → root` table, and the call-root spec for the `source` field and the `..` refusal. @.archcore/globals/session-globals-disclosure.spec.md, @.archcore/mcp/call-root-resolution.spec.md.
-23. On acceptance: set `superseded` on `global-sources.spec`, `globals-are-read-only-everywhere.rule`, `local-overrides-global.rule`, `declaring-global-sources.rule`; set `rejected` on `writable-global-sources.idea`; set `accepted` on the three new documents. Status changes wait for the user's acceptance.
+23. On acceptance: set `rejected` (the corpus marks a superseded document this way, with an incoming `supersedes` edge) on `global-sources.spec`, `globals-are-read-only-everywhere.rule`, `local-overrides-global.rule`, `declaring-global-sources.rule`; set `rejected` on `writable-global-sources.idea`; set `accepted` on the three new documents. Status changes wait for the user's acceptance.
 
 ## Acceptance Criteria
 
@@ -85,12 +85,18 @@ Ship the source-mounts contract in v0.15.0 together with the `project` argument:
 - create spec globals/source-mounts — done
 - create rule globals/local-overrides-source — done
 - create plan globals/source-model-rollout — this document
-- amend spec globals/session-globals-disclosure (the `id → root` table) — task 22
-- amend spec mcp/call-root-resolution (`source` field, `..` refusal) — task 22
-- amend guide globals/vendoring-a-global (no reserved directory) — task 18
-- retire spec globals/global-sources — superseded by source-mounts, task 23
-- retire rule globals/globals-are-read-only-everywhere — superseded by local-overrides-source, task 23
-- retire rule globals/local-overrides-global — superseded by local-overrides-source, task 23
-- retire rule globals/declaring-global-sources — folded into source-mounts, task 23
-- retire idea globals/writable-global-sources — rejected, realized through `project` instead, task 23
+- amend spec globals/session-globals-disclosure (the `id → root` table) — done, task 22
+- amend spec mcp/call-root-resolution (`source` field, `..` refusal) — done, task 22
+- amend guide globals/vendoring-a-global (no reserved directory) — done, task 18
+- retire spec globals/global-sources — done, superseded by source-mounts, task 23
+- retire rule globals/globals-are-read-only-everywhere — done, superseded by local-overrides-source, task 23
+- retire rule globals/local-overrides-global — done, superseded by local-overrides-source, task 23
+- retire rule globals/declaring-global-sources — done, folded into source-mounts, task 23
+- retire idea globals/writable-global-sources — done, rejected, realized through `project` instead, task 23
+
+## Outcome
+
+- Shipped in v0.15.0, tag on commit 5e9d7fe4; the Release run published the plugin, `@archcore/opencode-plugin@0.15.0`, and the CLI.
+- The user accepted the five implementation deviations recorded in globals/global-sources-are-a-read-policy.adr, Clarifications. Acceptance criterion 2 holds in that amended form: a global row keeps its 0.14 read path.
+- Acceptance criterion 10 is met for Claude Code and Codex. The OpenCode row is `deferred:free-model-limit`; the user chose to release without it. [EVIDENCE REQUIRED: an OpenCode probe row of P0 and A–D against CLI v0.15.0]
 - none: cross-project relation edges — ruled out 2026-11-02

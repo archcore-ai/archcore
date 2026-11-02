@@ -128,7 +128,7 @@ Source probes, outside the protocol columns, on Claude Code and Codex:
 
 Findings of this run:
 
-1. On Claude Code, the agent read the top-level `"source":"local"` of a search response whose only row was global as a contradiction. The field names the call root, not the rows. [EVIDENCE REQUIRED: a decision on the field name or its description]
+1. On Claude Code, the agent read the top-level `"source":"local"` of a search response whose only row was global as a contradiction. The field names the call root, not the rows. Resolved 2026-11-02: the name stays, and the `search_documents` description and the plugin's globals convention now say what the field names (globals/global-sources-are-a-read-policy.adr, Clarifications).
 2. On Claude Code, a sub-agent tried to open the `../g/…` path from the `[Archcore Context]` row with the host `Read` tool, and the host refused a read outside the working directory. `get_document` reads the same path.
 
 ## Conformance

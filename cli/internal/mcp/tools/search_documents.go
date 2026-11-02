@@ -103,7 +103,7 @@ Returns JSON, summary first:
 - hits: matches per source before the cut; truncated: true when the byte budget cut rows.
 - index: path, title, source_id of every admitted row.
 - results: at most 5 matches and 5 relations per direction per row; matches_total and the relation totals count the rest. Under for_path a row's reason says why it applies to the file; omitted counts the matched and general rows the caps cut, and more_matched and more_general name the calls that return them.
-Read source_kind on each row; a global row is part of the answer and has its project in source_root. IF a local and a global document conflict, THEN the local one is authoritative.
+Read source_kind and source_root per row; the top-level source names the call's project. A global row is part of the answer; on a conflict the local one is authoritative.
 
 mode="full" adds each body inline, default limit 3; a long body arrives shortened with body_truncated: true and body_bytes. Call get_document for the rest and before update_document — never write back a shortened body.
 

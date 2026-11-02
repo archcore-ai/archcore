@@ -1,6 +1,6 @@
 ---
 title: "Source Mounts — Declaration, Read Scope, Source Annotation, and Addressed Writes"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "config"
@@ -11,7 +11,7 @@ tags:
 
 ## Purpose & Scope
 
-This spec is normative for source mounts: the `globals` array a project declares in `.archcore/settings.json`, the read scope that array gives a call, the `project` and `source` fields every document row and write response carries, and the verdict the write tools and the pre-tool-use hook reach for a document of a declared source. Dependents: the scan and guards in @cli/internal/docs/, the eleven tool handlers in @cli/internal/mcp/tools/, the hook leaves in @cli/cmd/, and the plugin skills that read `source`. Out of scope: the call root resolution of `project`, the session-start `GLOBALS` block, and sync.
+This spec is normative for source mounts: the `globals` array a project declares in `.archcore/settings.json`, the read scope that array gives a call, the source fields every document row carries, the `project` and `source` fields every response carries, and the verdict the write tools and the pre-tool-use hook reach for a document of a declared source. Dependents: the scan and guards in @cli/internal/docs/, the eleven tool handlers in @cli/internal/mcp/tools/, the hook leaves in @cli/cmd/, and the plugin skills that read `source`. Out of scope: the call root resolution of `project`, the session-start `GLOBALS` block, and sync.
 
 ## Surface
 
@@ -20,6 +20,7 @@ This spec is normative for source mounts: the `globals` array a project declares
 - `Scan`, `ScanFull`, `ScanLocal` — @cli/internal/docs/scan.go; `Document.SourceID`, `Document.SourceKind`, `Document.SourceRoot` — @cli/internal/docs/document.go.
 - `GuardWritablePath`, `ValidateArchcorePath`, `ValidateReadPath` — @cli/internal/docs/guard.go.
 - Row fields: `source_kind` (`"local"` or `"global"`), `source_id`, and on a global row `source_root` (the absolute root of the source project).
+- Response-level `source`: names the project of the call, not its rows. A search from the session root carries `"local"` even when every row is global.
 - Response fields: `project` (the call root) and `source` (`"local"`, a declared id, or absent), appended by the server per @.archcore/mcp/call-root-resolution.spec.md behaviors 19–22.
 - Hook verdict: `writeGuard.decide` — @cli/cmd/hook_write_guard.go; root per target — @cli/cmd/hook_project_root.go.
 

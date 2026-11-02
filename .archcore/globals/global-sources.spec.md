@@ -1,6 +1,6 @@
 ---
 title: "Global Sources Contract"
-status: accepted
+status: rejected
 tags:
   - "component:cli"
   - "config"
