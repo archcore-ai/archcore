@@ -14,7 +14,7 @@ next: actualize.fix end
 
 gate: actualize.fix
 skip_when: no finding is labeled spec-wrong
-budget: 1 question per document carrying a spec-wrong finding
+budget: 1 question per document carrying a spec-wrong finding, plus 1 for the hung-plan batch
 taxonomy: Terminology & Consistency, Misc / Placeholders
 produces: none
 next: end
