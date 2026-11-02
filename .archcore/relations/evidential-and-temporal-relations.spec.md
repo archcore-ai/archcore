@@ -13,7 +13,7 @@ This contract extends the local relation vocabulary consumed by MCP clients, man
 
 ## Surface
 
-The relation enum and persisted triples live in @cli/internal/sync/manifest.go. MCP entry points live in @cli/internal/mcp/tools/add_relation.go, @cli/internal/mcp/tools/remove_relation.go, @cli/internal/mcp/tools/list_relations.go, and @cli/internal/mcp/tools/get_document.go.
+The relation enum and persisted triples live in @cli/internal/sync/manifest.go; the MCP entry points are the relation tools in @cli/internal/mcp/tools/.
 
 | Value | Axis | Stored direction |
 |---|---|---|
@@ -25,17 +25,10 @@ Endpoints remain documents. The word “statement” describes the target docume
 
 ## Normative Behavior
 
-1. The relation registry MUST accept the three Surface values alongside `related`, `implements`, `extends`, and `depends_on`.
-2. The manifest validator MUST accept all seven relation values.
-3. The `add_relation` tool MUST accept each new value between distinct existing local documents.
-4. The `add_relation` tool MUST preserve the caller's direction.
-5. The `remove_relation` tool MUST accept each new value.
-6. The `list_relations` tool MUST return stored values unchanged.
-7. The `get_document` tool MUST return the new values in incoming and outgoing relations.
-8. The server instructions MUST describe the three axes and each new value's direction.
-9. The cascade selector MUST exclude the three new values.
-10. The restatement selector MUST exclude the three new values.
-11. The `archcore doctor` command MUST accept the new relation values during manifest validation.
+1. The `add_relation` tool MUST preserve the caller's direction for each of the three values.
+2. The server instructions MUST describe the three axes and each value's direction.
+3. The cascade selector MUST exclude the three values.
+4. The restatement selector MUST exclude the three values.
 
 ## Constraints & Invariants
 
@@ -47,7 +40,7 @@ Manifest shape, version 1, limits, duplicate handling, and path containment rema
 4. The relation tools MUST NOT resolve a contradiction automatically.
 5. The relation tools MUST reject global documents as either endpoint.
 
-Older binaries currently reject unknown relation values — @cli/internal/sync/manifest.go. Adding values therefore does not provide backward readability for a manifest containing them. This change provides no manifest migration or downgrade rewrite.
+Older binaries reject unknown relation values (@cli/internal/sync/manifest.go). Adding values therefore does not give backward readability for a manifest that contains them. No migration or downgrade rewrite exists.
 
 ## Failure Behavior
 
@@ -59,4 +52,4 @@ Older binaries currently reject unknown relation values — @cli/internal/sync/m
 
 ## Conformance
 
-Conformance requires every numbered obligation above. Regression tests cover @cli/internal/sync/manifest_test.go, @cli/internal/mcp/tools/add_relation_test.go, @cli/internal/mcp/tools/remove_relation_test.go, @cli/internal/mcp/tools/get_document_test.go, and @cli/internal/mcp/tools/list_relations_test.go. Hook and restatement checks target @cli/cmd/hook_post_tool_use_test.go and @cli/internal/advisory/restatement_test.go. An isolated doctor fixture in @cli/cmd/doctor_test.go verifies enum acceptance without requiring unrelated health checks to pass.
+Conformance requires every numbered obligation above. The relation tool tests, @cli/internal/sync/manifest_test.go, @cli/cmd/hook_post_tool_use_test.go, and @cli/internal/advisory/restatement_test.go cover them.

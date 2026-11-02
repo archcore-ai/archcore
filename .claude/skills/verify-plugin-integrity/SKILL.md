@@ -59,14 +59,12 @@ The three marketplace catalogs stay at the **repo root** (`.claude-plugin/market
 - `.archcore/plugin/hooks-validation-system.spec.md` — launcher contract, hook entries, events, anti-regression
 - `.archcore/plugin/cli-owns-layers-4-5.adr.md` — hook policy lives in the CLI; the plugin ships launchers only
 - `.archcore/plugin/copilot-mcp-architecture.adr.md` — Copilot MCP isolation: project-level only, enforced by filename and an empty manifest key
-- `.archcore/plugin/codex-host-support.prd.md` — Codex packaging functional requirements (F1–F10)
 - `.archcore/plugin/codex-local-plugin-testing.guide.md` — live Codex packaging contract (manifest pointers, `${PLUGIN_ROOT}` hook commands, MCP shape, marketplace discovery)
 - `.archcore/plugin/agent-system.spec.md` — agent frontmatter + bootstrap preamble
 - `.archcore/plugin/skill-file-structure.rule.md` — skill file binding format
 - `.archcore/plugin/component-registry.doc.md` — authoritative component counts and per-host config table
 - `test/structure/*.bats` — the enforcement layer; where prose docs lag, the bats assertions are the operative pin
 
-**Do NOT cite as ground truth** (rejected/tombstoned, superseded by the v2 set): `.archcore/plugin/multi-host-compatibility-layer.spec.md`, `.archcore/plugin/commands-system.spec.md`, `.archcore/plugin/skills-system.spec.md`, `.archcore/plugin/skill-surface-collapse.adr.md`. The live successors are `plugin-architecture.spec.md`, `command-surface-v2.spec.md`, `track-layer.spec.md`, and `four-command-palette.adr.md`.
 
 If a local spec conflicts with an external official doc, the external doc is ground truth for format; the Archcore docs + bats suite are ground truth for this plugin's *choices* within that format (counts, invocation flags, Codex-specific manifest fields, etc.). For Codex specifically, `codex-local-plugin-testing.guide.md` + `test/structure/codex-plugin.bats` are authoritative whenever the upstream Codex docs are silent or in flux.
 
@@ -121,7 +119,7 @@ Per https://cursor.com/docs/plugins/building:
 
 File: `.codex-plugin/plugin.json` (plugin root)
 
-Per `.archcore/plugin/codex-host-support.prd.md` F1 and `.archcore/plugin/codex-local-plugin-testing.guide.md` Step 3, enforced by `test/structure/codex-plugin.bats`:
+Per `.archcore/plugin/codex-local-plugin-testing.guide.md` Step 3, enforced by `test/structure/codex-plugin.bats`:
 
 - JSON parses
 - `name` present, kebab-case
@@ -177,7 +175,7 @@ Per Claude Code, Cursor, and OpenAI Codex plugin docs:
 - `plugins` is a non-empty array; each entry has `name` and `source`
 - `source` equals `./plugins/archcore`
 
-**Codex CLI** — distinct schema (per `.archcore/plugin/codex-host-support.prd.md` F2 and `test/structure/codex-plugin.bats`):
+**Codex CLI** — distinct schema (per `test/structure/codex-plugin.bats`):
 - File path is `.agents/plugins/marketplace.json` (repo root)
 - `name` equals `"archcore-plugins"` (note: marketplace name, NOT the plugin name)
 - `interface.displayName` present
@@ -210,7 +208,7 @@ Then enforce this repo's surface rules (`.archcore/plugin/plugin-architecture.sp
 - `skills/_shared/` holds runtime assets — contracts, `tracks/`, `grounding/` — has no SKILL.md, and is excluded from the count
 - A fifth top-level skill requires a new ADR (`four-command-palette.adr` Superseded-when); its silent appearance is a hard FAIL
 
-Per `.archcore/plugin/codex-host-support.prd.md` F7, all SKILL.md files MUST work unchanged in Codex; non-standard frontmatter fields (e.g., `argument-hint`) are tolerated by Codex's loader. No Codex-specific skill validation is required.
+All SKILL.md files MUST work unchanged in Codex; non-standard frontmatter fields (e.g., `argument-hint`) are tolerated by Codex's loader. No Codex-specific skill validation is required.
 
 Total count sanity check: `ls -d plugins/archcore/skills/*/SKILL.md | wc -l` should match the registry total in `.archcore/plugin/component-registry.doc.md` (currently 4).
 
@@ -229,7 +227,7 @@ Archcore-specific (`.archcore/plugin/agent-system.spec.md`):
 
 ### Section 8 — TOML agents (Codex CLI)
 
-Iterate `agents/*.toml` (plugin root). Per `.archcore/plugin/codex-host-support.prd.md` F8 and `.archcore/plugin/agent-system.spec.md`, enforced by `test/structure/agents.bats`:
+Iterate `agents/*.toml` (plugin root). Per `.archcore/plugin/agent-system.spec.md`, enforced by `test/structure/agents.bats`:
 
 - TOML parses
 - Required keys: `name`, `description`, `developer_instructions`, `sandbox_mode`
@@ -291,7 +289,7 @@ Per https://cursor.com/docs/hooks, enforced by `test/structure/hooks.bats`:
 
 File: `hooks/codex.hooks.json` (plugin root)
 
-Per `.archcore/plugin/codex-local-plugin-testing.guide.md` Step 3 and `.archcore/plugin/codex-host-support.prd.md` F3, enforced by `test/structure/codex-plugin.bats`:
+Per `.archcore/plugin/codex-local-plugin-testing.guide.md` Step 3, enforced by `test/structure/codex-plugin.bats`:
 
 - JSON parses, top-level `hooks` object present
 - Event keys use **PascalCase** (same as Claude Code): `SessionStart`, `PreToolUse`, `PostToolUse` — NOT Cursor's camelCase

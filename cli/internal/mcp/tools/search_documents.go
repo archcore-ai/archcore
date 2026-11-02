@@ -224,7 +224,7 @@ type searchResult struct {
 	// capped occurrence count; effectiveMtime is the mtime
 	// for a local document and the zero time for a global one — a vendored
 	// global's mtime is its clone date, not a relevance signal, and on a full
-	// tie a local document ranks first (local-overrides-global.rule).
+	// tie a local document ranks first (local-overrides-source.rule).
 	score          int
 	typeRank       int
 	effectiveMtime time.Time

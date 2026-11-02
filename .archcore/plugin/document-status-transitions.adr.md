@@ -10,7 +10,7 @@ tags:
 
 ## Context
 
-The status field carries three values — draft, accepted, rejected — and every track gate creates documents with `status: draft`, yet no gate in the six pre-extension tracks transitions a status: acceptance is manual `update_document` editing, and the corpus shows it (62 accepted documents, all promoted by hand). The 2026-08-07 flow-coverage audit recorded this as a finding, and the flow-patterns research maps Kiro's per-phase approval flag onto `status: accepted` while measuring that non-blocking validation degrades to decoration.
+The status field carries three values — draft, accepted, rejected — and every track gate creates documents with `status: draft`, yet no gate in the six pre-extension tracks transitions a status: acceptance is manual `update_document` editing, and the corpus shows it (every accepted document was promoted by hand). The 2026-08-07 flow-coverage audit recorded this as a finding, and the flow-patterns research maps Kiro's per-phase approval flag onto `status: accepted` while measuring that non-blocking validation degrades to decoration.
 
 ## Decision
 

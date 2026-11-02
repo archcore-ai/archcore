@@ -15,40 +15,15 @@ Remove the block entirely. The first real step of the skill becomes "Step 1".
 
 ## Before
 
-```markdown
-## Execution
-
-### Step 0: Verify MCP
-
-Check if `mcp__archcore__list_documents` exists in your available tools. If the tool does not exist or returns an error, **stop immediately** and tell the user:
-
-**Archcore CLI is not installed.** The plugin provides skills and hooks, but document operations need the CLI (it runs the MCP server).
-
-To set up:
-1. Install: `curl -fsSL https://archcore.ai/install.sh | bash`
-2. Initialize project: `archcore init`
-3. Restart the session, then rerun this command.
-
-Do not proceed without MCP tools. Do not write to `.archcore/` directly.
-
-### Step 1: Gather data
-...
-```
+A `### Step 0: Verify MCP` block, about 15 lines, told the model to stop when `mcp__archcore__list_documents` was unavailable and to tell the user to install the CLI and restart.
 
 ## After
 
-```markdown
-## Execution
-
-### Step 1: Gather data
-...
-```
-
-Existing step numbering stays as it was. The removed block was always numbered from 0 while every other step started at 1.
+`## Execution` opens at `### Step 1`. Existing step numbering stays as it was. The removed block was always numbered from 0 while every other step started at 1.
 
 ## Scope
 
-Every skill under `skills/`. At the time of the change the surface held 16 skills: 9 intent (`bootstrap`, `capture`, `plan`, `decide`, `standard`, `review`, `actualize`, `help`, `context`), 6 track (`product-track`, `sources-track`, `iso-track`, `architecture-track`, `standard-track`, `feature-track`), and 1 utility (`verify`). The surface is now four commands (`init`, `plan`, `document`, `review`), collapsed by `four-command-palette.adr`; the pattern applies unchanged to each of them and to any skill added later.
+Every skill under `skills/`. At the time of the change the surface held 16 skills. The surface is now four commands (`init`, `plan`, `document`, `review`), collapsed by `four-command-palette.adr`; the pattern applies unchanged to each of them and to any skill added later.
 
 ## Rationale
 

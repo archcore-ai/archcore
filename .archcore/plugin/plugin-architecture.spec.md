@@ -10,116 +10,33 @@ tags:
 
 ## Purpose & Scope
 
-This spec defines how the plugin's components — intent skills, agents, hooks, and the MCP server — compose into one multi-host system across Claude Code, Cursor, Codex CLI, and GitHub Copilot CLI: the runtime model, the invocation pathways, the data flow, and the cross-component invariants. Normative for the whole plugin runtime, from a user message or model decision through skill activation, MCP tool calls, hook enforcement, and validation feedback. Depended on by every component spec and by the host adapters.
+This spec defines how the plugin's components — intent skills, agents, hooks, and the MCP server — compose into one multi-host system across Claude Code, Cursor, Codex CLI, and GitHub Copilot CLI: the invocation pathways and the cross-component invariants. Normative for the whole plugin runtime, from a user message or model decision through skill activation, MCP tool calls, hook enforcement, and validation feedback. Depended on by every component spec and by the host adapters.
 
-Component contracts live in dedicated specs — `command-surface-v2.spec`, `track-layer.spec`, `agent-system.spec`, `hooks-validation-system.spec`. On a conflict, the dedicated spec wins for its own component and this spec wins for cross-component interaction. The current skill surface is fixed by `four-command-palette.adr`, which supersedes the track tier of `intent-based-skill-architecture.adr`, the `actualize`/`review` split of `merge-review-status-remove-graph.adr`, the mainstream/niche stratification of `inverted-invocation-policy.adr`, and the standalone `standard` and `verify` intents.
+Component contracts live in dedicated specs — `command-surface-v2.spec`, `track-layer.spec`, `agent-system.spec`, `hooks-validation-system.spec`. On a conflict, the dedicated spec wins for its own component and this spec wins for cross-component interaction. The skill surface is fixed by `four-command-palette.adr`.
 
 ## Surface
 
-The plugin exposes four auto-invocable commands (`init`, `plan`, `document`, `review`) plus a non-palette gated track layer per `track-layer.spec`. Every user-facing entry point is one of them; gate logic lives in track files that the routed skill loads on demand.
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        User / Host Model                        │
-│                                                                 │
-│  "plan this feature"   "record decision"   "/archcore:document" │
-└──────┬──────────────────────┬──────────────────────┬────────────┘
-       │                      │                      │
-       ▼                      ▼                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  COMMANDS (4, auto-invocable)                                   │
-│                                                                 │
-│  /archcore:init     /archcore:plan      /archcore:document      │
-│  /archcore:review                                               │
-│                                                                 │
-│  → Routes user intent to a track through its context            │
-│  → Gated tracks under skills/_shared/tracks/                    │
-│  → Content contracts under skills/_shared/                      │
-├─────────────────────────────────────────────────────────────────┤
-│  MCP PRIMITIVES (INFRASTRUCTURE)                                │
-│                                                                 │
-│  create_document  update_document  remove_document              │
-│  list_documents   get_document     search_documents             │
-│  add_relation  remove_relation  list_relations  init_project    │
-│                                                                 │
-│  → Atomic CRUD + relations over .archcore/                      │
-│  → Accepts any document type by `type` parameter                │
-│  → Used by all skills, also directly callable                   │
-├─────────────────────────────────────────────────────────────────┤
-│  HOOKS LAYER (CROSS-CUTTING, event-driven)                      │
-│                                                                 │
-│  SessionStart → CLI recap + staleness                           │
-│  PreToolUse → block direct writes + inject code-aligned context │
-│  PostToolUse → validate after MCP mutations + cascade detection │
-│              + precision check                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-| Skill | Role | Invocation |
-|---|---|---|
-| `init` | Seed `.archcore/` on first install | Auto + user |
-| `plan` | Plan a feature or initiative; route into a track | Auto + user |
-| `document` | Record decisions and document modules/components (absorbs `capture`, `decide`) | Auto + user |
-| `review` | Branch review against the canon, drift, closeout, and durable-context capture (absorbs `audit`; `context` and `help` removed) | Auto + user |
-
-| Component | Count | Layer | Files |
-|---|---|---|---|
-| Track files | 7 | shared, loaded by `plan`, `document`, `review` | `skills/_shared/tracks/{sdd,requirements-cascade,research,decision,describe,actualize,closeout}.md` |
-| Shared content contracts | 5 | shared | `skills/_shared/{precision-rules,adr-contract,prd-contract,spec-contract,rule-contract}.md` |
-| Other shared assets | 7 | shared | `skills/_shared/{elicitation-contract,gate-contract,branch-state,coverage-taxonomy,globals,durable-context-selection}.md` + `skills/_shared/grounding/` (13 catalogs) |
-| Agents | 2 | cross-cutting | `agents/archcore-{assistant,auditor}.{md,toml}` + `copilot-agents/archcore-{assistant,auditor}.agent.md` |
-| Hooks | 3 entries across 3 events | cross-cutting | `hooks/{hooks,cursor.hooks,codex.hooks,copilot.hooks}.json` |
-| Bin scripts | 5 + 3 libraries | cross-cutting | `bin/{session-start,pre-tool-use,post-tool-use,detect-host,cli-gte}` + `bin/lib/{normalize-stdin,plugin-cache-guard,empty-state}.sh` |
-| MCP server | 1 | infra | Provided by archcore CLI |
-| Command wrappers | 4 | host adapter | `commands/<name>.md` (Codex requires them; Copilot loads them behind its skills) |
-
-Since v0.7.0 the hook policy executes inside the archcore CLI and the plugin ships only launchers, per `cli-owns-layers-4-5.adr`. The per-flow references, the `audit` lib, and the `decide` continuations that earlier revisions of this table listed were removed at the v2 track cutover; their logic lives in the track files above.
+The plugin exposes four auto-invocable commands (`init`, `plan`, `document`, `review`) plus a non-palette gated track layer per `track-layer.spec`. Gate logic lives in track files under `skills/_shared/tracks/`, which the routed skill loads on demand. Content contracts live under `skills/_shared/`. The MCP tool layer is the only write path to `.archcore/`. Hooks are cross-cutting and run in the CLI (`cli-owns-layers-4-5.adr`), reached through one launcher per event.
 
 **Invocation paths.** Four paths exist, and every one converges on the MCP tool layer.
 
-1. **Skill invocation.** The user types `/archcore:plan auth redesign`, or the model auto-invokes from natural language; shared context resolution picks the track, the skill loads `skills/_shared/tracks/sdd.md` on demand, runs its gates in sequence (evaluate `skip_when` → ask within budget → create → relate), and hooks validate each mutation.
-2. **Agent delegation.** The host judges the task complex, or the user asks for agent help; the agent calls MCP tools directly and hooks validate. The definition the host loads depends on its loader — `.md` on Claude Code and Cursor, `.toml` on Codex, `*.agent.md` from `copilot-agents/` on Copilot — same content, three containers.
+1. **Skill invocation.** The user types `/archcore:plan auth redesign`, or the model auto-invokes from natural language. Shared context resolution picks the track, the skill loads the track file on demand, and runs its gates in sequence (evaluate `skip_when`, ask within budget, create, relate). Hooks validate each mutation.
+2. **Agent delegation.** The host judges the task complex, or the user asks for agent help. The agent calls MCP tools directly and hooks validate. The definition the host loads depends on its loader — `.md` on Claude Code and Cursor, `.toml` on Codex, `*.agent.md` from `copilot-agents/` on Copilot — same content, three containers.
 3. **Direct MCP.** The model or the user calls `mcp__archcore__create_document(type=<any>, …)`; no skill is required. The server is plugin-shipped on Claude Code and Codex and project-registered on Cursor and Copilot (`cursor-mcp-architecture.adr`, `copilot-mcp-architecture.adr`). Tool names differ with it — `mcp__archcore__*`, `mcp__plugin_archcore_archcore__*`, or Copilot's flat `archcore-<tool>` — which is why every matcher and allow-list carries all three and the normalizer folds them into one.
-4. **Staleness detection.** SessionStart emits the CLI recap, which carries the staleness advisory; the post-tool-use launcher's CLI handler emits the cascade notice after `update_document`; `/archcore:review` with a staleness request runs the actualize track with per-finding verdicts and confirmed fixes.
+4. **Staleness detection.** SessionStart emits the CLI recap, which carries the staleness advisory. The post-tool-use launcher's CLI handler emits the cascade notice after `update_document`. `/archcore:review` with a staleness request runs the actualize track with per-finding verdicts and confirmed fixes.
 
-**Direct-write interception.** When a component calls Write or Edit against a `.archcore/` markdown path, the CLI's pre-tool-use handler — reached through `bin/pre-tool-use` — extracts the target from stdin, matches the pattern, denies through the host's mechanism, and the model retries via `create_document` or `update_document`. The deny mechanism is the one architectural detail that cannot be host-neutral: exit 2 plus stderr on Claude Code, Codex, and Cursor; on Copilot the guard writes `{"permissionDecision":"deny",…}` to stdout with exit 0, because there **every** non-zero exit denies and only the JSON form carries the reason back to the user.
+**Direct-write interception.** When a component calls Write or Edit against a `.archcore/` markdown path, the CLI's pre-tool-use handler, reached through `bin/pre-tool-use`, denies through the host's mechanism. The model then retries via `create_document` or `update_document`. The deny mechanism is the one architectural detail that cannot be host-neutral: exit 2 plus stderr on Claude Code, Codex, and Cursor. On Copilot the guard writes `{"permissionDecision":"deny",…}` to stdout with exit 0, because there every non-zero exit denies and only the JSON form carries the reason back to the user.
 
-That asymmetry propagates one level up, into how hooks are wired rather than what they decide. Where a non-zero exit is the deny channel, a guard that cannot start degrades to no enforcement; where every non-zero exit denies, it degrades to refusing every matched edit, indistinguishable from a real verdict. Hook bootstrap is therefore part of the architecture on such a host — see `host-adapter-contract.spec`.
+That asymmetry propagates into how hooks are wired. Where a non-zero exit is the deny channel, a guard that cannot start degrades to no enforcement. Where every non-zero exit denies, it degrades to refusing every matched edit, indistinguishable from a real verdict. Hook bootstrap is therefore part of the architecture on such a host (`host-adapter-contract.spec`).
 
-**Hook event matrix.** One launcher per event; the policy behind each runs in the CLI (`hooks-validation-system.spec`).
+**Hook event matrix.** Four properties of the per-host matrix are load-bearing.
 
-| Launcher | Event (Claude Code) | Event (Cursor) | Event (Codex) | Event (Copilot) | Policy behind it |
-|---|---|---|---|---|---|
-| `bin/session-start` | SessionStart | sessionStart | SessionStart | sessionStart | Ranked context recap, staleness advisory, CLI-missing and wiring guidance |
-| `bin/pre-tool-use` | PreToolUse (`Write\|Edit`) | preToolUse (`Write`) | PreToolUse (`Write\|Edit\|apply_patch`) | preToolUse (`create\|edit\|str_replace_editor\|apply_patch`) | Block direct `.archcore/*.md` writes; inject code-aligned context for source edits |
-| `bin/post-tool-use` | PostToolUse (five mutation tools, both namings) | afterMCPExecution (no matcher) | PostToolUse (five mutation tools) | postToolUse (no matcher — the CLI gates on the tool name) | Doctor validation, cascade notice, precision scan |
+- Where a host offers no matcher, selection moves into the CLI. The set of tool calls that trigger a behavior does not differ by host, only the mechanism that selects them.
+- Copilot's entries are structurally different (flat objects, `bash` instead of `command`, `timeoutSec` instead of `timeout`). A config or a test produced by copying another host's row loads cleanly and does nothing.
+- Copilot's commands reach `bin/` through a chain of candidate plugin roots, because GitHub documents no plugin-root variable for hook processes. Reachability is tested by execution.
+- Every launcher fails OPEN. A missing CLI, a CLI below 0.7.0, or a plugin-cache working directory yields a silent exit 0, so a deny can originate only in the CLI's own verdict.
 
-Four properties of this matrix are load-bearing. Where a host offers no matcher, selection moves into the CLI, so the *set* of tool calls that trigger a behavior does not differ by host — only the mechanism that selects them. Copilot's entries are structurally different (flat objects, `bash` instead of `command`, `timeoutSec` instead of `timeout`), so a config or a test produced by copying another host's row loads cleanly and does nothing. The Copilot column's commands reach `bin/` through a chain of candidate plugin roots rather than one substitution, because GitHub documents no plugin-root variable for hook processes — a matrix row says nothing about whether the script is reachable, which is why reachability is tested by execution. And every launcher fails OPEN: a missing CLI, a CLI below 0.7.0, or a plugin-cache working directory yields a silent exit 0, so a deny can originate only in the CLI's own verdict.
-
-**Routing to a component.**
-
-| Scenario | Component |
-|---|---|
-| "Plan this feature" | `/archcore:plan` (skill; routes to the sdd track) |
-| "Record this decision" | `/archcore:document` (decision track, ADR path) |
-| "Draft an RFC" | `/archcore:document` (decision track, RFC path) |
-| "Resolve the RFC" | `/archcore:document` (decision track, resolution entry) |
-| "Establish a standard" | `/archcore:document` (decision track, ADR + rule + guide cascade) |
-| "Document this module" | `/archcore:document` (describe track) |
-| "Investigate X before we plan" | `/archcore:plan` (research track, produces `research`, or `rnd` when the wording asks to choose) |
-| "Show docs counts" | `archcore status` in the CLI (no skill) |
-| "Audit docs health" | `/archcore:review` (actualize track, all documents) |
-| "Are any docs stale?" | `/archcore:review` (actualize track) |
-| "Close out the feature" | `/archcore:review` (closeout track) |
-| "What rules apply to src/X/" | CLI hooks + command grounding (no command; `/archcore:context` removed — see `remove-context-command.adr`) |
-| Run ISO requirements cascade | `/archcore:plan` with the traceability obligation named (requirements-cascade track, iso links) |
-| Build full standard with pattern change | `/archcore:document` (decision track; `cpat` offered at the cascade gate) |
-| Create a single niche document directly | direct `mcp__archcore__create_document` |
-| Restructure all auth docs with relations | `archcore-assistant` agent |
-| Audit documentation quality | `archcore-auditor` agent |
-| Run plugin integrity checks | `make verify` from the repository root (no skill) |
-
-Agents are an escalation path, not the primary interface. Both are restricted to MCP plus Read, Grep, and Glob: the assistant holds every MCP tool, the auditor only the read tools. Every entry appears under all three MCP namings, because a deny-list that misses one fails open.
+Agents are an escalation path, not the primary interface. Both are restricted to MCP plus Read, Grep, and Glob. The assistant holds every MCP tool, the auditor only the read tools. Every entry appears under all three MCP namings, because a deny-list that misses one fails open.
 
 ## Normative Behavior
 
@@ -154,7 +71,7 @@ Agents are an escalation path, not the primary interface. Both are restricted to
 - Constraint: the plugin ships at most 2 agents. A third requires an ADR.
 - Constraint: a PreToolUse hook MUST complete within 2 seconds, and a PostToolUse hook within 4 seconds, with enough margin that a host whose pre-mutation timeout fails open never reaches it.
 - Constraint: a `SKILL.md` MUST NOT exceed 300 lines.
-- Constraint: a track file MUST NOT exceed 300 lines; `@plugin/test/structure/track-file-cap.bats` pins the number, and `track-file-line-cap-300.adr` records why it rose from 200.
+- Constraint: a track file MUST NOT exceed 300 lines. `@plugin/test/structure/track-file-cap.bats` pins the number. It rose from 200 because a six-instrument track written to the gate template costs about 230 lines. Splitting an over-cap track by instrument is deferred.
 - Constraint: a new host costs a manifest, a hooks config, a normalizer case, a resolvable path from that config to `bin/`, and enrollment in the coverage matrix — and no change to skills, agents, or `bin/` logic.
 - Constraint: the `Makefile` lives at the repository root while the plugin lives in `plugins/archcore/`, so `make verify` runs from the repository root.
 - Invariant: every user-facing entry point maps to one of the four commands.
@@ -191,12 +108,10 @@ The architecture is conformant when:
 1. Every document operation flows through MCP tools.
 2. The skill surface is exactly `init`, `plan`, `document`, `review`, and all are auto-invocable.
 3. The PreToolUse guard blocks every direct `.archcore/**/*.md` write, on every host, through that host's honored deny mechanism.
-4. PostToolUse validation fires after every MCP document mutation.
-5. PostToolUse cascade detection fires after every `update_document`.
-6. PostToolUse precision check fires after every `create_document` and `update_document`.
-7. No PostToolUse hook is registered for `Write|Edit`.
-8. SessionStart emits the recap carrying the staleness advisory.
-9. Gate logic for every multi-document flow lives under `skills/_shared/tracks/<track>.md`, and each track's gate records match its golden in `@plugin/test/fixtures/goldens/`.
-10. Every Archcore document type is reachable through at least one intent skill.
-11. The event matrix lists every implemented host, and each row is backed by a row in `@plugin/test/structure/host-coverage-matrix.bats`.
-12. Each host's hook commands are proven to reach `bin/` by executing them rather than by inspecting them — the assertion that pinned Copilot's commands as strings matched a broken command exactly and shipped it.
+4. PostToolUse validation, cascade detection, and the precision check fire after the mutations that clauses 18 to 20 name.
+5. No PostToolUse hook is registered for `Write|Edit`.
+6. SessionStart emits the recap carrying the staleness advisory.
+7. Gate logic for every multi-document flow lives under `skills/_shared/tracks/<track>.md`, and each track's gate records match its golden in `@plugin/test/fixtures/goldens/`.
+8. Every Archcore document type is reachable through at least one intent skill.
+9. Every implemented host has a row in `@plugin/test/structure/host-coverage-matrix.bats`.
+10. Each host's hook commands are proven to reach `bin/` by executing them rather than by inspecting them. The assertion that pinned Copilot's commands as strings matched a broken command exactly and shipped it.

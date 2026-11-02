@@ -19,7 +19,7 @@ const (
 	listMaxLimit     = 500
 	// listResponseByteBudget protects the host's inline tool-result limit, the
 	// same one searchResponseByteBudget protects. A cut page is recoverable: the
-	// next offset is offset + returned (list-documents.spec).
+	// next offset is offset + returned (read-tool-responses-survive-host-truncation.adr).
 	listResponseByteBudget = 40_000
 )
 

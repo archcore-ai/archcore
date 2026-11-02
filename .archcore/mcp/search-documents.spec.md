@@ -8,551 +8,192 @@ tags:
 
 ## Purpose
 
-This specification defines the canonical contract for the `search_documents` MCP tool exposed by the archcore CLI server.
+This specification defines the contract of the `search_documents` MCP tool (@cli/internal/mcp/tools/search_documents.go, @cli/internal/mcp/tools/response_budget.go). It is normative for the tool and for every MCP client that depends on its response shape. Where the implementation diverges, this document governs until it is amended.
 
-It is normative for:
+Decided elsewhere: the recall design (tokenized matching, coverage, representation) in @.archcore/mcp/global-recall-guarantees.rfc.md; the byte budget, evidence caps, and envelope order in @.archcore/mcp/read-tool-responses-survive-host-truncation.adr.md; the slug field and separator folding in @.archcore/mcp/search-matches-the-slug-and-folds-separators.adr.md; near misses in @.archcore/mcp/empty-all-words-search-partial-matches.rfc.md.
 
-- The tool implementation in @cli/internal/mcp/tools/search_documents.go.
-- Any MCP client calling the tool (LLM agents, future hooks, CI scripts).
-- Any downstream consumer that depends on the tool's response shape.
-
-## Scope
-
-### Covers
-
-- Tool signature, parameter validation, enum constraints.
-- Path-reference extraction algorithm (explicit `@path` + qualified bare mentions).
-- Content matching algorithm and match modes (`all`, `any`, `exact`).
-- Specificity and score computation.
-- Source scoping (`source`) and the coverage envelope.
-- Ranking modes (`relevance`, `mtime`).
-- Per-source representation on the truncated page.
-- Near misses on an empty all-words response (§13).
-- Evidence caps, the response byte budget, and the summary-first envelope.
-- Output modes (`snippets` excerpt windows vs. `full` inline document body).
-- Excerpt construction (including UTF-8 safety).
-- Relations enrichment from the manifest.
-- Lazy body loading behavior.
-- Response JSON shape.
-- Error conditions and messages.
-
-### Does Not Cover
-
-- Persistent path index in `.sync-state.json` — deferred (out of scope for the current contract).
-- Hook-time invocation semantics — deferred to a future hook spec.
-- Semantic / embedding search — out of scope.
-
-## Authority
-
-This document is the normative specification for the behavior of `search_documents`.
-
-If the implementation, tests, or downstream consumers diverge from this specification, this specification takes precedence until it is amended. The recall design (tokenized matching, coverage, representation) is decided in @.archcore/mcp/global-recall-guarantees.rfc.md. The byte budget, the evidence caps, and the envelope order are decided in @.archcore/mcp/read-tool-responses-survive-host-truncation.adr.md. The slug field and separator folding are decided in @.archcore/mcp/search-matches-the-slug-and-folds-separators.adr.md.
-
-### Related Artifacts
-
-- Implementation: @cli/internal/mcp/tools/search_documents.go, @cli/internal/mcp/tools/response_budget.go
-- Tool registration: @cli/internal/mcp/server.go
-- Tests: @cli/internal/mcp/tools/search_documents_test.go, @cli/internal/mcp/tools/search_recall_test.go, @cli/internal/mcp/tools/response_budget_test.go, @cli/internal/mcp/tools/search_near_misses_spec_test.go
-- Shared scan helpers: @cli/internal/mcp/tools/docs_bridge.go (`scanDocuments`, `scanDocumentsFull`), which delegate to @cli/internal/docs/scan.go (`Scan`, `ScanFull`). Both are package-private to `internal/mcp/tools`; see @.archcore/cli/docs-package-owns-the-document-model.adr.md.
-- Manifest loading: @cli/internal/mcp/tools/manifest_store.go (shared cached store, `sharedManifestStore.load`) over @cli/internal/sync/manifest.go
-- Source-extension list: @cli/templates/source_extensions.go
-
-## Subject
-
-- **Name:** `search_documents`
-- **Kind:** MCP tool (JSON-RPC over stdio transport).
-- **Primary responsibility:** Return `.archcore/` documents matching the caller's filters, with deterministic matching, ranking, and per-match evidence.
-- **Consumers / dependents:** LLM agents invoking MCP tools directly, future PreToolUse hooks, any third-party MCP client.
+Out of scope: a persistent path index, semantic or embedding search.
 
 ## Definitions
 
-| Term               | Definition                                                                                                                                                      |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Document body      | Markdown content following the YAML frontmatter block of an `.archcore/*.md` file.                                                                              |
-| Frontmatter        | YAML block bounded by `---` at the top of an `.archcore/*.md` file, carrying `title`, `status`, `tags`.                                                         |
-| Explicit reference | A path reference in a document body matching the regex `@[\w./\-_]+`.                                                                                           |
-| Bare mention       | A path-like token in a document body matching `[\w\-_]+/[\w\-_./]+`, accepted only when one of the heuristic conditions defined in Normative Behavior §5 holds. |
-| Specificity        | A non-negative integer measure of how precisely a candidate match relates to the filter.                                                                        |
-| Match token        | One unit the content query matches by: a whitespace-separated word with its separators folded (§6.1) under `all`/`any`, or the whole query under `exact`. |
-| Separator          | One of the six characters `-`, `_`, `/`, `.`, `@`, `:`. |
-| Admitted row       | A row that survives the `limit` cut of §8.1–§8.4. |
-| Near miss          | A document that passes the filters and holds at least half, but not all, of the distinct words of an empty all-words query (§13). |
-| Byte budget        | The ceiling on the serialized response: 40,000 bytes (`searchResponseByteBudget`). |
-| Score              | The internal ranking key: `100 × (path-ref maximum specificity + Σ content-token specificities) + capped occurrence count`. Not serialized.                      |
-| Manifest           | The JSON file at `.archcore/.sync-state.json` that stores document relations, loaded via the shared manifest store.                                             |
-| Source extension   | An extension listed in `templates.IsSourceExtension` (e.g., `.go`, `.ts`, `.py`, `.md`).                                                                        |
-| Output mode        | The `mode` parameter selecting payload detail: `snippets` (excerpt windows only) or `full` (also inline the matched document's body).                            |
+| Term | Definition |
+| --- | --- |
+| Separator | One of `-`, `_`, `/`, `.`, `@`, `:`. |
+| Match token | One whitespace-separated word with its separators folded (§6.1) under `all`/`any`, or the whole query under `exact`. |
+| Admitted row | A row that survives the `limit` cut of §8. |
+| Near miss | A document that passes the filters and holds at least half, but not all, of the distinct words of an empty all-words query (§13). |
+| Byte budget | The ceiling on the serialized response: 40,000 bytes (`searchResponseByteBudget`). |
+| Score | `100 × (path-ref maximum specificity + Σ content-token specificities) + capped occurrence count`. Not serialized. |
 
 ## Contract Surface
 
-### Interface
-
-Exposed over MCP using `github.com/mark3labs/mcp-go`. Registered from `NewServer(baseDir)` in @cli/internal/mcp/server.go. Annotated `ReadOnlyHint: true`.
+Annotated `ReadOnlyHint: true`. At least one of `path_ref`, `content`, `types`, `status`, or `for_path` MUST be provided.
 
 ### Inputs
 
-| Name          | Type     | Required    | Description                                                                                                                                   |
-| ------------- | -------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `path_ref`    | string   | conditional | Path reference to match in document bodies. Leading `@` is stripped during comparison.                                                        |
-| `for_path`    | string   | conditional | One repository file, relative to the call root or absolute. Returns the file-context result for that file: the ranked documents that constrain an edit to it, then the general rules. Row order, row caps, and the `reason` values follow the file context resolution spec. An absolute path outside the session root derives the call root as the nearest ancestor holding `.archcore/` (@.archcore/mcp/call-root-resolution.spec.md). |
-| `project`     | string   | no          | Absolute root of the project to search. Overrides the session root and a pinned root for this call after the acceptance checks of @.archcore/mcp/call-root-resolution.spec.md. Absent: the session root, as before. |
-| `content`     | string   | conditional | Case-insensitive word search against `title + slug + body`. Split on whitespace; the `match` parameter decides how many words must occur. Separators fold under `all` and `any` (§6.1). No stemming, no fuzzy matching. |
-| `match`       | string   | no          | How content words must match. Enum: `all` (default; every word occurs somewhere in the document, any order, any distance), `any` (at least one word occurs), `exact` (the whole content string as one literal substring — the pre-2026-08 behavior). Any other value maps to `all`. |
-| `source`      | string   | no          | Scope: `local` (the primary's own documents), `global` (every mounted global source), `__global__` (undeclared reserved-tree content), or a declared global source id. Empty admits every source. Any other value is rejected (§1.9). |
-| `types`       | string[] | conditional | Filter by document type. OR semantics across the list.                                                                                        |
-| `status`      | string   | conditional | Filter by frontmatter status. Enum: `draft`, `accepted`, `rejected`.                                                                          |
-| `mtime_after` | string   | no          | Exclusive lower bound on document mtime. Accepts RFC3339 (ISO-8601) or a non-negative relative duration: `<N>h` or `<N>d`. |
-| `sort`        | string   | no          | Ordering mode. Enum: `relevance` (default), `mtime`.                                                                                          |
-| `mode`        | string   | no          | Output detail. Enum: `snippets` (default), `full`. `snippets` returns only excerpt windows around matches. `full` additionally returns each matched document's body inline (frontmatter stripped); a body the byte budget cannot hold arrives shortened (§12.4). Any value other than `full` maps to `snippets`. |
-| `limit`       | number   | no          | Maximum number of results. Mode-dependent: `snippets` = default 50 / max 200; `full` = default 3 / max 20. Values above the cap are clamped; `0` or omitted maps to the mode default. The byte budget can return fewer rows than `limit` (§8.6). |
-
-At least one of `path_ref`, `content`, `types`, `status`, or `for_path` MUST be provided.
+| Name | Description |
+| --- | --- |
+| `path_ref` | Path reference to match in document bodies. A leading `@` is stripped. |
+| `for_path` | One repository file. Returns the file-context result: the ranked documents that constrain an edit to it, then the general rules (@.archcore/integrations/file-context-resolution.spec.md). An absolute path outside the session root derives the call root from the nearest ancestor holding `.archcore/`. |
+| `project` | Absolute root of the project to search, per @.archcore/mcp/call-root-resolution.spec.md. |
+| `content` | Case-insensitive word search against `title + slug + body`. Separators fold under `all` and `any`. No stemming, no fuzzy matching. |
+| `match` | `all` (default; every word occurs, any order), `any` (at least one word), `exact` (the whole string as one substring). |
+| `source` | `local`, `global` (every mounted global source), or a declared global source id. Empty admits every source. |
+| `types`, `status`, `mtime_after` | Metadata filters. `mtime_after` takes RFC3339 or `<N>h` / `<N>d`. |
+| `sort` | `relevance` (default) or `mtime`. |
+| `mode` | `snippets` (default) or `full`, which also inlines each matched body. |
+| `limit` | `snippets`: default 50, max 200. `full`: default 3, max 20. Above the cap is clamped; `0` maps to the default. |
 
 ### Outputs
 
-A JSON object whose keys serialize in this order: `{"coverage": {...}, "hits": {...}, "truncated": false, "index": [...], "near_misses": [...], "results": [...]}`, where `near_misses` is present only under §13.1. The summary comes first because a host that stores an oversized result shows the caller only its first bytes.
+A JSON object whose keys serialize in this order: `coverage`, `hits`, `truncated`, `index`, `near_misses`, `results`. The summary comes first because a host that stores an oversized result shows the caller only its first bytes.
 
-- `coverage` maps each searched source id to its scanned document count (e.g. `{"local": 102, "org": 42}`), computed after the `source` scope and before the query filters. An empty `results` next to a populated `coverage` is a verified absence of a document that passes the filters and satisfies the active `match` mode (§6): under `all`, no such document holds every query word.
-- `hits` maps each searched source id to its matched document count, before the `limit` cut. A searched source without a match carries `0`.
-- `truncated` is `true` when the byte budget returned fewer rows, or fewer `index` entries, than `limit` admitted (§8.6, §8.10), or fewer near misses than §13.4 kept (§13.10).
-- `index` lists `path`, `title`, and `source_id` of the admitted rows, in §7 order, inside its own byte ceiling (§8.10).
-- `near_misses` lists up to 3 documents that pass the filters and hold at least half of the distinct query words, each naming the words it lacks (§13). Present only under §13.1.
-- `results` is the array of `searchResult` objects (fields below).
-- `project` is the absolute root the call resolved, present on every response per @.archcore/mcp/call-root-resolution.spec.md; the caller passes it back as the `project` argument. This is the one field the no-absolute-paths rule exempts.
-- `omitted` is present only under `for_path` when a cap cut rows: `matched` and `general` count the cut rows; `more_matched` and `more_general` name the call that returns them. The matched remainder points to `path_ref`, because `for_path` stays capped.
+- `coverage` maps each searched source id to its scanned document count, computed after the `source` scope and before the query filters. An empty `results` next to a populated `coverage` is a verified absence: under `all`, no passing document holds every query word.
+- `hits` maps each searched source id to its matched count before the `limit` cut.
+- `truncated` is `true` when the byte budget returned fewer rows, `index` entries, or near misses than were admitted.
+- `index` lists `path`, `title`, and `source_id` of the admitted rows in §7 order, inside its own byte ceiling (§8.10).
+- `near_misses` lists up to 3 documents with the words each lacks (§13). Present only under §13.1.
+- `project` is the absolute root the call resolved (@.archcore/mcp/call-root-resolution.spec.md).
+- `omitted` appears only under `for_path` when a cap cut rows, with `more_matched` and `more_general` naming the call that returns them.
 
-(Behavior change 2026-08: the response was previously a bare array. Behavior change 2026-09: `hits`, `truncated`, and `index` were added and the key order was fixed; `near_misses` followed; see Compatibility.)
-
-Each `searchResult` object has the following fields:
-
-| Field                | Type             | Nullability             | Description                                                      |
-| -------------------- | ---------------- | ----------------------- | ---------------------------------------------------------------- |
-| `path`               | string           | always                  | Relative path beginning with `.archcore/`.                       |
-| `title`              | string           | always                  | Frontmatter title (may be empty for malformed docs).             |
-| `type`               | string           | always                  | Document type (e.g., `rule`, `adr`, `spec`).                     |
-| `status`             | string           | omit if empty           | Frontmatter status.                                              |
-| `mtime`              | string (RFC3339) | always                  | File modification time.                                          |
-| `tags`               | string[]         | omit if empty           | Frontmatter tags.                                                |
-| `source_id`          | string           | always                  | `local` for primary docs, the source id for a declared global, or `__global__` for undeclared reserved-tree content. |
-| `source_kind`        | string           | always                  | `local` or `global`.                                            |
-| `global`             | boolean          | omit if false           | `true` for mounted global sources.                              |
-| `read_only`          | boolean          | omit if false           | `true` for mounted global sources.                              |
-| `matches`            | Match[]          | always                  | Evidence array. Always present; empty for pure metadata queries. |
-| `reason`             | string           | omit unless `for_path`  | Enum: `file`, `kind`, `directory`, `general`. Why the row applies to the file. Under `for_path` the relation arrays are empty. |
-| `matches_total`      | integer          | omit unless capped      | Count of all match hits of the row, present only when §5.7 or §6.6 cut the `matches` array. |
-| `body`               | string           | omit unless `mode=full` | Document body with frontmatter stripped. Populated only in `full` mode; omitted (never empty string) in `snippets` mode. The byte budget can shorten it (§12.4). |
-| `body_truncated`     | boolean          | omit if false           | `true` when `body` is a shortened prefix of the document body. |
-| `body_bytes`         | integer          | omit unless shortened   | Byte length of the whole body, present only beside `body_truncated`. |
-| `incoming_relations` | Relation[]       | always (possibly empty) | Manifest edges where this doc is the target; at most 5 (§10).    |
-| `incoming_relations_total` | integer    | omit unless capped      | Count of all incoming edges, present only when §10 cut the array. |
-| `outgoing_relations` | Relation[]       | always (possibly empty) | Manifest edges where this doc is the source; at most 5 (§10).    |
-| `outgoing_relations_total` | integer    | omit unless capped      | Count of all outgoing edges, present only when §10 cut the array. |
-
-`Match` fields:
-
-| Field         | Type    | Description                                                                                   |
-| ------------- | ------- | --------------------------------------------------------------------------------------------- |
-| `kind`        | string  | Enum: `path_ref_explicit`, `path_ref_mention`, `content`.                                     |
-| `ref`         | string  | The raw matched token (e.g., `@src/payments/`), or one content word as matched — with its separators folded under `all`/`any`. |
-| `specificity` | integer | Per-match specificity value (see Normative Behavior §6).                                      |
-| `excerpt`     | string  | ≤ ~120-character window around the match, padded with `...` if truncated. Always valid UTF-8. |
-
-`Relation` fields (reuses `DocumentRelation` from @cli/internal/mcp/tools/docs_bridge.go, aliased to `docs.DocumentRelation`): `path`, `type` (one of `related`, `implements`, `extends`, `depends_on`, `supports`, `contradicts`, `supersedes`).
-
-`NearMiss` fields: `path`, `title`, and `source_id` as on `searchResult`, and `missing` (string[]): the absent distinct query words, folded per §6.1, in query order. A word with a separator folds to parts joined by one space, so `missing` can hold `"delivery policy"`.
+Each `searchResult` row carries `path`, `title`, `type`, `status`, `mtime`, `tags`, `source_id`, `source_kind` (`local` or `global`), `source_root` (global rows), `matches`, `reason` (only under `for_path`), `matches_total`, `body`, `body_truncated`, `body_bytes`, and the relation arrays with their `_total` fields. Field names and omit rules follow the struct in @cli/internal/mcp/tools/search_documents.go. `matches` is always an array. Each `Match` has `kind` (`path_ref_explicit`, `path_ref_mention`, `content`), `ref`, `specificity`, and a UTF-8-safe `excerpt` of about 120 characters.
 
 ## Normative Behavior
 
 ### §1 Filter and parameter validation
 
-1. The handler MUST reject calls where all of `path_ref`, `content`, `types`, `status`, and `for_path` are empty or absent, returning the MCP error `specify at least one filter (path_ref, content, types, status, or for_path)`.
-2. The handler MUST reject `limit < 0` with the error `limit must be non-negative`.
-3. The handler MUST treat `limit == 0` as equivalent to omitted — both produce the mode default (snippets: 50, full: 3).
-4. The handler MUST clamp `limit` above the mode cap (snippets: 200, full: 20) to that cap without emitting an error.
-5. `mtime_after` MUST accept both RFC3339 timestamps and non-negative relative durations of the form `<N>h` or `<N>d`. Invalid input MUST return the error `invalid mtime_after: <reason>`.
-6. The handler MUST normalize `mode` defensively: any value other than `full` (including omitted) maps to `snippets`. The framework enforces the enum, but the handler MUST NOT rely on that alone.
-7. The handler MUST normalize `match` defensively: any value other than `exact` or `any` (including omitted) maps to `all`.
-8. The handler MUST resolve `source` as: empty admits every document; `local` admits `source_kind == "local"`; `global` admits `source_kind == "global"`; `__global__` admits reserved-tree content; a declared global source id admits its documents.
-9. WHEN `source` carries any other value, the handler MUST reject the call with `invalid source "<value>" (valid: "local", "global", or a declared global source id)`. The declared-id check reads `config.ReadGlobals` — an advisory, fail-open read on a read path.
-10. WHEN `match` is `all` or `any` and the `content` filter tokenizes to zero words, the handler MUST reject the call with `content must contain at least one word`. `exact` keeps substring semantics for any non-empty `content`.
-11. WHEN `for_path` and `path_ref` are both set, the handler MUST reject the call with `for_path cannot be combined with path_ref or content`.
-12. WHEN `for_path` and `content` are both set, the handler MUST reject the call with the error of §1.11.
-13. WHEN `for_path` is set, the handler MUST order and cap `results` as the file context resolution spec defines, not by §7 and §8.1.
-14. WHEN `for_path` is set, the handler MUST apply `source`, `types`, and `status` as filters on the file-context rows.
-15. WHEN `project` is set, the handler MUST search that root and none other.
-16. WHEN `for_path` is absolute and `project` is absent, the handler MUST search the nearest ancestor of `for_path` that holds `.archcore/`.
-17. WHEN `for_path` is absolute and `project` is set, the handler MUST reject the call if `for_path` lies outside `project`.
+1. The handler MUST reject a call with no filter: `specify at least one filter (path_ref, content, types, status, or for_path)`.
+2. The handler MUST reject `limit < 0`.
+3. The handler MUST treat `limit == 0` as omitted.
+4. The handler MUST clamp `limit` above the mode cap without an error.
+5. The handler MUST accept RFC3339 and `<N>h` / `<N>d` for `mtime_after` and reject anything else with `invalid mtime_after: <reason>`.
+6. The handler MUST map any `mode` other than `full` to `snippets`.
+7. The handler MUST map any `match` other than `exact` or `any` to `all`.
+8. The handler MUST resolve `source` as: empty admits all; `local` and `global` admit by `source_kind`; a declared global source id admits its documents.
+9. WHEN `source` carries any other value, the handler MUST reject the call with `invalid source "<value>" (valid: "local", "global", or a declared global source id)`. The declared-id check is an advisory, fail-open read.
+10. WHEN `match` is `all` or `any` and `content` tokenizes to zero words, the handler MUST reject the call with `content must contain at least one word`.
+11. WHEN `for_path` is set together with `path_ref` or `content`, the handler MUST reject the call.
+12. WHEN `for_path` is set, the handler MUST order and cap `results` as the file-context spec defines and apply `source`, `types`, and `status` as filters on its rows.
+13. WHEN `project` is set, the handler MUST search that root and none other.
+14. WHEN `for_path` is absolute and `project` is absent, the handler MUST search the nearest ancestor of `for_path` that holds `.archcore/`.
+15. WHEN `for_path` is absolute and `project` is set, the handler MUST reject the call if `for_path` lies outside `project`.
 
 ### §2 Document loading
 
-1. When `path_ref` and `content` are both empty AND `mode` is `snippets`, the handler MUST call `scanDocuments(baseDir)`, which does not retain document bodies in memory beyond the frontmatter parse.
-2. When either `path_ref` or `content` is non-empty, OR `mode` is `full`, the handler MUST call `scanDocumentsFull(baseDir)`, which retains bodies on each `LocalDocument`. (Full mode needs bodies to populate the `body` field even for pure-metadata filters.)
-3. Scanner I/O cost MUST be identical in both cases; only heap retention differs.
+A pure-metadata `snippets` query does not retain bodies; any `path_ref`, `content`, or `full` query does. The I/O cost is the same in both cases.
 
 ### §3 Manifest loading
 
-1. The handler MUST obtain relation data from the shared manifest store (`sharedManifestStore.load` in @cli/internal/mcp/tools/manifest_store.go), which caches the parsed manifest keyed on the file's (mtime, size) and delegates to `sync.LoadManifest`.
-2. A **missing** `.sync-state.json` is NOT an error: it yields an empty manifest, and all results carry empty `incoming_relations` / `outgoing_relations` arrays.
-3. A **present-but-invalid** manifest MUST fail the call with the MCP error `loading manifest: <reason>` — consistent with `get_document` and `list_relations`. Silently degrading to empty relations hides real graph state (the silent-incomplete-context failure class). The reason preserves validation detail (built from relative manifest keys); OS-level failures map to a fixed I/O class via `sanitizeError`, so the message never embeds an absolute filesystem path.
+1. A missing `.sync-state.json` yields an empty manifest and empty relation arrays.
+2. IF the manifest is present but invalid, THEN the handler MUST fail with `loading manifest: <reason>`. A silent empty-relations fallback would hide real graph state.
 
 ### §4 Source scope and metadata filters (AND semantics)
 
-Filters are evaluated in the following order; a document MUST be excluded if any active filter fails:
-
-1. `source`: per §1.8. A document admitted here MUST be counted in `coverage` under its `source_id` regardless of the later filters.
-2. `types`: if non-empty, doc's `type` MUST be present in the list.
-3. `status`: if non-empty, doc's `status` MUST equal the filter exactly.
-4. `mtime_after`: if non-zero, doc's mtime MUST be strictly after the threshold.
+1. `source` applies first. A document admitted here MUST be counted in `coverage` under its `source_id` whatever the later filters do.
+2. `types`, `status`, and `mtime_after` (strictly after) then exclude documents that fail them.
 
 ### §5 Path-reference extraction
 
-For each document's body (populated only when `path_ref` is set):
-
-1. Apply regex `@[\w./\-_]+` to extract explicit references. Each match yields a candidate with `Kind: "explicit"`.
-2. Apply regex `[\w\-_]+/[\w\-_./]+` to extract bare mention candidates. Each match yields a candidate with `Kind: "mention_candidate"`.
-3. Remove overlap: if a bare candidate's byte range is contained within an explicit candidate's range, the bare candidate MUST be dropped. This prevents double-counting when an `@`-reference syntactically contains a bare path.
-4. Filter bare candidates via `filterBareMentions`: a candidate is retained only if at least one of the following holds:
-   - The candidate ends with `/`.
-   - The candidate contains ≥ 2 `/` separators.
-   - The final path segment's extension passes `templates.IsSourceExtension`.
-5. For each surviving candidate, compute `computeSpecificity(candidate, pathRefFilter)` as the number of left-aligned `/`-segments shared between the normalized candidate (leading `@` and trailing `/` stripped) and the filter (same normalization). Specificity of `0` MUST NOT produce a match.
-6. Each surviving candidate with specificity ≥ 1 is a path-reference hit. The handler MUST order the hits by specificity DESC, then explicit before mention, then byte offset ASC.
-7. The handler MUST emit at most 5 hits (`searchMatchCap`) as `Match` objects, with `kind` = `path_ref_explicit` or `path_ref_mention` by origin regex.
-8. The ranking score takes the **maximum** specificity across all of a document's path-ref hits, not their sum: repeating a path is not a relevance signal. The cap of §5.7 MUST NOT change the score.
-9. WHEN §5.7 or §6.6 removes a hit from `matches`, the handler MUST set `matches_total` to the count of all hits of the row; otherwise the field MUST be omitted.
+1. The handler MUST extract explicit references with `@[\w./\-_]+` and bare candidates with `[\w\-_]+/[\w\-_./]+`.
+2. The handler MUST drop a bare candidate contained in an explicit one.
+3. The handler MUST keep a bare candidate only when it ends with `/`, holds at least two `/`, or ends in a source extension.
+4. Specificity is the number of left-aligned `/`-segments the candidate shares with the normalized filter. Specificity 0 MUST NOT match.
+5. The handler MUST order hits by specificity DESC, explicit before mention, then offset ASC.
+6. The handler MUST emit at most 5 hits (`searchMatchCap`).
+7. The score MUST take the maximum specificity across a document's hits, not their sum. The cap of §5.6 MUST NOT change the score.
+8. WHEN §5.6 or §6.6 cuts hits, the handler MUST set `matches_total` to the full count.
 
 ### §6 Content matching
 
-When `content` is non-empty, for each document:
-
-1. Lowercase the query once. Under `match=all` and `match=any`, split it on whitespace, replace each separator in each word with one space, trim the word, and drop a word left empty (§1.10 guarantees at least one remains); under `match=exact`, the whole query is one token and nothing folds.
-2. Under `all` and `any`, the handler MUST compare each token against the title, the slug, and the body with their separators folded the same way. Folding replaces one byte with one byte, so an offset into the folded text is an offset into the source.
-3. For each token, resolve its tier: a title hit is specificity 3; a slug hit is 3; a markdown heading-line hit (a body line starting with `#`) is 2; any other body hit is 1; absent is 0. The slug is a match field in every match mode.
-4. Under `all` and `exact`, a token at tier 0 MUST exclude the document. Under `any`, a tier-0 token is skipped, and the document matches when at least one token hit.
-5. Each hitting token MUST emit a `Match` with `kind: "content"`, `ref` = the token, `specificity` = its tier, and an `excerpt` built around the token's first occurrence (from the title for a title hit, the whole slug for a slug hit, from the body otherwise).
-6. WHEN a document has more than 5 content matches (`searchMatchCap`), the handler MUST keep the 5 of highest specificity, in query-word order among equals; at or under the cap, `matches` keeps query-word order.
-7. The handler MUST count all token occurrences across the lowercased title and body, capped at 20 (`contentFreqCap`), as the low-order component of the score.
+1. The handler MUST lowercase the query and, under `all` and `any`, split it on whitespace and fold each separator into one space. Under `exact`, the whole query is one token and nothing folds.
+2. Under `all` and `any`, the handler MUST compare each token against the title, the slug, and the body folded the same way.
+3. Tiers: a title hit is 3; a slug hit is 3; a heading-line hit is 2; any other body hit is 1; absent is 0. The slug is a match field in every mode.
+4. Under `all` and `exact`, a tier-0 token MUST exclude the document. Under `any`, the document matches when at least one token hits.
+5. Each hitting token MUST emit a `content` match with an excerpt around its first occurrence.
+6. WHEN a document has more than 5 content matches, the handler MUST keep the 5 of highest specificity.
+7. The handler MUST count token occurrences across title and body, capped at 20 (`contentFreqCap`), as the low-order score component.
 8. WHILE `match` is `all` and no document has matched, the handler MUST count the distinct query words at tier 1 or above per document.
 
-### §7 Ranking (`sort` parameter)
+### §7 Ranking
 
-1. `sort="relevance"` (default) MUST order results by four keys, in order:
-   - Score DESC: `100 × (path-ref maximum specificity + Σ content-token specificities) + capped occurrence count` (documents with no matches score 0). Path refs contribute their best hit (§5.8); content tokens sum, with repetition bounded by `contentFreqCap` (§6.7).
-   - Type priority ASC, per the map: `rule=1, adr=2, spec=3, cpat=4, guide=5, plan=6, idea=7, other=100`.
-   - Effective mtime DESC, where a **global** document's effective mtime is the zero time: a vendored global's mtime is its clone date, not a relevance signal, and on a full tie a local document therefore ranks before a global (see @.archcore/globals/local-overrides-global.rule.md).
-   - `path` ASC, as the final total-order key.
-2. `sort="mtime"` MUST order purely by `mtime` DESC, ignoring score and type.
-3. The sort MUST be stable: ties preserve input order (filesystem walk order), yielding deterministic output across runs.
+1. `sort=relevance` MUST order by: score DESC; type priority ASC (`rule=1, adr=2, spec=3, cpat=4, guide=5, plan=6, idea=7, other=100`); effective mtime DESC; `path` ASC. A global document's effective mtime is the zero time, because a vendored clone date is not a relevance signal, so on a full tie a local document ranks first (@.archcore/globals/local-overrides-source.rule.md).
+2. `sort=mtime` MUST order purely by `mtime` DESC.
+3. The sort MUST be stable and deterministic across runs.
 
 ### §8 Truncation and per-source representation
 
-1. After sorting, the handler MUST cut the result slice to at most `limit` entries (the mode-resolved limit from §1.3–§1.4). The rows that remain are the admitted rows.
-2. WHEN the cut removes every row of a source that has at least one match, the handler MUST swap that source's top row in over the lowest-ranked page row whose source keeps more than one row.
-3. Sources claim their swap in rank order of their own top row; WHEN every page row is its source's last, the handler MUST stop swapping.
+1. After sorting, the handler MUST cut the results to at most `limit` rows.
+2. WHEN the cut removes every row of a source that has a match, the handler MUST swap that source's top row over the lowest-ranked page row whose source keeps more than one row.
+3. Sources claim their swap in rank order of their top row. WHEN every page row is its source's last, the handler MUST stop swapping.
 4. The handler MUST re-sort the page with the §7 keys after the swaps.
 5. The handler MUST keep the serialized response at or under the byte budget.
-6. WHEN the admitted rows do not fit the byte budget with each body at its floor (§12.5), the handler MUST remove rows from the tail and set `truncated` to `true`.
-7. After each removal of §8.6, the handler MUST re-apply §8.2–§8.4 to the shorter page.
-8. The handler MUST keep at least one row. WHEN one row remains and its `body` floor does not fit, the handler MUST shorten that `body` below the floor. A single row whose fields other than `body` exceed the byte budget is the only response that may exceed it.
-9. `index` MUST list the admitted rows in §7 order, including a row that §8.6 removed from `results`.
-10. WHEN the index entries exceed 20,000 bytes (`searchIndexByteBudget`), the handler MUST drop entries from the tail, keep at least one, and set `truncated` to `true`.
+6. WHEN the rows do not fit with each body at its floor (§12.5), the handler MUST remove rows from the tail and set `truncated`.
+7. After each removal, the handler MUST re-apply §8.2–§8.4.
+8. The handler MUST keep at least one row. A single row whose fields other than `body` exceed the budget is the only response that may exceed it.
+9. `index` MUST list the admitted rows in §7 order, including rows §8.6 removed from `results`.
+10. WHEN the index exceeds 20,000 bytes (`searchIndexByteBudget`), the handler MUST drop entries from the tail, keep one, and set `truncated`.
 
-### §9 Excerpt construction
+### §9 Excerpts
 
-1. For path-ref matches, `pos` is the byte offset of the matched token in the source body.
-2. For content matches, `pos` is the byte offset of the token's first occurrence in the source (title or body).
-3. The window width is 120 characters (`excerptWindow`), split evenly around `pos`.
-4. Byte offsets MUST be snapped to rune boundaries before slicing: `start` moves backward until `utf8.RuneStart(source[start])` is true; `end` moves forward until `utf8.RuneStart(source[end])` is true or EOF is reached. Resulting excerpts MUST be valid UTF-8.
-5. Internal whitespace runs in the excerpt MUST be collapsed to a single space.
-6. `...` MUST be prepended when the excerpt's start is > 0 and appended when the excerpt's end is < `len(source)`.
+Excerpts are 120-character windows snapped to rune boundaries, so they are valid UTF-8, with whitespace runs collapsed and `...` marking a cut.
 
 ### §10 Relations enrichment
 
-1. For every emitted result, the handler MUST populate `incoming_relations` and `outgoing_relations` from the manifest. Both arrays MUST be serialized as `[]` when empty, never `null`.
-2. The handler MUST order each array by `path` ASC, then `type` ASC.
-3. The handler MUST emit at most 5 relations per array (`searchRelationCap`).
-4. WHEN §10.3 removes a relation, the handler MUST set that array's `_total` field to the count of all its edges; otherwise the field MUST be omitted. `get_document` returns the full graph of one document.
+1. The handler MUST populate both relation arrays from the manifest and serialize an empty array as `[]`, never `null`.
+2. The handler MUST order each array by `path` ASC, then `type` ASC, and emit at most 5 per array (`searchRelationCap`).
+3. WHEN §10.2 cuts an array, the handler MUST set its `_total` field. `get_document` returns the full graph.
 
 ### §11 Response shape invariants
 
-1. The response is a JSON object whose keys MUST serialize in the order `coverage`, `hits`, `truncated`, `index`, `near_misses`, `results`; `near_misses` appears only under §13.1. `results` and `index` MUST be empty arrays (not `null`) when no documents match; `coverage` MUST still carry the scanned counts.
-2. `coverage` MUST hold one entry per source admitted by the `source` scope, keyed by `source_id`. `hits` MUST hold the same keys.
-3. `matches` MUST be an empty array, never `null`, when a document passed metadata filters but has no per-match evidence (pure metadata query).
-4. `mtime` MUST always be present in RFC3339 format. The `omitzero` JSON tag applies at the `LocalDocument` layer but the result-level struct serializes `mtime` unconditionally.
-5. Source annotation MUST always be present: `source_id` and `source_kind` on every result; `global` and `read_only` omitted when false.
+`results` and `index` are empty arrays, never `null`, when nothing matches, and `coverage` still carries the scanned counts. `coverage` and `hits` hold one entry per source the scope admits. Every row carries `source_id` and `source_kind`.
 
 ### §12 Full-mode body
 
-1. When `mode="full"`, each emitted result MUST carry a `body` field containing the matched document's body with the YAML frontmatter block stripped (`stripFrontmatter(doc.Content)`), whole or shortened per §12.4.
-2. When `mode="snippets"` (default), the `body` field MUST be omitted from the JSON entirely (`omitempty`), never emitted as an empty string.
-3. Full mode does NOT change matching, ranking, excerpt, or representation behavior; `matches` excerpts are still emitted alongside the body. It only adds the inline body and applies the smaller mode-specific limit bounds (§1.3–§1.4). The §8 representation guarantee applies to the full-mode page as well, so one of the three default slots carries the top row of an otherwise-evicted matching source.
-4. WHEN the bodies of the page do not fit the byte budget, the handler MUST shorten bodies by max-min fair share: a body smaller than an equal share arrives whole, and the unused bytes go to the larger bodies.
-5. The handler MUST NOT remove a row to make room for a body while every body of the page can keep a share of 1,024 encoded bytes (`searchBodyFloorBytes`). The floor bounds the share; the line-break rule of §12.6 can deliver less than the share.
-6. A shortened `body` MUST be a prefix of the document body, MUST end on a rune boundary, and SHOULD end at the last line break in the second half of its share.
-7. A row with a shortened `body` MUST carry `body_truncated: true` and `body_bytes`. A caller MUST read the whole document through `get_document` before it writes through `update_document`.
+1. In `full` mode each row MUST carry `body` with the frontmatter stripped. In `snippets` mode `body` MUST be omitted.
+2. Full mode MUST NOT change matching, ranking, or representation.
+3. WHEN the bodies do not fit the budget, the handler MUST shorten them by max-min fair share: a body smaller than an equal share arrives whole.
+4. The handler MUST NOT remove a row to make room for a body while every body can keep a share of 1,024 encoded bytes (`searchBodyFloorBytes`).
+5. A shortened `body` MUST be a rune-aligned prefix and SHOULD end at the last line break in the second half of its share.
+6. A row with a shortened `body` MUST carry `body_truncated: true` and `body_bytes`. A caller MUST read the whole document through `get_document` before it writes through `update_document`.
 
 ### §13 Near misses on an empty all-words response
 
-In this section, n is the number of distinct folded query words (§6.1).
+In this section, n is the number of distinct folded query words.
 
 1. WHEN `match` is `all`, `content` holds at least two distinct folded words, and every `hits` value is 0, the handler MUST compute near misses.
-2. The handler MUST admit as a near miss only a document that passes §4 and §5 and holds ⌈n/2⌉ or more distinct words.
-3. The handler MUST order near misses by the §6.8 count DESC, then by the §7.1 relevance keys, whatever `sort` holds.
-4. The handler MUST keep at most 3 near misses (`searchNearMissCap`), whatever `limit` and `mode` hold.
-5. The handler MUST apply the §8.2–§8.4 representation swap to the near misses, with the §13.4 cap as the page size.
-6. WHEN §13.1 holds and no document qualifies, the handler MUST serialize `near_misses` as `[]`.
-7. WHEN §13.1 does not hold, the handler MUST omit `near_misses`.
-8. The handler MUST emit each near miss with exactly the `NearMiss` fields, without `body`, `matches`, excerpts, or relations.
-9. The handler MUST NOT count a near miss toward `hits` or `index`.
-10. IF the response exceeds the byte budget with its near misses, THEN the handler MUST remove near misses from the tail until it fits.
-11. WHEN §13.10 removes a near miss, the handler MUST set `truncated` to `true`.
+2. The handler MUST admit only a document that passes §4 and §5 and holds ⌈n/2⌉ or more distinct words.
+3. The handler MUST order near misses by the §6.8 count DESC, then the §7.1 keys, whatever `sort` holds.
+4. The handler MUST keep at most 3 (`searchNearMissCap`) and apply the §8.2–§8.4 representation swap to them.
+5. WHEN §13.1 holds and none qualifies, the handler MUST serialize `near_misses` as `[]`. Otherwise it MUST omit the field.
+6. Each near miss MUST carry only `path`, `title`, `source_id`, and `missing`. It MUST NOT count toward `hits` or `index`.
+7. IF the response exceeds the budget, THEN the handler MUST remove near misses from the tail and set `truncated`.
 
-## Constraints
+## Constraints & Invariants
 
-| Constraint                          | Value                     | Rationale                                                                                |
-| ----------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------- |
-| Default limit (snippets)            | 50                        | Balances coverage and payload size for typical LLM invocations.                          |
-| Maximum limit (snippets)            | 200                       | Caps payload to bounded size even when caller requests more.                             |
-| Default limit (full)                | 3                         | Each result carries a full body; a small default keeps a single response token-bounded.  |
-| Maximum limit (full)                | 20                        | Hard cap on how many full bodies one response may inline.                                |
-| Occurrence-count cap (`contentFreqCap`) | 20                    | Bounds the low-order score component so a term-stuffed body cannot outrank a structural hit. |
-| Path-ref score contribution         | maximum specificity       | Path repetition is not a relevance signal; the same stuffing guard as `contentFreqCap` (§5.8). |
-| Representation swap                 | one row per source        | The guarantee costs at most the page's tail; it never rewrites the top of the page.      |
-| Response byte budget (`searchResponseByteBudget`) | 40,000 bytes | One host stored results from about 50,000 characters upward and refused larger ones by token count; bytes bound characters from above. |
-| Index ceiling (`searchIndexByteBudget`) | 20,000 bytes            | 200 admitted rows with long titles otherwise fill the response by themselves (44,198 bytes measured). |
-| Body floor (`searchBodyFloorBytes`) | 1,024 encoded bytes       | A row leaves the page before its body shrinks below a readable opening.                  |
-| Match cap (`searchMatchCap`)        | 5 per filter              | One document cited one path 39 times; evidence was 60–70% of an overflowed response.     |
-| Relation cap (`searchRelationCap`)  | 5 per direction           | A hub document's row otherwise grows with its degree.                                    |
-| Near-miss cap (`searchNearMissCap`) | 3                        | An empty page leaves the byte budget unused; three rows name the closest documents without turning an empty answer into a result page. |
-| Near-miss threshold                 | ⌈n/2⌉ of n distinct words | Equals "every word except one" at two and three words and still admits long and mixed-language queries (@.archcore/mcp/empty-all-words-search-partial-matches.rfc.md). |
-| Excerpt window                      | 120 chars                 | Keeps per-match payload small while carrying enough context for user/LLM disambiguation. |
-| Cold-scan target                    | ≤ 500 ms P95 for 200 docs | Informal target; not enforced by test harness yet.                                       |
-| Heap growth for pure-metadata query | O(N × frontmatter_size)   | Bodies are not retained when `path_ref` and `content` are both empty AND `mode=snippets`. |
-| Heap growth for content / full query | O(N × body_size)         | Bodies are retained; bounded by the `.archcore/` directory size.                         |
-
-## Invariants
+| Constraint | Value | Rationale |
+| --- | --- | --- |
+| Response byte budget | 40,000 bytes | One host stored results from about 50,000 characters upward and refused larger ones; bytes bound characters from above. |
+| Index ceiling | 20,000 bytes | 200 admitted rows with long titles otherwise fill the response by themselves (44,198 bytes measured). |
+| Match cap | 5 per filter | One document cited one path 39 times; evidence was 60–70% of an overflowed response. |
+| Relation cap | 5 per direction | A hub document's row otherwise grows with its degree. |
+| Path-ref score | maximum specificity | Repeating a path is not a relevance signal. |
+| Occurrence cap | 20 | A term-stuffed body must not outrank a structural hit. |
+| Near-miss threshold | ⌈n/2⌉ of n words | Equals "every word except one" at two and three words and still admits long queries. |
 
 - The handler is read-only: no filesystem writes, no manifest mutations.
-- Two identical calls against an unchanged `.archcore/` tree MUST produce byte-identical JSON output (excluding `mtime` serialization if clock-driven sources intrude — they do not in current implementation).
-- All emitted `excerpt` strings MUST satisfy `utf8.ValidString(excerpt)`.
-- The serialized response MUST NOT exceed the byte budget, except the single-row case of §8.8.
-- `near_misses` MUST appear only beside an empty `results`.
-- A shortened `body` MUST be a valid-UTF-8 prefix of the document body.
-- The first 2,048 bytes of a response with at most 6 admitted rows carry `coverage`, `hits`, and the whole `index`. [assumption: titles of ordinary length]
-- Every returned result's `path` MUST begin with `.archcore/` for a primary document; a mounted external global renders with its declared relative prefix.
-- Results MUST NOT contain duplicate documents. One document yields at most one result row; multiple match candidates for the same doc collapse into the `matches` array.
-- WHEN a source has at least one matching document, the truncated page MUST carry at least that source's top match, bounded by the page size and the §8.3 slot rule.
-- Each result MUST carry source annotation (`source_id`, `source_kind`, `global`, `read_only`) identical to `list_documents` / `get_document`; consumers MUST use these fields to tell local from global rather than inferring authority from the path (see @.archcore/globals/local-overrides-global.rule.md).
+- Two identical calls against an unchanged tree MUST produce identical output.
+- The response MUST NOT exceed the byte budget, except the single-row case of §8.8.
+- `near_misses` appears only beside an empty `results`.
+- One document yields at most one row; several candidates collapse into `matches`.
+- WHEN a source has a matching document, the truncated page MUST carry at least that source's top match, within the §8.3 slot rule.
+- Consumers MUST tell local from global by `source_id` and `source_kind`, not by path.
 
-## Error Handling
+## Failure Behavior
 
-| Condition             | Response                                                                   | Recovery                                                                                            |
-| --------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| All filters empty     | MCP error: `specify at least one filter (...)`                             | Caller adds at least one filter.                                                                    |
-| `limit < 0`           | MCP error: `limit must be non-negative`                                    | Caller supplies non-negative limit.                                                                 |
-| Invalid `mtime_after` | MCP error: `invalid mtime_after: <reason>`                                 | Caller supplies valid RFC3339 or relative duration.                                                 |
-| Unknown `source` value | MCP error: `invalid source "<value>" (valid: "local", "global", or a declared global source id)` | Caller corrects the source scope.                                              |
-| `content` with zero words under `all`/`any` | MCP error: `content must contain at least one word`          | Caller supplies at least one word, or uses `match="exact"`.                                         |
-| Manifest missing      | Empty relations arrays on every result                                     | Caller treats empty relations as absence of data.                                                   |
-| Manifest present but invalid | MCP error: `loading manifest: <reason>` (validation detail preserved; never an absolute path) | Caller (or user) repairs `.sync-state.json`; relation data is authoritative, not silently droppable. |
-| Malformed frontmatter | Silently skip frontmatter parse; doc still indexed with empty title/status | Caller cannot distinguish malformed frontmatter from absent frontmatter — acceptable for this spec. |
-| I/O error during scan | MCP error: `scanning documents: <I/O class>` (sanitized, no absolute path) | Caller retries or falls back.                                                                       |
-
-### Failure semantics
-
-- Non-retriable: filter validation errors, `limit` validation, present-but-invalid manifest (until the file is repaired).
-- Retriable: transient I/O errors during scan (sanitized and surfaced).
-- The handler is idempotent: no observable state changes between calls.
+Each failure below is an MCP error that holds no absolute path: a missing filter; a negative `limit`; an invalid `mtime_after`; an unknown `source`; a zero-word `content` under `all`/`any`; a present-but-invalid manifest (`loading manifest: <reason>`); an I/O error during scan (`scanning documents: <I/O class>`). A missing manifest is not an error. Malformed frontmatter indexes the document with an empty title and status. See @.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md.
 
 ## Conformance
 
-An implementation conforms to this specification if it satisfies:
+An implementation conforms when it satisfies every MUST in §§1–13, the invariants, and the failure rows, and passes @cli/internal/mcp/tools/search_documents_test.go, @cli/internal/mcp/tools/search_recall_test.go, @cli/internal/mcp/tools/response_budget_test.go, and @cli/internal/mcp/tools/search_near_misses_spec_test.go.
 
-- All MUST and MUST NOT statements in §§1–13.
-- All stated invariants.
-- All applicable error-handling rows.
-- The recorded unit tests in @cli/internal/mcp/tools/search_documents_test.go, @cli/internal/mcp/tools/search_recall_test.go, @cli/internal/mcp/tools/response_budget_test.go, and @cli/internal/mcp/tools/search_near_misses_spec_test.go (these tests are the executable acceptance harness for this spec).
-
-## Examples
-
-### Multi-word content query across sources
-
-```txt
-// Input
-search_documents({
-  content: "plugin compatibility"
-})
-
-// Output (abbreviated)
-{
-  "coverage": { "local": 102, "archcore": 42 },
-  "hits": { "local": 1, "archcore": 1 },
-  "truncated": false,
-  "index": [
-    { "path": ".archcore/integrations/plugin-cli-compatibility.rule.md", "title": "Compatibility Contract Between...", "source_id": "local" },
-    { "path": "../global/.archcore/architecture/plugin-cli-compatibility.rule.md", "title": "Plugin / CLI Compatibility...", "source_id": "archcore" }
-  ],
-  "results": [
-    {
-      "path": ".archcore/integrations/plugin-cli-compatibility.rule.md",
-      "type": "rule",
-      "source_id": "local",
-      "source_kind": "local",
-      "matches": [
-        { "kind": "content", "ref": "plugin", "specificity": 3, "excerpt": "...the Archcore Plugin..." },
-        { "kind": "content", "ref": "compatibility", "specificity": 3, "excerpt": "Compatibility Contract Between..." }
-      ]
-    },
-    {
-      "path": "../global/.archcore/architecture/plugin-cli-compatibility.rule.md",
-      "type": "rule",
-      "source_id": "archcore",
-      "source_kind": "global",
-      "global": true,
-      "read_only": true,
-      "matches": [
-        { "kind": "content", "ref": "plugin", "specificity": 3, "excerpt": "Plugin / CLI Compatibility..." },
-        { "kind": "content", "ref": "compatibility", "specificity": 3, "excerpt": "Plugin / CLI Compatibility..." }
-      ]
-    }
-  ]
-}
-
-// Notes
-// Every word must occur, in any order and at any distance — the exact phrase
-// "plugin compatibility" appears in neither title. match="exact" would return
-// zero rows here.
-```
-
-### Pure metadata query (no body scan)
-
-```txt
-// Input
-search_documents({
-  types: ["plan", "idea"],
-  status: "draft",
-  limit: 10
-})
-
-// Output (per-doc matches array is empty)
-{
-  "coverage": { "local": 102 },
-  "hits": { "local": 1 },
-  "truncated": false,
-  "index": [
-    { "path": ".archcore/payments/stripe-3ds-rollout.plan.md", "title": "Stripe 3DS Rollout", "source_id": "local" }
-  ],
-  "results": [
-    {
-      "path": ".archcore/payments/stripe-3ds-rollout.plan.md",
-      "type": "plan",
-      "status": "draft",
-      "mtime": "2026-04-20T16:00:00Z",
-      "source_id": "local",
-      "source_kind": "local",
-      "matches": [],
-      "incoming_relations": [],
-      "outgoing_relations": []
-    }
-  ]
-}
-
-// Notes
-// scanDocuments is used (not scanDocumentsFull) — bodies are not loaded.
-```
-
-### Verified absence
-
-```txt
-// Input
-search_documents({ content: "blue-green deploys" })
-
-// Output
-{ "coverage": { "local": 102, "archcore": 42 }, "hits": { "local": 0, "archcore": 0 }, "truncated": false, "index": [], "near_misses": [], "results": [] }
-
-// Notes
-// The empty result names what was searched: none of the 144 documents across
-// both sources passes the filters and holds either query word, so near_misses
-// is []. Broaden the words or try match="any" — do not conclude the corpus was
-// skipped.
-```
-
-### Near miss
-
-```txt
-// Input
-search_documents({ content: "delivery policy price source" })
-
-// Output
-{ "coverage": { "local": 12 }, "hits": { "local": 0 }, "truncated": false, "index": [],
-  "near_misses": [{ "path": ".archcore/shop/delivery-policy-seam.adr.md", "title": "Keep Delivery Fees Behind the DeliveryPolicy Interface", "source_id": "local", "missing": ["source"] }],
-  "results": [] }
-
-// Notes
-// No document holds all four words. The ADR holds three, at least half of four;
-// every other document holds at most one.
-```
-
-### Compound name and a shortened body
-
-```txt
-// Input
-search_documents({ content: "acme-id-sdk", mode: "full", limit: 6 })
-
-// Output (abbreviated)
-{
-  "coverage": { "local": 239, "org": 37 },
-  "hits": { "local": 3, "org": 16 },
-  "truncated": false,
-  "index": [ /* six entries: path, title, source_id */ ],
-  "results": [
-    {
-      "path": ".archcore/auth/acme-id-sdk.doc.md",
-      "source_id": "local",
-      "matches": [
-        { "kind": "content", "ref": "acme id sdk", "specificity": 3, "excerpt": "acme-id-sdk" }
-      ],
-      "body": "## Overview\n...",
-      "body_truncated": true,
-      "body_bytes": 12403
-    }
-  ]
-}
-
-// Notes
-// The query word folds to "acme id sdk", so it also matches a body that spells
-// the name "@acme-id/sdk". The first row matched on its slug. Six bodies do not
-// fit 40,000 bytes, so each long body is a prefix; get_document returns the rest.
-```
-
-### Invalid filter
-
-```txt
-// Input
-search_documents({})
-
-// Output
-{ "error": "specify at least one filter (path_ref, content, types, or status)" }
-
-// Input
-search_documents({ content: "logging", source: "orgg" })
-
-// Output
-{ "error": "invalid source \"orgg\" (valid: \"local\", \"global\", or a declared global source id)" }
-```
-
-## Security Considerations
-
-- The tool operates only under the call root's `.archcore/` and declared global mounts, never elsewhere. `path_ref` is matched against document body content, not dereferenced. `project` and an absolute `for_path` are the two inputs that name a filesystem location; each resolves to a root only after the acceptance checks of @.archcore/mcp/call-root-resolution.spec.md, and a value that fails them produces an error without an absolute path.
-- The tool is read-only; no content can be written, modified, or deleted through it.
-- Every error message is sanitized: OS-level failures map to a fixed I/O class, so no absolute filesystem path ever reaches the MCP client (see @.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md). Nothing is written to stdout besides protocol frames.
-
-## Compatibility
-
-- **Behavior change (2026-08), breaking:** the response became the `{"results", "coverage"}` envelope (previously a bare array); content matching became tokenized all-words by default (`match="exact"` preserves the old substring semantics); ranking replaced max-specificity with the summed score, added the heading tier and occurrence count, stopped using a global document's mtime, and gained the `path` tiebreak; a truncated page now keeps every matching source represented; an unknown `source` and a zero-word `content` became validation errors. Decided in @.archcore/mcp/global-recall-guarantees.rfc.md; shipped together as one wire-shape major change.
-- **Behavior change (2026-09):** the envelope gained `hits`, `truncated`, and `index`, and its key order became normative; `matches` and each relation array carry at most 5 entries, with a total beside a cut array; the response stays under a 40,000-byte budget, so `results` can hold fewer rows than `limit` and a full-mode `body` can be a shortened prefix; the slug became a match field and separators fold under `all`/`any`, so `ref` can differ from the typed word. Every added field is additive; the narrowed fields are `body`, `matches`, and the relation arrays. Decided in @.archcore/mcp/read-tool-responses-survive-host-truncation.adr.md and @.archcore/mcp/search-matches-the-slug-and-folds-separators.adr.md.
-- **Behavior change (2026-09, near misses):** an empty all-words response with at least two distinct words gains `near_misses`, and the verified-absence wording names the filters and the match mode. The field is additive and appears only beside an empty `results`. Decided in @.archcore/mcp/empty-all-words-search-partial-matches.rfc.md.
-- The envelope is additive from here on: new fields MAY be added to the envelope, `searchResult`, or `Match` without breaking consumers that ignore unknown fields.
-- Existing field names, types, and enum values MUST NOT be removed or repurposed in a minor CLI release. A breaking change requires a new major version.
-- The `sort`, `mode`, and `match` enums MAY grow additional values in a minor release; existing `relevance`, `mtime`, `snippets`, `full`, `all`, `any`, and `exact` semantics MUST remain stable.
-- Behavior change (2026-07): a present-but-invalid manifest was previously degraded to empty relations with a stderr log; it is now a tool error (§3.3), unified with `get_document` / `list_relations`.
+Example: given `content: "plugin compatibility"`, a document that holds both words in any order and any distance matches. `match="exact"` returns zero rows because the phrase appears in no title.

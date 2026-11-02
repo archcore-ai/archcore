@@ -86,8 +86,6 @@ Expected result: the MCP server starts, and `list_documents` shows the documents
 
 ## Troubleshooting
 
-- The server refuses to start with `overlaps the project's own .archcore`. The declared `path` lies under `.archcore/`. Follow the migration above.
 - Documents do not appear. `path` points at the wrong level. It must reach the vendored repository's `.archcore/` directory.
-- The server prints `global source "company" not found at "…" — starting without it`, and no global documents appear. The vendored folder is missing, for example gitignored and not yet cloned. Clone it to read its documents; the local documents work without it.
 - A global row carries no `source_root`. The declared `path` does not end in `.archcore`, so no project argument reaches the source. Point `path` at the repository's `.archcore/`.
 - Updating the global. A vendored copy and a submodule are both snapshots. Re-clone, or run `git submodule update`, to pull upstream changes. A write through `project` changes the vendored copy only; send the change upstream as well.

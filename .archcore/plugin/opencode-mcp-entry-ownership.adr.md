@@ -1,6 +1,6 @@
 ---
 title: "The OpenCode Bridge Registers mcp.archcore Only When the Entry Is Absent; archcore init Keeps Writing It"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "component:plugin"

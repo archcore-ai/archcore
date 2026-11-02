@@ -24,9 +24,7 @@ The same rules had two owners. The precision canon existed as `skills/_shared/pr
 the plugin and had no counterpart in the CLI, so a change to the document contract in this repository
 did not reach the check that measures against it. Two copies of one contract drift.
 
-The shell implementation also carried defects that a text-matching approach makes easy to write: the
-write guard searched the raw payload for the first occurrence of a key rather than reading a known
-path, and it treated any directory whose name ends in `.archcore` as the document store.
+The shell write guard also matched text instead of reading known keys, so it misjudged payloads and any directory whose name ends in `.archcore`.
 
 ## Decision
 

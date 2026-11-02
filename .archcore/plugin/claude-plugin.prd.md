@@ -15,13 +15,7 @@ Every interaction with the `.archcore/` knowledge base flows through MCP tools, 
 
 ## Problem Statement
 
-The original plugin at v0.0.1 was a thin wrapper that registered the MCP server and a SessionStart hook, which left five gaps.
-
-- **No guidance.** The model does not know when or how to use each document type, so users must instruct the agent about Archcore conventions by hand.
-- **No guardrails.** Nothing prevents the agent from writing a `.archcore/` file directly through Write or Edit, bypassing validation, templates, and the sync manifest.
-- **No workflows.** A common task such as creating an ADR or auditing documentation health requires manual multi-step instructions every time.
-- **No domain expertise.** Complex work — requirements engineering, ISO 29148 cascades, multi-document planning — has no specialized assistance.
-- **Passive context rather than applied context.** The SessionStart index tells the agent that documents exist but does not force their content into the decision loop before the agent edits source code.
+An MCP server and a SessionStart index alone leave the model without type guidance, without guardrails against direct `.archcore/` writes, without workflows for common tasks, and without specialized help for requirements engineering. The index also tells the agent that documents exist but does not force their content into the decision loop before it edits source code.
 
 **Target users.** Anyone using Claude Code, Cursor, Codex CLI, or GitHub Copilot CLI with Archcore: individual developers, team leads, architects, and product managers.
 
@@ -47,7 +41,7 @@ The original plugin at v0.0.1 was a thin wrapper that registered the MCP server 
 
 ### Functional
 
-**FR-1 — the four-command palette.** The plugin ships four auto-invocable commands per `four-command-palette.adr`: `init`, `plan`, `document`, `review`. Each maps to a distinct user intent and auto-invokes from user phrasing. Per-type elicitation lives inline inside the matching intent; per-flow logic for the product, sources, ISO, and feature cascades lives under `skills/plan/references/`; continuation logic for the decision and standard cascade lives at `skills/decide/references/continuations.md`; and drift detection lives at `skills/audit/lib/drift-detection.md`.
+**FR-1 — the four-command palette.** The plugin ships four auto-invocable commands per `four-command-palette.adr`: `init`, `plan`, `document`, `review`. Each maps to a distinct user intent and auto-invokes from user phrasing. Gate logic lives in track files under `skills/_shared/tracks/` (`track-layer.spec`).
 
 **FR-2 — slash commands.** The user-invoked surface is `/archcore:{init,plan,document,review}` per `command-surface-v2.spec`. `capture` and `decide` are absorbed by `document`; `audit` becomes `review`; `context` is removed, with CLI hooks and command grounding absorbing the pull moment; `help` is removed, with command descriptions and CLI help absorbing it. For any type, `mcp__archcore__create_document(type=<any>)` remains a direct path that bypasses skill mediation.
 
@@ -72,11 +66,4 @@ The skill detects scale as small, medium, or large, and seeds the extras that sc
 
 ## Delivered capabilities
 
-- **SessionStart index** — loads documents, tags, and the relation count at session start.
-- **SessionStart empty-state nudge** — on a missing or functionally empty `.archcore/`, emits a one-line pointer at `/archcore:init`, suppressible by environment variable.
-- **PreToolUse guardrails** — the block guard denies a direct `.archcore/` markdown write, and the injection guard supplies the applicable rules, ADRs, specs, and cpats for a source-file edit.
-- **PostToolUse validation** — the validator, the cascade detector, and the precision check all run on MCP mutations.
-- **Four commands** — routing natural-language intent into the right document type or workflow, with `review` covering the dashboard, the deep audit, and drift detection (absorbing former `audit`), `plan` covering a single plan and all cascades through on-demand references, and `document` covering module capture plus ADR/RFC creation and the standard cascade (absorbing former `capture` and `decide`).
-- **Two agents** — `archcore-assistant` for complex multi-document tasks and `archcore-auditor` as the read-only reviewer.
-
-`development-roadmap.plan` records what remains.
+The four commands, the two agents, and the hook layer (index, empty-state nudge, write guard, context injection, validation, cascade, precision) are delivered. `plugin-architecture.spec` holds the component contract.

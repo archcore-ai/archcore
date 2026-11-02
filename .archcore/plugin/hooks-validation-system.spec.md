@@ -12,29 +12,11 @@ tags:
 
 This spec defines the plugin's hook layer after the v0.7.0 repatriation: the hook POLICY — MCP-only write enforcement, code-alignment context injection, post-write validation, cascade and precision reporting, staleness, and the session recap — executes inside the archcore CLI (`archcore hooks <host> {session-start,pre-tool-use,post-tool-use}`), per `cli-owns-layers-4-5.adr`, and is verified by the CLI repository's own test suite. The plugin ships only host glue: hook entries in four host configs (`hooks/hooks.json`, `hooks/cursor.hooks.json`, `hooks/codex.hooks.json`, `hooks/copilot.hooks.json`) and three launcher scripts under `plugins/archcore/bin/` backed by two library files. Normative for those configs and scripts. Depended on by every host adapter and by `plugin-architecture.spec`, which owns the canonical event matrix; `host-adapter-contract.spec` owns the blocking-semantics translation, and `host-probe-protocol.spec` owns how these behaviors are verified on a live host. Out of scope: the MCP server, the CLI-side hook handlers and their budgets (CLI repository), and agent tool restrictions.
 
-`always-use-mcp-tools.adr` records the rationale for the blocking behavior, `actualize-system.adr` for staleness detection, `pre-code-context-injection.idea` for the injection hook, `host-wiring-parity.adr` for dual naming, the version gate, and the SessionStart dedup, and `copilot-mcp-architecture.adr` for why Copilot needs the wiring advisory.
+`always-use-mcp-tools.adr` records the rationale for the blocking behavior, `actualize-system.adr` for staleness detection, `file-context-resolution.spec` for the injection hook, `host-wiring-parity.adr` for dual naming, the version gate, and the SessionStart dedup, and `copilot-mcp-architecture.adr` for why Copilot needs the wiring advisory.
 
 ## Surface
 
-Claude Code's `hooks/hooks.json` is the reference shape because it is the most explicit:
-
-```json
-{
-  "hooks": {
-    "SessionStart": [
-      { "matcher": "", "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/bin/session-start" } ] }
-    ],
-    "PreToolUse": [
-      { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/bin/pre-tool-use", "timeout": 2 } ] }
-    ],
-    "PostToolUse": [
-      { "matcher": "<five document-mutation tools under both namings>", "hooks": [ { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/bin/post-tool-use", "timeout": 4 } ] }
-    ]
-  }
-}
-```
-
-**Per-host shape divergence.** Cursor and Codex differ in event-name casing, plugin-root variable, and matcher contents; Cursor's post event is `afterMCPExecution` with no matcher, and its payload names the tool bare (`update_document`) with the server reported separately in `mcp_server_name` — the server's key in `mcp.json`, which `archcore init --agent cursor` writes as `archcore` (Cursor hooks reference, read 2026-09-07). Copilot differs structurally: three flat entries with the command under `bash` rather than `command`, the budget under `timeoutSec` rather than `timeout`, `cwd: "."`, and `env.ARCHCORE_HOST=copilot` for deterministic detection; its `postToolUse` carries no matcher. A config or a test written by copying another host's and swapping names loads without error and does nothing, which is why `@plugin/test/structure/hooks.bats` extracts commands through a `.command // .bash` union and fails loudly when the extraction is empty.
+Each host config registers the three launchers; the event matrix is in `plugin-architecture.spec`. Cursor's post event is `afterMCPExecution` with no matcher, and its payload names the tool bare (`update_document`) with the server reported separately in `mcp_server_name` — the server's key in `mcp.json`, which `archcore init --agent cursor` writes as `archcore` (Cursor hooks reference, read 2026-09-07). Copilot's entries differ structurally (`bash` for `command`, `timeoutSec` for `timeout`, `cwd: "."`, `ARCHCORE_HOST=copilot`). A config or a test written by copying another host's and swapping names loads without error and does nothing, which is why `@plugin/test/structure/hooks.bats` extracts commands through a `.command // .bash` union and fails loudly when the extraction is empty.
 
 **Copilot commands are a candidate chain, not a substitution.** Every other host's command is `${THAT_HOST_VARIABLE}/bin/<script>`. Copilot's probes `$COPILOT_PLUGIN_ROOT`, then `$PLUGIN_ROOT`, then `$CLAUDE_PLUGIN_ROOT`, each with `-x` for the script itself, execs the first that holds it, and otherwise warns on stderr and exits 0 — on this host every non-zero exit denies the tool call and discards the reason (`copilot-adapter-design.adr`).
 
@@ -50,15 +32,7 @@ Claude Code's `hooks/hooks.json` is the reference shape because it is the most e
 
 **The Copilot output channel.** Per the hooks reference, single-line `{"type":"progress"}` objects are stripped from stdout, every remaining line is concatenated, and ONE `JSON.parse` runs over the result; on failure the hook is treated as having produced no output. A hook on this host emits at most one JSON document — trailing plain text would discard the CLI context payload along with the note. Output fields are per-event: `sessionStart` and `postToolUse` accept `additionalContext`; `preToolUse` accepts only `permissionDecision`, `permissionDecisionReason`, and `modifiedArgs`, which is why the CLI skips pre-tool context there. Non-Copilot output is pinned byte-level by `@plugin/test/unit/session-start-goldens.bats`; the single-document rule by `@plugin/test/unit/session-start-emit-matrix.bats`.
 
-**Scripts.** Three executables plus two library files. The plugin bundles no CLI binary and no policy scripts; every CLI invocation resolves `archcore` through PATH.
-
-| Script | Role |
-|---|---|
-| `@plugin/plugins/archcore/bin/session-start` | SessionStart pipeline, phases 0–7 above |
-| `@plugin/plugins/archcore/bin/pre-tool-use` | Launcher — CLI write guard + code-alignment context |
-| `@plugin/plugins/archcore/bin/post-tool-use` | Launcher — CLI validation + cascade + precision; on Cursor, the tool-name qualification of item 22 |
-| `@plugin/plugins/archcore/bin/lib/normalize-stdin.sh` | Host detection, stdin capture and field extraction, output helpers |
-| `@plugin/plugins/archcore/bin/lib/plugin-cache-guard.sh` | Shared misrouted-cwd guard |
+The plugin bundles no CLI binary and no policy scripts; every CLI invocation resolves `archcore` through PATH.
 
 ## Normative Behavior
 

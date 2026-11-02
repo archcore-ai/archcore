@@ -1,4 +1,4 @@
-# Behavioral init-entry bench fixtures — init-import-mode.adr, init-entry-and-assess.spec, authored-source-discovery.spec.
+# Behavioral init-entry bench fixtures — init-import-mode.adr.
 # Columns (tab-separated): id, arguments (text after /archcore:init; - for none — a tab-separated read collapses an empty field), repository, expected_route, expected_tier, probe path, expected_verdict.
 # expected_route: plain | import | import-only | no-source | empty | refresh | resume | seeded. expected_tier: S | M | L | none | - (not checked). expected_verdict: convert | mine | reference | skip | - (not checked).
 1	-	package.json + src/ (30 modules). .archcore/ empty. No host wiring. CLAUDE.md 4 KB with 5 H2 headings: Setup, Errors, Testing, Naming, Changelog. No other authored file.	plain	S	CLAUDE.md	mine

@@ -56,11 +56,7 @@ PLUGIN_ROOT=$(pwd)/plugins/archcore REPO_ROOT=$(pwd) bats test/unit/hook-launche
 
 `PLUGIN_ROOT` is worth knowing as more than boilerplate: pointing it at a modified copy of `plugins/archcore` is how fault injection works without touching the tree.
 
-Run the real MCP boundary separately with `make test-integration`. @plugin/test/integration/research-vocabulary.bats and @plugin/test/integration/actor-subject-vocabulary.bats use @plugin/test/helpers/mcp.bash to start the installed CLI in a temporary project. They check schemas, templates, categories, directed relations, retry prerequisites, deduplication, and persisted track state. The tests use real storage without model calls.
-
-@plugin/test/integration/search-response-shape.bats mounts one global source in that temporary project. It checks that `hits` and `index` precede `results`, that `hits` counts every source before the `limit` cut, that a long body arrives with `body_truncated: true`, that the response byte budget sets `truncated`, and that `list_documents` reaches every document when `offset` advances by `returned`. The file skips on a CLI older than 0.8.5, which sends none of these fields.
-
-The CI workflow pins CLI 0.8.6 and verifies the release archive's SHA-256. The release workflow calls the same Linux/macOS verification workflow against the selected release ref.
+Run the real MCP boundary separately with `make test-integration`. It starts the installed CLI over stdio in a temporary project, with real storage and no model calls. A file that needs a newer CLI skips on an older one. The CI workflow pins a CLI release by digest.
 
 ### 3. Run the ShellCheck lint
 
@@ -86,17 +82,13 @@ make test-codex-smoke     # requires the codex CLI on PATH
 make test-copilot-smoke   # requires the copilot CLI on PATH
 ```
 
-Neither runs as part of `make test`, and both **skip** rather than fail when their host binary is absent — so they ship, stay quiet in CI, and run for free on a contributor's machine that has the host installed. They cover what static tests cannot: that a real install produces a tree the host can load. That is the exact gap issue #2 fell through for Codex, where every structural test was green while marketplace discovery silently found nothing.
+Neither runs as part of `make test`, and both **skip** rather than fail when their host binary is absent. They cover what static tests cannot: that a real install produces a tree the host can load. That is the gap issue #2 fell through for Codex, where every structural test was green while marketplace discovery silently found nothing.
 
-The Copilot smoke test asserts filesystem facts rather than CLI output: every path the manifest names survives the install, the hook scripts keep their executable bit, and no plugin MCP server is registered (github/copilot-cli#4234). Host output wording is not a contract the plugin controls; what the plugin promises is what lands on disk.
-
-The Codex smoke suite uses real marketplace installation for every loading check. It accepts Codex's abbreviated `rN` skill paths and inspects the developer skill catalog rather than matching the user prompt.
+The Copilot smoke test asserts filesystem facts rather than CLI output, because host output wording is not a contract the plugin controls. What the plugin promises is what lands on disk (github/copilot-cli#4234).
 
 ### 6. Run the plugin integrity check
 
-`make verify` is the canonical integrity check. The former `/archcore:verify` skill was retired by `skill-surface-collapse.adr`; use the Makefile target instead. Inside a host session, ask the model to run `make verify` and report the results if you want AI-assisted verification.
-
-Two structure files carry the per-host regression guards: `test/structure/host-coverage-matrix.bats` holds one enrolled row per hooks config, with an enrollment guard so a new host cannot ship unchecked, and `test/structure/copilot-plugin.bats`, `codex-plugin.bats`, and `cursor-plugin.bats` cover the per-host manifests.
+`make verify` is the canonical integrity check. There is no `/archcore:verify` skill (`four-command-palette.adr`). `test/structure/host-coverage-matrix.bats` holds one enrolled row per hooks config, with an enrollment guard so a new host cannot ship unchecked.
 
 ### 7. Write a new unit test
 
@@ -110,18 +102,8 @@ Unit tests cover `bin/` script logic — stdin parsing, exit codes, output.
      common_setup
    }
    ```
-3. Load the helpers from `test/helpers/common.bash`; the table below lists them.
-4. Assert with bats-assert: `assert_success`, `assert_failure <code>`, `assert_output --partial <text>`.
-
-| Helper | Use |
-|---|---|
-| `run_with_fixture <script> <fixture-path>` | run the script with a fixture file as stdin |
-| `run_with_stdin <script> <inline-json>` | run the script with inline stdin |
-| `run_with_fixture_env <script> <fixture> <host>` | the same, with `ARCHCORE_HOST` forced — env-only hosts such as opencode need it |
-| `mock_archcore <output> [exit-code]` | a mock `archcore` on `PATH` answering *any* subcommand; use only when the test does not care which one ran |
-| `mock_archcore_logging <output> [exit-code]` | the same, appending `$1` to `$MOCK_ARCHCORE_LOG` when set; use whenever the test asserts which subcommand ran |
-| `mock_archcore_multi` | multi-subcommand mock: `$MOCK_DOCTOR_OUTPUT` for `doctor`, `$MOCK_HOOKS_OUTPUT` for `hooks`, logging to `$MOCK_ARCHCORE_LOG` |
-| `run_normalizer <json>` | source `normalize-stdin.sh` and print the exported variables |
+3. Load the helpers from `test/helpers/common.bash`.
+4. Use `mock_archcore_logging` rather than `mock_archcore` whenever the test asserts which subcommand ran. `mock_archcore` answers any subcommand.
 
 For CLI fallback paths, `test/unit/session-start.bats` is the model: under a restricted PATH where `archcore` does not resolve, `bin/session-start` still exits 0 and emits the install message pointing at https://docs.archcore.ai/cli/install/.
 
@@ -160,19 +142,7 @@ Copilot's native payloads are the least guessable: the edited path lives inside 
 
 At the structure layer, `test/structure/readme-cli-references.bats` extracts every backtick-quoted `archcore <subcmd>` reference in `README.md` and asserts membership in the canonical allowlist `config doctor help hooks init mcp status update`, hardcoded in that test file. Internal `.archcore/` design documents are excluded deliberately: they hold historical specification text that may name renamed commands.
 
-At the unit layer, write a test using `mock_archcore_logging` with `MOCK_ARCHCORE_LOG`:
-
-```bash
-@plugin/test "<script> calls only the expected subcommand" {
-  export MOCK_ARCHCORE_LOG="$BATS_TEST_TMPDIR/archcore.log"
-  mock_archcore_logging ""
-  run_with_fixture <script> <fixture>
-  assert_success
-  [ -f "$MOCK_ARCHCORE_LOG" ] || fail "expected archcore to be invoked"
-  grep -qx '<expected-subcommand>' "$MOCK_ARCHCORE_LOG" \
-    || fail "expected '<expected-subcommand>', got: $(cat "$MOCK_ARCHCORE_LOG")"
-}
-```
+At the unit layer, write a test using `mock_archcore_logging` with `MOCK_ARCHCORE_LOG` and grep the log for the expected subcommand.
 
 A test asserting only `assert_success` after a CLI invocation is insufficient: hooks swallow non-zero exits, so a phantom subcommand fails silently while the test passes. Always assert what was invoked. `test/unit/hook-launchers.bats` is the worked example — it pins `hooks <host> <leaf>` for both `bin/pre-tool-use` and `bin/post-tool-use`.
 
@@ -213,23 +183,9 @@ Some questions no bats test can answer: whether a host loads the hooks config at
 
 ### 15. Check model routing and test sensitivity
 
-Eight behavioral benches spend model tokens, run only on request, and never run in CI. Each of the eight saves raw replies when its `*_OUTPUT_DIR` variable is set, separates mismatches (exit 1) from CLI errors (exit 2), rejects an empty or malformed fixture corpus before any model call, and has a harness test under `test/unit/` that uses a fake model process. The delivery bench makes no model call: it sends read-only `search_documents` calls to one `archcore mcp`, and it has no harness test.
+The behavioral benches under `test/behavioral/` spend model tokens, run only on request, and never run in CI. Each has a `make test-*-bench` target in the `Makefile`, a fixture file under `test/behavioral/fixtures/`, and a harness test under `test/unit/` that uses a fake model process. The delivery bench makes no model call. `MATRIX_BENCH_SET=fresh` scores the untuned held-out cases and is the routing guard. `delta-routing-bench.doc` records the validity limits of past runs.
 
-| Target | Script and fixtures | What it measures | Harness test |
-|---|---|---|---|
-| `make test-matrix-bench` | @plugin/test/behavioral/matrix-bench.py, `test/behavioral/fixtures/matrix-bench.tsv`, `test/behavioral/fixtures/matrix-holdout.tsv`, `test/behavioral/fixtures/matrix-holdout-fresh.tsv` | the types `plan`, `document`, and `review` create, the questions they ask, their entry, and the plan disposition; `MATRIX_BENCH_SET=fresh` scores the untuned held-out cases, the routing guard; `MATRIX_BENCH_SET=holdout` is the first held-out set, tuned on 2026-10-16; the report prints tokens and latency per call | @plugin/test/unit/python-benches.bats |
-| `make test-delivery-bench` | @plugin/test/behavioral/delivery-bench.py | which documents reach the file context of an edit; no model calls | none |
-| `make test-gate-bench` | @plugin/test/behavioral/gate-bench.sh, `test/behavioral/fixtures/gate-bench.tsv` | what `sdd.design` does in one step: whether `skip_when` holds, how many questions it asks, whether the gate stays open or advances, how many choices it marks `[assumption]`, whether it saves the state block, and where a resumed draft continues. `GATE_BENCH_HOST` selects `claude`, `codex`, or `copilot`; `GATE_BENCH_REF` reads the contracts from a git ref such as a release tag; `GATE_BENCH_REPS` repeats each fixture | @plugin/test/unit/gate-bench.bats |
-| `make test-document-bench` | @plugin/test/behavioral/document-bench.sh, `test/behavioral/fixtures/document-bench.tsv` | the track and document type `/archcore:document` selects, including requests with no arguments | @plugin/test/unit/document-bench.bats |
-| `make test-import-bench` | @plugin/test/behavioral/import-bench.sh, `test/behavioral/fixtures/import-bench.tsv` | the route, the size tier, and the triage verdict of `/archcore:init` | @plugin/test/unit/import-bench.bats |
-| `make test-skill-bench` | @plugin/test/behavioral/skill-bench.sh, `test/behavioral/fixtures/skill-bench.tsv` | which of the four skills Claude Code starts, and the arguments it passes, for a message that names no command | @plugin/test/unit/skill-bench.bats |
-| `make test-writer-fanout-bench HOST=claude VARIANT=A` | @plugin/test/behavioral/writer-fanout-bench.py, `test/behavioral/fixtures/writer-fanout-package.json` | document write latency and quality of parallel writers | @plugin/test/unit/python-benches.bats |
-| `make test-edits-bench HOST=claude` | @plugin/test/behavioral/edits-bench.py, `test/behavioral/fixtures/edits-bench.json` | `update_document` edits payloads on a live model | @plugin/test/unit/python-benches.bats |
-| `make test-review-bench` | @plugin/test/behavioral/review-bench.sh, `test/behavioral/fixtures/review-bench.tsv` | what a plain branch review writes and asks: the document types it creates, the documents it updates, the units it omits, its question count, and the plan disposition. `REVIEW_BENCH_HOST`, `REVIEW_BENCH_REF`, and `REVIEW_BENCH_REPS` work as in the gate bench | @plugin/test/unit/review-bench.bats |
-
-The skill bench loads the plugin with `claude -p --plugin-dir`, allows only the Skill tool, turns hooks off, and leaves the built-in skills competing. It measures Claude Code only; Cursor, Codex, and Copilot route through their own hosts. Run `make test-research-agent` separately for the live assistant with a real MCP server.
-
-A harness test verifies bench behavior; the live target verifies model behavior. One run per fixture is a sample, so rerun a failing row several times before changing a description.
+The skill bench measures Claude Code only; Cursor, Codex, and Copilot route through their own hosts. A harness test verifies bench behavior; the live target verifies model behavior. One run per fixture is a sample, so rerun a failing row several times before changing a description.
 
 Before trusting a changed test, introduce one contract defect in an isolated copy. Preserve its exact diff. Confirm the relevant test fails for that defect, restore the original bytes, and confirm the test passes. Gate goldens now retain normalized `skip_when` conditions; they do not represent all exit-check prose.
 

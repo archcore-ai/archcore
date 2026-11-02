@@ -18,14 +18,11 @@ payload is read into a tool identity and its targets; the text of the session-st
 
 ## Surface
 
-`archcore hooks <host> <event>`. `<host>` is `claude-code`, `cursor`, `gemini-cli`, `copilot`,
-`codex-cli`, or `opencode`. `<event>` is `session-start`, `pre-tool-use`, or `post-tool-use`. Every
-leaf is hidden. The payload arrives as one JSON object on stdin. The verdict leaves as stdout content
-and an exit code.
+`archcore hooks <host> <event>`, hidden leaves. The payload arrives as one JSON object on stdin. The verdict leaves as stdout content and an exit code.
 
 ## Normative Behavior
 
-1. The command MUST read the payload from stdin.
+1. The command MUST read the payload from stdin only.
 2. The command MUST NOT read a positional argument.
 3. WHEN the event is `post-tool-use`, the command MUST NOT deny.
 4. The write guard MUST be the only guard that denies.
@@ -39,8 +36,7 @@ and an exit code.
 9. The write guard MUST read each piece of project state at most once per invocation, however many
    targets that invocation carries.
 10. The write guard MUST read that state on demand, not before a verdict needs it.
-11. The post-write precision advisory MUST validate its document path through `docs.ValidateReadPath`
-    before it opens the file.
+11. The post-write precision advisory MUST validate its document path through `docs.ValidateReadPath` before it opens the file.
 12. WHEN `ARCHCORE_DISABLE_INJECTION` is `1`, the command MUST emit no code-alignment context.
 13. Each dedup scope MUST claim its stamp in a directory of its own.
 14. WHEN a target path is absolute, the write guard MUST resolve the project root as the nearest ancestor directory of that path that holds `.archcore/`, per @.archcore/mcp/call-root-resolution.spec.md.
@@ -69,15 +65,13 @@ and an exit code.
 ## Failure Behavior
 
 1. IF a handler panics, THEN the command MUST recover, report the recovery on stderr, and allow.
-2. IF the host name is unrecognized, THEN the command MUST write an empty stdout and exit 0.
-3. IF the event name is unrecognized, THEN the command MUST write an empty stdout and exit 0.
-4. IF a positional argument is present, THEN the command MUST ignore it.
-5. IF the project root cannot be resolved from the working directory and no target path has an ancestor holding `.archcore/`, THEN the command MUST allow.
-6. IF `settings.json` is unreadable or invalid, THEN the command MUST NOT deny for that reason.
-7. IF the payload names no target, THEN the write guard MUST allow.
+2. IF the host or event name is unrecognized, THEN the command MUST write an empty stdout and exit 0.
+3. IF a positional argument is present, THEN the command MUST ignore it.
+4. IF the project root cannot be resolved from the working directory and no target path has an ancestor holding `.archcore/`, THEN the command MUST allow.
+5. IF `settings.json` is unreadable or invalid, THEN the command MUST NOT deny for that reason.
+6. IF the payload names no target, THEN the write guard MUST allow.
 
 ## Conformance
 
 An implementation is conformant when it satisfies behaviors 1–18, holds every invariant, and degrades
-per the failure rules. Failure rules 2 and 3 need a zero exit, so failure rule 4 is what keeps an
-argument parser from refusing before the handler runs: Copilot reads any non-zero exit as a deny.
+per the failure rules. Failure rule 2 needs a zero exit, so failure rule 3 is what keeps an argument parser from refusing before the handler runs: Copilot reads any non-zero exit as a deny.

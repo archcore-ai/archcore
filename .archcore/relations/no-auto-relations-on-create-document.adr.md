@@ -23,7 +23,6 @@ The intent was convenience: if you drop a new rule into `.archcore/auth/`, it is
 
 The tool description was updated to make this explicit: "Treat nearby_documents as a hint only: review each candidate and call add_relation explicitly when a semantic link exists. Do not link every neighbor by default."
 
-The helper was renamed from `addNearbyRelations` to `populateNearbyDocuments` to match its new single responsibility. The `auto_relations_added` and `auto_relations_error` response fields are gone.
 
 ## Alternatives Considered
 
@@ -57,10 +56,8 @@ If we are not going to create relations, maybe the hint is not worth returning e
 
 - The sync manifest schema and `add_relation` / `remove_relation` / `list_relations` tools are unchanged — only the `create_document` side effect is removed.
 
-## Addendum — 2026-09-21
+## Current wording
 
-The decision above is unchanged: `create_document` creates no relation.
-
-The tool description quoted under Decision is the text of April 2026. The current `create_document` description calls `nearby_documents` "a partial location hint, not a semantic ranking or a complete candidate set", and it states that a new document can remain unlinked (`@cli/internal/mcp/tools/create_document.go`).
+The tool description quoted under Decision is the original text. The current `create_document` description calls `nearby_documents` "a partial location hint, not a semantic ranking or a complete candidate set", and it states that a new document can remain unlinked (`@cli/internal/mcp/tools/create_document.go`).
 
 The relation policy behind the new wording comes from the global research `relation-generation-quality.research`. Under that policy a document without relations is an allowed outcome (`@cli/internal/mcp/server.go`). `tool-descriptions-fit-the-host-cap.adr` records which tool description carries the policy, and `add-relation-reports-pair-overlaps.adr` records the write-time warnings of `add_relation`.
