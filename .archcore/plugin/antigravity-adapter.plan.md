@@ -63,7 +63,7 @@ Why this host: Antigravity replaced Gemini CLI for unpaid and Google One users o
 33. Add row tests to `@cli/internal/plugin/hosts_test.go`, `plan_test.go`, `execute_test.go`, and `evidence_test.go`.
 34. Correct the host-count comments in `@cli/internal/plugin/plugin.go`, `@cli/cmd/plugin_run.go`, and `@cli/cmd/init.go`.
 35. Amend `plugin-delivery.spec` and `updating-the-plugin.spec` per the Declared Delta.
-36. Add Antigravity to `supported-ai-agents.doc`, `cli-hooks-reference.doc`, and `@README.md`.
+36. Add Antigravity to `supported-ai-agents.doc` and `@README.md`.
 37. Report the roster change to the `archcore` global `supported-ai-hosts.doc` through its project.
 
 ### Phase 5 — Live verification and listing
@@ -103,4 +103,4 @@ Why this host: Antigravity replaced Gemini CLI for unpaid and Google One users o
 - amend spec `plugin-delivery` — Antigravity row; `antigravity` among the `--agent` hosts.
 - amend spec `updating-the-plugin` — Antigravity update by reinstall.
 - amend rule `stack-and-tooling` — item 14 shapes for `plugins/antigravity/`.
-- amend doc `supported-ai-agents` and doc `cli-hooks-reference` — Antigravity rows.
+- amend doc `supported-ai-agents` — Antigravity rows.

@@ -2467,6 +2467,96 @@
       "source": "architecture/process-and-concurrency-model.spec.md",
       "target": "mcp/read-path-scan-performance.idea.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/antigravity-adapter.plan.md",
+      "target": "plugin/antigravity-adapter.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/antigravity-adapter.plan.md",
+      "target": "plugin/antigravity-plugin-layout.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/antigravity-adapter.spec.md",
+      "target": "plugin/antigravity-plugin-layout.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/antigravity-adapter.spec.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/pi-adapter.plan.md",
+      "target": "plugin/pi-adapter.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/pi-adapter.plan.md",
+      "target": "plugin/pi-adapter-packaging.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/pi-adapter.spec.md",
+      "target": "plugin/pi-adapter-packaging.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/pi-adapter.spec.md",
+      "target": "plugin/host-adapter-contract.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/pi-adapter-packaging.adr.md",
+      "target": "plugin/opencode-adapter-packaging.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "plugin/hermes-adapter.plan.md",
+      "target": "integrations/hermes-integration.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/hermes-adapter.plan.md",
+      "target": "plugin/hermes-hooks-through-shell-leaves.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/hermes-integration.spec.md",
+      "target": "plugin/hermes-hooks-through-shell-leaves.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/openclaw-skill-and-acp.plan.md",
+      "target": "plugin/openclaw-skill.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/openclaw-skill-and-acp.plan.md",
+      "target": "plugin/clawhub-distribution.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "plugin/openclaw-skill.spec.md",
+      "target": "plugin/clawhub-distribution.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/jetbrains-junie-and-acp.plan.md",
+      "target": "integrations/junie-agent.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "plugin/jetbrains-junie-and-acp.plan.md",
+      "target": "plugin/junie-delivery.adr.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/junie-agent.spec.md",
+      "target": "plugin/junie-delivery.adr.md",
+      "type": "implements"
     }
   ]
 }

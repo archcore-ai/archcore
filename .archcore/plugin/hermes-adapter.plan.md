@@ -45,7 +45,7 @@ Host facts: `NousResearch/hermes-agent` commit `cad0aaa`, release `v2026.9.24`; 
 ### Phase 3 — Documentation and live verification
 
 20. Add Hermes to `supported-ai-agents.doc` with the fail-open timeout and the missing post-write text.
-21. Add the `hermes` dialect to `cli-hooks-reference.doc` and Hermes to `@README.md`.
+21. Add Hermes to `@README.md`.
 22. Report the roster change to the `archcore` global `supported-ai-hosts.doc` through its project.
 23. Install Hermes on the probe machine and record its version.
 24. Run probes P0, A, and B per `host-probe-protocol.spec` in a gateway session.
@@ -78,5 +78,5 @@ Host facts: `NousResearch/hermes-agent` commit `cad0aaa`, release `v2026.9.24`; 
 - create adr `hermes-hooks-through-shell-leaves` (accepted, 2026-11-04).
 - amend spec `hook-runtime` — `envelopeHermesContext` and the first-turn session gate.
 - amend spec `hook-payload-reading` — path-based root resolution for `hermes`.
-- amend doc `supported-ai-agents` and doc `cli-hooks-reference` — Hermes rows.
+- amend doc `supported-ai-agents` — Hermes rows.
 - none spec `plugin-delivery`: no Hermes row.
