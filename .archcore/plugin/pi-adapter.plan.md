@@ -62,7 +62,7 @@ Host facts: Pi 1.5.0, `earendil-works/pi` commit `fcebc09`. No public user count
 32. Add row tests to `@cli/internal/plugin/hosts_test.go`, `plan_test.go`, `execute_test.go`, and `evidence_test.go`.
 33. Correct the host-count comments in `@cli/internal/plugin/plugin.go`, `@cli/cmd/plugin_run.go`, and `@cli/cmd/init.go`.
 34. Amend `plugin-delivery.spec` and `updating-the-plugin.spec` per the Declared Delta.
-35. Add Pi to `supported-ai-agents.doc`, `cli-hooks-reference.doc`, and `@README.md`.
+35. Add Pi to `supported-ai-agents.doc` and `@README.md`.
 36. Report the roster change to the `archcore` global `supported-ai-hosts.doc` through its project.
 37. Remove `pi` from the providers without an adapter in `wrapper-hosts-defer-to-inner-agent-adapter.adr`.
 
@@ -100,5 +100,5 @@ Host facts: Pi 1.5.0, `earendil-works/pi` commit `fcebc09`. No public user count
 - amend spec `plugin-delivery` — Pi row; `pi` among the `--agent` hosts.
 - amend spec `updating-the-plugin` — `pi update` for Pi.
 - amend rule `stack-and-tooling` — TypeScript exception for `plugins/pi/`.
-- amend doc `supported-ai-agents` and doc `cli-hooks-reference` — Pi rows.
+- amend doc `supported-ai-agents` — Pi rows.
 - amend adr `wrapper-hosts-defer-to-inner-agent-adapter` — Pi gains an adapter.
