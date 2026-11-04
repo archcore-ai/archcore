@@ -38,6 +38,10 @@ var pluginStepBudget = 120 * time.Second
 // part a test cannot stage from the outside.
 var collectPluginEvidence = plugin.CollectEvidence
 
+// readServiceListings is the seam for the update-only service read, swapped by
+// the tests that stage evidence through collectPluginEvidence.
+var readServiceListings = plugin.ReadServiceListings
+
 // pluginRunOptions is one plugin run: which verb, over which hosts, acting or
 // printing, and where the Claude Code settings entry goes.
 type pluginRunOptions struct {
@@ -99,7 +103,11 @@ func runPluginActions(ctx context.Context, w io.Writer, opts pluginRunOptions) p
 		hosts = plugin.Hosts()
 	}
 
-	actions := plugin.Plan(opts.Verb, collectPluginEvidence(ctx, hosts, opts.ProjectRoot))
+	evidence := collectPluginEvidence(ctx, hosts, opts.ProjectRoot)
+	if opts.Verb == plugin.VerbUpdate {
+		evidence = readServiceListings(ctx, evidence)
+	}
+	actions := plugin.Plan(opts.Verb, evidence)
 	results := plugin.Execute(ctx, actions, &pluginReporter{w: w}, plugin.ExecuteOptions{PrintOnly: opts.PrintOnly})
 
 	outcome := pluginRunOutcome{Planned: actions, Results: results}
@@ -380,7 +388,8 @@ func (r *pluginReporter) PrintCommand(host plugin.Host, cs []plugin.Command) {
 	}
 }
 
-// UINote states the instruction for a host with no CLI mechanism.
+// UINote states a one-line instruction in place of a command: Cursor's UI
+// step, or a hint for a CLI host whose command would fail.
 func (r *pluginReporter) UINote(host plugin.Host, note string) {
 	fmt.Fprintln(r.w, display.WarnLine(fmt.Sprintf("%s: %s", pluginHostName(host), note)))
 }

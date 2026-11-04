@@ -131,9 +131,10 @@ type Evidence struct {
 	RegistryListed bool   // the host's on-disk registry names the plugin
 
 	// ServiceListingOK and ServiceListed are OpenCode 2.x's own answer, `opencode
-	// plugin list`, read from the running OpenCode service. The update command
-	// asks the same service, so only this answer authorizes it; the config files
-	// above can disagree with it — updating-the-plugin.spec §29.
+	// plugin list`, read from the running OpenCode service, for an update only
+	// (ReadServiceListings). The update command asks the same service, so only
+	// this answer authorizes it; the config files above can disagree with it —
+	// updating-the-plugin.spec §29.
 	ServiceListingOK bool
 	ServiceListed    bool
 
@@ -247,7 +248,7 @@ type ActionKind int
 const (
 	ActionRun             ActionKind = iota // run Commands
 	ActionPrintCommand                      // print the exact command for the user to run
-	ActionPrintUINote                       // a host with no CLI mechanism
+	ActionPrintUINote                       // a one-line instruction instead of a command
 	ActionReportInstalled                   // an install over an already-listed plugin
 	ActionReportStatus
 )

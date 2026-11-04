@@ -25,15 +25,14 @@ const maxProjectConfigBytes = 1 << 20
 var errProjectConfigUnreadable = errors.New("project config cannot be read")
 
 // projectEvidence fills in what a project-bound host's config says. OpenCode
-// has no listing command, and the `plugin` array it loads plugins from is the
-// host's own record, so with the CLI present that array stands as its listing.
+// 1.x has no listing command, and the `plugin` array it loads plugins from is
+// the host's own record, so with the CLI present that array stands as its
+// listing. On 2.x it stays the listing for install, remove, and status; only
+// the update also asks `opencode plugin list` — ReadServiceListings.
 func projectEvidence(ctx context.Context, ev Evidence, spec HostSpec, projectRoot string) Evidence {
 	ev.ProjectRoot = projectRoot
 	if ev.CLIPresent && spec.Version.Name != "" {
 		ev.HostMajor = readHostMajor(ctx, spec.Version)
-	}
-	if ev.CLIPresent && usesServiceListing(spec, ev) {
-		ev.ServiceListingOK, ev.ServiceListed = readServiceListing(ctx, spec.Since2.Listing)
 	}
 	// Guard, not advisory: the listing is what lets removal and update read
 	// the host as "not installed" and stay silent, so a config that cannot be
@@ -275,6 +274,24 @@ func stringEnd(data []byte, start int) int {
 		}
 	}
 	return len(data)
+}
+
+// ReadServiceListings adds OpenCode 2.x's own answer, `opencode plugin list`,
+// to the evidence of an update. Only the update calls it: the listing goes
+// through the OpenCode service, and with no service running it starts a
+// long-lived `opencode serve --service` with this process's environment
+// (service.ensure, 2.1.4; probed 2026-11-02). So it runs only where the config
+// already lists the plugin, and a machine without the plugin starts nothing —
+// updating-the-plugin.spec, Invariants.
+func ReadServiceListings(ctx context.Context, evidence []Evidence) []Evidence {
+	for i, ev := range evidence {
+		spec, ok := SpecFor(ev.Host)
+		if !ok || !ev.CLIPresent || !usesServiceListing(spec, ev) || !ev.ListingOK || !ev.Listed {
+			continue
+		}
+		evidence[i].ServiceListingOK, evidence[i].ServiceListed = readServiceListing(ctx, spec.Since2.Listing)
+	}
+	return evidence
 }
 
 // openCodeEmptyListing is what `opencode plugin list` prints when the service

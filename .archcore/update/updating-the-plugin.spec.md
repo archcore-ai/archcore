@@ -33,7 +33,7 @@ Per-host update commands, probed live 2026-09-16 on the versions shown, plus off
 | GitHub Copilot (copilot 1.0.83) | per installation `copilot plugin update <listed name>`; printed tier `copilot plugin update archcore` | A direct install is listed as `archcore` and refuses `archcore@archcore-plugins`. A failed update exits 0 and writes only to stderr — verified 2026-09-16. |
 | Codex CLI (codex 0.154.0) | `codex plugin marketplace upgrade archcore-plugins` | Codex has no per-plugin update and no scope; the marketplace upgrade reinstalls the plugin cache (`codex-rs/core-plugins/src/manager.rs`). Before the upgrade, the CLI adds `sparse_paths` to the marketplace table (`plugin-source-migration.spec`). A CLI older than 0.14.1 replaces itself and then runs this step with its old code in the same process, so the second `archcore update` applies the sparse paths. |
 | Cursor | none — no CLI mechanism (UI-only, cursor.com/docs/plugins) | Print a one-line instruction to update the plugin in the Cursor UI. |
-| OpenCode | 2.x: `opencode plugin update @archcore/opencode-plugin`; 1.x: none | 2.x marks an outdated package and updates it only on request (`packages/cli/src/commands/handlers/plugin/update.ts`, 2.1.4). The update finds the plugin through the running OpenCode service (`plugin.list` in `cli.plugin.inspect`), not the config file, so its listing is `opencode plugin list` — a table with an `ID VERSION SOURCE` header, or `No plugins found`; verified 2026-11-02. A service started with another `XDG_CONFIG_HOME` can miss a plugin the global config lists. 1.x gets no command until a live probe shows how it refreshes an unpinned entry. |
+| OpenCode | 2.x: `opencode plugin update @archcore/opencode-plugin`; 1.x: none | 2.x marks an outdated package and updates it only on request (`packages/cli/src/commands/handlers/plugin/update.ts`, 2.1.4). The update finds the plugin through the running OpenCode service (`plugin.list` in `cli.plugin.inspect`), not the config file, so its listing is `opencode plugin list` — a table with an `ID VERSION SOURCE` header, or `No plugins found`; verified 2026-11-02. A service started with another `XDG_CONFIG_HOME` can miss a plugin the global config lists. With no service running, `opencode plugin list` starts one with the caller's environment (`service.ensure`; probed 2026-11-02), so the step asks it only when the config lists the plugin. 1.x gets no command until a live probe shows how it refreshes an unpinned entry. |
 
 Roo Code, Cline, and Gemini CLI have no plugin. The step does not address them.
 
@@ -67,9 +67,10 @@ Roo Code, Cline, and Gemini CLI have no plugin. The step does not address them.
 26. WHEN the CLI addresses a Copilot installation, the CLI MUST pass only `archcore` or `archcore@archcore-plugins` as its name.
 27. WHILE OpenCode is 1.x or its version is unknown, the plugin-update step MUST NOT run a command for OpenCode.
 28. WHILE OpenCode is 1.x or its version is unknown, the plugin-update step MUST NOT print a line for OpenCode.
-29. WHEN `opencode plugin list` on OpenCode 2.x shows the plugin, the plugin-update step MUST run `opencode plugin update @archcore/opencode-plugin`.
+29. WHEN the OpenCode 2.x config and `opencode plugin list` both show the plugin, the plugin-update step MUST run `opencode plugin update @archcore/opencode-plugin`.
 30. IF the OpenCode 2.x config lists the plugin and the parsed `opencode plugin list` does not, THEN the plugin-update step MUST print one hint line.
 31. IF requirement 30 applies, THEN the plugin-update step MUST NOT run an OpenCode command.
+32. IF the OpenCode 2.x config does not list the plugin, THEN the plugin-update step MUST NOT run `opencode plugin list`.
 
 ## Constraints & Invariants
 

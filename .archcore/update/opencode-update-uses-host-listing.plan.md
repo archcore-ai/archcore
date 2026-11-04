@@ -25,13 +25,14 @@ Decisions taken by the maintainer on 2026-11-02:
 
 - Authorization on 2.x: `opencode plugin list`, not the config file.
 - Config lists the plugin, service does not: one hint line, no command.
+- After review (2026-11-02): only the update reads the service listing, and only when the config lists the plugin. Probed: with no service running, `opencode plugin list` starts `opencode serve --service` with the caller's environment.
 
 ## Tasks
 
 ### Phase 1 — Evidence
 
 1. Add a `Listing` of `opencode plugin list` to the `Since2` row. @cli/internal/plugin/hosts.go
-2. Read the `Since2` listing only when `HostMajor >= 2`, after `readHostMajor`. @cli/internal/plugin/project_config.go @cli/internal/plugin/evidence.go
+2. Read the `Since2` listing in `ReadServiceListings`, for the update only, on 2.x with the config listing the plugin. @cli/internal/plugin/project_config.go @cli/cmd/plugin_run.go
 3. Add a parser for the 2.x table: header `ID VERSION SOURCE`, one row per plugin. @cli/internal/plugin/evidence.go
 4. Match the row by exact `@archcore/opencode-plugin` or `@archcore/opencode-plugin@<version>`, not by `namesPlugin`. @cli/internal/plugin/evidence.go
 5. Read `No plugins found` as a parsed, empty listing; read any other unparsed output as no answer. @cli/internal/plugin/evidence.go
@@ -46,7 +47,7 @@ Decisions taken by the maintainer on 2026-11-02:
 11. Word the note as one line naming the service and the update command. @cli/internal/plugin/hosts.go
 12. When the service listing failed or did not parse, skip silently, per Failure Behavior 1. @cli/internal/plugin/plan.go
 
-Note text as shipped: `The OpenCode config lists @archcore/opencode-plugin, but the running OpenCode service does not see it. Restart the OpenCode service, then run: opencode plugin update @archcore/opencode-plugin`. The evidence does not keep which config file listed the plugin, so the line names no path.
+Note text as shipped: `The OpenCode config lists @archcore/opencode-plugin, but the running OpenCode service does not see it. Run: opencode service stop, then: opencode plugin update @archcore/opencode-plugin`. Stop, not restart: the next OpenCode command starts a fresh service with the caller's environment; the environment a restart uses is unverified. The evidence does not keep which config file listed the plugin, so the line names no path.
 
 ### Phase 3 — Tests
 
@@ -87,5 +88,7 @@ Open points [assumption]:
 - modifies: `updating-the-plugin.spec` → OpenCode Surface row: replace "The CLI finds the plugin in the global config without a project root" with "`opencode plugin update` finds the plugin through the running OpenCode service (`plugin.list`), so its listing is `opencode plugin list` (2.1.4)".
 - modifies: `updating-the-plugin.spec` → requirement 29: "WHEN `opencode plugin list` on OpenCode 2.x shows the plugin, the plugin-update step MUST run `opencode plugin update @archcore/opencode-plugin`."
 - adds: `updating-the-plugin.spec` → requirements 30 and 31: the hint line, and no command, when config and service listing disagree.
+- adds: `updating-the-plugin.spec` → requirement 32: no `opencode plugin list` without a config entry.
+- modifies: `plugin-delivery.spec` → OpenCode evidence and `supported-ai-agents.doc`: the 2.x update-only service listing.
 - modifies: `updating-the-plugin.spec` → Surface, Evidence order: add `opencode plugin list` (2.x) to the listing commands.
-- unchanged: install, remove, and status keep reading the config files as their listing.
+- unchanged: install, remove, and status keep reading the config files as their listing and run no `opencode plugin list`.
