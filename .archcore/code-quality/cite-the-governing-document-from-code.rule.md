@@ -36,43 +36,8 @@ reads as evidence the decision was recorded.
 Requirement 5 keeps the comment useful to someone who will not open the document. The repository's
 comments carry the reasoning; the slug is the footnote, not the argument.
 
-## Examples
-
-### Good
-
-```go
-// Sanitized because an MCP error crosses into a model's context, where an
-// absolute path leaks the user's home directory —
-// no-absolute-paths-in-mcp-errors.rule.
-return errorResult(sanitizeError("writing "+relPath, err)), nil
-```
-
-```go
-// The recap holds at most 24 document lines, so its size is a function of the
-// budget rather than of corpus size — session-start-context.spec §4.
-const maxRecapDocs = 24
-```
-
-### Bad
-
-```go
-// See backup-invalid-configs.adr.md
-// ^ carries .md, so a path_ref search for the slug does not match it.
-
-// See ../integrations/host-cwd-misrouting.adr
-// ^ a path, which breaks the moment the document moves.
-
-// copilot-adapter-design.adr explicitly scopes this out.
-// ^ cites a document that does not exist.
-
-// Per session-start-context.spec.
-// ^ the citation replaced the reason: the reader learns nothing without opening it.
-```
-
 ## Enforcement
 
 - Code review: any comment naming a `.archcore/` document.
 - `archcore doctor` reports orphaned relations, not orphaned citations; a citation to a missing
   document is caught by review and by the removal step of requirement 4.
-- Reference sites: `@cli/internal/mcp/tools/common.go`, `@cli/internal/docs/guard.go`, `@cli/cmd/hooks_common.go`,
-  `@cli/cmd/mcp_root.go`, `@cli/internal/wiring/hooks_install.go`.

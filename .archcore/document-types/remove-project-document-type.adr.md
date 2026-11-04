@@ -52,12 +52,3 @@ Redirect `project` to `doc`. Rejected: no document of this type exists, so the r
 ### Negative
 
 - A later need for a project-overview type is served by `doc` instead. This trade-off was accepted.
-
-### Changes made
-
-- Removed the `TypeProject` constant and its `categoryMap` entry from `@cli/templates/templates.go`.
-- Removed `generateProjectTemplate()`.
-- Removed `project` from `ValidTypes()`.
-- Removed `project` from the MCP tool descriptions in `@cli/internal/mcp/server.go` and `@cli/internal/mcp/tools/create_document.go`.
-- Removed the related test cases from `@cli/templates/templates_test.go` and `@cli/internal/mcp/tools/create_document_test.go`.
-- Updated the related reference document on categories and document types.

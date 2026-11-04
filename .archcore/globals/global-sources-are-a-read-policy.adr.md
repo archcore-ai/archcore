@@ -21,7 +21,7 @@ Adopted, for CLI 0.15.0, the model in which a declared global source is a read p
 ## Alternatives Considered
 
 1. Keep the read-only mount and add a `global_source_of_session` field to a write response that names a declared source — rejected because it keeps two addresses for one document (`../g/.archcore/x.md` read-only and `project=G` writable) and keeps a refusal whose only effect is that the agent rewrites the call with `project`.
-2. Writable mounts through the mounted path, as @.archcore/globals/writable-global-sources.idea.md proposed — rejected because `create_document` cannot express a directory outside the primary, and the hook guard would have to stay strict while the tools relax, which splits one predicate into two.
+2. Writable mounts through the mounted path — rejected because `create_document` cannot express a directory outside the primary, and the hook guard would have to stay strict while the tools relax, which splits one predicate into two.
 3. Cross-project relation edges stored in the referencing project's manifest with `source_in` and `target_in` fields — rejected because the manifest validator (@cli/internal/sync/manifest.go) rejects unknown fields only at the root, so a CLI of 0.14 would drop the fields on its next write; the user ruled on 2026-11-02 that no edge may point at another project.
 4. Keep `.archcore/global/` as the one in-tree exception — rejected because an in-tree source would stay unwritable through `project` (it holds no `.archcore/` of its own) while an external source is writable, which leaves two kinds of source with different behavior.
 

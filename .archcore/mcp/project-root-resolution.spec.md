@@ -16,22 +16,13 @@ It is normative for the root provider (@cli/internal/mcp/root_provider.go), for 
 
 ### Does Not Cover
 
-- Global source declaration, resolution, and health classification — @.archcore/globals/global-sources.spec.md.
+- Global source declaration, resolution, and health classification — @.archcore/globals/source-mounts.spec.md.
 - Root resolution for short-lived CLI commands and for hook invocations, which resolve per invocation and are unaffected.
 - Addressing a project other than the session root for one call through the `project` argument or an absolute `for_path` — @.archcore/mcp/call-root-resolution.spec.md, which extends this contract and takes precedence for a call that names a project.
 
 ## Surface
 
-| Element | Shape |
-| ------- | ----- |
-| Pinned sources | `--project` flag, `ARCHCORE_PROJECT_ROOT` environment variable |
-| Implicit source | the process working directory at start |
-| Session source | the client's `roots/list` reply |
-| Provider contract | `tools.RootProvider` — `Root(ctx) string`, which never fails |
-| Pinned implementation | `tools.StaticRoot` |
-| Session implementation | `mcp.sessionRootProvider`, built by `NewServer` |
-| Per-call contract | every tool handler resolves the root from the request context before its first filesystem access |
-| Shared guard | `projectroot.IsPluginCachePath`, consumed by the start-time resolver and the provider |
+Root sources: pinned (`--project`, `ARCHCORE_PROJECT_ROOT`), implicit (the working directory at start), and session (the client's `roots/list` reply). The provider contract `tools.RootProvider` never fails. Every tool handler resolves the root from the request context before its first filesystem access. The plugin-cache guard `projectroot.IsPluginCachePath` serves both the start-time resolver and the provider.
 
 ## Normative Behavior
 
@@ -73,7 +64,7 @@ Check 4 governs a move away from the start-time root only. The start-time root M
 
 | Constraint | Value | Rationale |
 | ---------- | ----- | --------- |
-| Writable roots per call | exactly 1 | Preserves the single-primary model of @.archcore/globals/global-sources.spec.md |
+| Writable roots per call | exactly 1 | Preserves the single-primary model of @.archcore/globals/source-mounts.spec.md |
 | Root sources that may change mid-session | `roots/list` only | A pinned root states user intent |
 | Root sources that override for one call | the `project` argument, an absolute `for_path` | Per @.archcore/mcp/call-root-resolution.spec.md; the session root is unchanged after the call |
 | `roots/list` calls per cache lifetime | at most 1 | The transport writes outside the response mutex |
@@ -85,7 +76,7 @@ Check 4 governs a move away from the start-time root only. The start-time root M
 - A root the provider serves has passed every acceptance check, or is the start-time root.
 - The server never serves a root whose declared global sources hold a fatal state, except the start-time root, which the startup gate already validated.
 - The `initialize` instructions describe the start-time root for the process lifetime.
-- Process-global state that is keyed by project root — the document scan cache, the manifest store, the main-checkout memo of @.archcore/globals/global-sources.spec.md §1 — stays correct across a root change, because a key names one root.
+- Process-global state that is keyed by project root — the document scan cache, the manifest store, the main-checkout memo of @.archcore/globals/relative-globals-resolve-from-main-checkout.adr.md — stays correct across a root change, because a key names one root.
 
 ## Failure Behavior
 
@@ -105,4 +96,4 @@ Check 4 governs a move away from the start-time root only. The start-time root M
 
 ## Conformance
 
-An implementation conforms when it satisfies every clause above and the acceptance checks, and passes @cli/internal/mcp/root_provider_test.go and @cli/internal/mcp/integration/roots_test.go, whose cases are: no session; a session without the `roots` capability; an empty reply; a candidate without `.archcore/`; a candidate in a plugin install cache; a candidate whose globals resolve; a candidate whose declared global is not cloned yet, which is accepted; a candidate whose declared global is misconfigured, which is rejected; several passing candidates; a query that errors; a query that never answers; a burst of five calls costing one query; a switch mid-session; and `init_project` on an uninitialized start-time root.
+An implementation conforms when it satisfies every clause above and the acceptance checks, and passes @cli/internal/mcp/root_provider_test.go and @cli/internal/mcp/integration/roots_test.go. A candidate whose declared global is not cloned yet is accepted; one whose declared global is misconfigured is rejected.

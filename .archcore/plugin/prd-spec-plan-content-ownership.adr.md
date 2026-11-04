@@ -13,9 +13,9 @@ tags:
 
 The `sdd` track produces four documents on one topic — `idea`, `prd`, `spec`, `plan` — and they restate each other. Measured on this corpus on 2026-08-13:
 
-- `track-layer-extension.idea`, `.prd`, and `.plan` carry the same statement three times ("frame → gather → conclude, produces `rnd` with Goal, Questions, Approach, Findings, Recommendation, Next Action"), and one line is verbatim in both the `prd` Goals section and the `plan` Acceptance Criteria section.
+- A track-layer idea, prd, and plan carried the same statement three times, and one line was verbatim in both the `prd` Goals section and the `plan` Acceptance Criteria section.
 - 6 of the 8 requirements in `plugin-v2.prd` reappear as numbered behavior in `command-surface-v2.spec`.
-- Across the 5 PRDs in this repository and the CLI repository, 2 carry BCP 14 modals and 1 carries 4 EARS clauses — `cli-update-analytics.prd` states 8 numbered behaviors that its own `cli-update-telemetry.spec` also carries.
+- 2 of the 5 PRDs across the plugin and CLI repositories carry BCP 14 modals, and one restates 8 numbered behaviors that its own `spec` also carries.
 
 Four mechanisms produced this:
 
@@ -24,7 +24,7 @@ Four mechanisms produced this:
 3. `sdd.decompose` asks zero questions and composes from upstream drafts, so restatement was the only output it could produce.
 4. `skip_when` asked whether a document on the topic exists, never whether content remains to add. The compression path that let a feature-scoped request go straight to the `spec` lived in `skills/plan/references/feature-flow.md`, which the v2 track cutover deleted; only the 40-line target survived into `sdd.require`.
 
-A fifth mechanism was latent: the CLI `prd` template carried 12 top-level sections — including `Solution Overview`, `Constraints`, `Timeline`, and an `FR-###` table with acceptance criteria — against the 4 sections `sdd.require` checks. Skills compose bodies themselves, so the template reached a document only through the empty-content path of `create_document`.
+A fifth mechanism was latent: the CLI `prd` template carried 12 top-level sections against the 4 sections `sdd.require` checks. The template reached a document through the empty-content path of `create_document`.
 
 ## Decision
 
@@ -36,10 +36,8 @@ Assign every kind of statement produced on one topic to exactly one owning docum
 4. The coverage category `Completion Signals` reaches three different sections — `prd` Goals and Success Metrics, `plan` Acceptance Criteria, `spec` Conformance — and coverage at one gate does not close the category at another. Recorded as rule 4 of the ownership table; `coverage-taxonomy.md` carries a pointer to it rather than a second copy.
 5. `sdd.require`, `sdd.design`, and `sdd.decompose` each gain a blocking exit check that applies the ownership table by reference, per the gate-contract rule against restating a shared contract inside a gate. `sdd.design`'s Purpose states that the gate also calls `update_document` on the `prd`, because the gate record template has no field for a document a gate edits rather than produces.
 6. `sdd.require` regains the compression path as a `skip_when` condition: a feature-scoped request whose problem and goals are already recorded in an `idea`, `rnd`, or `adr` continues at `sdd.design`. `sdd.design` and `sdd.decompose` accept that upstream document in place of the `prd`.
-7. The CLI `prd` template collapses to the four canonical sections, and `templates.RequiredSections` gains a `prd` entry.
-8. Archcore CLI v0.7.2 carries the mechanical checks. The post-tool-use precision hook checks four properties per write, all advisory: the mandatory sections; a BCP 14 modal anywhere in a `prd` body; a numbered line opening with `WHEN`, `WHILE`, or `IF`; and a heading listed in the new `templates.ForeignSections` canon, which names the type that owns it.
-9. The same hook checks ownership rule 1 across documents: for each `implements` or `extends` edge touching the written document, it compares list statements against the neighbour's body and reports an overlap of 85% of content words or more. Thresholds are `minRestatementTokens = 6` and `restatementThreshold = 0.85`, calibrated on this corpus — the measured copied line scores 1.0 and the closest genuine `prd`/`spec` pair scores 0.67.
-10. The launcher version gate in `bin/pre-tool-use` and `bin/post-tool-use` stays at 0.7.0. That gate asks whether the CLI has a hook runtime at all, not whether it has these checks: raising it would fail open on the write guard, the code-alignment advisory, and the whole precision scan for every user who has not updated, and fail open silently. The new checks degrade to silence on an older CLI, which costs nothing that was previously guaranteed.
+7. The CLI `prd` template, the mechanical precision checks (mandatory sections, modals in a `prd`, EARS clauses, foreign headings), and the restatement check across `implements` and `extends` edges are specified in `document-types/prd-spec-plan-content-ownership.adr`. Archcore CLI v0.7.2 carries them, all advisory.
+8. The launcher version gate in `bin/pre-tool-use` and `bin/post-tool-use` stays at 0.7.0. That gate asks whether the CLI has a hook runtime at all, not whether it has these checks: raising it would fail open on the write guard, the code-alignment advisory, and the whole precision scan for every user who has not updated, and fail open silently. The new checks degrade to silence on an older CLI, which costs nothing that was previously guaranteed.
 
 ## Alternatives Considered
 
@@ -54,13 +52,10 @@ Assign every kind of statement produced on one topic to exactly one owning docum
 - Every gate that produces a second document on a topic has one objective question to answer: which document owns this kind of statement.
 - A feature-scoped request with its "why" recorded upstream now produces two documents instead of four.
 - `prd-contract.md` is the fifth shared content contract; the shared-asset count in `plugin-architecture.spec` moves from 4 to 5.
-- The precision hook gains five finding classes, all advisory: a missing mandatory section, a BCP 14 modal, an EARS clause, a foreign heading, and a restated statement. The hook never blocks.
-- The restatement check reads at most 5 neighbours per write, and only across `implements` and `extends`. A `related` edge is an association and a `depends_on` edge orders two documents without moving text, so an overlap across either reports nothing.
 - Version skew is expected and safe in one direction only: a plugin newer than the CLI loses the five findings and keeps every earlier guarantee. `prd-contract.md` names v0.7.2 in its Enforcement section so the contract does not promise a check the installed CLI lacks.
 - Tradeoff: near-verbatim restatement is now decided by a script; **paraphrased** restatement is not, and stays with the composing agent at the gate exit checks. A paraphrase is where the two documents differ legitimately, so the boundary between the two cases is the boundary between a copy and a rewrite. [assumption] The effect of either half on restatement rates has not been measured over time.
-- Tradeoff: 2 of the 5 PRDs already in these repositories will report modal findings on their next update. The finding names the fix and does not block it.
 - One fact is recorded in one place, including inside this change: the ownership table is the single record of the per-type section assignment, and `coverage-taxonomy.md` and the contract's own Forbidden list point at it instead of repeating it.
-- Documents accepted before this decision are not retro-fitted. `track-layer-extension.prd` and `plugin-v2.prd` keep their recorded content.
+- Documents accepted before this decision are not retro-fitted.
 
 ## Superseded when
 

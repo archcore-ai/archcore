@@ -175,7 +175,7 @@ type globalDocCounts struct {
 // The walk error is returned, not swallowed: CheckGlobalDir opens only the top
 // directory, so an unreadable subdirectory reaches this walk unclassified. The
 // runtime scan walks the same tree and fails on it, and the startup gate and the
-// scan have to classify a source identically (global-sources.spec) — a discarded
+// scan have to classify a source identically (project-root-resolution.spec, session-globals-disclosure.spec) — a discarded
 // error is what let `status` print a healthy source whose every read then failed.
 func countGlobalDocs(resolvedDir string) (globalDocCounts, error) {
 	counts := globalDocCounts{

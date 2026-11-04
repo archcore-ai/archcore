@@ -9,12 +9,7 @@ tags:
 
 ## Context
 
-Before this change, `archcore mcp` refused to start if `.archcore/` did not exist in the current working directory — the command returned `".archcore/ not found — run 'archcore init' first"` and exited. This meant that an AI coding agent configured to launch the Archcore MCP server on an uninitialized project could not help the user at all: the server process crashed on stdio before any tool call could be made, so the agent had no way to self-bootstrap the knowledge base.
-
-Two user flows were affected:
-
-1. **New project onboarding.** A user installs the Archcore plugin/MCP config into their agent (Claude Code, Cursor, etc.) globally, then opens a fresh repo. The agent tries to use Archcore tools but the server keeps crashing until the user drops to a terminal and runs `archcore init`. Friction point — especially for users who installed the plugin globally and don't expect per-project shell setup.
-2. **Agent-driven init.** There was no way for the agent itself to initialize Archcore in-session, even though it has full context about the project (language, sync preferences, etc.) and could sensibly call an initialization tool.
+`archcore mcp` used to refuse to start when `.archcore/` did not exist in the working directory. An agent configured to launch the server on an uninitialized project then crashed on stdio before any tool call, so it could not bootstrap the knowledge base. A user who installed the plugin globally had to drop to a terminal and run `archcore init` in every fresh repo, although the agent knows the project context and could initialize it in-session.
 
 ## Decision
 

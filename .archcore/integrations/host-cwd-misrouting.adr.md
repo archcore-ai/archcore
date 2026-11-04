@@ -27,12 +27,7 @@ The complication is that a plugin **developer** repo is a perfectly ordinary pro
 
 **The guard applies to implicit sources only.** An explicit `--project` states user intent, is trusted as-is, and stays usable as the recovery path the guard's own error recommends. Env and cwd are the sources a host can misroute.
 
-**Detection keys on install-cache path fragments, never on plugin manifests.** `isPluginCachePath` lowercases the slash-normalized absolute path, appends a trailing separator, and reports a match if it contains any fragment:
-
-```
-/.cursor/plugins/   /.claude/plugins/   /.codex/plugins/
-/.copilot/installed-plugins/   /plugins/cache/
-```
+**Detection keys on install-cache path fragments, never on plugin manifests.** `IsPluginCachePath` (@cli/internal/projectroot/) lowercases the slash-normalized absolute path, appends a trailing separator, and reports a match if it contains any fragment; the list is `pluginCacheFragments` there (the `.cursor`, `.claude`, `.codex` plugin directories, `.copilot/installed-plugins`, and `plugins/cache`).
 
 Three properties of that list are load-bearing and must hold for every fragment added later:
 

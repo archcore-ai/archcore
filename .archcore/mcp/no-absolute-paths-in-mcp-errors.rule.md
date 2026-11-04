@@ -24,34 +24,7 @@ MCP tool responses reach external AI agents, which may log, display, or relay th
 
 ## Examples
 
-Non-normative examples.
-
-### Bad
-
-```go
-dir := filepath.Join(baseDir, ".archcore", directory)
-if err := os.MkdirAll(dir, 0o755); err != nil {
-    // Leaks an absolute path such as "/Users/dev/project/.archcore/auth"
-    return errorResult(fmt.Sprintf("creating directory %s: %v", dir, err)), nil
-}
-```
-
-### Good
-
-```go
-dir := filepath.Join(baseDir, ".archcore", directory)
-if err := os.MkdirAll(dir, 0o755); err != nil {
-    // Shows only the relative directory segment
-    return errorResult(fmt.Sprintf("creating directory %q: %v", directory, err)), nil
-}
-```
-
-```go
-// Operating-system error replaced by a clean relative-path message
-if err := os.WriteFile(outputFile, data, 0o644); err != nil {
-    return errorResult(fmt.Sprintf("writing %s: failed to write file", relPath)), nil
-}
-```
+Bad: an error that formats the joined directory (`creating directory <baseDir>/.archcore/auth: ...`) leaks the absolute path. Good: format the relative `directory` segment, or replace an OS error that embeds the path with `writing <relPath>: failed to write file`.
 
 ## Enforcement
 

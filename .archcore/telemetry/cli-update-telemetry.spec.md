@@ -16,8 +16,8 @@ Out of scope: the installer beacon's own events and payload, and every CLI event
 
 ## Surface
 
-- Command surface: `archcore update` and `archcore update --check` — `@cli/cmd/update.go`. In this release, the unattended path carries no flag; its only caller is the MCP trigger.
-- Sender: `internal/telemetry` [planned] — a package-level key variable, populated by `-X` ldflags in `@cli/.goreleaser.yaml` at release, empty in every other build.
+- Command surface: `archcore update` and `archcore update --check` — `@cli/cmd/update.go`. The unattended path carries no flag; its only caller is the MCP trigger.
+- Sender: `internal/telemetry` — a package-level key variable, populated by `-X` ldflags in `@cli/.goreleaser.yaml` at release, empty in every other build.
 - Endpoint: `POST https://edge.archcore.ai/i/v0/e/`, PostHog capture payload — the endpoint `send_event()` in `@cli/install.sh` already uses. Builds released before that change report to `https://ph.archcore.ai/i/v0/e/`, which is kept alive for them.
 - Events: `cli_updated`, `cli_update_failed`, `cli_update_skipped`.
 - Identifier: `${XDG_STATE_HOME:-$HOME/.local/state}/archcore/install-id`, the path `install_id_path()` in `@cli/install.sh` writes and `updateCheckCachePath()` in `@cli/cmd/update.go` mirrors.

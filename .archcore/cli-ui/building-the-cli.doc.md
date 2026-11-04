@@ -10,58 +10,19 @@ tags:
 
 Run the CLI commands in this document from `cli/`. Source references beginning with `@cli/` resolve from the monorepo root; project documents live in its single `.archcore/`.
 
-Guide for building, testing, and extending the Archcore CLI — a Go tool that manages a local
-`.archcore/` directory of structured documents and integrates with AI coding agents (Claude Code,
-Cursor, Gemini CLI, Codex CLI, GitHub Copilot, and others) via MCP and hooks.
-
-This document holds the procedures. For the structure of the system — the surfaces, the package
+This document holds the procedures for extending the Archcore CLI. For the structure of the system — the surfaces, the package
 tiers, the state stores — read [Archcore CLI System Overview](../architecture/system-overview.doc.md)
-first.
+first. Build and test commands are in the `Makefile` and `CLAUDE.md`.
 
 See also: [Supported AI Agents Registry](../integrations/supported-ai-agents.doc.md),
-[CLI Hooks Reference](../integrations/cli-hooks-reference.doc.md),
 [Hook Runtime Contract](../integrations/hook-runtime.spec.md),
 [Hook Wire Protocol Per Host](../integrations/hook-wire-protocol.spec.md),
 [Hook Payload Reading](../integrations/hook-payload-reading.spec.md),
 [Agent Integration Reference](../integrations/agent-hooks-integration.doc.md).
 
-## Prerequisites
-
-- Go 1.25+, Git
-- Familiarity with Go modules, packages, and testing
-
-## Build & Test
-
-```bash
-go build -o archcore .     # Build binary
-go test ./...              # Run all tests
-go test ./cmd/ -run TestX  # Run a specific test
-golangci-lint run ./...    # The analyzers CI runs; config in .golangci.yml
-```
-
-## Getting Started
-
-```bash
-./archcore init           # Interactive setup wizard (directories, agent detection)
-./archcore doctor         # Health check: structure + settings + host wiring
-./archcore status         # Structural checks only (naming, frontmatter, categories)
-./archcore update         # Self-update to the latest release
-./archcore plugin status  # Report the Archcore plugin per host
-```
-
-`init` creates `.archcore/` with a free-form directory structure — documents are organized by
-domain/feature/team, and category is derived from the filename suffix (`slug.type.md`). Settings go in
-`.archcore/settings.json`. In a terminal it then opens the agent selection screen with every auto-detected
-AI agent pre-checked, installs hooks and MCP config for the hosts the user confirms, reports whether each
-host can actually run its hooks, then offers (opt-in) to write a usage-nudge instruction file per agent.
-A checked host also gets the Archcore plugin installed. Without a terminal (no `/dev/tty`) and without
-`--agent`, `init` wires the detected agents directly and prints the plugin install command instead,
-because a detection is not a consent.
-
 ## Command Surface
 
-The public surface is ten commands: `init`, `config`, `doctor`, `status`, `hooks`, `mcp`,
-`instructions`, `plugin`, `sync`, `update` — registered in one `root.AddCommand` call at
+The public surface is the set of commands registered in one `root.AddCommand` call at
 `@cli/cmd/root.go`. Hook event handlers are hidden leaves under `hooks`, not new commands — they are a
 protocol surface, not a user surface.
 
@@ -75,35 +36,13 @@ binary phase. `mcp` starts one unattended update attempt on a background gorouti
 begins serving; that attempt never writes to stdout, which the JSON-RPC stream owns. See
 [How archcore update Works](../update/self-update-command.doc.md).
 
-## Settings and Configuration
+## Settings
 
-Settings live in `.archcore/settings.json`. Use the `config` command to read and modify them:
-
-```bash
-./archcore config get sync         # Read a setting
-./archcore config set language ru  # Set a setting
-```
-
-### Settings Fields
-
-| Field           | Type   | Description                                                          |
-|-----------------|--------|----------------------------------------------------------------------|
-| `sync`          | string | Sync mode: `none`, `cloud`, or `on-prem`                            |
-| `project_id`    | int    | Project ID for cloud/on-prem sync (optional)                         |
-| `archcore_url`  | string | Server URL for on-prem sync (required for on-prem)                   |
-| `language`      | string | Language for MCP-generated document content (default: `"en"`)        |
-| `globals`       | array  | Declared global sources, read-only, allowed in every sync mode       |
-| `codeAlignment` | object | Pre-write context injection tuning; holds `sourceRoots` (array)      |
-
-`language` controls the language the MCP server uses when generating document content. It is
-sync-independent. `codeAlignment.sourceRoots` replaces the built-in list of directories treated as
+Settings live in `.archcore/settings.json`; read and modify them with `archcore config get|set`. `codeAlignment.sourceRoots` replaces the built-in list of directories treated as
 source code by the `PreToolUse` injection; the CLI never writes this key itself. See
-[The Advisory Subsystem](../architecture/advisory-subsystem.doc.md) for what that injection does with
-it.
+[The Advisory Subsystem](../architecture/advisory-subsystem.doc.md).
 
-See [Sync Mode Field Validation](../sync/sync-mode-field-validation.rule.md) for per-sync-mode field
-rules, [Optional Settings Omit Defaults](../cli/optional-settings-omit-defaults.rule.md) for the
-convention on optional fields, and
+See `sync/sync-engine.spec` for per-sync-mode field rules and
 [Forward-Compatible Settings Parsing](../cli/forward-compatible-settings-parsing.rule.md) for how an
 older binary handles a field a newer release added.
 
@@ -113,7 +52,7 @@ contract's constraint on reading project state once per invocation.
 ## How to Add a New Setting
 
 1. Add the field to the `Settings` struct in `@cli/internal/config/config.go` with a
-   `json:"...,omitempty"` tag
+   `json:"...,omitempty"` tag. A default is resolved at read time and never written to the file.
 2. Add the field name to `allowedFields` for the relevant sync types (all types if sync-independent)
 3. Add to `requiredFields` only if it is mandatory for a sync type
 4. Update `Validate()` with any constraints
@@ -152,35 +91,7 @@ stdout carries the host protocol and nothing may print to it. See `@cli/cmd/stat
 
 ## How to Add a New Document Type
 
-1. Add a `TypeXxx` constant in `@cli/templates/templates.go`
-2. Add it to `categoryMap` with the correct virtual category
-3. Add it to `ValidTypes()` in the same file. It is a hand-written list, not derived —
-   `TestValidTypes_Completeness` holds its length against `categoryMap`, so a type added to one and
-   not the other fails there.
-4. Create a `generateXxxTemplate()` function
-5. Add the case to `GenerateTemplate()` switch
-6. Update the MCP server instructions in `@cli/internal/mcp/server.go` (`mcpServerInstructions` — document
-   types list and the "WHEN TO CREATE" block)
-7. If the type has required sections, add them to `RequiredSections` in `@cli/templates/precision.go`, so
-   the post-write precision check measures against the same contract
-8. Give the type a row in `ProseProfiles` — `TestProseProfiles_Completeness` fails otherwise — and, when
-   it carries numbered steps, a body cap, or headings another type owns, rows in `StepSections`,
-   `MaxBodyLines`, and `ForeignSections` in the same file
-9. Extend the type descriptions in `@cli/internal/mcp/tools/create_document.go` and
-   `@cli/internal/mcp/tools/list_documents.go`, and decide the injection rank in
-   `@cli/internal/advisory/code_alignment.go` — a type absent from that map is never injected
-
-Document types map to virtual categories:
-
-| Category | Types |
-|----------|-------|
-| `knowledge` | adr, rfc, rule, guide, doc, spec, evidence, scenario |
-| `vision` | prd, idea, plan, rnd, mrd, brd, urd, brs, strs, syrs, srs, research, journey |
-| `experience` | task-type, cpat |
-
-Files follow the naming convention: `<slug>.<type>.md` (e.g., `use-postgres.adr.md`). The directory
-structure under `.archcore/` is free-form — see
-[Free-Form Directory Structure ADR](../dir/free-form-directory-structure.adr.md).
+Follow [Add a Document Type to the Engine](../document-types/add-a-document-type.task-type.md).
 
 ## The Document Model — `internal/docs`
 
@@ -188,21 +99,8 @@ structure under `.archcore/` is free-form — see
 tools, the hook handlers, and the status report all read documents through it. See the ADR on
 [internal/docs owning the document model](../cli/docs-package-owns-the-document-model.adr.md).
 
-| File | Contents |
-|------|----------|
-| `@cli/internal/docs/document.go` | `Document`, `EnrichedDocument`, `DocumentRelation`, `ReadDocumentContent`, `NormalizeRelPath`, `WriteFileAtomic` |
-| `@cli/internal/docs/scan.go` | `Scan`, `ScanFull`, `ScanTypes`, `ScanLocal`, `ScanLocalTypes`, `ScanCount` |
-| `@cli/internal/docs/relpath.go` | `RelativeToBase` — a host-supplied path to a baseDir-relative slash path |
-| `@cli/internal/docs/cache.go` | mtime-and-size-keyed per-file cache, `InvalidateCache`, `ResetCache` |
-| `@cli/internal/docs/guard.go` | `GuardWritablePath`, `ValidateReadPath`, `ValidateArchcorePath`, and the package-private `checkSymlinkContainment` they layer |
-| `@cli/internal/docs/globals.go` | `IsGlobalPath`, `IsReservedGlobalDir`, `IsExternalGlobalDocument`, `AnnotateSource` |
-| `@cli/internal/docs/inspect.go` | `InspectGlobals`, `GlobalState`, `GlobalInspection` |
-| `@cli/internal/mcp/tools/docs_bridge.go` | The seam. Aliases `LocalDocument` to `docs.Document` and re-exports the helpers under the short names the tool handlers call. |
-
-`LocalDocument` stays the name on the MCP wire; `docs.Document` is the domain name. The alias keeps
-both true with no conversion layer. The bridge's re-exports are package-private (`scanDocuments`,
-`scanDocumentsFull`, `readDocumentContent`, `guardWritablePath`, `validateReadPath`,
-`annotateSource`); a caller outside `internal/mcp/tools` uses the exported `docs.*` name instead.
+`LocalDocument` stays the name on the MCP wire; `docs.Document` is the domain name. The alias in `@cli/internal/mcp/tools/docs_bridge.go` keeps
+both true with no conversion layer. The bridge's re-exports are package-private; a caller outside `internal/mcp/tools` uses the exported `docs.*` name instead.
 
 The guards return classified sentinels rather than messages, so the MCP tools and the hook render the
 same verdict in their own words — see
@@ -210,15 +108,9 @@ same verdict in their own words — see
 
 ## How to Add a New MCP Tool
 
-The MCP server (`archcore mcp`) exposes eleven tools: `init_project`, `list_documents`,
-`get_document`, `search_documents`, `create_document`, `update_document`, `remove_document`,
-`add_relation`, `remove_relation`, `list_relations`, and `install_host_config` (conditionally
-registered — see below). The server declares no prompts capability; see the ADR on removing the MCP
-track prompts.
-
 The file shape is normative and is stated once, in
 [The Shape of an MCP Tool File](../code-quality/the-shape-of-an-mcp-tool-file.rule.md). Read it before
-step 1; the steps below are the surrounding wiring, not the shape.
+step 1; the steps below are the surrounding wiring, not the shape. The server declares no prompts capability.
 
 1. Create `internal/mcp/tools/<name>.go` exporting the pair `New<Name>Tool() mcp.Tool` and
    `Handle<Name>(root RootProvider) func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error)`
@@ -227,8 +119,7 @@ step 1; the steps below are the surrounding wiring, not the shape.
    it (project-root-resolution.spec §3), and a captured root silently serves the old project.
 3. Create `internal/mcp/tools/<name>_test.go`, using `StaticRoot(base)` as the provider
 4. Register in `@cli/internal/mcp/server.go` via `s.AddTool()`
-5. Use the helpers re-exported by `@cli/internal/mcp/tools/docs_bridge.go` (`scanDocuments`,
-   `scanDocumentsFull`, `readDocumentContent`, `guardWritablePath`, `validateReadPath`)
+5. Use the helpers re-exported by `@cli/internal/mcp/tools/docs_bridge.go`
 6. Validate inputs and check path safety (no `..`, must resolve inside `.archcore/`)
 7. Return a user-caused refusal as `errorResult(...)`; return a Go error only for the process's own
    failure, such as marshalling the result
@@ -281,28 +172,10 @@ changing comes before the code:
 - [Hook Payload Reading](../integrations/hook-payload-reading.spec.md) — how the payload becomes a
   tool identity and a set of targets (`@cli/cmd/hook_payload.go`).
 
-### File Structure
-
 Install-time logic (writing host configs) lives in `internal/wiring`; runtime logic (handling a fired
 event) stays in `cmd/`. There is no per-agent runtime file — a host is one row in a dialect table.
-The advisory work the hooks call lives in `internal/advisory/`, not in `cmd/`.
-
-| File | Purpose |
-|------|---------|
-| `@cli/internal/wiring/hooks_install.go` | Generic hook-config surgery: `installHookEvents`, the `archcore hooks ` ownership marker, entry classification (current / stale-archcore / foreign) |
-| `@cli/internal/wiring/hooks_agents.go` | Per-host installers and the event tables (names, matchers, timeouts, entry shapes) + the `hooksInstallers` router |
-| `@cli/internal/wiring/hooks_effective.go` | `EffectiveHookNotes` — whether a host will read what was written |
-| `@cli/internal/wiring/wiring.go` | `Apply()` / `EnsureProjectInitialized()` — shared host-wiring entry points |
-| `@cli/cmd/hooks.go` | `hooks install` command wiring; `servesHookEvents` and `noHookWiringNote`, which separate a hookless agent from one whose hooks load as plugin code |
-| `@cli/cmd/hook_dialect.go` | `hostDialect` table: session shape, context envelope, deny style, pre-write context support; `emitDecision` |
-| `@cli/cmd/hook_command.go` | Command tree, `hookHandler` type, `safeHandle` panic recovery, per-event safety rules |
-| `@cli/cmd/hook_payload.go` | Payload decoding by explicit key paths, MCP tool-name folding, apply-patch target extraction |
-| `@cli/cmd/hook_session_start.go` | SessionStart response shapes and the dedup wrapper |
-| `@cli/cmd/hooks_common.go` | `buildSessionContext()` — the injected session-start text |
-| `@cli/cmd/hook_write_guard.go` | The one blocking guard, and the per-invocation `writeGuard` that caches what its verdicts read |
-| `@cli/cmd/hook_post_tool_use.go` | Post-write dispatcher: validation, cascade |
-| `@cli/internal/advisory/` | The four advisory engines: `code_alignment.go`, `precision.go`, `restatement.go`, `staleness.go`. See [The Advisory Subsystem](../architecture/advisory-subsystem.doc.md) for their triggers, settings, and bounds. |
-| `@cli/internal/stamp/` | Dedup stamp claim, one directory per scope |
+The advisory work the hooks call lives in `internal/advisory/`, not in `cmd/` — see
+[The Advisory Subsystem](../architecture/advisory-subsystem.doc.md).
 
 Installed commands are recognized across CLI versions by the `archcore hooks ` prefix — see
 [Hook Command Marker ADR](../integrations/hook-command-marker-prefix.adr.md).
@@ -311,28 +184,8 @@ The dialect table answers which hosts this binary serves; `hooksInstallers` answ
 config written. They are not the same set, and the difference is what `hooks install` reports: a host
 in the first and not the second loads its hooks as plugin code.
 
-### Safety Rules
-
-These are the rules a change to the hook path must not break. The specs above state them normatively.
-
-- A handler returns a decision; the command layer owns output and exit codes.
-- The zero-value decision allows and writes nothing. Every failure path produces it.
-- `safeHandle` converts a panic into an allow. Without it a defect would exit non-zero, which several
-  hosts read as an explicit deny.
-- The write guard runs first and alone. Advisory work happens after the verdict.
-- The write guard reads the globals list fail-closed for a path outside the project, and fail-open for
-  a path inside `.archcore/` — otherwise an unreadable `settings.json` would block the edit that
-  repairs it. See
-  [Fail-Open or Fail-Closed Reads](../code-quality/fail-open-or-fail-closed-reads.rule.md).
-- On Copilot, stdout carries exactly one JSON document. Every diagnostic goes to stderr.
-- An unknown host or event writes an empty stdout and exits 0.
-- A file-mutation tool that names no path still has a target. `apply_patch` names its files inside the
-  patch body, and the guard reads them; a host whose registry replaces `write` and `edit` with it
-  would otherwise run unguarded and look no different from a guarded session.
-- The pre-write path runs inside a one-second host budget. State a verdict reads is read once per
-  invocation and only when a verdict needs it.
-- The background update trigger is not added here. A hook leaf is short-lived, runs on a budget of
-  seconds, and its stdout is the host's protocol channel.
+The background update trigger is not added to a hook. A hook leaf is short-lived, runs on a budget of
+seconds, and its stdout is the host's protocol channel.
 
 ### Modifying the Injected Context
 
@@ -366,7 +219,7 @@ apply uniformly to every host.
    - Add a `hostDialect` row in `@cli/cmd/hook_dialect.go`. The three hidden event leaves are generated
      from it; no per-agent runtime file is needed.
    - Add an `InstallXxxHooks()` function in `@cli/internal/wiring/hooks_agents.go` covering all three
-     events — the installed command MUST start with `archcore hooks ` (marker contract)
+     events — the installed command must start with `archcore hooks ` (marker contract)
    - Add the agent to `hooksInstallers` in the same file. Skip this step only when the host loads
      hooks as plugin code and there is no declarative file to write; the dialect row alone then makes
      `hooks install` describe it correctly instead of calling it hookless.
@@ -390,63 +243,8 @@ apply uniformly to every host.
 
 8. **Update documentation:**
    - Add the agent to [Supported AI Agents Registry](../integrations/supported-ai-agents.doc.md)
-   - Add the event rows to [CLI Hooks Reference](../integrations/cli-hooks-reference.doc.md)
+   - Add the host's event rows to [Hook Wire Protocol Per Host](../integrations/hook-wire-protocol.spec.md)
    - Add config examples to [Agent Integration Reference](../integrations/agent-hooks-integration.doc.md)
 
 A host is therefore described by five registries in four packages. That split is deliberate — see the
 accepted trade-offs in [Archcore CLI System Overview](../architecture/system-overview.doc.md).
-
-## Key Design Patterns
-
-- **Sync modes drive validation** — `none`/`cloud`/`on-prem` each require or forbid different settings
-  fields. Custom JSON marshaling in `internal/config/` enforces this, and unknown fields are carried
-  through rather than rejected.
-- **Constructor functions** — each command is `newXxxCmd() *cobra.Command` with logic extracted into
-  testable functions.
-- **One root resolution** — every command reading the store goes through `resolveProjectRoot`. See
-  the rule in "How to Add a New Command"; the plugin-cache refusal is the part that matters.
-- **Report as data, printer as a thin layer** — `collectStatus` returns a `statusReport`; `writeTo`
-  renders it. The hook path consumes the data form because it cannot print.
-- **One document model** — `internal/docs` owns the scan, the cache, and the path guards. The write
-  guard and the MCP write tools call the same predicate, so a path MCP refuses cannot be reached by
-  editing the file directly.
-- **Layered imports** — a package imports its own tier or a lower one, never a surface. See
-  [Package Dependency Direction](../architecture/package-dependency-direction.rule.md).
-- **Rendering at the boundary** — a domain package returns absolute paths and raw errors; the terminal
-  and MCP boundaries each transform them. See
-  [Rendering Happens at the Boundary](../code-quality/rendering-happens-at-the-boundary.rule.md).
-- **Pure planner, one executor** — `internal/plugin` decides from host evidence and acts in one place.
-  Silence for a host without the plugin is structural: it falls out of the evidence, and no code path
-  reads a host's error text.
-- **Guard or advisory, never both** — every read of external state declares which it serves, and the
-  two fail in opposite directions. See
-  [Fail-Open or Fail-Closed Reads](../code-quality/fail-open-or-fail-closed-reads.rule.md).
-- **Bounded, ordered output** — anything leaving the process is capped by a named constant and sorted
-  before it is cut. See
-  [Bounded and Deterministic Output](../code-quality/bounded-and-deterministic-output.rule.md).
-- **Comments are the exception** — the code carries the meaning; a comment records a workaround or a
-  reason the code cannot hold. See
-  [Code Carries No Comment Unless the Code Cannot Speak](../code-quality/comments-are-the-exception.rule.md).
-- **Platform variance is a file split** — a `//go:build` variant per platform, never a `runtime.GOOS`
-  branch. See
-  [Platform Splits Are Files](../code-quality/platform-splits-are-files.rule.md).
-- **One hook entry per (host, event)** — the process dispatches by tool name internally, so three
-  post-write checks cost one process start.
-- **Dialect table, not per-host code** — a host is a row describing its protocol; the handlers are
-  shared.
-- **Fail open everywhere except the write guard** — an internal defect in a hook must cost a missing
-  hint, never a blocked edit.
-- **Report effective state** — after writing a host config, say whether that host will read it. See
-  [Report Effective Hook State](../integrations/report-effective-hook-state.rule.md).
-- **Host-wiring domain in `internal/wiring`** — install-time logic is shared by `init --agent`,
-  `hooks install`, `doctor --fix`, and the `install_host_config` MCP tool; cobra commands and MCP
-  sanitization stay in `cmd/`.
-- **Usage-nudge instruction files** — `archcore init` (opt-in) and `archcore instructions
-  install`/`remove` write a discovery hint per agent into `CLAUDE.md` / `AGENTS.md` / `GEMINI.md`. All
-  targets use an idempotent fenced upsert that preserves user content.
-- **Co-located tests** — every command and package has adjacent `_test.go` files using `t.TempDir()`
-  and table-driven subtests. A package whose code reaches `$HOME`, an XDG state directory, a host CLI,
-  or git arms the isolation in `TestMain`; without it the suite mutates the developer's own machine
-  and stays green while doing it.
-- **Invalid config backup** — corrupted config files are backed up as `.bak` before being overwritten.
-  See [Backup Invalid Configs](../integrations/backup-invalid-configs.adr.md).

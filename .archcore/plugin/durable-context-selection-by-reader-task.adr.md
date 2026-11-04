@@ -16,15 +16,18 @@ On a plain branch review, `@plugin/plugins/archcore/skills/review/SKILL.md` chec
 
 `/archcore:review` selects documentation units by three tests — a named future reader task, direct evidence (code, tests, history, supplied MR material, or the user's answer), and an existing owner or owning type — applies the same tests with or without a `plan` and whatever agent wrote the code, treats complexity, implicitness, and uncertainty as signals to inspect rather than triggers to write, runs after `closeout.merge` and before `closeout.capture`, selects units from the delivered part of a plan that stays open, and asks one batched preview question per invocation for every write.
 
+The selection also replaces the former experience track. A headless review on 2026-10-16 routed a cross-file practice change to a `rule` through the selection, then printed `experience: none — no detection signal`, because the experience track skipped every pattern the selection had already listed. Two procedures extracted lessons from one diff, the second almost always skipped, and the report line described only the second. The selection already wrote `spec`, `doc`, `guide`, `scenario`, `adr`, `rule`, `cpat`, and `task-type`, so the track added no type. The track is deleted. Its transfer test, actor rule, incident-failure rule, and body requirements for `cpat`, `task-type`, and procedural `guide` live in `@plugin/plugins/archcore/skills/_shared/durable-context-selection.md`. The selection report ends with one line `captured: <types>` or `captured: none — <reason>`.
+
 ## Alternatives Considered
 
 1. One document per changed file or module — rejected because `precision-over-coverage.adr` records that context volume lowered agent task success in 5 of 8 settings (arxiv 2510.21413), and a file is not a claim a reader looks for.
 2. Complexity as the trigger — rejected because a tested local algorithm needs no owner while a three-line public contract with a consumer does; the trigger inverts the reader's need.
 3. Repetition as the only trigger, the shipped `experience.detect` two-file rule — rejected because a single failure case that changes a Failure Behavior clause never repeats inside one diff, so the rule misses it by construction.
-4. A retrospective `plan` for planless work — rejected because a `plan` declares future claims (tense invariant in `delta-routing-instruments.spec`) and leaves the corpus at discharge, so the write and the removal would bracket no surviving content.
-5. A new document type for a one-case lesson — deferred because no review has yet produced a finding that a `spec` Failure Behavior clause, an `adr` consequence, or a procedure's Pitfalls cannot own; revisit after the review bench runs.
-6. One confirmation question per proposed write — rejected because closeout already draws up to 4 of the 5-question ceiling (`plan-discharge-by-deletion.adr`), so three candidates would exhaust the ceiling before the removal confirmation.
-7. Excluding the delivered part of an unfinished `plan` from the selection — rejected on 2026-10-16, reversing the earlier deferral, because the 2026-10-15 matrix bench left the delivered public endpoint of an open plan uncaptured in both partial-plan cases (1 of 3 and 0 of 3 calls); `command-surface-v2.spec` behavior 40 now requires the capture and keeps the plan without a removal offer.
+4. A retrospective `plan` for planless work — rejected because a `plan` declares future claims (tense invariant in `@plugin/plugins/archcore/skills/_shared/delta-routing.md`) and leaves the corpus at discharge, so the write and the removal would bracket no surviving content.
+5. Keep the experience track and fix only its report line — rejected because the track's `skip_when` fires whenever the selection has run, which is every branch review, so the track stays dead code with its own gates and goldens. Renaming it to `retro` is rejected as a third name for the selection, against the one-term-per-concept rule of `AGENTS.md`.
+6. A new document type for a one-case lesson — deferred because no review has yet produced a finding that a `spec` Failure Behavior clause, an `adr` consequence, or a procedure's Pitfalls cannot own; revisit after the review bench runs.
+7. One confirmation question per proposed write — rejected because closeout already draws up to 4 of the 5-question ceiling (`plan-discharge-by-deletion.adr`), so three candidates would exhaust the ceiling before the removal confirmation.
+8. Excluding the delivered part of an unfinished `plan` from the selection — rejected on 2026-10-16, reversing the earlier deferral, because the 2026-10-15 matrix bench left the delivered public endpoint of an open plan uncaptured in both partial-plan cases (1 of 3 and 0 of 3 calls); `command-surface-v2.spec` behavior 40 now requires the capture and keeps the plan without a removal offer.
 
 ## Consequences
 
@@ -32,13 +35,14 @@ Positive:
 
 - A planless branch can produce an evidenced `spec`, `guide`, `doc`, or `scenario` from one review invocation. [expected]
 - A review invocation spends at most 1 question on document writes, leaving the ceiling for verify, merge, and removal confirmations. [expected]
-- The two-file repetition rule stops being the only gate for experience capture. [expected]
+- The two-file repetition rule stops being the only gate for experience capture, and the captured line covers every type, so a `rule` extracted from a practice change counts as captured. [expected]
 - The reason for the rule survives plan discharge in this record; the draft spec carries the obligations and the `rnd` carries the investigation.
 
 Negative:
 
 - A branch review adds an inspection pass over relied-on contracts beyond the changed lines; the added invocation time is unmeasured. [expected]
-- `command-surface-v2.spec` behaviors 39–40 and `delta-routing-instruments.spec` behavior 23 change, together with the structural tests that pin them (`@plugin/test/structure/command-grammar.bats`, `@plugin/test/structure/loop-integrity.bats`).
+- `command-surface-v2.spec` behaviors 39–40 change, together with the structural tests that pin them (`@plugin/test/structure/command-grammar.bats`, `@plugin/test/structure/loop-integrity.bats`).
+- The `experience` category keeps two types while its capture has no dedicated track; a reader may look for an experience track and find only the selection. [expected]
 - A batched preview can hide one weak unit among sound ones; partial authorization is the only guard.
 - Drafts the selection creates wait for the next review's accept gate, so the draft count rises between reviews. [expected]
 

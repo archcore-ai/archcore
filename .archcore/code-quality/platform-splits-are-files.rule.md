@@ -43,20 +43,8 @@ not spawn children on Windows. @cli/internal/mcp/server.go carries the matching 
 **Good** — clause 7. @cli/internal/jsonfile/jsonfile_umask_unix_test.go pins the half of the mode contract
 a chmod cannot express, under `//go:build unix`.
 
-**Bad** — a runtime branch standing in for a file.
-
-> ```go
-> if runtime.GOOS == "windows" {
->     return nil
-> }
-> return syscall.Dup2(oldfd, newfd)
-> ```
->
-> `syscall.Dup2` does not exist on every port, so this does not compile where it matters and silently
-> does nothing where it does.
+**Bad** — a `runtime.GOOS` branch around `syscall.Dup2`. The call does not exist on every port, so the code does not compile where it matters and silently does nothing where it does.
 
 ## Enforcement
 
-- The Go toolchain holds clauses 1 to 4: a missing variant fails the build for that constraint.
-- `go build` for each supported platform is the conformance check. CI covers the release matrix.
-- Clauses 5 to 7 carry no automated check. Review holds them.
+The Go toolchain holds clauses 1 to 4 through the release-matrix build in CI. Clauses 5 to 7: manual review.

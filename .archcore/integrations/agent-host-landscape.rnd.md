@@ -23,51 +23,36 @@ Decide where Archcore ships next as a host plugin or adapter after the four ship
 
 ## Approach
 
-- Repository read on 2026-10-18: `.archcore/integrations/supported-ai-agents.doc.md`, the OpenCode adapter records under `.archcore/plugin/`, `@cli/cmd/hook_dialect.go`, `@cli/internal/plugin/`, `@plugin/plugins/`, `@plugin/plugins/archcore/bin/lib/normalize-stdin.sh`, `@plugin/test/fixtures/stdin/`, and every local branch for a `plugin/plugins/opencode/` tree.
-- Machine read on 2026-10-18: installed host versions, `~/.config/opencode/opencode.json`, `~/.pi/agent/`.
-- bb read on 2026-10-18 from the running install: `bb guide plugins`, `bb guide agent-configuration`, `bb provider list`, `bb plugin list`, `bb plugin search`, and the bundled `bb-plugin-authoring` skill references `backend-cli-agents.md`, `backend-events.md`, `distribution.md`. The session that wrote this record ran inside bb with the Claude Code provider.
-- Web sweep on 2026-10-18 by a research subagent over official documentation and repositories; star counts and latest releases come from the GitHub API on that date. Sources consulted, all accessed 2026-10-18:
-  - Pi: https://github.com/earendil-works/pi (`packages/coding-agent/docs/`), https://pi.dev/docs/latest
-  - Hermes Agent: https://github.com/NousResearch/hermes-agent (`website/docs/`)
-  - bb: https://getbb.app/plugin-guide, https://github.com/get-bb/bb
-  - Conductor: https://conductor.build/docs/faq, https://conductor.build/docs/reference/mcp, https://conductor.build/changelog
-  - Superset: https://docs.superset.sh/skills
-  - Nimbalyst: https://github.com/nimbalyst/nimbalyst
-  - Cross-host standards: https://agentskills.io, https://agents.md, https://agent-plugins.org, https://registry.modelcontextprotocol.io
-  - Zed, JetBrains ACP, Devin Desktop, Antigravity, Gemini CLI, Qwen Code, Copilot CLI, Factory Droid, Auggie, Goose, Amp, Kiro, Trae, Crush, Cline, Kilo Code, Warp: each host's official documentation and repository [assumption: the subagent report names these sources without full URLs].
+- Repository read on 2026-10-18: the supported-agents registry, the OpenCode adapter records, the hook dialect table, and every local branch for a `plugin/plugins/opencode/` tree.
+- Machine read on 2026-10-18: installed host versions and the user-level OpenCode config.
+- bb read on 2026-10-18 from the running install (`bb guide plugins`, `bb provider list`, `bb plugin list`). The session that wrote this record ran inside bb with the Claude Code provider.
+- Web sweep on 2026-10-18 over official documentation and repositories (Pi, Hermes Agent, bb, Conductor, Superset, Nimbalyst, the cross-host standards agentskills.io, agents.md, agent-plugins.org, and the MCP Registry, plus each other host's own documentation) [assumption: the sweep names the last group without full URLs]. Star counts and releases come from the GitHub API on that date.
 - Every external host fact below comes from the web sweep and was not confirmed against a running host, except where a line names a local check.
 
 ## Findings
 
 ### 1. OpenCode adapter state
 
-The CLI side and the shell side are done. `archcore hooks opencode <event>` exists with the `opencode` row in `@cli/cmd/hook_dialect.go` (commit `ea474ad`); `@cli/cmd/hook_payload.go` folds `archcore_<tool>`; `@plugin/plugins/archcore/bin/lib/normalize-stdin.sh` accepts `ARCHCORE_HOST=opencode`; synthetic payloads sit in `@plugin/test/fixtures/stdin/opencode/`, and two of them use spellings OpenCode does not send (`mcp__archcore__*`, `file_path`), so `opencode-adapter.plan` rewrites them.
+The CLI side and the shell side are done. `archcore hooks opencode <event>` exists with the `opencode` row in `@cli/cmd/hook_dialect.go` (commit `ea474ad`); `@cli/cmd/hook_payload.go` folds `archcore_<tool>`; `@plugin/plugins/archcore/bin/lib/normalize-stdin.sh` accepts `ARCHCORE_HOST=opencode`; synthetic payloads sit in `@plugin/test/fixtures/stdin/opencode/`, and two of them use spellings OpenCode does not send (`mcp__archcore__*`, `file_path`).
 
-The package side shipped. `@archcore/opencode-plugin` has been on npm since v0.14.0 (2026-10-26): Phases 1–4 of `opencode-adapter.plan` cover the bridge package in `@plugin/plugins/opencode/`, its `bun test` suites, the npm publish job, and the `HostOpenCode` row of `@cli/internal/plugin/hosts.go`. OpenCode 2.x support and the install into the global OpenCode config followed in v0.14.2. A live load check on OpenCode 2.1.4 on 2026-10-26 showed the package loaded with both agents, four `/archcore-*` commands, and four skills registered. Phase 5, the live probes P0, A, B, and C, has not run and stays open.
+The package side shipped. `@archcore/opencode-plugin` has been on npm since v0.14.0 (2026-10-26): The bridge package in `@plugin/plugins/opencode/`, its `bun test` suites, the npm publish job, and the `HostOpenCode` row of `@cli/internal/plugin/hosts.go` shipped (@.archcore/plugin/opencode-adapter.spec.md). OpenCode 2.x support and the install into the global OpenCode config followed in v0.14.2. A live load check on OpenCode 2.1.4 on 2026-10-26 showed the package loaded with both agents, four `/archcore-*` commands, and four skills registered. The live probes P0, A, B, and C have not run and stay open.
 
 One machine preparation step remains open (local check, 2026-10-18). Bun 1.4.3 is installed, so the `bun test` phase runs locally.
 
 - `~/.config/opencode/opencode.json` already holds `mcp.archcore` pointing at `npx mcp-remote http://localhost:8080/mcp/message`. The bridge yields to an existing entry per the draft entry-ownership decision, so probe C on this machine reports a dead MCP server unless that entry is removed first.
 
-Kilo Code's CLI and v7 extension are OpenCode forks whose plugin behavior the Kilo documentation calls identical to OpenCode, with types from `@kilocode/plugin`. Kilo CLI 7.8.14 is a Bun-compiled binary with the same plugin loader, and it compares `engines.opencode` against its own 7.x version (`packages/opencode/src/plugin/shared.ts` in Kilo-Org/kilocode, read 2026-10-18), so a `^1.x` range rejects the package and a `>=1.18.34` range admits it. [assumption] `@archcore/opencode-plugin` loads under Kilo with no code change; task 54 of `opencode-adapter.plan` checks it.
+Kilo Code's CLI and v7 extension are OpenCode forks whose plugin behavior the Kilo documentation calls identical to OpenCode, with types from `@kilocode/plugin`. Kilo CLI 7.8.14 is a Bun-compiled binary with the same plugin loader, and it compares `engines.opencode` against its own 7.x version (`packages/opencode/src/plugin/shared.ts` in Kilo-Org/kilocode, read 2026-10-18), so a `^1.x` range rejects the package and a `>=1.18.34` range admits it. [assumption] `@archcore/opencode-plugin` loads under Kilo with no code change; a live check is still open.
 
 ### 2. Hosts with their own agent loop
 
-| Host | Extension surface | Pre-tool event that can block | Distribution channel | Adapter cost |
-|---|---|---|---|---|
-| Pi 1.3.0 | TypeScript extensions in Pi packages; native MCP (stdio, HTTP); Agent Skills from `.agents/skills`; reads `AGENTS.md`, `CLAUDE.md` | `tool_call` | `pi install npm:…`; gallery pi.dev/packages via the `pi-package` keyword | TypeScript bridge with the OpenCode shape |
-| Hermes Agent 0.22.2 | Python plugins (`plugin.yaml`); shell hooks; MCP; Agent Skills taps; `hermes import-agent claude-code` | `pre_tool_call` | PR to `plugin-catalog/` with a pinned SHA | skills and MCP: low; hooks: shell route [assumption] or Python |
-| Antigravity | root `plugin.json` with `skills/`, `agents/`, `rules/`, `hooks.json`, `mcp_config.json` | `PreToolUse` | `agy plugin install <github-url>`; official marketplace by interest form | manifests only |
-| Gemini CLI 0.64.0 | `gemini-extension.json` with MCP, commands, hooks, skills, agents | `BeforeTool` | gallery crawl of the `gemini-cli-extension` GitHub topic | manifests only; Goose and Qwen Code also read this format |
-| Factory Droid | reads `.claude-plugin/` and renames it on install | `PreToolUse` | `droid plugin marketplace add` | verification only |
-| Auggie | reads `.claude-plugin/` | [assumption] present | git marketplaces | verification only |
-| Qwen Code | converts Claude Code and Gemini plugins on install | present | — | verification only |
-| Kilo Code | OpenCode plugin API | `tool.execute.before` | `Kilo-Org/kilo-marketplace` | reuse of the OpenCode package |
-| Amp | TypeScript plugins `@ampcode/plugin`; already reads skills from `~/.claude/plugins/cache/` | `tool.call` | none | TypeScript bridge |
-| Kiro | Powers; accepts Agent Plugins 1.0 | hooks present | curated registry with no documented submission path | manifest; no channel |
-| Trae, Crush | Agent Skills, MCP, `AGENTS.md`; no plugin system | none or preliminary | — | documentation only |
+Adapter cost by host, from the sweep:
 
-Gemini CLI now serves paid tiers only; Antigravity replaced it for unpaid and Google One users on 2026-06-18. Roo Code shut down on 2026-05-15 with its repository archived, and Continue is frozen at 2.0.0 [assumption: secondary sources only]. `supported-ai-agents.doc` still lists Roo Code as an MCP-only host.
+- Pi 1.3.0 (pre-tool event `tool_call`), Amp (`tool.call`), and Kilo Code (the OpenCode plugin API) take a TypeScript bridge of the OpenCode shape; Kilo reuses the OpenCode package.
+- Hermes Agent 0.22.2 (`pre_tool_call`) takes skills and MCP cheaply; hooks need the shell route [assumption] or Python.
+- Antigravity, Gemini CLI 0.64.0, Factory Droid, Auggie, and Qwen Code take manifests or only verification, because they read the Claude Code layout or a similar manifest format.
+- Kiro accepts Agent Plugins 1.0 but has no documented submission path. Trae and Crush have no plugin system: documentation only.
+
+Gemini CLI now serves paid tiers only; Antigravity replaced it for unpaid and Google One users on 2026-06-18. Roo Code shut down on 2026-05-15 with its repository archived, and Continue is frozen at 2.0.0 [assumption: secondary sources only]. The supported-agents registry still lists Roo Code as an MCP-only host.
 
 ### 3. Wrapper editors
 
@@ -101,7 +86,7 @@ ACP Registry lists agents, not plugins, and does not apply to Archcore.
 
 Proceed, in this order:
 
-1. Run the Phase 5 live probes of the OpenCode adapter plan, then verify the same package under Kilo Code.
+1. Run the OpenCode live probes, then verify the same package under Kilo Code.
 2. Take the near-zero-cost reach: publish the MCP server to the MCP Registry, add an Agent Plugins 1.0 manifest, verify the Claude Code layout on Factory, Auggie, and Qwen Code, and verify the Roo Code and Continue shutdowns before re-tiering them.
 3. Build a Pi package on the OpenCode bridge shape (Finding 2). Extract a shared spawn module only when Pi is the second TypeScript host.
 4. Add Antigravity and Gemini extension manifests (Finding 2).
@@ -116,4 +101,4 @@ Resulting host list: 4 shipped (Claude Code, Codex CLI, GitHub Copilot, Cursor);
 
 ## Next Action
 
-Run Phase 5 of the OpenCode adapter plan; before its probe C, remove the user-level `mcp.archcore` entry on the probe machine. After the Roo Code and Continue checks, update the host roster in the `archcore` global source and `supported-ai-agents.doc` in one change.
+Run the OpenCode live probes; before probe C, remove the user-level `mcp.archcore` entry on the probe machine. After the Roo Code and Continue checks, update the host roster in the `archcore` global source and `supported-ai-agents.doc` in one change.
