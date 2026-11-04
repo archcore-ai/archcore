@@ -18,6 +18,12 @@ setup() {
   if [ "$("$PLUGIN_ROOT/bin/cli-gte" 0.15.0)" != "yes" ]; then
     skip "needs archcore CLI >= 0.15.0 (set ARCHCORE_BIN)"
   fi
+  # Once a release outruns the source build (0.15.0-dev < v0.15.0), the
+  # launcher's update advisory is due in a fresh data dir and lands as plain
+  # text after the JSON recap, which the recap assertions parse with jq.
+  # Stamp it as shown, the way test/unit/session-start.bats does.
+  mkdir -p "$CLAUDE_PLUGIN_DATA/archcore"
+  date +%s > "$CLAUDE_PLUGIN_DATA/archcore/last-update-advisory"
   WORKSPACE=$(cd "$BATS_TEST_TMPDIR" && pwd -P)
   A=$(cd "$MCP_ROOT" && pwd -P)
   B="$WORKSPACE/b"

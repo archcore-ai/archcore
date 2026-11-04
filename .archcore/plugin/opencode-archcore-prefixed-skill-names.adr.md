@@ -28,7 +28,7 @@ The pack step of `@archcore/opencode-plugin` rewrites only the frontmatter `name
 - All four Archcore commands are reachable on OpenCode, and no bundled skill name collides with a built-in command or with a user skill whose name lacks the `archcore-` prefix.
 - An OpenCode command passes its arguments by appending them to the skill content, because no `SKILL.md` contains `$ARGUMENTS` (`packages/opencode/src/session/prompt.ts`); `/archcore-plan <topic>` therefore needs no wrapper file.
 - Tradeoff: each bundled `SKILL.md` differs from its source in one line. The invariant "skill content is byte-identical across hosts" of `command-surface-v2.spec` holds for every other byte, and the byte-parity test of `opencode-adapter.spec` compares the files with that one line masked.
-- Tradeoff: skill bodies cite commands in the colon form, for example `/archcore:plan`, while the OpenCode user types `/archcore-plan`. [expected] The model maps the colon form to the installed command; the live probe of `opencode-adapter.plan` checks one cross-reference.
+- Tradeoff: skill bodies cite commands in the colon form, for example `/archcore:plan`, while the OpenCode user types `/archcore-plan`. [expected] The model maps the colon form to the installed command; the live probe of `opencode-adapter.spec` checks one cross-reference.
 
 ## Superseded when
 

@@ -14,7 +14,7 @@ Repoint the accepted documents that name artifacts a refactor deleted. A commit 
 
 ## When
 
-- A commit deletes plugin artifacts because their policy moved elsewhere. `ca6dfb4` moved hook policy into the `archcore` CLI and deleted six `bin/check-*` scripts with their tests; `2f99997` removed the bundled launcher and three more tests.
+- A commit deletes plugin artifacts because their policy moved elsewhere. `ca6dfb4` moved hook policy into the `archcore` CLI and deleted six policy scripts from `bin/` with their tests; `2f99997` removed the bundled launcher and three more tests.
 - `/archcore:review --deep` reports documents citing paths absent from the tree.
 - A `[Archcore Cascade]` notice names a source document whose target moved in a refactor commit.
 
@@ -34,22 +34,9 @@ Scale observed on 2026-08-14: 21 accepted documents cited artifacts deleted in `
 
 ## Example
 
-Grouping the hits by status is what keeps the edit small. From the 2026-08-14 pass over `ca6dfb4`:
+Grouping the hits by status is what keeps the edit small. In the 2026-08-14 pass over `ca6dfb4`, an accepted spec and an accepted rule cited the deleted guard and validator scripts as present-tense obligations, and a rejected plan cited them as history. The first two were rewritten and the plan was left untouched. Of 36 documents citing the deleted names, 8 needed an edit.
 
-```
-[accepted] spec  host-adapter-contract.spec.md   -> check-archcore-write, check-code-alignment, validate-archcore
-[accepted] rule  mcp-only-operations.rule.md     -> check-archcore-write, validate-archcore
-[rejected] plan  development-roadmap.plan.md     -> check-cascade, check-precision, validate-archcore
-```
-
-The first two carried present-tense obligations and were rewritten. The third is a rejected plan — a historical record, left untouched. Of 36 documents citing the deleted names, 8 needed an edit.
-
-The rewrite keeps the obligation and swaps the artifact:
-
-```
-7. An adapter MUST route the pre-mutation guard event to `bin/check-archcore-write`.   <- before
-7. An adapter MUST route the pre-mutation guard event to `bin/pre-tool-use`.           <- after
-```
+The rewrite keeps the obligation and swaps the artifact: "An adapter MUST route the pre-mutation guard event to the deleted guard script" becomes "... to `bin/pre-tool-use`".
 
 ## Pitfalls
 

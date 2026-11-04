@@ -122,7 +122,7 @@ setup() {
   [ -z "$missing" ] || fail "generalization regressed:$missing"
 }
 
-# Discovery guards (authored-source-discovery.spec): the catalog must define all
+# Discovery guards (skills/init/lib/sources.md): the catalog must define all
 # five levels and the four verdicts, and the skill must name the modular Cursor
 # directory so discovery does not stop at the root filenames (the emphasis-bias
 # failure that once left .cursor/rules/*.mdc unread).
@@ -393,8 +393,7 @@ setup() {
 @test "SKILL.md and host-wiring-parity.adr.md agree on the CLI wiring gate version" {
   # Derived from the skill rather than hardcoded twice: the next bump then
   # touches one literal, and this test still catches the ADR falling behind.
-  # (skills-system.spec.md, the previous cross-check target, is rejected; the
-  # gate history lives in the accepted host-wiring-parity ADR.)
+  # The accepted host-wiring-parity ADR pins the current gate.
   local gate
   gate=$(grep -o 'cli-gte" [0-9]\+\.[0-9]\+\.[0-9]\+' "$INIT" | head -1 | awk '{print $2}')
   [ -n "$gate" ] || fail "SKILL.md has no cli-gte call to read the gate version from"

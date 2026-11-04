@@ -10,7 +10,7 @@ tags:
 
 Publish one release of the plugin and the CLI from one git tag on `archcore-ai/archcore`. The tag is the only version source: the release writes it into the four published plugin manifests and into the CLI binary.
 
-The former `archcore-ai/cli` channel receives no further releases, and this repository was renamed from `archcore-ai/plugin` on 2026-09-22; GitHub redirects the old address for git and web traffic. The workflow copies that lived under `cli/.github/workflows/` were removed the same day.
+The former `archcore-ai/cli` channel receives no further releases, and this repository was renamed from `archcore-ai/plugin` on 2026-09-22; GitHub redirects the old address for git and web traffic. The workflows live in the root `.github/workflows/`.
 
 ## Prerequisites
 
@@ -86,7 +86,7 @@ The installers live at @cli/install.sh and @cli/install.ps1 on `dev`. They resol
 
 1. Merge the change to `dev`. `CLI Install Smoke` (@.github/workflows/cli-install-smoke.yml) runs on the push and installs the latest release on Windows, Ubuntu, macOS, Alpine, and a dash-only Debian.
 2. If the smoke run is red, fix it before publication.
-3. Trigger the landing deploy. [assumption] The dispatcher from this repository is pending (plan `release/unified-release-cutover`, task 19); until it exists, run the landing deploy by hand.
+3. Trigger the landing deploy by hand. This repository has no dispatcher for it yet (open task in `unified-release-cutover.plan`).
 4. The landing deploy re-fetches both installers, substitutes the PostHog key, and republishes them.
 
 ## Verification

@@ -8,6 +8,7 @@ tags:
   - "relations"
 ---
 
+
 ## Idea
 
 Record the measured scaling behaviour of the MCP read path (`list_documents`,
@@ -112,7 +113,7 @@ per-call index build, but no longer multiplies per-matched-document work.
 
 Globals still add to N on the scan axis for every consumer call (their files
 are cached like locals, but `CheckGlobalDir` probes remain per call — required
-by @.archcore/globals/global-sources.spec.md §6.1 fail-fast). A bloated shared
+by @.archcore/globals/source-mounts.spec.md §6.1 fail-fast). A bloated shared
 global still taxes every consumer; candidate 6 remains open.
 
 ### Hook-path budget
@@ -127,8 +128,8 @@ scan for all three of their reports.
 - **`search_documents` ranks local and global together with no source weight**
   (`sortResults`: specificity → type priority → mtime). As globals grow, a
   global can occupy the top-N and push an authoritative local doc below the
-  result limit. The `local-overrides-global` precedence
-  (@.archcore/globals/local-overrides-global.rule.md) is a reading convention
+  result limit. The `local-overrides-source` precedence
+  (@.archcore/globals/local-overrides-source.rule.md) is a reading convention
   applied *after* the fact, not a ranking input. **Still open.**
 - `searchResult` now carries `source_id`/`source_kind`/`global`/`read_only`
   (the disambiguation half of candidate 4 is shipped; only ranking weight
@@ -151,7 +152,7 @@ scan for all three of their reports.
    cache (files are read once, then served from memory); revisit only if the
    content-scan wall (~6–7K docs) becomes real.
 6. **Per-source global handling.** Open. Must preserve the global-mandatory
-   invariant in @.archcore/globals/global-sources.spec.md.
+   invariant in @.archcore/globals/source-mounts.spec.md.
 
 ## Notes
 

@@ -73,7 +73,7 @@ func buildSessionContext(ctx context.Context, baseDir string) (string, sessionDo
 	b.WriteString("You have MCP tools available: list_documents, get_document, search_documents, create_document, update_document, remove_document, add_relation, remove_relation, list_relations.\n")
 	if iErr != nil {
 		// Fail closed to a warning: no GLOBALS block renders on an unverifiable
-		// declaration (session-globals-disclosure.spec clause 18).
+		// declaration (session-globals-disclosure.spec clause 15).
 		fmt.Fprintf(&b, "\n⚠ invalid .archcore/settings.json: %v — global sources not loaded; context limited to local documents\n", iErr)
 	}
 
@@ -161,7 +161,7 @@ func instructionsAdvisory(baseDir, stampDir string) string {
 }
 
 // Ceilings for the GLOBALS block. Output size is a function of these and never
-// of corpus size (session-globals-disclosure.spec clauses 8-11).
+// of corpus size (session-globals-disclosure.spec clauses 8-9).
 const (
 	maxGlobalsSources = 8
 	maxGlobalsDirs    = 6
@@ -277,7 +277,7 @@ func dirSummary(topDirs map[string]int) string {
 //
 // hasGlobals switches the label to "local documents" so the CORPUS count and
 // the GLOBALS totals cannot read as a contradiction
-// (session-globals-disclosure.spec clause 14).
+// (session-globals-disclosure.spec clause 12).
 func writeCorpusLine(b *strings.Builder, corpus []docs.Document, hasGlobals bool) {
 	label := "documents"
 	if hasGlobals {

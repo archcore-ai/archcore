@@ -14,6 +14,8 @@ The `.archcore/` directory is the source of truth for project-level documentatio
 
 One-way push, local to server. The `.archcore/` directory stays the only source of truth. The server receives documents, indexes them, and serves enhanced search. It never writes back.
 
+On the first sync (no `project_id` in settings), the CLI also sends `repo_url`, read from `git remote get-url origin` (`DetectRepoURL` in @cli/internal/git/git.go), so the server-created project knows its repository. The field is omitted outside a git repository or without an origin remote. It is not stored in `settings.json`: it is derivable, and it matters only at project creation. A later change of the origin does not reach the server.
+
 ## Rationale
 
 - Simplicity: no conflict resolution, no merge logic, no divergence state. A push is idempotent.
@@ -32,25 +34,13 @@ Bidirectional merge between local and server. Rejected: it introduces merge conf
 
 The server owns the documents and the local directory is a cache. Rejected: it breaks the git-native workflow and turns the server into a hard dependency for authoring.
 
-## Implementation plan at decision time
+### Store, always send, or prompt for repo_url
 
-This section records what the decision assumed. Some items were never implemented; the next section states what the code does today.
-
-- Manifest: `.archcore/.sync-state.json`, gitignored, tracking per-file SHA-256 hashes and the last sync timestamp.
-- Diff: walk the document directories, hash the files, compare against the manifest, and produce created, modified, and deleted sets.
-- Protocol: `POST /api/v1/projects/{id}/sync` with an incremental payload, chunked for a large repository.
-- Auth: a bearer token from the `ARCHCORE_TOKEN` environment variable, or a credential stored by an `archcore login` command.
-- Triggers: manual (`archcore sync`), CI/CD (`archcore sync --ci`), or a commit hook.
-- Server role: index the documents, build the GraphRAG, and expose a cross-project MCP search tool.
+Storing it in `settings.json` adds config for a derivable value. Sending it on every sync repeats a field only creation needs. Prompting the user asks for what git origin already says. All three rejected.
 
 ## Current behavior
 
-- The manifest and the diff work as planned; `@cli/internal/sync/` implements hashing, diffing, and payload construction.
-- The endpoint is `POST /api/v1/sync`. `Client.Sync` in `@cli/internal/api/client.go` sends the payload; the per-project path from the plan was never used.
-- `Client` sets `Authorization: Bearer <token>` from its `Token` field. No `archcore login` command exists.
-- Chunking is not implemented. One request carries the payload.
-- No commit hook triggers a sync. `SessionStart` is the only active hook event.
-- The `sync` command is gated: it is hidden and returns "sync is not available yet — this feature is coming soon". The related ADR on temporarily disabling sync records that decision.
+The `sync` command is gated: it is hidden and returns "sync is not available yet — this feature is coming soon". The related ADR on temporarily disabling sync records that decision. The code sends one request with the whole payload to `POST /api/v1/sync` (`Client.Sync` in @cli/internal/api/client.go). It does no chunking, has no `archcore login`, and has no commit hook trigger.
 
 ## Consequences
 

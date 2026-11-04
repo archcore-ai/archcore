@@ -1,6 +1,6 @@
 ---
 title: "File Context Is a search_documents Mode That Shares Its Result With the Pre-Edit Hook"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "hooks"

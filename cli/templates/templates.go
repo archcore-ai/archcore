@@ -286,7 +286,7 @@ func WalkArchcoreFilesSkipping(archcoreDir string, skipDirs []string, fn func(pa
 		// Never follow symlinks. A symlink inside .archcore/ (or a mounted
 		// global) could point at a file outside the tree; reading, hashing, or
 		// listing its target would breach the "nothing outside .archcore/ is
-		// ever read" invariant (sync-path-security.rule). d.Type() reflects the
+		// ever read" invariant (sync-engine.spec). d.Type() reflects the
 		// entry itself (lstat semantics), so this catches symlinks to both files
 		// and directories without ever resolving the target.
 		if d.Type()&fs.ModeSymlink != 0 {

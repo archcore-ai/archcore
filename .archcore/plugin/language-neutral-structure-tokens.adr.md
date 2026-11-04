@@ -20,7 +20,7 @@ In a document of any language, the `##` section headings of the type template, t
 
 1. Native keyword sets per language mapped to BCP 14, such as `ДОЛЖЕН` / `СЛЕДУЕТ` / `МОЖЕТ` — rejected because each language needs its inflected forms and casing rules, scripts without letter case (Chinese, Japanese) cannot mark a keyword by uppercase, and every agent and the engine would then parse one vocabulary per language. [assumption] ISO/IEC Directives Part 2 pair the English verbal forms with French ones, which shows the approach works for a closed set of languages, not for an open one.
 2. Localized heading aliases per language in `RequiredSections` — rejected because the alias set never closes: one corpus already used `Правило`, `Обоснование`, `Зачем`, `Соблюдение`, and `Шаги` for three English headings, and each new language multiplies the table.
-3. English for the whole document regardless of the `language` setting — rejected because `language` is an accepted setting (`cli-ui/language-setting.idea`) and a team writes its rationale and context better in its own language.
+3. English for the whole document regardless of the `language` setting — rejected because `language` is an accepted setting and a team writes its rationale and context better in its own language.
 
 ## Consequences
 

@@ -1,6 +1,6 @@
 ---
 title: "search_documents Matches the Slug and Folds Separators in Content Words"
-status: draft
+status: accepted
 tags:
   - "component:cli"
   - "globals"

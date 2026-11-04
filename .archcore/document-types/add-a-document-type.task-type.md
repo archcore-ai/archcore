@@ -12,7 +12,7 @@ tags:
 
 Add one or more document types to the CLI so that `create_document` generates them, the scan and the categories recognize them, the post-write precision check measures them, the advisory engines rank them, and every public inventory counts them. The result is a green suite, a clean linter, and a working tree the release process can tag.
 
-Applied twice: the research vocabulary (`research`, `evidence`, v0.8.3) and the actor-subject vocabulary (`scenario`, `journey`, unreleased). Both runs followed the same shape; the pitfalls below are the places the second run had to discover again.
+Applied twice: the research vocabulary (`research`, `evidence`, v0.8.3) and the actor-subject vocabulary (`scenario`, `journey`). Both runs followed the same shape; the pitfalls below are the places the second run had to discover again.
 
 ## When to Use
 
@@ -28,7 +28,7 @@ Do NOT use when:
 
 ## Steps
 
-1. Read the procedure in the building doc (How to Add a New Document Type) and the two prior plans under `document-types/`.
+1. Read the two prior plans under `document-types/`.
 2. Load every document tagged `code-quality` before the first Go edit.
 3. Add the `TypeXxx` constant, the `categoryMap` row, and the `ValidTypes` entry in @cli/templates/templates.go.
 4. Write `generateXxxTemplate` with visible placeholders and wire it into `GenerateTemplate`.

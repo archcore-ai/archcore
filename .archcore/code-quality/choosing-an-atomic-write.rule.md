@@ -60,56 +60,10 @@ The self-update binary replacement is a fourth sequence and stays one: it fsyncs
 carries a Windows rename-aside with rollback, which no other target needs. It is a documented
 exception, not a precedent (`@cli/internal/update/update.go`).
 
-## Examples
-
-### Good
-
-```go
-// Machine-owned state: the plain helper is the whole requirement.
-if err := jsonfile.WriteAtomic(manifestPath(baseDir), data); err != nil {
-    return fmt.Errorf("saving manifest: %w", err)
-}
-```
-
-```go
-// A claim: the create call is the lock, so it must be the create call that fails.
-f, err := os.OpenFile(stamp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
-```
-
-### Bad
-
-```go
-// A fourth copy of the primitive, inline. Identical to jsonfile.WriteAtomic
-// today, and silently divergent from it after the first fix lands there.
-tmp := target + ".tmp"
-if err := os.WriteFile(tmp, data, 0o644); err != nil {
-    return err
-}
-if err := os.Rename(tmp, target); err != nil {
-    _ = os.Remove(tmp)
-    return err
-}
-```
-
-```go
-// A user-owned file through the machine-owned helper: mode reset to 0o644,
-// symlink replaced by a regular file, content assertions still green.
-jsonfile.WriteAtomic(filepath.Join(baseDir, "CLAUDE.md"), data)
-```
-
-```go
-// A claim through the atomic helper: nobody loses the race, so everybody
-// holds the lock. The hook runs twice and two updaters replace one binary.
-jsonfile.WriteAtomic(stampPath, nil)
-```
-
 ## Enforcement
 
 - Code review: any `os.Rename` in a write path, and any new `*.tmp` path construction.
-- `@cli/internal/jsonfile/jsonfile.go` — `WriteAtomic`.
-- `@cli/internal/docs/document.go` — `WriteFileAtomic`.
-- `@cli/internal/agents/instructions.go` — the mode- and symlink-preserving writer.
-- `@cli/internal/update/update.go` — the documented binary-replacement exception.
-- `@cli/internal/stamp/stamp.go` — the exclusivity exception. Its `os.Rename` is the lock steal, not a
+- `@cli/internal/stamp/stamp.go` is the exclusivity exception. Its `os.Rename` is the lock steal, not a
   publish; `TestClaimStamp_RecoversAnAbandonedLockThroughTheAtomicSteal` fails if the reclaim stops
   going through it.
+- `@cli/internal/update/update.go` is the documented binary-replacement exception.

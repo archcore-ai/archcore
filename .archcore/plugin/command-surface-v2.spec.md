@@ -16,13 +16,12 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 ## Surface
 
 - Palette: `/archcore:init` (unchanged), `/archcore:plan`, `/archcore:document`, `/archcore:review`.
-- Removed commands and their absorbing homes: `context` → CLI hook injection; `capture` and `decide` → `document`; `audit` → `review` gate; `help` → command descriptions, the init closing summary, and CLI `archcore help`.
+- Removed commands: `context` (now CLI hook injection), `capture` and `decide` (now `document`), `audit` (now a `review` gate), `help` (now command descriptions and CLI `archcore help`). `four-command-palette.adr` records the rationale.
 - Write affinity: `plan` → vision types; `document` → knowledge types, with explicit `research` filing in vision; `review` → experience types.
 - Read scope: all three categories for every command — vision supplies intent and resumption targets, knowledge supplies constraints, experience supplies precedent.
 - Entry grammar: `/archcore:plan [topic]`, `/archcore:document [subject]`, `/archcore:review [free text: a path, a topic, 'close out the feature', 'are docs stale', 'audit the docs']` — one optional free-text argument; shared context resolution (@plugin/plugins/archcore/skills/_shared/gate-contract.md) selects the track, and a gate inside the track selects the document type. `/archcore:init [mode] [subject]` keeps the modes `import` and `refresh`.
 - Retired mode words: `sdd`, `sources`, `iso`, `decision`, `code`, `drift`, `deep`, `closeout`, `experience`. At the head of a `plan`, `document`, or `review` request each is topic text with no handling of its own; the `research` slug at the head is a type request. The list exists for the release notes and the retired-form guard, not for runtime routing.
 - Settings: no argument hint carries a `--flag`. `init` offers `depth:light|standard|deep` and `scale:small|medium|large` as toggles inside its preview, per `init-import-mode.adr`. A setting changes how an entry runs, never which entry runs.
-- Document track map: a settled or proposed choice → `decision.classify` (`adr`, `rfc`, `rule`); a description of existing code → `describe.read` (`spec`, `doc`, `guide`, `task-type`, `scenario`); a finished report or one external material → `research.frame` (`research`, `rnd`, `evidence`).
 
 ## Normative Behavior
 
@@ -107,4 +106,4 @@ This spec defines the plugin's layer-1 command surface after the 7-to-4 redesign
 
 ## Conformance
 
-The skill set is conformant when it satisfies behaviors 1–52, holds all invariants, and degrades per the failure rules. Regression coverage: @plugin/test/structure/command-grammar.bats pins the hints, the absence of a retired-word notice, the retired-form guard, the description parity, and the gate-address rule; @plugin/test/structure/loop-integrity.bats pins the exits from stopped, open, and unfinished states across plan, document, and review; @plugin/test/behavioral/document-bench.sh measures classification of `document` requests on a live model; @plugin/test/behavioral/import-bench.sh measures the route, the size tier, and the triage verdict of `init` on a live model.
+The skill set is conformant when it satisfies behaviors 1–52, holds all invariants, and degrades per the failure rules. Regression coverage: @plugin/test/structure/command-grammar.bats pins the hints, the retired-form guard, and the gate-address rule. @plugin/test/structure/loop-integrity.bats pins the exits from stopped, open, and unfinished states.

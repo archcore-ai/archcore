@@ -20,12 +20,10 @@ and is not part of this subsystem. Everything described here degrades to silence
 
 ### The four engines
 
-| Engine | Call site | Trigger | Output |
-|---|---|---|---|
-| `CodeAlignment` | `preToolUseHandler` in @cli/cmd/hook_command.go and `search_documents` `for_path` | before a source edit, or on the agent's call | the file-context result: the documents that constrain the file |
-| `Precision` | `postToolUseHandler` in @cli/cmd/hook_post_tool_use.go | after a document write | vague-requirement findings |
-| `Restatement` | after a document write | a statement copied from a document the written one builds on | the duplicated statement |
-| `Staleness` | `buildSessionContext` in @cli/cmd/hooks_common.go | session start | documents that mention directories that moved |
+- `CodeAlignment` runs before a source edit (`preToolUseHandler`) or on `search_documents` with `for_path`. It returns the documents that constrain the file.
+- `Precision` runs after a document write (`postToolUseHandler`). It reports vague requirements.
+- `Restatement` runs after a document write. It reports a statement copied from a document the written one builds on.
+- `Staleness` runs at session start (`buildSessionContext`). It reports documents that mention directories that moved.
 
 One more session-start advisory lives outside this package: the managed-block advisory, described below.
 
@@ -47,32 +45,20 @@ with reason `kind`. A name counts only where no file-name character and no `.` p
 pathspec; outside git only the stem list decides. A file at the project root needs no query: its bare
 name is its full path.
 
-| Setting | Key | Default |
-|---|---|---|
-| source roots | `settings.json` → `codeAlignment.sourceRoots` | `src`, `lib`, `app`, `pkg`, `cmd`, `internal`, `apps`, `packages`, `modules`, `components` |
-| kill switch | `ARCHCORE_DISABLE_INJECTION=1` | unset |
-
-A file outside every source root gets only `file` and `general` rows. `config.CodeAlignment` preserves unknown nested
+Source roots come from `settings.json` → `codeAlignment.sourceRoots`; `ARCHCORE_DISABLE_INJECTION=1` is the kill switch. A file outside every source root gets only `file` and `general` rows. `config.CodeAlignment` preserves unknown nested
 keys in `Extra`, so a newer binary's settings survive a write by an older one.
 
-Seven document types are ranked by how much they constrain an edit — `rule`, `cpat`, `adr`, `spec`,
+Document types are ranked by how much they constrain an edit — `rule`, `cpat`, `adr`, `spec`,
 `scenario`, `guide`, then `doc`. Rows order by reason (`file`, `kind`, `directory`), then match depth,
 then `accepted` before `draft`, then type, then mention count. A `scenario` reaches an edit through the
 `Anchors:` line of its flows, below the `spec` it illustrates. A type absent from that map is not injected: a `plan` or an
 `idea` is context for a discussion, not a constraint on a line of code. The accept-set is derived from
 the ranking, so the allowlist has one definition.
 
-The filter is a cost control, not a preference. `docs.ScanTypes` opens only the six ranked types, so
+The filter is a cost control, not a preference. `docs.ScanTypes` opens only the ranked types, so
 the walk rejects roughly three quarters of the corpus before reading anything, on a path that blocks
-the user's edit under a one-second host budget.
-
-| Bound | Value |
-|---|---|
-| matched rows | 5 |
-| general rows | 10 |
-| directory tokens walked | 5 |
-| hook message length | 2048 runes |
-| `for_path` response | 8000 bytes |
+the user's edit under a one-second host budget. Output is bounded by named ceilings in the advisory package (matched rows, general rows, hook message length, `for_path` response bytes). A `general` row is title only, and at equal type priority a local row precedes a global one, so a mounted global
+source cannot fill every shown row.
 
 ### Precision and restatement
 
@@ -98,8 +84,7 @@ grades it are meant to differ. The rule it enforces is ownership rule 1 of
 names the documents that mention the directories that moved.
 
 The correlation is by directory name, so it over-reports by design. It is rate-limited to 24 hours
-through an `internal/stamp` claim, and bounded at 12 correlated directories, 5 documents per
-directory, and 10 lines total — @cli/internal/advisory/staleness.go.
+through an `internal/stamp` claim and bounded in @cli/internal/advisory/staleness.go.
 
 ### Managed-block advisory
 
@@ -108,17 +93,3 @@ The managed-block advisory compares the managed block in `AGENTS.md`, `CLAUDE.md
 `agents.InspectInstructionBlocks` in @cli/internal/agents/instructions.go reads the three files and skips a file it cannot read. `describeInstructionBlocks` in @cli/cmd/instructions.go turns each finding into a problem and a fix. The session-start recap (`instructionsAdvisory` in @cli/cmd/hooks_common.go) and `archcore doctor` (`reportInstructionBlocks` in @cli/cmd/doctor.go) phrase that pair for their own readers. Neither surface writes the file.
 
 The recap takes an `internal/stamp` claim in its own `instructions-stamps` scope, once per project in 24 hours. It takes the claim only when a finding exists, so a session with current blocks does not use up the day's advisory.
-
-## Examples
-
-**A code-quality rule reaching an edit it was never searched for.** An agent edits
-`internal/mcp/tools/search_documents.go`. `CodeAlignment` tokenizes the directory chain, matches the
-`.archcore/code-quality/` rules that name `internal/mcp/tools`, and injects the top three ranked
-documents before the write. Rules outrank every other type, so a `rule` wins the slot over an `adr`
-that mentions the same directory.
-
-**A rule that names no path.** A rule whose references name no existing path enters every result as a
-`general` row, title only, after the matched rows; past 10 rows a remainder line names the call that
-lists the rest. At equal type priority a local general row precedes a global one, so a mounted global
-source cannot fill every shown row. The `CLAUDE.md` tag load for `code-quality` stays, because a rule that cites one
-example path is neither general nor a directory match.

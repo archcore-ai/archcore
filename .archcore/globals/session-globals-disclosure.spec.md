@@ -10,23 +10,20 @@ tags:
 
 ## Purpose & Scope
 
-This specification defines the `GLOBALS` block: a bounded, zero-read summary of every declared global source in the SessionStart context. It closes the disclosure half of the discovery gap recorded in @.archcore/globals/global-discovery-gap.idea.md.
+This specification defines the `GLOBALS` block: a bounded, zero-read summary of every declared global source in the SessionStart context. It closes the disclosure half of the discovery gap that @.archcore/mcp/global-recall-guarantees.rfc.md records.
 
-The behavior below is current, implemented in `buildSessionContext` (@cli/cmd/hooks_common.go) and `InspectGlobals` (@cli/internal/docs/inspect.go).
+It is implemented in `buildSessionContext` (@cli/cmd/hooks_common.go) and `InspectGlobals` (@cli/internal/docs/inspect.go).
 
-Out of scope: read-tool paging and ranking (@.archcore/mcp/global-recall-guarantees.rfc.md), the MCP server instructions paragraph, and any content-derived summary (global tags or titles — rejected by the cost analysis in the idea).
+Out of scope: read-tool paging and ranking (@.archcore/mcp/global-recall-guarantees.rfc.md), the MCP server instructions paragraph, and any content-derived summary (global tags or titles — rejected on cost).
 
 ## Surface
 
-`GlobalInspection` carries two fields derived during the walk `countGlobalDocs` already performs: `DocsByCategory` (per virtual category counts, from the filename type suffix) and `TopDirs` (top-level directory names with document counts).
-
-Block format, with this repository's measured data:
+Block format:
 
 ```
 GLOBALS (read with this project; write a source's documents through its project):
-  - archcore — 42 docs (knowledge 40, vision 1, experience 1) · product/ 14, concepts/ 14, architecture/ 7, market/ 4, web/ 3 · project="/home/dev/archcore"
+  - archcore — 42 docs (knowledge 40, vision 1, experience 1) · product/ 14, concepts/ 14 · project="/home/dev/archcore"
   ⚠ global source "company" not found at "../company/.archcore" — skipped until it is cloned; local documents are unaffected
-  ⚠ global source "vendor" at "../vendor.txt" is not a directory — fix .archcore/settings.json
   Local documents take precedence over same-topic globals; a matching global is still part of the answer.
 ```
 
@@ -39,43 +36,34 @@ GLOBALS (read with this project; write a source's documents through its project)
 5. The builder MUST list a source's top-level directories with document counts, ordered by count descending, ties alphabetical.
 6. The builder MUST derive every count from filenames and directory names alone.
 7. The builder MUST NOT read the content of any global document.
-8. The builder MUST render at most 6 directories per source.
-9. WHEN directories are dropped, the builder MUST name the dropped count on the line.
-10. The builder MUST render at most 8 source lines.
-11. WHEN sources are dropped, the builder MUST name the dropped count below the last line.
-12. WHEN a source is in a fatal, missing, or empty state, the builder MUST render its inspection message inside the block, prefixed with "⚠".
-13. WHEN at least one source line renders, the builder MUST append the sentence "Local documents take precedence over same-topic globals; a matching global is still part of the answer."
-14. WHEN the block renders, the builder MUST label the `CORPUS` count "local documents".
-15. WHEN the block holds at least one `GlobalOK` source, the builder MUST append the total global document count to the connected banner.
-16. The builder MUST reuse the `InspectGlobals` walk for every count.
-17. The builder MUST NOT add a corpus scan to the session start.
-18. IF `config.LoadGlobals` fails, THEN the builder MUST render only the invalid-settings warning.
-19. WHEN a source is missing, the builder MUST end its line with "skipped until it is cloned; local documents are unaffected".
-20. WHEN a `GlobalOK` source resolves to a directory named `.archcore`, the builder MUST end its line with ` · project="<root>"`, where `<root>` is the parent of that directory — the `project` argument that writes the source (@.archcore/globals/source-mounts.spec.md).
-21. The builder MUST render the heading "GLOBALS (read with this project; write a source's documents through its project):".
+8. The builder MUST render at most 6 directories per source, and at most 8 source lines.
+9. WHEN directories or sources are dropped, the builder MUST name the dropped count.
+10. WHEN a source is in a fatal, missing, or empty state, the builder MUST render its inspection message inside the block, prefixed with "⚠".
+11. WHEN at least one source line renders, the builder MUST append the sentence "Local documents take precedence over same-topic globals; a matching global is still part of the answer."
+12. WHEN the block renders, the builder MUST label the `CORPUS` count "local documents".
+13. WHEN the block holds at least one `GlobalOK` source, the builder MUST append the total global document count to the connected banner.
+14. The builder MUST reuse the `InspectGlobals` walk for every count and MUST NOT add a corpus scan to the session start.
+15. IF `config.LoadGlobals` fails, THEN the builder MUST render only the invalid-settings warning.
+16. WHEN a source is missing, the builder MUST end its line with "skipped until it is cloned; local documents are unaffected".
+17. WHEN a `GlobalOK` source resolves to a directory named `.archcore`, the builder MUST end its line with ` · project="<root>"`, where `<root>` is the parent of that directory — the `project` argument that writes the source (@.archcore/globals/source-mounts.spec.md).
 
 ## Constraints & Invariants
 
 - Output ceiling: 8 source lines, their warnings, the heading, and the precedence sentence. Block size is a function of the ceilings, never of corpus size.
-- I/O ceiling: directory walks only, identical to the cost `InspectGlobals` pays today (@cli/internal/docs/inspect.go `countGlobalDocs`).
-- No global document path, title, or tag appears in the block; global content surfaces through the MCP read tools only (@.archcore/globals/global-sources.spec.md).
-- No absolute filesystem path appears in any line except the `project` root of clause 20; a warning line carries the declared id and the declared path only (@.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md).
-- Category derivation matches the scan: filename type suffix to virtual category (@cli/templates/templates.go `CategoryForType`).
-- The governing documents agree with this contract: the invariant and warning placement in @.archcore/globals/global-sources.spec.md, the section order in @.archcore/integrations/session-start-context.spec.md, and clauses 6–7 of @.archcore/globals/globals-are-read-only-everywhere.rule.md were amended together with this specification's acceptance.
+- I/O ceiling: directory walks only, identical to the cost `InspectGlobals` pays (@cli/internal/docs/inspect.go `countGlobalDocs`).
+- No global document path, title, or tag appears in the block; global content surfaces through the MCP read tools only.
+- No absolute filesystem path appears in any line except the `project` root of clause 17; a warning line carries the declared id and the declared path only (@.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md).
 
 ## Failure Behavior
 
 | Condition | Response |
 | --- | --- |
 | Invalid `settings.json` | invalid-settings warning; no `GLOBALS` block |
-| Fatal source (not a directory, unreadable, self-overlap, duplicate) | "⚠" line ending "fix .archcore/settings.json" inside the block; remaining sources still render |
-| Missing source (not cloned yet) | "⚠" line ending "skipped until it is cloned; local documents are unaffected" inside the block; remaining sources still render |
-| Empty source | "⚠" contains-no-documents line inside the block |
-| Unreadable subdirectory during the count | source classified unreadable; "⚠" line (existing `InspectGlobals` behavior) |
-| No declared globals | no block, no heading, `CORPUS` label unchanged |
+| Fatal source (not a directory, unreadable, self-overlap, duplicate) | "⚠" line ending "fix .archcore/settings.json"; remaining sources still render |
+| Missing source (not cloned yet) | "⚠" line ending "skipped until it is cloned; local documents are unaffected"; remaining sources still render |
+| Empty source | "⚠" contains-no-documents line |
+| Unreadable subdirectory during the count | source classified unreadable; "⚠" line |
 
 ## Conformance
 
-An implementation conforms when it satisfies clauses 1–21 and the failure rows, and `TestBuildSessionContext_ScansTheCorpusOnce` (@cli/cmd/hook_scan_budget_test.go) still passes.
-
-The conformance tests are @cli/cmd/hooks_globals_block_test.go: block presence and absence, both ceilings with named drops, the warning merge, the precedence sentence, the `CORPUS` label, and the banner suffix.
+An implementation conforms when it satisfies clauses 1–17 and the failure rows, and `TestBuildSessionContext_ScansTheCorpusOnce` (@cli/cmd/hook_scan_budget_test.go) still passes. The block tests sit in @cli/cmd/hooks_globals_block_test.go.
