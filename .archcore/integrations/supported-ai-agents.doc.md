@@ -93,9 +93,10 @@ Three entry points reach the plugin, and all three run one planner and one execu
 
 The CLI asks each host for its own answer before it acts. With the host CLI on `PATH`, it reads that
 host's read-only plugin listing; with the CLI absent, it reads the host's on-disk plugin registry.
-OpenCode has no listing command, so the CLI reads the `plugin` and `plugins` keys of the global OpenCode
+For OpenCode the CLI reads the `plugin` and `plugins` keys of the global OpenCode
 config and of the project configs up to the git root, and reads the major version from
-`opencode --version`. A
+`opencode --version`. On 2.x, when the config lists the plugin, `archcore update` also asks
+`opencode plugin list`, which answers from the running OpenCode service. A
 host that reports no plugin produces no output at all, and no mutating command runs there.
 
 | Host | CLI | Install | Update |

@@ -1024,47 +1024,77 @@ func writeProjectFile(t *testing.T, root, rel, content string) {
 	}
 }
 
-// TestCollectEvidenceReadsTheOpenCode2ServiceListing reads `opencode plugin
-// list` on 2.x only, from output captured on opencode 2.1.4.
-func TestCollectEvidenceReadsTheOpenCode2ServiceListing(t *testing.T) {
+// TestReadServiceListingsReadsTheOpenCode2ServiceListing reads `opencode
+// plugin list` from output captured on opencode 2.1.4, and only on 2.x where
+// the config already lists the plugin: the listing can start an OpenCode
+// service, so nothing else may pay for it.
+func TestReadServiceListingsReadsTheOpenCode2ServiceListing(t *testing.T) {
 	table := "ID                         VERSION  SOURCE\n@archcore/opencode-plugin  0.15.1   @archcore/opencode-plugin\n"
+	listed := Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: true, Listed: true, HostMajor: 2}
 	for _, tt := range []struct {
 		name       string
-		version    string
+		ev         Evidence
 		list       commandOutcome
 		wantOK     bool
 		wantListed bool
 		wantList   bool
 	}{
-		{name: "a table naming the plugin", version: "opencode v2.1.4", list: commandOutcome{Stdout: table}, wantOK: true, wantListed: true, wantList: true},
-		{name: "a pinned package", version: "opencode v2.1.4", list: commandOutcome{Stdout: "ID VERSION SOURCE\nx 0.15.1 @archcore/opencode-plugin@0.15.1\n"}, wantOK: true, wantListed: true, wantList: true},
-		{name: "another plugin only", version: "opencode v2.1.4", list: commandOutcome{Stdout: "ID VERSION SOURCE\nfoo 1.0.0 foo\n"}, wantOK: true, wantList: true},
-		{name: "no plugins", version: "opencode v2.1.4", list: commandOutcome{Stdout: "\nNo plugins found\n"}, wantOK: true, wantList: true},
-		{name: "a similar name", version: "opencode v2.1.4", list: commandOutcome{Stdout: "ID VERSION SOURCE\n@archcore/opencode-plugin-x 1.0.0 @archcore/opencode-plugin-x\n"}, wantOK: true, wantList: true},
-		{name: "unknown output", version: "opencode v2.1.4", list: commandOutcome{Stdout: "@archcore/opencode-plugin\n"}, wantList: true},
-		{name: "a failed listing", version: "opencode v2.1.4", list: commandOutcome{Failed: true, Stdout: table}, wantList: true},
-		{name: "a truncated listing", version: "opencode v2.1.4", list: commandOutcome{Truncated: true, Stdout: table}, wantList: true},
-		{name: "1.x", version: "1.18.34", list: commandOutcome{Stdout: table}},
+		{name: "a table naming the plugin", ev: listed, list: commandOutcome{Stdout: table}, wantOK: true, wantListed: true, wantList: true},
+		{name: "a pinned package", ev: listed, list: commandOutcome{Stdout: "ID VERSION SOURCE\nx 0.15.1 @archcore/opencode-plugin@0.15.1\n"}, wantOK: true, wantListed: true, wantList: true},
+		{name: "CRLF lines", ev: listed, list: commandOutcome{Stdout: strings.ReplaceAll(table, "\n", "\r\n")}, wantOK: true, wantListed: true, wantList: true},
+		{name: "another plugin only", ev: listed, list: commandOutcome{Stdout: "ID VERSION SOURCE\nfoo 1.0.0 foo\n"}, wantOK: true, wantList: true},
+		{name: "a header alone", ev: listed, list: commandOutcome{Stdout: "ID VERSION SOURCE\n"}, wantOK: true, wantList: true},
+		{name: "no plugins", ev: listed, list: commandOutcome{Stdout: "\nNo plugins found\n"}, wantOK: true, wantList: true},
+		{name: "a similar name", ev: listed, list: commandOutcome{Stdout: "ID VERSION SOURCE\n@archcore/opencode-plugin-x 1.0.0 @archcore/opencode-plugin-x\n"}, wantOK: true, wantList: true},
+		{name: "empty output", ev: listed, list: commandOutcome{}, wantList: true},
+		{name: "unknown output", ev: listed, list: commandOutcome{Stdout: "@archcore/opencode-plugin\n"}, wantList: true},
+		{name: "no plugins with extra text", ev: listed, list: commandOutcome{Stdout: "No plugins found\nhint\n"}, wantList: true},
+		{name: "a failed listing", ev: listed, list: commandOutcome{Failed: true, Stdout: table}, wantList: true},
+		{name: "a truncated listing", ev: listed, list: commandOutcome{Truncated: true, Stdout: table}, wantList: true},
+		{name: "config without the plugin", ev: Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: true, HostMajor: 2}, list: commandOutcome{Stdout: table}},
+		{name: "1.x", ev: Evidence{Host: HostOpenCode, CLIPresent: true, ListingOK: true, Listed: true, HostMajor: 1}, list: commandOutcome{Stdout: table}},
+		{name: "no CLI", ev: Evidence{Host: HostOpenCode, ListingOK: true, Listed: true, HostMajor: 2}, list: commandOutcome{Stdout: table}},
+		{name: "another host", ev: Evidence{Host: HostCodexCLI, CLIPresent: true, ListingOK: true, Listed: true, HostMajor: 2}, list: commandOutcome{Stdout: table}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			isolateHome(t)
-			useHostCLIs(t, t.TempDir(), "opencode")
 			var ran []string
 			stubRuns(t, func(c Command) commandOutcome {
 				ran = append(ran, strings.Join(append([]string{c.Name}, c.Args...), " "))
-				if slices.Equal(c.Args, []string{"--version"}) {
-					return commandOutcome{Stdout: tt.version}
-				}
 				return tt.list
 			})
 
-			evidence := CollectEvidence(t.Context(), []Host{HostOpenCode}, "")
-			if len(evidence) != 1 || evidence[0].ServiceListingOK != tt.wantOK || evidence[0].ServiceListed != tt.wantListed {
-				t.Errorf("evidence = %+v, want ServiceListingOK %v ServiceListed %v", evidence, tt.wantOK, tt.wantListed)
+			got := ReadServiceListings(t.Context(), []Evidence{tt.ev})
+			if len(got) != 1 || got[0].ServiceListingOK != tt.wantOK || got[0].ServiceListed != tt.wantListed {
+				t.Errorf("evidence = %+v, want ServiceListingOK %v ServiceListed %v", got, tt.wantOK, tt.wantListed)
 			}
-			if got := slices.Contains(ran, "opencode plugin list"); got != tt.wantList {
-				t.Errorf("ran %q, want the listing run: %v", ran, tt.wantList)
+			want := []string(nil)
+			if tt.wantList {
+				want = []string{"opencode plugin list"}
+			}
+			if !slices.Equal(ran, want) {
+				t.Errorf("ran %q, want %q", ran, want)
 			}
 		})
+	}
+}
+
+// TestCollectEvidenceDoesNotAskTheOpenCode2Service keeps the service listing
+// out of the shared collector, which install, remove, and status use too.
+func TestCollectEvidenceDoesNotAskTheOpenCode2Service(t *testing.T) {
+	isolateHome(t)
+	useHostCLIs(t, t.TempDir(), "opencode")
+	var ran []string
+	stubRuns(t, func(c Command) commandOutcome {
+		ran = append(ran, strings.Join(c.Args, " "))
+		return commandOutcome{Stdout: "opencode v2.1.4"}
+	})
+	config := t.TempDir()
+	t.Setenv("OPENCODE_CONFIG_DIR", "")
+	t.Setenv("XDG_CONFIG_HOME", config)
+	writeProjectFile(t, config, "opencode/opencode.json", `{"plugins": ["@archcore/opencode-plugin"]}`)
+
+	CollectEvidence(t.Context(), []Host{HostOpenCode}, "")
+	if want := []string{"--version"}; !slices.Equal(ran, want) {
+		t.Errorf("ran %q, want %q", ran, want)
 	}
 }

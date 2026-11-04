@@ -666,7 +666,7 @@ func TestPluginInstallUsesTheOpenCode2Command(t *testing.T) {
 	if err != nil {
 		t.Fatalf("install exited nonzero: %v\n%s", err, out)
 	}
-	if want := []string{"plugin list", "plugin add @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
+	if want := []string{"plugin add @archcore/opencode-plugin"}; !slices.Equal(fixtureRuns(t, log), want) {
 		t.Errorf("opencode ran %q, want %q", fixtureRuns(t, log), want)
 	}
 }
@@ -702,8 +702,47 @@ func TestPluginUpdateExplainsAnOpenCodeServiceThatMissesThePlugin(t *testing.T) 
 	if want := []string{"plugin list"}; !slices.Equal(fixtureRuns(t, log), want) {
 		t.Errorf("opencode ran %q, want the listing alone", fixtureRuns(t, log))
 	}
-	if !strings.Contains(out, "Restart the OpenCode service") || strings.Contains(out, "failed") {
+	if !strings.Contains(out, "opencode service stop") || strings.Contains(out, "failed") {
 		t.Errorf("output = %q, want the service hint and no failure line", out)
+	}
+}
+
+// TestPluginUpdateLeavesOpenCode2AloneWithoutThePlugin keeps the invariant that
+// a machine without the plugin pays nothing: `opencode plugin list` can start an
+// OpenCode service, so with no config entry the update must not run it.
+func TestPluginUpdateLeavesOpenCode2AloneWithoutThePlugin(t *testing.T) {
+	bin := isolatePluginRun(t)
+	log := writeOpenCode2Fixture(t, bin, "No plugins found")
+
+	out, err := runPluginCmd(t, "update", "--agent", "opencode")
+	if err != nil {
+		t.Fatalf("update exited nonzero: %v\n%s", err, out)
+	}
+	if runs := fixtureRuns(t, log); len(runs) != 0 {
+		t.Errorf("opencode ran %q, want nothing", runs)
+	}
+	if strings.Contains(out, "OpenCode") {
+		t.Errorf("output = %q, want no OpenCode line", out)
+	}
+}
+
+// TestPluginStatusDoesNotAskTheOpenCode2Service keeps the service listing to the
+// update: status and install read the config, and must not start a service.
+func TestPluginStatusDoesNotAskTheOpenCode2Service(t *testing.T) {
+	for _, verb := range []string{"status", "install"} {
+		t.Run(verb, func(t *testing.T) {
+			bin := isolatePluginRun(t)
+			log := writeOpenCode2Fixture(t, bin, "No plugins found")
+			writeGlobalOpenCodeConfig(t)
+
+			out, err := runPluginCmd(t, verb, "--agent", "opencode")
+			if err != nil {
+				t.Fatalf("%s exited nonzero: %v\n%s", verb, err, out)
+			}
+			if runs := fixtureRuns(t, log); slices.Contains(runs, "plugin list") {
+				t.Errorf("opencode ran %q, want no service listing", runs)
+			}
+		})
 	}
 }
 

@@ -157,7 +157,9 @@ const (
 
 // openCodeServiceNote is printed when the OpenCode config lists the plugin and
 // the running service, which `opencode plugin update` asks, does not.
-const openCodeServiceNote = "The OpenCode config lists " + openCodePackage + ", but the running OpenCode service does not see it. Restart the OpenCode service, then run: opencode plugin update " + openCodePackage
+// Stopping, not restarting: the next OpenCode command starts a new service with
+// the caller's environment, while a restart's environment is unverified.
+const openCodeServiceNote = "The OpenCode config lists " + openCodePackage + ", but the running OpenCode service does not see it. Run: opencode service stop, then: opencode plugin update " + openCodePackage
 
 var hostTable = map[Host]HostSpec{
 	HostClaudeCode: {
