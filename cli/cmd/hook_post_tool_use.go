@@ -9,6 +9,7 @@ import (
 	"archcore-cli/internal/advisory"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/docs"
+	"archcore-cli/internal/projectroot"
 	archsync "archcore-cli/internal/sync"
 )
 
@@ -24,18 +25,17 @@ const maxValidationIssues = 5
 
 // postToolUseHandler runs the checks a document mutation warrants.
 func postToolUseHandler(_ context.Context, r hookRequest) hookDecision {
-	baseDir := r.baseDir
-	// A call that named its project was served there, so its document is
-	// checked there (hook-runtime.spec §17). An advisory read: a project
-	// without .archcore/ keeps the working directory.
-	if project := r.payload.toolProject(); filepath.IsAbs(project) && config.DirExists(project) {
-		baseDir = project
-	}
 	tool := r.payload.toolName()
 	// Gate on "did this change anything", not on "is this ours". Cursor installs
 	// its post-MCP event with no matcher, so every read would otherwise scan the
 	// whole corpus and report on a call that changed nothing.
 	if !isMutatingArchcoreTool(tool) {
+		return allowHook()
+	}
+	baseDir, ok := postWriteRoot(r)
+	if !ok {
+		// The write went to a store none of the roots reaches, so there is nothing
+		// here to validate (hook-runtime.spec, Failure Behavior 7).
 		return allowHook()
 	}
 
@@ -54,6 +54,21 @@ func postToolUseHandler(_ context.Context, r hookRequest) hookDecision {
 		return allowHook()
 	}
 	return adviseHook(strings.Join(sections, "\n\n"))
+}
+
+// postWriteRoot returns the project a document mutation was served in: the root
+// the server names in its response, then the call's project argument, then the
+// nearest project at or above the working directory (hook-runtime.spec §17).
+// The working directory is the shell's, which a cd moves away from the root the
+// server writes to, so it is only the last resort. An advisory read: a
+// candidate that is not an absolute directory holding .archcore/ is passed over.
+func postWriteRoot(r hookRequest) (string, bool) {
+	for _, root := range []string{r.payload.servedProject(), r.payload.toolProject()} {
+		if filepath.IsAbs(root) && config.DirExists(root) {
+			return root, true
+		}
+	}
+	return projectroot.Nearest(r.baseDir)
 }
 
 // validationAdvisory reports structural problems in the knowledge base.
