@@ -41,7 +41,7 @@ Positive:
 Negative:
 
 - Eleven tool schemas gain one optional string, and the server instructions gain one sentence inside the 2,048-character cap.
-- The agent chooses the root per call; a wrong `project` writes to the wrong project with no error. The `project` field in every response and the post-tool-use validation reading `project` from `tool_input` are the two checks.
+- The agent chooses the root per call; a wrong `project` writes to the wrong project with no error. The `project` field in every response and the post-tool-use validation of the root that response names (@.archcore/integrations/hook-runtime.spec.md behavior 17) are the two checks.
 - The `initialize` instructions, built once at start, keep describing the start-time root; `coverage` in `search_documents` names the root a call answered from.
 - The write guard gains one upward directory walk per edited path, bounded by the path depth. [expected]
 - The rule against absolute paths in MCP responses gains one exception: the `project` field returns the absolute root the caller named, or the root its own `for_path` resolved to.
