@@ -51,23 +51,28 @@ func decodeHookPayload(r io.Reader) *hookPayload {
 	return &hookPayload{root: root}
 }
 
-// str reads a string at a path of nested keys. An intermediate value that is
-// itself a JSON document in string form is decoded on the way through, which is
-// what makes Copilot's toolArgs and Cursor's tool_input readable by path.
+// str reads a string at a path of nested keys.
 func (p *hookPayload) str(path ...string) string {
+	s, _ := p.node(path...).(string)
+	return s
+}
+
+// node reads the value at a path of nested keys, or nil. An intermediate value
+// that is itself a JSON document in string form is decoded on the way through,
+// which is what makes Copilot's toolArgs and Cursor's tool_input readable by
+// path.
+func (p *hookPayload) node(path ...string) any {
 	var cur any = p.root
 	for _, key := range path {
-		node, ok := asObject(cur)
+		obj, ok := asObject(cur)
 		if !ok {
-			return ""
+			return nil
 		}
-		cur, ok = node[key]
-		if !ok {
-			return ""
+		if cur, ok = obj[key]; !ok {
+			return nil
 		}
 	}
-	s, _ := cur.(string)
-	return s
+	return cur
 }
 
 // firstStr returns the first non-empty value among several candidate paths.
@@ -262,6 +267,50 @@ func (p *hookPayload) toolProject() string {
 		[]string{"toolArgs", "project"},
 		[]string{"tool_args", "project"},
 	)
+}
+
+// servedProject returns the root the archcore server names in the "project"
+// field of its response (call-root-resolution.spec §10), or "". Each host
+// echoes the result in its own shape: Claude Code sends the content array,
+// Codex the result object, Copilot the text alone, Cursor a JSON string.
+func (p *hookPayload) servedProject() string {
+	for _, result := range []any{
+		p.node("tool_response"),
+		p.node("toolResult", "textResultForLlm"),
+		p.node("result_json"),
+	} {
+		if project := resultProject(result); project != "" {
+			return project
+		}
+	}
+	return ""
+}
+
+// resultProject reads "project" from an MCP tool result given as its text
+// payload, as the result object, or as its content array. The server appends
+// the field only to a response of one JSON text block, so any other shape
+// carries no project.
+func resultProject(result any) string {
+	if obj, ok := asObject(result); ok {
+		if project, ok := obj["project"].(string); ok {
+			return project
+		}
+		result = obj["content"]
+	}
+	blocks, ok := result.([]any)
+	if !ok || len(blocks) != 1 {
+		return ""
+	}
+	block, ok := blocks[0].(map[string]any)
+	if !ok {
+		return ""
+	}
+	text, ok := asObject(block["text"])
+	if !ok {
+		return ""
+	}
+	project, _ := text["project"].(string)
+	return project
 }
 
 // MCP tool-name prefixes. One server reaches the CLI under five names,

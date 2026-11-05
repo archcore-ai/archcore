@@ -40,7 +40,7 @@ Out of scope: how the session root is chosen and followed through `roots/list` (
 13. WHEN a hook payload names an edited file, the hook MUST resolve the call root as the nearest ancestor of that file holding `.archcore/`.
 14. WHEN the edited file has no such ancestor, the hook MUST resolve the call root from the payload working directory.
 15. WHEN the resolved hook root differs from the payload working directory root, the write guard MUST decide against the resolved root.
-16. WHEN a post-tool-use payload carries `project` in `tool_input`, the hook MUST validate the document against that root.
+16. WHEN a post-tool-use hook validates a document, the hook MUST resolve the root per @.archcore/integrations/hook-runtime.spec.md behavior 17.
 17. The resolver MUST NOT keep a `project` value beyond the call that carried it.
 18. The server MUST describe `project` in the instructions it sends at `initialize`, inside the instruction cap.
 19. WHEN a call succeeds and the call root is the session root, the server MUST append `"source": "local"` after the `project` field.

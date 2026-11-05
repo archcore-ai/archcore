@@ -414,6 +414,98 @@ func TestPostToolUse_ValidatesInTheNamedProject(t *testing.T) {
 	}
 }
 
+// TestPostToolUse_ValidatesInTheServedProject holds hook-runtime.spec §17 and
+// Failure Behavior 7: each root in the order is taken only when the roots
+// before it fail, and a write no project holds is allowed silently. Every
+// project carries its own broken document, so a finding names the root used.
+func TestPostToolUse_ValidatesInTheServedProject(t *testing.T) {
+	t.Parallel()
+	w := newHookWorkspace(t)
+	roots := map[string]string{"a": w.a, "b": w.b, "nested": w.nested}
+	for name, root := range roots {
+		writeArchcoreDoc(t, root, "knowledge/bad-"+name+".adr.md", "no frontmatter at all\n")
+	}
+
+	quote := func(s string) string {
+		quoted, _ := json.Marshal(s)
+		return string(quoted)
+	}
+	resultText := func(project string) string {
+		return quote(`{"path":".archcore/knowledge/bad-b.adr.md","project":` + quote(project) + `}`)
+	}
+	claude := func(project string) string {
+		return `,"tool_response":[{"type":"text","text":` + resultText(project) + `}]`
+	}
+	codex := func(project string) string {
+		return `,"tool_response":{"content":[{"type":"text","text":` + resultText(project) + `}]}`
+	}
+	copilot := func(project string) string {
+		return `,"toolResult":{"resultType":"success","textResultForLlm":` + resultText(project) + `}`
+	}
+	cursor := func(project string) string {
+		return `,"result_json":` + resultText(project)
+	}
+
+	tests := []struct {
+		name, cwd, project, response string
+		want                         string // the project whose finding is reported; "" means a silent allow
+	}{
+		{"served root wins over the working directory", w.nested, "", claude(w.b), "b"},
+		{"served root wins over the project argument", w.a, w.a, claude(w.b), "b"},
+		{"served root without a store falls to the project argument", filepath.Join(w.plain, "src"), w.b, claude(w.plain), "b"},
+		{"relative served root falls to the project argument", filepath.Join(w.plain, "src"), w.b, claude("b"), "b"},
+		{"served root without a store falls to the working directory", filepath.Join(w.b, "src"), "", claude(w.plain), "b"},
+		{"working directory below the root", filepath.Join(w.b, "src", "api"), "", "", "b"},
+		{"working directory inside a nested project", w.nested, "", "", "nested"},
+		{"no project above the working directory", filepath.Join(w.plain, "src"), "", "", ""},
+		{"codex result", w.a, "", codex(w.b), "b"},
+		{"copilot result", w.a, "", copilot(w.b), "b"},
+		{"cursor result", w.a, "", cursor(w.b), "b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			raw := `{"tool_name":"mcp__archcore__update_document","tool_input":{"path":".archcore/knowledge/bad-b.adr.md","project":` +
+				quote(tt.project) + `}` + tt.response + `}`
+			req := hookRequest{baseDir: tt.cwd, dialect: hookDialects[0], event: eventPostToolUse, payload: decodeHookPayload(strings.NewReader(raw))}
+			dec := postToolUseHandler(bg(), req)
+			if tt.want == "" && (dec.context != "" || dec.deny) {
+				t.Fatalf("decision = %+v, want a silent allow", dec)
+			}
+			for name := range roots {
+				if got := strings.Contains(dec.context, "bad-"+name+".adr.md"); got != (name == tt.want) {
+					t.Errorf("reported project %s = %v, want %v; context = %q", name, got, name == tt.want, dec.context)
+				}
+			}
+		})
+	}
+}
+
+func TestServedProject(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct{ name, payload, want string }{
+		// The payload Claude Code sent on 2026-11-05, kept as
+		// test/fixtures/stdin/claude-code/posttooluse-mcp-list-documents.json in
+		// the plugin, so a change of shape is caught on both sides.
+		{"claude-code captured", `{"hook_event_name":"PostToolUse","tool_name":"mcp__plugin_archcore_archcore__list_documents","tool_input":{},` +
+			`"tool_response":[{"type":"text","text":"{\"by_source\":{},\"total\":0,\"offset\":0,\"returned\":0,\"truncated\":false,\"documents\":[],\"project\":\"/work/sub\",\"source\":\"local\"}"}],` +
+			`"mcp_server":{"name":"plugin:archcore:archcore","source":"plugin"}}`, "/work/sub"},
+		{"codex result object", `{"tool_response":{"content":[{"type":"text","text":"{\"project\":\"/w/b\"}"}]}}`, "/w/b"},
+		{"copilot text result", `{"toolResult":{"resultType":"success","textResultForLlm":"{\"project\":\"/w/b\"}"}}`, "/w/b"},
+		{"cursor result payload", `{"result_json":"{\"project\":\"/w/b\"}"}`, "/w/b"},
+		{"cursor result object", `{"result_json":"{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"project\\\":\\\"/w/b\\\"}\"}]}"}`, "/w/b"},
+		{"last project key wins", `{"tool_response":[{"type":"text","text":"{\"project\":\"/w/a\",\"project\":\"/w/b\"}"}]}`, "/w/b"},
+		{"two content blocks", `{"tool_response":[{"type":"text","text":"{\"project\":\"/w/b\"}"},{"type":"text","text":"{}"}]}`, ""},
+		{"text not JSON", `{"tool_response":[{"type":"text","text":"OK"}]}`, ""},
+		{"error result", `{"tool_response":{"content":[{"type":"text","text":"project holds no .archcore/ directory"}],"isError":true}}`, ""},
+		{"cursor plain output", `{"tool_output":"OK"}`, ""},
+		{"no response", `{"tool_input":{"project":"/w/b"}}`, ""},
+	} {
+		if got := decodeHookPayload(strings.NewReader(tt.payload)).servedProject(); got != tt.want {
+			t.Errorf("%s: servedProject = %q, want %q", tt.name, got, tt.want)
+		}
+	}
+}
+
 func TestToolProject(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct{ payload, want string }{

@@ -233,6 +233,21 @@ The test suite provides a `timeout` shim automatically. If timeout-related failu
 - On Linux `/bin/sh` is `dash`, which is strict POSIX; on macOS `/bin/sh` is bash in POSIX mode. If a test reveals a bashism in a bin script, fix the script — the bin scripts must be POSIX-compatible.
 - `hook-latency.bats` is the one timing-sensitive file. Suspect an algorithmic regression before suspecting the runner: its bars sit several times above the measured cost, and the regressions they guard are factors of ten. It skips itself when `perl` is unavailable, and its end-to-end case skips without a current CLI.
 
+### A launcher test gets empty stdout from a locally built CLI
+
+```
+CLI dev: empty stdout — the launcher passed a bare tool name the CLI does not gate on
+```
+
+A CLI built without a version reports `dev`. `bin/cli-gte` finds no version number in `dev` and prints `__NO_CLI__`, so every launcher exits 0 before it calls the CLI. `make build` builds this way by default (`CLI_VERSION ?= dev`). Build the binary with a version, then point the suite at it:
+
+```bash
+make build CLI_VERSION=0.99.0
+ARCHCORE_BIN="$PWD/bin/archcore" make -C plugin test
+```
+
+Expected result: the launcher cases reach the CLI and report its output. Observed on 2026-11-05 in `test/integration/cursor-post-tool-use.bats`.
+
 ### An MCP call rejects `scenario` or `journey` while `archcore --version` reports 0.8.4
 
 The MCP server started before the CLI upgrade still runs the old binary. Reconnect the `archcore` server (in Claude Code, `/mcp`), then retry the call.

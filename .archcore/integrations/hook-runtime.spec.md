@@ -42,7 +42,10 @@ payload is read into a tool identity and its targets; the text of the session-st
 14. WHEN a target path is absolute, the write guard MUST resolve the project root as the nearest ancestor directory of that path that holds `.archcore/`, per @.archcore/mcp/call-root-resolution.spec.md.
 15. WHEN a target path is relative, the write guard MUST read the path against the payload working directory before it resolves the project root per behavior 14.
 16. WHEN the resolved root of a target differs from the session root, the pre-tool-use command MUST emit one advisory per session, root, and host naming the `project` argument, claimed through a dedup stamp keyed by session id, root, and host.
-17. WHEN a `post-tool-use` payload carries `project` in `tool_input`, the command MUST validate the document under that root.
+17. WHEN the event is `post-tool-use`, the command MUST validate the document under the first root below that is an absolute directory holding `.archcore/`:
+    - the `project` field of the tool result;
+    - the `project` argument in `tool_input`;
+    - the nearest ancestor of the payload working directory that holds `.archcore/`.
 18. WHEN a `pre-tool-use` payload names no file path and carries a patch, the command MUST feed the first patch target to the code-alignment advisory.
 
 ## Constraints & Invariants
@@ -61,6 +64,11 @@ payload is read into a tool identity and its targets; the text of the session-st
   — pays for the rare case on every write.
 - Constraint: a sweep deletes every stamp older than its own window, which is why scopes with
   different windows may not share a directory.
+- Constraint: behavior 17 reads the payload working directory last. That directory is the shell's,
+  and a `cd` moves it away from the root the server wrote to. The tool result names that root
+  (@.archcore/mcp/call-root-resolution.spec.md behavior 10). Read first, the working directory
+  reported `.archcore/ directory not found` after a write from a subdirectory, and checked a nested
+  project instead of the written one.
 
 ## Failure Behavior
 
@@ -70,6 +78,7 @@ payload is read into a tool identity and its targets; the text of the session-st
 4. IF the project root cannot be resolved from the working directory and no target path has an ancestor holding `.archcore/`, THEN the command MUST allow.
 5. IF `settings.json` is unreadable or invalid, THEN the command MUST NOT deny for that reason.
 6. IF the payload names no target, THEN the write guard MUST allow.
+7. IF no root that behavior 17 lists is an absolute directory holding `.archcore/`, THEN the `post-tool-use` command MUST allow.
 
 ## Conformance
 
