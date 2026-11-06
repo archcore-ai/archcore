@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -28,8 +29,8 @@ func payloadFrom(t *testing.T, raw string) *hookPayload {
 func patchIn(t *testing.T, keyPath []string, text string) *hookPayload {
 	t.Helper()
 	var doc any = text
-	for i := len(keyPath) - 1; i >= 0; i-- {
-		doc = map[string]any{keyPath[i]: doc}
+	for _, k := range slices.Backward(keyPath) {
+		doc = map[string]any{k: doc}
 	}
 	raw, err := json.Marshal(doc)
 	if err != nil {

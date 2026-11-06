@@ -225,11 +225,12 @@ func TestPreToolUse_ProjectTouchAdvisoryFromAPatch(t *testing.T) {
 	t.Parallel()
 	w := newHookWorkspace(t)
 	patch := func(paths ...string) string {
-		text := "*** Begin Patch\n"
+		var text strings.Builder
+		text.WriteString("*** Begin Patch\n")
 		for _, p := range paths {
-			text += "*** Add File: " + p + "\n+x\n"
+			text.WriteString("*** Add File: " + p + "\n+x\n")
 		}
-		quoted, _ := json.Marshal(text + "*** End Patch")
+		quoted, _ := json.Marshal(text.String() + "*** End Patch")
 		id, _ := json.Marshal(t.Name())
 		return `{"tool_name":"apply_patch","session_id":` + string(id) + `,"tool_input":{"command":` + string(quoted) + `}}`
 	}
@@ -670,11 +671,12 @@ func TestPreToolUse_CodeAlignmentFromThePatchsFirstTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 	patch := func(files ...string) string {
-		body := "*** Begin Patch\n"
+		var body strings.Builder
+		body.WriteString("*** Begin Patch\n")
 		for _, f := range files {
-			body += "*** Update File: " + f + "\n@@\n-a\n+b\n"
+			body.WriteString("*** Update File: " + f + "\n@@\n-a\n+b\n")
 		}
-		quoted, _ := json.Marshal(body + "*** End Patch\n")
+		quoted, _ := json.Marshal(body.String() + "*** End Patch\n")
 		return `{"tool_name":"apply_patch","tool_input":{"command":` + string(quoted) + `}}`
 	}
 

@@ -4,19 +4,55 @@ package display
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strings"
+	"sync"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
 )
 
 var (
-	Title   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
-	Success = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
-	Error   = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-	Warn    = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-	Dim     = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-	Logo    = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
+	Title   = style{lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))}
+	Success = style{lipgloss.NewStyle().Foreground(lipgloss.Color("2"))}
+	Error   = style{lipgloss.NewStyle().Foreground(lipgloss.Color("1"))}
+	Warn    = style{lipgloss.NewStyle().Foreground(lipgloss.Color("3"))}
+	Dim     = style{lipgloss.NewStyle().Foreground(lipgloss.Color("8"))}
+	Logo    = style{lipgloss.NewStyle().Foreground(lipgloss.Color("12"))}
 )
+
+// Lip Gloss v2 renders full color everywhere and leaves downsampling to the
+// writer. Callers print through fmt to many writers, so the profile of stdout is
+// applied here, which is the output Lip Gloss v1 detected on its own.
+var stdoutProfile = sync.OnceValue(func() colorprofile.Profile {
+	return detectProfile(os.Stdout, os.Environ())
+})
+
+// detectProfile maps ASCII to NoTTY: under NO_COLOR, ASCII keeps bold and
+// resets, where Lip Gloss v1 wrote no escape at all.
+func detectProfile(w io.Writer, env []string) colorprofile.Profile {
+	profile := colorprofile.Detect(w, env)
+	if profile == colorprofile.ASCII {
+		return colorprofile.NoTTY
+	}
+	return profile
+}
+
+type style struct {
+	lipgloss.Style
+}
+
+func (s style) Render(text string) string {
+	return downsample(s.Style.Render(text), stdoutProfile())
+}
+
+func downsample(rendered string, profile colorprofile.Profile) string {
+	var b strings.Builder
+	w := colorprofile.Writer{Forward: &b, Profile: profile}
+	_, _ = w.WriteString(rendered) // a strings.Builder never fails
+	return b.String()
+}
 
 func versionSuffix(version string) string {
 	if version == "" || version == "dev" {

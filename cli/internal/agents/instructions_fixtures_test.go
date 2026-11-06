@@ -62,7 +62,6 @@ func TestShippedInstructionFixtures(t *testing.T) {
 	}
 
 	for _, path := range files {
-		path := path
 		t.Run(filepath.ToSlash(path), func(t *testing.T) {
 			t.Parallel()
 			data, err := os.ReadFile(path)

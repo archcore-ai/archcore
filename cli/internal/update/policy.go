@@ -204,10 +204,8 @@ func RunUnattended(ctx context.Context, opts UnattendedOptions) UnattendedResult
 		return none
 	}
 
-	// 9. The replacement runs on a copy of the caller's Updater. Installing the
-	// probe on the caller's value would leave it installed for whatever else
-	// holds that pointer — the typed `archcore update` path deliberately runs
-	// without one, and the policy must not reach across and change it.
+	// 9. The replacement runs on a copy of the caller's Updater, so the probe
+	// seam below never leaks into whatever else holds that pointer.
 	attempt := *opts.Updater
 	attempt.PreCommitProbe = probeForAttempt
 	// The resolved path, so the file the claim names and the file Apply replaces

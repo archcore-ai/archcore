@@ -3,6 +3,7 @@ package docs
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"archcore-cli/internal/config"
@@ -190,12 +191,7 @@ func TestScanLocal_GlobalIsAnOrdinaryDirectory(t *testing.T) {
 }
 
 func slicesContains(list []string, want string) bool {
-	for _, s := range list {
-		if s == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, want)
 }
 
 // TestScanLocal_MissingArchcoreIsNotAnError: a project without .archcore/ is an

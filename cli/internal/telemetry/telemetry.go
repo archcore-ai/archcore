@@ -30,6 +30,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -239,9 +240,7 @@ func (c *Client) properties(props map[string]any) map[string]any {
 		"arch":         runtime.GOARCH,
 		"ci":           isCI(),
 	}
-	for k, v := range props {
-		merged[k] = v
-	}
+	maps.Copy(merged, props)
 	return merged
 }
 

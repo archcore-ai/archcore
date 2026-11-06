@@ -91,9 +91,7 @@ func TestHandleListDocuments_ConcurrentWarmScans(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for range 8 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			result, err := callTool(handler, nil)
 			if err != nil {
 				t.Error(err)
@@ -102,7 +100,7 @@ func TestHandleListDocuments_ConcurrentWarmScans(t *testing.T) {
 			if result.IsError {
 				t.Errorf("list_documents error: %s", result.Content[0].(mcp.TextContent).Text)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }

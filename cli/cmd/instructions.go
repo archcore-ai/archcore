@@ -142,7 +142,8 @@ func runInstructionsRemoveForAgent(baseDir string, id agents.AgentID) error {
 }
 
 func printInstructionsAgentSelectionStatus(sel agentSelection) {
-	//exhaustive:ignore // outcomePicked is the success path and prints nothing — this switch reports only the ways selection ended without one.
+	// outcomePicked is the success path and prints nothing — this switch reports only the ways selection ended without one.
+	//exhaustive:ignore
 	switch sel.outcome {
 	case outcomeAborted:
 		fmt.Println(display.Dim.Render(

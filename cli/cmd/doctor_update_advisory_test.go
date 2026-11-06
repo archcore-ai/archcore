@@ -211,7 +211,7 @@ func runDoctorVersion(t *testing.T, dir, version string) (string, error) {
 // visible to a reader.
 func doctorSummary(t *testing.T, out string) string {
 	t.Helper()
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if strings.Contains(line, "issue(s) found") || strings.Contains(line, "All checks passed") {
 			return strings.TrimSpace(line)
 		}

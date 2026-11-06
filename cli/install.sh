@@ -550,6 +550,12 @@ main() {
         fi
     fi
 
+    # Run the new binary before it replaces anything: a build for a newer OS
+    # than this one would otherwise overwrite a working install.
+    if ! "$extracted_binary" --version >/dev/null 2>&1; then
+        error_exit "archcore v${version} does not run on this system, so nothing was installed."
+    fi
+
     # Install
     STAGE="install"
     info "Installing to ${INSTALL_DIR}..."
