@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 const testDoc = "---\ntitle: Original Title\nstatus: draft\n---\n\n## Context\nOriginal body."

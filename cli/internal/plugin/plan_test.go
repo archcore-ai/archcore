@@ -162,7 +162,7 @@ func runTierMatrix(t *testing.T, verb Verb, cases []tierCase) {
 			checkHostPlan(t, verb, HostOpenCode, tt.ev, tt.opencode)
 		})
 	}
-	for key := 0; key < allShapes; key++ {
+	for key := range allShapes {
 		if !seen[key] {
 			ev := Evidence{
 				CLIPresent:     key&1 != 0,
@@ -616,7 +616,7 @@ func TestPlanRemoveTiers(t *testing.T) {
 func TestPlanStatusTiers(t *testing.T) {
 	t.Parallel()
 	cases := make([]tierCase, 0, allShapes)
-	for key := 0; key < allShapes; key++ {
+	for key := range allShapes {
 		cases = append(cases, tierCase{
 			ev: Evidence{
 				CLIPresent:     key&1 != 0,

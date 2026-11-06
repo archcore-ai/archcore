@@ -182,7 +182,7 @@ func projectRefusal(err error) string {
 // for the root provider's warning stream alike. No message carries the path
 // the caller sent (no-absolute-paths-in-mcp-errors.rule §5).
 func rootRefusal(subject string, err error) string {
-	var fatal fatalGlobalError
+	fatal, isFatal := errors.AsType[fatalGlobalError](err)
 	switch {
 	case errors.Is(err, errRootNotAbsolute):
 		return subject + " is not absolute"
@@ -194,7 +194,7 @@ func rootRefusal(subject string, err error) string {
 		return subject + " holds no .archcore/ directory"
 	case errors.Is(err, errRootSettingsUnreadable):
 		return subject + " has an unreadable .archcore/settings.json"
-	case errors.As(err, &fatal):
+	case isFatal:
 		return fmt.Sprintf("%s declares a global source %q that is misconfigured", subject, fatal.sourceID)
 	default:
 		return subject + " cannot be verified as a project root"

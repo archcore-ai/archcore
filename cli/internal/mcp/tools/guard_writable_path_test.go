@@ -186,16 +186,14 @@ func TestHandleCreateDocument_ConcurrentSamePath(t *testing.T) {
 	var wg sync.WaitGroup
 	errsCh := make(chan bool, workers)
 	for range workers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			result, err := callTool(handler, args)
 			if err != nil {
 				t.Error(err)
 				return
 			}
 			errsCh <- result.IsError
-		}()
+		})
 	}
 	wg.Wait()
 	close(errsCh)

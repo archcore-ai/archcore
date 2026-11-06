@@ -149,10 +149,10 @@ func TestRunHooksInstall_PreservesExistingHooks(t *testing.T) {
 	}
 	existing := map[string]any{
 		"hooks": map[string]any{
-			"SessionStart": []interface{}{
+			"SessionStart": []any{
 				map[string]any{
 					"matcher": "",
-					"hooks": []interface{}{
+					"hooks": []any{
 						map[string]any{
 							"type":    "command",
 							"command": "echo hello",

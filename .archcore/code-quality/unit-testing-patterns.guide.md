@@ -11,7 +11,7 @@ tags:
 
 ## Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - Read `go-code-quality.rule.md` for general conventions
 - Read `comments-are-the-exception.rule.md` before commenting a test
 

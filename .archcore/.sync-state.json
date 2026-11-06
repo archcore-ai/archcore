@@ -2557,6 +2557,11 @@
       "source": "integrations/junie-agent.spec.md",
       "target": "plugin/junie-delivery.adr.md",
       "type": "implements"
+    },
+    {
+      "source": "release/dependency-release-age.rule.md",
+      "target": "update/unattended-update.spec.md",
+      "type": "related"
     }
   ]
 }

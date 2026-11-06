@@ -302,7 +302,7 @@ func (s bgSession) run(t *testing.T) (stdout, stderr []byte) {
 // bgReportedFDs pulls the two identities the task wrote at its first
 // instruction out of the child's stderr.
 func bgReportedFDs(stderr []byte) (fd1, fd2 string, ok bool) {
-	for _, line := range bytes.Split(stderr, []byte("\n")) {
+	for line := range bytes.SplitSeq(stderr, []byte("\n")) {
 		rest, found := bytes.CutPrefix(line, []byte(bgFDReport))
 		if !found {
 			continue
@@ -319,7 +319,7 @@ func bgReportedFDs(stderr []byte) (fd1, fd2 string, ok bool) {
 // bgChildSpawnStatus reports how the task's fork went, so a child that never
 // ran cannot pass for a child the shield contained.
 func bgChildSpawnStatus(stderr []byte) (string, bool) {
-	for _, line := range bytes.Split(stderr, []byte("\n")) {
+	for line := range bytes.SplitSeq(stderr, []byte("\n")) {
 		if rest, found := bytes.CutPrefix(line, []byte(bgChildStat)); found {
 			return string(rest), true
 		}
@@ -356,7 +356,7 @@ func TestRunStdio_BackgroundTaskWritesBehindShield(t *testing.T) {
 	if len(stdout) == 0 {
 		t.Fatal("session produced no protocol output; the shield assertions would be vacuous")
 	}
-	for _, frame := range bytes.Split(bytes.TrimRight(stdout, "\n"), []byte("\n")) {
+	for frame := range bytes.SplitSeq(bytes.TrimRight(stdout, "\n"), []byte("\n")) {
 		var probe struct {
 			JSONRPC string `json:"jsonrpc"`
 		}
@@ -412,7 +412,7 @@ func TestRunStdio_ServesAndEndsWithTheAttemptStillInFlight(t *testing.T) {
 	}.run(t)
 
 	answered := map[float64]bool{}
-	for _, frame := range bytes.Split(bytes.TrimRight(stdout, "\n"), []byte("\n")) {
+	for frame := range bytes.SplitSeq(bytes.TrimRight(stdout, "\n"), []byte("\n")) {
 		var reply struct {
 			ID     *float64        `json:"id"`
 			Result json.RawMessage `json:"result"`

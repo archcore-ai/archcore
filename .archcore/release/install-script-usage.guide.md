@@ -27,7 +27,7 @@ Set an environment variable before the pipeline: `ARCHCORE_VERSION` pins a relea
 1. Detect the operating system (`darwin`, `linux`, `windows`) and the architecture (`amd64`, `arm64`).
 2. Resolve the latest version by reading the `Location` header of `https://github.com/archcore-ai/archcore/releases/latest`, or skip the lookup when `ARCHCORE_VERSION` is set. The GitHub REST API is avoided deliberately; the related ADR records that decision. Every tag releases the plugin and the CLI together, so the redirect always lands on a release that carries the CLI assets.
 3. Download the platform archive and `checksums.txt`, and verify the SHA-256 checksum.
-4. Extract the binary and install it atomically into the install directory.
+4. Extract the binary and run it with `--version`. If that run fails, the scripts stop before the install step, so an existing install stays in place. Otherwise the scripts install the binary atomically into the install directory.
 5. Send one anonymous `cli_installed` event, then print a one-line notice. An opt-out or a script copy without an injected key skips this step silently.
 6. For each Claude Code, Codex CLI, GitHub Copilot CLI, or OpenCode command already on `PATH`, call the new binary's `archcore plugin install --agent <id>` action. The action uses user scope, checks for an existing installation, and leaves project files untouched. OpenCode gets `@archcore/opencode-plugin` in its global config. The scripts skip this step in CI or when `ARCHCORE_SKIP_PLUGIN_INSTALL` is set to a nonzero value. Cursor still requires its UI.
    - A pinned CLI of v0.14.3 or older cannot install OpenCode from the installer. The scripts skip OpenCode with a notice, and the run does not fail.

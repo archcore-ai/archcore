@@ -563,7 +563,7 @@ func TestStatus_SingletonTagWarningsAreOrdered(t *testing.T) {
 	// Sorted, not merely stable: a stable-but-arbitrary order is still a
 	// surprise to anyone scanning the list for a tag.
 	var tags []string
-	for _, line := range strings.Split(warnings[0], "\n") {
+	for line := range strings.SplitSeq(warnings[0], "\n") {
 		if _, rest, ok := strings.Cut(line, `tag "`); ok {
 			tag, _, _ := strings.Cut(rest, `"`)
 			tags = append(tags, tag)

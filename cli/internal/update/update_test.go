@@ -1733,3 +1733,19 @@ func TestCheckLatest_ContextCancelled(t *testing.T) {
 		t.Fatal("expected error for cancelled context")
 	}
 }
+
+// A typed `archcore update` probes too: the user watching it has no working
+// binary left to retry with once a broken one is in place.
+func TestNewUpdater_ProbesTheStagedBinary(t *testing.T) {
+	staged := filepath.Join(t.TempDir(), "archcore.tmp.1")
+	if err := os.WriteFile(staged, []byte("not a program"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	probe := NewUpdater("v1.0.0", "archcore-ai/archcore", "archcore").PreCommitProbe
+	if probe == nil {
+		t.Fatal("NewUpdater installs no PreCommitProbe, so typed archcore update can install a binary that cannot start")
+	}
+	if err := probe(context.Background(), staged); err == nil {
+		t.Fatal("the probe accepted a staged file that cannot run")
+	}
+}
