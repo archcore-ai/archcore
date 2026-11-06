@@ -335,7 +335,8 @@ func writeRecap(b *strings.Builder, corpus []docs.Document) {
 		if !d.InAgentContext() {
 			continue
 		}
-		//exhaustive:ignore // A rejected document is excluded from the recap upstream; naming it here would imply it can reach this switch.
+		// A rejected document is excluded from the recap upstream; naming it here would imply it can reach this switch.
+		//exhaustive:ignore
 		switch effectiveStatus(d) {
 		case templates.StatusDraft:
 			drafts = append(drafts, d)

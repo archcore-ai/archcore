@@ -181,7 +181,7 @@ go test ./cmd/ -run TestSetSettingsValue
 go test -v ./...
 ```
 
-Use Go 1.25 or newer.
+Use Go 1.26 or newer.
 
 ## Architecture
 

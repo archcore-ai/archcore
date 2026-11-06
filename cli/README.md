@@ -32,7 +32,7 @@ go vet ./... && golangci-lint run ./...
 ./scripts/regen-examples.sh             # after a change to the instruction writer
 ```
 
-From the repository root, `make build` writes `bin/archcore` and `make test-integration` runs the plugin's MCP suite against it. Use Go 1.25 or newer.
+From the repository root, `make build` writes `bin/archcore` and `make test-integration` runs the plugin's MCP suite against it. Use Go 1.26 or newer.
 
 ## Surface
 

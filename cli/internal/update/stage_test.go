@@ -189,8 +189,8 @@ func TestCheckLatest_FailureStage(t *testing.T) {
 func assertTagAddsNoText(t *testing.T, err error) {
 	t.Helper()
 
-	var se *StageError
-	if !errors.As(err, &se) {
+	se, ok := errors.AsType[*StageError](err)
+	if !ok {
 		t.Fatalf("error carries no stage: %v", err)
 	}
 	if se.Error() != se.Err.Error() {

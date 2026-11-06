@@ -334,8 +334,9 @@ func PrecisionFindings(docType templates.DocumentType, fm templates.Frontmatter,
 	steps = append(steps, observationItems(lines, templates.ObservationSections[docType])...)
 	out = append(out, profileFindings(docType, lines, clauses, steps)...)
 
-	//exhaustive:ignore // Only these types own a contract past the shared and
+	// Only these types own a contract past the shared and
 	// profile-driven checks above; every other type is judged entirely by those.
+	//exhaustive:ignore
 	switch docType {
 	case templates.TypeSpec:
 		out = append(out, specFindings(body, clauses)...)

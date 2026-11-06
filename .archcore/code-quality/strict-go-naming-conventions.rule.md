@@ -42,7 +42,7 @@ This rule is **absolute** for new code. Every clause is MUST or MUST NOT unless 
 - **MUST**: Validate enum values exhaustively, through a `map[<Type>]bool` lookup or a `switch` that lists every constant. A `switch` with only `default: false` is forbidden.
 - **MUST**: Fields referencing the enum use the typed alias. `Settings.Sync` is `SyncType`, not `string`.
 - **MUST**: Key a map on the typed enum with the constants, never with string literals. `map[DocumentType]int{"rul": 1}` compiles and silently yields the zero value.
-- **MUST**: A `switch` that deliberately handles a subset carries `//exhaustive:ignore` with the reason on the same comment.
+- **MUST**: A `switch` that deliberately handles a subset carries `//exhaustive:ignore` alone on the line directly above it, with the reason on the comment lines above the directive (`go-code-quality.rule` §Enforcement).
 
 ### I. File names
 

@@ -13,7 +13,7 @@ import (
 	"archcore-cli/internal/git"
 	archsync "archcore-cli/internal/sync"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -232,7 +232,8 @@ func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPrec
 		errored[e.Path] = true
 	}
 	for _, e := range diffEntries {
-		//exhaustive:ignore // ActionUnchanged leaves the manifest entry exactly as it is, which is what falling through does.
+		// ActionUnchanged leaves the manifest entry exactly as it is, which is what falling through does.
+		//exhaustive:ignore
 		switch e.Action {
 		case archsync.ActionCreated, archsync.ActionModified:
 			if accepted[e.RelPath] {

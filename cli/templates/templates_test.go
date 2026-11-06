@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -1100,7 +1100,7 @@ func TestWalkArchcoreFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WalkArchcoreFiles returned error: %v", err)
 	}
-	sort.Strings(collected)
+	slices.Sort(collected)
 	want := []string{"another.rfc.md", "use-postgres.adr.md"}
 	if !reflect.DeepEqual(collected, want) {
 		t.Errorf("collected = %v, want %v", collected, want)

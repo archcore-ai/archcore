@@ -90,4 +90,6 @@ Explicit conventions let an AI coding agent and a human reviewer check new code 
 - `golangci-lint run ./...` runs `errcheck`, `errname`, `exhaustive`, `revive`, `staticcheck`, and `unconvert`. The config is `.golangci.yml`; CI runs the same step.
 - The `review-go` skill checks changed Go files against what the linters cannot see. It loads every document tagged `code-quality`.
 - No linter catches the error-wrapping criterion, unnamed timeouts, or unbounded reads. Review holds them.
-- A lint deviation MUST use the analyzer's own directive with a reason — `//exhaustive:ignore // <why>` — rather than a blanket exclusion.
+- A lint deviation MUST use the analyzer's own directive with a reason, never a blanket exclusion.
+- An `exhaustive` directive MUST stand alone on the last comment line before its `switch`. Its reason MUST be on the comment lines directly above the directive: `// <why>`, then `//exhaustive:ignore`. `exhaustive` v0.15 and later rejects any text after the directive.
+- A `//nolint:<linter>` directive keeps its reason on the same line: `//nolint:<linter> // <why>`.

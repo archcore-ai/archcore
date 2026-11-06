@@ -49,11 +49,11 @@ type Updater struct {
 
 	// PreCommitProbe, when set, runs against the staged temporary binary after
 	// the synced write and before the rename. An error abandons the
-	// replacement, and the staged file is removed. The unattended policy
-	// installs healthProbe here so a download that cannot report its own
-	// version never becomes the installed binary; the manual path leaves it
-	// nil, so typed `archcore update` is unchanged —
-	// unattended-update.spec §15.
+	// replacement, and the staged file is removed. NewUpdater installs
+	// healthProbe here, so neither typed `archcore update` nor the unattended
+	// policy installs a download that cannot run on this machine: a user who
+	// watches a broken binary replace the working one has nothing left to retry
+	// with — unattended-update.spec §15.
 	PreCommitProbe func(ctx context.Context, stagedPath string) error
 }
 
@@ -64,6 +64,7 @@ func NewUpdater(currentVersion, repo, binaryName string) *Updater {
 		GitHubRepo:     repo,
 		BinaryName:     binaryName,
 		HTTPClient:     defaultHTTPClient(),
+		PreCommitProbe: healthProbe,
 	}
 }
 
@@ -605,9 +606,9 @@ func extractFromZip(archiveData []byte, candidates ...string) ([]byte, error) {
 // unattended-update.spec §15.
 const probeTimeout = 3 * time.Second
 
-// healthProbe runs the staged binary with `--version`. It returns an error when
-// the binary fails to start, exits nonzero, or does not finish within
-// probeTimeout. The unattended policy installs it as Updater.PreCommitProbe, so
+// healthProbe refuses a staged binary built for a newer macOS than this one,
+// then runs it with `--version`. It returns an error when the binary fails to
+// start, exits nonzero, or does not finish within probeTimeout. The unattended policy installs it as Updater.PreCommitProbe, so
 // a download that cannot report its own version never replaces a working
 // binary — unattended-update.spec §15.
 //
@@ -630,6 +631,11 @@ func healthProbe(ctx context.Context, stagedPath string) error {
 	// through `cli_update_failed` and through `archcore update` output, and
 	// neither carries an absolute filesystem path.
 	name := filepath.Base(stagedPath)
+
+	// Outside macOS this check accepts everything (os_minimum_other.go).
+	if err := checkOSMinimum(stagedPath); err != nil {
+		return fmt.Errorf("%s %w", name, err)
+	}
 
 	cmd := exec.CommandContext(probeCtx, stagedPath, "--version")
 	if err := cmd.Run(); err != nil {

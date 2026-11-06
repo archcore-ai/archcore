@@ -13,7 +13,7 @@ import (
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // otherProjectRefusal answers a write whose path climbs out of the call root:
@@ -78,9 +78,9 @@ func errorResult(msg string) *mcp.CallToolResult {
 // text — validation errors are built from relative manifest/settings keys and
 // are safe and valuable diagnostics.
 func sanitizeError(action string, err error) string {
-	var pathErr *fs.PathError
-	var linkErr *os.LinkError
-	if errors.As(err, &pathErr) || errors.As(err, &linkErr) {
+	_, isPathErr := errors.AsType[*fs.PathError](err)
+	_, isLinkErr := errors.AsType[*os.LinkError](err)
+	if isPathErr || isLinkErr {
 		return action + ": " + describeIOClass(err)
 	}
 	return action + ": " + err.Error()

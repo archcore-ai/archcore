@@ -319,9 +319,12 @@ func TestPrecision_ActorSubjectFindings(t *testing.T) {
 			name: "no actors table keeps the actor check silent",
 			typ:  templates.TypeScenario,
 			mutate: func(b string) string {
-				start := strings.Index(b, "## Actors")
+				before, _, found := strings.Cut(b, "## Actors")
+				if !found {
+					panic("the scenario fixture lost its ## Actors heading")
+				}
 				end := strings.Index(b, "## Flows")
-				return strings.Replace(b[:start]+b[end:], "1. Anna opens", "1. Open", 1)
+				return strings.Replace(before+b[end:], "1. Anna opens", "1. Open", 1)
 			},
 			want:    "missing section: ## Actors",
 			wantNot: "step opens with no actor",

@@ -682,8 +682,8 @@ func TestCutForJSONBudget_Boundaries(t *testing.T) {
 		{"four-byte rune fits", "ab👍cd", 6, "ab👍"},
 		{"line separator costs six", "a\u2028b", 6, "a"},
 		{"line separator fits at seven", "a\u2028b", 7, "a\u2028"},
-		{"invalid byte costs six", "a\xffb", 6, "a"},
-		{"invalid byte fits at seven", "a\xffb", 7, "a\xff"},
+		{"invalid byte over budget", "a\xffb", invalidByteLen, "a"},
+		{"invalid byte fits exactly", "a\xffb", 1 + invalidByteLen, "a\xff"},
 		{"exact fit returns the whole input", "a<b", 8, "a<b"},
 	}
 	for _, tt := range tests {

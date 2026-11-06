@@ -46,8 +46,7 @@ func stageErr(stage Stage, err error) error {
 	if err == nil {
 		return nil
 	}
-	var already *StageError
-	if errors.As(err, &already) {
+	if _, ok := errors.AsType[*StageError](err); ok {
 		return err
 	}
 	return &StageError{Stage: stage, Err: err}
@@ -56,8 +55,7 @@ func stageErr(stage Stage, err error) error {
 // StageOf reports the stage recorded in err, and whether one was found. It
 // finds a stage through any wrapping chain that supports errors.As.
 func StageOf(err error) (Stage, bool) {
-	var se *StageError
-	if errors.As(err, &se) {
+	if se, ok := errors.AsType[*StageError](err); ok {
 		return se.Stage, true
 	}
 	return "", false
