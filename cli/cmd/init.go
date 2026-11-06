@@ -15,7 +15,7 @@ import (
 	"archcore-cli/internal/plugin"
 	"archcore-cli/internal/wiring"
 
-	"github.com/charmbracelet/huh"
+	"charm.land/huh/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -230,7 +230,8 @@ func newInitCmd(version string) *cobra.Command {
 				// plugin-delivery.spec makes load-bearing.
 				//
 				reportedOverlap := false
-				//exhaustive:ignore // outcomeNonInteractive and outcomeSkipped carry no agents and cannot reach this block; the default answers them anyway.
+				// outcomeNonInteractive and outcomeSkipped carry no agents and cannot reach this block; the default answers them anyway.
+				//exhaustive:ignore
 				switch sel.outcome {
 				case outcomePicked:
 					// --yes and a session with no terminal mean the same thing
@@ -353,7 +354,8 @@ func selectAgentsForInit(baseDir string) (agentSelection, error) {
 // uses a distinct anchor word ("Cancelled", "Skipped", "non-interactive") so
 // tests can assert on stable substrings.
 func printAgentSelectionStatus(sel agentSelection) {
-	//exhaustive:ignore // outcomePicked and outcomeDetected are the success paths and print nothing — this switch reports only the ways selection ended without agents.
+	// outcomePicked and outcomeDetected are the success paths and print nothing — this switch reports only the ways selection ended without agents.
+	//exhaustive:ignore
 	switch sel.outcome {
 	case outcomeAborted:
 		fmt.Println(display.Dim.Render(

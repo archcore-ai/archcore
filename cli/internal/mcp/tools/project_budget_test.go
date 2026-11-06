@@ -29,7 +29,7 @@ func TestForPath_ReservesTheProjectField(t *testing.T) {
 		if err := os.MkdirAll(arch, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			name := "rule-" + string(rune('a'+i))
 			writeFixtureDoc(t, arch, name+".rule.md", strings.Repeat("t", titleLen), "x\n")
 		}

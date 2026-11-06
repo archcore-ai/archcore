@@ -163,7 +163,7 @@ func TestRegistryStopsAtTheDepthBound(t *testing.T) {
 func TestRegistryStopsAtTheEntryBudget(t *testing.T) {
 	home := isolateHome(t)
 	spec, _ := SpecFor(HostClaudeCode)
-	for i := 0; i < registryScanBudget; i++ {
+	for i := range registryScanBudget {
 		writeRegistryFile(t, home, fmt.Sprintf(".claude/plugins/aaa-%04d", i))
 	}
 	writeRegistryFile(t, home, ".claude/plugins/archcore")
@@ -171,7 +171,7 @@ func TestRegistryStopsAtTheEntryBudget(t *testing.T) {
 	if registryListsPlugin(spec) {
 		t.Error("the scan spent more than its entry budget")
 	}
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		if registryListsPlugin(spec) {
 			t.Fatalf("scan %d answered differently from the first, so the cut is not deterministic", i)
 		}

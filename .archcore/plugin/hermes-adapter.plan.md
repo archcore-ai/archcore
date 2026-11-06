@@ -32,7 +32,7 @@ Host facts: `NousResearch/hermes-agent` commit `cad0aaa`, release `v2026.9.24`; 
 ### Phase 2 — Profile wiring
 
 10. Add `@cli/internal/agents/hermes.go`: detection `.hermes/` or `HERMES.md`, instruction file per spec behavior 14.
-11. Write a YAML node merge for `hooks:` and `mcp_servers:` with `gopkg.in/yaml.v3`, preserving unknown keys.
+11. Write a YAML node merge for `hooks:` and `mcp_servers:` with `go.yaml.in/yaml/v3`, preserving unknown keys.
 12. Resolve the profile path from `HERMES_HOME`, else `~/.hermes/config.yaml`.
 13. Merge the consent entries into `~/.hermes/shell-hooks-allowlist.json`.
 14. Back up an invalid profile per `backup-invalid-configs.adr` before stopping.

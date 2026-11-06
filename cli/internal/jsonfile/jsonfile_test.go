@@ -28,22 +28,22 @@ func TestRead(t *testing.T) {
 		},
 		{
 			name:     "valid object preserves keys",
-			content:  strPtr(`{"b": 1, "a": {"nested": true}, "c": "x"}`),
+			content:  new(`{"b": 1, "a": {"nested": true}, "c": "x"}`),
 			wantKeys: []string{"b", "a", "c"},
 		},
 		{
 			name:    "invalid JSON is an error",
-			content: strPtr(`{"a": `),
+			content: new(`{"a": `),
 			wantErr: true,
 		},
 		{
 			name:    "whole-file null is an error",
-			content: strPtr(`null`),
+			content: new(`null`),
 			wantErr: true,
 		},
 		{
 			name:    "array is an error",
-			content: strPtr(`[1, 2]`),
+			content: new(`[1, 2]`),
 			wantErr: true,
 		},
 	}
@@ -332,9 +332,7 @@ func TestWriteAtomic(t *testing.T) {
 		readErr := make(chan error, 1)
 
 		// One reader, running for the whole write storm.
-		reader.Add(1)
-		go func() {
-			defer reader.Done()
+		reader.Go(func() {
 			fail := func(err error) {
 				select {
 				case readErr <- err:
@@ -360,13 +358,13 @@ func TestWriteAtomic(t *testing.T) {
 					return
 				}
 			}
-		}()
+		})
 
 		for _, payload := range payloads {
 			writers.Add(1)
 			go func(data []byte) {
 				defer writers.Done()
-				for n := 0; n < 40; n++ {
+				for range 40 {
 					if err := WriteAtomic(path, data); err != nil {
 						t.Errorf("WriteAtomic: %v", err)
 						return
@@ -453,5 +451,3 @@ func TestSaveDoc_RoundTripFidelity(t *testing.T) {
 		t.Errorf("escaped string content lost: %s", zeta)
 	}
 }
-
-func strPtr(s string) *string { return &s }

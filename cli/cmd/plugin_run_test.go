@@ -1119,7 +1119,7 @@ func TestUnreachedCursorHandsOverNothing(t *testing.T) {
 		t.Fatalf("the fallback printed nothing for Claude Code, so this proves nothing about Cursor:\n%s", out)
 	}
 	// Cursor is absent from it entirely: no header, and no empty handover.
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if strings.Contains(line, "Cursor") && strings.Contains(line, "yourself") {
 			t.Errorf("the fallback offered a command handover for a host with no commands:\n%s", out)
 		}

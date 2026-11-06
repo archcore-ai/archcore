@@ -33,11 +33,11 @@ builds:
         - cmd: ./scripts/assert-not-inert.sh "{{ .Path }}"
 
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     name_template: "archcore_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 
 changelog:
   format: "[{{ printf \"%.7s\" .SHA }}](https://github.com/archcore-ai/archcore/commit/{{ .SHA }}) {{ .Message }}"

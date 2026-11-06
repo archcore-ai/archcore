@@ -1,8 +1,12 @@
 package display
 
 import (
+	"bytes"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/colorprofile"
 )
 
 func TestVersionSuffix(t *testing.T) {
@@ -73,6 +77,59 @@ func TestWelcomeBanner(t *testing.T) {
 			}
 			if tt.notContain != "" && strings.Contains(wb, tt.notContain) {
 				t.Fatalf("WelcomeBanner(%q) should not contain %q: %q", tt.version, tt.notContain, wb)
+			}
+		})
+	}
+}
+
+func TestDownsample(t *testing.T) {
+	rendered := Success.Style.Render("ok")
+	tests := []struct {
+		name      string
+		profile   colorprofile.Profile
+		wantColor bool
+	}{
+		{"not a terminal strips color", colorprofile.NoTTY, false},
+		{"ascii terminal strips color", colorprofile.ASCII, false},
+		{"ansi terminal keeps color", colorprofile.ANSI, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := downsample(rendered, tt.profile)
+			if hasColor := strings.Contains(got, "\x1b[32m"); hasColor != tt.wantColor {
+				t.Fatalf("downsample(%q, %v) = %q, green present = %v, want %v", rendered, tt.profile, got, hasColor, tt.wantColor)
+			}
+			if !strings.Contains(got, "ok") {
+				t.Fatalf("downsample(%q, %v) = %q, lost the text", rendered, tt.profile, got)
+			}
+		})
+	}
+}
+
+func TestRender_AppliesTheStdoutProfile(t *testing.T) {
+	got := Success.Render("ok")
+	if want := downsample(Success.Style.Render("ok"), stdoutProfile()); got != want {
+		t.Fatalf("Success.Render(%q) = %q, want the stdout profile applied: %q", "ok", got, want)
+	}
+	if want := detectProfile(os.Stdout, os.Environ()); stdoutProfile() != want {
+		t.Fatalf("stdoutProfile() = %v, want the profile detected for stdout: %v", stdoutProfile(), want)
+	}
+}
+
+func TestDetectProfile(t *testing.T) {
+	tests := []struct {
+		name string
+		env  []string
+		want colorprofile.Profile
+	}{
+		{"pipe writes no escape", []string{"TERM=xterm-256color"}, colorprofile.NoTTY},
+		{"NO_COLOR on a terminal writes no escape, as Lip Gloss v1 did", []string{"TERM=xterm-256color", "TTY_FORCE=1", "NO_COLOR=1"}, colorprofile.NoTTY},
+		{"forced color keeps color", []string{"TERM=xterm-256color", "CLICOLOR_FORCE=1"}, colorprofile.ANSI256},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := detectProfile(&bytes.Buffer{}, tt.env); got != tt.want {
+				t.Fatalf("detectProfile(buffer, %q) = %v, want %v", tt.env, got, tt.want)
 			}
 		})
 	}

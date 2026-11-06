@@ -441,6 +441,26 @@ function Add-ToUserPath {
 # successful install — and silently, because `*> $null` discarded the error text
 # along with everything else. PowerShell 7 does not perform that conversion,
 # which is why the failure only appeared once CI started running both shells.
+# Test-Runs reports whether the extracted binary starts here, so a build for a
+# newer Windows than this one never replaces a working install. It carries the
+# same Windows PowerShell 5.1 stderr guard as Test-Install below.
+function Test-Runs {
+    param([string]$Exe)
+
+    $exitCode = $null
+    $previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $Exe --version *> $null
+        $exitCode = $LASTEXITCODE
+    } catch {
+        $exitCode = -1
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    return ($exitCode -eq 0)
+}
+
 function Test-Install {
     param([string]$InstallPath)
 
@@ -602,6 +622,9 @@ function main {
     $script:STAGE = 'extract'
     Write-Info 'Extracting...'
     $extractedExe = Expand-Release -ZipPath $archivePath -TmpDir $script:tmp_dir
+    if (-not (Test-Runs -Exe $extractedExe)) {
+        Write-ErrExit "archcore v$version does not run on this system, so nothing was installed."
+    }
 
     # Install
     $script:STAGE = 'install'

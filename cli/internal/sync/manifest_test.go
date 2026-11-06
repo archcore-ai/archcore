@@ -357,7 +357,7 @@ func TestValidateManifest(t *testing.T) {
 			name: "too many entries",
 			manifest: func() *Manifest {
 				m := &Manifest{Version: 1, Files: make(map[string]string)}
-				for i := 0; i < 10001; i++ {
+				for i := range 10001 {
 					key := fmt.Sprintf("vision/file-%05d.md", i)
 					m.Files[key] = testHash1
 				}

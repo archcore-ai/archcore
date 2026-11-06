@@ -361,7 +361,7 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 			if matchMode == matchModeExact {
 				tokens = []string{strings.ToLower(contentFilter)}
 			} else {
-				for _, word := range strings.Fields(strings.ToLower(contentFilter)) {
+				for word := range strings.FieldsSeq(strings.ToLower(contentFilter)) {
 					if folded := strings.TrimSpace(foldSeparators(word)); folded != "" {
 						tokens = append(tokens, folded)
 					}

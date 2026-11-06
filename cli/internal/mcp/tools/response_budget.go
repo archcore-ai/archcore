@@ -165,6 +165,13 @@ func jsonStringLen(s string) int {
 	return total
 }
 
+// invalidByteLen is what this binary's encoding/json writes for one invalid
+// UTF-8 byte: a six-byte \ufffd before Go 1.27, a raw three-byte U+FFFD since.
+var invalidByteLen = func() int {
+	data, _ := json.Marshal("\xff") // a string always marshals
+	return len(data) - len(`""`)
+}()
+
 // jsonRuneLen returns the encoded size and the source width of the first rune
 // of s, which must not be empty.
 func jsonRuneLen(s string) (size, width int) {
@@ -181,7 +188,10 @@ func jsonRuneLen(s string) (size, width int) {
 		}
 	}
 	r, width := utf8.DecodeRuneInString(s)
-	if (r == utf8.RuneError && width == 1) || r == '\u2028' || r == '\u2029' {
+	if r == utf8.RuneError && width == 1 {
+		return invalidByteLen, width
+	}
+	if r == '\u2028' || r == '\u2029' {
 		return escapedRune, width
 	}
 	return width, width

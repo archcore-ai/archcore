@@ -163,15 +163,15 @@ func TestHooksInstall_ForeignEntriesSurviveEveryEvent(t *testing.T) {
 
 	hooks := readHooksSection(t, base, ".claude/settings.json")
 	for event, wantForeign := range map[string]string{"PreToolUse": "other-tool guard", "PostToolUse": "other-tool report"} {
-		joined := ""
+		var joined strings.Builder
 		for _, e := range hooks[event] {
-			joined += string(e)
+			joined.WriteString(string(e))
 		}
-		if !strings.Contains(joined, wantForeign) {
-			t.Errorf("%s: foreign entry %q was dropped:\n%s", event, wantForeign, joined)
+		if !strings.Contains(joined.String(), wantForeign) {
+			t.Errorf("%s: foreign entry %q was dropped:\n%s", event, wantForeign, joined.String())
 		}
-		if !strings.Contains(joined, "archcore hooks claude-code") {
-			t.Errorf("%s: archcore entry was not added:\n%s", event, joined)
+		if !strings.Contains(joined.String(), "archcore hooks claude-code") {
+			t.Errorf("%s: archcore entry was not added:\n%s", event, joined.String())
 		}
 	}
 }

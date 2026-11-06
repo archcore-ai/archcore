@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -249,9 +250,7 @@ func validateRelations(m *Manifest) []string {
 // snapshot never observe concurrent modification.
 func (m *Manifest) Clone() *Manifest {
 	out := &Manifest{Version: m.Version, Files: make(map[string]string, len(m.Files))}
-	for k, v := range m.Files {
-		out.Files[k] = v
-	}
+	maps.Copy(out.Files, m.Files)
 	out.Relations = slices.Clone(m.Relations)
 	return out
 }
