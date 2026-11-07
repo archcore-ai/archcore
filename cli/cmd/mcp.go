@@ -202,16 +202,22 @@ func newMCPInstallCmd() *cobra.Command {
 	return cmd
 }
 
-// runMCPInstallForAgent installs MCP config for a specific agent.
 func runMCPInstallForAgent(baseDir string, id agents.AgentID) error {
 	if !config.DirExists(baseDir) {
 		return errors.New(".archcore/ not found — run 'archcore init' first")
 	}
-	agent := agents.ByID(id)
-	if agent == nil {
-		return fmt.Errorf("unknown agent %q — valid agents: %v", id, agents.AllIDs())
+	agent, err := agentByID(id)
+	if err != nil {
+		return err
 	}
 	return installMCPForAgent(baseDir, agent)
+}
+
+func agentByID(id agents.AgentID) (*agents.Agent, error) {
+	if agent := agents.ByID(id); agent != nil {
+		return agent, nil
+	}
+	return nil, fmt.Errorf("unknown agent %q — valid agents: %v", id, agents.AllIDs())
 }
 
 // runMCPInstallAutoDetect detects agents and installs MCP config for all found.
@@ -237,7 +243,6 @@ func runMCPInstallAutoDetect(baseDir string) error {
 	return nil
 }
 
-// installMCPForAgent installs MCP config for a single agent.
 func installMCPForAgent(baseDir string, agent *agents.Agent) error {
 	if agent.ManualMCPInstallHint != "" {
 		fmt.Println(display.WarnLine(fmt.Sprintf("%s: %s", agent.DisplayName, agent.ManualMCPInstallHint)))

@@ -17,12 +17,8 @@ import (
 // covers the hosts with no host-side auto-update, and Claude Code gets both.
 
 const (
-	// extraKnownMarketplacesKey is the settings key Claude Code reads its known
-	// marketplaces from.
 	extraKnownMarketplacesKey = "extraKnownMarketplaces"
 
-	// marketplaceSourceKey and marketplaceAutoUpdateKey are the two fields the
-	// entry carries.
 	marketplaceSourceKey     = "source"
 	marketplaceAutoUpdateKey = "autoUpdate"
 )

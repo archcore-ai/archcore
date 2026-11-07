@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"archcore-cli/internal/display"
@@ -25,8 +24,6 @@ import (
 // classified foreign and therefore untouched.
 const archcoreHookMarker = "archcore hooks "
 
-// isArchcoreHookCommand reports whether command is an archcore-written hook
-// invocation (see archcoreHookMarker).
 func isArchcoreHookCommand(command string) bool {
 	return strings.HasPrefix(command, archcoreHookMarker)
 }
@@ -49,17 +46,6 @@ const (
 // the entry returns entryForeign — foreign or malformed entries are never
 // treated as archcore's and never touched.
 type hookEntryProbe func(entry, want json.RawMessage, ev hookEventInstall) hookEntryClass
-
-// jsonEqual compares two encoded values by structure rather than by bytes. The
-// stored entry has been through MarshalIndent, so its whitespace and key order
-// differ from a freshly marshaled one even when nothing about it changed.
-func jsonEqual(a, b json.RawMessage) bool {
-	var x, y any
-	if json.Unmarshal(a, &x) != nil || json.Unmarshal(b, &y) != nil {
-		return false
-	}
-	return reflect.DeepEqual(x, y)
-}
 
 // overlayEntry merges want onto existing and returns the result. Every field
 // archcore writes takes want's value; every field it does not write — a host's
@@ -147,25 +133,13 @@ type hookInstallSpec struct {
 	Events        []hookEventInstall
 }
 
-func (s hookInstallSpec) alreadyInstalledLine(event string) string {
+// line renders one progress line; verb is lowercase and the unlabeled form
+// (Claude Code) capitalizes it.
+func (s hookInstallSpec) line(verb, event string) string {
 	if s.Label == "" {
-		return fmt.Sprintf("Already installed: %s", event)
+		return fmt.Sprintf("%s%s: %s", strings.ToUpper(verb[:1]), verb[1:], event)
 	}
-	return fmt.Sprintf("%s: already installed: %s", s.Label, event)
-}
-
-func (s hookInstallSpec) installedLine(event string) string {
-	if s.Label == "" {
-		return fmt.Sprintf("Installed hook: %s", event)
-	}
-	return fmt.Sprintf("%s: installed hook: %s", s.Label, event)
-}
-
-func (s hookInstallSpec) updatedLine(event string) string {
-	if s.Label == "" {
-		return fmt.Sprintf("Updated hook: %s", event)
-	}
-	return fmt.Sprintf("%s: updated hook: %s", s.Label, event)
+	return fmt.Sprintf("%s: %s: %s", s.Label, verb, event)
 }
 
 // installHookEvents installs the spec's hook entries into the JSON config at
@@ -238,7 +212,7 @@ func installHookEvents(spec hookInstallSpec) error {
 		}
 
 		if current && len(staleIdx) == 0 {
-			fmt.Println(display.WarnLine(spec.alreadyInstalledLine(ev.Event)))
+			fmt.Println(display.WarnLine(spec.line("already installed", ev.Event)))
 			continue
 		}
 
@@ -247,7 +221,7 @@ func installHookEvents(spec hookInstallSpec) error {
 			// pre-marker CLI): drop the stale ones, keep everything else.
 			hooks.Set(ev.Event, deleteIndices(entries, staleIdx))
 			changed = true
-			fmt.Println(display.CheckLine(spec.updatedLine(ev.Event)))
+			fmt.Println(display.CheckLine(spec.line("updated hook", ev.Event)))
 			continue
 		}
 
@@ -255,23 +229,23 @@ func installHookEvents(spec hookInstallSpec) error {
 			// Archcore-owned entry with an outdated command: merge our fields
 			// into the first in place, drop any further stale duplicates.
 			merged := overlayEntry(entries[staleIdx[0]], want)
-			if len(staleIdx) == 1 && jsonEqual(merged, entries[staleIdx[0]]) {
+			if len(staleIdx) == 1 && jsonfile.Equal(merged, entries[staleIdx[0]]) {
 				// Only unknown fields set this entry apart, and the merge left
 				// them alone — there is nothing to carry to the host, so the
 				// file is not touched at all.
-				fmt.Println(display.WarnLine(spec.alreadyInstalledLine(ev.Event)))
+				fmt.Println(display.WarnLine(spec.line("already installed", ev.Event)))
 				continue
 			}
 			entries[staleIdx[0]] = merged
 			hooks.Set(ev.Event, deleteIndices(entries, staleIdx[1:]))
 			changed = true
-			fmt.Println(display.CheckLine(spec.updatedLine(ev.Event)))
+			fmt.Println(display.CheckLine(spec.line("updated hook", ev.Event)))
 			continue
 		}
 
 		hooks.Set(ev.Event, append(entries, json.RawMessage(entryJSON)))
 		changed = true
-		fmt.Println(display.CheckLine(spec.installedLine(ev.Event)))
+		fmt.Println(display.CheckLine(spec.line("installed hook", ev.Event)))
 	}
 
 	if !changed {
@@ -288,7 +262,6 @@ func installHookEvents(spec hookInstallSpec) error {
 }
 
 // deleteIndices returns entries with the given (ascending) indices removed.
-// An empty index list returns entries unchanged.
 func deleteIndices(entries []json.RawMessage, idx []int) []json.RawMessage {
 	if len(idx) == 0 {
 		return entries
@@ -310,7 +283,7 @@ func deleteIndices(entries []json.RawMessage, idx []int) []json.RawMessage {
 // entry mixing archcore and foreign hooks is left alone (classified foreign)
 // so an update never drops someone else's hook.
 func matcherEntryHasCommand(entry, want json.RawMessage, ev hookEventInstall) hookEntryClass {
-	if jsonEqual(entry, want) {
+	if jsonfile.Equal(entry, want) {
 		return entryCurrent
 	}
 	var m struct {
@@ -360,7 +333,7 @@ func commandEntryHasCommand(entry, want json.RawMessage, _ hookEventInstall) hoo
 		return entryForeign
 	}
 	switch {
-	case jsonEqual(entry, want):
+	case jsonfile.Equal(entry, want):
 		return entryCurrent
 	case isArchcoreHookCommand(e.Command):
 		return entryStaleArchcore
@@ -378,7 +351,7 @@ func bashEntryHasCommand(entry, want json.RawMessage, _ hookEventInstall) hookEn
 		return entryForeign
 	}
 	switch {
-	case jsonEqual(entry, want):
+	case jsonfile.Equal(entry, want):
 		return entryCurrent
 	case isArchcoreHookCommand(e.Bash):
 		return entryStaleArchcore

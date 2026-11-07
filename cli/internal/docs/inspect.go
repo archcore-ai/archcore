@@ -144,7 +144,6 @@ func InspectGlobals(baseDir string) ([]GlobalInspection, error) {
 	return out, nil
 }
 
-// stateForDirErr maps a config.CheckGlobalDir sentinel to a GlobalState.
 func stateForDirErr(err error) GlobalState {
 	switch {
 	case errors.Is(err, config.ErrGlobalMissing):
@@ -182,7 +181,7 @@ func countGlobalDocs(resolvedDir string) (globalDocCounts, error) {
 		byCategory: make(map[templates.Category]int),
 		topDirs:    make(map[string]int),
 	}
-	err := templates.WalkArchcoreFilesSkipping(resolvedDir, nil, func(p string, d fs.DirEntry) error {
+	err := templates.WalkArchcoreFiles(resolvedDir, func(p string, d fs.DirEntry) error {
 		docType := templates.DocumentType(templates.ExtractDocType(d.Name()))
 		if !templates.IsValidType(string(docType)) {
 			return nil

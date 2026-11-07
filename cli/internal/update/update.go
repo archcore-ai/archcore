@@ -222,13 +222,13 @@ func NewerSemver(current, latest string) (newer, ok bool) {
 	// Major.minor.patch are equal — compare pre-release.
 	// Per SemVer: release (no pre-release) > any pre-release.
 	if curPre != "" && latPre == "" {
-		return true, true // current is pre-release, latest is release
+		return true, true
 	}
 	if curPre == "" && latPre != "" {
-		return false, true // current is release, latest is pre-release
+		return false, true
 	}
 	if curPre == "" && latPre == "" {
-		return false, true // both are releases, identical
+		return false, true
 	}
 
 	return comparePreRelease(curPre, latPre) < 0, true
@@ -279,7 +279,6 @@ func comparePreRelease(a, b string) int {
 
 		switch {
 		case aErr == nil && bErr == nil:
-			// Both numeric: compare as integers.
 			if aNum < bNum {
 				return -1
 			}
@@ -292,7 +291,6 @@ func comparePreRelease(a, b string) int {
 		case aErr != nil && bErr == nil:
 			return 1
 		default:
-			// Both alphanumeric: compare lexically.
 			if aParts[i] < bParts[i] {
 				return -1
 			}
@@ -463,7 +461,6 @@ func findChecksum(checksums []byte, filename string) (string, error) {
 	return "", fmt.Errorf("checksum not found for %s", filename)
 }
 
-// sha256sum computes the hex-encoded SHA-256 digest of data.
 func sha256sum(data []byte) string {
 	h := sha256.Sum256(data)
 	return hex.EncodeToString(h[:])
@@ -497,7 +494,6 @@ func isZipArchive(data []byte) bool {
 	return len(data) >= 4 && data[0] == 'P' && data[1] == 'K' && data[2] == 0x03 && data[3] == 0x04
 }
 
-// makeCandidateSet returns a presence-only set of the candidate names.
 func makeCandidateSet(candidates []string) map[string]struct{} {
 	set := make(map[string]struct{}, len(candidates))
 	for _, c := range candidates {
@@ -624,7 +620,13 @@ const probeTimeout = 3 * time.Second
 // stream. A nil Stdout and Stderr connect the child to the null device rather
 // than to ours.
 func healthProbe(ctx context.Context, stagedPath string) error {
-	probeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), probeTimeout)
+	return probeWithin(ctx, stagedPath, probeTimeout)
+}
+
+// probeWithin is healthProbe with its budget as a parameter, so a test of the
+// exit-status arms does not also race a loaded machine against probeTimeout.
+func probeWithin(ctx context.Context, stagedPath string, budget time.Duration) error {
+	probeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), budget)
 	defer cancel()
 
 	// The staged name, not the staged path: a probe failure reaches the user
@@ -640,7 +642,7 @@ func healthProbe(ctx context.Context, stagedPath string) error {
 	cmd := exec.CommandContext(probeCtx, stagedPath, "--version")
 	if err := cmd.Run(); err != nil {
 		if errors.Is(probeCtx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("%s --version did not finish within %s", name, probeTimeout)
+			return fmt.Errorf("%s --version did not finish within %s", name, budget)
 		}
 		return fmt.Errorf("running %s --version: %w", name, err)
 	}
@@ -673,6 +675,7 @@ func atomicReplace(ctx context.Context, target string, data []byte, probe func(c
 		}
 	}
 
+	// On Windows a nil here is not crash-durable: see replace_windows.go.
 	return commitStaged(target, tmpPath)
 }
 
@@ -741,7 +744,7 @@ func binaryMode(target string) fs.FileMode {
 const leftoverGrace = 5 * time.Minute
 
 // sweepAttemptLeftovers removes staged temporaries and Windows asides that
-// earlier attempts left next to the target — "<base>.tmp.*" and "<base>.old.*".
+// earlier attempts left next to the target — "<base>.tmp.<pid>" and "<base>.old.<pid>".
 // Every failure is ignored: the sweep is housekeeping, and a leftover temporary
 // is invisible to a user, who sees only the binary name.
 func sweepAttemptLeftovers(dir, base string) {
@@ -751,7 +754,7 @@ func sweepAttemptLeftovers(dir, base string) {
 	}
 	for _, e := range entries {
 		name := e.Name()
-		if !strings.HasPrefix(name, base+stagedSuffix) && !strings.HasPrefix(name, base+asideSuffix) {
+		if !isAttemptLeftover(name, base) {
 			continue
 		}
 		// A file young enough to belong to an attempt still in flight is left
@@ -767,39 +770,16 @@ func sweepAttemptLeftovers(dir, base string) {
 	}
 }
 
-// commitStaged renames the staged file over target, removing it on any failure
-// so an abandoned attempt leaves nothing behind. Windows cannot overwrite a
-// running .exe, so it commits through commitViaAside instead.
-func commitStaged(target, tmpPath string) error {
-	if runtime.GOOS == "windows" {
-		return commitViaAside(target, tmpPath)
+// isAttemptLeftover reports whether name is "<base>.tmp.<pid>" or
+// "<base>.old.<pid>" — the only names an attempt writes. Requiring the digits
+// keeps a user's own "archcore.old.0.9.0" backup out of the sweep.
+func isAttemptLeftover(name, base string) bool {
+	for _, suffix := range []string{stagedSuffix, asideSuffix} {
+		if pid, ok := strings.CutPrefix(name, base+suffix); ok && pid != "" && strings.Trim(pid, "0123456789") == "" {
+			return true
+		}
 	}
-
-	if err := os.Rename(tmpPath, target); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("renaming temp to target: %w", err)
-	}
-	// writeBinarySynced made the contents durable; this makes the directory
-	// entry that points at them durable too. Best-effort on purpose: the binary
-	// is already in place, so a failure here must not report a completed update
-	// as failed.
-	_ = syncDir(filepath.Dir(target))
-
-	return nil
-}
-
-// syncDir fsyncs a directory so a rename inside it survives a power loss.
-// Windows exposes no directory handle to sync and answers nil.
-func syncDir(dir string) error {
-	if runtime.GOOS == "windows" {
-		return nil
-	}
-	d, err := os.Open(dir)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = d.Close() }()
-	return d.Sync()
+	return false
 }
 
 // asidePath names the Windows rename-aside for one attempt: "<target>.old.<pid>".
@@ -831,7 +811,6 @@ func commitViaAside(target, tmpPath string) error {
 		return fmt.Errorf("renaming target aside: %w", err)
 	}
 	if err := os.Rename(tmpPath, target); err != nil {
-		// Roll back so the user is not left without a binary.
 		_ = os.Remove(tmpPath)
 		if rollbackErr := os.Rename(oldPath, target); rollbackErr != nil && !errors.Is(rollbackErr, fs.ErrNotExist) {
 			return errors.Join(

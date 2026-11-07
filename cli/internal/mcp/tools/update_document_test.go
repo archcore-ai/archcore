@@ -2,11 +2,13 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -860,5 +862,43 @@ func TestHandleUpdateDocument_ResponseTagsOnlyWhenPresent(t *testing.T) {
 				t.Errorf("tags = %#v, want %#v", tags, tt.wantTags)
 			}
 		})
+	}
+}
+
+// Handlers run on mcp-go's worker pool, so parallel edits of one document must
+// all land rather than the last rename winning.
+func TestHandleUpdateDocument_ParallelEditsAllLand(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	const edits = 8
+	var body strings.Builder
+	for i := range edits {
+		fmt.Fprintf(&body, "line-%d\n", i)
+	}
+	writeDoc(t, base, "knowledge", "my-adr.adr.md", "---\ntitle: T\nstatus: draft\n---\n\n"+body.String())
+
+	handler := HandleUpdateDocument(StaticRoot(base))
+	var wg sync.WaitGroup
+	for i := range edits {
+		wg.Go(func() {
+			result, err := callTool(handler, map[string]any{
+				"path":  ".archcore/knowledge/my-adr.adr.md",
+				"edits": []any{map[string]any{"old_string": fmt.Sprintf("line-%d\n", i), "new_string": fmt.Sprintf("done-%d\n", i)}},
+			})
+			if err != nil || result.IsError {
+				t.Errorf("edit %d failed: %v %+v", i, err, result)
+			}
+		})
+	}
+	wg.Wait()
+
+	data, err := os.ReadFile(filepath.Join(base, ".archcore", "knowledge", "my-adr.adr.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range edits {
+		if !strings.Contains(string(data), fmt.Sprintf("done-%d\n", i)) {
+			t.Errorf("edit %d was lost:\n%s", i, data)
+		}
 	}
 }

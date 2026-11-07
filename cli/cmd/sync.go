@@ -89,7 +89,6 @@ func newSyncCmd(version string) *cobra.Command {
 // testability. When the sync gate in newSyncCmd is lifted, its RunE becomes:
 // checkSyncPreconditions(cwd) → api.NewSyncClient(pre.ServerURL) → doSync.
 func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPreconditions, client syncClient, version string) error {
-	// 2. Load manifest and scan files.
 	manifest, err := archsync.LoadManifest(baseDir)
 	if err != nil {
 		return fmt.Errorf("loading manifest: %w", err)
@@ -100,7 +99,6 @@ func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPrec
 		return fmt.Errorf("scanning files: %w", err)
 	}
 
-	// 3. Calculate diff.
 	var diffEntries []archsync.DiffEntry
 	if flags.Force {
 		// Treat all current files as modified (full re-sync).
@@ -126,7 +124,6 @@ func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPrec
 		diffEntries = archsync.Diff(currentFiles, manifest)
 	}
 
-	// 4. Report diff summary.
 	created := archsync.FilterByAction(diffEntries, archsync.ActionCreated)
 	modified := archsync.FilterByAction(diffEntries, archsync.ActionModified)
 	deleted := archsync.FilterByAction(diffEntries, archsync.ActionDeleted)
@@ -158,13 +155,11 @@ func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPrec
 	}
 	fmt.Println()
 
-	// 5. Dry-run exit point.
 	if flags.DryRun {
 		fmt.Println(display.Dim.Render("  Dry run — no changes sent to server."))
 		return nil
 	}
 
-	// 6. Interactive confirmation (skip in CI mode).
 	if !flags.CI {
 		var confirm bool
 		err := huh.NewConfirm().
@@ -180,13 +175,11 @@ func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPrec
 		}
 	}
 
-	// 7. Build payload and send.
 	payload, err := archsync.BuildPayload(baseDir, diffEntries)
 	if err != nil {
 		return fmt.Errorf("building sync payload: %w", err)
 	}
 
-	// Set project_id or project_name on the payload.
 	if pre.ProjectID != nil {
 		payload.ProjectID = pre.ProjectID
 	} else {
@@ -219,7 +212,7 @@ func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPrec
 		}
 	}
 
-	// 8. Update manifest — only for changes the server confirmed
+	// Only changes the server confirmed update the manifest
 	// (sync-manifest-update-on-success-only.rule). A file the server rejected
 	// keeps its old hash so the next sync retries it; recording it as synced
 	// would silently drop the document from the server forever.
@@ -249,7 +242,6 @@ func doSync(ctx context.Context, baseDir string, flags *syncFlags, pre *syncPrec
 		return fmt.Errorf("saving manifest: %w", err)
 	}
 
-	// 9. Report success.
 	acceptedCount := len(resp.Accepted)
 	if len(resp.Errors) > 0 {
 		fmt.Println(display.WarnLine(fmt.Sprintf("Synced %d file(s), %d error(s)", acceptedCount, len(resp.Errors))))

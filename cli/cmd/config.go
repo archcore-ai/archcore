@@ -163,7 +163,6 @@ func setSettingsValue(s *config.Settings, key, value string) error {
 		}
 	case "archcore_url":
 		if s.Sync != config.SyncTypeOnPrem {
-			// Setting archcore_url implies on-prem sync mode.
 			s.Sync = config.SyncTypeOnPrem
 		}
 		value = strings.TrimRight(value, "/")

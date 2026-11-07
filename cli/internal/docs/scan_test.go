@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
+	"sync"
 	"testing"
 
 	"archcore-cli/internal/config"
@@ -238,8 +240,37 @@ func TestWriteFileAtomic_LeavesNoTempOnFailure(t *testing.T) {
 	if err := WriteFileAtomic(target, []byte("x")); err == nil {
 		t.Fatal("expected a write into a missing directory to fail")
 	}
-	if _, err := os.Stat(target + ".tmp"); err == nil {
-		t.Error("the temp file was left behind")
+	if left, _ := filepath.Glob(target + ".tmp*"); len(left) > 0 {
+		t.Errorf("temp files were left behind: %v", left)
+	}
+}
+
+// TestWriteFileAtomic_ConcurrentWritesStayWhole: parallel writers to one
+// document each publish a complete file and leave no temp behind.
+func TestWriteFileAtomic_ConcurrentWritesStayWhole(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "a.rule.md")
+	bodies := []string{strings.Repeat("A", 1<<16), strings.Repeat("B", 1<<16)}
+
+	var wg sync.WaitGroup
+	for i := range 20 {
+		wg.Go(func() {
+			if err := WriteFileAtomic(target, []byte(bodies[i%2])); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != bodies[0] && string(got) != bodies[1] {
+		t.Errorf("published a torn document of %d bytes", len(got))
+	}
+	if left, _ := filepath.Glob(target + ".tmp*"); len(left) > 0 {
+		t.Errorf("temp files were left behind: %v", left)
 	}
 }
 

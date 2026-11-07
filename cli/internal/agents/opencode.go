@@ -24,7 +24,6 @@ func openCodeAgent() *Agent {
 	}
 }
 
-// openCodeMCPEntry is the format OpenCode uses for MCP servers.
 type openCodeMCPEntry struct {
 	Type    string   `json:"type"`
 	Command []string `json:"command"`

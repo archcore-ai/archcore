@@ -154,11 +154,9 @@ func ValidateManifest(m *Manifest) []string {
 	return issues
 }
 
-// validateFileEntry checks a single file entry for path and hash issues.
 func validateFileEntry(path string, hash string) []string {
 	var issues []string
 
-	// Path checks: reuse validateRelPath logic.
 	if err := validateRelPath(path); err != nil {
 		issues = append(issues, fmt.Sprintf("file %q: %v", path, err))
 	}
@@ -170,7 +168,6 @@ func validateFileEntry(path string, hash string) []string {
 		issues = append(issues, fmt.Sprintf("file %q: has trailing slash", path))
 	}
 
-	// Hash checks.
 	if hash == "" {
 		issues = append(issues, fmt.Sprintf("file %q: hash is empty", path))
 	} else if !sha256Re.MatchString(hash) {
@@ -329,19 +326,34 @@ func (m *Manifest) RelationOverlaps(source, target string, relType RelationType)
 // exist on disk. Paths in relations are relative to archcoreDir. Returns the
 // number of removed relations.
 func (m *Manifest) CleanupRelations(archcoreDir string) int {
+	return m.DropRelationsTo(MissingEnds(archcoreDir, m.Relations))
+}
+
+// MissingEnds returns the relation endpoints, relative to archcoreDir, that do
+// not exist on disk. A stat error other than not-exist counts as present.
+func MissingEnds(archcoreDir string, relations []Relation) map[string]bool {
+	missing := map[string]bool{}
+	seen := map[string]bool{}
+	for _, rel := range relations {
+		for _, end := range [2]string{rel.Source, rel.Target} {
+			if seen[end] {
+				continue
+			}
+			seen[end] = true
+			if _, err := os.Stat(filepath.Join(archcoreDir, end)); errors.Is(err, fs.ErrNotExist) {
+				missing[end] = true
+			}
+		}
+	}
+	return missing
+}
+
+// DropRelationsTo removes every relation with an endpoint in missing and
+// returns how many it removed.
+func (m *Manifest) DropRelationsTo(missing map[string]bool) int {
 	kept := m.Relations[:0]
 	for _, rel := range m.Relations {
-		srcPath := filepath.Join(archcoreDir, rel.Source)
-		tgtPath := filepath.Join(archcoreDir, rel.Target)
-		srcExists := true
-		tgtExists := true
-		if _, err := os.Stat(srcPath); errors.Is(err, fs.ErrNotExist) {
-			srcExists = false
-		}
-		if _, err := os.Stat(tgtPath); errors.Is(err, fs.ErrNotExist) {
-			tgtExists = false
-		}
-		if srcExists && tgtExists {
+		if !missing[rel.Source] && !missing[rel.Target] {
 			kept = append(kept, rel)
 		}
 	}

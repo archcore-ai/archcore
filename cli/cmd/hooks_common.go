@@ -18,9 +18,9 @@ import (
 	"archcore-cli/templates"
 )
 
-// maxSessionTags caps the number of tags emitted in SessionStart context.
-// Capped at 20 (top-N by frequency) to limit static token overhead per session
-// while preserving enough coverage for projects with rich tag namespaces.
+// maxSessionTags keeps the top tags by frequency in SessionStart context: it
+// bounds the static token overhead per session while still covering projects
+// with rich tag namespaces.
 const maxSessionTags = 20
 
 // Session recap budget. Output size is a function of these caps, not of corpus
@@ -125,7 +125,6 @@ func buildSessionContext(ctx context.Context, baseDir string) (string, sessionDo
 		fmt.Fprintf(&b, "\nEXISTING TAGS: %s\n", strings.Join(tags, ", "))
 	}
 
-	// Document relations summary.
 	if m, mErr := archsync.LoadManifest(baseDir); mErr == nil && len(m.Relations) > 0 {
 		fmt.Fprintf(&b, "\nDOCUMENT RELATIONS: %d relation(s) stored.\n", len(m.Relations))
 		b.WriteString("  Use list_relations, add_relation, remove_relation MCP tools to manage.\n")
@@ -295,13 +294,6 @@ func writeCorpusLine(b *strings.Builder, corpus []docs.Document, hasGlobals bool
 		byStatus[effectiveStatus(d)]++
 	}
 
-	var cats []string
-	for _, cat := range []templates.Category{templates.CategoryKnowledge, templates.CategoryVision, templates.CategoryExperience} {
-		if n := byCategory[cat]; n > 0 {
-			cats = append(cats, fmt.Sprintf("%s %d", cat, n))
-		}
-	}
-
 	var statuses []string
 	for _, st := range []templates.DocStatus{templates.StatusDraft, templates.StatusAccepted, templates.StatusRejected} {
 		if n := byStatus[st]; n > 0 {
@@ -310,7 +302,7 @@ func writeCorpusLine(b *strings.Builder, corpus []docs.Document, hasGlobals bool
 	}
 
 	fmt.Fprintf(b, "\nCORPUS: %d %s — %s · %s\n",
-		len(corpus), label, strings.Join(cats, ", "), strings.Join(statuses, ", "))
+		len(corpus), label, categorySummary(byCategory), strings.Join(statuses, ", "))
 }
 
 // writeBranchLine names the checked-out branch. It is omitted entirely outside a

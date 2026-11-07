@@ -58,7 +58,7 @@ func HandleInitProject(root RootProvider) func(ctx context.Context, request mcp.
 		existing, err := config.Load(baseDir)
 		switch {
 		case err == nil:
-			return initResultPayload(existing, true), nil
+			return initResultPayload(existing, true)
 		case !errors.Is(err, fs.ErrNotExist):
 			return errorResult(sanitizeError("existing settings unreadable", err)), nil
 		}
@@ -85,11 +85,11 @@ func HandleInitProject(root RootProvider) func(ctx context.Context, request mcp.
 			return errorResult(sanitizeError("saving settings", err)), nil
 		}
 
-		return initResultPayload(settings, false), nil
+		return initResultPayload(settings, false)
 	}
 }
 
-func initResultPayload(s *config.Settings, alreadyInitialized bool) *mcp.CallToolResult {
+func initResultPayload(s *config.Settings, alreadyInitialized bool) (*mcp.CallToolResult, error) {
 	payload := map[string]any{
 		"initialized":         true,
 		"already_initialized": alreadyInitialized,
@@ -97,7 +97,7 @@ func initResultPayload(s *config.Settings, alreadyInitialized bool) *mcp.CallToo
 	}
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return errorResult(fmt.Sprintf("marshaling result: %v", err))
+		return nil, fmt.Errorf("marshaling result: %w", err)
 	}
-	return mcp.NewToolResultText(string(data))
+	return mcp.NewToolResultText(string(data)), nil
 }

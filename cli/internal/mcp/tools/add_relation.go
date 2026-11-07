@@ -8,15 +8,18 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"archcore-cli/internal/sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
+
+// beforeRelationMutate is a test seam between the endpoint reads of
+// add_relation and remove_document and their manifest lock; production never
+// reassigns it.
+var beforeRelationMutate = func() {}
 
 func NewAddRelationTool() mcp.Tool {
 	return mcp.NewTool("add_relation",
@@ -58,58 +61,22 @@ Both endpoints must be distinct existing documents inside one project; for a glo
 
 func HandleAddRelation(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		source, err := request.RequireString("source")
-		if err != nil {
-			return errorResult(err.Error()), nil
-		}
-		target, err := request.RequireString("target")
-		if err != nil {
-			return errorResult(err.Error()), nil
-		}
-		relType, err := request.RequireString("type")
-		if err != nil {
-			return errorResult(err.Error()), nil
-		}
-
-		if !sync.IsValidRelationType(relType) {
-			return errorResult("invalid relation type: " + relType), nil
-		}
-
-		source = normalizeRelPath(source)
-		target = normalizeRelPath(target)
-
-		if filepath.IsAbs(source) || filepath.IsAbs(target) {
-			return errorResult("relation paths must be relative and within .archcore/"), nil
-		}
-		if strings.Contains(source, "..") {
-			return errorResult("source path must not contain '..'"), nil
-		}
-		if strings.Contains(target, "..") {
-			return errorResult("target path must not contain '..'"), nil
+		source, target, relType, refusal := parseRelationArgs(request)
+		if refusal != nil {
+			return refusal, nil
 		}
 
 		baseDir := root.Root(ctx)
 		// Both endpoints live under the call root: a relation stays inside one
 		// project (source-mounts.spec, behavior 14).
-		endpoints := []string{source, target}
-		for i, endpoint := range endpoints {
-			cleaned, err := guardWritablePath(baseDir, ".archcore/"+endpoint)
-			if err != nil {
-				switch {
-				case errors.Is(err, errPathNotDocument):
-					return errorResult("relation endpoints must be .md document files"), nil
-				default:
-					return errorResult(err.Error()), nil
-				}
-			}
-			endpoints[i] = normalizeRelPath(cleaned)
+		source, target, refusal = guardRelationEndpoints(baseDir, source, target)
+		if refusal != nil {
+			return refusal, nil
 		}
-		source, target = endpoints[0], endpoints[1]
 		if source == target {
 			return errorResult("source and target must be different documents"), nil
 		}
 
-		// Verify both documents exist.
 		if _, err := readDocumentContent(baseDir, ".archcore/"+source); err != nil {
 			return errorResult("source document not found: .archcore/" + source), nil
 		}
@@ -117,9 +84,18 @@ func HandleAddRelation(root RootProvider) func(ctx context.Context, request mcp.
 			return errorResult("target document not found: .archcore/" + target), nil
 		}
 
+		beforeRelationMutate()
 		var added bool
 		var overlaps []sync.RelationOverlap
+		var vanished string
 		if err := sharedManifestStore.mutate(baseDir, func(m *sync.Manifest) bool {
+			// Re-checked under the store lock: a remove_document that landed
+			// after the reads above would otherwise get a dangling edge added
+			// right behind its cleanup. Two stats, not a walk (spec §10).
+			for end := range sync.MissingEnds(filepath.Join(baseDir, ".archcore"), []sync.Relation{{Source: source, Target: target}}) {
+				vanished = end
+				return false
+			}
 			added = m.AddRelation(source, target, sync.RelationType(relType))
 			if added {
 				overlaps = m.RelationOverlaps(source, target, sync.RelationType(relType))
@@ -127,6 +103,9 @@ func HandleAddRelation(root RootProvider) func(ctx context.Context, request mcp.
 			return added
 		}); err != nil {
 			return errorResult(sanitizeError("updating manifest", err)), nil
+		}
+		if vanished != "" {
+			return errorResult("document not found: .archcore/" + vanished), nil
 		}
 
 		result := map[string]any{

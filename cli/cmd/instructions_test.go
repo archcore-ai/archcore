@@ -215,6 +215,44 @@ func TestRemoveInstructionsForAgents_PreservesUserContent(t *testing.T) {
 	}
 }
 
+func TestRemoveInstructionsForAgents_ReportsOnlyWhatItRemoved(t *testing.T) {
+	// Not parallel: captureStdout reassigns the global os.Stdout.
+	base := t.TempDir()
+
+	out := captureStdout(t, func() {
+		removeInstructionsForAgents(base, agents.All())
+	})
+
+	if strings.Contains(out, "Removed") {
+		t.Errorf("reported a removal in a repository with no hint:\n%s", out)
+	}
+}
+
+func TestRemoveInstructionsForAgent_ReportsLegacyClaudeRemoval(t *testing.T) {
+	// Not parallel: captureStdout reassigns the global os.Stdout.
+	base := t.TempDir()
+	legacy := filepath.Join(base, ".claude", "rules", "archcore.md")
+	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(legacy, []byte("hint\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out := captureStdout(t, func() {
+		if err := removeInstructionsForAgent(base, agents.ByID(agents.ClaudeCode)); err != nil {
+			t.Errorf("removeInstructionsForAgent: %v", err)
+		}
+	})
+
+	if _, err := os.Stat(legacy); !os.IsNotExist(err) {
+		t.Fatalf("legacy file still present: %v", err)
+	}
+	if !strings.Contains(out, "Removed") {
+		t.Errorf("a removed legacy hint was reported as absent:\n%s", out)
+	}
+}
+
 func TestRunInstructionsRemoveForAgent_Unknown(t *testing.T) {
 	t.Parallel()
 	err := runInstructionsRemoveForAgent(t.TempDir(), agents.AgentID("nope"))

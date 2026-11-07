@@ -1122,9 +1122,13 @@ func TestApply_PreCommitProbe(t *testing.T) {
 		t.Skip("needs a POSIX shell to stage a probe-able binary")
 	}
 
+	// A first exec of a freshly written file can pass 3 s on a loaded machine,
+	// so only the timeout row runs against the real probeTimeout.
+	generous := func(ctx context.Context, path string) error { return probeWithin(ctx, path, 30*time.Second) }
 	tests := []struct {
 		name        string
 		staged      string
+		probe       func(context.Context, string) error
 		wantErr     bool
 		errContains string
 	}{
@@ -1143,6 +1147,7 @@ func TestApply_PreCommitProbe(t *testing.T) {
 			// sleeping process itself rather than on a shell that outlives it.
 			name:        "probe times out",
 			staged:      "#!/bin/sh\nexec sleep 30\n",
+			probe:       healthProbe,
 			wantErr:     true,
 			errContains: "did not finish within",
 		},
@@ -1174,7 +1179,10 @@ func TestApply_PreCommitProbe(t *testing.T) {
 				BinaryName:     "archcore",
 				HTTPClient:     &http.Client{Transport: &rewriteTransport{target: srv.URL}},
 				ExecPath:       fakeBinary,
-				PreCommitProbe: healthProbe,
+				PreCommitProbe: generous,
+			}
+			if tt.probe != nil {
+				u.PreCommitProbe = tt.probe
 			}
 
 			err := u.Apply(context.Background(), "v2.0.0")
@@ -1351,11 +1359,11 @@ func TestStageBinary_SweepsAttemptLeftovers(t *testing.T) {
 	// on Windows: os.Remove refuses it, and the sweep must move on. os.ReadDir
 	// returns names sorted, so the leftover below sorts after this one and only
 	// disappears if the sweep kept going past the failure.
-	stuck := filepath.Join(dir, "archcore.tmp.held")
+	stuck := filepath.Join(dir, "archcore.tmp.0")
 	if err := os.MkdirAll(filepath.Join(stuck, "child"), 0o755); err != nil {
 		t.Fatalf("creating unremovable leftover: %v", err)
 	}
-	afterStuck := fmt.Sprintf("archcore.tmp.z%d", otherPid)
+	afterStuck := fmt.Sprintf("archcore.tmp.9%d", otherPid)
 	if err := os.WriteFile(filepath.Join(dir, afterStuck), []byte("stale"), 0o755); err != nil {
 		t.Fatalf("creating leftover %s: %v", afterStuck, err)
 	}
@@ -1371,7 +1379,7 @@ func TestStageBinary_SweepsAttemptLeftovers(t *testing.T) {
 
 	// The sweep leaves a young leftover alone, so every name it is expected to
 	// remove has to be older than the grace period.
-	for _, name := range append(slices.Clone(stale), "archcore.tmp.held") {
+	for _, name := range append(slices.Clone(stale), "archcore.tmp.0") {
 		ageBeyondSweepGrace(t, filepath.Join(dir, name))
 	}
 
@@ -1450,6 +1458,30 @@ func TestSweepCoversTheAsideItWrites(t *testing.T) {
 
 	if _, err := os.Stat(aside); !os.IsNotExist(err) {
 		t.Errorf("the sweep left the aside %q it writes itself, stat err = %v", aside, err)
+	}
+}
+
+// TestSweepSparesNamesItDoesNotWrite keeps a user's own backup next to the
+// binary: only "<base>.tmp.<pid>" and "<base>.old.<pid>" are attempt leftovers.
+func TestSweepSparesNamesItDoesNotWrite(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"archcore.old.0.9.0", "archcore.tmp.", "archcore.old.12x", "archcore.tmp.42"} {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte("x"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		ageBeyondSweepGrace(t, path)
+	}
+
+	sweepAttemptLeftovers(dir, "archcore")
+
+	for _, name := range []string{"archcore.old.0.9.0", "archcore.tmp.", "archcore.old.12x"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("the sweep removed %q, which no attempt writes: %v", name, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "archcore.tmp.42")); !os.IsNotExist(err) {
+		t.Errorf("the sweep left the pid-named leftover, stat err = %v", err)
 	}
 }
 

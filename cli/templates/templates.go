@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -185,9 +184,8 @@ func IsValidType(t string) bool {
 // ExtractDocType extracts the type from a filename like "use-postgres.adr.md".
 func ExtractDocType(filename string) string {
 	name := strings.TrimSuffix(filename, ".md")
-	parts := strings.Split(name, ".")
-	if len(parts) >= 2 {
-		return parts[len(parts)-1]
+	if i := strings.LastIndexByte(name, '.'); i >= 0 {
+		return name[i+1:]
 	}
 	return ""
 }
@@ -195,9 +193,8 @@ func ExtractDocType(filename string) string {
 // ExtractSlug extracts the slug from a filename like "use-postgres.adr.md".
 func ExtractSlug(filename string) string {
 	name := strings.TrimSuffix(filename, ".md")
-	parts := strings.Split(name, ".")
-	if len(parts) >= 2 {
-		return strings.Join(parts[:len(parts)-1], ".")
+	if i := strings.LastIndexByte(name, '.'); i >= 0 {
+		return name[:i]
 	}
 	return name
 }
@@ -267,12 +264,6 @@ func parseFrontmatterYAML(content string, fm *Frontmatter) error {
 // document file found. It skips hidden directories, non-.md files, and known
 // meta files (settings.json, .sync-state.json).
 func WalkArchcoreFiles(archcoreDir string, fn func(path string, d fs.DirEntry) error) error {
-	return WalkArchcoreFilesSkipping(archcoreDir, nil, fn)
-}
-
-// WalkArchcoreFilesSkipping is like WalkArchcoreFiles but also skips any
-// subdirectory whose name matches an entry in skipDirs.
-func WalkArchcoreFilesSkipping(archcoreDir string, skipDirs []string, fn func(path string, d fs.DirEntry) error) error {
 	return filepath.WalkDir(archcoreDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -294,18 +285,12 @@ func WalkArchcoreFilesSkipping(archcoreDir string, skipDirs []string, fn func(pa
 		}
 
 		if d.IsDir() {
-			// Skip hidden directories (but not .archcore itself).
 			if strings.HasPrefix(name, ".") && path != archcoreDir {
-				return filepath.SkipDir
-			}
-			// Skip explicitly excluded directory names.
-			if slices.Contains(skipDirs, name) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		// Skip non-.md files and known meta files.
 		if !strings.HasSuffix(name, ".md") || SkipFiles[name] {
 			return nil
 		}

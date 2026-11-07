@@ -84,10 +84,7 @@ func NewRootCmd(version string) *cobra.Command {
 		// here would be dead — unlike the non-root commands below, which DO need
 		// it because legacyArgs lets a subcommand's stray positional through.
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprintln(cmd.OutOrStdout(), display.WelcomeBanner(ver))
-			fmt.Fprintln(cmd.OutOrStdout())
-			_ = cmd.Usage()
-			return nil
+			return cmd.Help()
 		},
 		CompletionOptions: cobra.CompletionOptions{
 			DisableDefaultCmd: true,

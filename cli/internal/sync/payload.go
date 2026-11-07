@@ -29,9 +29,9 @@ type Payload struct {
 	Deleted     []string    `json:"deleted"`
 }
 
-// validateRelPath checks that a relative path does not escape the base directory.
 func validateRelPath(relPath string) error {
-	cleaned := filepath.Clean(relPath)
+	// ToSlash: on Windows Clean turns "../x" into `..\x`, which the prefix check missed.
+	cleaned := filepath.ToSlash(filepath.Clean(relPath))
 	if cleaned == ".." || strings.HasPrefix(cleaned, "../") || filepath.IsAbs(cleaned) {
 		return fmt.Errorf("invalid path %q: must be relative and within .archcore/", relPath)
 	}

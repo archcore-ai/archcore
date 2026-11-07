@@ -51,7 +51,6 @@ func decodeHookPayload(r io.Reader) *hookPayload {
 	return &hookPayload{root: root}
 }
 
-// str reads a string at a path of nested keys.
 func (p *hookPayload) str(path ...string) string {
 	s, _ := p.node(path...).(string)
 	return s
@@ -119,7 +118,6 @@ func (p *hookPayload) cwd() string { return p.str("cwd") }
 // toolName returns the invoked tool, folded to its canonical form.
 func (p *hookPayload) toolName() string { return foldToolName(p.rawToolName()) }
 
-// rawToolName returns the tool name exactly as the host sent it.
 func (p *hookPayload) rawToolName() string {
 	return p.firstStr([]string{"tool_name"}, []string{"toolName"})
 }

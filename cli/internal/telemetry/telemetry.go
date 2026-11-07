@@ -160,8 +160,6 @@ func (c *Client) Capture(ctx context.Context, event Event, props map[string]any)
 	return resp.StatusCode/100 == 2
 }
 
-// key resolves the effective project key: the field first, then the key
-// injected at build time.
 func (c *Client) key() string {
 	if c.Key != "" {
 		return c.Key
@@ -238,7 +236,7 @@ func (c *Client) properties(props map[string]any) map[string]any {
 		"source":       sourceCLI,
 		"os":           runtime.GOOS,
 		"arch":         runtime.GOARCH,
-		"ci":           isCI(),
+		"ci":           DetectedCI(),
 	}
 	maps.Copy(merged, props)
 	return merged
@@ -309,11 +307,6 @@ func DetectedCI() bool {
 	return false
 }
 
-// isCI is the in-package spelling of DetectedCI, kept so the grading call sites
-// below read the same as they did.
-func isCI() bool { return DetectedCI() }
-
-// stateDir resolves the directory holding the install-id.
 func (c *Client) stateDir() string {
 	if c.StateDir != "" {
 		return c.StateDir

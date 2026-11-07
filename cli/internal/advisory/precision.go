@@ -716,7 +716,6 @@ func findVaguenessHits(lines []string) []string {
 	return distinctCapped(hits, maxPrecisionHits)
 }
 
-// findCrossDocHits collects the document references the body links directly.
 func findCrossDocHits(body string) []string {
 	return distinctCapped(crossDocRefRe.FindAllString(body, -1), maxCrossDocHits)
 }
@@ -724,9 +723,10 @@ func findCrossDocHits(body string) []string {
 // hasSection reports whether the body carries a level-2 heading matching the
 // rule, under its canonical name or any historical alias.
 func hasSection(lines []string, rule templates.SectionRule) bool {
-	for _, line := range lines {
+	fenced := fencedLines(lines)
+	for i, line := range lines {
 		heading, ok := headingText(line)
-		if ok && ruleMatches(heading, rule) {
+		if ok && !fenced[i] && ruleMatches(heading, rule) {
 			return true
 		}
 	}
@@ -846,7 +846,6 @@ func walkSection(lines []string, match func(heading string) bool, visit func(lin
 	}
 }
 
-// isFence reports whether the line opens or closes a fenced block.
 func isFence(line string) bool {
 	return strings.HasPrefix(strings.TrimLeft(line, " \t\r\f\v"), "```")
 }
@@ -861,6 +860,25 @@ func fenceCount(lines []string) int {
 		}
 	}
 	return n
+}
+
+// fencedLines marks each line that is a fence or sits inside a paired fenced
+// block, so a heading in a pasted sample neither opens nor closes a section.
+func fencedLines(lines []string) []bool {
+	fenced := make([]bool, len(lines))
+	if fenceCount(lines)%2 != 0 {
+		return fenced
+	}
+	inFence := false
+	for i, line := range lines {
+		if isFence(line) {
+			fenced[i] = true
+			inFence = !inFence
+			continue
+		}
+		fenced[i] = inFence
+	}
+	return fenced
 }
 
 // outsideFences returns the text with its fenced blocks removed. A pasted
@@ -887,7 +905,6 @@ func outsideFences(body string) string {
 	return b.String()
 }
 
-// sectionItems returns the numbered items inside the sections named by rules.
 func sectionItems(lines []string, rules []templates.SectionRule) []string {
 	if len(rules) == 0 {
 		return nil
@@ -902,7 +919,6 @@ func sectionItems(lines []string, rules []templates.SectionRule) []string {
 	})
 }
 
-// numberedItems returns every numbered item of the body, wherever it sits.
 func numberedItems(lines []string) []string {
 	return collectItems(lines, nil)
 }
@@ -935,8 +951,9 @@ func observationItems(lines []string, rules []templates.SectionRule) []string {
 func sectionBody(lines []string, rule templates.SectionRule) string {
 	var b strings.Builder
 	inSection := false
-	for _, line := range lines {
-		if heading, ok := headingText(line); ok {
+	fenced := fencedLines(lines)
+	for i, line := range lines {
+		if heading, ok := headingText(line); ok && !fenced[i] {
 			if inSection {
 				break
 			}

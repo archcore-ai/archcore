@@ -3,9 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"path/filepath"
-	"strings"
+	"fmt"
 
 	"archcore-cli/internal/sync"
 
@@ -43,53 +41,18 @@ Returns: {"removed": true} if found and removed, {"removed": false} if not found
 
 func HandleRemoveRelation(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		source, err := request.RequireString("source")
-		if err != nil {
-			return errorResult(err.Error()), nil
+		source, target, relType, refusal := parseRelationArgs(request)
+		if refusal != nil {
+			return refusal, nil
 		}
-		target, err := request.RequireString("target")
-		if err != nil {
-			return errorResult(err.Error()), nil
-		}
-		relType, err := request.RequireString("type")
-		if err != nil {
-			return errorResult(err.Error()), nil
-		}
-
-		if !sync.IsValidRelationType(relType) {
-			return errorResult("invalid relation type: " + relType), nil
-		}
-
-		source = normalizeRelPath(source)
-		target = normalizeRelPath(target)
 		originalSource, originalTarget := source, target
-
-		if filepath.IsAbs(source) || filepath.IsAbs(target) {
-			return errorResult("relation paths must be relative and within .archcore/"), nil
-		}
-		if strings.Contains(source, "..") {
-			return errorResult("source path must not contain '..'"), nil
-		}
-		if strings.Contains(target, "..") {
-			return errorResult("target path must not contain '..'"), nil
-		}
 
 		var removed bool
 		baseDir := root.Root(ctx)
-		endpoints := []string{source, target}
-		for i, endpoint := range endpoints {
-			cleaned, err := guardWritablePath(baseDir, ".archcore/"+endpoint)
-			if err != nil {
-				switch {
-				case errors.Is(err, errPathNotDocument):
-					return errorResult("relation endpoints must be .md document files"), nil
-				default:
-					return errorResult(err.Error()), nil
-				}
-			}
-			endpoints[i] = normalizeRelPath(cleaned)
+		source, target, refusal = guardRelationEndpoints(baseDir, source, target)
+		if refusal != nil {
+			return refusal, nil
 		}
-		source, target = endpoints[0], endpoints[1]
 
 		if err := sharedManifestStore.mutate(baseDir, func(m *sync.Manifest) bool {
 			removed = m.RemoveRelation(source, target, sync.RelationType(relType))
@@ -111,7 +74,10 @@ func HandleRemoveRelation(root RootProvider) func(ctx context.Context, request m
 			"type":    relType,
 			"removed": removed,
 		}
-		data, _ := json.Marshal(result)
+		data, err := json.Marshal(result)
+		if err != nil {
+			return nil, fmt.Errorf("marshaling result: %w", err)
+		}
 		return mcp.NewToolResultText(string(data)), nil
 	}
 }
