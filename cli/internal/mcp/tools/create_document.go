@@ -96,6 +96,13 @@ Line form follows the type. Graded clauses (spec: Normative Behavior and Failure
 	)
 }
 
+// writeNewDocument is a test seam for the failed-write path; production never
+// reassigns it.
+var writeNewDocument = func(f *os.File, content string) error {
+	_, err := f.WriteString(content)
+	return err
+}
+
 // HandleCreateDocument handles the create_document tool call.
 func HandleCreateDocument(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -135,7 +142,6 @@ func HandleCreateDocument(root RootProvider) func(ctx context.Context, request m
 		content := request.GetString("content", "")
 		directory := request.GetString("directory", "")
 
-		// Validate directory parameter.
 		if directory != "" {
 			directory = strings.TrimSpace(directory)
 			cleaned := filepath.Clean(directory)
@@ -169,14 +175,7 @@ func HandleCreateDocument(root RootProvider) func(ctx context.Context, request m
 		// Guard the full target path BEFORE MkdirAll: a symlinked ancestor must be
 		// rejected before any side effect.
 		if _, err := guardWritablePath(baseDir, relPath); err != nil {
-			switch {
-			case errors.Is(err, errPathOtherProject):
-				return errorResult(otherProjectRefusal(baseDir, relPath)), nil
-			case errors.Is(err, errPathNotDocument):
-				return errorResult("invalid path: not a document — only .md document files can be created"), nil
-			default:
-				return errorResult(err.Error()), nil
-			}
+			return writeGuardRefusal(baseDir, relPath, "created", err), nil
 		}
 
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -204,11 +203,14 @@ func HandleCreateDocument(root RootProvider) func(ctx context.Context, request m
 			}
 			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
-		if _, err := f.WriteString(fileContent); err != nil {
+		// A half-written file would make every retry fail with "file already exists".
+		if err := writeNewDocument(f, fileContent); err != nil {
 			_ = f.Close()
+			_ = os.Remove(outputFile)
 			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
 		if err := f.Close(); err != nil {
+			_ = os.Remove(outputFile)
 			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
 		docs.InvalidateCache(outputFile)

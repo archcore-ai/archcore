@@ -2,9 +2,12 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	gosync "sync"
+	"sync/atomic"
 	"testing"
 
 	"archcore-cli/internal/sync"
@@ -298,5 +301,100 @@ func TestHandleRemoveDocument_StaleRelationsNotCounted(t *testing.T) {
 	}
 	if len(m2.Relations) != 0 {
 		t.Errorf("expected all relations cleaned (incl. the stale edge), got %d", len(m2.Relations))
+	}
+}
+
+// TestHandleRemoveDocument_NotResurrectedByAParallelUpdate pins the shared
+// document lock: an update that read the file before a remove deleted it must
+// not rename its edit back into place after the remove reported success.
+func TestHandleRemoveDocument_NotResurrectedByAParallelUpdate(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	remove := HandleRemoveDocument(StaticRoot(base))
+	update := HandleUpdateDocument(StaticRoot(base))
+	const path = ".archcore/knowledge/race.adr.md"
+	for round := range 40 {
+		writeDoc(t, base, "knowledge", "race.adr.md", "---\ntitle: T\nstatus: draft\n---\n\nbody\n")
+		var removed atomic.Bool
+		var wg gosync.WaitGroup
+		for i := range 4 {
+			wg.Go(func() {
+				_, _ = callTool(update, map[string]any{"path": path, "title": fmt.Sprintf("T%d-%d", round, i)})
+			})
+		}
+		wg.Go(func() {
+			result, err := callTool(remove, map[string]any{"path": path})
+			removed.Store(err == nil && !result.IsError)
+		})
+		wg.Wait()
+		if _, err := os.Stat(filepath.Join(base, path)); removed.Load() && err == nil {
+			t.Fatalf("round %d: the document exists after remove_document succeeded", round)
+		}
+	}
+}
+
+// add_relation reads both documents before it takes the manifest lock. A
+// remove_document that lands in that window must win: the edge would otherwise
+// be added right behind the cleanup and dangle from its first second.
+func TestHandleAddRelation_RefusesADocumentRemovedBeforeTheLock(t *testing.T) {
+	// Not parallel: it reassigns the beforeRelationMutate seam.
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "", "keep.adr.md", "---\ntitle: K\nstatus: draft\n---\n\nbody")
+	writeDoc(t, base, "", "gone.adr.md", "---\ntitle: G\nstatus: draft\n---\n\nbody")
+	remove := HandleRemoveDocument(StaticRoot(base))
+	orig := beforeRelationMutate
+	t.Cleanup(func() { beforeRelationMutate = orig })
+	beforeRelationMutate = func() {
+		beforeRelationMutate = orig // remove_document hits the same seam
+		if result, err := callTool(remove, map[string]any{"path": ".archcore/gone.adr.md"}); err != nil || result.IsError {
+			t.Errorf("remove inside the window failed: %v %+v", err, result)
+		}
+	}
+
+	result, err := callTool(HandleAddRelation(StaticRoot(base)), map[string]any{"source": "keep.adr.md", "target": "gone.adr.md", "type": "related"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsError {
+		t.Fatalf("add_relation accepted an edge to a document removed before the lock: %+v", result)
+	}
+	m, err := sync.LoadManifest(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Relations) != 0 {
+		t.Fatalf("a dangling relation was written: %+v", m.Relations)
+	}
+}
+
+// remove_document stats the endpoints from a snapshot taken before the lock.
+// An add_relation that lands in that window must still lose its edge: the
+// document itself is marked missing by hand, not by the stat.
+func TestHandleRemoveDocument_DropsARelationAddedBeforeTheLock(t *testing.T) {
+	// Not parallel: it reassigns the beforeRelationMutate seam.
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "", "keep.adr.md", "---\ntitle: K\nstatus: draft\n---\n\nbody")
+	writeDoc(t, base, "", "gone.adr.md", "---\ntitle: G\nstatus: draft\n---\n\nbody")
+	orig := beforeRelationMutate
+	t.Cleanup(func() { beforeRelationMutate = orig })
+	beforeRelationMutate = func() {
+		beforeRelationMutate = orig
+		if err := sharedManifestStore.mutate(base, func(m *sync.Manifest) bool {
+			return m.AddRelation("keep.adr.md", "gone.adr.md", sync.RelRelated)
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := callTool(HandleRemoveDocument(StaticRoot(base)), map[string]any{"path": ".archcore/gone.adr.md"})
+	if err != nil || result.IsError {
+		t.Fatalf("remove_document failed: %v %+v", err, result)
+	}
+	m, err := sync.LoadManifest(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Relations) != 0 {
+		t.Fatalf("a relation added before the lock survived the removal: %+v", m.Relations)
 	}
 }

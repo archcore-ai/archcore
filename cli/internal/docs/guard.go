@@ -161,7 +161,7 @@ func ValidateReadPath(baseDir, relPath string, globals []config.GlobalSource) (s
 	for _, gs := range globals {
 		root := filepath.ToSlash(filepath.Clean(resolveGlobalPath(baseDir, gs.Path)))
 		if target != root && !strings.HasPrefix(target, root+"/") {
-			continue // not under this global
+			continue
 		}
 		// Lexically inside a declared global. Harden against symlink escape: the
 		// real file must remain inside the real global root.

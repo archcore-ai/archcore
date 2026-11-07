@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/docs"
+	"archcore-cli/internal/sync"
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -69,6 +71,32 @@ func normalizeTags(tags []string) []string {
 
 func errorResult(msg string) *mcp.CallToolResult {
 	return mcp.NewToolResultError(msg)
+}
+
+// writeGuardRefusal renders a guardWritablePath error for a tool that would
+// have <verb> the document ("created", "updated", "removed").
+func writeGuardRefusal(baseDir, relPath, verb string, err error) *mcp.CallToolResult {
+	switch {
+	case errors.Is(err, errPathOtherProject):
+		return errorResult(otherProjectRefusal(baseDir, relPath))
+	case errors.Is(err, errPathNotDocument):
+		return errorResult("invalid path: not a document — only .md document files can be " + verb)
+	default:
+		return errorResult(err.Error())
+	}
+}
+
+// parseTypes reads and validates the optional types filter.
+func parseTypes(request mcp.CallToolRequest) ([]templates.DocumentType, *mcp.CallToolResult) {
+	rawTypes := request.GetStringSlice("types", nil)
+	types := make([]templates.DocumentType, len(rawTypes))
+	for i, t := range rawTypes {
+		if !templates.IsValidType(t) {
+			return nil, errorResult(fmt.Sprintf("invalid type %q (valid: %s)", t, strings.Join(templates.ValidTypes(), ", ")))
+		}
+		types[i] = templates.DocumentType(t)
+	}
+	return types, nil
 }
 
 // sanitizeError builds a client-safe error message "<action>: <detail>". When
@@ -168,4 +196,51 @@ func stripFrontmatter(content string) string {
 	}
 	_, body, _ := templates.SplitDocument([]byte(content))
 	return body
+}
+
+// parseRelationArgs reads and validates the source, target and type arguments
+// shared by add_relation and remove_relation.
+func parseRelationArgs(request mcp.CallToolRequest) (source, target, relType string, refusal *mcp.CallToolResult) {
+	var err error
+	if source, err = request.RequireString("source"); err != nil {
+		return "", "", "", errorResult(err.Error())
+	}
+	if target, err = request.RequireString("target"); err != nil {
+		return "", "", "", errorResult(err.Error())
+	}
+	if relType, err = request.RequireString("type"); err != nil {
+		return "", "", "", errorResult(err.Error())
+	}
+	if !sync.IsValidRelationType(relType) {
+		return "", "", "", errorResult("invalid relation type: " + relType)
+	}
+	source = normalizeRelPath(source)
+	target = normalizeRelPath(target)
+	if filepath.IsAbs(source) || filepath.IsAbs(target) {
+		return "", "", "", errorResult("relation paths must be relative and within .archcore/")
+	}
+	if strings.Contains(source, "..") {
+		return "", "", "", errorResult("source path must not contain '..'")
+	}
+	if strings.Contains(target, "..") {
+		return "", "", "", errorResult("target path must not contain '..'")
+	}
+	return source, target, relType, nil
+}
+
+// guardRelationEndpoints runs both endpoints through the write guard and
+// returns them cleaned.
+func guardRelationEndpoints(baseDir, source, target string) (string, string, *mcp.CallToolResult) {
+	endpoints := []string{source, target}
+	for i, endpoint := range endpoints {
+		cleaned, err := guardWritablePath(baseDir, ".archcore/"+endpoint)
+		if err != nil {
+			if errors.Is(err, errPathNotDocument) {
+				return "", "", errorResult("relation endpoints must be .md document files")
+			}
+			return "", "", errorResult(err.Error())
+		}
+		endpoints[i] = normalizeRelPath(cleaned)
+	}
+	return endpoints[0], endpoints[1], nil
 }

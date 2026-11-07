@@ -1133,11 +1133,11 @@ func TestWalkArchcoreFiles_CallbackError(t *testing.T) {
 	}
 }
 
-// TestWalkArchcoreFilesSkipping_SkipsSymlinks guards the single walk choke point
+// TestWalkArchcoreFiles_SkipsSymlinks guards the single walk choke point
 // used by list_documents, search_documents, status, and sync: a symlinked .md
 // entry (to a file or a directory) that points outside the tree must never be
 // visited, so nothing outside .archcore/ is ever read, hashed, or listed.
-func TestWalkArchcoreFilesSkipping_SkipsSymlinks(t *testing.T) {
+func TestWalkArchcoreFiles_SkipsSymlinks(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink test not portable to Windows")
 	}
@@ -1162,7 +1162,7 @@ func TestWalkArchcoreFilesSkipping_SkipsSymlinks(t *testing.T) {
 	}
 
 	var visited []string
-	err := WalkArchcoreFilesSkipping(dir, nil, func(path string, d fs.DirEntry) error {
+	err := WalkArchcoreFiles(dir, func(path string, d fs.DirEntry) error {
 		visited = append(visited, filepath.Base(path))
 		return nil
 	})

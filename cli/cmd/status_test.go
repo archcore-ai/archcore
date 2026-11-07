@@ -504,6 +504,11 @@ func TestStatus_MalformedFrontmatterBranches(t *testing.T) {
 			wantMsg: "missing closing --- delimiter",
 		},
 		{
+			name:    "closing delimiter with trailing space",
+			content: "---\ntitle: Broken\nstatus: draft\n--- \n\nBody",
+			wantMsg: "missing closing --- delimiter",
+		},
+		{
 			name:    "invalid yaml",
 			content: "---\ntitle: [broken\nstatus: draft\n---\n\nBody",
 			wantMsg: "invalid YAML in frontmatter",
@@ -586,5 +591,14 @@ func TestStatus_InvalidTagReported(t *testing.T) {
 	}
 	if !strings.Contains(out, `invalid tag "BAD TAG!"`) {
 		t.Errorf("output missing invalid-tag failure:\n%s", out)
+	}
+}
+
+func TestCheckFrontmatter_ClosedAtEOF(t *testing.T) {
+	t.Parallel()
+	var b strings.Builder
+	checkFrontmatter("---\ntitle: Ok\nstatus: draft\n---", "a.adr.md").writeTo(&b)
+	if strings.Contains(b.String(), "a.adr.md") {
+		t.Errorf("a block closed at EOF must pass, got:\n%s", b.String())
 	}
 }

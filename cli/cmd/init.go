@@ -163,6 +163,9 @@ func newInitCmd(version string) *cobra.Command {
 			// installs: a flag is not a checked host, and consent to install a
 			// plugin is carried by nothing else — plugin-delivery.spec, Invariant.
 			if config.DirExists(cwd) && !assumeYes {
+				if !isInteractive() {
+					return errors.New(".archcore/ already exists; pass --yes to reinitialize without a prompt")
+				}
 				var reinit bool
 				err := huh.NewConfirm().
 					Title(".archcore/ already exists. Reinitialize?").
@@ -281,9 +284,9 @@ func newInitCmd(version string) *cobra.Command {
 func runInitForAgents(ctx context.Context, baseDir string, agentIDs []string, version string) error {
 	list := make([]*agents.Agent, 0, len(agentIDs))
 	for _, id := range agentIDs {
-		agent := agents.ByID(agents.AgentID(id))
-		if agent == nil {
-			return fmt.Errorf("unknown agent %q — valid agents: %v", id, agents.AllIDs())
+		agent, err := agentByID(agents.AgentID(id))
+		if err != nil {
+			return err
 		}
 		list = append(list, agent)
 	}
@@ -303,9 +306,7 @@ func runInitForAgents(ctx context.Context, baseDir string, agentIDs []string, ve
 	}
 
 	anyHooks := installAgents(baseDir, list, false)
-	if targets := wiring.DedupeByInstructionsPath(baseDir, list); len(targets) > 0 {
-		installInstructionsForAgents(baseDir, targets)
-	}
+	installInstructionsForAgents(baseDir, list)
 	// The flag named the hosts, so it carries their plugins too, with or without
 	// a terminal — plugin-delivery.spec §6 and §11. A CI variable is the one
 	// thing that turns this into printed commands, and deliverPlugins reads it
@@ -628,17 +629,4 @@ func pluginHostsForAgents(selected []*agents.Agent) []plugin.Host {
 		}
 	}
 	return hosts
-}
-
-// defaultIsInteractive reports whether prompts can be shown. Used to skip
-// prompts in CI / tests where /dev/tty is unavailable. We probe /dev/tty
-// directly because huh opens it explicitly — stdin being a char device isn't
-// sufficient.
-func defaultIsInteractive() bool {
-	f, err := os.OpenFile("/dev/tty", os.O_RDONLY, 0)
-	if err != nil {
-		return false
-	}
-	_ = f.Close()
-	return true
 }

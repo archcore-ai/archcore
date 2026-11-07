@@ -17,8 +17,8 @@ tags:
 4. IF the target is an `.archcore/` document, THEN the developer MUST call `docs.WriteFileAtomic`,
    which additionally invalidates the scan cache for that path.
 5. IF the target is a file the user owns — `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, a host config —
-   THEN the developer MUST call the writer in `@cli/internal/agents/instructions.go`, which preserves the
-   existing mode and resolves a symlink before replacing.
+   THEN the developer MUST call `jsonfile.WriteThroughSymlink`, directly or through the writer in
+   `@cli/internal/agents/instructions.go`, which follows a symlink before replacing.
 6. WHEN a new target fits none of the three, the developer MUST extend the closest helper rather than
    add a variant, and MUST state in its doc comment what the new case needs that the others do not.
 7. IF a write establishes exclusivity between processes, THEN the developer MUST create the file with
@@ -36,13 +36,17 @@ The three that remain are not redundant — they differ in what they must preser
 
 | Target | Helper | What it adds |
 |---|---|---|
-| archcore-owned state | `jsonfile.WriteAtomic` | nothing; temp + rename at 0o644 |
-| `.archcore/` document | `docs.WriteFileAtomic` | invalidates the per-file scan cache |
-| user-owned file | `agents.writeFileAtomic` | keeps the existing mode, resolves a symlink |
+| archcore-owned state | `jsonfile.WriteAtomic` | the primitive: per-attempt temp + rename, existing mode kept, a new file at 0o644 under the umask, stale own temps swept; a symlink at the path is replaced, never followed |
+| `.archcore/` document | `docs.WriteFileAtomic` | calls `jsonfile.WriteAtomic`, then invalidates the per-file scan cache |
+| user-owned file | `jsonfile.WriteThroughSymlink` (`agents.writeFileAtomic` wraps it) | follows the symlink first, so a link into a dotfiles repository survives |
 
-Requirement 5 is the one that is easy to get wrong, and the consequence is the least visible: writing
-a user's `CLAUDE.md` through the plain helper resets its permissions to 0o644 and replaces a symlink
-with a regular file. Neither shows up in a test that only reads the content back.
+Requirement 5 is the one that is easy to get wrong, and the consequence is the least visible: a
+writer that renames over the path replaces a user's symlinked `CLAUDE.md` with a regular file, and
+nothing that reads the content back notices. The opposite mistake is worse: `.archcore/settings.json`
+and the manifest arrive with a cloned repository, so a committed link pointing outside the project
+must be replaced, not written through. That is why following the link is a separate entry point and
+not a property of the primitive. All three delegate to `jsonfile.WriteAtomic`, so the mode and umask
+handling exists once.
 
 Requirements 7 and 8 exist because a stamp looks like the case requirement 3 covers and is the
 opposite of it. A stamp carries no content — it is a zero-byte file whose existence and mtime are the
@@ -58,7 +62,7 @@ create lets two callers interleave and both come away holding the lock.
 
 The self-update binary replacement is a fourth sequence and stays one: it fsyncs before close and
 carries a Windows rename-aside with rollback, which no other target needs. It is a documented
-exception, not a precedent (`@cli/internal/update/update.go`).
+exception, not a precedent (`@cli/internal/update/replace_other.go`, `@cli/internal/update/replace_windows.go`).
 
 ## Enforcement
 
@@ -66,4 +70,5 @@ exception, not a precedent (`@cli/internal/update/update.go`).
 - `@cli/internal/stamp/stamp.go` is the exclusivity exception. Its `os.Rename` is the lock steal, not a
   publish; `TestClaimStamp_RecoversAnAbandonedLockThroughTheAtomicSteal` fails if the reclaim stops
   going through it.
-- `@cli/internal/update/update.go` is the documented binary-replacement exception.
+- `@cli/internal/update/replace_other.go` and `replace_windows.go` are the documented binary-replacement
+  exception.

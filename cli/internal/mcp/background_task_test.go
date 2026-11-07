@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"slices"
 	"syscall"
 	"testing"
 	"time"
@@ -451,8 +452,17 @@ func TestRunStdio_StdoutIdenticalWithAndWithoutBackgroundTask(t *testing.T) {
 	if len(withoutTask) == 0 {
 		t.Fatal("baseline session produced no stdout; byte identity would be vacuous")
 	}
-	if !bytes.Equal(withTask, withoutTask) {
+	// Frames are compared as a sorted set: mcp-go may answer initialize and
+	// tools/list in either order under load, which JSON-RPC allows. Each frame
+	// still has to match byte for byte, so a stray byte at a boundary fails.
+	if !bytes.Equal(sortedFrames(withTask), sortedFrames(withoutTask)) {
 		t.Fatalf("stdout differs when a background task is wired\nwith task (%d bytes):\n%s\nwithout task (%d bytes):\n%s",
 			len(withTask), withTask, len(withoutTask), withoutTask)
 	}
+}
+
+func sortedFrames(stdout []byte) []byte {
+	frames := bytes.Split(stdout, []byte("\n"))
+	slices.SortFunc(frames, bytes.Compare)
+	return bytes.Join(frames, []byte("\n"))
 }

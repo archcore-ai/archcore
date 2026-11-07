@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -118,6 +119,20 @@ func TestCapWriter_KeepsSmallOutputWhole(t *testing.T) {
 	}
 	if w.truncated {
 		t.Error("small output was flagged truncated")
+	}
+}
+
+func TestCapWriter_OutputOfExactlyTheCapIsWhole(t *testing.T) {
+	t.Parallel()
+	var w capWriter
+	if n, _ := w.Write(bytes.Repeat([]byte("a"), maxOutput)); n != maxOutput {
+		t.Fatalf("Write returned %d, want %d", n, maxOutput)
+	}
+	if w.truncated {
+		t.Error("output of exactly maxOutput bytes was flagged truncated")
+	}
+	if n, _ := w.Write([]byte("b")); n != 1 || !w.truncated || len(w.buf) != maxOutput {
+		t.Errorf("one byte over: n=%d truncated=%v len=%d", n, w.truncated, len(w.buf))
 	}
 }
 

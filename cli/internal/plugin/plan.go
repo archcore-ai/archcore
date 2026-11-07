@@ -31,7 +31,6 @@ func Plan(verb Verb, evidence []Evidence) []Action {
 	return actions
 }
 
-// firstEvidence returns the first observation of a host.
 func firstEvidence(evidence []Evidence, host Host) (Evidence, bool) {
 	for _, ev := range evidence {
 		if ev.Host == host {

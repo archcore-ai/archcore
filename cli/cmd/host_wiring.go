@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"sync"
 
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/mcp/tools"
@@ -32,6 +33,8 @@ type wiringReport struct {
 	Agents              []wiringAgentReport `json:"agents"`
 }
 
+var hostWiringMu sync.Mutex
+
 // hostWiringExecutor is the tools.HostWiringFunc backing the
 // install_host_config MCP tool. baseDir arrives per call from the server's root
 // provider rather than from a closure, so the wiring lands under the project
@@ -39,7 +42,11 @@ type wiringReport struct {
 // wiring.Apply for the MCP boundary: absolute paths become project-relative,
 // raw per-agent errors are sanitized (no-absolute-paths-in-mcp-errors.rule).
 var hostWiringExecutor tools.HostWiringFunc = func(baseDir, host string, allDetected bool) ([]byte, error) {
+	// mcp-go runs tools/call on a worker pool, and wiring.Apply read-modify-writes
+	// shared host files: two parallel calls would each overwrite the other's edit.
+	hostWiringMu.Lock()
 	result, err := wiring.Apply(baseDir, agents.AgentID(host), allDetected)
+	hostWiringMu.Unlock()
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestRead(t *testing.T) {
@@ -449,5 +450,108 @@ func TestSaveDoc_RoundTripFidelity(t *testing.T) {
 	zeta, _ := reparsed.Get("zeta")
 	if !strings.Contains(string(zeta), `a\"b`) {
 		t.Errorf("escaped string content lost: %s", zeta)
+	}
+}
+
+func TestSaveDoc_KeepsHTMLCharactersLiteral(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "settings.json")
+	in := `{"hooks": {"cmd": "a && b 2>&1 <x>", "lit": "\\u0026", "nested": [{"c": "&"}]}}`
+	if err := os.WriteFile(path, []byte(in), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	doc, err := Read(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveDoc(path, doc); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(path)
+	for _, want := range []string{`"a && b 2>&1 <x>"`, `"\\u0026"`, `"c": "&"`} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("SaveDoc output lacks %s:\n%s", want, got)
+		}
+	}
+	var check any
+	if err := json.Unmarshal(got, &check); err != nil {
+		t.Fatalf("SaveDoc output is not valid JSON: %v", err)
+	}
+}
+
+func TestWriteThroughSymlink_KeepsTheLink(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on Windows")
+	}
+	dir := t.TempDir()
+	target := filepath.Join(dir, "dotfiles-settings.json")
+	link := filepath.Join(dir, "settings.json")
+	if err := os.WriteFile(target, []byte("{}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteThroughSymlink(link, []byte("{\"a\": 1}\n")); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Lstat(link); err != nil || info.Mode()&fs.ModeSymlink == 0 {
+		t.Fatalf("link was replaced: %v %v", info, err)
+	}
+	got, _ := os.ReadFile(target)
+	if string(got) != "{\"a\": 1}\n" {
+		t.Errorf("target = %q", got)
+	}
+	if info, _ := os.Stat(target); info.Mode().Perm() != 0o600 {
+		t.Errorf("target mode = %v, want 0600", info.Mode().Perm())
+	}
+}
+
+func TestWriteAtomic_SweepsOnlyItsOwnStaleTemps(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "settings.json")
+	old := time.Now().Add(-2 * tempSweepGrace)
+	for _, name := range []string{"settings.json.tmp-archcore-3k9z1q", "settings.json.tmpbackup", "settings.json.tmp-archcore-fresh"} {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if name != "settings.json.tmp-archcore-fresh" {
+			if err := os.Chtimes(filepath.Join(dir, name), old, old); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if err := WriteAtomic(path, []byte("{}\n")); err != nil {
+		t.Fatal(err)
+	}
+	assertOnlyEntries(t, dir, "settings.json", "settings.json.tmpbackup", "settings.json.tmp-archcore-fresh")
+}
+
+// A repository can commit .archcore/settings.json as a symlink. The write must
+// land on the link's own path, never on what it points at.
+func TestWriteAtomic_ReplacesASymlinkInsteadOfFollowingIt(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on Windows")
+	}
+	dir := t.TempDir()
+	outside := filepath.Join(dir, "zshrc")
+	if err := os.WriteFile(outside, []byte("export X=1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "settings.json")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteAtomic(link, []byte("{}\n")); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(outside); string(got) != "export X=1\n" {
+		t.Fatalf("the link target was overwritten: %q", got)
+	}
+	if info, err := os.Lstat(link); err != nil || info.Mode()&fs.ModeSymlink != 0 {
+		t.Fatalf("settings.json is still a link: %v %v", info, err)
 	}
 }

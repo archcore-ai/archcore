@@ -1362,3 +1362,47 @@ func TestBuildExcerpt(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleSearchDocuments_RejectsUnknownStatus(t *testing.T) {
+	t.Parallel()
+	base := setupTestArchcore(t)
+	writeDoc(t, base, "knowledge", "my-adr.adr.md", testDoc)
+
+	for _, args := range []map[string]any{
+		{"status": "Accepted"},
+		{"status": "Accepted", "for_path": "src/main.go"},
+	} {
+		result, err := callTool(HandleSearchDocuments(StaticRoot(base)), args)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !result.IsError {
+			t.Fatalf("args %v: expected an error for an unknown status", args)
+		}
+		if text := result.Content[0].(mcp.TextContent).Text; !strings.Contains(text, "invalid status") {
+			t.Errorf("args %v: error = %q, want it to mention invalid status", args, text)
+		}
+	}
+}
+
+func TestSearchLimit(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		limit float64
+		mode  searchMode
+		want  int
+	}{
+		{0, searchModeSnippets, searchDefaultLimit},
+		{0.5, searchModeSnippets, searchDefaultLimit},
+		{7, searchModeSnippets, 7},
+		{1e6, searchModeSnippets, searchMaxLimit},
+		{1e19, searchModeSnippets, searchMaxLimit},
+		{1e19, searchModeFull, searchFullMaxLimit},
+		{0, searchModeFull, searchFullDefaultLimit},
+	}
+	for _, tt := range tests {
+		if got := searchLimit(tt.limit, tt.mode); got != tt.want {
+			t.Errorf("searchLimit(%g, %s) = %d, want %d", tt.limit, tt.mode, got, tt.want)
+		}
+	}
+}

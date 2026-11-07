@@ -106,9 +106,9 @@ func newInstructionsRemoveCmd() *cobra.Command {
 
 // runInstructionsInstallForAgent installs the usage hint for a specific agent.
 func runInstructionsInstallForAgent(baseDir string, id agents.AgentID) error {
-	agent := agents.ByID(id)
-	if agent == nil {
-		return fmt.Errorf("unknown agent %q — valid agents: %v", id, agents.AllIDs())
+	agent, err := agentByID(id)
+	if err != nil {
+		return err
 	}
 	return installInstructionsForAgent(baseDir, agent)
 }
@@ -134,9 +134,9 @@ func runInstructionsInstallAutoDetect(baseDir string) error {
 
 // runInstructionsRemoveForAgent removes the usage hint for a specific agent.
 func runInstructionsRemoveForAgent(baseDir string, id agents.AgentID) error {
-	agent := agents.ByID(id)
-	if agent == nil {
-		return fmt.Errorf("unknown agent %q — valid agents: %v", id, agents.AllIDs())
+	agent, err := agentByID(id)
+	if err != nil {
+		return err
 	}
 	return removeInstructionsForAgent(baseDir, agent)
 }
@@ -164,7 +164,6 @@ func installInstructionsForAgents(baseDir string, list []*agents.Agent) {
 	for _, agent := range wiring.DedupeByInstructionsPath(baseDir, list) {
 		if err := installInstructionsForAgent(baseDir, agent); err != nil {
 			fmt.Println(display.WarnLine(err.Error()))
-			continue
 		}
 	}
 }
@@ -189,17 +188,23 @@ func removeInstructionsForAgents(baseDir string, list []*agents.Agent) {
 	for _, agent := range wiring.DedupeByInstructionsPath(baseDir, list) {
 		if err := removeInstructionsForAgent(baseDir, agent); err != nil {
 			fmt.Println(display.WarnLine(err.Error()))
-			continue
 		}
 	}
 }
 
 func removeInstructionsForAgent(baseDir string, agent *agents.Agent) error {
+	path := agent.InstructionsPath(baseDir)
+	present := agents.InstructionsInstalled(agent, baseDir)
 	if err := agent.RemoveInstructions(baseDir); err != nil {
 		return fmt.Errorf("removing %s instructions: %w", agent.DisplayName, err)
 	}
+	if !present {
+		fmt.Println(display.HintLine(fmt.Sprintf(
+			"No Archcore usage hint in %s", wiring.DisplayPath(baseDir, path))))
+		return nil
+	}
 	fmt.Println(display.CheckLine(fmt.Sprintf(
-		"Removed Archcore usage hint from %s", wiring.DisplayPath(baseDir, agent.InstructionsPath(baseDir)))))
+		"Removed Archcore usage hint from %s", wiring.DisplayPath(baseDir, path))))
 	return nil
 }
 

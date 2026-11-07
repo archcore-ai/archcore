@@ -59,7 +59,7 @@ func ScanFiles(baseDir string) ([]FileState, error) {
 		globalDirs = append(globalDirs, filepath.ToSlash(config.ResolveGlobalPath(baseDir, gs.Path)))
 	}
 
-	err = templates.WalkArchcoreFilesSkipping(archcoreDir, nil, func(path string, d fs.DirEntry) error {
+	err = templates.WalkArchcoreFiles(archcoreDir, func(path string, d fs.DirEntry) error {
 		slashPath := filepath.ToSlash(path)
 		for _, dir := range globalDirs {
 			if slashPath == dir || strings.HasPrefix(slashPath, dir+"/") {

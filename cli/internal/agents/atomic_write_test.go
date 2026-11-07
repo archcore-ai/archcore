@@ -131,3 +131,23 @@ func TestUpsertFencedBlock_DanglingSymlinkBecomesRegularFile(t *testing.T) {
 		t.Errorf("write should not have created the dangling target, lstat err = %v", err)
 	}
 }
+
+// A new block goes in front of a leading BOM, never after it, so the BOM stays
+// the first bytes and the user's first heading still parses.
+func TestUpsertFencedBlock_KeepsLeadingBOMFirst(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "AGENTS.md")
+	writeFile(t, path, "\ufeff# Title\n")
+
+	if err := upsertFencedBlock(path); err != nil {
+		t.Fatalf("upsertFencedBlock: %v", err)
+	}
+
+	got := readFile(t, path)
+	if !strings.HasPrefix(got, "\ufeff"+instructionsMarkerStart) {
+		t.Errorf("the BOM is not the first bytes: %q", got[:min(len(got), 40)])
+	}
+	if strings.Count(got, "\ufeff") != 1 || !strings.Contains(got, "\n# Title\n") {
+		t.Errorf("the user's heading lost its line start: %q", got)
+	}
+}

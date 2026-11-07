@@ -474,11 +474,40 @@ func TestCountStandalone(t *testing.T) {
 		{"See `Form.test.tsx`", 0},
 		{"`a-b.test.tsx` and `*.test.tsx`", 1},
 		{"no extension here", 0},
+		{"Use `.test.tsxx` files", 0},
 	}
 	for _, tt := range tests {
 		if got := countStandalone(tt.content, ".test.tsx"); got != tt.want {
 			t.Errorf("countStandalone(%q) = %d, want %d", tt.content, got, tt.want)
 		}
+	}
+}
+
+func TestCountPathMentions(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		content string
+		want    int
+	}{
+		{"Edit src/index.ts carefully", 1},
+		{"See `@src/index.ts`.", 1},
+		{"See ./src/index.ts", 1},
+		{"src/index.ts", 1},
+		{"Edit packages/web/src/index.ts", 0},
+		{"Edit lib.src/index.ts", 0},
+		{"Edit src/index.tsx", 0},
+		{"Edit ../src/index.ts", 0},
+	}
+	for _, tt := range tests {
+		if got := countPathMentions(tt.content, "src/index.ts"); got != tt.want {
+			t.Errorf("countPathMentions(%q) = %d, want %d", tt.content, got, tt.want)
+		}
+	}
+	if got := countPathMentions("Under packages/web/src/ only", "src/"); got != 0 {
+		t.Errorf("a nested directory counted as src/: %d", got)
+	}
+	if got := countPathMentions("Under src/api/ only", "src/"); got != 1 {
+		t.Errorf("a directory token followed by a path did not count: %d", got)
 	}
 }
 

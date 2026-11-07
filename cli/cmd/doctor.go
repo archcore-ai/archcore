@@ -43,7 +43,6 @@ func newDoctorCmd(version string) *cobra.Command {
 
 			issues := 0
 
-			// Fix issues before checking (only when --fix is passed).
 			if fix {
 				removed, err := fixManifest(cwd)
 				if err != nil {
@@ -57,7 +56,6 @@ func newDoctorCmd(version string) *cobra.Command {
 				}
 			}
 
-			// Run status checks (structure + documents).
 			issues += runStatusChecks(cwd)
 
 			// Early return if .archcore/ doesn't exist — settings and
@@ -76,7 +74,6 @@ func newDoctorCmd(version string) *cobra.Command {
 				return ErrAlreadyReported
 			}
 
-			// Settings file valid.
 			settings, err := config.Load(cwd)
 			if err != nil {
 				issues++
@@ -97,7 +94,6 @@ func newDoctorCmd(version string) *cobra.Command {
 
 			reportInstructionBlocks(os.Stdout, cwd)
 
-			// Server reachable (only when a server URL is configured).
 			if settings != nil {
 				if serverURL := settings.ServerURL(); serverURL != "" {
 					client := api.NewClient(serverURL)
@@ -123,7 +119,7 @@ func newDoctorCmd(version string) *cobra.Command {
 				fmt.Println(display.Success.Render("  All checks passed!"))
 			} else {
 				fmt.Println(display.Warn.Render(fmt.Sprintf("  %d issue(s) found", issues)))
-				return fmt.Errorf("%d issue(s) found", issues)
+				return ErrAlreadyReported
 			}
 
 			return nil
@@ -223,9 +219,9 @@ func convergeHostWiring(baseDir string, agentIDs []string) int {
 	var list []*agents.Agent
 	if len(agentIDs) > 0 {
 		for _, id := range agentIDs {
-			agent := agents.ByID(agents.AgentID(id))
-			if agent == nil {
-				fmt.Println(display.FailLine(fmt.Sprintf("unknown agent %q — valid agents: %v", id, agents.AllIDs())))
+			agent, err := agentByID(agents.AgentID(id))
+			if err != nil {
+				fmt.Println(display.FailLine(err.Error()))
 				return 1
 			}
 			list = append(list, agent)

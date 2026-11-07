@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -355,5 +356,56 @@ func TestCheckHealth_ErrorBodyDetail(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "access denied: bad token") {
 		t.Errorf("error = %q, want it to include the response body detail", err)
+	}
+}
+
+// countingBody is an 8 MiB response body that records how much was read. It
+// ends, so a regression to an unbounded drain fails instead of hanging.
+type countingBody struct{ read int }
+
+func (b *countingBody) Read(p []byte) (int, error) {
+	if b.read >= 8<<20 {
+		return 0, io.EOF
+	}
+	for i := range p {
+		p[i] = 'x'
+	}
+	b.read += len(p)
+	return len(p), nil
+}
+
+func (b *countingBody) Close() error { return nil }
+
+type bodyTransport struct{ body *countingBody }
+
+func (t bodyTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	return &http.Response{StatusCode: http.StatusBadGateway, Body: t.body, Header: http.Header{}, Request: r}, nil
+}
+
+// TestClient_DrainIsBounded pins that a proxy's endless error page is not read
+// to the end: the deferred drain stops at maxResponseDrain on both requests.
+func TestClient_DrainIsBounded(t *testing.T) {
+	t.Parallel()
+	limit := maxErrorBodyBytes + 1 + maxResponseDrain + 64<<10
+	calls := map[string]func(c *Client) error{
+		"get": func(c *Client) error { return c.CheckHealth(context.Background()) },
+		"sync": func(c *Client) error {
+			_, _, err := c.Sync(context.Background(), &archsync.Payload{})
+			return err
+		},
+	}
+	for name, call := range calls {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			body := &countingBody{}
+			c := NewSyncClient("http://archcore.invalid")
+			c.HTTPClient.Transport = bodyTransport{body: body}
+			if err := call(c); err == nil {
+				t.Fatal("expected an error for 502")
+			}
+			if body.read > limit {
+				t.Errorf("read %d bytes of the error body, want at most %d", body.read, limit)
+			}
+		})
 	}
 }

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -894,5 +895,34 @@ func TestHandleCreateDocument_NoTags(t *testing.T) {
 	}
 	if strings.Contains(string(data), "tags:") {
 		t.Error("file should not contain tags block")
+	}
+}
+
+// A write that fails half way must not leave the file behind: every retry would
+// then be refused with "file already exists".
+func TestHandleCreateDocument_FailedWriteLeavesNoFile(t *testing.T) {
+	// Not parallel: it reassigns the writeNewDocument seam.
+	base := setupTestArchcore(t)
+	orig := writeNewDocument
+	t.Cleanup(func() { writeNewDocument = orig })
+	writeNewDocument = func(f *os.File, content string) error {
+		_, _ = f.WriteString(content[:len(content)/2])
+		return errors.New("no space left on device")
+	}
+	args := map[string]any{"type": "adr", "filename": "half-written", "title": "T", "status": "draft"}
+	handler := HandleCreateDocument(StaticRoot(base))
+
+	result, err := callTool(handler, args)
+	if err != nil || !result.IsError {
+		t.Fatalf("want a refused write, got err=%v result=%+v", err, result)
+	}
+	if _, err := os.Stat(filepath.Join(base, ".archcore", "half-written.adr.md")); !os.IsNotExist(err) {
+		t.Fatalf("a half-written document was left behind: %v", err)
+	}
+
+	writeNewDocument = orig
+	result, err = callTool(handler, args)
+	if err != nil || result.IsError {
+		t.Fatalf("retry after a failed write was refused: err=%v result=%+v", err, result)
 	}
 }

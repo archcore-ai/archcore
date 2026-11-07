@@ -161,18 +161,22 @@ func ResolveFileContext(baseDir, filePath string) (FileContext, error) {
 		if !generic {
 			nameHits = countStandalone(doc.Content, base)
 		}
-		switch {
-		case strings.Contains(doc.Content, rel):
-			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonFile, depth: 2, hits: strings.Count(doc.Content, rel)})
+		kindHits := 0
+		if kind != "" && isAcceptedRule(doc) {
+			kindHits = countStandalone(doc.Content, kind)
+		}
+		switch pathHits := countPathMentions(doc.Content, rel); {
+		case pathHits > 0:
+			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonFile, depth: 2, hits: pathHits})
 		case !shared && nameHits > 0:
 			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonFile, depth: 1, hits: nameHits})
 		case shared && isAcceptedRule(doc) && nameHits > 0:
 			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonKind, depth: 1, hits: nameHits})
-		case kind != "" && isAcceptedRule(doc) && countStandalone(doc.Content, kind) > 0:
-			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonKind, depth: 1, hits: countStandalone(doc.Content, kind)})
+		case kindHits > 0:
+			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonKind, depth: 1, hits: kindHits})
 		default:
-			if token := firstMatchingToken(doc.Content, tokens); token != "" {
-				fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonDirectory, depth: len(token), hits: strings.Count(doc.Content, token)})
+			if token, hits := firstMatchingToken(doc.Content, tokens); hits > 0 {
+				fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonDirectory, depth: len(token), hits: hits})
 			} else if isGeneralRule(baseDir, doc) {
 				fc.General = append(fc.General, ContextRow{Doc: doc, Reason: ReasonGeneral})
 			}
@@ -246,13 +250,13 @@ func scanAlignmentCorpus(baseDir string) []docs.Document {
 }
 
 // firstMatchingToken returns the longest directory token the content names.
-func firstMatchingToken(content string, tokens []string) string {
+func firstMatchingToken(content string, tokens []string) (string, int) {
 	for _, token := range tokens {
-		if strings.Contains(content, token) {
-			return token
+		if hits := countPathMentions(content, token); hits > 0 {
+			return token, hits
 		}
 	}
-	return ""
+	return "", 0
 }
 
 // isGeneralRule reports whether doc is an accepted rule or cpat that names no
@@ -295,18 +299,41 @@ func compoundExtension(base string) string {
 // rule that lists its own test files is not a convention for every test. The
 // same boundary keeps "document.go" from naming itself inside "create_document.go".
 func countStandalone(content, ext string) int {
+	return countBounded(content, ext, func(at int) bool {
+		// A dot also ends the match: "mcp.json" inside ".mcp.json" names another file.
+		return !isFileNameByte(content[at-1]) && content[at-1] != '.'
+	})
+}
+
+// countPathMentions counts occurrences of a project-relative path that do not
+// continue a longer path: "src/index.ts" inside "packages/web/src/index.ts"
+// names another file. A leading "./" still names the project path.
+func countPathMentions(content, rel string) int {
+	return countBounded(content, rel, func(at int) bool {
+		if b := content[at-1]; b != '/' {
+			return !isFileNameByte(b) && b != '.'
+		}
+		return at >= 2 && content[at-2] == '.' && (at == 2 || !isFileNameByte(content[at-3]) && content[at-3] != '.' && content[at-3] != '/')
+	})
+}
+
+// countBounded counts occurrences of needle that leftOK accepts at a non-zero
+// offset and that no file-name byte follows, so "users.ts" skips "users.tsx".
+// A directory needle ends in "/", so whatever follows it continues the path.
+func countBounded(content, needle string, leftOK func(at int) bool) int {
+	openEnd := strings.HasSuffix(needle, "/")
 	n := 0
 	for i := 0; ; {
-		rel := strings.Index(content[i:], ext)
+		rel := strings.Index(content[i:], needle)
 		if rel == -1 {
 			return n
 		}
 		at := i + rel
-		// A dot also ends the match: "mcp.json" inside ".mcp.json" names another file.
-		if at == 0 || (!isFileNameByte(content[at-1]) && content[at-1] != '.') {
+		end := at + len(needle)
+		if (at == 0 || leftOK(at)) && (openEnd || end == len(content) || !isFileNameByte(content[end])) {
 			n++
 		}
-		i = at + len(ext)
+		i = end
 	}
 }
 
@@ -437,7 +464,6 @@ func resolveAlignmentTitle(doc docs.Document) string {
 	return strings.ReplaceAll(doc.Slug, "-", " ")
 }
 
-// truncateRunes caps s at limit runes without splitting a character.
 func truncateRunes(s string, limit int) string {
 	runes := []rune(s)
 	if len(runes) <= limit {

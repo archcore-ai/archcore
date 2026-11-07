@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
-	"archcore-cli/internal/docs"
 	"archcore-cli/templates"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -65,6 +65,21 @@ Returns: JSON with the path of the updated file, its type, category, title, stat
 	)
 }
 
+// documentWriteMus serializes the read-modify-write of update_document and the
+// read-then-delete of remove_document, one mutex per absolute path: tools/call
+// handlers run concurrently, and two parallel updates of one document would
+// otherwise both edit the same version and the later rename would drop the
+// earlier edit. Keyed by path rather than process-wide so writes to different
+// documents, or different roots served by one process, never wait on each
+// other (process-and-concurrency-model.spec clause 5).
+var documentWriteMus sync.Map
+
+func lockDocument(absPath string) func() {
+	mu, _ := documentWriteMus.LoadOrStore(absPath, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	return mu.(*sync.Mutex).Unlock
+}
+
 // HandleUpdateDocument handles the update_document tool call.
 func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -74,17 +89,9 @@ func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request m
 		}
 
 		baseDir := root.Root(ctx)
-		// Validate path.
 		cleaned, err := guardWritablePath(baseDir, relPath)
 		if err != nil {
-			switch {
-			case errors.Is(err, errPathOtherProject):
-				return errorResult(otherProjectRefusal(baseDir, relPath)), nil
-			case errors.Is(err, errPathNotDocument):
-				return errorResult("invalid path: not a document — only .md document files can be updated"), nil
-			default:
-				return errorResult(err.Error()), nil
-			}
+			return writeGuardRefusal(baseDir, relPath, "updated", err), nil
 		}
 		relPath = cleaned
 
@@ -123,8 +130,8 @@ func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request m
 			return errorResult(fmt.Sprintf("invalid status %q (valid: %s)", newStatus, strings.Join(templates.ValidStatusStrings(), ", "))), nil
 		}
 
-		// Read existing file.
 		absPath := filepath.Join(baseDir, relPath)
+		defer lockDocument(absPath)()
 		data, err := os.ReadFile(absPath)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -141,14 +148,11 @@ func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request m
 			return errorResult(fmt.Sprintf("cannot update %s: existing frontmatter is not valid YAML — fix the file manually before updating", relPath)), nil
 		}
 
-		// Apply updates.
-		title := existingFM.Title
 		if newTitle != "" {
-			title = newTitle
+			existingFM.Title = newTitle
 		}
-		status := existingFM.Status
 		if newStatus != "" {
-			status = newStatus
+			existingFM.Status = newStatus
 		}
 		body := existingBody
 		if newContent != "" {
@@ -162,15 +166,10 @@ func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request m
 		// Preserved tags keep their on-disk order — normalizing them here
 		// would reorder the user's tags on a title-only update. Provided tags
 		// are already validated and normalized by parseTags.
-		tags := existingFM.Tags
 		if tagsProvided {
-			tags = newTags
+			existingFM.Tags = newTags
 		}
 
-		// Reconstruct the file.
-		existingFM.Title = title
-		existingFM.Status = status
-		existingFM.Tags = tags
 		fileContent, err := buildDocumentFile(existingFM, body)
 		if err != nil {
 			// YAML errors can quote document content; omit it from the refusal
@@ -181,7 +180,6 @@ func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request m
 		if err := writeFileAtomic(absPath, []byte(fileContent)); err != nil {
 			return errorResult(sanitizeError("writing "+relPath, err)), nil
 		}
-		docs.InvalidateCache(absPath)
 
 		// Derive category from document type, not directory.
 		filename := filepath.Base(relPath)
@@ -192,11 +190,11 @@ func HandleUpdateDocument(root RootProvider) func(ctx context.Context, request m
 			"path":     relPath,
 			"category": category,
 			"type":     docType,
-			"title":    title,
-			"status":   status,
+			"title":    existingFM.Title,
+			"status":   existingFM.Status,
 		}
-		if len(tags) > 0 {
-			result["tags"] = tags
+		if len(existingFM.Tags) > 0 {
+			result["tags"] = existingFM.Tags
 		}
 		jsonData, err := json.Marshal(result)
 		if err != nil {

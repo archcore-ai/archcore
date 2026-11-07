@@ -265,7 +265,6 @@ func installsUnderKey(key string, value any, depth int, budget *int, out *[]Inst
 	}
 }
 
-// installFromEntry reads one installation out of a listing entry.
 func installFromEntry(name string, entry map[string]any) Install {
 	install := Install{Name: name}
 	for _, key := range slices.Sorted(maps.Keys(entry)) {
@@ -410,7 +409,6 @@ func parseTextListing(stdout string) listing {
 	return listingOf(installs)
 }
 
-// versionInFields returns the first version-shaped token on a listing line.
 func versionInFields(fields []string) string {
 	for _, field := range fields {
 		if listingVersionRe.MatchString(field) {

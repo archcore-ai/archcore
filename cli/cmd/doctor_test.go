@@ -293,3 +293,35 @@ func TestDoctor_ResearchVocabularyManifest(t *testing.T) {
 		t.Errorf("doctor changed relations: %+v", loaded.Relations)
 	}
 }
+
+// TestDoctor_FixLeavesUnknownManifestFieldsAlone: a manifest a newer binary
+// wrote carries a root field this one does not know; --fix must not rewrite it.
+func TestDoctor_FixLeavesUnknownManifestFieldsAlone(t *testing.T) {
+	dir := t.TempDir()
+	if err := config.InitDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.Save(dir, config.NewNoneSettings()); err != nil {
+		t.Fatal(err)
+	}
+	writeDoc(t, dir, "", "a.adr.md", validFrontmatter)
+	data := `{"version":1,"files":{},"future":true,"relations":[
+		{"source":"a.adr.md","target":"gone.prd.md","type":"related"}
+	]}`
+	path := filepath.Join(dir, ".archcore", sync.ManifestFile)
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, _ := runCmdInDir(t, dir, "doctor", "--fix")
+	if strings.Contains(out, "Removed") {
+		t.Errorf("--fix rewrote a manifest it could not validate:\n%s", out)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != data {
+		t.Errorf("manifest changed:\n%s", got)
+	}
+}

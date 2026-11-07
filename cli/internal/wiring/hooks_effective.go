@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 
 	"archcore-cli/internal/agents"
+	"archcore-cli/internal/xdg"
 )
 
 // Effective-state reporting: say what was written, then whether it can take
@@ -95,7 +95,7 @@ var (
 func codexHookNotes() []string {
 	var notes []string
 
-	if runtime.GOOS == "windows" {
+	if !codexRunsHooks {
 		notes = append(notes,
 			"Codex CLI: hooks are written but will not run — Codex does not support hooks on Windows.")
 		return notes
@@ -126,7 +126,7 @@ func codexHooksEnabled() bool {
 	if err != nil {
 		return false
 	}
-	data, err := os.ReadFile(filepath.Join(home, ".codex", "config.toml"))
+	data, err := os.ReadFile(filepath.Join(xdg.HostConfigDir("CODEX_HOME", filepath.Join(home, ".codex")), "config.toml"))
 	if err != nil {
 		return false
 	}
@@ -148,11 +148,12 @@ func codexHooksEnabled() bool {
 }
 
 // pluginInstallDirs are the caches the Archcore plugin installs into, per host.
-var pluginInstallDirs = []string{
-	".claude/plugins",
-	".cursor/plugins",
-	".codex/plugins",
-	".copilot/installed-plugins",
+// env names the variable that relocates the host's home directory, if any.
+var pluginInstallDirs = []struct{ env, home, cache string }{
+	{"CLAUDE_CONFIG_DIR", ".claude", "plugins"},
+	{"", ".cursor", "plugins"},
+	{"CODEX_HOME", ".codex", "plugins"},
+	{"", ".copilot", "installed-plugins"},
 }
 
 const (
@@ -176,8 +177,9 @@ func detectInstalledPlugin() (string, bool) {
 		return "", false
 	}
 	budget := pluginScanBudget
-	for _, dir := range pluginInstallDirs {
-		if found, ok := scanForPlugin(filepath.Join(home, filepath.FromSlash(dir)), dir, pluginScanDepth, &budget); ok {
+	for _, d := range pluginInstallDirs {
+		root := filepath.Join(xdg.HostConfigDir(d.env, filepath.Join(home, d.home)), d.cache)
+		if found, ok := scanForPlugin(root, d.home+"/"+d.cache, pluginScanDepth, &budget); ok {
 			return found, true
 		}
 	}

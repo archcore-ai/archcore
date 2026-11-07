@@ -18,6 +18,7 @@ import (
 
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/jsonfile"
+	"archcore-cli/internal/xdg"
 )
 
 // These ceilings bound user config reads and remote marketplace validation on
@@ -62,7 +63,7 @@ func collectSourceEdits(ctx context.Context, a Action) ([]sourceEdit, error) {
 		if !codexSourceIsMigratable(ctx) {
 			return nil, nil
 		}
-		root := hostConfigRoot("CODEX_HOME", filepath.Join(home, ".codex"))
+		root := xdg.HostConfigDir("CODEX_HOME", filepath.Join(home, ".codex"))
 		path, data, err := readSourceFile(filepath.Join(root, "config.toml"))
 		if err != nil || data == nil {
 			return nil, err
@@ -74,7 +75,7 @@ func collectSourceEdits(ctx context.Context, a Action) ([]sourceEdit, error) {
 		return []sourceEdit{{path: path, before: data, after: after}}, nil
 	}
 
-	root := hostConfigRoot("CLAUDE_CONFIG_DIR", filepath.Join(home, ".claude"))
+	root := xdg.HostConfigDir("CLAUDE_CONFIG_DIR", filepath.Join(home, ".claude"))
 	known := filepath.Join(root, "plugins", "known_marketplaces.json")
 	paths := []string{known, filepath.Join(root, "settings.json")}
 	for _, install := range orderInstalls(a.Evidence.Installs) {
@@ -154,13 +155,6 @@ func codexSourceIsMigratable(ctx context.Context) bool {
 		found = true
 	}
 	return found
-}
-
-func hostConfigRoot(key, fallback string) string {
-	if root := os.Getenv(key); root != "" {
-		return root
-	}
-	return fallback
 }
 
 func readSourceFile(path string) (string, []byte, error) {
@@ -274,11 +268,11 @@ func rewriteClaudeSource(data []byte, settings bool) ([]byte, bool, error) {
 			return nil, false, err
 		}
 	}
-	after, err := json.MarshalIndent(doc, "", "  ")
+	after, err := jsonfile.MarshalDoc(doc)
 	if err != nil {
 		return nil, false, fmt.Errorf("encoding marketplace settings: %w", err)
 	}
-	return append(after, '\n'), false, nil
+	return after, false, nil
 }
 
 func sourceString(doc *jsonfile.Doc, key string) string {

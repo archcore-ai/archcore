@@ -117,11 +117,10 @@ func newHooksInstallCmd() *cobra.Command {
 	return cmd
 }
 
-// runHooksInstallForAgent installs hooks for a specific agent by ID.
 func runHooksInstallForAgent(baseDir string, id agents.AgentID) error {
-	agent := agents.ByID(id)
-	if agent == nil {
-		return fmt.Errorf("unknown agent %q — valid agents: %v", id, agents.AllIDs())
+	agent, err := agentByID(id)
+	if err != nil {
+		return err
 	}
 	installed, err := wiring.InstallHooksForAgent(baseDir, agent)
 	if err != nil {
@@ -135,10 +134,7 @@ func runHooksInstallForAgent(baseDir string, id agents.AgentID) error {
 		printEffectiveHookNotes(baseDir, agent.ID)
 		printPluginConflictNote()
 	}
-	if err := installMCPForAgent(baseDir, agent); err != nil {
-		return err
-	}
-	return nil
+	return installMCPForAgent(baseDir, agent)
 }
 
 // runHooksInstallAutoDetect detects agents and installs hooks + MCP config

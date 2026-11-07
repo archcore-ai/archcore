@@ -68,6 +68,23 @@ func migrationFixture(t *testing.T, host Host) (Action, []string) {
 	return a, []string{known, settings}
 }
 
+// A user's own hook command is rewritten with the rest of settings.json; a
+// json.MarshalIndent would hand it back as "\u0026\u0026".
+func TestRewriteClaudeSource_KeepsHTMLCharactersLiteral(t *testing.T) {
+	t.Parallel()
+	input := strings.Replace(migrationClaudeSettings, `"keep-me"`, `"lint && test 2>&1"`, 1)
+	if input == migrationClaudeSettings {
+		t.Fatal("fixture no longer carries the model value this test replaces")
+	}
+	after, blocked, err := rewriteClaudeSource([]byte(input), true)
+	if err != nil || blocked || after == nil {
+		t.Fatalf("after=%v blocked=%v err=%v", after != nil, blocked, err)
+	}
+	if !strings.Contains(string(after), `"lint && test 2>&1"`) {
+		t.Errorf("user value was escaped:\n%s", after)
+	}
+}
+
 func TestRewriteClaudeSource(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

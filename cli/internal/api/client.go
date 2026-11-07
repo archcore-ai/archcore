@@ -24,6 +24,9 @@ const (
 	// maxErrorBodyBytes bounds the excerpt quoted back to the user from a failed
 	// response. It protects the terminal, not the heap.
 	maxErrorBodyBytes = 512
+	// maxResponseDrain caps the leftover bytes read before close: enough for
+	// connection reuse, too few for a proxy's error page to stall the command.
+	maxResponseDrain = 4 << 10
 	// healthTimeout bounds the readiness probe, which answers from memory on a
 	// healthy server and must not hold a command open on an unhealthy one.
 	healthTimeout = 10 * time.Second
@@ -110,7 +113,7 @@ func (c *Client) get(ctx context.Context, path string, dest any) error {
 		return err
 	}
 	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseDrain))
 		_ = resp.Body.Close()
 	}()
 
@@ -161,7 +164,7 @@ func (c *Client) Sync(ctx context.Context, payload *archsync.Payload) (*SyncResp
 		return nil, false, err
 	}
 	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxResponseDrain))
 		_ = resp.Body.Close()
 	}()
 

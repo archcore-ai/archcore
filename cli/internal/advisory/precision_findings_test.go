@@ -544,3 +544,17 @@ func TestPrecision_ResearchSections(t *testing.T) {
 		})
 	}
 }
+
+// A heading inside a pasted fenced sample is the sample's, not the document's:
+// it neither counts as a section nor closes the section it sits in.
+func TestSectionHelpers_IgnoreFencedHeadings(t *testing.T) {
+	t.Parallel()
+	lines := strings.Split("## Enforcement\n\n```md\n## Examples\n```\n\nCI runs `go test ./...`.\n", "\n")
+
+	if hasSection(lines, templates.SectionRule{Name: "Examples"}) {
+		t.Error("a fenced heading counted as a section")
+	}
+	if body := sectionBody(lines, templates.SectionEnforcement); !strings.Contains(body, "CI runs") {
+		t.Errorf("a fenced heading closed the section early: %q", body)
+	}
+}

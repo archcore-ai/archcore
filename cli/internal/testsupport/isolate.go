@@ -93,6 +93,9 @@ func IsolateAmbientState() *Isolation {
 	_ = os.Setenv("XDG_CONFIG_HOME", config)
 	// OpenCode reads its global config here before XDG_CONFIG_HOME.
 	_ = os.Unsetenv("OPENCODE_CONFIG_DIR")
+	// Codex and Claude Code relocate their whole home through these.
+	_ = os.Unsetenv("CODEX_HOME")
+	_ = os.Unsetenv("CLAUDE_CONFIG_DIR")
 
 	iso.armHostTrap()
 	return iso

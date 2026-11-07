@@ -3,6 +3,7 @@ package agents
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -138,5 +139,62 @@ func TestCodexCLI_Detect_False(t *testing.T) {
 	base := t.TempDir()
 	if ByID(CodexCLI).DetectFn(base) {
 		t.Error("expected no detection")
+	}
+}
+
+func TestCodexCLI_WriteMCPConfig_IgnoresCommentedHeader(t *testing.T) {
+	t.Parallel()
+	base := t.TempDir()
+	codexDir := filepath.Join(base, ".codex")
+	if err := os.MkdirAll(codexDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	path := filepath.Join(codexDir, "config.toml")
+	if err := os.WriteFile(path, []byte("# [mcp_servers.archcore]\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	if err := ByID(CodexCLI).WriteMCPConfig(base); err != nil {
+		t.Fatalf("WriteMCPConfig: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if !strings.Contains(string(data), "\n[mcp_servers.archcore]\n") {
+		t.Errorf("a commented-out header was taken as configured:\n%s", data)
+	}
+}
+
+func TestCodexCLI_WriteMCPConfig_KeepsSymlinkedConfig(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need privileges on Windows")
+	}
+	base := t.TempDir()
+	codexDir := filepath.Join(base, ".codex")
+	if err := os.MkdirAll(codexDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(base, "dotfiles-config.toml")
+	if err := os.WriteFile(target, []byte("model = \"x\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(codexDir, "config.toml")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ByID(CodexCLI).WriteMCPConfig(base); err != nil {
+		t.Fatalf("WriteMCPConfig: %v", err)
+	}
+
+	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("config.toml link was replaced by a regular file: %v %v", info, err)
+	}
+	data, _ := os.ReadFile(target)
+	if !strings.Contains(string(data), "[mcp_servers.archcore]") {
+		t.Errorf("the link target did not receive the entry:\n%s", data)
 	}
 }

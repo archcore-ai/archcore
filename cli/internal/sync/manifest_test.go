@@ -1038,3 +1038,19 @@ func TestManifest_RelationOverlaps(t *testing.T) {
 		})
 	}
 }
+
+func TestMissingEnds(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.adr.md"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rels := []Relation{
+		{Source: "a.adr.md", Target: "gone.spec.md", Type: "related"},
+		{Source: "gone.spec.md", Target: "a.adr.md", Type: "related"},
+	}
+	got := MissingEnds(dir, rels)
+	if len(got) != 1 || !got["gone.spec.md"] {
+		t.Errorf("MissingEnds = %v, want only gone.spec.md", got)
+	}
+}

@@ -282,25 +282,19 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		pathRefFilter := strings.TrimSpace(request.GetString("path_ref", ""))
 		contentFilter := request.GetString("content", "")
-		rawTypes := request.GetStringSlice("types", nil)
-		types := make([]templates.DocumentType, len(rawTypes))
-		for i, t := range rawTypes {
-			types[i] = templates.DocumentType(t)
-		}
-		for _, tp := range types {
-			if !templates.IsValidType(string(tp)) {
-				return errorResult(fmt.Sprintf("invalid type %q (valid: %s)", tp, strings.Join(templates.ValidTypes(), ", "))), nil
-			}
+		types, typesErr := parseTypes(request)
+		if typesErr != nil {
+			return typesErr, nil
 		}
 		status := templates.DocStatus(request.GetString("status", ""))
+		// The server does not validate arguments against the schema enum, so an
+		// unchecked typo would return an empty page that reads as a verified absence.
+		if status != "" && !templates.IsValidStatus(status) {
+			return errorResult(fmt.Sprintf("invalid status %q (valid: %s)", status, strings.Join(templates.ValidStatusStrings(), ", "))), nil
+		}
 		mtimeAfterRaw := strings.TrimSpace(request.GetString("mtime_after", ""))
 		sortMode := request.GetString("sort", "relevance")
 		mode := searchMode(request.GetString("mode", string(searchModeSnippets)))
-		// Normalize defensively (the framework enforces the enum, but any value
-		// other than "full" maps to the cheaper snippets output).
-		if mode != searchModeFull {
-			mode = searchModeSnippets
-		}
 		matchMode := contentMatchMode(request.GetString("match", string(matchModeAll)))
 		if matchMode != matchModeExact && matchMode != matchModeAny {
 			matchMode = matchModeAll
@@ -333,19 +327,8 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 		if limitFloat < 0 {
 			return errorResult("limit must be non-negative"), nil
 		}
-		defaultLimit, maxLimit := searchDefaultLimit, searchMaxLimit
-		if mode == searchModeFull {
-			defaultLimit, maxLimit = searchFullDefaultLimit, searchFullMaxLimit
-		}
-		limit := int(limitFloat)
-		if limit == 0 {
-			limit = defaultLimit
-		}
-		if limit > maxLimit {
-			limit = maxLimit
-		}
+		limit := searchLimit(limitFloat, mode)
 
-		// Parse mtime_after.
 		mtimeAfter, err := parseMtimeAfter(mtimeAfterRaw)
 		if err != nil {
 			return errorResult("invalid mtime_after: " + err.Error()), nil
@@ -374,11 +357,6 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 		distinctTokens := dedupeWords(tokens)
 		nearMissesPossible := matchMode == matchModeAll && len(distinctTokens) >= 2
 		var nearMissCandidates []nearMissCandidate
-
-		// Normalize sort mode (framework enforces enum, but be defensive).
-		if sortMode == "" {
-			sortMode = "relevance"
-		}
 
 		// Only load bodies when we actually need them. Pure metadata queries
 		// (types / status / mtime_after) never inspect body content, so we
@@ -916,7 +894,6 @@ func parseMtimeAfter(s string) (time.Time, error) {
 	if s == "" {
 		return time.Time{}, nil
 	}
-	// Try RFC3339 first.
 	if t, err := time.Parse(time.RFC3339, s); err == nil {
 		return t, nil
 	}
@@ -1043,6 +1020,22 @@ func collapseWhitespace(s string) string {
 		b.WriteRune(r)
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// searchLimit maps a non-negative limit argument to the page size: 0 picks the
+// mode default, values above the mode cap clamp to it. The clamp runs on the
+// float because int() of a value beyond the int range is implementation-defined
+// and yields a negative limit on amd64.
+func searchLimit(limitFloat float64, mode searchMode) int {
+	defaultLimit, maxLimit := searchDefaultLimit, searchMaxLimit
+	if mode == searchModeFull {
+		defaultLimit, maxLimit = searchFullDefaultLimit, searchFullMaxLimit
+	}
+	limit := int(min(limitFloat, float64(maxLimit)))
+	if limit == 0 {
+		return defaultLimit
+	}
+	return limit
 }
 
 // sortResults orders results per the mode. Stable so equal keys preserve input

@@ -184,7 +184,12 @@ func checkFrontmatter(raw, relPath string) *statusReport {
 		return r
 	}
 
-	endIdx := strings.Index(content[4:], "\n---")
+	// The closing line must be exactly "---", the rule templates.SplitDocument
+	// parses by; a looser match reported files the parser reads as body only.
+	endIdx := strings.Index(content[4:], "\n---\n")
+	if endIdx < 0 && strings.HasSuffix(content, "\n---") && len(content) > 7 {
+		endIdx = len(content) - 8
+	}
 	if endIdx < 0 {
 		r.failf("%s: missing closing --- delimiter", relPath)
 		return r
@@ -199,7 +204,6 @@ func checkFrontmatter(raw, relPath string) *statusReport {
 		return r
 	}
 
-	// Check required fields.
 	for _, field := range []string{"title", "status"} {
 		val, ok := fm[field]
 		if !ok {
@@ -305,42 +309,34 @@ func checkManifest(baseDir string) *statusReport {
 	return r
 }
 
-// fixManifest removes orphaned relations from the sync manifest.
-// Returns the number of relations removed and any error.
+// fixManifest removes orphaned relations from the sync manifest. A manifest
+// LoadManifest refuses is left untouched for checkManifest to report: rewriting
+// it would drop the root fields a newer binary wrote.
 func fixManifest(baseDir string) (int, error) {
-	manifestPath := filepath.Join(baseDir, ".archcore", archsync.ManifestFile)
-
-	data, err := os.ReadFile(manifestPath)
+	m, err := archsync.LoadManifest(baseDir)
 	if err != nil {
-		return 0, nil // no manifest — nothing to fix
+		return 0, nil
 	}
 
-	var m archsync.Manifest
-	if err := json.Unmarshal(data, &m); err != nil {
-		return 0, nil // corrupt manifest — checkManifest will report it
-	}
-
-	archcoreDir := filepath.Join(baseDir, ".archcore")
-	removed := m.CleanupRelations(archcoreDir)
+	removed := m.CleanupRelations(filepath.Join(baseDir, ".archcore"))
 	if removed == 0 {
 		return 0, nil
 	}
 
-	if err := archsync.SaveManifest(baseDir, &m); err != nil {
+	if err := archsync.SaveManifest(baseDir, m); err != nil {
 		return 0, fmt.Errorf("failed to save manifest after cleanup: %w", err)
 	}
 	return removed, nil
 }
 
 func checkDanglingRelations(baseDir string, relations []archsync.Relation) []string {
+	missing := archsync.MissingEnds(filepath.Join(baseDir, ".archcore"), relations)
 	var issues []string
 	for _, rel := range relations {
-		srcPath := filepath.Join(baseDir, ".archcore", rel.Source)
-		if _, err := os.Stat(srcPath); errors.Is(err, fs.ErrNotExist) {
+		if missing[rel.Source] {
 			issues = append(issues, fmt.Sprintf("relation source %q does not exist on disk", rel.Source))
 		}
-		tgtPath := filepath.Join(baseDir, ".archcore", rel.Target)
-		if _, err := os.Stat(tgtPath); errors.Is(err, fs.ErrNotExist) {
+		if missing[rel.Target] {
 			issues = append(issues, fmt.Sprintf("relation target %q does not exist on disk", rel.Target))
 		}
 	}

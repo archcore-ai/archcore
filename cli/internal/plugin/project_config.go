@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -41,7 +42,10 @@ func projectEvidence(ctx context.Context, ev Evidence, spec HostSpec, projectRoo
 	listed, err := loadProjectConfigListing(ctx, spec, projectRoot)
 	ev.ListingOK = ev.CLIPresent && err == nil
 	ev.Listed = ev.CLIPresent && listed
-	ev.RegistryListed = readProjectConfigListing(ctx, spec, projectRoot)
+	// Advisory: a config that cannot be read is no evidence the plugin is
+	// listed — fail-open-or-fail-closed-reads.rule §7. RegistryListed is the
+	// presence answer registryListsPlugin gives for the other hosts.
+	ev.RegistryListed = err == nil && listed
 	return ev
 }
 
@@ -70,18 +74,6 @@ func loadProjectConfigListing(ctx context.Context, spec HostSpec, projectRoot st
 		}
 	}
 	return false, unreadable
-}
-
-// readProjectConfigListing is the presence answer for the evidence that only
-// reports, as registryListsPlugin is for the other hosts. It fails open.
-func readProjectConfigListing(ctx context.Context, spec HostSpec, projectRoot string) bool {
-	listed, err := loadProjectConfigListing(ctx, spec, projectRoot)
-	// Advisory: a config that cannot be read is no evidence the plugin is
-	// listed — fail-open-or-fail-closed-reads.rule §7.
-	if err != nil {
-		return false
-	}
-	return listed
 }
 
 // configDirs lists the directories whose config OpenCode loads for a session
@@ -120,7 +112,6 @@ func configDirs(ctx context.Context, projectRoot string) []string {
 // "1.18.34" on 1.x and "opencode v2.1.4" on 2.x.
 var hostMajorRe = regexp.MustCompile(`(\d+)\.\d+\.\d+`)
 
-// readHostMajor runs the host's version command and returns its major number.
 func readHostMajor(ctx context.Context, version Command) int {
 	out := runCommand(ctx, version)
 	match := hostMajorRe.FindStringSubmatch(out.Stdout)
@@ -155,7 +146,7 @@ func globalConfigDir() string {
 // missing file is a config that lists nothing.
 func loadConfigListsPackage(path, pkg string) (bool, error) {
 	info, err := os.Stat(path)
-	if os.IsNotExist(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		return false, nil
 	}
 	// Guard: a file that exists and cannot be read is no answer, never "lists

@@ -344,12 +344,12 @@ func Specs() []HostSpec {
 // copySpec deep-copies the command slices of a row so the shared table stays
 // immutable outside this file.
 func copySpec(spec HostSpec) HostSpec {
-	spec.Listing = Command{Name: spec.Listing.Name, Args: cloneArgs(spec.Listing.Args)}
+	spec.Listing.Args = cloneArgs(spec.Listing.Args)
 	spec.Update = cloneCommands(spec.Update)
 	spec.Install = cloneCommands(spec.Install)
 	spec.Remove = cloneCommands(spec.Remove)
 	spec.ProjectConfigPaths = cloneArgs(spec.ProjectConfigPaths)
-	spec.Version = Command{Name: spec.Version.Name, Args: cloneArgs(spec.Version.Args)}
+	spec.Version.Args = cloneArgs(spec.Version.Args)
 	if spec.Since2 != nil {
 		since := copySpec(*spec.Since2)
 		spec.Since2 = &since

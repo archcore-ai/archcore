@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 
@@ -55,21 +56,13 @@ func HandleRemoveDocument(root RootProvider) func(ctx context.Context, request m
 		}
 
 		baseDir := root.Root(ctx)
-		// Validate path.
 		cleaned, err := guardWritablePath(baseDir, relPath)
 		if err != nil {
-			switch {
-			case errors.Is(err, errPathOtherProject):
-				return errorResult(otherProjectRefusal(baseDir, relPath)), nil
-			case errors.Is(err, errPathNotDocument):
-				return errorResult("invalid path: not a document — only .md document files can be removed"), nil
-			default:
-				return errorResult(err.Error()), nil
-			}
+			return writeGuardRefusal(baseDir, relPath, "removed", err), nil
 		}
 		relPath = cleaned
 
-		// Read file metadata before deletion.
+		defer lockDocument(filepath.Join(baseDir, relPath))()
 		doc, err := readDocumentContent(baseDir, relPath)
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -78,7 +71,6 @@ func HandleRemoveDocument(root RootProvider) func(ctx context.Context, request m
 			return errorResult(sanitizeError("reading "+relPath, err)), nil
 		}
 
-		// Delete the file.
 		absPath := filepath.Join(baseDir, relPath)
 		if err := os.Remove(absPath); err != nil {
 			return errorResult(sanitizeError("removing "+relPath, err)), nil
@@ -86,15 +78,24 @@ func HandleRemoveDocument(root RootProvider) func(ctx context.Context, request m
 		docs.InvalidateCache(absPath)
 
 		// Clean up relations from manifest. relations_removed counts only the
-		// deleted document's own edges; CleanupRelations still opportunistically
+		// deleted document's own edges; the stale-edge sweep still opportunistically
 		// drops any other stale edge, but those are hygiene, not this deletion.
 		relationsRemoved := 0
 		archcoreDir := filepath.Join(baseDir, ".archcore")
 		docRelPath := normalizeRelPath(relPath)
+		// The endpoints are stat'ed before mutate, not inside it: every handler
+		// contends for the store lock (process-and-concurrency-model.spec §10).
+		// The deleted document is marked missing by hand: a relation added to it
+		// between this snapshot and mutate would otherwise outlive the file.
+		missing := map[string]bool{docRelPath: true}
+		if snapshot, err := sharedManifestStore.load(baseDir); err == nil {
+			maps.Copy(missing, sync.MissingEnds(archcoreDir, snapshot.Relations))
+		}
+		beforeRelationMutate()
 		if err := sharedManifestStore.mutate(baseDir, func(m *sync.Manifest) bool {
 			out, in := m.RelationsFor(docRelPath)
 			relationsRemoved = len(out) + len(in)
-			return m.CleanupRelations(archcoreDir) > 0
+			return m.DropRelationsTo(missing) > 0
 		}); err != nil {
 			return errorResult(sanitizeError("file deleted but failed to update manifest", err)), nil
 		}

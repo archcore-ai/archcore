@@ -3,11 +3,19 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"slices"
 
 	"archcore-cli/internal/sync"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
+
+// listRelationsLimit keeps an unfiltered listing near the response budget the
+// other read tools hold (searchResponseByteBudget): one relation with the
+// usual two-level paths encodes to about 120 bytes. A path-filtered listing is
+// never cut, so every edge of one document stays reachable.
+const listRelationsLimit = 300
 
 func NewListRelationsTool() mcp.Tool {
 	return mcp.NewTool("list_relations",
@@ -15,7 +23,9 @@ func NewListRelationsTool() mcp.Tool {
 
 Use to see the full relation graph across all documents (omit "path"), or audit all relations for a specific document. Note: get_document also returns relations for a single document — use list_relations for a broader view or when you haven't loaded the document yet.
 
-Optionally filter by a specific document path (with or without ".archcore/" prefix).`),
+Optionally filter by a specific document path (with or without ".archcore/" prefix).
+
+Returns: JSON {"total": N, "truncated": bool, "relations": [...]}. An unfiltered listing keeps manifest order and stops at 300 relations ("truncated": true); a listing filtered by "path" is complete, outgoing relations first, then incoming.`),
 		mcp.WithString("path",
 			mcp.Description("Optional document path to filter relations for. Returns all relations if omitted."),
 		),
@@ -43,14 +53,7 @@ func HandleListRelations(root RootProvider) func(ctx context.Context, request mc
 			path = normalizeRelPath(path)
 			out, in := m.RelationsFor(path)
 			seen := make(map[string]bool)
-			for _, r := range out {
-				key := r.Source + "|" + r.Target + "|" + string(r.Type)
-				if !seen[key] {
-					relations = append(relations, r)
-					seen[key] = true
-				}
-			}
-			for _, r := range in {
+			for _, r := range slices.Concat(out, in) {
 				key := r.Source + "|" + r.Target + "|" + string(r.Type)
 				if !seen[key] {
 					relations = append(relations, r)
@@ -63,8 +66,20 @@ func HandleListRelations(root RootProvider) func(ctx context.Context, request mc
 			relations = []sync.Relation{}
 		}
 
-		result := map[string]any{"relations": relations}
-		data, _ := json.Marshal(result)
+		total := len(relations)
+		listed := total
+		if path == "" {
+			listed = min(total, listRelationsLimit)
+		}
+		result := map[string]any{
+			"total":     total,
+			"truncated": listed < total,
+			"relations": relations[:listed],
+		}
+		data, err := json.Marshal(result)
+		if err != nil {
+			return nil, fmt.Errorf("marshaling result: %w", err)
+		}
 		return mcp.NewToolResultText(string(data)), nil
 	}
 }

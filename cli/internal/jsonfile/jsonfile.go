@@ -87,10 +87,13 @@ func UnmarshalSection(doc *Doc, key string, v any) error {
 	return nil
 }
 
-// WriteAtomic writes data to path via a temp file + rename (0o644), so a
-// crash mid-write can never leave a truncated file. The temp file is created
-// in path's own directory, so the rename stays on one filesystem; it is
-// removed on any failure.
+// WriteAtomic writes data to path via a temp file + rename, so a crash
+// mid-write can never leave a truncated file. The temp file is created in
+// path's own directory, so the rename stays on one filesystem; it is removed
+// on any failure. An existing file keeps its mode; a new one is created at
+// 0o644 under the umask. A symlink at path is replaced, not followed: the
+// settings and the manifest arrive with a cloned repository, and a committed
+// link pointing outside the project must not be written through.
 //
 // The temp name is per-attempt (os.CreateTemp), which is what the freshness
 // cache needs and the earlier fixed `path + ".tmp"` could not give it: that
@@ -102,7 +105,7 @@ func UnmarshalSection(doc *Doc, key string, v any) error {
 // unaffected — choosing-an-atomic-write.rule §6.
 func WriteAtomic(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	prefix := filepath.Base(path) + ".tmp"
+	prefix := filepath.Base(path) + tempInfix
 	sweepStaleTemps(dir, prefix)
 
 	mode, exists := publishMode(path)
@@ -137,6 +140,21 @@ func WriteAtomic(path string, data []byte) error {
 	return nil
 }
 
+// WriteThroughSymlink is WriteAtomic for a file the user owns (CLAUDE.md, a
+// host config): a link into a dotfiles repository is followed, so the target
+// receives the write and the link survives. A path that does not resolve is
+// written as given, which is the fresh-file case.
+func WriteThroughSymlink(path string, data []byte) error {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
+	return WriteAtomic(path, data)
+}
+
+// tempInfix separates a temporary from its target's name. The archcore word
+// keeps a user's own "settings.json.tmpbackup" out of the stale-temp sweep.
+const tempInfix = ".tmp-archcore-"
+
 // publishMode reports the mode WriteAtomic publishes path with, and whether the
 // file already exists. A new file takes 0o644 through open(2), so the process
 // umask applies to it exactly as it did when this helper called os.WriteFile.
@@ -166,7 +184,7 @@ func sweepStaleTemps(dir, prefix string) {
 		return
 	}
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasPrefix(e.Name(), prefix) || e.Name() == prefix {
+		if e.IsDir() || !strings.HasPrefix(e.Name(), prefix) {
 			continue
 		}
 		info, err := e.Info()
@@ -242,13 +260,52 @@ func Equal(a, b json.RawMessage) bool {
 	return errA == nil && errB == nil && string(ac) == string(bc)
 }
 
-// SaveDoc marshals doc with two-space indent, appends a trailing newline,
-// and writes it atomically.
+// SaveDoc writes doc as MarshalDoc renders it, atomically.
 func SaveDoc(path string, doc *Doc) error {
-	out, err := json.MarshalIndent(doc, "", "  ")
+	out, err := MarshalDoc(doc)
 	if err != nil {
 		return fmt.Errorf("marshaling %s: %w", path, err)
 	}
-	out = append(out, '\n')
 	return WriteAtomic(path, out)
+}
+
+// MarshalDoc renders doc with two-space indent and a trailing newline, and
+// keeps &, < and > literal.
+//
+// encoding/json HTML-escapes them at every level, including inside the
+// ordered map's MarshalJSON, so a user's `"a && b"` came back as
+// `"a \u0026\u0026 b"` on every rewrite of a file archcore does not own.
+func MarshalDoc(doc *Doc) ([]byte, error) {
+	out, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(unescapeHTML(out), '\n'), nil
+}
+
+// unescapeHTML reverses encoding/json's HTML escapes in valid JSON. It walks
+// escape pairs so an escaped backslash followed by "u0026" stays literal text.
+var htmlEscapes = map[string]byte{"0026": '&', "003c": '<', "003e": '>'}
+
+func unescapeHTML(b []byte) []byte {
+	if !bytes.Contains(b, []byte(`\u00`)) {
+		return b
+	}
+	out := make([]byte, 0, len(b))
+	for i := 0; i < len(b); i++ {
+		if b[i] != '\\' || i+1 >= len(b) {
+			out = append(out, b[i])
+			continue
+		}
+		if i+5 < len(b) && b[i+1] == 'u' {
+			if c, ok := htmlEscapes[string(b[i+2:i+6])]; ok {
+				out = append(out, c)
+				i += 5
+				continue
+			}
+		}
+		out = append(out, b[i], b[i+1])
+		i++
+	}
+	return out
 }
