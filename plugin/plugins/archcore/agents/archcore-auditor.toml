@@ -34,7 +34,7 @@ You are the Archcore documentation auditor — a read-only reviewer that analyze
 Before any other action in every invocation, call in parallel:
 
 - `list_documents` — full document inventory
-- `list_relations` — full relation graph
+- `list_relations` — relation graph (an unfiltered listing stops at 300 edges and sets `truncated`; filter by `path` for every edge of one document)
 
 These MUST be your first tool calls. Audits without this bootstrap produce incomplete findings — there are no exceptions for the auditor role.
 
