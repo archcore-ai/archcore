@@ -77,6 +77,9 @@ The direction is fixed: A is the mutated target, B holds the relation into it, a
 6. IF the relation graph is empty, THEN Layer 2 MUST produce no output.
 7. IF the relation graph is empty, THEN Layer 3 MUST skip cascade analysis.
 8. IF the project holds more than 100 documents, THEN Layer 3 SHOULD ask for a tag or category filter.
+9. IF the unfiltered `list_relations` response carries `truncated: true`, THEN Layer 3 MUST read the relations of each scoped document through `list_relations` with `path`.
+
+Item 9 exists because an unfiltered listing stops at 300 edges (`@cli/internal/mcp/tools/list_relations.go`); cascade and temporal checks on the cut listing would miss edges with no error.
 
 Item 5 is the widest silent gap in the system: on a machine whose `archcore` predates 0.7.0, both hook layers exit 0 without output and nothing distinguishes that session from a clean one.
 

@@ -67,5 +67,7 @@ Run `archcore --version`. Expected result: the newly installed version.
 - `no Location header` or `parsing redirect location` — a `3xx` arrived without a usable `Location`. This indicates an intercepting proxy rather than GitHub.
 - `Update failed` with a permission error — the binary sits in a directory without write access. Reinstall it to a writable location, or run the command with `sudo`.
 - `Checksum mismatch` — the download was corrupted. Run `archcore update` again.
+- `Update failed` with `probing staged binary: needs macOS X or later; this Mac runs macOS Y` — the release is built for a newer macOS. The current binary stays in place. Update macOS to run the new release.
+- `Update failed` with `probing staged binary` and another reason — the downloaded binary did not start or did not answer `--version` within 3 s. The current binary stays in place. Run `archcore update` again.
 - A development build always updates on the manual path. WHILE the binary reports `archcore vdev`, the command downloads the latest release on every run. The unattended path refuses a `dev` build instead.
 - A machine that never self-updates in the background — check the unattended conditions in order. A binary built with `go build` carries no official-build marker and stops at the first condition, which is the intended behavior for a local build.

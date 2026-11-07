@@ -37,6 +37,10 @@ MUST NOT interview, per `skills/_shared/elicitation-contract.md`.
 Gather once, in parallel: `list_documents` (scope filter applied),
 `list_relations`, and the scoped diff from `actualize.scope`. If git is
 unavailable, skip the code-drift check and run cascade and temporal only.
+IF the `list_relations` response carries `truncated: true`, THEN call
+`list_relations` with `path` once for each scoped document, and run cascade
+and temporal on those edges. An unfiltered listing stops at 300 edges; a
+listing filtered by `path` is complete.
 
 1. **Code drift.** IF the scoped diff is empty, THEN skip this check. For
    each scoped document: read it with `get_document`;
