@@ -47,7 +47,7 @@ func searchForPath(t *testing.T, base string, args map[string]any) (forPathRespo
 	return resp, text
 }
 
-// TestSearchForPath_Refusals pins search-documents.spec §1.11, §1.12, and
+// TestSearchForPath_Refusals pins search-documents.spec §1.2, §1.11, §1.12, and
 // file-context-resolution.spec failure rule 3.
 func TestSearchForPath_Refusals(t *testing.T) {
 	t.Parallel()
@@ -61,6 +61,7 @@ func TestSearchForPath_Refusals(t *testing.T) {
 		{name: "with content", args: map[string]any{"for_path": "src/a.go", "content": "x"}, want: "for_path cannot be combined with path_ref or content"},
 		{name: "outside the project", args: map[string]any{"for_path": "../elsewhere/a.go"}, want: "for_path must name a file inside the project"},
 		{name: "a document", args: map[string]any{"for_path": ".archcore/a.rule.md"}, want: "not an .archcore document"},
+		{name: "with a negative limit", args: map[string]any{"for_path": "src/a.go", "limit": -1}, want: "limit must be non-negative"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -100,6 +101,12 @@ func TestSearchForPath_RowsCarryReasonAndFullPaths(t *testing.T) {
 	}
 	if resp.Omitted != nil {
 		t.Errorf("omitted = %+v, want absent", resp.Omitted)
+	}
+
+	// for_path keeps its own caps: limit does not cut the rows.
+	limited, text := searchForPath(t, base, map[string]any{"for_path": "src/app/FullLayout.tsx", "limit": 1})
+	if len(limited.Results) != len(want) {
+		t.Errorf("with limit 1: %d rows, want %d\n%s", len(limited.Results), len(want), text)
 	}
 }
 

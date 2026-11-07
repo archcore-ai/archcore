@@ -270,7 +270,7 @@ func NewSearchDocumentsTool() mcp.Tool {
 			mcp.Enum(string(searchModeSnippets), string(searchModeFull)),
 		),
 		mcp.WithNumber("limit",
-			mcp.Description("Maximum number of results to return. Defaults and caps are mode-dependent: snippets=50 default/200 max, full=3 default/20 max. Values above the cap are clamped; 0 or omitted maps to the mode default. The response byte budget can return fewer rows than the limit; truncated then reads true."),
+			mcp.Description("Maximum number of results to return. Defaults and caps are mode-dependent: snippets=50 default/200 max, full=3 default/20 max. Values above the cap are clamped; 0 or omitted maps to the mode default. The response byte budget can return fewer rows than the limit; truncated then reads true. Ignored under for_path, which has its own caps."),
 		),
 		mcp.WithTitleAnnotation("Search Documents"),
 		mcp.WithReadOnlyHintAnnotation(true),
@@ -316,6 +316,10 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 		if forPath == "" && pathRefFilter == "" && contentFilter == "" && len(types) == 0 && status == "" {
 			return errorResult("specify at least one filter (path_ref, content, types, status, or for_path)"), nil
 		}
+		// Validated before the for_path branch: its caps replace limit, but a negative limit stays an error (search-documents.spec §1.2).
+		if limitFloat < 0 {
+			return errorResult("limit must be non-negative"), nil
+		}
 		if forPath != "" {
 			if pathRefFilter != "" || contentFilter != "" {
 				return errorResult("for_path cannot be combined with path_ref or content"), nil
@@ -323,10 +327,6 @@ func HandleSearchDocuments(root RootProvider) func(ctx context.Context, request 
 			return searchFileContext(ctx, baseDir, forPath, sourceFilter, types, status)
 		}
 
-		// Validate and clamp limit (mode-aware bounds).
-		if limitFloat < 0 {
-			return errorResult("limit must be non-negative"), nil
-		}
 		limit := searchLimit(limitFloat, mode)
 
 		mtimeAfter, err := parseMtimeAfter(mtimeAfterRaw)

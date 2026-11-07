@@ -42,7 +42,7 @@ Annotated `ReadOnlyHint: true`. At least one of `path_ref`, `content`, `types`, 
 | `types`, `status`, `mtime_after` | Metadata filters. `mtime_after` takes RFC3339 or `<N>h` / `<N>d`. |
 | `sort` | `relevance` (default) or `mtime`. |
 | `mode` | `snippets` (default) or `full`, which also inlines each matched body. |
-| `limit` | `snippets`: default 50, max 200. `full`: default 3, max 20. Above the cap is clamped; `0` maps to the default. |
+| `limit` | `snippets`: default 50, max 200. `full`: default 3, max 20. Above the cap is clamped; `0` maps to the default. Under `for_path` the file-context caps replace it; §1.2 still applies. |
 
 ### Outputs
 
