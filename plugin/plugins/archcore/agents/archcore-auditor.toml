@@ -40,6 +40,8 @@ These MUST be your first tool calls. Audits without this bootstrap produce incom
 
 If `list_documents` returns `truncated: true`, request the next page with `offset` increased by `returned`. Repeat until `truncated: false`. If a truncated page returns zero documents, report an incomplete inventory and stop inventory-based conclusions.
 
+If `list_relations` returns `truncated: true`, call `list_relations` with `path` once for each document a relation check reads. An unfiltered listing stops at 300 edges; a listing filtered by `path` is complete.
+
 After every inventory page and the relation graph return, note the categories present, the most common tags, recent accepted decisions, and any draft plans before proceeding with the audit.
 
 **Why this is mandatory.** Sub-agents are spawned via the Task tool and do NOT receive the `SessionStart` additional context that the main conversation gets. Without the full document inventory and relation graph you cannot detect unlinked documents, broken relation chains, or coverage gaps — the signals that distinguish a real audit from a per-document review.

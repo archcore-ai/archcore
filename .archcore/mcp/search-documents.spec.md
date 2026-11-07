@@ -77,6 +77,10 @@ Each `searchResult` row carries `path`, `title`, `type`, `status`, `mtime`, `tag
 13. WHEN `project` is set, the handler MUST search that root and none other.
 14. WHEN `for_path` is absolute and `project` is absent, the handler MUST search the nearest ancestor of `for_path` that holds `.archcore/`.
 15. WHEN `for_path` is absolute and `project` is set, the handler MUST reject the call if `for_path` lies outside `project`.
+16. IF `types` holds a value that is not a document type, THEN the handler MUST reject the call with `invalid type "<value>" (valid: <types>)`.
+17. IF `status` is not a document status, THEN the handler MUST reject the call with `invalid status "<value>" (valid: <statuses>)`.
+
+Items 16 and 17 exist because the server does not check arguments against the schema enum; an unchecked typo returns an empty page that reads as a verified absence.
 
 ### §2 Document loading
 

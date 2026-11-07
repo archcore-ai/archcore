@@ -21,13 +21,13 @@ func NewListRelationsTool() mcp.Tool {
 	return mcp.NewTool("list_relations",
 		mcp.WithDescription(`List document relations stored in the sync manifest.
 
-Use to see the full relation graph across all documents (omit "path"), or audit all relations for a specific document. Note: get_document also returns relations for a single document — use list_relations for a broader view or when you haven't loaded the document yet.
+Use to see the relation graph across all documents (omit "path"), or audit all relations for a specific document. Note: get_document also returns relations for a single document — use list_relations for a broader view or when you haven't loaded the document yet.
 
 Optionally filter by a specific document path (with or without ".archcore/" prefix).
 
 Returns: JSON {"total": N, "truncated": bool, "relations": [...]}. An unfiltered listing keeps manifest order and stops at 300 relations ("truncated": true); a listing filtered by "path" is complete, outgoing relations first, then incoming.`),
 		mcp.WithString("path",
-			mcp.Description("Optional document path to filter relations for. Returns all relations if omitted."),
+			mcp.Description("Optional document path to filter relations for. Without it the listing stops at 300 relations."),
 		),
 		mcp.WithTitleAnnotation("List Relations"),
 		mcp.WithReadOnlyHintAnnotation(true),

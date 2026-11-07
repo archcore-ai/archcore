@@ -2,8 +2,8 @@
 // is bounded, the archive is validated before anything is written, and the
 // replacement is atomic with a rollback — a failed update must leave a working
 // binary, not a truncated one. An optional pre-commit probe runs the staged
-// binary before the rename, so an unattended caller never commits one that
-// cannot start.
+// binary before the rename, so neither the manual nor the unattended path
+// commits one that cannot start.
 package update
 
 import (
@@ -604,7 +604,7 @@ const probeTimeout = 3 * time.Second
 
 // healthProbe refuses a staged binary built for a newer macOS than this one,
 // then runs it with `--version`. It returns an error when the binary fails to
-// start, exits nonzero, or does not finish within probeTimeout. The unattended policy installs it as Updater.PreCommitProbe, so
+// start, exits nonzero, or does not finish within probeTimeout. NewUpdater installs it as Updater.PreCommitProbe, so
 // a download that cannot report its own version never replaces a working
 // binary — unattended-update.spec §15.
 //

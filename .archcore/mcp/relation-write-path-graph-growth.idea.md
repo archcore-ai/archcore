@@ -91,16 +91,17 @@ the quadratic case is the common case, not the corner case.
 Each `add_relation` also does 2× `ReadDocumentContent` (endpoint existence) +
 `loadGlobalsFailClosed` per call.
 
-**`list_relations` is unbounded.** The token wall `list_documents` already
-closed (default cap 100 / max 500 + `truncated`) is still open for
-`list_relations`: with no `path` it serialises the whole graph into agent
-context.
+**`list_relations` has a cap but no pagination.** Since 2026-11-07
+(`ffbb7645`) an unfiltered listing stops at 300 relations in manifest order and
+returns `{total, truncated, relations}` (@cli/internal/mcp/tools/list_relations.go).
+A listing filtered by `path` stays complete. No `offset` exists, so the
+relations after the first 300 are reachable only one document at a time.
 
 ## Possible Implementation (priority order)
 
-1. **Cap + paginate `list_relations`** — mirror the `list_documents` envelope
-   (`{relations, total, offset, returned, truncated}`). Cheap; closes the token
-   wall symmetrically. Touches @.archcore/mcp/search-documents.spec.md siblings.
+1. **Paginate `list_relations`** — the cap and `total` / `truncated` shipped;
+   add `offset` and `returned` to mirror the `list_documents` envelope, so an
+   audit can read the whole graph without one call per document.
 2. **O(1) dedup in `AddRelation`** — a key set instead of the O(R) scan in
    @cli/internal/sync/manifest.go. Removes one quadratic factor of bulk builds.
 3. **Batch `add_relations` (plural)** — one clone + one `SaveManifest` per

@@ -73,6 +73,9 @@ The exception in item 12 does not waive `list_documents`.
 29. IF the caller supplied no plugin root, THEN `archcore-auditor` MUST label every relation finding as unverified.
 30. IF the caller supplied no plugin root, THEN `archcore-assistant` MUST write only the relations that the active gate requires.
 31. IF the caller supplied no plugin root, THEN `archcore-assistant` MUST report every other relation candidate as unresolved.
+32. WHEN an unfiltered `list_relations` returns `truncated: true`, `archcore-auditor` MUST call `list_relations` with `path` for each document a relation check reads.
+
+Item 32 exists because an unfiltered listing stops at 300 edges (`@cli/internal/mcp/tools/list_relations.go`), and a listing filtered by `path` is complete.
 
 ## Constraints & Invariants
 
