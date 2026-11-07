@@ -1,0 +1,29 @@
+#!/bin/sh
+# PreToolUse hook launcher: delegate to `archcore hooks <host> pre-tool-use`.
+#
+# The policy — write guard over .archcore/ documents plus the code-alignment
+# advisory — lives in the CLI since v0.7.0 (cli-owns-layers-4-5.adr). This
+# script carries only the host glue the CLI cannot do for itself:
+#   1. refuse to run from a plugin-cache cwd (lib/plugin-cache-guard.sh);
+#   2. fail OPEN when the CLI is absent or older than 0.7.0 — a pre-0.7 CLI
+#      has no pre-tool-use leaf, and its usage error would read as a deny on
+#      Copilot, where every non-zero exit denies and the reason is discarded;
+#   3. map the shell host id "codex" to the CLI agent id "codex-cli";
+#   4. hand the raw payload through and propagate stdout and the exit code
+#      unchanged — exit 2 + stderr IS the deny protocol on claude-compat
+#      hosts, a JSON decision document on Copilot.
+
+SCRIPT_DIR=$(dirname "$0")
+# shellcheck source=lib/normalize-stdin.sh
+. "$SCRIPT_DIR/lib/normalize-stdin.sh"
+# shellcheck source=lib/plugin-cache-guard.sh
+. "$SCRIPT_DIR/lib/plugin-cache-guard.sh"
+archcore_plugin_cache_guard
+
+[ "$("$SCRIPT_DIR/cli-gte" 0.7.0)" = "yes" ] || exit 0
+
+ARCHCORE_CLI_HOST="$ARCHCORE_HOST"
+[ "$ARCHCORE_CLI_HOST" = "codex" ] && ARCHCORE_CLI_HOST="codex-cli"
+
+printf '%s' "$ARCHCORE_RAW_STDIN" | archcore hooks "$ARCHCORE_CLI_HOST" pre-tool-use
+exit $?
