@@ -23,7 +23,7 @@ Out of scope: `archcore update` typed by a user, whose behavior this spec does n
 - Cross-process claim: a fail-closed claim in its own scope, keyed by the resolved binary path, window 24 h. `stamp.Claim` (`@cli/internal/stamp/stamp.go`) supplies the atomic mechanism but not the failure bias — it returns `true` on every filesystem error.
 - Freshness cache: one canonical implementation in `internal/update` — path, the 24 h TTL, the 1 h negative TTL, and an atomic temp-file-and-rename write. `archcore update --check` and the `doctor` advisory call through it.
 - Replacement: `Updater.Apply` — `@cli/internal/update/update.go` — plus a pre-rename health probe. Its temporary file is `<base>.tmp.<pid>`; the Windows aside name becomes per-attempt, `<target>.old.<pid>`, swept as `<target>.old.*`.
-- Health probe: the extracted binary run with `--version`, bounded by 3 s [assumption], before the rename.
+- Health probe: on macOS, a comparison of the extracted binary's Mach-O minimum macOS (`LC_BUILD_VERSION`) with the running system; then the extracted binary run with `--version`, bounded by 3 s [assumption], before the rename. Typed `archcore update` runs the same probe — `.archcore/update/self-update-command.doc.md`.
 - Telemetry: `cli_updated`, `cli_update_failed`, and `cli_update_skipped`, each carrying `trigger` set to `auto`.
 
 ## Normative Behavior
@@ -45,6 +45,8 @@ Out of scope: `archcore update` typed by a user, whose behavior this spec does n
 15. WHEN extraction completes, the CLI MUST run the extracted binary with `--version`, bounded by the probe timeout, before the rename.
 16. IF the health probe exits nonzero, times out, or fails to start, THEN the CLI MUST abandon the replacement and send `cli_update_failed` with `stage` set to `replace`.
 17. WHEN the replacement succeeds, the CLI MUST send `cli_updated` with `trigger` set to `auto`.
+18. IF the extracted binary needs a newer macOS than the running system, THEN the CLI MUST abandon the replacement before it runs the binary.
+19. WHEN requirement 18 abandons the replacement, the CLI MUST send `cli_update_failed` with `stage` set to `replace`.
 
 ## Constraints & Invariants
 

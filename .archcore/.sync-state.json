@@ -2602,6 +2602,11 @@
       "source": "mcp/session-project-is-nearest-store.adr.md",
       "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
       "type": "extends"
+    },
+    {
+      "source": "release/dependency-release-age.rule.md",
+      "target": "update/unattended-update.spec.md",
+      "type": "related"
     }
   ]
 }

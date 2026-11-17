@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"archcore-cli/internal/jsonfile"
 	"archcore-cli/templates"
 )
 
@@ -115,13 +116,8 @@ func ReadDocumentContent(baseDir, relPath string) (Document, error) {
 // leaves a stale entry behind makes a long-lived server serve the old parse
 // until the mtime moves, and the pairing is only enforceable where the write is.
 func WriteFileAtomic(absPath string, data []byte) error {
-	tmp := absPath + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := jsonfile.WriteAtomic(absPath, data); err != nil {
 		return fmt.Errorf("writing document: %w", err)
-	}
-	if err := os.Rename(tmp, absPath); err != nil {
-		_ = os.Remove(tmp)
-		return fmt.Errorf("replacing document: %w", err)
 	}
 	InvalidateCache(absPath)
 	return nil

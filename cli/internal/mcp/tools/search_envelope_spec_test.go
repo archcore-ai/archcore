@@ -316,8 +316,7 @@ func wireFieldNames(root reflect.Type) []string {
 				return
 			}
 			seen[typ] = true
-			for i := range typ.NumField() {
-				field := typ.Field(i)
+			for field := range typ.Fields() {
 				name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 				if !field.IsExported() || name == "" || name == "-" {
 					continue
@@ -378,8 +377,8 @@ func TestNewSearchDocumentsTool_DescriptionNamesEveryWireField(t *testing.T) {
 		}
 	}
 	envelope := reflect.TypeFor[searchDocumentsResult]()
-	for i := range envelope.NumField() {
-		name, _, _ := strings.Cut(envelope.Field(i).Tag.Get("json"), ",")
+	for field := range envelope.Fields() {
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if reason, exempt := searchFieldsWithoutMention[name]; exempt {
 			t.Errorf("envelope key %q is exempt (%s); the summary keys are what a truncated response leaves the agent", name, reason)
 		}

@@ -1,4 +1,5 @@
-// Package xdg resolves the shared state directory for the CLI.
+// Package xdg resolves the shared state directory for the CLI and the config
+// directories of the hosts it wires.
 //
 // One directory holds every piece of state the CLI keeps between invocations
 // and outside any project: the hook dedup stamps, the update-check cache, and
@@ -25,7 +26,6 @@ import (
 	"path/filepath"
 )
 
-// dirName is the per-tool directory inside the XDG state root.
 const dirName = "archcore"
 
 // StateDir returns ${XDG_STATE_HOME:-$HOME/.local/state}/archcore. It returns
@@ -40,4 +40,14 @@ func StateDir() string {
 		return ""
 	}
 	return filepath.Join(home, ".local", "state", dirName)
+}
+
+// HostConfigDir returns a host's config directory: the value of the env
+// override (CODEX_HOME, CLAUDE_CONFIG_DIR) when set, as the host itself
+// resolves it, else fallback.
+func HostConfigDir(env, fallback string) string {
+	if dir := os.Getenv(env); env != "" && dir != "" {
+		return dir
+	}
+	return fallback
 }

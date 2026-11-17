@@ -45,13 +45,13 @@ type capWriter struct {
 }
 
 func (w *capWriter) Write(p []byte) (int, error) {
-	if room := maxOutput - len(w.buf); room > 0 {
-		w.buf = append(w.buf, p[:min(room, len(p))]...)
-	}
-	if len(w.buf) >= maxOutput {
+	n := len(p)
+	if room := maxOutput - len(w.buf); n > room {
 		w.truncated = true
+		p = p[:max(room, 0)]
 	}
-	return len(p), nil
+	w.buf = append(w.buf, p...)
+	return n, nil
 }
 
 // run executes one git query in dir and returns its trimmed stdout, plus

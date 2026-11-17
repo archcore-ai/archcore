@@ -104,18 +104,6 @@ func runPluginUpdateStep(ctx context.Context, out io.Writer) {
 // is what keeps evidence of user intent apart from evidence that the unattended
 // mechanism ran — cli-update-telemetry.spec §10.
 
-// The event names and the trigger come from internal/telemetry, which owns the
-// wire vocabulary. This file once declared its own untyped copies beside the
-// unattended policy's untyped copies — two spellings of one PostHog contract,
-// with nothing that could fail a build when they drifted.
-const (
-	telemetryEventUpdated      = telemetry.EventUpdated
-	telemetryEventUpdateFailed = telemetry.EventUpdateFailed
-
-	// telemetryTriggerManual grades an invocation a user typed.
-	telemetryTriggerManual = telemetry.TriggerManual
-)
-
 const (
 	// telemetryNotice is printed once the endpoint has accepted a manual event,
 	// so a user learns something left the machine in the same run it left. It
@@ -221,8 +209,8 @@ func buildUpdateCmd(version string, u *update.Updater, tel *telemetry.Client) *c
 				// No to_version: the tag never resolved, and a placeholder
 				// would read in the data as a version this run really aimed at
 				// — cli-update-telemetry.spec.
-				disclose(out, tel.Capture(ctx, telemetryEventUpdateFailed, map[string]any{
-					"trigger": telemetryTriggerManual,
+				disclose(out, tel.Capture(ctx, telemetry.EventUpdateFailed, map[string]any{
+					"trigger": telemetry.TriggerManual,
 					"stage":   telemetryStage(err),
 				}))
 				// Updating is this command's sole job — scripts must see a
@@ -256,8 +244,8 @@ func buildUpdateCmd(version string, u *update.Updater, tel *telemetry.Client) *c
 			if err := u.Apply(ctx, latest); err != nil {
 				fmt.Fprintln(out, display.FailLine("Update failed"))
 				fmt.Fprintln(out, display.HintLine(err.Error()))
-				disclose(out, tel.Capture(ctx, telemetryEventUpdateFailed, map[string]any{
-					"trigger":      telemetryTriggerManual,
+				disclose(out, tel.Capture(ctx, telemetry.EventUpdateFailed, map[string]any{
+					"trigger":      telemetry.TriggerManual,
 					"stage":        telemetryStage(err),
 					"from_version": version,
 					"to_version":   latest,
@@ -271,8 +259,8 @@ func buildUpdateCmd(version string, u *update.Updater, tel *telemetry.Client) *c
 			// The disclosure is gated on delivery, so a machine that sent
 			// nothing — opted out, inert build, endpoint down — is told nothing
 			// was sent — cli-update-telemetry.spec §14.
-			disclose(out, tel.Capture(ctx, telemetryEventUpdated, map[string]any{
-				"trigger":      telemetryTriggerManual,
+			disclose(out, tel.Capture(ctx, telemetry.EventUpdated, map[string]any{
+				"trigger":      telemetry.TriggerManual,
 				"from_version": version,
 				"to_version":   latest,
 			}))

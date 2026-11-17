@@ -50,11 +50,14 @@ func writeCodexCLIMCPConfig(baseDir string) error {
 		return fmt.Errorf("reading %s: %w", configPath, err)
 	}
 
-	if strings.Contains(content, "[mcp_servers.archcore]") {
-		return nil // already configured
+	// Only a table header at a line start counts; a commented-out one does not.
+	for line := range strings.Lines(content) {
+		if strings.HasPrefix(strings.TrimSpace(line), "[mcp_servers.archcore]") {
+			return nil
+		}
 	}
 
 	content = strings.TrimRight(content, "\n") + codexArchcoreBlock
 
-	return os.WriteFile(configPath, []byte(content), 0o644)
+	return writeFileAtomic(configPath, []byte(content))
 }

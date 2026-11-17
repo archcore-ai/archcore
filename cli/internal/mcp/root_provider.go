@@ -234,7 +234,6 @@ func (p *sessionRootProvider) markAsked() {
 	p.asked = time.Now()
 }
 
-// countQuery records one roots/list request.
 func (p *sessionRootProvider) countQuery() {
 	p.mu.Lock()
 	defer p.mu.Unlock()

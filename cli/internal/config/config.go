@@ -21,7 +21,6 @@ const (
 	fileName = "settings.json"
 )
 
-// globalIDRe validates a global source id: lowercase alphanumeric with hyphens.
 var globalIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
 // GlobalSource declares another project's .archcore/ whose documents every read
@@ -314,13 +313,11 @@ func (s Settings) MarshalJSON() ([]byte, error) {
 }
 
 func (s *Settings) UnmarshalJSON(data []byte) error {
-	// Decode into a raw map to check fields.
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	// Extract and validate sync field.
 	syncRaw, ok := raw["sync"]
 	if !ok {
 		return errors.New("missing required field \"sync\"")
@@ -357,7 +354,6 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 		s.Extra[key] = raw[key]
 	}
 
-	// Check for required fields.
 	for _, req := range requiredFields[syncType] {
 		if _, ok := raw[req]; !ok {
 			return fmt.Errorf("missing required field %q for sync type %q", req, syncType)
@@ -366,9 +362,7 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 
 	s.Sync = syncType
 
-	// Decode project_id if present.
 	if pidRaw, ok := raw["project_id"]; ok {
-		// Accept null or number.
 		if string(pidRaw) == "null" {
 			s.ProjectID = nil
 		} else {
@@ -380,7 +374,6 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	// Decode archcore_url if present.
 	if urlRaw, ok := raw["archcore_url"]; ok {
 		var url string
 		if err := json.Unmarshal(urlRaw, &url); err != nil {
@@ -392,7 +385,6 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 		s.ArchcoreURL = url
 	}
 
-	// Decode language if present.
 	if langRaw, ok := raw["language"]; ok {
 		var lang string
 		if err := json.Unmarshal(langRaw, &lang); err != nil {

@@ -22,7 +22,6 @@ import (
 // start instead of three, and the ownership marker stays unambiguous: one entry
 // per event means "ours" is a question with one answer.
 
-// hookEntry represents a single hook command configuration.
 type hookEntry struct {
 	Type    string `json:"type"`
 	Command string `json:"command"`
@@ -35,14 +34,12 @@ type hookMatcherGroup struct {
 	Hooks   []hookEntry `json:"hooks"`
 }
 
-// cursorHookEntry represents a single hook in Cursor config.
 type cursorHookEntry struct {
 	Command string `json:"command"`
 	Type    string `json:"type"`
 	Matcher string `json:"matcher,omitempty"`
 }
 
-// copilotHookEntry represents a single hook in Copilot config.
 type copilotHookEntry struct {
 	Type       string `json:"type"`
 	Bash       string `json:"bash"`

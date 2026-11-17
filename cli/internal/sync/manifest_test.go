@@ -357,7 +357,7 @@ func TestValidateManifest(t *testing.T) {
 			name: "too many entries",
 			manifest: func() *Manifest {
 				m := &Manifest{Version: 1, Files: make(map[string]string)}
-				for i := 0; i < 10001; i++ {
+				for i := range 10001 {
 					key := fmt.Sprintf("vision/file-%05d.md", i)
 					m.Files[key] = testHash1
 				}
@@ -1036,5 +1036,21 @@ func TestManifest_RelationOverlaps(t *testing.T) {
 				t.Errorf("RelationOverlaps() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestMissingEnds(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.adr.md"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rels := []Relation{
+		{Source: "a.adr.md", Target: "gone.spec.md", Type: "related"},
+		{Source: "gone.spec.md", Target: "a.adr.md", Type: "related"},
+	}
+	got := MissingEnds(dir, rels)
+	if len(got) != 1 || !got["gone.spec.md"] {
+		t.Errorf("MissingEnds = %v, want only gone.spec.md", got)
 	}
 }

@@ -145,7 +145,7 @@ func TestBuildSessionContext_TruncationIsNamed(t *testing.T) {
 // countRecapLines counts rendered document lines across both recap blocks.
 func countRecapLines(ctx string) int {
 	n := 0
-	for _, line := range strings.Split(ctx, "\n") {
+	for line := range strings.SplitSeq(ctx, "\n") {
 		if strings.HasPrefix(line, "  - .archcore/") {
 			n++
 		}

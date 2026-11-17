@@ -46,6 +46,3 @@ func handleSessionStartDeduped(ctx context.Context, folder, version, key, stampD
 // shared one would let the 10-minute session scope erase the 24-hour staleness
 // budget.
 func defaultSessionStampDir() string { return stamp.DirFor("session-stamps") }
-
-// sessionStampPath is where one session's stamp lives.
-func sessionStampPath(stampDir, key string) string { return stamp.PathFor(stampDir, key) }

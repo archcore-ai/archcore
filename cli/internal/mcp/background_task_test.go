@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"slices"
 	"syscall"
 	"testing"
 	"time"
@@ -302,7 +303,7 @@ func (s bgSession) run(t *testing.T) (stdout, stderr []byte) {
 // bgReportedFDs pulls the two identities the task wrote at its first
 // instruction out of the child's stderr.
 func bgReportedFDs(stderr []byte) (fd1, fd2 string, ok bool) {
-	for _, line := range bytes.Split(stderr, []byte("\n")) {
+	for line := range bytes.SplitSeq(stderr, []byte("\n")) {
 		rest, found := bytes.CutPrefix(line, []byte(bgFDReport))
 		if !found {
 			continue
@@ -319,7 +320,7 @@ func bgReportedFDs(stderr []byte) (fd1, fd2 string, ok bool) {
 // bgChildSpawnStatus reports how the task's fork went, so a child that never
 // ran cannot pass for a child the shield contained.
 func bgChildSpawnStatus(stderr []byte) (string, bool) {
-	for _, line := range bytes.Split(stderr, []byte("\n")) {
+	for line := range bytes.SplitSeq(stderr, []byte("\n")) {
 		if rest, found := bytes.CutPrefix(line, []byte(bgChildStat)); found {
 			return string(rest), true
 		}
@@ -356,7 +357,7 @@ func TestRunStdio_BackgroundTaskWritesBehindShield(t *testing.T) {
 	if len(stdout) == 0 {
 		t.Fatal("session produced no protocol output; the shield assertions would be vacuous")
 	}
-	for _, frame := range bytes.Split(bytes.TrimRight(stdout, "\n"), []byte("\n")) {
+	for frame := range bytes.SplitSeq(bytes.TrimRight(stdout, "\n"), []byte("\n")) {
 		var probe struct {
 			JSONRPC string `json:"jsonrpc"`
 		}
@@ -412,7 +413,7 @@ func TestRunStdio_ServesAndEndsWithTheAttemptStillInFlight(t *testing.T) {
 	}.run(t)
 
 	answered := map[float64]bool{}
-	for _, frame := range bytes.Split(bytes.TrimRight(stdout, "\n"), []byte("\n")) {
+	for frame := range bytes.SplitSeq(bytes.TrimRight(stdout, "\n"), []byte("\n")) {
 		var reply struct {
 			ID     *float64        `json:"id"`
 			Result json.RawMessage `json:"result"`
@@ -451,8 +452,17 @@ func TestRunStdio_StdoutIdenticalWithAndWithoutBackgroundTask(t *testing.T) {
 	if len(withoutTask) == 0 {
 		t.Fatal("baseline session produced no stdout; byte identity would be vacuous")
 	}
-	if !bytes.Equal(withTask, withoutTask) {
+	// Frames are compared as a sorted set: mcp-go may answer initialize and
+	// tools/list in either order under load, which JSON-RPC allows. Each frame
+	// still has to match byte for byte, so a stray byte at a boundary fails.
+	if !bytes.Equal(sortedFrames(withTask), sortedFrames(withoutTask)) {
 		t.Fatalf("stdout differs when a background task is wired\nwith task (%d bytes):\n%s\nwithout task (%d bytes):\n%s",
 			len(withTask), withTask, len(withoutTask), withoutTask)
 	}
+}
+
+func sortedFrames(stdout []byte) []byte {
+	frames := bytes.Split(stdout, []byte("\n"))
+	slices.SortFunc(frames, bytes.Compare)
+	return bytes.Join(frames, []byte("\n"))
 }
