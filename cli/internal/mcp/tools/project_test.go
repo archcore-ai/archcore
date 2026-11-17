@@ -54,6 +54,34 @@ func TestWithProjectField(t *testing.T) {
 	}
 }
 
+// TestWithUninitializedField: the field is appended after project to a
+// successful JSON object and to nothing else (plugin-cli-compatibility.rule §2).
+func TestWithUninitializedField(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		result *mcp.CallToolResult
+		want   string
+	}{
+		{name: "after the project field", result: WithProjectField(mcp.NewToolResultText(`{"total":0}`), "/w/a", "local"), want: `{"total":0,"project":"/w/a","source":"local","initialized":false}`},
+		{name: "empty object", result: mcp.NewToolResultText(`{}`), want: `{"initialized":false}`},
+		{name: "array stays", result: mcp.NewToolResultText(`[1,2]`), want: `[1,2]`},
+		{name: "error stays", result: mcp.NewToolResultError(`document not found`), want: `document not found`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			text, _ := mcp.AsTextContent(WithUninitializedField(tt.result).Content[0])
+			if text.Text != tt.want {
+				t.Errorf("text = %q, want %q", text.Text, tt.want)
+			}
+		})
+	}
+	if WithUninitializedField(nil) != nil {
+		t.Error("nil result was not passed through")
+	}
+}
+
 func TestProjectFieldBytes(t *testing.T) {
 	t.Parallel()
 	for _, root := range []string{"/a", `/x "y"`, "/путь/проект"} {

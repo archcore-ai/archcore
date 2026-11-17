@@ -35,6 +35,40 @@ func Nearest(path string) (string, bool) {
 	}
 }
 
+// Resolve returns the project a folder belongs to: the nearest directory at or
+// above dir that holds .archcore/, read as written and with symlinks evaluated
+// (session-project-is-nearest-store.adr). The evaluated answer wins when the
+// two differ, so a folder entered through a link belongs where the link leads.
+// An advisory read, as Nearest is.
+func Resolve(dir string) (string, bool) {
+	root, ok := Nearest(dir)
+	if real, realOK := Nearest(EvalExisting(dir)); realOK && (!ok || !SameDir(real, root)) {
+		root, ok = real, true
+	}
+	return root, ok
+}
+
+// ForSession returns the project a session in folder works on: the root
+// Resolve finds, else folder itself, which then holds no store
+// (session-project-is-nearest-store.adr). A store above folder counts only
+// with its settings.json: every init writes one, and a store an earlier CLI
+// created implicitly has none, so such a store never captures the folders
+// below it.
+func ForSession(folder string) string {
+	root, ok := Resolve(folder)
+	if !ok || (!SameDir(root, folder) && !initialized(root)) {
+		return folder
+	}
+	return root
+}
+
+// initialized is an advisory read: a settings.json the process cannot see
+// counts as absent, and the session stays in its folder.
+func initialized(root string) bool {
+	info, err := os.Stat(filepath.Join(root, ".archcore", "settings.json"))
+	return err == nil && info.Mode().IsRegular()
+}
+
 // Canonical returns dir with its symlinks evaluated, the one spelling a root of
 // another project carries on the wire and in every cache key
 // (call-root-resolution.spec, the invariant that two spellings of one directory

@@ -58,7 +58,7 @@ Out of scope: how the session root is chosen and followed through `roots/list` (
 | Trust of `project` | the five acceptance checks | The same footing as a `roots/list` candidate; no allowlist |
 | Instruction growth | 1 sentence | The instruction cap of 2,048 characters holds |
 
-- Invariant: a call without `project` and without an absolute `for_path` answers exactly as a call did before this contract.
+- Invariant: a call without `project` and without an absolute `for_path` is served by the session project of @.archcore/mcp/session-project-resolution.spec.md; at a session folder that holds a store, the call answers exactly as a call did before this contract.
 - Invariant: a document path in a response never carries an absolute prefix; the `project` field is the only absolute path a response carries.
 - Invariant: a `project` value that fails a check changes no state and leaves the session root as it was.
 - Invariant: process-global caches keyed by root — the scan cache, the manifest store, the main-checkout memo — serve several roots in one process without cross-talk, because a key names one root.
@@ -71,10 +71,10 @@ Out of scope: how the session root is chosen and followed through `roots/list` (
 3. IF `project` sits in a plugin install cache, THEN the tool MUST return an error naming the cache kind.
 4. IF `project` holds no `.archcore/`, THEN every tool except `init_project` MUST return an error naming `init_project` and the `project` argument.
 5. IF the declared global sources of `project` hold a fatal state, THEN the tool MUST return an error naming the declared source id.
-6. IF an absolute `for_path` has no ancestor holding `.archcore/`, THEN `search_documents` MUST return an error naming `project` as the recovery.
+6. IF an absolute `for_path` outside the session root has no ancestor holding `.archcore/`, THEN `search_documents` MUST return an error naming `project` as the recovery.
 7. IF `add_relation` or `remove_relation` receives document paths that resolve under two roots, THEN the tool MUST return an error stating that relations stay inside one project.
 8. IF a hook cannot read the directories above the edited file, THEN the hook MUST resolve from the payload working directory.
-9. IF the session root holds no `.archcore/` and the call carries no `project`, THEN the tool MUST answer as it does today for an uninitialized root.
+9. IF the session root holds no `.archcore/` and the call carries no `project`, THEN the server MUST answer per @.archcore/mcp/session-project-resolution.spec.md.
 10. IF `update_document` or `remove_document` receives a path that starts with `../`, THEN the tool MUST return an error that names `project` and no absolute path.
 11. IF that path lies under a global source the call root declares, THEN the error MUST also name the source id.
 

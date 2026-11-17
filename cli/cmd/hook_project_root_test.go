@@ -42,6 +42,11 @@ func newHookWorkspace(t *testing.T) hookWorkspace {
 			t.Fatal(err)
 		}
 	}
+	for _, root := range []string{w.a, w.b, w.nested} {
+		if err := config.Save(root, config.NewNoneSettings()); err != nil {
+			t.Fatal(err)
+		}
+	}
 	return w
 }
 
@@ -83,7 +88,7 @@ func TestHookRoots_RootOf(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			roots := newHookRoots(tt.session)
+			roots := newHookRoots(tt.session, tt.session)
 			for range 2 { // the second answer comes from the memo
 				if got := roots.rootOf(tt.target); got != tt.want {
 					t.Fatalf("rootOf(%q) = %q, want %q", tt.target, got, tt.want)
@@ -449,12 +454,6 @@ func TestSessionStart_OutsideAProject(t *testing.T) {
 			dontWant: []string{w.nested, "PROJECT ABOVE", "No Archcore project was found"},
 		},
 		{
-			name:     "a folder inside a project",
-			dir:      filepath.Join(w.a, "src"),
-			want:     []string{"NO PROJECT HERE", "PROJECT ABOVE: " + w.a},
-			dontWant: []string{"PROJECTS BELOW", "No Archcore project was found"},
-		},
-		{
 			name: "a folder far from every project",
 			dir:  w.plain,
 			want: []string{"NO PROJECT HERE", "No Archcore project was found near this folder."},
@@ -468,12 +467,121 @@ func TestSessionStart_OutsideAProject(t *testing.T) {
 					t.Errorf("recap lacks %q:\n%s", s, got)
 				}
 			}
-			for _, s := range append(tt.dontWant, "use create_document to record", "init_project") {
+			for _, s := range append(tt.dontWant, "use create_document to record", "init_project", "\nPROJECT: ") {
 				if strings.Contains(got, s) {
 					t.Errorf("recap carries %q:\n%s", s, got)
 				}
 			}
 		})
+	}
+}
+
+// TestSessionStart_BelowAProjectRoot holds session-start-context.spec §17–§18: a
+// session started below a project root gets that project's recap, and the one
+// line that names the root is the whole difference from a session at the root.
+func TestSessionStart_BelowAProjectRoot(t *testing.T) {
+	// Not parallel: sessionContextOf captures the process stdout.
+	w := newHookWorkspace(t)
+	writeArchcoreDoc(t, w.a, "knowledge/guard.rule.md", "---\ntitle: \"Guard\"\nstatus: accepted\n---\n\n## Rule\n\nx\n")
+	deep := filepath.Join(w.a, "src", "deep", "er")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	atRoot := sessionContextOf(t, "claude-code", w.a, "test")
+	projectLine := "\nPROJECT: " + w.a + " — the nearest .archcore/ above this folder. The Archcore tools use it without a project argument; a relative path in a tool argument starts at this root.\n"
+
+	for _, dir := range []string{filepath.Join(w.a, "src"), deep} {
+		below := sessionContextOf(t, "claude-code", dir, "test")
+		if strings.Count(below, projectLine) != 1 {
+			t.Fatalf("recap from %s names the project root %d times, want once:\n%s", dir, strings.Count(below, projectLine), below)
+		}
+		if got := strings.Replace(below, projectLine, "", 1); got != atRoot {
+			t.Errorf("recap from %s differs from the root recap by more than the project line:\n%s\n--- root:\n%s", dir, got, atRoot)
+		}
+		for _, s := range []string{"NO PROJECT HERE", "PROJECT ABOVE", "PROJECTS BELOW"} {
+			if strings.Contains(below, s) {
+				t.Errorf("recap from %s carries %q", dir, s)
+			}
+		}
+	}
+	if strings.Contains(atRoot, "\nPROJECT: ") {
+		t.Errorf("a session at the project root got the project line:\n%s", atRoot)
+	}
+	// A nested store is its own project: the folder below it belongs to it.
+	inNested := filepath.Join(w.nested, "pkg")
+	if err := os.MkdirAll(inNested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := sessionContextOf(t, "claude-code", inNested, "test"); !strings.Contains(got, "\nPROJECT: "+w.nested+" — ") {
+		t.Errorf("a folder below a nested store was not given that store:\n%s", got)
+	}
+}
+
+// TestPreToolUse_SessionBelowAProjectRoot: the session project of a folder
+// below a root is that root, so its own files draw no foreign-project note,
+// and a relative target is read from the working directory
+// (session-project-is-nearest-store.adr).
+func TestPreToolUse_SessionBelowAProjectRoot(t *testing.T) {
+	t.Parallel()
+	w := newHookWorkspace(t)
+	writeAlignmentHandlerDoc(t, w.a, "knowledge/api.rule.md", "A API Rule", "Applies to src/api/ code.")
+	api := filepath.Join(w.a, "src", "api")
+	if err := os.MkdirAll(api, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(w.a, "src")
+
+	for _, target := range []string{filepath.Join(api, "h.go"), "api/h.go"} {
+		dec := preToolUseHandler(bg(), reqFor(t, "claude-code", src, sessionPayload(t, target)))
+		if dec.deny || strings.Contains(dec.context, "[Archcore Project]") {
+			t.Errorf("target %q: decision = %+v, want no foreign-project note for the session's own project", target, dec)
+		}
+		if !strings.Contains(dec.context, "A API Rule") || !strings.Contains(dec.context, "src/api/h.go") {
+			t.Errorf("target %q: context = %q, want the project's rule for src/api/h.go", target, dec.context)
+		}
+	}
+	for _, target := range []string{filepath.Join(w.a, ".archcore", "knowledge", "x.adr.md"), "../.archcore/knowledge/x.adr.md"} {
+		dec := preToolUseHandler(bg(), reqFor(t, "claude-code", src, writePayload(target, "")))
+		if !dec.deny || dec.reason != writeGuardReason {
+			t.Errorf("target %q: decision = %+v, want the MCP-only deny without a project hint", target, dec)
+		}
+	}
+	// A relative .archcore/ path from below the root would create a nested store.
+	if dec := preToolUseHandler(bg(), reqFor(t, "claude-code", src, writePayload(".archcore/knowledge/x.adr.md", ""))); !dec.deny || dec.reason != writeGuardNewStoreReason {
+		t.Errorf("a write creating .archcore/ below the root: decision = %+v, want the new-store deny", dec)
+	}
+	other := preToolUseHandler(bg(), reqFor(t, "claude-code", src, sessionPayload(t, filepath.Join(w.b, "src", "x.go"))))
+	if !strings.Contains(other.context, "project at "+w.b) {
+		t.Errorf("another project got no note from a session below a root: %q", other.context)
+	}
+
+	// A root spelled with a trailing separator is still the root: the target
+	// stays as written, so the decision equals the clean spelling's.
+	for _, target := range []string{"src/api/h.go", ".archcore/knowledge/x.adr.md"} {
+		clean := preToolUseHandler(bg(), reqFor(t, "claude-code", w.a, writePayload(target, "")))
+		slash := preToolUseHandler(bg(), reqFor(t, "claude-code", w.a+string(filepath.Separator), writePayload(target, "")))
+		if fmt.Sprintf("%+v", slash) != fmt.Sprintf("%+v", clean) {
+			t.Errorf("target %q: the root with a trailing separator decided %+v, want %+v", target, slash, clean)
+		}
+	}
+}
+
+// TestPostToolUse_SessionBelowAProjectRoot: a call without project was served
+// by the project above the session folder, so its document is checked there.
+func TestPostToolUse_SessionBelowAProjectRoot(t *testing.T) {
+	t.Parallel()
+	w := newHookWorkspace(t)
+	writeArchcoreDoc(t, w.a, "knowledge/bad.adr.md", "no frontmatter at all\n")
+	payload := decodeHookPayload(strings.NewReader(
+		`{"tool_name":"mcp__archcore__update_document","tool_input":{"path":".archcore/knowledge/bad.adr.md"}}`))
+	req := func(dir string) hookRequest {
+		return hookRequest{baseDir: dir, dialect: hookDialects[0], event: eventPostToolUse, payload: payload}
+	}
+	if dec := postToolUseHandler(bg(), req(filepath.Join(w.a, "src"))); !strings.Contains(dec.context, "bad.adr.md") {
+		t.Errorf("session below A: context = %q, want A's validation finding", dec.context)
+	}
+	if dec := postToolUseHandler(bg(), req(w.plain)); strings.Contains(dec.context, "bad.adr.md") {
+		t.Errorf("session outside every project validated A: %q", dec.context)
 	}
 }
 
@@ -485,7 +593,7 @@ func TestSessionStart_InsideAProjectIsUnchanged(t *testing.T) {
 	if !strings.Contains(got, "CORPUS: no documents yet — use create_document to record the first one.") {
 		t.Errorf("an empty project lost its corpus line:\n%s", got)
 	}
-	if strings.Contains(got, "NO PROJECT HERE") || strings.Contains(got, "PROJECTS BELOW") {
+	if strings.Contains(got, "NO PROJECT HERE") || strings.Contains(got, "PROJECTS BELOW") || strings.Contains(got, "\nPROJECT: ") {
 		t.Errorf("an initialized project got the inventory:\n%s", got)
 	}
 }

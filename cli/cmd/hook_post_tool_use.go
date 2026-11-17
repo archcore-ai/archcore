@@ -24,10 +24,10 @@ const maxValidationIssues = 5
 
 // postToolUseHandler runs the checks a document mutation warrants.
 func postToolUseHandler(_ context.Context, r hookRequest) hookDecision {
-	baseDir := r.baseDir
+	baseDir := r.project()
 	// A call that named its project was served there, so its document is
 	// checked there (hook-runtime.spec §17). An advisory read: a project
-	// without .archcore/ keeps the working directory.
+	// without .archcore/ keeps the session project.
 	if project := r.payload.toolProject(); filepath.IsAbs(project) && config.DirExists(project) {
 		baseDir = project
 	}

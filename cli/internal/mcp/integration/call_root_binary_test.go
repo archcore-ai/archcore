@@ -177,6 +177,7 @@ func TestBinary_CallRoot(t *testing.T) {
 	a := w.project(t, "a")
 	b := w.project(t, "b")
 	plain := w.plain(t, "plain")
+	belowA := w.plain(t, "a/src/deep")
 
 	for _, tt := range []struct {
 		name    string
@@ -187,6 +188,8 @@ func TestBinary_CallRoot(t *testing.T) {
 	}{
 		{name: "started in project A", slug: "cwd-session", cwd: a, session: a},
 		{name: "pinned to A from elsewhere", slug: "pinned-session", cwd: plain, args: []string{"--project", a}, session: a},
+		{name: "started below project A", slug: "below-session", cwd: belowA, session: a},
+		{name: "pinned below A from elsewhere", slug: "pinned-below-session", cwd: plain, args: []string{"--project", belowA}, session: a},
 		{name: "started in a folder without .archcore", slug: "outside-session", cwd: plain},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -222,6 +225,20 @@ func TestBinary_CallRoot(t *testing.T) {
 			}
 			if _, err := os.Stat(filepath.Join(plain, ".archcore")); !os.IsNotExist(err) {
 				t.Error("the session created .archcore/ in a folder without one")
+			}
+			// session-project-is-nearest-store.adr: a write without project lands
+			// in the session project, or is refused when the session has none.
+			text, isError = s.call("create_document", adrArgs(slug+"-own", nil))
+			switch {
+			case tt.session == "" && (!isError || !strings.Contains(text, "init_project")):
+				t.Errorf("a write without a store: isError %v, text %q", isError, text)
+			case tt.session != "" && (isError || !documentExists(t, tt.session, ".archcore/"+slug+"-own.adr.md")):
+				t.Errorf("a write without project did not land in %q: isError %v, text %q", tt.session, isError, text)
+			}
+			for _, dir := range []string{plain, belowA, filepath.Join(a, "src")} {
+				if _, err := os.Stat(filepath.Join(dir, ".archcore")); !os.IsNotExist(err) {
+					t.Errorf("the session created .archcore/ in %s", dir)
+				}
 			}
 		})
 	}

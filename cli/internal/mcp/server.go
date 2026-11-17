@@ -19,6 +19,7 @@ import (
 	"archcore-cli/internal/agents"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/mcp/tools"
+	"archcore-cli/internal/projectroot"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -165,8 +166,11 @@ func globalIDsByPresence(baseDir string, globals []config.GlobalSource) (mounted
 }
 
 func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPServer {
+	// The instructions describe the project the session folder belongs to
+	// (session-project-is-nearest-store.adr).
+	project := projectroot.ForSession(baseDir)
 	language := ""
-	if settings, err := config.Load(baseDir); err == nil {
+	if settings, err := config.Load(project); err == nil {
 		language = settings.Language
 	}
 	if version == "" {
@@ -176,7 +180,7 @@ func newServerWithConfig(baseDir, version string, cfg serverConfig) *server.MCPS
 	// ReadGlobals is fail-open by design here: the paragraph is advisory,
 	// and `archcore mcp` separately fails startup on an invalid
 	// settings.json (checkGlobals).
-	mounted, missing := globalIDsByPresence(baseDir, config.ReadGlobals(baseDir))
+	mounted, missing := globalIDsByPresence(project, config.ReadGlobals(project))
 	s := server.NewMCPServer(
 		"archcore",
 		version,

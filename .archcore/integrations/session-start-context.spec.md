@@ -24,10 +24,10 @@ document model, and the content of the `GLOBALS` block, which
 One context string, embedded by the caller in a host-specific JSON envelope.
 
 Sections, in order: the header; the context address; the MCP tool line; the
-invalid-settings warning when present; `CORPUS`; `BRANCH` when resolvable;
-`GLOBALS` when sources are declared; `IN PROGRESS`; `RECENTLY ACCEPTED`; the
-staleness advisory when due; the managed-block advisory when due; `EXISTING
-TAGS`; `DOCUMENT RELATIONS`.
+invalid-settings warning when present; `PROJECT` below a project root; `CORPUS`;
+`BRANCH` when resolvable; `GLOBALS` when sources are declared; `IN PROGRESS`;
+`RECENTLY ACCEPTED`; the staleness advisory when due; the managed-block advisory
+when due; `EXISTING TAGS`; `DOCUMENT RELATIONS`.
 
 ## Normative Behavior
 
@@ -57,13 +57,16 @@ TAGS`; `DOCUMENT RELATIONS`.
     the builder MUST emit one `[Archcore Instructions]` line per finding.
 15. WHEN the managed-block advisory fired for a project within 24 hours, the
     builder MUST omit it.
-16. WHEN the session folder holds no `.archcore/`, the builder MUST NOT carry
-    `init_project` or `create_document` advice.
-17. WHEN the session folder holds no `.archcore/`, the builder MUST print
-    `NO PROJECT HERE`, then `PROJECT ABOVE` with the nearest ancestor that
-    holds `.archcore/`, then `PROJECTS BELOW` with the roots a bounded scan
-    finds.
-18. WHEN a bound cuts the scan, the builder MUST add "(the search stopped at its
+16. WHEN no folder at or above the session folder holds `.archcore/`, the builder
+    MUST NOT carry `init_project` or `create_document` advice.
+17. WHEN a folder above the session folder holds `.archcore/`, the builder MUST
+    build the recap for that project.
+18. WHEN the recap describes a project above the session folder, the builder
+    MUST print one `PROJECT` line naming its root.
+19. WHEN no folder at or above the session folder holds `.archcore/`, the builder
+    MUST print `NO PROJECT HERE`, then `PROJECTS BELOW` with the roots a bounded
+    scan finds.
+20. WHEN a bound cuts the scan, the builder MUST add "(the search stopped at its
     bound)" to the recap.
 
 ## Constraints & Invariants
@@ -83,7 +86,9 @@ TAGS`; `DOCUMENT RELATIONS`.
 - Constraint: no global document line appears in this context. The `GLOBALS`
   block reports per-source metadata only; global content stays behind the MCP
   read tools (@.archcore/globals/session-globals-disclosure.spec.md).
-- Constraint: the project scan of clause 17 descends at most 3 levels below the
+- Constraint: the project of clause 17 is the session project of `session-project-resolution.spec`.
+  A session at its project root gets no `PROJECT` line and the recap it got before.
+- Constraint: the project scan of clause 19 descends at most 3 levels below the
   session folder, reads at most 2000 directories, and shows at most 10 roots.
   It has no time bound of its own. The values are chosen, not measured
   [assumption]. `inventoryDepth` and `inventoryDirs` in
@@ -119,7 +124,7 @@ TAGS`; `DOCUMENT RELATIONS`.
 
 ## Conformance
 
-The builder is conformant when it satisfies behaviors 1–18, holds every
+The builder is conformant when it satisfies behaviors 1–20, holds every
 invariant, and degrades per the failure rules. The budget invariant is verified
 against synthetic corpora of 300 and 3000 documents; the `GLOBALS` behaviors
 are verified by @cli/cmd/hooks_globals_block_test.go.

@@ -415,3 +415,51 @@ func TestRootRefusal_NamesNoPath(t *testing.T) {
 func quoteJSON(s string) string {
 	return `"` + strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), `"`, `\"`) + `"`
 }
+
+// TestStoreClasses_AgreeWithTheRegistry: every class the write guard reads names
+// registered tools only, and the two allow-lists never overlap
+// (registry-agreement-and-test-seams.guide).
+func TestStoreClasses_AgreeWithTheRegistry(t *testing.T) {
+	t.Parallel()
+	registered := registeredTools(t)
+	for _, class := range []map[string]bool{storelessReadTools, storeCreatingTools, relationEndpointTools} {
+		for name := range class {
+			if _, ok := registered[name]; !ok {
+				t.Errorf("%s is classified but not registered", name)
+			}
+			if storelessReadTools[name] && storeCreatingTools[name] {
+				t.Errorf("%s is both a storeless read and a store-creating tool", name)
+			}
+		}
+	}
+}
+
+// TestCallRootResolver_WrapRunsStoreCreatingToolsWithoutAStore: the write guard
+// lets both store-creating tools through on a root without .archcore/, and
+// refuses a write there before its handler runs.
+func TestCallRootResolver_WrapRunsStoreCreatingToolsWithoutAStore(t *testing.T) {
+	t.Parallel()
+	f := newCallRootFixture(t)
+	for _, tt := range []struct {
+		tool    string
+		wantRan bool
+	}{
+		{tool: "init_project", wantRan: true},
+		{tool: "install_host_config", wantRan: true},
+		{tool: "create_document"},
+		{tool: "add_relation"},
+	} {
+		ran := false
+		handle := func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			ran = true
+			return mcp.NewToolResultText(`{}`), nil
+		}
+		result, err := callRootResolver{session: tools.StaticRoot(f.plain)}.wrap(tt.tool, handle)(context.Background(), requestWith(nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ran != tt.wantRan || result.IsError == tt.wantRan {
+			t.Errorf("%s on a root without a store: ran = %v, error = %v; want ran = %v", tt.tool, ran, result.IsError, tt.wantRan)
+		}
+	}
+}

@@ -60,3 +60,4 @@ Negative:
 - 2026-10-30 — The pre-tool-use matcher stays `Write|Edit`; no `Read` event (user choice, recommended).
 - 2026-10-30 — A machine-level project registry is deferred to a separate plan (user choice, recommended).
 - 2026-10-30 — Hooks react to a `.archcore/` segment in the edited path, resolving the nearest ancestor root (user choice).
+- 2026-11-17 — @.archcore/mcp/session-project-is-nearest-store.adr.md reverses the session-root clause of the Decision ("a call without `project` … behaves as it does today") and the rejection in alternative 4: a call without `project` is served by the nearest initialized store at or above the session folder. The `project` argument and the rest of this decision stand.

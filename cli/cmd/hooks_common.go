@@ -13,6 +13,7 @@ import (
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/docs"
 	"archcore-cli/internal/git"
+	"archcore-cli/internal/projectroot"
 	"archcore-cli/internal/stamp"
 	archsync "archcore-cli/internal/sync"
 	"archcore-cli/templates"
@@ -51,7 +52,10 @@ type sessionDocCounts struct {
 // owns the text inside that envelope and never the envelope itself — the plugin
 // splices its own advisories into the same document on Copilot, and a change to
 // the wrapper would break that splice silently.
-func buildSessionContext(ctx context.Context, baseDir string) (string, sessionDocCounts) {
+func buildSessionContext(ctx context.Context, folder string) (string, sessionDocCounts) {
+	// The session works on the nearest store at or above its folder
+	// (session-project-is-nearest-store.adr); every block below describes it.
+	baseDir := projectroot.ForSession(folder)
 	// Local only, content included. Global content stays behind the MCP read
 	// tools; scanning it here would read and parse every global document only
 	// to discard the bodies. The GLOBALS block below needs counts, not content,
@@ -78,6 +82,7 @@ func buildSessionContext(ctx context.Context, baseDir string) (string, sessionDo
 	}
 
 	if config.DirExists(baseDir) {
+		writeProjectAboveLine(&b, baseDir, folder)
 		writeCorpusLine(&b, corpus, len(inspections) > 0)
 	} else {
 		writeProjectInventory(&b, baseDir)

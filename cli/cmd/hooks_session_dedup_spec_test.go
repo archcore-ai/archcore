@@ -150,6 +150,25 @@ func TestHandleSessionStart_SameSessionDifferentProjectsBothEmit(t *testing.T) {
 	}
 }
 
+// The stamp key names the session project, not the folder: a second fire from
+// a folder of the same project is the same session, and a nested project is
+// another one (session-project-is-nearest-store.adr).
+func TestHandleSessionStart_KeyIsTheSessionProject(t *testing.T) {
+	t.Parallel()
+	w := newHookWorkspace(t)
+	stampDir := t.TempDir()
+
+	if _, _, emitted := handleSessionStartDeduped(bg(), w.a, "v0.0.0-test", "s1", stampDir); !emitted {
+		t.Fatal("the project root must emit")
+	}
+	if _, _, emitted := handleSessionStartDeduped(bg(), filepath.Join(w.a, "src"), "v0.0.0-test", "s1", stampDir); emitted {
+		t.Error("a folder of the same project emitted again for the same session")
+	}
+	if _, _, emitted := handleSessionStartDeduped(bg(), filepath.Join(w.nested, "src"), "v0.0.0-test", "s1", stampDir); !emitted {
+		t.Error("a folder of the nested project was suppressed by its parent's stamp")
+	}
+}
+
 func TestDeriveDedupKey(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
