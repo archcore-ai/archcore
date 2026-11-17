@@ -366,3 +366,44 @@ func TestWriteGuard_UnreadableSettingsStillAllowsRepairingIt(t *testing.T) {
 		t.Error("a corrupt settings.json blocked the edit that repairs it")
 	}
 }
+
+// TestWriteGuard_NewStoreInsideAProjectIsBlocked: a write that would create a
+// .archcore/ directory inside an initialized project creates a nested store
+// that captures its subtree, so only init_project may do it
+// (session-project-is-nearest-store.adr). Outside every project, and inside a
+// store that already exists, the earlier rules decide.
+func TestWriteGuard_NewStoreInsideAProjectIsBlocked(t *testing.T) {
+	t.Parallel()
+	w := newHookWorkspace(t)
+	stray := filepath.Join(w.dir, "stray")
+	if err := os.MkdirAll(filepath.Join(stray, ".archcore"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name     string
+		base     string
+		file     string
+		wantDeny bool
+	}{
+		{name: "a document in a new store below the root", base: w.a, file: filepath.Join(w.a, "src", ".archcore", "knowledge", "x.adr.md"), wantDeny: true},
+		{name: "settings.json of a new store below the root", base: w.a, file: filepath.Join(w.a, "src", ".archcore", "settings.json"), wantDeny: true},
+		{name: "a relative path into a new store", base: w.a, file: "src/.archcore/x.adr.md", wantDeny: true},
+		{name: "a new store in a folder that does not exist yet", base: w.a, file: filepath.Join(w.a, "pkg", "new", ".archcore", "x.adr.md"), wantDeny: true},
+		{name: "settings.json of the project's own store", base: w.a, file: filepath.Join(w.a, ".archcore", "settings.json")},
+		{name: "a new store outside every project", base: w.plain, file: filepath.Join(w.plain, "src", ".archcore", "x.adr.md")},
+		{name: "a new store below a store without settings.json", base: stray, file: filepath.Join(stray, "repo", ".archcore", "x.adr.md")},
+		{name: "an ordinary source file", base: w.a, file: filepath.Join(w.a, "src", "main.go")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dec := writeGuardDecision(tt.base, tt.file)
+			if dec.deny != tt.wantDeny {
+				t.Fatalf("writeGuardDecision(%q).deny = %v, want %v", tt.file, dec.deny, tt.wantDeny)
+			}
+			if tt.wantDeny && (dec.reason != writeGuardNewStoreReason || strings.Contains(dec.reason, w.dir)) {
+				t.Errorf("reason = %q, want the new-store reason without a path", dec.reason)
+			}
+		})
+	}
+}

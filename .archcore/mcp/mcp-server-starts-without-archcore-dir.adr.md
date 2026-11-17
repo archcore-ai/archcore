@@ -46,3 +46,7 @@ The unconditional-start guarantee applies to the **default project root** (cwd) 
 - This is intentional: if the user explicitly names a project root, silently falling back to cwd would be more surprising than failing fast. `.archcore/` *inside* the resolved root may still be absent — the server still starts in that case and exposes `init_project`.
 
 In short: the server tolerates a missing `.archcore/`, but does not tolerate a missing project directory the user explicitly named.
+
+## Clarifications
+
+- 2026-11-17 — @.archcore/mcp/session-project-is-nearest-store.adr.md changes two points. Decision 1's "default (cwd) project root" is now the session project of the start folder; started below an initialized project, the server validates that project's `settings.json` and global sources at startup. Decision 4 is now enforced in the call-root wrapper: on a root without a store only the four reads, `init_project`, and `install_host_config` run, and every other tool returns a refusal naming `init_project` and `project`.

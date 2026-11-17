@@ -61,6 +61,23 @@ func SourceOf(ctx context.Context, root string) string {
 // the one absolute path a response carries (no-absolute-paths-in-mcp-errors.rule
 // §4), so an error result is returned unchanged.
 func WithProjectField(result *mcp.CallToolResult, root, source string) *mcp.CallToolResult {
+	return withTrailingFields(result, projectField(root, source))
+}
+
+// uninitializedField marks a successful answer from a root that holds no
+// .archcore/, so an empty result reads apart from an empty store or a filter
+// that matched nothing (session-project-is-nearest-store.adr). An addition:
+// a root with a store never carries it (plugin-cli-compatibility.rule §2).
+const uninitializedField = `,"initialized":false`
+
+// WithUninitializedField appends "initialized": false to a JSON-object result.
+func WithUninitializedField(result *mcp.CallToolResult) *mcp.CallToolResult {
+	return withTrailingFields(result, uninitializedField)
+}
+
+// withTrailingFields appends fields, each written with its leading comma, to a
+// successful JSON-object result, and leaves every other result as it is.
+func withTrailingFields(result *mcp.CallToolResult, field string) *mcp.CallToolResult {
 	if result == nil || result.IsError || len(result.Content) != 1 {
 		return result
 	}
@@ -72,7 +89,6 @@ func WithProjectField(result *mcp.CallToolResult, root, source string) *mcp.Call
 	if len(body) < 2 || body[0] != '{' || body[len(body)-1] != '}' {
 		return result
 	}
-	field := projectField(root, source)
 	if strings.TrimSpace(body[1:len(body)-1]) == "" {
 		body = "{" + field[1:] + "}"
 	} else {

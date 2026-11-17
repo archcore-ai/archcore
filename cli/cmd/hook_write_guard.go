@@ -2,11 +2,14 @@ package cmd
 
 import (
 	"errors"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/docs"
+	"archcore-cli/internal/projectroot"
 )
 
 // Write guard.
@@ -29,6 +32,10 @@ This ensures validation, templates, and the sync manifest stay consistent.`
 // writeGuardUnverifiableReason is the refusal when the guard cannot read the
 // list it needs to judge the path. It names the file to repair, because the
 // write that unblocks this state is an edit to settings.json.
+const writeGuardNewStoreReason = `This write would create a second .archcore/ inside an existing Archcore project. The folder already belongs to that project. Use Archcore MCP tools instead:
+- create_document: add a document to the project
+- init_project with project set to this folder: create a separate store, only after the user asks for it`
+
 const writeGuardUnverifiableReason = `Cannot verify global sources: .archcore/settings.json is unreadable.
 Writes to Markdown files outside the project are refused until it parses.
 Fix .archcore/settings.json, then retry.`
@@ -109,6 +116,31 @@ func (g *writeGuard) outsideProject(filePath string) bool {
 	return !inProject
 }
 
+// createsStore reports whether writing filePath would create a .archcore/
+// directory inside an initialized project: a nested store that captures its
+// subtree. Only init_project creates one (session-project-is-nearest-store.adr).
+// A store outside every project stays the user's own business, as before. A
+// guard that fails open: an ancestor the process cannot stat is judged by the
+// rules below.
+func (g *writeGuard) createsStore(filePath string) bool {
+	resolved := filePath
+	if !filepath.IsAbs(resolved) {
+		resolved = filepath.Join(g.baseDir, filePath)
+	}
+	for dir := filepath.Dir(filepath.Clean(resolved)); ; dir = filepath.Dir(dir) {
+		if filepath.Base(dir) == ".archcore" {
+			if _, err := os.Stat(dir); !errors.Is(err, fs.ErrNotExist) {
+				return false
+			}
+			folder := filepath.Dir(dir)
+			return !projectroot.SameDir(projectroot.ForSession(folder), folder)
+		}
+		if filepath.Dir(dir) == dir {
+			return false
+		}
+	}
+}
+
 // writeGuardDecision reports whether a file write must be blocked. It is the
 // single-target entry point; a caller holding several targets should build one
 // writeGuard and call decide for each.
@@ -127,6 +159,9 @@ func (g *writeGuard) decide(filePath string) hookDecision {
 	baseDir := g.baseDir // named for the calls below that take it positionally
 	if filePath == "" {
 		return allowHook() // no file involved
+	}
+	if g.createsStore(filePath) {
+		return denyHook(writeGuardNewStoreReason)
 	}
 	if !g.storeExists() {
 		return allowHook() // no store yet, so nothing to protect

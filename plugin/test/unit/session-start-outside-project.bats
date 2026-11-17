@@ -92,3 +92,51 @@ MOCK
   assert_output --partial "INVENTORY-FROM-CLI"
   assert_output --partial ".archcore/ is empty"
 }
+
+# A folder below an initialized project belongs to it
+# (session-project-is-nearest-store.adr): Copilot gets the CLI recap of that
+# project, and no advice that would create a second .archcore/ in the folder.
+@test "copilot below an initialized project: the CLI recap is delivered, no init advice for the folder" {
+  mock_cli_version 0.15.6
+  export MOCK_ARCHCORE_LOG="$BATS_TEST_TMPDIR/calls.log"
+  mkdir -p "$BATS_TEST_TMPDIR/repo/.archcore" "$BATS_TEST_TMPDIR/repo/pkg/api"
+  printf '{}\n' > "$BATS_TEST_TMPDIR/repo/.archcore/settings.json"
+  cd "$BATS_TEST_TMPDIR/repo/pkg/api"
+  run sh -c "printf '%s' '{}' | ARCHCORE_HOST=copilot ARCHCORE_HIDE_EMPTY_NUDGE=1 '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  refute_output --partial "no .archcore/ directory in this project yet"
+  assert_output --partial "Do not pass this folder"
+  refute_output --partial '--project \"$PWD\"'
+  run grep -c '^hooks copilot session-start$' "$MOCK_ARCHCORE_LOG"
+  assert_output "1"
+}
+
+@test "copilot below a store without settings.json: the folder is outside a project" {
+  mock_cli_version 0.15.6
+  mkdir -p "$BATS_TEST_TMPDIR/work/.archcore" "$BATS_TEST_TMPDIR/work/repo"
+  cd "$BATS_TEST_TMPDIR/work/repo"
+  run sh -c "printf '%s' '{}' | ARCHCORE_HOST=copilot '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial "no .archcore/ directory in this project yet"
+}
+
+@test "below an initialized project: the empty-state nudge reads the project's store" {
+  mock_cli_version 0.15.6
+  mkdir -p "$BATS_TEST_TMPDIR/repo/.archcore" "$BATS_TEST_TMPDIR/repo/src"
+  printf '{}\n' > "$BATS_TEST_TMPDIR/repo/.archcore/settings.json"
+  cd "$BATS_TEST_TMPDIR/repo/src"
+  run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  assert_output --partial ".archcore/ is empty"
+}
+
+@test "below a project with documents: no empty-state nudge" {
+  mock_cli_version 0.15.6
+  mkdir -p "$BATS_TEST_TMPDIR/repo/.archcore" "$BATS_TEST_TMPDIR/repo/src"
+  printf '{}\n' > "$BATS_TEST_TMPDIR/repo/.archcore/settings.json"
+  awk 'BEGIN { s=""; for (i=0;i<300;i++) s=s "x"; print s }' > "$BATS_TEST_TMPDIR/repo/.archcore/big.doc.md"
+  cd "$BATS_TEST_TMPDIR/repo/src"
+  run sh -c "printf '%s' '{}' | '${PLUGIN_ROOT}/bin/session-start'"
+  assert_success
+  refute_output --partial ".archcore/ is empty"
+}
