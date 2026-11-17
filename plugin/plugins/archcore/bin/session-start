@@ -313,10 +313,30 @@ _archcore_config_rejected() {
 # Copilot is the exception: the plugin ships no MCP server there
 # (copilot-mcp-architecture.adr), so the instruction body is forked to the CLI
 # wiring command instead.
+#
+# A folder below a project root belongs to that project, the nearest folder
+# above that holds .archcore/settings.json (session-project-is-nearest-store.adr);
+# _ac_project names it, and the CLI recap of that project is delivered.
+_ac_project=""
+if [ -d ".archcore" ]; then
+  _ac_project="$PWD"
+else
+  _ac_pdir=$(dirname "$PWD")
+  _ac_pdepth=0
+  while [ "$_ac_pdepth" -lt 25 ]; do
+    if [ -d "$_ac_pdir/.archcore" ]; then
+      [ -f "$_ac_pdir/.archcore/settings.json" ] && _ac_project="$_ac_pdir"
+      break
+    fi
+    [ "$_ac_pdir" = "/" ] && break
+    _ac_pdir=$(dirname "$_ac_pdir")
+    _ac_pdepth=$((_ac_pdepth + 1))
+  done
+fi
 _ac_outside_project=0
 if [ ! -d ".archcore" ]; then
   _ac_outside_project=1
-  if [ "$ARCHCORE_HOST" = "copilot" ]; then
+  if [ "$ARCHCORE_HOST" = "copilot" ] && [ -z "$_ac_project" ]; then
     _init_msg="[Archcore] no .archcore/ directory in this project yet. On Copilot the archcore MCP tools come from project wiring, not the plugin. When the user asks for any Archcore operation (create ADR, audit docs, etc.), run: archcore init --agent copilot --project \"\$PWD\" once (initializes .archcore/ and registers the MCP server; a session restart connects the tools), then proceed. Do NOT write to .archcore/ directly — hooks will block it."
     if [ "${ARCHCORE_HIDE_EMPTY_NUDGE:-}" != "1" ]; then
       _init_msg="${_init_msg} After init, suggest the user run /archcore:init to seed initial content (stack rule, run-the-app guide, optional import of existing CLAUDE.md / AGENTS.md / .cursorrules). Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1."
@@ -371,7 +391,7 @@ fi
 # Empty-state nudge: .archcore/ exists but carries no substantive documents.
 # Goes through _archcore_note: plain text on hosts that read plain text, folded
 # into the single JSON document on Copilot.
-if [ "$_ac_outside_project" -eq 0 ] && [ "${ARCHCORE_HIDE_EMPTY_NUDGE:-}" != "1" ] && archcore_is_functionally_empty ".archcore"; then
+if [ -n "$_ac_project" ] && [ "${ARCHCORE_HIDE_EMPTY_NUDGE:-}" != "1" ] && archcore_is_functionally_empty "$_ac_project/.archcore"; then
   _archcore_note "[Archcore] .archcore/ is empty. Run /archcore:init to seed a stack rule, a run-the-app guide, and (optionally) imports from existing agent-instruction files like CLAUDE.md or AGENTS.md. Skip with ARCHCORE_HIDE_EMPTY_NUDGE=1."
 fi
 
@@ -427,7 +447,11 @@ if [ "$ARCHCORE_HOST" = "copilot" ] && [ "${ARCHCORE_HIDE_WIRING_NUDGE:-}" != "1
   if [ "$_ac_wired" -ne 0 ]; then
     _ac_wstamp="last-wiring-advisory-$(printf '%s' "$_ac_wroot" | cksum | awk '{print $1}')"
     if _archcore_due "$_ac_wstamp"; then
-      _archcore_note "[Archcore] This project is not wired for Copilot: no archcore entry in .mcp.json, so Archcore MCP document tools are unavailable in this session (on Copilot the plugin cannot provide them). Run: archcore init --agent copilot --project \"\$PWD\" — then restart the session."
+      if [ "$_ac_outside_project" -eq 0 ]; then
+        _archcore_note "[Archcore] This project is not wired for Copilot: no archcore entry in .mcp.json, so Archcore MCP document tools are unavailable in this session (on Copilot the plugin cannot provide them). Run: archcore init --agent copilot --project \"\$PWD\" — then restart the session."
+      else
+        _archcore_note "[Archcore] This project is not wired for Copilot: no archcore entry in .mcp.json, so Archcore MCP document tools are unavailable in this session (on Copilot the plugin cannot provide them). Run: archcore init --agent copilot --project <the project root, the folder above that holds .archcore/> — then restart the session. Do not pass this folder: that creates a second .archcore/ inside the project."
+      fi
       _archcore_stamp_now "$_ac_wstamp"
     fi
   fi

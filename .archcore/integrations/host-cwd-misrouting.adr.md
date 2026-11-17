@@ -55,3 +55,7 @@ This is a heuristic against host misrouting, **not a security boundary** — sym
 - Contributors adding a fragment must preserve all three properties above. The doc comment on `pluginCacheFragments` states them; `TestResolveProjectRoot_CopilotLookalikeUserPath_NotRejected` pins the anchoring and `TestResolveProjectRoot_CopilotCacheRootItself` pins the trailing separator.
 - A user project genuinely living under a path segment named exactly `.copilot/installed-plugins/` (or the other four) is refused on implicit sources and needs `--project`. Judged vanishingly unlikely.
 - `install_host_config` and `archcore init --agent` remain the supported way to wire a project-level server, and the guard's error message now points at them.
+
+## Clarifications
+
+- 2026-11-17 — @.archcore/mcp/session-project-is-nearest-store.adr.md reverses the rejection of a walk up for the session root, bounded to initialized stores. A pinned `--project` folder is resolved to its session project, and a pinned folder that holds a store is served as given. The plugin-cache refusal stands.

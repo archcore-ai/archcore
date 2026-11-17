@@ -9,7 +9,6 @@ import (
 	"archcore-cli/internal/advisory"
 	"archcore-cli/internal/config"
 	"archcore-cli/internal/docs"
-	"archcore-cli/internal/projectroot"
 	archsync "archcore-cli/internal/sync"
 )
 
@@ -58,7 +57,8 @@ func postToolUseHandler(_ context.Context, r hookRequest) hookDecision {
 
 // postWriteRoot returns the project a document mutation was served in: the root
 // the server names in its response, then the call's project argument, then the
-// nearest project at or above the working directory (hook-runtime.spec §17).
+// session project of the working directory (hook-runtime.spec §17,
+// session-project-is-nearest-store.adr).
 // The working directory is the shell's, which a cd moves away from the root the
 // server writes to, so it is only the last resort. An advisory read: a
 // candidate that is not an absolute directory holding .archcore/ is passed over.
@@ -68,7 +68,10 @@ func postWriteRoot(r hookRequest) (string, bool) {
 			return root, true
 		}
 	}
-	return projectroot.Nearest(r.baseDir)
+	if project := r.project(); config.DirExists(project) {
+		return project, true
+	}
+	return "", false
 }
 
 // validationAdvisory reports structural problems in the knowledge base.

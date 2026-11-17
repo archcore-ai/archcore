@@ -52,3 +52,7 @@ The provider is the single place that treats a reported root as untrusted, on th
 - Process-global state keyed by project root stays correct: the scan cache keys by absolute file path, the manifest store and the main-checkout memo key by root. The "one MCP server process serves one primary" comment in @cli/internal/mcp/tools/manifest_store.go was corrected rather than the code.
 - A cached decision means a switch is followed by the call after next at the latest, not by the very next call. The window is the cache lifetime the specification states.
 - The in-process integration harness answers `roots/list` through a client built with both `transport.WithRootsHandler` and `client.WithRootsHandler`; `client.NewInProcessClient` registers no session at all.
+
+## Clarifications
+
+- 2026-11-17 — @.archcore/mcp/session-project-is-nearest-store.adr.md adopts the rejected alternative "walk up from cwd for a `.archcore/` directory", bounded to stores that hold `settings.json`. The following of `roots/list` stands, and an adopted folder is judged by its session project.

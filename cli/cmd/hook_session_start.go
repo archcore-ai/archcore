@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"archcore-cli/internal/display"
+	"archcore-cli/internal/projectroot"
 	"archcore-cli/internal/stamp"
 )
 
@@ -25,18 +26,18 @@ const sessionStampWindow = 10 * time.Minute
 // handleSessionStartDeduped builds the session context unless an equivalent
 // invocation already claimed this window.
 //
-// The host-derived key is scoped to the project by folding in baseDir — one
+// The host-derived key is scoped to the project by folding in its root — one
 // session touching two projects within the window must get both contexts. An
 // empty key or stampDir fails open (always emit); a suppressed repeat reports
 // emitted=false, which the caller turns into silence rather than an error.
-func handleSessionStartDeduped(ctx context.Context, baseDir, version, key, stampDir string) (sessionContext, banner string, emitted bool) {
+func handleSessionStartDeduped(ctx context.Context, folder, version, key, stampDir string) (sessionContext, banner string, emitted bool) {
 	if key != "" && stampDir != "" {
-		key += "\x00" + baseDir
+		key += "\x00" + projectroot.ForSession(folder)
 		if !stamp.Claim(stampDir, key, sessionStampWindow) {
 			return "", "", false
 		}
 	}
-	text, counts := buildSessionContext(ctx, baseDir)
+	text, counts := buildSessionContext(ctx, folder)
 	return text, display.HookConnectedLine(version, counts.local, counts.global), true
 }
 

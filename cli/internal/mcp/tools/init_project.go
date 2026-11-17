@@ -17,7 +17,9 @@ func NewInitProjectTool() mcp.Tool {
 	return mcp.NewTool("init_project",
 		mcp.WithDescription(`Initialize the .archcore/ knowledge base for this session's project, or for the project the project argument names.
 
-Call this tool ONCE per project, before creating any documents, if list_documents reports the project is not yet initialized (empty result with no .archcore/ directory). Idempotent — safe to call on an already-initialized project (existing settings preserved and returned).
+Call this tool ONCE per project, before creating any documents, if list_documents reports the project is not yet initialized (empty result with "initialized": false). Idempotent — safe to call on an already-initialized project (existing settings preserved and returned).
+
+From a folder below an existing project, a call without project returns that project and creates nothing. To create a store in the folder itself, name the folder in project.
 
 Creates the .archcore/ directory and settings.json only — no host wiring (hooks, MCP registration, instructions file). For that, during an explicit init/setup flow, call install_host_config (or run 'archcore init --agent <id>' from a shell).
 

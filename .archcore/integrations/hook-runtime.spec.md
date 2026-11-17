@@ -47,6 +47,8 @@ payload is read into a tool identity and its targets; the text of the session-st
     - the `project` argument in `tool_input`;
     - the nearest ancestor of the payload working directory that holds `.archcore/`.
 18. WHEN a `pre-tool-use` payload names no file path and carries a patch, the command MUST feed the first patch target to the code-alignment advisory.
+19. The command MUST take the session project of the payload working directory as the session root, per @.archcore/mcp/session-project-resolution.spec.md.
+20. WHEN a write would create a new `.archcore/` inside an initialized project, the write guard MUST deny it, per @.archcore/mcp/session-project-resolution.spec.md behavior 20.
 
 ## Constraints & Invariants
 
@@ -82,5 +84,5 @@ payload is read into a tool identity and its targets; the text of the session-st
 
 ## Conformance
 
-An implementation is conformant when it satisfies behaviors 1–18, holds every invariant, and degrades
+An implementation is conformant when it satisfies behaviors 1–20, holds every invariant, and degrades
 per the failure rules. Failure rule 2 needs a zero exit, so failure rule 3 is what keeps an argument parser from refusing before the handler runs: Copilot reads any non-zero exit as a deny.

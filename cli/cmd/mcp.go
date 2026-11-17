@@ -12,6 +12,7 @@ import (
 	"archcore-cli/internal/display"
 	"archcore-cli/internal/docs"
 	mcpserver "archcore-cli/internal/mcp"
+	"archcore-cli/internal/projectroot"
 	"archcore-cli/internal/update"
 
 	"github.com/spf13/cobra"
@@ -34,20 +35,23 @@ func newMCPCmd(version string) *cobra.Command {
 				return err
 			}
 			pinned := rootIsPinned(projectFlag, envRoot)
+			// The server keeps the folder it started in and serves the project
+			// that folder belongs to (session-project-is-nearest-store.adr).
+			project := projectroot.ForSession(baseDir)
 
 			fmt.Fprintln(os.Stderr, display.WelcomeBanner(version))
 			fmt.Fprintln(os.Stderr)
-			if !config.DirExists(baseDir) {
+			if !config.DirExists(project) {
 				fmt.Fprintln(os.Stderr, display.Dim.Render("  MCP server running on stdio (uninitialized project — only init_project tool is useful until the agent initializes .archcore/)..."))
 			} else {
 				fmt.Fprintln(os.Stderr, display.Dim.Render("  MCP server running on stdio..."))
-				if err := checkGlobals(baseDir); err != nil {
+				if err := checkGlobals(project); err != nil {
 					return err
 				}
 				// Warn (to stderr — stdout is the JSON-RPC stream) if the config
 				// carries fields this binary does not recognize. checkGlobals has
 				// already confirmed settings.json is present and valid here.
-				if s, lErr := config.Load(baseDir); lErr == nil {
+				if s, lErr := config.Load(project); lErr == nil {
 					warnUnknownConfigFields(os.Stderr, s)
 				}
 			}
@@ -62,7 +66,7 @@ func newMCPCmd(version string) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&projectFlag, "project", "",
-		"project root containing .archcore/ (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
+		"session folder; the project is the nearest initialized .archcore/ at or above it (default: current directory; env: ARCHCORE_PROJECT_ROOT)")
 
 	cmd.AddCommand(newMCPInstallCmd())
 	return cmd

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -42,8 +43,13 @@ const RootCacheTTL = 2 * time.Second
 // was not pinned with --project or ARCHCORE_PROJECT_ROOT.
 //
 // A reported root is untrusted exactly as a spawn-time working directory is:
-// it passes the plugin-cache guard, must hold .archcore/, and must carry
-// declared global sources that resolve, before the provider will move onto it.
+// it passes the plugin-cache guard, must belong to a project, and that project
+// must carry declared global sources that resolve, before the provider will
+// move onto it.
+//
+// The provider keeps the session folder and serves its project: the nearest
+// store at or above the folder, read on every call so a store that appears or
+// disappears is seen by the next one (session-project-is-nearest-store.adr).
 type sessionRootProvider struct {
 	pinned bool
 	// warnTo receives one line per distinct refusal reason. It is stderr in
@@ -89,9 +95,15 @@ func newSessionRootProvider(startRoot string, pinned bool, warnTo io.Writer) *se
 // have given it a moment earlier, and waiting would put a filesystem walk on a
 // tool call that asked for nothing.
 func (p *sessionRootProvider) Root(ctx context.Context) string {
+	return projectroot.ForSession(p.folder(ctx))
+}
+
+// folder returns the session folder, asking the client where it works when the
+// last answer has expired.
+func (p *sessionRootProvider) folder(ctx context.Context) string {
 	// pinned is written once, before the provider is published to any caller.
 	if p.pinned {
-		return p.settledRoot()
+		return p.settledFolder()
 	}
 
 	current, fresh := p.cached()
@@ -112,6 +124,10 @@ func (p *sessionRootProvider) Root(ctx context.Context) string {
 
 // settledRoot reads the current root without deciding anything.
 func (p *sessionRootProvider) settledRoot() string {
+	return projectroot.ForSession(p.settledFolder())
+}
+
+func (p *sessionRootProvider) settledFolder() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.current
@@ -174,14 +190,18 @@ func (p *sessionRootProvider) refresh(ctx context.Context, current string) strin
 // adopted; zero or several leave the current root in place
 // (project-root-resolution.spec §11–§14).
 func (p *sessionRootProvider) choose(current string, reported []mcp.Root) string {
-	var accepted []string
+	// Several reported folders of one project are one candidate, and a folder
+	// of the project already served changes nothing.
+	serving := projectroot.ForSession(current)
+	var accepted, projects []string
 	for _, r := range reported {
 		dir, err := fileURIPath(r.URI)
 		if err != nil {
 			p.warnOnce("root-uri", "the host reported a working directory that is not a usable file:// path; keeping the current project root")
 			continue
 		}
-		if dir == current {
+		project := projectroot.ForSession(dir)
+		if dir == current || projectroot.SameDir(project, serving) {
 			// Already serving it. Re-running the acceptance checks would walk
 			// every declared global source on a call that changes nothing (§10).
 			return current
@@ -190,7 +210,10 @@ func (p *sessionRootProvider) choose(current string, reported []mcp.Root) string
 			p.warnOnce("root-"+reason, "not switching to the working directory the host reported: "+reason)
 			continue
 		}
-		accepted = append(accepted, dir)
+		if !slices.ContainsFunc(projects, func(seen string) bool { return projectroot.SameDir(seen, project) }) {
+			projects = append(projects, project)
+			accepted = append(accepted, dir)
+		}
 	}
 
 	switch len(accepted) {
@@ -297,10 +320,15 @@ func checkRoot(dir string, requireArchcore bool) error {
 }
 
 // acceptRoot reports whether a reported working directory may become the
-// session root, and names the failed check otherwise, in the words of the
-// root provider's warning stream.
+// session folder, and names the failed check otherwise, in the words of the
+// root provider's warning stream. The folder passes the path checks itself; the
+// store and its global sources are checked on the project the folder belongs
+// to (session-project-is-nearest-store.adr).
 func acceptRoot(dir string) (reason string, ok bool) {
-	if err := checkRoot(dir, true); err != nil {
+	if err := checkRoot(dir, false); err != nil {
+		return rootRefusal("the reported path", err), false
+	}
+	if err := checkRoot(projectroot.ForSession(dir), true); err != nil {
 		return rootRefusal("the reported path", err), false
 	}
 	return "", true

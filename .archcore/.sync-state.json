@@ -2559,6 +2559,51 @@
       "type": "implements"
     },
     {
+      "source": "mcp/session-project-resolution.spec.md",
+      "target": "mcp/session-project-is-nearest-store.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "mcp/session-project-is-nearest-store.adr.md",
+      "target": "mcp/explicit-target-project-per-call.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "mcp/session-project-resolution.spec.md",
+      "target": "mcp/project-root-resolution.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "integrations/session-start-context.spec.md",
+      "target": "mcp/session-project-resolution.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "integrations/hook-runtime.spec.md",
+      "target": "mcp/session-project-resolution.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/call-root-resolution.spec.md",
+      "target": "mcp/session-project-resolution.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "mcp/session-project-is-nearest-store.adr.md",
+      "target": "mcp/session-following-project-root.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/session-project-is-nearest-store.adr.md",
+      "target": "integrations/host-cwd-misrouting.adr.md",
+      "type": "related"
+    },
+    {
+      "source": "mcp/session-project-is-nearest-store.adr.md",
+      "target": "mcp/mcp-server-starts-without-archcore-dir.adr.md",
+      "type": "extends"
+    },
+    {
       "source": "release/dependency-release-age.rule.md",
       "target": "update/unattended-update.spec.md",
       "type": "related"

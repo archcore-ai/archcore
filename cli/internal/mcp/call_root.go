@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"archcore-cli/internal/config"
 	"archcore-cli/internal/mcp/tools"
 	"archcore-cli/internal/projectroot"
 
@@ -42,6 +43,13 @@ func (r callRootResolver) wrap(toolName string, handle server.ToolHandlerFunc) s
 		if refusal != "" {
 			return mcp.NewToolResultError(refusal), nil
 		}
+		// A guard: a store that cannot be seen is treated as absent, so a
+		// document write refuses instead of creating one
+		// (session-project-is-nearest-store.adr).
+		hasStore := config.DirExists(root)
+		if !hasStore && !storelessReadTools[toolName] && !storeCreatingTools[toolName] {
+			return mcp.NewToolResultError(noStoreRefusal), nil
+		}
 		ctx = tools.WithSessionRoot(context.WithValue(ctx, callRootKey{}, root), r.settledSessionRoot(ctx))
 		result, err := handle(ctx, request)
 		if err != nil {
@@ -52,9 +60,32 @@ func (r callRootResolver) wrap(toolName string, handle server.ToolHandlerFunc) s
 			// "source" already names the relation endpoint in these payloads.
 			source = ""
 		}
-		return tools.WithProjectField(result, root, source), nil
+		result = tools.WithProjectField(result, root, source)
+		if !hasStore && storelessReadTools[toolName] {
+			result = tools.WithUninitializedField(result)
+		}
+		return result, nil
 	}
 }
+
+// storelessReadTools answer on a root that holds no .archcore/ as they always
+// did, with an empty result, and that result says "initialized": false. Every
+// tool outside this set and storeCreatingTools refuses such a root, so a tool
+// added later cannot write there by omission
+// (session-project-is-nearest-store.adr).
+var storelessReadTools = map[string]bool{
+	"list_documents":   true,
+	"search_documents": true,
+	"get_document":     true,
+	"list_relations":   true,
+}
+
+// storeCreatingTools are the only tools that create .archcore/.
+var storeCreatingTools = map[string]bool{"init_project": true, "install_host_config": true}
+
+// noStoreRefusal names both exits and no path
+// (no-absolute-paths-in-mcp-errors.rule).
+const noStoreRefusal = "this session's folder holds no .archcore/ directory, and no initialized project is above it; to create one here, call init_project after the user asks for it, or pass project to name an existing project"
 
 // relationEndpointTools are the tools whose payload carries a top-level "source"
 // key of its own; the response names their project only.
@@ -79,7 +110,8 @@ func (r callRootResolver) resolve(ctx context.Context, toolName string, request 
 	if refusal != "" {
 		return "", refusal
 	}
-	if toolName == "add_relation" || toolName == "remove_relation" {
+	// Without a store the write guard in wrap refuses first, with its own exits.
+	if (toolName == "add_relation" || toolName == "remove_relation") && config.DirExists(root) {
 		refusal = relationRootRefusal(root, request)
 	}
 	return root, refusal
@@ -137,8 +169,8 @@ func resolveForPathRoot(session, forPath string) (root, refusal string) {
 		}
 		return projectroot.Canonical(nearest), ""
 	case isWithin(session, forPath):
-		// An uninitialized session root answers as it does today
-		// (call-root-resolution.spec, Failure Behavior 9).
+		// A session root without a store answers as a storeless read
+		// (session-project-resolution.spec §12).
 		return session, ""
 	default:
 		return "", "for_path names a file outside every Archcore project; pass project to name the project to search"

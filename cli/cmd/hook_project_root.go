@@ -23,12 +23,13 @@ const projectTouchWindow = 24 * time.Hour
 // (hook-runtime.spec §9).
 type hookRoots struct {
 	session string
+	cwd     string
 	byDir   map[string]string
 	guards  map[string]*writeGuard
 }
 
-func newHookRoots(session string) *hookRoots {
-	return &hookRoots{session: session, byDir: map[string]string{}, guards: map[string]*writeGuard{}}
+func newHookRoots(session, cwd string) *hookRoots {
+	return &hookRoots{session: session, cwd: cwd, byDir: map[string]string{}, guards: map[string]*writeGuard{}}
 }
 
 // rootOf returns the project target belongs to: the nearest directory above
@@ -71,10 +72,7 @@ func (h *hookRoots) dirRoot(dir string) string {
 // resolve walks up from dir as written and with symlinks evaluated; the
 // evaluated answer wins when the two differ.
 func (h *hookRoots) resolve(dir string) string {
-	root, ok := projectroot.Nearest(dir)
-	if real, realOK := projectroot.Nearest(projectroot.EvalExisting(dir)); realOK && (!ok || !projectroot.SameDir(real, root)) {
-		root, ok = real, true
-	}
+	root, ok := projectroot.Resolve(dir)
 	if !ok || projectroot.SameDir(root, h.session) {
 		return h.session
 	}
@@ -96,7 +94,18 @@ func (h *hookRoots) guardPath(target, root string) string {
 	if root != h.session {
 		return abs
 	}
-	return target
+	return h.anchored(target)
+}
+
+// anchored returns target as the session project reads it. A session started
+// below its project root names files from its working directory, so a relative
+// target is made absolute there; a session at the root keeps the target as
+// written (session-project-is-nearest-store.adr).
+func (h *hookRoots) anchored(target string) string {
+	if target == "" || h.cwd == h.session {
+		return target
+	}
+	return h.absolute(target)
 }
 
 // isLink and exists are advisory reads: an unreadable path counts as a plain,
@@ -116,7 +125,7 @@ func (h *hookRoots) absolute(target string) string {
 	if filepath.IsAbs(target) {
 		return target
 	}
-	return filepath.Join(h.session, target)
+	return filepath.Join(h.cwd, target)
 }
 
 func (h *hookRoots) guard(root string) *writeGuard {
@@ -170,16 +179,22 @@ const (
 	inventoryShown = 10
 )
 
+// writeProjectAboveLine names the session project when the session started
+// below its root, because the recap otherwise reads as the working directory's
+// own (session-start-context.spec §18). A session at the root gets no line.
+func writeProjectAboveLine(b *strings.Builder, project, cwd string) {
+	if cwd == "" || projectroot.SameDir(project, cwd) {
+		return
+	}
+	fmt.Fprintf(b, "\nPROJECT: %s — the nearest .archcore/ above this folder. The Archcore tools use it without a project argument; a relative path in a tool argument starts at this root.\n", project)
+}
+
 // writeProjectInventory replaces the corpus line when the session folder holds
 // no .archcore/: it names the projects the session can reach and the project
 // argument that reaches them, and gives no advice to create a store here
 // (hooks-validation-system.spec, Hook 1 phase 2).
 func writeProjectInventory(b *strings.Builder, baseDir string) {
 	b.WriteString("\nNO PROJECT HERE: this folder holds no .archcore/.\n")
-	above, hasAbove := projectroot.Nearest(baseDir)
-	if hasAbove {
-		fmt.Fprintf(b, "PROJECT ABOVE: %s\n", above)
-	}
 	below, complete := projectroot.Below(baseDir, inventoryDepth, inventoryDirs)
 	if len(below) > 0 {
 		shown := below[:min(len(below), inventoryShown)]
@@ -192,7 +207,7 @@ func writeProjectInventory(b *strings.Builder, baseDir string) {
 		}
 		b.WriteString("\n")
 	}
-	if !hasAbove && len(below) == 0 {
+	if len(below) == 0 {
 		b.WriteString("No Archcore project was found near this folder.\n")
 	}
 	b.WriteString("To read or write a project, pass project=<its absolute root> to the Archcore tools, or call search_documents with an absolute for_path. Ask the user which project to use before you write.\n")

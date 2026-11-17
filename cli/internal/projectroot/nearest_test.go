@@ -194,3 +194,78 @@ func TestNearest_StopsAtADirectoryItMayNotSearch(t *testing.T) {
 		t.Errorf("Nearest = %q, want no project", root)
 	}
 }
+
+// TestResolve holds session-project-is-nearest-store.adr: a folder belongs to
+// the nearest store at or above it, a nested store wins, and a folder entered
+// through a link belongs where the link leads.
+func TestResolve(t *testing.T) {
+	t.Parallel()
+	w, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := filepath.Join(w, "a")
+	mkdirs(t,
+		filepath.Join(a, ".archcore"),
+		filepath.Join(a, "src", "deep"),
+		filepath.Join(a, "app", ".archcore"),
+		filepath.Join(a, "app", "pkg"),
+		filepath.Join(w, "plain", "src"),
+		filepath.Join(w, "stray", ".archcore"),
+		filepath.Join(w, "stray", "repo"),
+	)
+	for _, root := range []string{a, filepath.Join(a, "app")} {
+		if err := os.WriteFile(filepath.Join(root, ".archcore", "settings.json"), []byte("{}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stray := filepath.Join(w, "stray")
+	linkIntoSrc := filepath.Join(w, "link-into-src")
+	linkToRoot := filepath.Join(w, "link-to-root")
+	if err := os.Symlink(filepath.Join(a, "src"), linkIntoSrc); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := os.Symlink(a, linkToRoot); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name    string
+		dir     string
+		want    string
+		wantOK  bool
+		session string
+	}{
+		{name: "a store without settings.json serves its own folder", dir: stray, want: stray, wantOK: true},
+		{name: "a store without settings.json does not capture a folder below it", dir: filepath.Join(stray, "repo"), want: stray, wantOK: true, session: filepath.Join(stray, "repo")},
+		{name: "the project root", dir: a, want: a, wantOK: true},
+		{name: "a folder below the root", dir: filepath.Join(a, "src"), want: a, wantOK: true},
+		{name: "a deep folder below the root", dir: filepath.Join(a, "src", "deep"), want: a, wantOK: true},
+		{name: "a folder that does not exist yet", dir: filepath.Join(a, "src", "new", "x"), want: a, wantOK: true},
+		{name: "a nested store is its own project", dir: filepath.Join(a, "app"), want: filepath.Join(a, "app"), wantOK: true},
+		{name: "a folder below a nested store", dir: filepath.Join(a, "app", "pkg"), want: filepath.Join(a, "app"), wantOK: true},
+		{name: "a link into a project folder leads to the project", dir: linkIntoSrc, want: a, wantOK: true},
+		{name: "a link to the root keeps its own spelling", dir: linkToRoot, want: linkToRoot, wantOK: true},
+		{name: "no store above", dir: filepath.Join(w, "plain", "src")},
+		{name: "empty path", dir: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := Resolve(tt.dir)
+			if ok != tt.wantOK || got != tt.want {
+				t.Errorf("Resolve(%q) = %q, %v; want %q, %v", tt.dir, got, ok, tt.want, tt.wantOK)
+			}
+			wantSession := tt.want
+			switch {
+			case tt.session != "":
+				wantSession = tt.session
+			case !tt.wantOK:
+				wantSession = tt.dir
+			}
+			if got := ForSession(tt.dir); got != wantSession {
+				t.Errorf("ForSession(%q) = %q, want %q", tt.dir, got, wantSession)
+			}
+		})
+	}
+}

@@ -26,7 +26,7 @@ Root sources: pinned (`--project`, `ARCHCORE_PROJECT_ROOT`), implicit (the worki
 
 ## Normative Behavior
 
-1. WHEN `--project` or `ARCHCORE_PROJECT_ROOT` is non-empty, the server MUST serve that root for the process lifetime to every call that names no `project` argument.
+1. WHEN `--project` or `ARCHCORE_PROJECT_ROOT` is non-empty, the server MUST serve the session project of that value (`projectroot.ForSession`, per behavior 6 of @.archcore/mcp/session-project-resolution.spec.md), which is the pinned folder itself when that folder holds a store, for the process lifetime to every call that names no `project` argument.
 2. WHEN a root is pinned, the server MUST NOT query `roots/list`.
 3. WHEN no root is pinned, the server MUST resolve the root once per tool call from the request context.
 4. WHEN the client declared no `roots` capability at `initialize`, the provider MUST serve the start-time root without a query.
@@ -35,12 +35,12 @@ Root sources: pinned (`--project`, `ARCHCORE_PROJECT_ROOT`), implicit (the worki
 7. WHEN a query fails, the provider MUST hold the current root for the same cache lifetime.
 8. WHILE a cached decision is current, the provider MUST NOT query again.
 9. WHEN two tool calls need a root at once, the provider MUST issue at most one `roots/list` request.
-10. WHEN a reported root equals the current root, the provider MUST keep it without running the acceptance checks.
+10. WHEN a reported root equals the current root or belongs to the served project, the provider MUST keep it without running the acceptance checks.
 11. The provider MUST accept a different candidate root only when every check in Acceptance passes.
-12. WHEN exactly one candidate passes, the provider MUST adopt it as the current root.
+12. WHEN the passing candidates name exactly one project, the provider MUST adopt the first of them as the current root.
 13. WHEN no candidate passes, the provider MUST keep the current root.
-14. WHEN more than one candidate passes, the provider MUST keep the current root.
-14a. WHEN more than one candidate passes, the server MUST serve each other candidate only to a call that names it in `project`, per @.archcore/mcp/call-root-resolution.spec.md.
+14. WHEN the passing candidates name more than one project, the provider MUST keep the current root.
+14a. WHEN the passing candidates name more than one project, the server MUST serve each other project only to a call that names it in `project`, per @.archcore/mcp/call-root-resolution.spec.md.
 15. WHEN the provider rejects a candidate, it MUST write one line naming the failed check to its warning stream.
 16. The provider MUST write that line at most once per distinct reason.
 17. A warning line MUST NOT contain an absolute filesystem path, per @.archcore/mcp/no-absolute-paths-in-mcp-errors.rule.md.
@@ -55,8 +55,8 @@ A candidate root passes when all of these hold:
 1. The reported URI parses as a `file://` URI and yields an absolute path after percent-decoding.
 2. The path exists and is a directory.
 3. `projectroot.IsPluginCachePath` does not match the path.
-4. The path contains a `.archcore/` directory.
-5. `docs.InspectGlobals` reports no fatal state for the path.
+4. The session project of the path holds a `.archcore/` directory, per @.archcore/mcp/session-project-resolution.spec.md.
+5. `docs.InspectGlobals` reports no fatal state for that project.
 
 Check 4 governs a move away from the start-time root only. The start-time root MUST stay servable without `.archcore/`, so `init_project` keeps its guarantee from @.archcore/mcp/mcp-server-starts-without-archcore-dir.adr.md.
 
@@ -75,7 +75,8 @@ Check 4 governs a move away from the start-time root only. The start-time root M
 - A tool call reads and writes exactly one root; a root never changes inside one call. The root is the session root of this contract, or the call root of @.archcore/mcp/call-root-resolution.spec.md when the call names one.
 - A root the provider serves has passed every acceptance check, or is the start-time root.
 - The server never serves a root whose declared global sources hold a fatal state, except the start-time root, which the startup gate already validated.
-- The `initialize` instructions describe the start-time root for the process lifetime.
+- The `initialize` instructions describe the session project of the start-time root for the process lifetime.
+- Each root source names a session folder. The root a call without `project` operates on is the session project of that folder, per @.archcore/mcp/session-project-resolution.spec.md.
 - Process-global state that is keyed by project root — the document scan cache, the manifest store, the main-checkout memo of @.archcore/globals/relative-globals-resolve-from-main-checkout.adr.md — stays correct across a root change, because a key names one root.
 
 ## Failure Behavior

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"archcore-cli/internal/advisory"
+	"archcore-cli/internal/projectroot"
 
 	"github.com/spf13/cobra"
 )
@@ -18,11 +19,16 @@ import (
 // the event means a handler can skip work the host would discard, instead of
 // doing it and having the command layer throw the result away.
 type hookRequest struct {
+	// baseDir is the session folder: the payload working directory.
 	baseDir string
 	dialect hostDialect
 	event   hookEvent
 	payload *hookPayload
 }
+
+// project returns the session project: the nearest store at or above the
+// session folder, else the folder itself (session-project-is-nearest-store.adr).
+func (r hookRequest) project() string { return projectroot.ForSession(r.baseDir) }
 
 // hookHandler decides what a hook event should do. It never writes output and
 // never exits — the command layer owns both, so one place enforces the per-host
@@ -166,7 +172,8 @@ func preToolUseHandler(ctx context.Context, r hookRequest) hookDecision {
 
 	// One guard per project for the whole call. Every target of one project asks
 	// the same questions about it, and a patch can carry thousands of them.
-	roots := newHookRoots(r.baseDir)
+	project := r.project()
+	roots := newHookRoots(project, r.baseDir)
 
 	// A patch call names its targets only inside the patch body, and one call can
 	// carry several. Any guarded target blocks the whole call: a patch applies as
@@ -175,7 +182,7 @@ func preToolUseHandler(ctx context.Context, r hookRequest) hookDecision {
 	for _, target := range targets {
 		root := roots.rootOf(target)
 		if dec := roots.guard(root).decide(roots.guardPath(target, root)); dec.deny {
-			return withProjectHint(dec, root, r.baseDir)
+			return withProjectHint(dec, root, project)
 		}
 	}
 
@@ -188,7 +195,7 @@ func preToolUseHandler(ctx context.Context, r hookRequest) hookDecision {
 	var notes []string
 	// A patch is how Codex edits every file, so its targets name the projects a
 	// call touches as a file path does (hook-runtime.spec §16).
-	noted := map[string]bool{r.baseDir: true}
+	noted := map[string]bool{project: true}
 	for _, target := range targets {
 		if target == "" {
 			continue
@@ -207,7 +214,7 @@ func preToolUseHandler(ctx context.Context, r hookRequest) hookDecision {
 		alignTarget = patchPaths[0]
 	}
 	root := roots.rootOf(alignTarget)
-	if note := advisory.CodeAlignment(root, alignTarget); note != "" {
+	if note := advisory.CodeAlignment(root, roots.anchored(alignTarget)); note != "" {
 		notes = append(notes, note)
 	}
 	if len(notes) == 0 {
