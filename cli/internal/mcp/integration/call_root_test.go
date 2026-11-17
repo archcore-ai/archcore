@@ -7,6 +7,7 @@ package integration
 import (
 	"bytes"
 	"context"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -77,9 +78,7 @@ func expectRefusal(t *testing.T, c *client.Client, w workspace, name string, arg
 
 func adrArgs(slug string, extra map[string]any) map[string]any {
 	args := map[string]any{"type": "adr", "filename": slug, "title": "Doc " + slug}
-	for k, v := range extra {
-		args[k] = v
-	}
+	maps.Copy(args, extra)
 	return args
 }
 
@@ -424,11 +423,9 @@ func TestCallRoot_ConcurrentCallsKeepTheirRoots(t *testing.T) {
 
 	var wg sync.WaitGroup
 	errs := make(chan string, 90)
-	for round := 0; round < 30; round++ {
+	for range 30 {
 		for i, p := range projects {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				req := mcp.CallToolRequest{}
 				req.Params.Name = "list_documents"
 				req.Params.Arguments = map[string]any{"project": p}
@@ -441,7 +438,7 @@ func TestCallRoot_ConcurrentCallsKeepTheirRoots(t *testing.T) {
 				if !strings.Contains(payload, `"project":`+quote(p)) || strings.Count(payload, `"path":`) != i+1 {
 					errs <- "cross-talk: " + p + " got " + payload
 				}
-			}()
+			})
 		}
 	}
 	wg.Wait()
@@ -464,7 +461,7 @@ func TestCallRoot_ForPathStaysInsideItsBudget(t *testing.T) {
 	a := w.project(t, "a")
 	deep := w.project(t, strings.Repeat("very-long-directory-name/", 8)+"b")
 	writeFixtureFile(t, filepath.Join(deep, "src", "api.go"), "package src\n")
-	for i := 0; i < 40; i++ {
+	for i := range 40 {
 		name := strings.Repeat("r", 10) + string(rune('a'+i%26)) + string(rune('a'+i/26))
 		writeFixtureFile(t, filepath.Join(deep, ".archcore", name+".rule.md"),
 			"---\ntitle: \""+strings.Repeat("A long rule title ", 8)+"\"\nstatus: accepted\n---\n\n## Rule\n\nx\n")

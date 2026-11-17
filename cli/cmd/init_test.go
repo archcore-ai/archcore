@@ -311,7 +311,8 @@ func TestInit_DetectsMultipleAgents(t *testing.T) {
 	// Now detect and install for detected agents.
 	detected := agents.Detect(base)
 	for _, agent := range detected {
-		//exhaustive:ignore // Only the agents whose config this test seeds are named.
+		// Only the agents whose config this test seeds are named.
+		//exhaustive:ignore
 		switch agent.ID {
 		case agents.Cursor:
 			wiring.InstallCursorHooks(base)
@@ -820,5 +821,17 @@ func TestExistingOrNewSettings_UnreadableSettingsFallBackToTheDefaults(t *testin
 	}
 	if settings.Sync != config.SyncTypeNone {
 		t.Errorf("Sync = %q, want the default %q", settings.Sync, config.SyncTypeNone)
+	}
+}
+
+// TestInit_ReinitWithoutTerminalAsksForYes: with no terminal the reinitialize
+// prompt cannot open, so init names the flag instead of failing inside huh.
+func TestInit_ReinitWithoutTerminalAsksForYes(t *testing.T) {
+	withInteractive(t, false)
+	dir := initValidDir(t)
+
+	_, err := runCmdInDir(t, dir, "init")
+	if err == nil || !strings.Contains(err.Error(), "--yes") {
+		t.Fatalf("want an error naming --yes, got %v", err)
 	}
 }

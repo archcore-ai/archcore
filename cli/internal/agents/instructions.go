@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"archcore-cli/internal/jsonfile"
 )
 
 // Instruction-nudge files. archcore writes a short, always-on "use Archcore"
@@ -171,6 +173,15 @@ func InstructionBlockPresent(path string) bool {
 	return len(findManagedSpans(string(data))) > 0
 }
 
+// InstructionsInstalled reports whether a's RemoveInstructions has anything to
+// remove under baseDir: the managed block, or Claude Code's legacy rules file.
+func InstructionsInstalled(a *Agent, baseDir string) bool {
+	if InstructionBlockPresent(a.InstructionsPath(baseDir)) {
+		return true
+	}
+	return a.ID == ClaudeCode && fileExists(filepath.Join(baseDir, legacyClaudeRulesRelPath))
+}
+
 // BlockState classifies a committed managed block against the block this binary
 // writes.
 type BlockState int
@@ -303,10 +314,16 @@ func upsertFencedBlock(path string) error {
 		// A new block goes above the user's content: Codex reads every AGENTS.md
 		// under one 32 KiB budget and silently drops the tail
 		// (context-address-leads-every-channel.adr).
+		// A BOM left after the block would sit mid-file and break the first heading.
+		bom, rest := "", content
+		if after, ok := strings.CutPrefix(content, "\ufeff"); ok {
+			bom, rest = "\ufeff", after
+		}
 		var b strings.Builder
+		b.WriteString(bom)
 		b.WriteString(instructionsFencedBlock)
 		b.WriteString("\n")
-		if rest := strings.TrimLeft(content, "\r\n"); rest != "" {
+		if rest := strings.TrimLeft(rest, "\r\n"); rest != "" {
 			b.WriteString("\n")
 			b.WriteString(rest)
 		}
@@ -331,7 +348,7 @@ func removeFencedBlock(path string) error {
 	content := string(data)
 
 	if len(findManagedSpans(content)) == 0 {
-		return nil // no managed block
+		return nil
 	}
 
 	// Remove the first block each pass, re-trimming the seam, until none
@@ -368,65 +385,10 @@ func removeOwnedFile(path string) error {
 	return nil
 }
 
-// writeFileAtomic replaces the file at path with data by writing a sibling temp
-// file and renaming it into place. The rename is atomic on POSIX, so a crash or
-// ENOSPC mid-write can never leave a shared user file (CLAUDE.md / AGENTS.md /
-// GEMINI.md) half-written with the managed block torn across the failure — the
-// old contents survive intact until the single rename swaps them. It preserves
-// two behaviors of the plain os.WriteFile it replaces:
-//
-//   - Permission bits: os.WriteFile keeps an existing file's mode (the mode
-//     argument only applies on create); a naive temp+rename would reset it to
-//     the temp file's mode, so we copy the target's current perm onto the temp
-//     before renaming, falling back to 0o644 for a new file.
-//   - Symlinks: os.WriteFile follows a symlink and writes through to its target.
-//     We resolve the link and rename onto the resolved target, so a symlinked
-//     instruction file stays a symlink instead of being replaced by a regular
-//     file. (A dangling link resolves to itself and is materialized as a real
-//     file — writing through an unresolvable target is impossible anyway.)
+// writeFileAtomic replaces a user-owned file through the symlink-following
+// writer — choosing-an-atomic-write.rule §5.
 func writeFileAtomic(path string, data []byte) error {
-	// Follow a symlink to the file it points at so we replace that file and the
-	// link is preserved. EvalSymlinks fails for a not-yet-existing path, in
-	// which case target stays the literal path (the fresh-file case).
-	target := path
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		target = resolved
-	}
-
-	perm := os.FileMode(0o644)
-	if info, err := os.Stat(target); err == nil {
-		perm = info.Mode().Perm()
-	}
-
-	dir := filepath.Dir(target)
-	tmp, err := os.CreateTemp(dir, ".archcore-*.tmp")
-	if err != nil {
-		return fmt.Errorf("creating temp file in %s: %w", dir, err)
-	}
-	// Remove the temp file if we return before the rename consumes it.
-	tmpName := tmp.Name()
-	defer func() {
-		if tmpName != "" {
-			_ = os.Remove(tmpName)
-		}
-	}()
-
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("writing %s: %w", target, err)
-	}
-	if err := tmp.Chmod(perm); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("setting permissions on %s: %w", target, err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("closing temp file for %s: %w", target, err)
-	}
-	if err := os.Rename(tmpName, target); err != nil {
-		return fmt.Errorf("replacing %s: %w", target, err)
-	}
-	tmpName = "" // consumed by the rename — nothing to clean up
-	return nil
+	return jsonfile.WriteThroughSymlink(path, data)
 }
 
 // WriteConfigFile preserves a user-owned config's mode and symlink through the
@@ -434,8 +396,6 @@ func writeFileAtomic(path string, data []byte) error {
 func WriteConfigFile(path string, data []byte) error {
 	return writeFileAtomic(path, data)
 }
-
-// --- Per-target helpers wired into the agent registry ---
 
 func agentsMDInstructionsPath(baseDir string) string {
 	return filepath.Join(baseDir, agentsInstructionsFile)

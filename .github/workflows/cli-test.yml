@@ -54,7 +54,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.12.2
+          version: v2.15.0
           working-directory: cli
 
       - name: Test

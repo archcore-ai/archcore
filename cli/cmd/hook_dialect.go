@@ -50,7 +50,6 @@ const (
 	denyCopilotJSON
 )
 
-// hostDialect is one host's protocol.
 type hostDialect struct {
 	id agents.AgentID
 	// session is the SessionStart envelope, which is not always the same as the
@@ -71,7 +70,6 @@ type hostDialect struct {
 	wireEvents map[hookEvent]string
 }
 
-// wireEvent returns the event name this host expects to see in its envelope.
 func (d hostDialect) wireEvent(e hookEvent) string {
 	if name, ok := d.wireEvents[e]; ok {
 		return name
@@ -128,10 +126,8 @@ type hookDecision struct {
 // allowHook is the safe answer: no output, no block.
 func allowHook() hookDecision { return hookDecision{} }
 
-// denyHook blocks the tool call and explains why.
 func denyHook(reason string) hookDecision { return hookDecision{deny: true, reason: reason} }
 
-// adviseHook injects context without blocking anything.
 func adviseHook(context string) hookDecision { return hookDecision{context: context} }
 
 // adviseSession is adviseHook plus the user-facing banner only SessionStart has.

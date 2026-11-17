@@ -80,3 +80,31 @@ func TestHooksCLI_PostToolUseValidatesTheNamedProject(t *testing.T) {
 		t.Errorf("exit %d, stdout %q; want B's validation finding", run.exitCode, run.stdout)
 	}
 }
+
+// TestHooksCLI_PostToolUseFromASubdirectory: a shell that moved below the
+// project root sends that directory as the payload cwd, and the write it
+// reports still validates under the project root.
+func TestHooksCLI_PostToolUseFromASubdirectory(t *testing.T) {
+	w := newHookWorkspace(t)
+	writeArchcoreDoc(t, w.b, "knowledge/bad.adr.md", "no frontmatter at all\n")
+	cwd, _ := json.Marshal(filepath.Join(w.b, "src", "api"))
+	root, _ := json.Marshal(w.b)
+	result, _ := json.Marshal(`{"path":".archcore/knowledge/bad.adr.md","project":` + string(root) + `}`)
+
+	for _, tt := range []struct{ name, response string }{
+		{"no tool result", ""},
+		{"claude-code tool result", `,"tool_response":[{"type":"text","text":` + string(result) + `}]`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := `{"cwd":` + string(cwd) + `,"tool_name":"mcp__plugin_archcore_archcore__update_document",` +
+				`"tool_input":{"path":".archcore/knowledge/bad.adr.md"}` + tt.response + `}`
+			run := runHookCLI(t, w.plain, "claude-code", "post-tool-use", nil, payload)
+			if run.exitCode != 0 || !strings.Contains(run.stdout, "bad.adr.md: missing YAML frontmatter") {
+				t.Errorf("exit %d, stdout %q; want B's validation finding", run.exitCode, run.stdout)
+			}
+			if strings.Contains(run.stdout, "directory not found") {
+				t.Errorf("reported a missing store after a write: %q", run.stdout)
+			}
+		})
+	}
+}

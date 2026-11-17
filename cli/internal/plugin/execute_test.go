@@ -57,9 +57,9 @@ func (r *recordingReporter) texts(kind string) []string {
 // of a report against the command it announces, from inside the subprocess
 // seam.
 func (r *recordingReporter) lastProgress() string {
-	for i := len(r.lines) - 1; i >= 0; i-- {
-		if r.lines[i].kind == "progress" {
-			return r.lines[i].text
+	for _, v := range slices.Backward(r.lines) {
+		if v.kind == "progress" {
+			return v.text
 		}
 	}
 	return ""

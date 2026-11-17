@@ -724,9 +724,7 @@ func TestRunUnattended_ConcurrentCallersMakeOneAttempt(t *testing.T) {
 	results := make([]UnattendedResult, callers)
 	var wg sync.WaitGroup
 	for i := range callers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			results[i] = RunUnattended(context.Background(), UnattendedOptions{
 				Updater:   policyUpdater("v1.0.0", binary, host.client()),
 				Version:   "v1.0.0",
@@ -734,7 +732,7 @@ func TestRunUnattended_ConcurrentCallersMakeOneAttempt(t *testing.T) {
 				CachePath: cachePath,
 				ClaimDir:  claimDir,
 			})
-		}()
+		})
 	}
 	wg.Wait()
 

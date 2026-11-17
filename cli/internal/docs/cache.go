@@ -135,7 +135,6 @@ func underAny(path string, dirs []string) bool {
 	return false
 }
 
-// reset empties the cache.
 func (s *scanCache) reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

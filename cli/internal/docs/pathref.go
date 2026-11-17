@@ -97,7 +97,6 @@ func FilterBareMentions(candidates []PathRef) []PathRef {
 			out = append(out, r)
 			continue
 		}
-		// Drop.
 	}
 	return out
 }

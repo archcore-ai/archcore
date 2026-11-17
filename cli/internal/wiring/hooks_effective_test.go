@@ -56,6 +56,32 @@ func TestCodexHooksEnabled(t *testing.T) {
 	}
 }
 
+func TestCodexHooksEnabled_HonorsCodexHome(t *testing.T) {
+	seedCodexConfig(t, "")
+	codexHome := t.TempDir()
+	t.Setenv("CODEX_HOME", codexHome)
+	if err := os.WriteFile(filepath.Join(codexHome, "config.toml"), []byte("[features]\nhooks = true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !codexHooksEnabled() {
+		t.Error("codexHooksEnabled() = false with hooks on in $CODEX_HOME/config.toml")
+	}
+}
+
+func TestDetectInstalledPlugin_HonorsClaudeConfigDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	configDir := t.TempDir()
+	t.Setenv("CLAUDE_CONFIG_DIR", configDir)
+	if err := os.MkdirAll(filepath.Join(configDir, "plugins", "cache", "archcore-plugins", "archcore"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := detectInstalledPlugin(); !ok {
+		t.Error("detectInstalledPlugin() missed a plugin under $CLAUDE_CONFIG_DIR/plugins")
+	}
+}
+
 // TestDetectInstalledPlugin: hosts nest their plugin checkouts, so a scan that
 // stops at the first level finds nothing and the overlap notice never fires.
 func TestDetectInstalledPlugin(t *testing.T) {

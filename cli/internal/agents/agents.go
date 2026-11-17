@@ -107,13 +107,11 @@ func Detect(baseDir string) []*Agent {
 	return found
 }
 
-// dirExists checks whether a directory exists at the given path.
 func dirExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.IsDir()
 }
 
-// fileExists checks whether a regular file exists at the given path.
 func fileExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()

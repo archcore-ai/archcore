@@ -18,6 +18,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"archcore-cli/internal/stamp"
 )
 
 func TestHandleSessionStart_DedupesBySessionID_Spec(t *testing.T) {
@@ -89,9 +91,9 @@ func TestHandleSessionStart_ExpiredStampReEmits(t *testing.T) {
 	}
 	// Age the stamp beyond the window: the next call must emit again. The
 	// on-disk stamp key is the host key scoped by project root.
-	stamp := sessionStampPath(stampDir, "s1\x00"+base)
+	stampPath := stamp.PathFor(stampDir, "s1\x00"+base)
 	old := time.Now().Add(-sessionStampWindow - time.Minute)
-	if err := os.Chtimes(stamp, old, old); err != nil {
+	if err := os.Chtimes(stampPath, old, old); err != nil {
 		t.Fatalf("aging stamp: %v", err)
 	}
 

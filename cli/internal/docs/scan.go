@@ -14,7 +14,6 @@ import (
 	"archcore-cli/templates"
 )
 
-// scanCount records how many corpus walks this process has performed.
 var scanCount atomic.Uint64
 
 // ScanCount reports how many corpus scans this process has performed. It exists
@@ -87,7 +86,7 @@ func scanLocal(baseDir string, opt scanOptions) ([]Document, error) {
 	roots := resolveGlobalRoots(baseDir, opt.globals)
 	var docs []Document
 
-	err := templates.WalkArchcoreFilesSkipping(archcoreDir, nil, func(p string, d fs.DirEntry) error {
+	err := templates.WalkArchcoreFiles(archcoreDir, func(p string, d fs.DirEntry) error {
 		if !opt.accepts(d.Name()) {
 			return nil
 		}
@@ -148,7 +147,7 @@ func scanAll(baseDir string, opt scanOptions) ([]Document, error) {
 			return nil, errors.New(config.DescribeGlobalDirError(gs, dirErr))
 		}
 		root := sourceRoot(gsDir)
-		walkErr := templates.WalkArchcoreFilesSkipping(gsDir, nil, func(p string, d fs.DirEntry) error {
+		walkErr := templates.WalkArchcoreFiles(gsDir, func(p string, d fs.DirEntry) error {
 			// Mount only recognized document types: a misconfigured path (e.g. a
 			// parent directory) must not surface stray .md files as malformed docs.
 			if !templates.IsValidType(templates.ExtractDocType(d.Name())) || !opt.accepts(d.Name()) {

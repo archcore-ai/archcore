@@ -10,7 +10,6 @@ import (
 	"archcore-cli/internal/jsonfile"
 )
 
-// mcpServerEntry represents an MCP server configuration.
 type mcpServerEntry struct {
 	Command string   `json:"command"`
 	Args    []string `json:"args"`

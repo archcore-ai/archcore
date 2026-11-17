@@ -226,7 +226,6 @@ func readStatements(baseDir, target string) ([]statement, bool) {
 	return lines, len(lines) > 0
 }
 
-// restates reports whether tokens reproduce any upstream statement.
 func restates(tokens []string, upstream []statement) bool {
 	for _, u := range upstream {
 		if overlap(tokens, u.set) >= restatementThreshold {

@@ -83,3 +83,22 @@ func TestStateDir_CreatesNothing(t *testing.T) {
 		t.Errorf("StateDir() created %d entries under the state root, want 0", len(entries))
 	}
 }
+
+func TestHostConfigDir(t *testing.T) {
+	t.Setenv("ARCHCORE_TEST_HOST_HOME", "/relocated")
+	t.Setenv("ARCHCORE_TEST_HOST_EMPTY", "")
+	tests := []struct {
+		name, env, want string
+	}{
+		{name: "override set", env: "ARCHCORE_TEST_HOST_HOME", want: "/relocated"},
+		{name: "override empty", env: "ARCHCORE_TEST_HOST_EMPTY", want: "/fallback"},
+		{name: "host has no override", env: "", want: "/fallback"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HostConfigDir(tt.env, "/fallback"); got != tt.want {
+				t.Errorf("HostConfigDir(%q) = %q, want %q", tt.env, got, tt.want)
+			}
+		})
+	}
+}

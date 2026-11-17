@@ -83,15 +83,9 @@ Use the returned paths directly as input to get_document. Do not construct paths
 // HandleListDocuments handles the list_documents tool call.
 func HandleListDocuments(root RootProvider) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		rawTypes := request.GetStringSlice("types", nil)
-		types := make([]templates.DocumentType, len(rawTypes))
-		for i, t := range rawTypes {
-			types[i] = templates.DocumentType(t)
-		}
-		for _, tp := range types {
-			if !templates.IsValidType(string(tp)) {
-				return errorResult(fmt.Sprintf("invalid type %q (valid: %s)", tp, strings.Join(templates.ValidTypes(), ", "))), nil
-			}
+		types, typesErr := parseTypes(request)
+		if typesErr != nil {
+			return typesErr, nil
 		}
 		category := templates.Category(request.GetString("category", ""))
 		if category != "" && !templates.IsValidCategory(category) {
@@ -151,7 +145,7 @@ func HandleListDocuments(root RootProvider) func(ctx context.Context, request mc
 			if category != "" && doc.Category != category {
 				continue
 			}
-			if status != "" && doc.Status != status { // exact match: enum constraint guarantees lowercase
+			if status != "" && doc.Status != status {
 				continue
 			}
 			if len(filterTags) > 0 && !hasAnyTag(doc.Tags, filterTags) {
