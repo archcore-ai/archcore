@@ -13,8 +13,8 @@ produces: none
 next: actualize.fix end
 
 gate: actualize.fix
-skip_when: no finding is labeled spec-wrong
-budget: 1 question per document carrying a spec-wrong finding, plus 1 for the hung-plan batch
+skip_when: no finding is labeled spec-wrong and no cut passed the cut test
+budget: 1
 taxonomy: Terminology & Consistency, Misc / Placeholders
 produces: none
 next: end

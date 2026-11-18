@@ -155,10 +155,12 @@ gate_of() {
   [[ "$review" == *'Run the hung-plan check (actualize check 7) over every `plan` step 2 did not match'* ]] \
     || fail "a plain branch review never looks at plans the branch did not match"
   [[ "$actualize" == *'7. **Hung plans.**'* ]] || fail "actualize has no hung-plan check"
-  [[ "$actualize" == *'- Hung plans, `spec-wrong`: one batch, not one question per plan'* ]] \
-    || fail "hung plans cost one question each and exhaust the budget"
-  [[ "$actualize" == *'every `remove_document` call on a `plan` followed the one batch confirmation'* ]] \
-    || fail "a plan can be removed outside the confirmed batch"
+  [[ "$actualize" == *'Offer every fix in one batch'* ]] \
+    || fail "fixes cost one question each and exhaust the budget"
+  [[ "$actualize" == *'- Hung plans, `spec-wrong`: one line per plan in the same batch'* ]] \
+    || fail "hung plans are not lines of the one batch"
+  [[ "$actualize" == *'every `update_document` and `remove_document` call followed the batch confirmation'* ]] \
+    || fail "a fix or a plan removal can run outside the confirmed batch"
   [[ "$describe" == *'Tag each gathered fact `code-says` with its `@path` or `code-cannot-say` with its kind'* ]] \
     || fail "describe does not sort facts into what the code says and what it cannot"
 }

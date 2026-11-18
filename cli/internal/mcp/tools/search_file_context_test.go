@@ -147,10 +147,15 @@ func TestSearchForPath_FiltersAndCaps(t *testing.T) {
 	writeDoc(t, base, "", "a.adr.md", acceptedDoc("Decision", "Applies to src/api/ code."))
 
 	resp, text := searchForPath(t, base, map[string]any{"for_path": "src/api/h.go"})
-	if resp.Omitted == nil || resp.Omitted.Matched != 3 || resp.Omitted.General != 2 {
-		t.Fatalf("omitted = %+v, want 3 matched and 2 general\n%s", resp.Omitted, text)
+	if resp.Omitted == nil || resp.Omitted.Matched != 0 || resp.Omitted.General != 9 {
+		t.Fatalf("omitted = %+v, want 0 matched and 9 general\n%s", resp.Omitted, text)
 	}
-	if resp.Omitted.MoreMatched != `search_documents(path_ref="src/api/h.go")` || !strings.Contains(resp.Omitted.MoreGeneral, "list_documents") {
+	for _, r := range resp.Results[1:8] {
+		if !strings.HasPrefix(r.Path, ".archcore/m-") || r.Reason != "directory" {
+			t.Errorf("a scoped rule must lead the pathless ones: %+v", r)
+		}
+	}
+	if resp.Omitted.MoreMatched != "" || !strings.Contains(resp.Omitted.MoreGeneral, "list_documents") {
 		t.Errorf("omitted calls = %+v", resp.Omitted)
 	}
 	if len(text) > forPathByteBudget {

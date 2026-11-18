@@ -42,11 +42,17 @@ const maxOutput = 1 << 20
 type capWriter struct {
 	buf       []byte
 	truncated bool
+	// limit overrides maxOutput when set.
+	limit int
 }
 
 func (w *capWriter) Write(p []byte) (int, error) {
 	n := len(p)
-	if room := maxOutput - len(w.buf); n > room {
+	limit := maxOutput
+	if w.limit > 0 {
+		limit = w.limit
+	}
+	if room := limit - len(w.buf); n > room {
 		w.truncated = true
 		p = p[:max(room, 0)]
 	}
@@ -250,4 +256,57 @@ func mainCheckout(ctx context.Context, dir string) (string, error) {
 		}
 	}
 	return "", errNoMainWorktree
+}
+
+// batchTimeout bounds one whole-repository query of the corpus check. The check
+// runs on demand, never in a hook, so it may read every tracked file once.
+const batchTimeout = 30 * time.Second
+
+// maxBatchOutput bounds a whole-repository query; a cut answer misses matches
+// and the caller reports the cut.
+const maxBatchOutput = 16 << 20
+
+// ErrOutputCut reports that a batch query hit maxBatchOutput.
+var ErrOutputCut = errors.New("git output cut at the size cap")
+
+func runBatch(ctx context.Context, dir string, args ...string) (string, error) {
+	if _, err := lookPath("git"); err != nil {
+		return "", ErrGitAbsent
+	}
+	ctx, cancel := context.WithTimeout(ctx, batchTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
+	cmd.WaitDelay = waitDelay
+	out := capWriter{limit: maxBatchOutput}
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("git %s: %w", args[0], err)
+	}
+	if out.truncated {
+		return string(out.buf), ErrOutputCut
+	}
+	return string(out.buf), nil
+}
+
+// TrackedFiles lists the tracked files of the repository at dir, relative to it.
+func TrackedFiles(ctx context.Context, dir string) ([]string, error) {
+	out, err := runBatch(ctx, dir, "ls-files", "-z")
+	if err != nil {
+		return nil, err
+	}
+	return strings.FieldsFunc(out, func(r rune) bool { return r == 0 }), nil
+}
+
+// RenamedTo returns the path rel moved to in commit sha, or "" when it did not move.
+func RenamedTo(ctx context.Context, dir, sha, rel string) string {
+	out, _, err := run(ctx, dir, "show", "-M", "--name-status", "--format=", sha)
+	if err != nil {
+		return ""
+	}
+	for line := range strings.SplitSeq(out, "\n") {
+		if f := strings.Split(line, "\t"); len(f) == 3 && strings.HasPrefix(f[0], "R") && f[1] == rel {
+			return f[2]
+		}
+	}
+	return ""
 }

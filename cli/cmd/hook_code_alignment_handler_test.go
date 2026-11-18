@@ -57,3 +57,56 @@ func writeAlignmentHandlerDoc(t *testing.T, base, relPath, title, body string) {
 	t.Helper()
 	writeArchcoreDoc(t, base, relPath, "---\ntitle: \""+title+"\"\nstatus: accepted\n---\n\n"+body+"\n")
 }
+
+// TestToolAdvisory_DoubleRegistrationAdvisesOnce pins plugin-cli-compatibility.rule
+// §5: the plugin hook and the project hook receive one tool call id, and only
+// the first advises; a new call advises again.
+func TestToolAdvisory_DoubleRegistrationAdvisesOnce(t *testing.T) {
+	dir := t.TempDir()
+	prev := toolStampDir
+	toolStampDir = func() string { return dir }
+	t.Cleanup(func() { toolStampDir = prev })
+
+	base := setupArchcoreDir(t)
+	writeAlignmentHandlerDoc(t, base, "knowledge/api.rule.md", "API Rule", "Applies to src/api/ code.")
+	call := func(id string) hookDecision {
+		p := decodeHookPayload(strings.NewReader(`{"session_id":"s1","tool_use_id":"` + id + `","tool_name":"Write","tool_input":{"file_path":"src/api/h.go"}}`))
+		return preToolUseHandler(bg(), hookRequest{baseDir: base, dialect: hookDialects[0], event: eventPreToolUse, payload: p})
+	}
+
+	if call("t1").context == "" {
+		t.Fatal("the first copy of a call must advise")
+	}
+	if got := call("t1").context; got != "" {
+		t.Errorf("the second copy of one call advised again:\n%s", got)
+	}
+	if call("t2").context == "" {
+		t.Error("a new tool call must advise")
+	}
+}
+
+// TestPostToolUse_DoubleRegistrationAdvisesOnce pins plugin-cli-compatibility.rule
+// §5 for the post-write checks: one document write reports once.
+func TestPostToolUse_DoubleRegistrationAdvisesOnce(t *testing.T) {
+	dir := t.TempDir()
+	prev := toolStampDir
+	toolStampDir = func() string { return dir }
+	t.Cleanup(func() { toolStampDir = prev })
+
+	base := setupArchcoreDir(t)
+	writeArchcoreDoc(t, base, "knowledge/bad.adr.md", "no frontmatter at all\n")
+	call := func(id string) hookDecision {
+		p := decodeHookPayload(strings.NewReader(`{"session_id":"s1","tool_use_id":"` + id + `","tool_name":"mcp__archcore__update_document","tool_input":{"path":".archcore/knowledge/bad.adr.md"}}`))
+		return postToolUseHandler(bg(), hookRequest{baseDir: base, dialect: hookDialects[0], event: eventPostToolUse, payload: p})
+	}
+
+	if call("w1").context == "" {
+		t.Fatal("the first copy of a write must report")
+	}
+	if got := call("w1").context; got != "" {
+		t.Errorf("the second copy of one write reported again:\n%s", got)
+	}
+	if call("w2").context == "" {
+		t.Error("a new write must report")
+	}
+}

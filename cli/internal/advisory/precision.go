@@ -241,6 +241,12 @@ func Precision(baseDir, tool, docPath string) string {
 	}
 
 	docType := templates.DocumentType(templates.ExtractDocType(filepath.Base(rel)))
+	// A plan is a work order that leaves the corpus when it ships; the updates it
+	// gets tick tasks during a review or a closeout, and wording advice on them
+	// costs tokens on text about to be removed. Its creation is still checked.
+	if docType == templates.TypePlan && strings.HasSuffix(tool, "update_document") {
+		return ""
+	}
 	fm, body, _ := templates.SplitDocument(data)
 	findings := PrecisionFindings(docType, fm, body)
 	// Kept out of PrecisionFindings: that function judges one document from its

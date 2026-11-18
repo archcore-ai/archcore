@@ -198,6 +198,7 @@ Commands are registered under `cmd/`.
 - `init` initializes `.archcore/` and host integrations.
 - `mcp` runs the MCP server.
 - `status` checks document structure.
+- `check` reports the document claims a lookup settles, as JSON, for `/archcore:review`.
 - `doctor` checks project and integration health.
 - `config` reads and updates `.archcore/settings.json`.
 - `hooks` manages lifecycle hooks.

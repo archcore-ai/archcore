@@ -292,3 +292,17 @@ func TestPrecision_SectionHeadingMatching(t *testing.T) {
 		})
 	}
 }
+
+// TestPrecision_PlanUpdateIsQuiet: a plan update ticks tasks of a work order
+// that leaves the corpus; its creation still gets the advice.
+func TestPrecision_PlanUpdateIsQuiet(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	writeArchcoreDoc(t, base, "ship.plan.md", "---\ntitle: Ship\nstatus: draft\n---\n\n## Tasks\n\n1. [ ] Something appropriate and robust should probably happen here at some point soon enough.\n")
+	if got := Precision(base, "mcp__archcore__update_document", "ship.plan.md"); got != "" {
+		t.Errorf("plan update advised:\n%s", got)
+	}
+	if got := Precision(base, "mcp__archcore__create_document", "ship.plan.md"); got == "" {
+		t.Error("plan creation must still be advised")
+	}
+}

@@ -181,7 +181,7 @@ func TestCodeAlignment_MatchedCapStatesRemainder(t *testing.T) {
 	t.Parallel()
 	base := setupArchcoreDir(t)
 	for i := range 8 {
-		writeAlignmentDoc(t, base, fmt.Sprintf("knowledge/r-%d.rule.md", i), fmt.Sprintf("Rule %d", i), "Applies to src/api/ code.")
+		writeAlignmentDoc(t, base, fmt.Sprintf("knowledge/r-%d.adr.md", i), fmt.Sprintf("Decision %d", i), "Applies to src/api/ code.")
 	}
 
 	got := CodeAlignment(base, "src/api/handlers.go")
@@ -204,8 +204,8 @@ func TestCodeAlignment_SourceRootsOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeAlignmentDoc(t, base, "knowledge/be.rule.md", "Backend Rule", "Applies to backend/api/ code.")
-	writeAlignmentDoc(t, base, "knowledge/fe.rule.md", "Src Rule", "Applies to src/api/ code.")
-	// Both rules name a real directory, so neither counts as general.
+	writeAlignmentDoc(t, base, "knowledge/fe.adr.md", "Src Decision", "Applies to src/api/ code.")
+	// Both name a real directory; only the rule's scope ignores the roots.
 	mkdirs(t, base, "backend/api", "src/api")
 
 	if got := CodeAlignment(base, "backend/api/h.go"); !strings.Contains(got, "Backend Rule") {
@@ -316,7 +316,7 @@ func TestResolveFileContext_Ranking(t *testing.T) {
 				writeAlignmentDoc(t, base, "a.rule.md", "Dir Rule", "Applies to src/app/_components/ code.")
 				writeAlignmentDoc(t, base, "z.doc.md", "Seam", "PageShell.tsx renders the shell.")
 			},
-			want:   []string{".archcore/z.doc.md", ".archcore/a.rule.md"},
+			want:   []string{".archcore/z.doc.md"},
 			reason: ReasonFile,
 		},
 		{
@@ -429,7 +429,7 @@ func TestCodeAlignment_OutsideSourceRoots(t *testing.T) {
 
 	got := CodeAlignment(base, "vitest.config.mjs")
 
-	for _, want := range []string{"Vitest Config", "Rules that name no path apply to every file:", "Guard Clauses"} {
+	for _, want := range []string{"Vitest Config", "Rules that apply to this file:", "Guard Clauses"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q:\n%s", want, got)
 		}
@@ -521,12 +521,12 @@ func TestResolveFileContext_Kind(t *testing.T) {
 		{
 			name: "a test file gets the rule naming .test.tsx as kind",
 			file: "src/components/Foo/Foo.test.tsx",
-			want: map[string]ContextReason{".archcore/tests.rule.md": ReasonKind, ".archcore/dir.rule.md": ReasonDirectory},
+			want: map[string]ContextReason{".archcore/tests.rule.md": ReasonKind},
 		},
 		{
 			name: "a plain component file does not",
 			file: "src/components/Foo/Foo.tsx",
-			want: map[string]ContextReason{".archcore/dir.rule.md": ReasonDirectory},
+			want: map[string]ContextReason{},
 		},
 	}
 	for _, tt := range tests {
@@ -692,5 +692,74 @@ func TestWriteContextRow_NamesTheSource(t *testing.T) {
 	}})
 	if got, want := b.String(), "- rule: Org Logging [../org/.archcore/logging.rule.md] [source:org]\n"; got != want {
 		t.Errorf("row = %q, want %q", got, want)
+	}
+}
+
+// TestResolveFileContext_RuleScope pins file-context-resolution.spec §21–22: a
+// rule's own glob or directory scope reaches the file outside every source root,
+// and a higher directory counts only when a document names it as itself.
+func TestResolveFileContext_RuleScope(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		file    string
+		body    string
+		reason  ContextReason
+		general bool
+	}{
+		{name: "a ** glob outside the source roots", file: "Apps/Notes/Home/HomeView.swift", body: "Binds `Apps/Notes/**/*.swift`.", reason: ReasonKind, general: true},
+		{name: "a one-star glob stays in its segment", file: "Server/api/sync.go", body: "Binds `Server/*.go`."},
+		{name: "a one-star glob in its own directory", file: "Server/sync.go", body: "Binds `Server/*.go`.", reason: ReasonKind, general: true},
+		{name: "a directory named as itself", file: "Server/api/sync.go", body: "Binds `Server/` code.", reason: ReasonDirectory, general: true},
+		{name: "a directory without its slash", file: "Apps/Notes/HomeView.swift", body: "Binds `Apps/Notes` code.", reason: ReasonDirectory, general: true},
+		{name: "a path through a higher directory is a sibling", file: "src/features/Book/server/load.ts", body: "See `src/features/Promo/Sale.tsx`."},
+		{name: "a one-segment word is not a directory", file: "Server/sync.go", body: "The Server answers."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			base := setupArchcoreDir(t)
+			mkdirs(t, base, "Apps/Notes/Home", "Server/api", "src/features/Book/server", "src/features/Promo")
+			writeAlignmentDoc(t, base, "scope.rule.md", "Scope", tt.body)
+
+			fc, err := ResolveFileContext(base, tt.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(fc.Matched) != 0 {
+				t.Errorf("matched = %v, want none", fc.Matched)
+			}
+			var got []ContextRow
+			for _, row := range fc.General {
+				if row.Doc.Path == ".archcore/scope.rule.md" && row.Reason != ReasonGeneral {
+					got = append(got, row)
+				}
+			}
+			if tt.general != (len(got) == 1) || len(got) == 1 && got[0].Reason != tt.reason {
+				t.Errorf("scoped rows = %+v, want reason %q present=%v", got, tt.reason, tt.general)
+			}
+		})
+	}
+}
+
+func TestResolveFileContext_NarrowestScopeLeads(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	mkdirs(t, base, "Apps/Notes")
+	writeAlignmentDoc(t, base, "a-broad.rule.md", "Broad", "Binds `Apps/**`.")
+	writeAlignmentDoc(t, base, "b-narrow.rule.md", "Narrow", "Binds `Apps/Notes/**/*.swift`.")
+	writeAlignmentDoc(t, base, "c-pathless.rule.md", "Pathless", "Return early.")
+
+	fc, err := ResolveFileContext(base, "Apps/Notes/HomeView.swift")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, row := range fc.General {
+		got = append(got, row.Doc.Path)
+	}
+	want := []string{".archcore/b-narrow.rule.md", ".archcore/a-broad.rule.md", ".archcore/c-pathless.rule.md"}
+	if !slices.Equal(got, want) {
+		t.Errorf("rules part = %v, want %v", got, want)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -56,8 +57,8 @@ const (
 	// MaxContextMatched caps the matched rows: five documents with their titles
 	// fit the hook budget beside the general rows.
 	MaxContextMatched = 5
-	// MaxContextGeneral caps the general rows. The acme monorepo holds 15
-	// pathless rules, so the remainder line is a real case, not a theory.
+	// MaxContextGeneral caps the general rows. A field corpus held 15 pathless
+	// rules, so the remainder line is a real case, not a theory.
 	MaxContextGeneral = 10
 	// maxAlignmentTokens bounds how far up the directory chain to look.
 	maxAlignmentTokens = 5
@@ -175,7 +176,9 @@ func ResolveFileContext(baseDir, filePath string) (FileContext, error) {
 		case kindHits > 0:
 			fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonKind, depth: 1, hits: kindHits})
 		default:
-			if token, hits := firstMatchingToken(doc.Content, tokens); hits > 0 {
+			if reason, depth := ruleScope(doc, rel); depth > 0 {
+				fc.General = append(fc.General, ContextRow{Doc: doc, Reason: reason, depth: depth})
+			} else if token, hits := firstMatchingToken(doc.Content, tokens); hits > 0 {
 				fc.Matched = append(fc.Matched, ContextRow{Doc: doc, Reason: ReasonDirectory, depth: len(token), hits: hits})
 			} else if isGeneralRule(baseDir, doc) {
 				fc.General = append(fc.General, ContextRow{Doc: doc, Reason: ReasonGeneral})
@@ -185,6 +188,11 @@ func ResolveFileContext(baseDir, filePath string) (FileContext, error) {
 
 	slices.SortStableFunc(fc.Matched, compareMatched)
 	slices.SortStableFunc(fc.General, func(a, b ContextRow) int {
+		// A rule whose scope covers the file leads the pathless ones, the narrowest
+		// scope first — file-context-resolution.spec §21.
+		if c := cmp.Compare(b.depth, a.depth); c != 0 {
+			return c
+		}
 		if c := cmp.Compare(alignmentTypePriority[b.Doc.Type], alignmentTypePriority[a.Doc.Type]); c != 0 {
 			return c
 		}
@@ -249,14 +257,104 @@ func scanAlignmentCorpus(baseDir string) []docs.Document {
 	return corpus
 }
 
-// firstMatchingToken returns the longest directory token the content names.
+// firstMatchingToken returns the longest directory token the content names. A
+// path through the file's own directory names it; a higher directory counts only
+// when named as itself, because a path through "features/" names a sibling
+// feature, not this one — file-context-resolution.spec §22.
 func firstMatchingToken(content string, tokens []string) (string, int) {
-	for _, token := range tokens {
-		if hits := countPathMentions(content, token); hits > 0 {
+	for i, token := range tokens {
+		hits := countDirectoryMentions(content, token)
+		if i == 0 {
+			hits = countPathMentions(content, token)
+		}
+		if hits > 0 {
 			return token, hits
 		}
 	}
 	return "", 0
+}
+
+// globRefRe finds glob-shaped path references such as `Apps/Notes/**/*.swift`.
+var globRefRe = regexp.MustCompile(`[\w./-]*\*[\w./*-]*`)
+
+// ruleScope reports how an accepted rule or cpat declares a scope that covers
+// rel: a glob that matches it (reason kind), or one of its directories named as
+// itself (reason directory). depth is the length of the covering pattern, 0 when
+// none covers rel. Source roots do not gate it: the rule's own scope is the
+// claim — file-context-resolution.spec §21.
+func ruleScope(doc docs.Document, rel string) (ContextReason, int) {
+	if !isAcceptedRule(doc) {
+		return "", 0
+	}
+	reason, depth := ContextReason(""), 0
+	for _, glob := range globRefRe.FindAllString(doc.Content, -1) {
+		if strings.Contains(glob, "/") && len(glob) > depth && globMatches(glob, rel) {
+			reason, depth = ReasonKind, len(glob)
+		}
+	}
+	if depth > 0 {
+		return reason, depth
+	}
+	for dir := path.Dir(rel); dir != "." && dir != "/"; dir = path.Dir(dir) {
+		if countDirectoryMentions(doc.Content, dir+"/") > 0 {
+			return ReasonDirectory, len(dir) + 1
+		}
+	}
+	return "", 0
+}
+
+// globMatches reports whether a slash glob matches rel: "*" stays inside one
+// segment, "**" spans any number of them.
+func globMatches(glob, rel string) bool {
+	re := globRegexp(glob)
+	return re != nil && re.MatchString(rel)
+}
+
+// globRegexp compiles a slash glob, or returns nil for one that does not compile.
+func globRegexp(glob string) *regexp.Regexp {
+	var b strings.Builder
+	b.WriteString("^")
+	for i := 0; i < len(glob); {
+		switch {
+		case strings.HasPrefix(glob[i:], "**/"):
+			b.WriteString("(?:.*/)?")
+			i += 3
+		case strings.HasPrefix(glob[i:], "**"):
+			b.WriteString(".*")
+			i += 2
+		case glob[i] == '*':
+			b.WriteString("[^/]*")
+			i++
+		default:
+			b.WriteString(regexp.QuoteMeta(glob[i : i+1]))
+			i++
+		}
+	}
+	b.WriteString("$")
+	re, err := regexp.Compile(b.String())
+	if err != nil {
+		return nil
+	}
+	return re
+}
+
+// countDirectoryMentions counts the places content names dir itself — "src/api/",
+// or "src/api" followed by no path character — rather than a path or a glob
+// through it; ruleScope matches globs. A one-segment name needs its slash:
+// "Server" alone is a word.
+func countDirectoryMentions(content, dir string) int {
+	itself := func(end int) bool {
+		return end == len(content) || !isFileNameByte(content[end]) && content[end] != '.' && content[end] != '*'
+	}
+	n := countBounded(content, dir, func(at int) bool { return pathStartOK(content, at) })
+	n -= countBounded(content, dir, func(at int) bool { return pathStartOK(content, at) && !itself(at+len(dir)) })
+	bare := strings.TrimSuffix(dir, "/")
+	if strings.Contains(bare, "/") {
+		n += countBounded(content, bare, func(at int) bool {
+			return pathStartOK(content, at) && (at+len(bare) == len(content) || content[at+len(bare)] != '/' && content[at+len(bare)] != '.' && content[at+len(bare)] != '*')
+		})
+	}
+	return n
 }
 
 // isGeneralRule reports whether doc is an accepted rule or cpat that names no
@@ -309,12 +407,15 @@ func countStandalone(content, ext string) int {
 // continue a longer path: "src/index.ts" inside "packages/web/src/index.ts"
 // names another file. A leading "./" still names the project path.
 func countPathMentions(content, rel string) int {
-	return countBounded(content, rel, func(at int) bool {
-		if b := content[at-1]; b != '/' {
-			return !isFileNameByte(b) && b != '.'
-		}
-		return at >= 2 && content[at-2] == '.' && (at == 2 || !isFileNameByte(content[at-3]) && content[at-3] != '.' && content[at-3] != '/')
-	})
+	return countBounded(content, rel, func(at int) bool { return pathStartOK(content, at) })
+}
+
+// pathStartOK reports whether a path may start at offset at > 0 of content.
+func pathStartOK(content string, at int) bool {
+	if b := content[at-1]; b != '/' {
+		return !isFileNameByte(b) && b != '.'
+	}
+	return at >= 2 && content[at-2] == '.' && (at == 2 || !isFileNameByte(content[at-3]) && content[at-3] != '.' && content[at-3] != '/')
 }
 
 // countBounded counts occurrences of needle that leftOK accepts at a non-zero
@@ -385,7 +486,7 @@ func writeFileContext(fc FileContext, matched, general int) string {
 		fmt.Fprintf(&b, "  … and %d more — search_documents(path_ref=%q)\n", rest, fc.Rel)
 	}
 	if len(fc.General) > 0 {
-		b.WriteString("Rules that name no path apply to every file:\n")
+		b.WriteString("Rules that apply to this file:\n")
 	}
 	for _, row := range fc.General[:general] {
 		writeContextRow(&b, row)

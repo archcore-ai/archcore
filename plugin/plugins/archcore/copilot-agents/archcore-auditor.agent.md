@@ -87,7 +87,7 @@ changes; include statement locations and reasoning in proposed corrections.
 
 ## 5. Staleness
 
-- Unresolvable references and line anchors: read them from the `bin/check-references` output the caller supplied; you have no shell, so never run it, never read every document to find paths, and never invent a commit. If the caller supplied no output, report the check as not run
+- Mechanical facts — unresolved paths, line anchors, missing identifiers and interface text, drafts cited by code, shared text, restated code: read them from the `archcore check` output the caller supplied (or the `bin/check-references` output from an older engine) and decide each per the track's check 4 table; you have no shell, so never run it, never read every document to find more, and never invent a commit. If the caller supplied no output, report the check as not run
 - Shipped drafts and claim sampling: follow `skills/_shared/tracks/actualize.md` check 6 and Deep check 1; at your turn limit, report the covered share and stop
 - Outdated decisions that may need revisiting
 

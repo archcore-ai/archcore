@@ -45,7 +45,7 @@ with reason `kind`. A name counts only where no file-name character and no `.` p
 pathspec; outside git only the stem list decides. A file at the project root needs no query: its bare
 name is its full path.
 
-Source roots come from `settings.json` → `codeAlignment.sourceRoots`; `ARCHCORE_DISABLE_INJECTION=1` is the kill switch. A file outside every source root gets only `file` and `general` rows. `config.CodeAlignment` preserves unknown nested
+Source roots come from `settings.json` → `codeAlignment.sourceRoots`; `ARCHCORE_DISABLE_INJECTION=1` is the kill switch. A file outside every source root gets no `directory` row from a path token; it still gets `file` rows, the rules whose own glob or directory scope covers it, and the general rows. `config.CodeAlignment` preserves unknown nested
 keys in `Extra`, so a newer binary's settings survive a write by an older one.
 
 Document types are ranked by how much they constrain an edit — `rule`, `cpat`, `adr`, `spec`,
