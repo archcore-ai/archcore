@@ -48,6 +48,7 @@ From the repository root, `make build` writes `bin/archcore` and `make test-inte
 | `archcore instructions` | Manage the Archcore block in instruction files |
 | `archcore plugin` | `install`, `update`, `remove`, or `status` for the plugin per host |
 | `archcore status` | Check `.archcore/` structure and document health |
+| `archcore check [scope...]` | Report, as JSON, the document claims a lookup settles: unresolved paths, missing identifiers and interface text, drafts that code cites, shared text, copied code |
 | `archcore doctor` | Check the setup and fix issues |
 | `archcore config` | Read or set `.archcore/settings.json` |
 | `archcore sync` | Push `.archcore/` state to a configured server |

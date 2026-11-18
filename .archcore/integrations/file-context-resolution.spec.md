@@ -18,8 +18,8 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 
 - Input: one file path, relative to the project root or absolute. An absolute path outside the session root selects the nearest ancestor holding `.archcore/` as the project, per @.archcore/mcp/call-root-resolution.spec.md.
 - Row fields: `path` (with the `.archcore/` prefix), `type`, `title`, `status`, `source_kind`, `reason`.
-- `reason` values: `file` (the body names the file), `kind` (an accepted `rule` or `cpat` names the file's compound extension, such as `.test.tsx`, or a base name several tracked files share), `directory` (the body names a directory of the file), `general` (an accepted pathless `rule` or `cpat`).
-- Result parts, in order: matched rows (`file`, `kind`, then `directory`), general rows, one remainder line per part.
+- `reason` values: `file` (the body names the file), `kind` (an accepted `rule` or `cpat` names the file's compound extension, such as `.test.tsx`, or a base name several tracked files share, or a glob such as `Apps/**/*.swift` that matches the file), `directory` (the body names a directory of the file), `general` (an accepted pathless `rule` or `cpat`).
+- Result parts, in order: matched rows (`file`, `kind`, then `directory`), the rules part (accepted `rule` and `cpat` rows whose own scope covers the file, then general rows), one remainder line per part. The hook opens the rules part with the line `Rules that apply to this file:`.
 - Renderings: the hook text, opened by the marker line `[Archcore Context] Read these before editing <file>:`, and the JSON envelope of `search_documents` under `for_path`.
 - Ranked types: `rule`, `cpat`, `adr`, `spec`, `scenario`, `guide`, `doc`, in that priority.
 
@@ -45,6 +45,8 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 18. WHEN the stem of the edited file is a generic stem, the engine MUST NOT give reason `file` for its bare name.
 19. WHEN another tracked file shares the base name of the edited file, the engine MUST NOT give reason `file` for that bare name.
 20. WHEN another tracked file shares the base name and an accepted `rule` or `cpat` names it, the engine MUST give reason `kind`.
+21. WHEN an accepted `rule` or `cpat` declares a scope that covers the edited file, the engine MUST list it in the rules part ahead of the general rows. A covering glob gives reason `kind`. A directory of the file named as itself gives reason `directory`. The longest covering pattern ranks first. Source roots do not limit this behavior, and a `file` or `kind` match by name takes precedence.
+22. The engine MUST give reason `directory` for a higher directory of the edited file only where the document names that directory as itself. A path or a glob through it does not count.
 
 ## Constraints & Invariants
 
@@ -59,6 +61,7 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 - Invariant: a document names a compound extension only where no file-name character precedes it: `*.test.tsx` names the kind, `Form.test.tsx` names one file.
 - Invariant: a document names a bare file name only where no file-name character and no `.` precedes it: `create_document.go` and `.mcp.json` do not name `document.go` and `mcp.json`.
 - Invariant: a full-path or `@`-path match still gives a generic-stem file reason `file`; the stems are `genericFileStems` in @cli/internal/advisory/code_alignment.go. The tracked files are those `git ls-files` lists.
+- Invariant: behaviors 21 and 22 exist because on 2026-11-18 a 20-file hot set received 17 of 89 rules that declared a covering scope in one field project whose `Apps/` and `Server/` lie outside the default source roots, and 31 of 182 in a second field project, where a path through `features/` matched about 219 documents for every file under it.
 - Invariant: behavior 17 exists because a local document is authoritative over a global one on the same topic; on 2026-10-15 the path tie-break let 8 global rules fill every shown general row and hid each local pathless rule.
 
 ## Failure Behavior
@@ -72,4 +75,4 @@ Out of scope: the write guard; the other `search_documents` modes; the context a
 
 ## Conformance
 
-An implementation is conformant when it satisfies behaviors 1–14 and 16–20, holds every constraint and invariant, and degrades per the failure rules. Behavior 15 is conformant when absent; a session stamp hides the rows after `/compact`, so it waits for a compaction signal.
+An implementation is conformant when it satisfies behaviors 1–14 and 16–22, holds every constraint and invariant, and degrades per the failure rules. Behavior 15 is conformant when absent; a session stamp hides the rows after `/compact`, so it waits for a compaction signal.

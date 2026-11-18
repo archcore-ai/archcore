@@ -28,7 +28,7 @@ func postToolUseHandler(_ context.Context, r hookRequest) hookDecision {
 	// Gate on "did this change anything", not on "is this ours". Cursor installs
 	// its post-MCP event with no matcher, so every read would otherwise scan the
 	// whole corpus and report on a call that changed nothing.
-	if !isMutatingArchcoreTool(tool) {
+	if !isMutatingArchcoreTool(tool) || !claimToolAdvisory(r) {
 		return allowHook()
 	}
 	baseDir, ok := postWriteRoot(r)

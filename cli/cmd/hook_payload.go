@@ -113,6 +113,12 @@ func (p *hookPayload) sessionID() string {
 
 func (p *hookPayload) source() string { return p.str("source") }
 
+// toolUseID returns the host's identifier for one tool call; both copies of a
+// doubly registered hook receive the same one.
+func (p *hookPayload) toolUseID() string {
+	return p.firstStr([]string{"tool_use_id"}, []string{"toolUseId"}, []string{"tool_call_id"})
+}
+
 func (p *hookPayload) cwd() string { return p.str("cwd") }
 
 // toolName returns the invoked tool, folded to its canonical form.

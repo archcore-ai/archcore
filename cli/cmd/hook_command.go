@@ -5,15 +5,17 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"archcore-cli/internal/advisory"
 	"archcore-cli/internal/projectroot"
+	"archcore-cli/internal/stamp"
 
 	"github.com/spf13/cobra"
 )
 
 // Hook command tree. Every host gets the same three hidden leaves — a protocol
-// surface, not a user surface, so `archcore --help` still lists nine commands.
+// surface, not a user surface, so `archcore --help` lists only user commands.
 
 // hookRequest is everything a handler needs to decide. Carrying the dialect and
 // the event means a handler can skip work the host would discard, instead of
@@ -162,6 +164,27 @@ func sessionStartHandler(version string) hookHandler {
 	}
 }
 
+// toolStampWindow bounds the advisory dedup of one tool call: both copies of a
+// hook that the plugin and the project config register fire within a second.
+const toolStampWindow = 2 * time.Minute
+
+// claimToolAdvisory reports whether this invocation is the first for one tool
+// call and event, so a doubly registered hook advises once
+// (plugin-cli-compatibility.rule §5). A payload without a tool call id fails open.
+func claimToolAdvisory(r hookRequest) bool {
+	id := r.payload.toolUseID()
+	dir := toolStampDir()
+	if id == "" || dir == "" {
+		return true
+	}
+	key := r.payload.sessionID() + "\x00" + id + "\x00" + string(r.event) + "\x00" + string(r.dialect.id)
+	return stamp.Claim(dir, key, toolStampWindow)
+}
+
+// toolStampDir is a seam so tests isolate the tool-call stamps; production
+// never reassigns it.
+var toolStampDir = func() string { return stamp.DirFor("tool-stamps") }
+
 // preToolUseHandler is the only guard that can block. It runs the write guard
 // first and returns its deny unchanged, so a failure in the advisory half can
 // never alter the verdict on someone's edit.
@@ -189,7 +212,7 @@ func preToolUseHandler(ctx context.Context, r hookRequest) hookDecision {
 	// Copilot's preToolUse carries only a permission decision, so context sent
 	// there is discarded. Skipping it here rather than dropping it downstream is
 	// the difference between not doing the corpus scan and doing it for nothing.
-	if !r.dialect.preToolContext {
+	if !r.dialect.preToolContext || !claimToolAdvisory(r) {
 		return allowHook()
 	}
 	var notes []string

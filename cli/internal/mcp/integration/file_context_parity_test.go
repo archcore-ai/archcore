@@ -22,6 +22,8 @@ func TestFileContext_HookAndForPathAgree(t *testing.T) {
 	docs := map[string]string{
 		"web/seam.doc.md":       "PageShell.tsx renders the shell.",
 		"web/layout.rule.md":    "Applies to src/app/_components/ code.",
+		"web/extra-3.adr.md":    "Covers src/app/_components/ state.",
+		"web/extra-4.adr.md":    "Covers src/app/_components/ styles.",
 		"web/app.adr.md":        "Covers src/app/ routing.",
 		"web/draft.spec.md":     "Covers src/app/_components/ props.",
 		"web/broad.guide.md":    "Everything under src/ builds with one script.",
@@ -48,15 +50,21 @@ func TestFileContext_HookAndForPathAgree(t *testing.T) {
 	resp := decodeJSON[struct {
 		Results []row `json:"results"`
 	}](t, mustCallTool(t, c, "search_documents", map[string]any{"for_path": file}))
+	// The tool lists the matched rows first; a rule can be a matched row too, so
+	// the count comes from the resolver, not from the file suffix.
+	fc, err := advisory.ResolveFileContext(base, file)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var fromTool []string
-	for _, r := range resp.Results {
-		if r.Reason != string(advisory.ReasonGeneral) {
+	for i, r := range resp.Results {
+		if i < min(len(fc.Matched), advisory.MaxContextMatched) {
 			fromTool = append(fromTool, r.Path)
 		}
 	}
 
 	hook := advisory.CodeAlignment(base, file)
-	matchedPart, _, _ := strings.Cut(hook, "Rules that name no path")
+	matchedPart, _, _ := strings.Cut(hook, "Rules that apply to this file")
 	var fromHook []string
 	for _, m := range hookRowPathRe.FindAllStringSubmatch(matchedPart, -1) {
 		fromHook = append(fromHook, m[1])
