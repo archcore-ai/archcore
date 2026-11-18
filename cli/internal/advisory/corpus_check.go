@@ -105,10 +105,7 @@ var (
 )
 
 func docTypeNames() []string {
-	names := make([]string, 0, len(templates.ValidTypes()))
-	for _, t := range templates.ValidTypes() {
-		names = append(names, string(t))
-	}
+	names := templates.ValidTypes()
 	slices.SortFunc(names, func(a, b string) int { return cmp.Compare(len(b), len(a)) })
 	return names
 }
