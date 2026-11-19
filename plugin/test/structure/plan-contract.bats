@@ -45,3 +45,13 @@ setup() {
     || fail "spec-contract.md check map carries more than check names"
   ! grep -F -q 'verified @' "$SHARED/spec-contract.md" || fail "spec-contract.md duplicates the proof commit"
 }
+
+@test "plan and review state the proof-tracked form where they write and judge a plan" {
+  # Agents in a long session skip the track files; the form must reach them from SKILL.md itself.
+  local plan="$PLUGIN_ROOT/skills/plan/SKILL.md" review="$PLUGIN_ROOT/skills/review/SKILL.md"
+  grep -F -q 'WHEN an instrument creates a `plan`, write every task' "$plan" || fail "plan/SKILL.md does not state the task form at the write"
+  grep -F -q '1. [ ] T1 <one imperative action, at most 17 words>' "$plan" || fail "plan/SKILL.md has no task skeleton"
+  grep -F -q '   - proof: —' "$plan" || fail "plan/SKILL.md skeleton has no proof line"
+  grep -F -q 'judge each checked task per "Proof verification" in `skills/_shared/plan-contract.md`' "$review" \
+    || fail "review/SKILL.md does not judge proofs at step 3"
+}
