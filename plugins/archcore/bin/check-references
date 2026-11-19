@@ -1,0 +1,119 @@
+#!/bin/sh
+# check-references: the mechanical half of the review's reference checks, so a
+# model never reads every document to find a path that no longer exists.
+# Invoked by the actualize track (skills/_shared/tracks/actualize.md).
+#
+# Usage: check-references [project-root] [scope ...]
+#
+# A scope is a document or a directory, relative to the project root, with or
+# without the leading .archcore/; with none, every document is checked.
+#
+# stdout (always exit 0), tab-separated; unresolved paths first, then one line
+# per document carrying line anchors; at most MAX_LINES lines:
+#   unresolved<TAB><doc><TAB><path><TAB><commit|never-tracked><TAB><new-path|->
+#   line-anchor<TAB><doc><TAB><count><TAB><first reference>
+#   truncated<TAB><n more>   — only when the cap cut the list
+#   __NO_GIT__               — not a git work tree; nothing was checked
+#
+# A reference is an @-token or a backticked token that holds a "/" and either
+# ends in "/" or has an extension on its last segment; elided ("..."), globbed,
+# templated, absolute, URL, document-relative ("./", "../"), and Archcore
+# document tokens are skipped. A path resolves against the
+# project root and each directory holding a tracked package.json, go.mod,
+# Cargo.toml, or pyproject.toml. A path whose first segment exists under no
+# root is a fragment relative to the prose around it, and is skipped rather
+# than reported. Documents with status rejected are skipped.
+# Contract: test/unit/check-references.bats.
+
+MAX_LINES=200
+
+root="${1:-.}"
+[ "$#" -gt 0 ] && shift
+cd "$root" 2>/dev/null || { echo "__NO_GIT__"; exit 0; }
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "__NO_GIT__"; exit 0; }
+
+roots=$( { echo .; git ls-files -- '*package.json' '*go.mod' '*Cargo.toml' '*pyproject.toml' 2>/dev/null \
+  | sed 's|/[^/]*$||; s|^[^/]*$|.|'; } | sort -u)
+
+live_docs=$(git ls-files -z -- '.archcore/*.md' 2>/dev/null \
+  | xargs -0 grep -LE '^status:[[:space:]]*"?rejected' 2>/dev/null \
+  | grep -E '\.[a-z-]+\.md$')
+if [ "$#" -gt 0 ]; then
+  scoped=""
+  for s in "$@"; do
+    case "$s" in .archcore/*) ;; *) s=".archcore/$s" ;; esac
+    scoped="$scoped$(printf '%s\n' "$live_docs" | awk -v s="$s" 'index($0, s) == 1')
+"
+  done
+  live_docs=$(printf '%s' "$scoped" | grep -v '^$' | sort -u)
+fi
+[ -n "$live_docs" ] || exit 0
+
+anchor_re='[A-Za-z0-9_./-]+\.(go|ts|tsx|js|jsx|mjs|cjs|vue|svelte|py|rb|rs|java|kt|kts|scala|swift|dart|c|h|cc|cpp|hpp|cs|m|mm|php|ex|exs|lua|sh|bash|sql|proto|tf|css|scss|sass|less|html|json|yaml|yml|toml|xml|md)(:[0-9]+(-[0-9]+)?|#L[0-9]+(-L?[0-9]+)?)'
+# The backticks are literal pattern characters, not command substitution.
+# shellcheck disable=SC2016
+ref_re='@[A-Za-z0-9_.][A-Za-z0-9_./-]*|`[A-Za-z0-9_.][A-Za-z0-9_./-]*`'
+# A document named by slug or by a document-relative link is a relation
+# candidate, not a code reference. It reaches awk through the environment:
+# awk -v would expand the backslash escapes, and gawk warns on "\.".
+doc_suffix_re='\.(adr|rfc|rule|guide|doc|spec|research|evidence|scenario|prd|idea|plan|rnd|journey|task-type|cpat|mrd|brd|urd|brs|strs|syrs|srs)(\.md)?$'
+
+out="${TMPDIR:-/tmp}/check-references.$$"
+trap 'rm -f "$out"' EXIT
+
+candidates() {
+  printf '%s\n' "$live_docs" | tr '\n' '\0' | xargs -0 grep -HoE "$ref_re" 2>/dev/null | DOC_SUFFIX_RE="$doc_suffix_re" awk '
+    {
+      i = index($0, ":"); doc = substr($0, 1, i - 1); p = substr($0, i + 1)
+      sub(/^@/, "", p); gsub(/`/, "", p)
+      sub(/(:[0-9]+(-[0-9]+)?|#L[0-9].*)$/, "", p); sub(/[.,:;)]+$/, "", p)
+      if (p !~ /\//) next
+      if (p ~ /^\// || p ~ /\.\.\./ || p ~ /[*<{$]/ || p ~ /^http/ || p ~ /:\/\//) next
+      if (p ~ /^\.\.?\// || p ~ /^\.archcore\//) next
+      if (p ~ ENVIRON["DOC_SUFFIX_RE"]) next
+      n = split(p, seg, "/")
+      if (p !~ /\/$/ && seg[n] !~ /\./) next
+      print doc "\t" p
+    }' | sort -u
+}
+
+history_of() {
+  sha=$(git log -n 1 --format=%h -- "$1" 2>/dev/null)
+  if [ -z "$sha" ]; then
+    printf 'never-tracked\t-'
+    return
+  fi
+  moved=$(git show -M --name-status --format= "$sha" 2>/dev/null \
+    | awk -F '\t' -v p="$1" '$1 ~ /^R/ && $2 == p { print $3; exit }')
+  printf '%s\t%s' "$sha" "${moved:--}"
+}
+
+{
+  candidates | while IFS="$(printf '\t')" read -r doc p; do
+    first=${p%%/*}
+    anchored=0
+    found=0
+    for r in $roots; do
+      [ -e "$r/$first" ] && anchored=1
+      if [ -e "$r/$p" ]; then found=1; break; fi
+    done
+    [ "$found" -eq 1 ] && continue
+    [ "$anchored" -eq 1 ] || continue
+    printf 'unresolved\t%s\t%s\t%s\n' "$doc" "$p" "$(history_of "$p")"
+  done
+
+  printf '%s\n' "$live_docs" | tr '\n' '\0' | xargs -0 grep -HoE "$anchor_re" 2>/dev/null | awk '
+    {
+      i = index($0, ":"); doc = substr($0, 1, i - 1)
+      if (!(doc in n)) { first[doc] = substr($0, i + 1); order[++k] = doc }
+      n[doc]++
+    }
+    END { for (j = 1; j <= k; j++) print "line-anchor\t" order[j] "\t" n[order[j]] "\t" first[order[j]] }'
+} > "$out"
+
+total=$(wc -l < "$out" | tr -d ' ')
+head -n "$MAX_LINES" "$out"
+if [ "$total" -gt "$MAX_LINES" ]; then
+  printf 'truncated\t%s more\n' "$((total - MAX_LINES))"
+fi
+exit 0
