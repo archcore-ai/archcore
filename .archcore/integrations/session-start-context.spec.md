@@ -26,8 +26,8 @@ One context string, embedded by the caller in a host-specific JSON envelope.
 Sections, in order: the header; the context address; the MCP tool line; the
 invalid-settings warning when present; `PROJECT` below a project root; `CORPUS`;
 `BRANCH` when resolvable; `GLOBALS` when sources are declared; `IN PROGRESS`;
-`RECENTLY ACCEPTED`; the staleness advisory when due; the managed-block advisory
-when due; `EXISTING TAGS`; `DOCUMENT RELATIONS`.
+`RECENTLY ACCEPTED`; `PLAN PROGRESS` when due; the staleness advisory when due;
+the managed-block advisory when due; `EXISTING TAGS`; `DOCUMENT RELATIONS`.
 
 ## Normative Behavior
 
@@ -68,6 +68,9 @@ when due; `EXISTING TAGS`; `DOCUMENT RELATIONS`.
     scan finds.
 20. WHEN a bound cuts the scan, the builder MUST add "(the search stopped at its
     bound)" to the recap.
+21. The builder MUST print one `PLAN PROGRESS` line for each of the 3 newest
+    draft plans with a checkbox `T<n>` task in Tasks.
+22. The builder MUST NOT print a `PLAN PROGRESS` line for any other plan.
 
 ## Constraints & Invariants
 
@@ -124,7 +127,7 @@ when due; `EXISTING TAGS`; `DOCUMENT RELATIONS`.
 
 ## Conformance
 
-The builder is conformant when it satisfies behaviors 1–20, holds every
+The builder is conformant when it satisfies behaviors 1–22, holds every
 invariant, and degrades per the failure rules. The budget invariant is verified
 against synthetic corpora of 300 and 3000 documents; the `GLOBALS` behaviors
 are verified by @cli/cmd/hooks_globals_block_test.go.

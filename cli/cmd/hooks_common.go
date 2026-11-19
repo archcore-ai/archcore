@@ -90,6 +90,7 @@ func buildSessionContext(ctx context.Context, folder string) (string, sessionDoc
 	writeBranchLine(ctx, &b, baseDir)
 	globalDocs := writeGlobalsBlock(&b, inspections)
 	writeRecap(&b, corpus)
+	writePlanProgress(&b, corpus)
 
 	if advisory := advisory.Staleness(ctx, baseDir, stamp.DirFor("staleness-stamps"), corpus); advisory != "" {
 		fmt.Fprintf(&b, "\n%s", advisory)
@@ -396,4 +397,76 @@ func localDocuments(corpus []docs.Document) []docs.Document {
 		}
 	}
 	return out
+}
+
+const (
+	// maxPlanProgressLines bounds the PLAN PROGRESS block of the session context.
+	maxPlanProgressLines = 3
+	// maxPlanTextRunes bounds the phase name and the task text one progress line quotes.
+	maxPlanTextRunes = 120
+)
+
+// writePlanProgress names, for each proof-tracked draft plan, the frontier and
+// its next task, so a resumed session starts where the plan stopped. A legacy
+// plan renders nothing (session-start-context.spec#21-22).
+func writePlanProgress(b *strings.Builder, corpus []docs.Document) {
+	type row struct {
+		doc      docs.Document
+		progress docs.PlanProgress
+	}
+	var rows []row
+	for _, d := range corpus {
+		if d.Type != templates.TypePlan || !d.InAgentContext() || effectiveStatus(d) != templates.StatusDraft {
+			continue
+		}
+		if p, ok := docs.ParsePlanProgress(d.Content); ok {
+			rows = append(rows, row{d, p})
+		}
+	}
+	if len(rows) == 0 {
+		return
+	}
+	slices.SortStableFunc(rows, func(a, c row) int {
+		if n := c.doc.ModTime.Compare(a.doc.ModTime); n != 0 {
+			return n
+		}
+		return cmp.Compare(a.doc.Path, c.doc.Path)
+	})
+	b.WriteString("\nPLAN PROGRESS (newest first; a checked task counts only with `proof: <check> @ <sha>`, where <sha> is the first commit that passes the check and ends the line; when a phase is proven, expand the next one):\n")
+	for _, r := range rows[:min(len(rows), maxPlanProgressLines)] {
+		fmt.Fprintf(b, "  - %s — %s\n", r.doc.Path, planProgressText(r.progress))
+	}
+	if rest := len(rows) - maxPlanProgressLines; rest > 0 {
+		fmt.Fprintf(b, "  … and %d more — list_documents(types=[\"plan\"], status=\"draft\")\n", rest)
+	}
+}
+
+func planProgressText(p docs.PlanProgress) string {
+	var parts []string
+	switch {
+	case p.Phase == "":
+		parts = append(parts, "every task proven; ready for closeout")
+	case p.Total == 0:
+		parts = append(parts, fmt.Sprintf("%q: expand this phase", truncateRunes(p.Phase, maxPlanTextRunes)))
+	default:
+		parts = append(parts, fmt.Sprintf("%q: %d of %d proven", truncateRunes(p.Phase, maxPlanTextRunes), p.Proven, p.Total))
+		if p.Next != "" {
+			parts = append(parts, fmt.Sprintf("next: %q", truncateRunes(p.Next, maxPlanTextRunes)))
+		}
+	}
+	if p.Claimed > 0 {
+		parts = append(parts, fmt.Sprintf("%d checked without a proof in that form", p.Claimed))
+	}
+	if p.Waiting > 0 {
+		parts = append(parts, fmt.Sprintf("waiting on %d", p.Waiting))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func truncateRunes(s string, limit int) string {
+	r := []rune(s)
+	if len(r) <= limit {
+		return s
+	}
+	return string(r[:limit]) + "…"
 }
