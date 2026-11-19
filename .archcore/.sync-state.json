@@ -2607,6 +2607,16 @@
       "source": "release/dependency-release-age.rule.md",
       "target": "update/unattended-update.spec.md",
       "type": "related"
+    },
+    {
+      "source": "plugin/proof-tracked-plans.adr.md",
+      "target": "plugin/plan-discharge-by-deletion.adr.md",
+      "type": "extends"
+    },
+    {
+      "source": "integrations/session-start-context.spec.md",
+      "target": "plugin/proof-tracked-plans.adr.md",
+      "type": "related"
     }
   ]
 }

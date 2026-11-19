@@ -179,6 +179,14 @@ func TestPrecisionFindings(t *testing.T) {
 			wantHit: "step over 20 words",
 		},
 		{
+			name: "proof-tracked task of 17 words after its ID stays under the step limit", docType: templates.TypePlan,
+			fm: templates.Frontmatter{Title: "T", Status: templates.StatusDraft},
+			body: "## Goal\n" + longBody + "\n## Tasks\n### Phase 1: Cache\n" +
+				"1. [ ] T12 Add the cache that moves staged entries into the entries directory and drops each duplicate entry today\n\n" +
+				"   - files: @src/cache.js @test/cache.test.js\n   - done when: `npx mocha test/cache.test.js` passes \"drops a duplicate entry\"\n   - proof: —\n" +
+				"\n## Acceptance Criteria\n- [ ] c\n",
+		},
+		{
 			name: "compound requirement in a rule", docType: templates.TypeRule,
 			fm: templates.Frontmatter{Title: "T", Status: templates.StatusDraft},
 			body: "## Rule\n1. The developer MUST log the error in `cmd/` and MUST NOT retry the request.\n\n" +

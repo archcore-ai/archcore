@@ -5,8 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"archcore-cli/internal/agents"
+	"archcore-cli/internal/docs"
 	"archcore-cli/internal/sync"
 )
 
@@ -211,5 +213,101 @@ func TestBuildSessionContext_MissingGlobalDegradesToLocal(t *testing.T) {
 	}
 	if !strings.Contains(ctx, "../missing/.archcore") {
 		t.Error("warning should cite the declared relative path, not an absolute one")
+	}
+}
+
+func TestBuildSessionContext_PlanProgress(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	tracked := "---\ntitle: Checks\nstatus: draft\n---\n## Tasks\n\n### Phase 1: Cache\n\n1. [x] T1 Add the cache\n\n   - proof: cache test @ e67a927\n\n2. [ ] T2 Add the cap\n\n   - proof: —\n"
+	legacy := "---\ntitle: Old\nstatus: draft\n---\n## Tasks\n\n1. Add the model.\n\n## Acceptance Criteria\n\n- [ ] Criterion 1\n"
+	accepted := strings.Replace(tracked, "status: draft", "status: accepted", 1)
+	for name, body := range map[string]string{"checks.plan.md": tracked, "old.plan.md": legacy, "done.plan.md": accepted} {
+		if err := os.WriteFile(filepath.Join(base, ".archcore", name), []byte(body), 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+	}
+
+	ctx, _ := buildSessionContext(bg(), base)
+
+	if !strings.Contains(ctx, `.archcore/checks.plan.md — "Phase 1: Cache": 1 of 2 proven; next: "T2 Add the cap"`) {
+		t.Errorf("missing progress line for the proof-tracked plan; ctx=%q", ctx)
+	}
+	if !strings.Contains(ctx, "a checked task counts only with `proof: <check> @ <sha>`, where <sha> is the first commit that passes the check and ends the line") {
+		t.Errorf("the block header must name the proof form; ctx=%q", ctx)
+	}
+	if _, block, _ := strings.Cut(ctx, "PLAN PROGRESS"); strings.Contains(block, "old.plan.md") || strings.Contains(block, "done.plan.md") {
+		t.Errorf("a legacy plan must not get a progress line; ctx=%q", ctx)
+	}
+}
+
+func TestBuildSessionContext_PlanProgressCapAndOrder(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i, name := range []string{"a", "b", "c", "d", "e"} {
+		path := filepath.Join(base, ".archcore", name+".plan.md")
+		body := "---\ntitle: " + name + "\nstatus: draft\n---\n## Tasks\n\n1. [ ] T1 Do " + name + "\n"
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+		mtime := start.Add(time.Duration(i) * time.Hour)
+		if name == "e" {
+			mtime = start.Add(3 * time.Hour) // ties with d; the path breaks the tie
+		}
+		if err := os.Chtimes(path, mtime, mtime); err != nil {
+			t.Fatalf("Chtimes: %v", err)
+		}
+	}
+
+	ctx, _ := buildSessionContext(bg(), base)
+
+	_, block, _ := strings.Cut(ctx, "PLAN PROGRESS")
+	d, e, c := strings.Index(block, "d.plan.md"), strings.Index(block, "e.plan.md"), strings.Index(block, "c.plan.md")
+	if d < 0 || e < 0 || c < 0 || d > e || e > c {
+		t.Errorf("want d, e, c newest first; block=%q", block)
+	}
+	if strings.Contains(block, "a.plan.md") || strings.Contains(block, "b.plan.md") {
+		t.Errorf("want only %d lines; block=%q", maxPlanProgressLines, block)
+	}
+	if !strings.Contains(block, "… and 2 more") {
+		t.Errorf("want an overflow line; block=%q", block)
+	}
+}
+
+func TestPlanProgressText(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		in   docs.PlanProgress
+		want string
+	}{
+		{"all proven", docs.PlanProgress{}, "every task proven; ready for closeout"},
+		{"claims and waiting", docs.PlanProgress{Phase: "Phase 1", Total: 2, Claimed: 2, Waiting: 1}, `"Phase 1": 0 of 2 proven; 2 checked without a proof in that form; waiting on 1`},
+		{"unexpanded phase", docs.PlanProgress{Phase: "Phase 2: Index"}, `"Phase 2: Index": expand this phase`},
+		{"quoted and truncated", docs.PlanProgress{Phase: "P\nX", Total: 1, Next: strings.Repeat("é", 130)}, `"P\nX": 0 of 1 proven; next: "` + strings.Repeat("é", 120) + `…"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := planProgressText(tt.in); got != tt.want {
+				t.Errorf("planProgressText = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildSessionContext_NoPlanProgressForLegacyPlans(t *testing.T) {
+	t.Parallel()
+	base := setupArchcoreDir(t)
+	legacy := "---\ntitle: Old\nstatus: draft\n---\n## Tasks\n\n1. Add the model.\n\n## Acceptance Criteria\n\n- [x] Criterion 1\n"
+	if err := os.WriteFile(filepath.Join(base, ".archcore", "old.plan.md"), []byte(legacy), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	ctx, _ := buildSessionContext(bg(), base)
+
+	if strings.Contains(ctx, "PLAN PROGRESS") {
+		t.Errorf("a corpus of legacy plans must render no PLAN PROGRESS block; ctx=%q", ctx)
 	}
 }
